@@ -55,7 +55,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
             using (queues)
             using (var manager = new AdmissionHooks(server.Object))
-            using (var context = CreateContext())
+            using (OperationContext context = CreateContext())
             {
                 AddNodesItem first = manager.CreateItem("First", ReferenceTypeIds.Organizes);
                 (ServiceResult initial, NodeId id) = await manager.AddNodeAsync(context, first).ConfigureAwait(false);
@@ -99,7 +99,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
             using (queues)
             using (var manager = new AdmissionHooks(server.Object) { PauseNextRegistration = true })
-            using (var context = CreateContext())
+            using (OperationContext context = CreateContext())
             {
                 manager.ForcedId = new NodeId(101, manager.NamespaceIndexes[0]);
                 AddNodesItem firstItem = manager.CreateItem("First", ReferenceTypeIds.Organizes);
@@ -150,7 +150,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
             using (queues)
             using (var manager = new AdmissionHooks(server.Object))
-            using (var context = CreateContext())
+            using (OperationContext context = CreateContext())
             {
                 ushort ns = manager.NamespaceIndexes[0];
                 NodeId[] occupied = [new NodeId(101, ns), new NodeId(102, ns), new NodeId(103, ns)];
@@ -206,7 +206,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
             using (queues)
             using (var manager = new AdmissionHooks(server.Object))
-            using (var context = CreateContext())
+            using (OperationContext context = CreateContext())
             {
                 ushort ns = manager.NamespaceIndexes[0];
                 var occupied = new NodeId(101, ns);
@@ -253,29 +253,41 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// Verifies failed or canceled registration releases the ID reservation and its provisional parent child.
+        /// Verifies interrupted registration releases its ID and parent linkage before a retry.
         /// </summary>
-        [TestCase(false, "canceled")]
-        [TestCase(true, "canceled")]
-        [TestCase(false, "service")]
-        [TestCase(true, "service")]
-        [TestCase(false, "exception")]
-        [TestCase(true, "exception")]
-        public async Task InterruptedNodeIdReservationCanBeReusedAsync(bool automatic, string outcome)
+        [TestCase(false, "canceled", true)]
+        [TestCase(true, "canceled", true)]
+        [TestCase(false, "service", true)]
+        [TestCase(true, "service", true)]
+        [TestCase(false, "exception", true)]
+        [TestCase(true, "exception", true)]
+        [TestCase(false, "canceled", false)]
+        [TestCase(true, "canceled", false)]
+        [TestCase(false, "service", false)]
+        [TestCase(true, "service", false)]
+        [TestCase(false, "exception", false)]
+        [TestCase(true, "exception", false)]
+        public async Task InterruptedNodeIdReservationCanBeReusedAsync(
+            bool automatic,
+            string outcome,
+            bool localParent)
         {
             Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
             using (queues)
             using (var manager = new AdmissionHooks(server.Object))
-            using (var context = CreateContext())
+            using (OperationContext context = CreateContext())
             using (var cancellation = new CancellationTokenSource())
             {
                 ushort ns = manager.NamespaceIndexes[0];
                 var parent = new BaseObjectState(null)
                 {
-                    NodeId = new NodeId(100, ns),
+                    NodeId = localParent ? new NodeId(100, ns) : ObjectIds.ObjectsFolder,
                     BrowseName = new QualifiedName("Parent", ns)
                 };
-                await manager.RegisterAsync(parent).ConfigureAwait(false);
+                if (localParent)
+                {
+                    await manager.RegisterAsync(parent).ConfigureAwait(false);
+                }
                 manager.PauseNextRegistration = true;
                 manager.ForcedId = new NodeId(101, ns);
                 AddNodesItem item = manager.CreateItem("Child", ReferenceTypeIds.HasComponent);
@@ -329,8 +341,18 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         }
                     }
 
-                    Assert.That(manager.NodeCount, Is.EqualTo(1));
-                    Assert.That(parent.FindChild(manager.SystemContext, item.BrowseName), Is.Null);
+                    Assert.That(manager.NodeCount, Is.EqualTo(localParent ? 1 : 0));
+                    var children = new List<BaseInstanceState>();
+                    if (localParent)
+                    {
+                        Assert.That(parent.FindChild(manager.SystemContext, item.BrowseName), Is.Null);
+                        parent.GetChildren(manager.SystemContext, children);
+                        Assert.That(children, Is.Empty);
+                    }
+                    Mock.Get(server.Object.NodeManager).Verify(
+                        value => value.AddReferencesAsync(
+                            parent.NodeId, It.IsAny<IList<IReference>>(), It.IsAny<CancellationToken>()),
+                        Times.Never);
                     manager.RegistrationFailure = null;
                     item.RequestedNewNodeId = manager.ForcedId;
                     (ServiceResult retried, NodeId retriedId) =
@@ -338,12 +360,30 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
                     Assert.That(retried.StatusCode, Is.EqualTo(StatusCodes.Good));
                     Assert.That(retriedId, Is.EqualTo(manager.ForcedId));
-                    Assert.That(parent.FindChild(manager.SystemContext, item.BrowseName),
-                        Is.SameAs(manager.GetNode(retriedId)));
+                    Assert.That(manager.NodeCount, Is.EqualTo(localParent ? 2 : 1));
+                    if (localParent)
+                    {
+                        Assert.That(parent.FindChild(manager.SystemContext, item.BrowseName),
+                            Is.SameAs(manager.GetNode(retriedId)));
+                        parent.GetChildren(manager.SystemContext, children);
+                        Assert.That(children, Has.Count.EqualTo(1));
+                        Assert.That(children[0], Is.SameAs(manager.GetNode(retriedId)));
+                    }
+                    else
+                    {
+                        Assert.That(manager.GetNode(retriedId).ReferenceExists(
+                            item.ReferenceTypeId, true, parent.NodeId), Is.True);
+                    }
                     Mock.Get(server.Object.NodeManager).Verify(
                         value => value.AddReferencesAsync(
-                            parent.NodeId, It.IsAny<IList<IReference>>(), It.IsAny<CancellationToken>()),
-                        Times.Once);
+                            parent.NodeId,
+                            It.Is<IList<IReference>>(references =>
+                                references.Count == 1 &&
+                                references[0].ReferenceTypeId == item.ReferenceTypeId &&
+                                !references[0].IsInverse &&
+                                references[0].TargetId == (ExpandedNodeId)retriedId),
+                            It.IsAny<CancellationToken>()),
+                        localParent ? Times.Never() : Times.Once());
                 }
                 finally
                 {
@@ -376,7 +416,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
             using (queues)
             using (var manager = new AdmissionHooks(server.Object))
-            using (var context = CreateContext())
+            using (OperationContext context = CreateContext())
             {
                 (ServiceResult status, NodeId id) = await manager.AddNodeAsync(
                     context, manager.CreateItem("First", ReferenceTypeIds.Organizes)).ConfigureAwait(false);
@@ -457,7 +497,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     ParentNodeId = ObjectIds.ObjectsFolder,
                     ReferenceTypeId = referenceType,
                     BrowseName = new QualifiedName(name, NamespaceIndexes[0]),
-                    NodeClass = NodeClass.Object
+                    NodeClass = NodeClass.Object,
+                    TypeDefinition = ObjectTypeIds.BaseObjectType
                 };
             }
 

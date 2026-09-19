@@ -235,7 +235,7 @@ namespace Opc.Ua.Server
             m_configuration = configuration;
             m_namespaceMetadata = new NamespaceMetadataRegistry(this, m_logger);
             m_alarmScheduler = new CertificateAlarmScheduler(
-                m_timeProvider, m_logger, () => m_configuration.CertificateManager as ICertificateRegistry);
+                m_timeProvider, m_logger, () => m_configuration.CertificateManager);
             // TODO: configure cert groups in configuration
             var defaultApplicationGroup = new ServerCertificateGroup
             {
@@ -516,6 +516,10 @@ namespace Opc.Ua.Server
             {
                 await MaterializeRegisteredAliasNameNodesAsync(externalReferences, cancellationToken)
                     .ConfigureAwait(false);
+                if (m_aliasNameOptions.RefreshAliasNodesOnChange)
+                {
+                    EnableAliasNameRefresh();
+                }
             }
 
             await CreateCertificateAlarmsAsync(
@@ -695,10 +699,7 @@ namespace Opc.Ua.Server
             configNode.GetCertificates!.OnCall
                 = new GetCertificatesMethodStateMethodCallHandler(
                 GetCertificates);
-            if (configNode.SupportsTransactions != null)
-            {
-                configNode.SupportsTransactions.Value = true;
-            }
+            configNode.SupportsTransactions?.Value = true;
 
             ConfigureOptionalServerConfigurationSurface(systemContext, configNode, configuration);
 
@@ -780,22 +781,13 @@ namespace Opc.Ua.Server
             ServerConfigurationState configNode,
             ApplicationConfiguration configuration)
         {
-            if (configNode.ApplicationUri != null)
-            {
-                configNode.ApplicationUri.Value = configuration.ApplicationUri ?? string.Empty;
-            }
-            if (configNode.ProductUri != null)
-            {
-                configNode.ProductUri.Value = configuration.ProductUri ?? string.Empty;
-            }
-            if (configNode.ApplicationType != null)
-            {
-                configNode.ApplicationType.Value = configuration.ApplicationType;
-            }
+            configNode.ApplicationUri?.Value = configuration.ApplicationUri ?? string.Empty;
+            configNode.ProductUri?.Value = configuration.ProductUri ?? string.Empty;
+            configNode.ApplicationType?.Value = configuration.ApplicationType;
             if (configNode.ApplicationNames != null)
             {
                 configNode.ApplicationNames.Value = string.IsNullOrEmpty(configuration.ApplicationName)
-                    ? ArrayOf<LocalizedText>.Empty
+                    ? []
                     : ArrayOf.Wrapped(new LocalizedText(configuration.ApplicationName));
                 configNode.ApplicationNames.ValueRank = ValueRanks.OneDimension;
             }
@@ -848,34 +840,13 @@ namespace Opc.Ua.Server
                 m_timeProvider,
                 m_serverConfigurationOptions.ConfigurationFileActivityTimeout);
 
-            if (fileNode.ActivityTimeout != null)
-            {
-                fileNode.ActivityTimeout.Value = m_serverConfigurationOptions.ConfigurationFileActivityTimeout;
-            }
-            if (fileNode.CurrentVersion != null)
-            {
-                fileNode.CurrentVersion.Value = fileProvider.CurrentVersion;
-            }
-            if (fileNode.LastUpdateTime != null)
-            {
-                fileNode.LastUpdateTime.Value = new DateTimeUtc(fileProvider.LastUpdateTime);
-            }
-            if (fileNode.SupportedDataType != null)
-            {
-                fileNode.SupportedDataType.Value = DataTypeIds.ApplicationConfigurationDataType;
-            }
-            if (fileNode.Writable != null)
-            {
-                fileNode.Writable.Value = true;
-            }
-            if (fileNode.UserWritable != null)
-            {
-                fileNode.UserWritable.Value = true;
-            }
-            if (fileNode.OpenCount != null)
-            {
-                fileNode.OpenCount.Value = 0;
-            }
+            fileNode.ActivityTimeout?.Value = m_serverConfigurationOptions.ConfigurationFileActivityTimeout;
+            fileNode.CurrentVersion?.Value = fileProvider.CurrentVersion;
+            fileNode.LastUpdateTime?.Value = new DateTimeUtc(fileProvider.LastUpdateTime);
+            fileNode.SupportedDataType?.Value = DataTypeIds.ApplicationConfigurationDataType;
+            fileNode.Writable?.Value = true;
+            fileNode.UserWritable?.Value = true;
+            fileNode.OpenCount?.Value = 0;
 
             fileNode.ClearChangeMasks(systemContext, true);
         }
@@ -1049,7 +1020,7 @@ namespace Opc.Ua.Server
                 // Result status is Bad_InvalidState while a transaction is in
                 // flight; once completed the status is Good and the value is
                 // the ApplyChanges/CancelChanges outcome StatusCode.
-                diagnosticsNode.Result.Value = active ? (StatusCode)StatusCodes.Good : snapshot.Result;
+                diagnosticsNode.Result.Value = active ? StatusCodes.Good : snapshot.Result;
                 diagnosticsNode.Result.StatusCode = active ? StatusCodes.BadInvalidState : StatusCodes.Good;
                 diagnosticsNode.Result.Timestamp = now;
             }

@@ -62,6 +62,13 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Inserts a batch of values atomically.
         /// </summary>
+        /// <param name="context">The operation context and default modification metadata.</param>
+        /// <param name="nodeId">The historizing variable.</param>
+        /// <param name="values">Values to insert atomically, in request order.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>
+        /// One status per value and a rollback flag; success statuses require the entire batch to commit.
+        /// </returns>
         ValueTask<HistorianUpdateOutcome<DataValue>> InsertAtomicAsync(
             HistorianOperationContext context,
             NodeId nodeId,
@@ -71,6 +78,13 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Replaces a batch of values atomically.
         /// </summary>
+        /// <param name="context">The operation context and default modification metadata.</param>
+        /// <param name="nodeId">The historizing variable.</param>
+        /// <param name="values">Replacement values, in request order.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>
+        /// Per-value statuses, replaced prior values on success, and whether the batch was rolled back.
+        /// </returns>
         ValueTask<HistorianUpdateOutcome<DataValue>> ReplaceAtomicAsync(
             HistorianOperationContext context,
             NodeId nodeId,
@@ -80,6 +94,13 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Upserts a batch of values atomically.
         /// </summary>
+        /// <param name="context">The operation context and default modification metadata.</param>
+        /// <param name="nodeId">The historizing variable.</param>
+        /// <param name="values">Values to insert or replace atomically, in request order.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>
+        /// Per-value statuses, replaced prior values on success, and whether the batch was rolled back.
+        /// </returns>
         ValueTask<HistorianUpdateOutcome<DataValue>> UpdateAtomicAsync(
             HistorianOperationContext context,
             NodeId nodeId,

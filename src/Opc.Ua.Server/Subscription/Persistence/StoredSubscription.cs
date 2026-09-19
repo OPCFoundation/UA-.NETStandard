@@ -32,7 +32,7 @@ using System.Collections.Generic;
 namespace Opc.Ua.Server
 {
     /// <inheritdoc/>
-    public class StoredSubscription : IStoredSubscription
+    public class StoredSubscription : IStoredSubscriptionState
     {
         /// <inheritdoc/>
         public uint Id { get; set; }
@@ -66,6 +66,12 @@ namespace Opc.Ua.Server
 
         /// <inheritdoc/>
         public bool IsDurable { get; set; }
+
+        /// <inheritdoc/>
+        public bool PublishingEnabled { get; set; } = true;
+
+        /// <inheritdoc/>
+        public string? OwnerClientApplicationUri { get; set; }
 
         /// <inheritdoc/>
         public uint SequenceNumber { get; set; }

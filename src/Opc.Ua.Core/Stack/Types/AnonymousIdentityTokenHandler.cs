@@ -124,7 +124,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public object Clone()
         {
-            return new AnonymousIdentityTokenHandler(m_token);
+            return new AnonymousIdentityTokenHandler(CoreUtils.Clone(m_token));
         }
 
         /// <inheritdoc/>

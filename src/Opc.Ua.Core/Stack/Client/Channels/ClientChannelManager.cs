@@ -534,12 +534,11 @@ namespace Opc.Ua
             SecurityPolicyRegistry = securityPolicies;
             m_options = options ?? new ChannelManagerOptions();
             m_diagnostics = new ClientChannelManagerDiagnostics(
-                TelemetryExtensions.CreateLogger(
-                    telemetry,
+                telemetry.CreateLogger(
                     CoreEventIds.ChannelManagerCompatibilityCategory));
             if (enableGeneralTelemetry)
             {
-                Logger = TelemetryExtensions.CreateLogger<ClientChannelManager>(telemetry);
+                Logger = telemetry.CreateLogger<ClientChannelManager>();
                 m_meter = telemetry?.CreateMeter();
                 m_metrics = m_meter != null
                     ? new ClientChannelManagerMetrics(this, m_meter)
@@ -760,33 +759,6 @@ namespace Opc.Ua
                     return new ClientChannelCertificateSnapshot(
                         m_clientCertificate, m_clientCertificateChain, m_clientCertificateVersion);
                 }
-            }
-        }
-
-        /// <summary>
-        /// AsyncLocal flag set by the manager around participant
-        /// reactivation calls. When non-zero, the channel wrapper's
-        /// <see cref="ITransportChannel.SendRequestAsync"/> bypasses the
-        /// ready-state gate so that session-service requests
-        /// (ActivateSession, CreateSession, etc.) can complete while the
-        /// channel is in
-        /// <see cref="ChannelState.TransportConnectedSessionReactivating"/>.
-        /// </summary>
-        internal static readonly AsyncLocal<int> s_reactivationDepth = new();
-
-        internal static bool IsReactivationInProgress => s_reactivationDepth.Value > 0;
-
-        internal static IDisposable EnterReactivationScope()
-        {
-            s_reactivationDepth.Value++;
-            return new ReactivationScope();
-        }
-
-        private sealed class ReactivationScope : IDisposable
-        {
-            public void Dispose()
-            {
-                s_reactivationDepth.Value--;
             }
         }
 
@@ -1042,9 +1014,16 @@ namespace Opc.Ua
                 {
                     if (created)
                     {
-                        await entry.OpenInitialAsync(
-                            certificates.Certificate, certificates.Chain, certificates.Version, ct)
-                            .ConfigureAwait(false);
+                        Task opening = entry.OpenInitialAsync(
+                            certificates.Certificate,
+                            certificates.Chain,
+                            certificates.Version,
+                            m_shutdownCts.Token);
+                        if (!BackgroundWork.Run("OpenChannel", async _ => await opening.ConfigureAwait(false)))
+                        {
+                            await opening.ConfigureAwait(false);
+                        }
+                        await opening.WaitAsync(ct).ConfigureAwait(false);
                     }
                     return entry.AcquireLease(participantFactory);
                 }
@@ -1063,9 +1042,16 @@ namespace Opc.Ua
                     {
                         lock (m_entries)
                         {
-                            m_entries.Remove(key);
+                            if (m_entries.TryGetValue(key, out ChannelEntry? current) &&
+                                ReferenceEquals(current, entry))
+                            {
+                                m_entries.Remove(key);
+                            }
                         }
-                        await entry.DisposeAsync().ConfigureAwait(false);
+                        if (entry.RefCount == 0)
+                        {
+                            await entry.DisposeAsync().ConfigureAwait(false);
+                        }
                     }
                     throw;
                 }
@@ -1104,6 +1090,7 @@ namespace Opc.Ua
         /// </summary>
         private readonly Dictionary<ManagedChannelKey, ChannelEntry> m_entries = [];
         private readonly Lock m_certLock = new();
+        private readonly Dictionary<NodeId, ClientChannelCertificateSnapshot> m_certificatesByType = [];
         private readonly ChannelManagerOptions m_options;
         private Certificate? m_clientCertificate;
         private CertificateCollection? m_clientCertificateChain;
@@ -1128,6 +1115,11 @@ namespace Opc.Ua
                 clientCertificateChain = m_clientCertificateChain;
                 m_clientCertificate = null;
                 m_clientCertificateChain = null;
+                foreach (ClientChannelCertificateSnapshot certificate in m_certificatesByType.Values)
+                {
+                    certificate.Dispose();
+                }
+                m_certificatesByType.Clear();
             }
             clientCertificate?.Dispose();
             clientCertificateChain?.Dispose();
@@ -1268,6 +1260,20 @@ namespace Opc.Ua
                 {
                     m_clientCertificateVersion++;
                 }
+                if (clientCertificate != null)
+                {
+                    NodeId type = CertificateIdentifier.GetCertificateType(clientCertificate);
+                    if (!type.IsNull)
+                    {
+                        var replacement = new ClientChannelCertificateSnapshot(
+                            clientCertificate, clientCertificateChain, m_clientCertificateVersion);
+                        if (m_certificatesByType.TryGetValue(type, out ClientChannelCertificateSnapshot? previous))
+                        {
+                            previous.Dispose();
+                        }
+                        m_certificatesByType[type] = replacement;
+                    }
+                }
                 m_clientCertificate = clientCertificate;
                 m_clientCertificateChain = clientCertificateChain;
             }
@@ -1317,29 +1323,29 @@ namespace Opc.Ua
             return CurrentClientCertificateSnapshot;
         }
 
-        /// <summary>
-        /// Creates a transport using certificate handles already retained by its owning channel entry.
-        /// </summary>
-        ValueTask<ITransportChannel> IChannelEntryHost.CreateChannelAsync(
-            ConfiguredEndpoint endpoint,
-            Certificate? clientCertificate,
-            CertificateCollection? clientCertificateChain,
-            ITransportWaitingConnection? reverseConnection,
-            CancellationToken ct)
+        /// <inheritdoc/>
+        ClientChannelCertificateSnapshot IChannelEntryHost.SnapshotClientCertificate(
+            ClientChannelCertificateSnapshot current)
         {
-            IServiceMessageContext context = Configuration.CreateMessageContext();
-
-            // The entry already owns a per-transport snapshot, distinct from the manager's handles.
-            // It also releases these handles when a custom transport does not own its settings.
-            return CreateChannelAsync(
-                endpoint,
-                context,
-                clientCertificate,
-                clientCertificateChain,
-                reverseConnection,
-                ct);
+            lock (m_certLock)
+            {
+                ThrowIfDisposed();
+                if (current.Certificate != null &&
+                    m_certificatesByType.TryGetValue(
+                        CertificateIdentifier.GetCertificateType(current.Certificate),
+                        out ClientChannelCertificateSnapshot? replacement) &&
+                    replacement.Version > current.Version)
+                {
+                    return new ClientChannelCertificateSnapshot(
+                        replacement.Certificate, replacement.Chain, replacement.Version);
+                }
+                return new ClientChannelCertificateSnapshot(current.Certificate, current.Chain, current.Version);
+            }
         }
 
+        /// <summary>
+        /// Starts a trace for the entry's reconnect cycle.
+        /// </summary>
         Activity? IChannelEntryHost.StartReconnectActivity(ChannelEntry entry)
         {
             return m_diagnostics.StartReconnectActivity(entry);

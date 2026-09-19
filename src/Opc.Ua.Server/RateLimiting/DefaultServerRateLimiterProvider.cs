@@ -68,8 +68,12 @@ namespace Opc.Ua.Server
             if (options.Enabled && options.ConnectionRateLimitEnabled)
             {
                 ConnectionRateLimiter = new TokenBucketConnectionRateLimiter(
-                    options.ConnectionsPerSecond,
-                    options.ConnectionBurst);
+                    options.ConnectionsPerSecond > 0
+                        ? options.ConnectionsPerSecond
+                        : ServerRateLimitOptions.DefaultConnectionsPerSecond,
+                    options.ConnectionBurst > 0
+                        ? options.ConnectionBurst
+                        : ServerRateLimitOptions.DefaultConnectionBurst);
             }
 
             if (options.Enabled && options.SessionRateLimitEnabled)

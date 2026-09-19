@@ -186,6 +186,15 @@ an `ISession` facade that wraps a raw `Session` and adds:
 - A **server-redundancy handler** (`IServerRedundancyHandler`,
   default: `DefaultServerRedundancyHandler`) that reads the server's
   `ServerRedundancy` object and can fail over to a backup endpoint.
+  Refresh is best effort and bounded to two seconds at connect, reconnect,
+  and failover. A failed or unresponsive refresh retains the previous
+  snapshot, so an unavailable primary cannot prevent selecting a cached
+  backup. A provider that ignores cancellation is still observed, and no
+  overlapping refresh is started while it remains in flight.
+  The default handler can resolve cached peer URIs even when the primary is
+  unavailable, and invalidates a peer's cached endpoint after failed failover.
+  Certificate-validation reconnect failures refresh endpoint discovery before
+  recreating the session; normal certificate trust validation still applies.
 - A **service gate** (`m_serviceLock`) that pauses caller-issued service
   calls (Read/Write/Browse/Call/...) for the duration of a reconnect or
   failover, so consumers see one transparent retry rather than a torn
@@ -228,6 +237,29 @@ session.
 Callers that want to give up sooner than the policy does should cap the policy
 (`MaxRetries`, `MaxTotalReconnectTime`) or pass a cancellation token, which
 surfaces as an `OperationCanceledException`.
+
+### Recovery after an established connection is exhausted
+
+An established session keeps its identity and subscriptions when a reconnect
+cycle and failover are exhausted. It reports `Disconnected` and the last error,
+then starts a fresh bounded cycle after the policy's maximum backoff (at least
+one second). Closing or disposing the session cancels this recovery timer.
+This does not restart failed initial connections: `CreateAsync` still fails as
+described above.
+
+`ReconnectAsync` explicitly re-arms the state machine instead of waiting at the
+ordinary service gate. An explicitly supplied channel or reverse connection is
+used by the next attempt; concurrent ordinary reconnect requests join the active
+cycle. Certificate reload and identity/locale updates also use the exclusive
+control path, so callers can repair credentials before requesting recovery:
+
+```csharp
+await session.ReloadInstanceCertificateAsync(ct);
+await session.ReconnectAsync(connection: null, channel: null, ct);
+```
+
+Cancellation stops a caller's wait; the managed state machine still owns ongoing
+automatic recovery until the session is closed.
 
 ### `ManagedSessionFactory`
 

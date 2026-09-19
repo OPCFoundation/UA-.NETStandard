@@ -29,6 +29,11 @@
 
 #nullable enable
 
+using System;
+using System.Buffers.Binary;
+using System.Security.Cryptography;
+using System.Text;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Redundancy;
 
@@ -69,8 +74,8 @@ namespace Opc.Ua.Core.Tests.Redundancy
             using var active = new AesCbcHmacRecordProtector(s_masterKeyA, keyId: 1);
             using var ring = new KeyRingRecordProtector(active, null!);
 
-            ByteString envelope = ring.Protect(s_plaintext);
-            bool ok = ring.TryUnprotect(envelope, out ByteString recovered);
+            ByteString envelope = ring.Protect(default, s_plaintext);
+            bool ok = ring.TryUnprotect(default, envelope, out ByteString recovered);
 
             Assert.That(ok, Is.True);
             Assert.That(recovered.ToArray(), Is.EqualTo(s_plaintext.ToArray()));
@@ -82,8 +87,8 @@ namespace Opc.Ua.Core.Tests.Redundancy
             using var active = new AesCbcHmacRecordProtector(s_masterKeyA, keyId: 1);
             using var ring = new KeyRingRecordProtector(active);
 
-            ByteString envelope = ring.Protect(s_plaintext);
-            bool ok = ring.TryUnprotect(envelope, out ByteString recovered);
+            ByteString envelope = ring.Protect(default, s_plaintext);
+            bool ok = ring.TryUnprotect(default, envelope, out ByteString recovered);
 
             Assert.That(ok, Is.True);
             Assert.That(recovered.ToArray(), Is.EqualTo(s_plaintext.ToArray()));
@@ -96,12 +101,12 @@ namespace Opc.Ua.Core.Tests.Redundancy
             using var activeKey = new AesCbcHmacRecordProtector(s_masterKeyB, keyId: 2);
 
             // A record produced before rotation, under the now-retired key.
-            ByteString legacyEnvelope = retiredKey.Protect(s_plaintext);
+            ByteString legacyEnvelope = retiredKey.Protect(default, s_plaintext);
 
             IRecordProtector[] retired = [retiredKey];
             using var ring = new KeyRingRecordProtector(activeKey, retired);
 
-            bool ok = ring.TryUnprotect(legacyEnvelope, out ByteString recovered);
+            bool ok = ring.TryUnprotect(default, legacyEnvelope, out ByteString recovered);
 
             Assert.That(ok, Is.True);
             Assert.That(recovered.ToArray(), Is.EqualTo(s_plaintext.ToArray()));
@@ -111,15 +116,284 @@ namespace Opc.Ua.Core.Tests.Redundancy
         public void UnprotectReturnsFalseForRecordFromUnknownKey()
         {
             using var stranger = new AesCbcHmacRecordProtector(CreateKey(0xCC), keyId: 9);
-            ByteString foreignEnvelope = stranger.Protect(s_plaintext);
+            ByteString foreignEnvelope = stranger.Protect(default, s_plaintext);
 
             using var active = new AesCbcHmacRecordProtector(s_masterKeyA, keyId: 1);
             using var ring = new KeyRingRecordProtector(active);
 
-            bool ok = ring.TryUnprotect(foreignEnvelope, out ByteString recovered);
+            bool ok = ring.TryUnprotect(default, foreignEnvelope, out ByteString recovered);
 
             Assert.That(ok, Is.False);
             Assert.That(recovered.IsNull, Is.True);
+        }
+
+        [Test]
+        public void OwnedContextRejectionDoesNotUseImmutableFallback()
+        {
+            var member = new Mock<IOwnedRecordProtector>();
+            byte[] rejected = [];
+            ByteString unbound = s_plaintext;
+            member.Setup(value => value.TryUnprotectOwned(
+                    It.IsAny<ByteString>(), It.IsAny<ByteString>(), out rejected))
+                .Returns(false);
+            member.Setup(value => value.TryUnprotect(It.IsAny<ByteString>(), It.IsAny<ByteString>(), out unbound))
+                .Returns(true);
+            using var ring = new KeyRingRecordProtector(member.Object);
+
+            bool accepted = ring.TryUnprotectOwned(
+                ByteString.From(new byte[] { 1 }), s_plaintext, out byte[] recovered);
+
+            Assert.That(accepted, Is.False);
+            Assert.That(recovered, Is.Empty);
+            member.Verify(value => value.TryUnprotect(
+                It.IsAny<ByteString>(), It.IsAny<ByteString>(), out unbound), Times.Never);
+        }
+
+        [Test]
+        public void StringContextExtensionsUseCanonicalUtf8Bytes()
+        {
+            using var protector = new AesCbcHmacRecordProtector(s_masterKeyA);
+            const string context = "record|store/\u00E9";
+            var contextBytes = ByteString.From(Encoding.UTF8.GetBytes(context));
+            ByteString record = protector.Protect(context, s_plaintext);
+            Assert.That(protector.TryUnprotect(contextBytes, record, out ByteString plaintext), Is.True);
+            Assert.That(plaintext, Is.EqualTo(s_plaintext));
+            Assert.That(protector.TryUnprotect(context, record, out plaintext), Is.True);
+            Assert.That(plaintext, Is.EqualTo(s_plaintext));
+            Assert.That(protector.TryUnprotectOwned(context, record, out byte[] owned), Is.True);
+            try
+            {
+                Assert.That(owned, Is.EqualTo(s_plaintext.ToArray()));
+            }
+            finally
+            {
+                CryptoUtils.ZeroMemory(owned);
+            }
+
+            ByteString emptyContextRecord = protector.Protect(null, s_plaintext);
+            Assert.That(protector.TryUnprotect(ByteString.Empty, emptyContextRecord, out plaintext), Is.True);
+            Assert.That(plaintext, Is.EqualTo(s_plaintext));
+            Assert.That(protector.TryUnprotect(string.Empty, emptyContextRecord, out plaintext), Is.True);
+            Assert.That(plaintext, Is.EqualTo(s_plaintext));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void OwnedContextReadAuthenticatesActiveAndRetiredRecords(bool useRetiredKey)
+        {
+            using var active = new AesCbcHmacRecordProtector(s_masterKeyA, keyId: 1);
+            using var retired = new AesCbcHmacRecordProtector(s_masterKeyB, keyId: 2);
+            using var ring = new KeyRingRecordProtector(active, retired);
+            var context = ByteString.From(new byte[] { 1, 2, 3 });
+            var wrongContext = ByteString.From(new byte[] { 1, 2, 4 });
+            ByteString record = (useRetiredKey ? retired : active).Protect(context, s_plaintext);
+
+            Assert.That(ring.TryUnprotectOwned(context, record, out byte[] recovered), Is.True);
+            Assert.That(recovered, Is.EqualTo(s_plaintext.ToArray()));
+            recovered[0] = 0;
+            Assert.That(ring.TryUnprotect(context, record, out ByteString secondRead), Is.True);
+            Assert.That(secondRead.ToArray(), Is.EqualTo(s_plaintext.ToArray()));
+            Assert.That(ring.TryUnprotectOwned(wrongContext, record, out byte[] rejected), Is.False);
+            Assert.That(rejected, Is.Empty);
+        }
+
+        [Test]
+        public void OwnedContextReadTransfersOriginalMemberBuffer(
+            [Values] bool useRetiredMember,
+            [Values] bool textContext)
+        {
+            var context = ByteString.From(new byte[] { 1, 2, 3 });
+            byte[] owned = s_plaintext.ToArray();
+            var unowned = ByteString.From(owned);
+            var member = new Mock<IOwnedRecordProtector>(MockBehavior.Strict);
+            member.Setup(value => value.TryUnprotect(context, s_plaintext, out unowned)).Returns(true);
+            member.Setup(value => value.TryUnprotectOwned(context, s_plaintext, out owned)).Returns(true);
+            using var active = new AesCbcHmacRecordProtector(s_masterKeyA);
+            using KeyRingRecordProtector ring = useRetiredMember
+                ? new KeyRingRecordProtector(active, member.Object)
+                : new KeyRingRecordProtector(member.Object);
+
+            try
+            {
+                bool accepted = textContext
+                    ? ring.TryUnprotectOwned("\u0001\u0002\u0003", s_plaintext, out byte[] actual)
+                    : ring.TryUnprotectOwned(context, s_plaintext, out actual);
+                Assert.That(accepted, Is.True);
+                Assert.That(actual, Is.SameAs(owned), "The decrypted buffer must be transferred, never copied.");
+                member.Verify(value => value.TryUnprotect(context, s_plaintext, out unowned), Times.Never);
+                CryptoUtils.ZeroMemory(actual);
+                Assert.That(owned, Is.All.Zero);
+            }
+            finally
+            {
+                CryptoUtils.ZeroMemory(owned);
+            }
+        }
+
+        [Test]
+        public void OwnedReadRejectsMemberWithoutOwnedCapability()
+        {
+            var member = new Mock<IRecordProtector>();
+            using var ring = new KeyRingRecordProtector(member.Object);
+
+            Assert.That(
+                () => ring.TryUnprotectOwned(default, s_plaintext, out _),
+                Throws.TypeOf<NotSupportedException>());
+            member.Verify(value => value.TryUnprotect(
+                It.IsAny<ByteString>(), It.IsAny<ByteString>(), out It.Ref<ByteString>.IsAny), Times.Never);
+        }
+
+        [Test]
+        public void NullAndEmptyContextsAreCanonical(
+            [Values] bool writeNull,
+            [Values] bool readNull,
+            [Values] bool useRetiredKey)
+        {
+            using var active = new AesCbcHmacRecordProtector(s_masterKeyA, keyId: 1);
+            using var retired = new AesCbcHmacRecordProtector(s_masterKeyB, keyId: 2);
+            using var ring = new KeyRingRecordProtector(active, retired);
+            ByteString writeContext = writeNull ? default : ByteString.Empty;
+            ByteString readContext = readNull ? default : ByteString.Empty;
+            ByteString record = (useRetiredKey ? retired : active).Protect(writeContext, s_plaintext);
+
+            Assert.That(ring.TryUnprotect(readContext, record, out ByteString recovered), Is.True);
+            Assert.That(recovered, Is.EqualTo(s_plaintext));
+            Assert.That(ring.TryUnprotectOwned(readContext, record, out byte[] owned), Is.True);
+            try
+            {
+                Assert.That(owned, Is.EqualTo(s_plaintext.ToArray()));
+                Assert.That(ring.TryUnprotect("nonempty", record, out ByteString rejected), Is.False);
+                Assert.That(rejected.IsNull, Is.True);
+                Assert.That(ring.TryUnprotectOwned(
+                    ByteString.From(new byte[] { 1 }), record, out byte[] rejectedOwned), Is.False);
+                Assert.That(rejectedOwned, Is.Empty);
+            }
+            finally
+            {
+                CryptoUtils.ZeroMemory(owned);
+            }
+        }
+
+        [Test]
+        public void NullAndEmptyPlaintextProduceAuthenticatedEmptyRecords([Values] bool nullPlaintext)
+        {
+            using var protector = new AesCbcHmacRecordProtector(s_masterKeyA);
+            ByteString plaintext = nullPlaintext ? default : ByteString.Empty;
+            ByteString record = protector.Protect(s_plaintext, plaintext);
+
+            Assert.That(record.Length, Is.EqualTo(69), "Empty plaintext still has one padded AES block.");
+            Assert.That(protector.TryUnprotect(s_plaintext, record, out ByteString recovered), Is.True);
+            Assert.That(recovered.IsNull, Is.False);
+            Assert.That(recovered.IsEmpty, Is.True);
+            Assert.That(protector.TryUnprotectOwned(s_plaintext, record, out byte[] owned), Is.True);
+            Assert.That(owned, Is.Empty);
+            Assert.That(protector.TryUnprotect(s_plaintext, default, out _), Is.False);
+            Assert.That(protector.TryUnprotect(s_plaintext, ByteString.Empty, out _), Is.False);
+        }
+
+        [Test]
+        public void ActiveAndRetiredRecordsRejectTampering(
+            [Values] bool useRetiredKey,
+            [Values(0, 1, 5, 21, 68)] int changedByte)
+        {
+            using var active = new AesCbcHmacRecordProtector(s_masterKeyA, keyId: 1);
+            using var retired = new AesCbcHmacRecordProtector(s_masterKeyB, keyId: 2);
+            using var ring = new KeyRingRecordProtector(active, retired);
+            byte[] record = (useRetiredKey ? retired : active).Protect(s_plaintext, s_plaintext).ToArray();
+            record[changedByte] ^= 0x80;
+
+            Assert.That(ring.TryUnprotect(s_plaintext, ByteString.From(record), out ByteString plaintext), Is.False);
+            Assert.That(plaintext.IsNull, Is.True);
+            Assert.That(ring.TryUnprotectOwned(s_plaintext, ByteString.From(record), out byte[] owned), Is.False);
+            Assert.That(owned, Is.Empty);
+        }
+
+        [Test]
+        public void EnvelopeMacAuthenticatesCanonicalLengthPrefixedContext([Values] bool emptyContext)
+        {
+            using var protector = new AesCbcHmacRecordProtector(s_masterKeyA, keyId: 0x01020304);
+            ByteString context = emptyContext ? default : s_plaintext;
+            ByteString record = protector.Protect(context, s_plaintext);
+            Assert.That(record.Length, Is.EqualTo(69));
+            Assert.That(record[0], Is.EqualTo(1));
+            Assert.That(BinaryPrimitives.ReadUInt32LittleEndian(record.Span[1..]), Is.EqualTo(0x01020304));
+
+            using var derivation = new HMACSHA256(s_masterKeyA);
+            byte[] macKey = derivation.ComputeHash(Encoding.ASCII.GetBytes("OpcUaDistributed-HMAC-SHA256"));
+            try
+            {
+                const int tagLength = 32;
+                int authenticatedLength = record.Length - tagLength;
+                byte[] authenticated = new byte[sizeof(int) + context.Length + authenticatedLength];
+                BinaryPrimitives.WriteInt32LittleEndian(authenticated, context.Length);
+                context.Span.CopyTo(authenticated.AsSpan(sizeof(int)));
+                record.Span[..authenticatedLength].CopyTo(authenticated.AsSpan(sizeof(int) + context.Length));
+                using var hmac = new HMACSHA256(macKey);
+                Assert.That(hmac.ComputeHash(authenticated), Is.EqualTo(record.Span[authenticatedLength..].ToArray()));
+            }
+            finally
+            {
+                CryptoUtils.ZeroMemory(macKey);
+            }
+        }
+
+        [Test]
+        public void StoreContextsBindFullKeyAndRecordType()
+        {
+            using var protector = new AesCbcHmacRecordProtector(s_masterKeyA);
+            ByteString context = RecordProtectionContext.Create("value", "site/a|b");
+            Assert.That(context.ToArray(), Is.EqualTo(Encoding.UTF8.GetBytes("value|site/a|b")));
+            ByteString record = protector.Protect(context, s_plaintext);
+
+            Assert.That(protector.TryUnprotect(
+                RecordProtectionContext.Create("value", "site/a|b"), record, out ByteString plaintext), Is.True);
+            Assert.That(plaintext, Is.EqualTo(s_plaintext));
+            Assert.That(protector.TryUnprotect(
+                RecordProtectionContext.Create("node", "site/a|b"), record, out plaintext), Is.False);
+            Assert.That(plaintext.IsNull, Is.True);
+            Assert.That(protector.TryUnprotect(
+                RecordProtectionContext.Create("value", "other/a|b"), record, out plaintext), Is.False);
+            Assert.That(plaintext.IsNull, Is.True);
+        }
+
+        [TestCase(null, "key")]
+        [TestCase("", "key")]
+        [TestCase("a|b", "key")]
+        [TestCase("type", null)]
+        [TestCase("type", "")]
+        public void StoreContextsRejectAmbiguousOrMissingIdentity(string? recordType, string? key)
+        {
+            Assert.That(() => RecordProtectionContext.Create(recordType!, key!), Throws.ArgumentException);
+        }
+
+        [Test]
+        public void StoreContextsPreserveUnicodeIdentityAndRejectInvalidText()
+        {
+            Assert.That(
+                RecordProtectionContext.Create("type", "e\u0301"),
+                Is.Not.EqualTo(RecordProtectionContext.Create("type", "\u00E9")));
+            Assert.That(
+                () => RecordProtectionContext.Create("type", "\uD800"),
+                Throws.TypeOf<EncoderFallbackException>());
+            Assert.That(
+                () => RecordProtectionContext.Create("\uD800", "key"),
+                Throws.TypeOf<EncoderFallbackException>());
+        }
+
+        [Test]
+        public void NullOwnedReadDoesNotAliasStoreInput()
+        {
+            ByteString stored = NullRecordProtector.Instance.Protect(default, s_plaintext);
+            Assert.That(
+                NullRecordProtector.Instance.TryUnprotectOwned(ByteString.Empty, stored, out byte[] owned), Is.True);
+            Assert.That(owned, Is.EqualTo(s_plaintext.ToArray()));
+
+            CryptoUtils.ZeroMemory(owned);
+
+            Assert.That(stored, Is.EqualTo(s_plaintext));
+            Assert.That(NullRecordProtector.Instance.TryUnprotect(
+                default, stored, out ByteString recovered), Is.True);
+            Assert.That(recovered, Is.EqualTo(s_plaintext));
         }
 
         [Test]

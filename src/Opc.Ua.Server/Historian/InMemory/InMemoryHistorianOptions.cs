@@ -37,8 +37,8 @@ namespace Opc.Ua.Server.Historian.InMemory
     public sealed record InMemoryHistorianOptions
     {
         /// <summary>
-        /// Maximum source-timestamp age of raw samples retained per variable.
-        /// The default is one hour. Zero = unbounded.
+        /// Maximum source-timestamp age relative to the provider's UTC clock.
+        /// The default is one hour. Zero = unbounded. Expired writes are rejected.
         /// </summary>
         public TimeSpan RawDataRetentionPeriod { get; init; } = TimeSpan.FromHours(1);
 
@@ -51,9 +51,9 @@ namespace Opc.Ua.Server.Historian.InMemory
 
         /// <summary>
         /// Maximum number of modified-history entries retained per variable.
-        /// Zero = unbounded.
+        /// The default is 10,000. Zero explicitly opts into unbounded modified history.
         /// </summary>
-        public uint MaxModifiedEntriesPerNode { get; init; }
+        public uint MaxModifiedEntriesPerNode { get; init; } = 10_000;
 
         /// <summary>
         /// Maximum number of annotations retained per variable. Zero = unbounded.

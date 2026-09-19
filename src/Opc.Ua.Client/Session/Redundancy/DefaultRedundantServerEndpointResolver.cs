@@ -67,6 +67,8 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        /// <exception cref="ArgumentException"><paramref name="serverUri"/> is null or empty.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="currentEndpoint"/> is null.</exception>
         public async ValueTask<ConfiguredEndpoint?> ResolveAsync(
             string serverUri,
             ConfiguredEndpoint currentEndpoint,
@@ -74,7 +76,7 @@ namespace Opc.Ua.Client
         {
             if (string.IsNullOrEmpty(serverUri))
             {
-                throw new ArgumentException("Server URI must not be empty.", nameof(serverUri));
+                throw new ArgumentException("The server URI cannot be null or empty.", nameof(serverUri));
             }
 
             if (currentEndpoint is null)
@@ -84,11 +86,23 @@ namespace Opc.Ua.Client
 
             foreach (string discoveryUrl in GetDiscoveryUrls(currentEndpoint))
             {
-                ConfiguredEndpoint? endpoint = await ResolveWithDiscoveryUrlAsync(
-                    serverUri,
-                    currentEndpoint,
-                    discoveryUrl,
-                    ct).ConfigureAwait(false);
+                ConfiguredEndpoint? endpoint;
+                try
+                {
+                    endpoint = await ResolveWithDiscoveryUrlAsync(
+                        serverUri,
+                        currentEndpoint,
+                        discoveryUrl,
+                        ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch
+                {
+                    continue;
+                }
                 if (endpoint != null)
                 {
                     return endpoint;

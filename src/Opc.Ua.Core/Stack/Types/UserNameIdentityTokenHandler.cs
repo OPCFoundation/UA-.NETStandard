@@ -77,7 +77,7 @@ namespace Opc.Ua
             m_token = new UserNameIdentityToken
             {
                 UserName = username,
-                Password = password.ToByteString()
+                Password = default
             };
             m_securityPolicies = securityPolicies ?? SecurityPolicies.Default;
         }
@@ -108,7 +108,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ValueTask EncryptAsync(
+        public async ValueTask EncryptAsync(
             Certificate receiverCertificate,
             byte[] receiverNonce,
             string securityPolicyUri,
@@ -122,7 +122,7 @@ namespace Opc.Ua
             if (DecryptedPassword == null)
             {
                 m_token.Password = default;
-                return default;
+                return;
             }
 
             // handle no encryption.
@@ -131,28 +131,31 @@ namespace Opc.Ua
             {
                 m_token.Password = DecryptedPassword.ToByteString();
                 m_token.EncryptionAlgorithm = null;
-                return default;
+                return;
             }
 
             // handle RSA encryption.
-            SecurityPolicyInfo? securityPolicy = m_securityPolicies.GetInfo(securityPolicyUri);
+            SecurityPolicyInfo securityPolicy = m_securityPolicies.GetInfo(securityPolicyUri)
+                ?? throw new ServiceResultException(
+                    StatusCodes.BadSecurityPolicyRejected,
+                    "Unknown security policy: " + securityPolicyUri);
 
-            if (securityPolicy!.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
+            if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
                 if (DecryptedPassword.Length > RsaEncryptedSecretPasswordThreshold)
                 {
-                    var encryptedSecret = EncryptedSecret.CreateForRsa(
+                    using var encryptedSecret = EncryptedSecret.CreateForRsa(
                         context,
                         securityPolicyUri,
                         receiverCertificate);
                     m_token.Password = encryptedSecret.Encrypt(DecryptedPassword, receiverNonce).ToByteString();
                     m_token.EncryptionAlgorithm = null;
-                    return default;
+                    return;
                 }
 
                 byte[] dataToEncrypt = Utils.Append(DecryptedPassword, receiverNonce);
 
-                ILogger logger = context.Telemetry.CreateLogger<UserNameIdentityToken>();
+                _ = context.Telemetry.CreateLogger<UserNameIdentityToken>();
                 EncryptedData encryptedData = m_securityPolicies.Encrypt(
                     receiverCertificate,
                     securityPolicyUri,
@@ -181,21 +184,22 @@ namespace Opc.Ua
                     senderIssuerCertificates = issuers;
                 }
 
-                var secret = EncryptedSecret.CreateForEcc(
+                using var senderNonce = Nonce.CreateNonce(securityPolicy);
+                using var secret = EncryptedSecret.CreateForEcc(
                     context: context,
                     securityPolicyUri: securityPolicyUri,
                     senderIssuerCertificates: senderIssuerCertificates!,
                     receiverCertificate: receiverCertificate,
                     receiverNonce: receiverEphemeralKey!,
                     senderCertificate: senderCertificate!,
-                    senderNonce: Nonce.CreateNonce(securityPolicy)!,
+                    senderNonce: senderNonce,
                     doNotEncodeSenderCertificate: doNotEncodeSenderCertificate);
 
                 m_token.Password = secret.Encrypt(DecryptedPassword, receiverNonce).ToByteString();
                 m_token.EncryptionAlgorithm = null;
             }
 
-            return default;
+            await Task.CompletedTask.ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -233,13 +237,13 @@ namespace Opc.Ua
 
             if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
-                var encryptedSecret = EncryptedSecret.CreateForRsa(
+                using var encryptedSecret = EncryptedSecret.CreateForRsa(
                     context,
                     securityPolicyUri,
                     certificate,
                     receiverNonce);
                 if (string.IsNullOrEmpty(m_token.EncryptionAlgorithm) &&
-                    encryptedSecret.TryDecrypt(m_token.Password.ToArray()!, receiverNonce?.Data!, out byte[]? decryptedSecret))
+                    encryptedSecret.TryDecrypt(m_token.Password.ToArray()!, receiverNonce?.Data, out byte[]? decryptedSecret))
                 {
                     DecryptedPassword = decryptedSecret;
                     return;
@@ -289,7 +293,7 @@ namespace Opc.Ua
             // handle ECC and RSADH encryption.
             else
             {
-                var secret = EncryptedSecret.CreateForEcc(
+                using var secret = EncryptedSecret.CreateForEcc(
                     context: context,
                     securityPolicyUri: securityPolicyUri,
                     senderIssuerCertificates: senderIssuerCertificates!,
@@ -301,7 +305,7 @@ namespace Opc.Ua
 
                 (bool ok, byte[]? decryptedSecret) = await secret.TryDecryptAsync(
                     m_token.Password.ToArray()!,
-                    receiverNonce?.Data!,
+                    receiverNonce?.Data,
                     ct).ConfigureAwait(false);
                 if (!ok)
                 {
@@ -336,7 +340,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public object Clone()
         {
-            return new UserNameIdentityTokenHandler(CoreUtils.Clone(m_token)!)
+            return new UserNameIdentityTokenHandler(CoreUtils.Clone(m_token)!, m_securityPolicies)
             {
                 DecryptedPassword = DecryptedPassword == null ? null : [.. DecryptedPassword]
             };

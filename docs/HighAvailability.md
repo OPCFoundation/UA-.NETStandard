@@ -76,6 +76,16 @@ Beyond-spec distributed building blocks (`Use*`):
 
 `AddServerRedundancy(...)` only publishes the redundancy metadata. It does not calculate or drive `Server.ServiceLevel`; register a ServiceLevel provider with `AddServerServiceLevel(...)`, or register an `IServiceLevelProvider` plus `ServiceLevelStartupTask`, when clients and Kubernetes readiness need live health or leader-state values.
 
+On the standard server, `ServiceLevelStartupTask` claims explicit ownership via
+`IServerServiceLevelControl`. Only one provider can claim the node for that
+server's lifetime; a second claim fails instead of creating competing writers.
+Provider publications and session-headroom updates share the server's internal
+coordination, and session churn cannot overwrite any provider-owned value,
+including Healthy-band standby/load levels such as 210 or a fixed 255.
+Without an explicit owner, the session-headroom heuristic is unchanged.
+Custom `IServerContext` implementations can implement this optional capability;
+contexts without it retain their existing direct provider-publication behavior.
+
 ```csharp
 services.AddOpcUa()
     .AddServer(server =>
@@ -710,6 +720,58 @@ Use the consolidated [Kubernetes High Availability Deployment](Kubernetes.md) gu
 ## Security considerations
 
 Distributed high-availability deployments protect the shared store as part of the OPC UA trust boundary. Use an authenticated and encrypted channel to the store, protect serialized records with `IRecordProtector`, provision record-protection keys through a key ring or secret manager, apply TTLs and quotas to session/nonce/subscription keys, and fail closed if a required strongly consistent store is unavailable.
+
+### Record context and plaintext ownership
+
+The 2.0 `IRecordProtector` contract requires a `ByteString context` on both `Protect`
+and `TryUnprotect`. For stored records, use
+`RecordProtectionContext.Create(recordType, fullStoreKey)`: strict UTF-8 encoding
+of `recordType + "|" + fullStoreKey`. Type labels cannot contain `|`; keys retain
+their exact case, escaping and configured prefixes. Readers use the actual key
+returned by scans and change feeds, not just a type label or a reconstructed
+identifier. This also binds snapshot chunks to their generation and ordinal,
+and historical segments to their individual keys, independently of the storage backend.
+
+```csharp
+ByteString binding = RecordProtectionContext.Create("application-record", key);
+ByteString envelope = protector.Protect(binding, plaintext);
+await store.SetAsync(key, envelope, cancellationToken).ConfigureAwait(false);
+
+(bool found, ByteString stored) = await store.TryGetAsync(key, cancellationToken).ConfigureAwait(false);
+if (!found || !protector.TryUnprotect(binding, stored, out ByteString recovered))
+{
+    throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed);
+}
+```
+
+Protect separately when the same plaintext belongs under two different keys;
+do not copy a ciphertext between a current-record pointer and a generation
+record. A wrong key, type, context or modified envelope fails closed. Never retry
+with an empty context after a failed bound read. When binding is genuinely not
+needed, pass `default(ByteString)` or `ByteString.Empty` explicitly; both encode
+the same empty context. The string convenience extensions only convert to UTF-8
+and invoke the required byte-context member once. They do not select a capability
+or provide a fallback.
+
+`AesCbcHmacRecordProtector` retains the envelope
+`[version:1][keyId:4 LE][IV:16][ciphertext][HMAC-SHA256:32]`. Its MAC authenticates
+`[contextLength:4 LE][context][header][ciphertext]`, including a zero context
+length for an explicitly unbound record, and is checked before decryption.
+`KeyRingRecordProtector` supplies the same context to active and retired keys.
+
+Private-key consumers require `IOwnedRecordProtector.TryUnprotectOwned(context,
+envelope, out byte[] plaintext)`. This transfers the original decrypted array,
+independent of the store input, so the caller can wipe it with
+`CryptoUtils.ZeroMemory` in a `finally` block. Do not implement this by calling
+`TryUnprotect(...).ToArray()`: that leaves an unwiped decrypted copy.
+`SharedKeyValuePendingCertificateKeyStore` rejects protectors without this
+ownership contract; owned key-ring reads also reject a consulted member that
+cannot supply owned buffers. Custom KMS/HSM providers registered as
+`IRecordProtector` must implement the owned contract when used for pending keys.
+`NullRecordProtector` remains a non-authenticating, process-local test/demo
+option, not a substitute for protection of a networked shared store.
+
+### Shared application identity
 
 Transparent redundancy uses one logical application identity. Every replica that serves the transparent virtual endpoint must use the same endpoint URL, ApplicationUri, application instance certificate, and private key so clients can validate one server identity and complete `ActivateSession` against any replica. The compromise blast radius of that shared private key is the entire transparent set: an attacker can impersonate the virtual server, terminate or redirect client trust, and participate in failover until the certificate is revoked and trust lists are updated. Prefer non-transparent redundancy with per-replica certificates when that shared-key risk is unacceptable.
 

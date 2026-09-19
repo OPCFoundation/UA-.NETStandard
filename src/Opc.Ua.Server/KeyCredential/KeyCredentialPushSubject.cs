@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
@@ -45,7 +46,7 @@ namespace Opc.Ua.Server
     public sealed class KeyCredentialPushSubject
     {
         /// <summary>
-        /// Namespace URI used for dynamic credential configuration instances.
+        /// Legacy namespace URI retained for compatibility.
         /// </summary>
         public const string NamespaceUri = "urn:opcfoundation:netstandard:keycredential-push";
 
@@ -195,6 +196,20 @@ namespace Opc.Ua.Server
                 };
             }
 
+            IList<BaseInstanceState> existingChildren = [];
+            folder.GetChildren(context, existingChildren);
+            if (existingChildren.OfType<KeyCredentialConfigurationState>()
+                .Any(child => string.Equals(
+                    child.BrowseName.Name,
+                    browseName,
+                    StringComparison.Ordinal)))
+            {
+                return new CreateCredentialMethodStateResult
+                {
+                    ServiceResult = new ServiceResult(StatusCodes.BadNodeIdExists)
+                };
+            }
+
             KeyCredentialConfigurationState state = CreateCredentialState(
                 folder,
                 context,
@@ -254,11 +269,22 @@ namespace Opc.Ua.Server
             byte[]? secret = null;
             try
             {
+                string? previousCredentialId = null;
+                if (method.Parent is KeyCredentialConfigurationState existingState)
+                {
+                    previousCredentialId = existingState.CredentialId?.Value;
+                }
+
                 secret = await DecodeSecretAsync(
                     context, credentialSecret, certificateThumbprint, securityPolicyUri, ct).ConfigureAwait(false);
                 ct.ThrowIfCancellationRequested();
                 var credential = new KeyCredential(secret, DateTime.MaxValue, subject, []);
                 await m_store.UpdateAsync(credentialId, credential, ct).ConfigureAwait(false);
+                if (!string.IsNullOrEmpty(previousCredentialId) &&
+                    !string.Equals(previousCredentialId, credentialId, StringComparison.Ordinal))
+                {
+                    await m_store.DeleteAsync(previousCredentialId, ct).ConfigureAwait(false);
+                }
             }
             catch (ServiceResultException ex)
             {
@@ -275,9 +301,9 @@ namespace Opc.Ua.Server
 
             if (method.Parent is KeyCredentialConfigurationState state)
             {
-                state.CredentialId ??= state.CreateOrReplaceCredentialId(context, state.CredentialId!);
+                state.CredentialId ??= state.CreateOrReplaceCredentialId(context, state.CredentialId);
                 state.CredentialId.Value = credentialId;
-                state.ServiceStatus ??= state.CreateOrReplaceServiceStatus(context, state.ServiceStatus!);
+                state.ServiceStatus ??= state.CreateOrReplaceServiceStatus(context, state.ServiceStatus);
                 state.ServiceStatus.Value = StatusCodes.Good;
                 await state.ClearChangeMasksAsync(context, includeChildren: true, ct)
                     .ConfigureAwait(false);
@@ -289,6 +315,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Accepts a plaintext secret or validates and decrypts its RSA encrypted-secret envelope.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private async ValueTask<byte[]> DecodeSecretAsync(
             ISystemContext context,
             ByteString encrypted,
@@ -325,11 +352,7 @@ namespace Opc.Ua.Server
             {
                 throw new ServiceResultException(StatusCodes.BadCertificateInvalid);
             }
-            using RSA? key = receiver.GetRSAPrivateKey();
-            if (key == null)
-            {
-                throw new ServiceResultException(StatusCodes.BadCertificateInvalid);
-            }
+            using RSA? key = receiver.GetRSAPrivateKey() ?? throw new ServiceResultException(StatusCodes.BadCertificateInvalid);
 
             byte[] encoded = encrypted.ToArray();
             try
@@ -347,8 +370,9 @@ namespace Opc.Ua.Server
                         throw new ServiceResultException(StatusCodes.BadInvalidArgument);
                     }
                 }
-                var decryptor = EncryptedSecret.CreateForRsa(context.AsMessageContext(), policyUri, receiver);
-                (bool success, byte[]? decoded) = await decryptor.TryDecryptAsync(encoded, [], ct).ConfigureAwait(false);
+                using var decryptor = EncryptedSecret.CreateForRsa(context.AsMessageContext(), policyUri, receiver);
+                (bool success, byte[]? decoded) = await decryptor.TryDecryptAsync(encoded, null, ct)
+                    .ConfigureAwait(false);
                 if (!success || decoded == null)
                 {
                     throw new ServiceResultException(StatusCodes.BadInvalidArgument);
@@ -375,6 +399,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Resolves an allowed RSA encryption policy and rejects unsupported or ephemeral-key policies.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private SecurityPolicyInfo ResolveEncryptionPolicy(string policyUri)
         {
             SecurityPolicyInfo? policy = m_securityPolicies.GetInfo(policyUri);
@@ -492,7 +517,7 @@ namespace Opc.Ua.Server
             string profileUri,
             IEnumerable<string> endpointUrls)
         {
-            ushort namespaceIndex = GetNamespaceIndex(context);
+            ushort namespaceIndex = folder.NodeId.NamespaceIndex;
             QualifiedName browseName = new(name, namespaceIndex);
             KeyCredentialConfigurationState state = folder.AddServiceName_Placeholder(context, browseName);
             state.NodeId = CreateCredentialNodeId(name, namespaceIndex);
@@ -500,16 +525,16 @@ namespace Opc.Ua.Server
             state.ReferenceTypeId = ReferenceTypeIds.HasComponent;
             state.TypeDefinitionId = ObjectTypeIds.KeyCredentialConfigurationType;
             state.DisplayName = LocalizedText.From(name);
-            state.ResourceUri ??= state.CreateOrReplaceResourceUri(context, state.ResourceUri!);
+            state.ResourceUri ??= state.CreateOrReplaceResourceUri(context, state.ResourceUri);
             state.ResourceUri.Value = resourceUri ?? string.Empty;
-            state.ProfileUri ??= state.CreateOrReplaceProfileUri(context, state.ProfileUri!);
+            state.ProfileUri ??= state.CreateOrReplaceProfileUri(context, state.ProfileUri);
             state.ProfileUri.Value = string.IsNullOrWhiteSpace(profileUri)
                 ? KeyCredentialBridgeOptions.DefaultProfileUri
                 : profileUri;
-            state.EndpointUrls ??= state.CreateOrReplaceEndpointUrls(context, state.EndpointUrls!);
+            state.EndpointUrls ??= state.CreateOrReplaceEndpointUrls(context, state.EndpointUrls);
             state.EndpointUrls.Value = [.. endpointUrls];
-            state.CredentialId ??= state.CreateOrReplaceCredentialId(context, state.CredentialId!);
-            state.ServiceStatus ??= state.CreateOrReplaceServiceStatus(context, state.ServiceStatus!);
+            state.CredentialId ??= state.CreateOrReplaceCredentialId(context, state.CredentialId);
+            state.ServiceStatus ??= state.CreateOrReplaceServiceStatus(context, state.ServiceStatus);
             state.ServiceStatus.Value = StatusCodes.Good;
             WireCredentialState(state, context);
             return state;
@@ -571,22 +596,6 @@ namespace Opc.Ua.Server
                 }
             }
             return null;
-        }
-
-        private static ushort GetNamespaceIndex(ISystemContext context)
-        {
-            NamespaceTable? namespaces = context.NamespaceUris;
-            if (namespaces == null)
-            {
-                return 1;
-            }
-
-            int index = namespaces.GetIndex(NamespaceUri);
-            if (index < 0)
-            {
-                index = namespaces.Append(NamespaceUri);
-            }
-            return (ushort)index;
         }
 
         private static NodeId CreateCredentialNodeId(string name, ushort namespaceIndex)

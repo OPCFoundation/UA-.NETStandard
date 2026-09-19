@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
 {
@@ -158,16 +159,26 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                ServiceResult result = await nodeManager
-                    .ValidateEventRolePermissionsAsync(monitoredItem, e, cancellationToken)
-                    .ConfigureAwait(false);
-
-                if (ServiceResult.IsBad(result))
+                try
                 {
-                    continue;
+                    cancellationToken.ThrowIfCancellationRequested();
+                    ServiceResult result = await nodeManager
+                        .ValidateEventRolePermissionsAsync(monitoredItem, e, cancellationToken)
+                        .ConfigureAwait(false);
+                    if (ServiceResult.IsGood(result))
+                    {
+                        monitoredItem.QueueEvent(e);
+                    }
                 }
-
-                monitoredItem.QueueEvent(e);
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception error) when (
+                    error is not OutOfMemoryException and not StackOverflowException and not AccessViolationException)
+                {
+                    TelemetryExtensions.CreateLogger<EventManager>(null).EventReceiverFailed(error, monitoredItem.Id);
+                }
             }
         }
 
@@ -358,5 +369,15 @@ namespace Opc.Ua.Server
         private readonly Dictionary<uint, IEventMonitoredItem> m_monitoredItems;
         private readonly uint m_maxEventQueueSize;
         private readonly uint m_maxDurableEventQueueSize;
+    }
+
+    internal static partial class EventManagerLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.EventManager, Level = LogLevel.Error,
+            Message = "Event delivery to monitored item {MonitoredItemId} failed; other receivers will continue.")]
+        public static partial void EventReceiverFailed(
+            this ILogger logger,
+            Exception exception,
+            uint monitoredItemId);
     }
 }

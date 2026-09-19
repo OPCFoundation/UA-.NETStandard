@@ -74,7 +74,7 @@ namespace Opc.Ua.Server.Tests
                 await owner.AddNodeAsync(node).ConfigureAwait(false);
 
                 Mock<IAsyncNodeManager> originalNodeManager = new();
-                object originalHandle = new object();
+                object originalHandle = new();
                 using MonitoredItem item = CreateMonitoredItem(
                     server.Object,
                     originalNodeManager.Object,
@@ -901,7 +901,7 @@ namespace Opc.Ua.Server.Tests
             using (queueFactory)
             {
                 var nodeManager = new Mock<IAsyncNodeManager>();
-                using var samplingGroups = useSamplingGroups
+                using TrackingSamplingGroupManager samplingGroups = useSamplingGroups
                     ? new TrackingSamplingGroupManager(server.Object, nodeManager.Object)
                     : null;
                 using IMonitoredItemManager manager = useSamplingGroups
@@ -1005,7 +1005,7 @@ namespace Opc.Ua.Server.Tests
             using (queueFactory)
             {
                 var nodeManager = new Mock<IAsyncNodeManager>();
-                using var samplingGroups = useSamplingGroups
+                using TrackingSamplingGroupManager samplingGroups = useSamplingGroups
                     ? new TrackingSamplingGroupManager(server.Object, nodeManager.Object)
                     : null;
                 using IMonitoredItemManager manager = useSamplingGroups
@@ -1111,7 +1111,7 @@ namespace Opc.Ua.Server.Tests
                     Assert.That(manager.MonitoredItems.ContainsKey(conflictingItem.Id), Is.False);
                     Assert.That(
                         lifecycle.GetMonitoredItemsSnapshot(null),
-                        Is.EqualTo(new[] { existingItem }));
+                        Is.EqualTo([existingItem]));
                 });
 
                 lifecycle.DetachMonitoredItem(
@@ -1249,6 +1249,100 @@ namespace Opc.Ua.Server.Tests
                 }
 
                 samplingGroups?.Dispose();
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void CustomAndRestoredItemsAcquireIndependentComponentReferences(bool restore)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queueFactory);
+            using (queueFactory)
+            {
+                var owner = new Mock<IAsyncNodeManager>();
+                using var manager = new MonitoredNodeMonitoredItemManager(owner.Object, server.Object);
+                var node = new BaseDataVariableState(null)
+                {
+                    NodeId = new NodeId("SharedComponent", 1),
+                    DataType = DataTypeIds.Int32,
+                    Value = 1
+                };
+                int references = 0;
+                NodeState AddReference(ISystemContext context, NodeHandle handle, NodeState value)
+                {
+                    references++;
+                    return value;
+                }
+                void RemoveReference(ISystemContext context, NodeHandle handle) => references--;
+
+                var items = new List<ISampledDataChangeMonitoredItem>();
+                var ids = new MonitoredItemIdFactory();
+                for (uint id = 1; id <= 2; id++)
+                {
+                    var handle = new NodeHandle(node.NodeId, node);
+                    if (restore)
+                    {
+                        StoredMonitoredItem stored = CreateStoredMonitoredItem(id, node.NodeId);
+                        stored.IsDurable = false;
+                        Assert.That(manager.RestoreMonitoredItem(
+                            server.Object, owner.Object, server.Object.DefaultSystemContext,
+                            handle, stored, new Mock<IUserIdentity>().Object, AddReference,
+                            out ISampledDataChangeMonitoredItem item), Is.True);
+                        items.Add(item);
+                    }
+                    else
+                    {
+                        items.Add(((ICustomMonitoredItemManager)manager).CreateCustomMonitoredItem(
+                            server.Object,
+                            owner.Object,
+                            server.Object.DefaultSystemContext,
+                            handle,
+                            1,
+                            1000,
+                            DiagnosticsMasks.None,
+                            TimestampsToReturn.Both,
+                            new MonitoredItemCreateRequest
+                            {
+                                ItemToMonitor = new ReadValueId { NodeId = node.NodeId, AttributeId = Attributes.Value },
+                                MonitoringMode = MonitoringMode.Reporting,
+                                RequestedParameters = new MonitoringParameters { ClientHandle = 3, QueueSize = 10 }
+                            },
+                            null,
+                            null,
+                            1000,
+                            10,
+                            false,
+                            ids,
+                            AddReference,
+                            RemoveReference,
+                            context => CreateMonitoredItem(
+                                context.Server, context.NodeManager, context.Handle,
+                                context.Handle.NodeId, context.MonitoredItemId)));
+                    }
+                }
+
+                try
+                {
+                    Assert.That(references, Is.EqualTo(2));
+                    var lifecycle = (IMonitoredItemManagerLifecycle)manager;
+                    Assert.That(ServiceResult.IsGood(lifecycle.DetachMonitoredItem(
+                        server.Object.DefaultSystemContext, items[0], RemoveReference).Result), Is.True);
+                    Assert.That(references, Is.EqualTo(1));
+                    Assert.That(
+                        manager.MonitoredNodes[node.NodeId].DataChangeMonitoredItems.ContainsKey(items[1].Id), Is.True);
+                    Assert.That(ServiceResult.IsGood(lifecycle.DetachMonitoredItem(
+                        server.Object.DefaultSystemContext, items[1], RemoveReference).Result), Is.True);
+                    Assert.That(references, Is.Zero);
+                    Assert.That(manager.MonitoredNodes, Is.Empty);
+                }
+                finally
+                {
+                    foreach (ISampledDataChangeMonitoredItem item in items)
+                    {
+                        item.Dispose();
+                    }
+                }
             }
         }
 

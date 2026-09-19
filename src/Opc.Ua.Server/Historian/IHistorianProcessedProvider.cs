@@ -54,6 +54,7 @@ namespace Opc.Ua.Server.Historian
         /// <param name="request">Normalised processed read request.</param>
         /// <param name="resumeToken">Page resume token; empty on first page.</param>
         /// <param name="ct">Cancellation token.</param>
+        /// <returns>A page of aggregate results and a resume token when further intervals remain.</returns>
         ValueTask<HistorianPage<DataValue>> ReadProcessedAsync(
             HistorianOperationContext context,
             HistorianProcessedReadRequest request,

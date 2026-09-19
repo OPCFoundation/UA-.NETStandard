@@ -90,6 +90,65 @@ namespace Opc.Ua.Server.Tests.KeyCredential
         }
 
         [Test]
+        public async Task UpdateCredentialRotationRemovesPreviousSecret()
+        {
+            using var store = new InMemoryKeyCredentialStore();
+            var subject = new KeyCredentialPushSubject(store);
+            KeyCredentialConfigurationFolderState folder = CreateFolder();
+            ISystemContext context = CreateAdminContext();
+            await subject.BindAsync(folder, context).ConfigureAwait(false);
+            KeyCredentialConfigurationState credentialNode = await CreateCredentialNodeAsync(folder, context)
+                .ConfigureAwait(false);
+
+            await credentialNode.UpdateCredential.OnCallAsync(
+                context,
+                credentialNode.UpdateCredential,
+                credentialNode.NodeId,
+                "credential-old",
+                ByteString.From([1, 2, 3, 4]),
+                string.Empty,
+                string.Empty,
+                CancellationToken.None).ConfigureAwait(false);
+
+            KeyCredentialUpdateMethodStateResult result = await credentialNode.UpdateCredential.OnCallAsync(
+                context,
+                credentialNode.UpdateCredential,
+                credentialNode.NodeId,
+                "credential-new",
+                ByteString.From([5, 6, 7, 8]),
+                string.Empty,
+                string.Empty,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
+            Assert.That(await store.GetAsync("credential-old", CancellationToken.None).ConfigureAwait(false), Is.Null);
+            Assert.That(await store.GetAsync("credential-new", CancellationToken.None).ConfigureAwait(false), Is.Not.Null);
+        }
+
+        [Test]
+        public async Task CreateCredentialRejectsDuplicateBrowseName()
+        {
+            using var store = new InMemoryKeyCredentialStore();
+            var subject = new KeyCredentialPushSubject(store);
+            KeyCredentialConfigurationFolderState folder = CreateFolder();
+            ISystemContext context = CreateAdminContext();
+            await subject.BindAsync(folder, context).ConfigureAwait(false);
+            await CreateCredentialNodeAsync(folder, context).ConfigureAwait(false);
+
+            CreateCredentialMethodStateResult result = await folder.CreateCredential.OnCallAsync(
+                context,
+                folder.CreateCredential,
+                folder.NodeId,
+                "ServiceA",
+                "urn:test:resource-2",
+                KeyCredentialBridgeOptions.DefaultProfileUri,
+                [],
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdExists));
+        }
+
+        [Test]
         public async Task UpdateCredentialRejectsUnauthorizedCaller()
         {
             using var store = new InMemoryKeyCredentialStore();
@@ -150,6 +209,9 @@ namespace Opc.Ua.Server.Tests.KeyCredential
                     CancellationToken.None)
                 .ConfigureAwait(false);
             Assert.That(ServiceResult.IsGood(createResult.ServiceResult), Is.True);
+            Assert.That(
+                createResult.CredentialNodeId.NamespaceIndex,
+                Is.EqualTo(folder.NodeId.NamespaceIndex));
 
             IList<BaseInstanceState> children = [];
             folder.GetChildren(context, children);

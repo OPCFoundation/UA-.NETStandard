@@ -57,7 +57,7 @@ namespace Opc.Ua.Redundancy
         /// How long an acquired lease remains valid without renewal.
         /// </param>
         /// <param name="renewInterval">
-        /// How often the background loop renews the lease.
+        /// How often the background loop renews the lease, and the timeout for best-effort release during disposal.
         /// </param>
         /// <param name="timeProvider">Time source (defaults to system).</param>
         /// <param name="logger">Optional logger.</param>
@@ -108,7 +108,9 @@ namespace Opc.Ua.Redundancy
         /// <inheritdoc/>
         public async ValueTask<bool> TryAcquireOrRenewAsync(CancellationToken ct = default)
         {
+            ct.ThrowIfCancellationRequested();
             long attempt;
+            CancellationToken lifetime;
             lock (m_lock)
             {
                 if (m_disposed)
@@ -117,37 +119,67 @@ namespace Opc.Ua.Redundancy
                 }
                 ExpireLeaseIfNeeded();
                 attempt = ++m_attempt;
+                lifetime = m_cts.Token;
             }
             DispatchNotifications();
 
-            (bool found, ByteString current) = await m_store.TryGetAsync(m_leaseKey, ct).ConfigureAwait(false);
-            if (!IsCurrentAttempt(attempt))
+            using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(ct, lifetime);
+            CancellationToken cancellationToken = cancellation.Token;
+            try
             {
-                return false;
-            }
-            long timestamp = m_timeProvider.GetTimestamp();
-            long nowTicks = m_timeProvider.GetUtcNow().UtcTicks;
+                cancellationToken.ThrowIfCancellationRequested();
+                (bool found, ByteString current) = await m_store
+                    .TryGetAsync(m_leaseKey, cancellationToken)
+                    .AsTask().WaitAsync(cancellationToken).ConfigureAwait(false);
+                if (!IsCurrentAttempt(attempt))
+                {
+                    return false;
+                }
+                long timestamp = m_timeProvider.GetTimestamp();
+                long nowTicks = m_timeProvider.GetUtcNow().UtcTicks;
 
-            bool canTake = !found;
-            if (found)
+                bool canTake = !found;
+                if (found)
+                {
+                    canTake = !TryParseLease(current, out string owner, out long expiryTicks) ||
+                        nowTicks >= expiryTicks ||
+                        string.Equals(owner, m_nodeId, StringComparison.Ordinal);
+                }
+
+                if (!canTake)
+                {
+                    return CompleteAttempt(attempt, false, 0, 0);
+                }
+
+                long newExpiryTicks = nowTicks + m_leaseDuration.Ticks;
+                ByteString newLease = EncodeLease(m_nodeId, newExpiryTicks);
+                ByteString expected = found ? current : default;
+                bool acquired = await m_store
+                    .CompareAndSwapAsync(m_leaseKey, expected, newLease, cancellationToken)
+                    .AsTask().WaitAsync(cancellationToken).ConfigureAwait(false);
+                if (acquired)
+                {
+                    return CompleteAttempt(attempt, true, timestamp, newExpiryTicks);
+                }
+                if (!IsCurrentAttempt(attempt))
+                {
+                    return false;
+                }
+
+                // A concurrent renewal may have won the CAS without changing ownership.
+                (found, current) = await m_store.TryGetAsync(m_leaseKey, cancellationToken)
+                    .AsTask().WaitAsync(cancellationToken).ConfigureAwait(false);
+                long confirmedExpiry = 0;
+                bool stillOwned = found &&
+                    TryParseLease(current, out string confirmedOwner, out confirmedExpiry) &&
+                    string.Equals(confirmedOwner, m_nodeId, StringComparison.Ordinal) &&
+                    m_timeProvider.GetUtcNow().UtcTicks < confirmedExpiry;
+                return CompleteAttempt(attempt, stillOwned, timestamp, confirmedExpiry);
+            }
+            finally
             {
-                canTake = !TryParseLease(current, out string owner, out long expiryTicks) ||
-                    nowTicks >= expiryTicks ||
-                    string.Equals(owner, m_nodeId, StringComparison.Ordinal);
+                DispatchNotifications();
             }
-
-            if (!canTake)
-            {
-                return CompleteAttempt(attempt, false, 0, 0);
-            }
-
-            long newExpiryTicks = nowTicks + m_leaseDuration.Ticks;
-            ByteString newLease = EncodeLease(m_nodeId, newExpiryTicks);
-            ByteString expected = found ? current : default;
-            bool acquired = await m_store
-                .CompareAndSwapAsync(m_leaseKey, expected, newLease, ct)
-                .ConfigureAwait(false);
-            return CompleteAttempt(attempt, acquired, timestamp, newExpiryTicks);
         }
 
         /// <inheritdoc/>
@@ -155,12 +187,17 @@ namespace Opc.Ua.Redundancy
         {
             lock (m_lock)
             {
+                if (m_disposed)
+                {
+                    throw new ObjectDisposedException(nameof(SharedStoreLeaseElection));
+                }
                 if (m_started)
                 {
                     return;
                 }
                 m_started = true;
-                m_loop = Task.Run(() => RenewLoopAsync(m_cts.Token));
+                CancellationToken lifetime = m_cts.Token;
+                m_loop = Task.Run(() => RenewLoopAsync(lifetime));
             }
         }
 
@@ -239,14 +276,20 @@ namespace Opc.Ua.Redundancy
         {
             try
             {
+                using var timeout = new CancellationTokenSource(m_renewInterval);
+                CancellationToken cancellationToken = timeout.Token;
                 (bool found, ByteString current) = await m_store
-                    .TryGetAsync(m_leaseKey, CancellationToken.None)
-                    .ConfigureAwait(false);
+                    .TryGetAsync(m_leaseKey, cancellationToken)
+                    .AsTask().WaitAsync(cancellationToken).ConfigureAwait(false);
                 if (found &&
                     TryParseLease(current, out string owner, out _) &&
                     string.Equals(owner, m_nodeId, StringComparison.Ordinal))
                 {
-                    await m_store.DeleteAsync(m_leaseKey, CancellationToken.None).ConfigureAwait(false);
+                    await m_store.CompareAndSwapAsync(
+                        m_leaseKey,
+                        current,
+                        default,
+                        cancellationToken).AsTask().WaitAsync(cancellationToken).ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
@@ -266,7 +309,6 @@ namespace Opc.Ua.Redundancy
                 ExpireLeaseIfNeeded();
                 current = !m_disposed && attempt == m_attempt;
             }
-            DispatchNotifications();
             return current;
         }
 
@@ -281,8 +323,12 @@ namespace Opc.Ua.Redundancy
                 ExpireLeaseIfNeeded();
                 if (!m_disposed && attempt == m_attempt)
                 {
+                    // Reconfirming unchanged storage must not restart its monotonic lifetime.
+                    long confirmedTimestamp = m_isLeader && expiryTicks == m_confirmedExpiryTicks
+                        ? m_confirmedTimestamp
+                        : timestamp;
                     TimeSpan remaining = acquired
-                        ? GetRemainingLeaseTime(timestamp, expiryTicks)
+                        ? GetRemainingLeaseTime(confirmedTimestamp, expiryTicks)
                         : TimeSpan.Zero;
                     confirmed = acquired && remaining > TimeSpan.Zero;
                     if (m_isLeader != confirmed)
@@ -292,7 +338,7 @@ namespace Opc.Ua.Redundancy
                     m_isLeader = confirmed;
                     if (confirmed)
                     {
-                        m_confirmedTimestamp = timestamp;
+                        m_confirmedTimestamp = confirmedTimestamp;
                         m_confirmedExpiryTicks = expiryTicks;
                         m_expiryTimer.Change(remaining, Timeout.InfiniteTimeSpan);
                     }
@@ -303,7 +349,6 @@ namespace Opc.Ua.Redundancy
                     }
                 }
             }
-            DispatchNotifications();
             return confirmed;
         }
 
@@ -355,7 +400,7 @@ namespace Opc.Ua.Redundancy
         /// </summary>
         private TimeSpan GetRemainingLeaseTime(long timestamp, long expiryTicks)
         {
-            TimeSpan utcRemaining = TimeSpan.FromTicks(expiryTicks - m_timeProvider.GetUtcNow().UtcTicks);
+            var utcRemaining = TimeSpan.FromTicks(expiryTicks - m_timeProvider.GetUtcNow().UtcTicks);
             TimeSpan elapsedRemaining = m_leaseDuration - m_timeProvider.GetElapsedTime(timestamp);
             return utcRemaining < elapsedRemaining ? utcRemaining : elapsedRemaining;
         }
@@ -507,19 +552,18 @@ namespace Opc.Ua.Redundancy
     /// </summary>
     internal static partial class SharedStoreLeaseElectionLog
     {
-
         [LoggerMessage(EventId = CoreEventIds.SharedStoreLeaseElection + 0, Level = LogLevel.Error,
             Message = "Lease election renew failed for {NodeId}.")]
         public static partial void SharedStoreLeaseElectionLogMessage0(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string nodeId);
 
         [LoggerMessage(EventId = CoreEventIds.SharedStoreLeaseElection + 1, Level = LogLevel.Error,
             Message = "Lease election release failed for {NodeId}.")]
         public static partial void SharedStoreLeaseElectionLogMessage1(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string nodeId);
 
         /// <summary>
@@ -529,8 +573,7 @@ namespace Opc.Ua.Redundancy
             Message = "Lease election notification failed for {NodeId}.")]
         public static partial void SharedStoreLeaseElectionLogMessage2(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string nodeId);
     }
-
 }

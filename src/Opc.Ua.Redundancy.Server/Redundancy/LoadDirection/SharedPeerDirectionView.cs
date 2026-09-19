@@ -94,7 +94,7 @@ namespace Opc.Ua.Redundancy.Server
                 });
             }
 
-            return new ArrayOf<PeerDirectionRecord>(records.ToArray());
+            return new ArrayOf<PeerDirectionRecord>([.. records]);
         }
 
         private async ValueTask<Dictionary<string, (byte Value, long Ticks)>> ReadSignalsAsync(
@@ -106,7 +106,10 @@ namespace Opc.Ua.Redundancy.Server
                 .ScanAsync(keyPrefix, cancellationToken)
                 .ConfigureAwait(false))
             {
-                if (!m_protector.TryUnprotect(entry.Value, out ByteString payload) ||
+                if (!m_protector.TryUnprotect(
+                        RecordProtectionContext.Create("peer-direction", entry.Key),
+                        entry.Value,
+                        out ByteString payload) ||
                     !PeerDirectionCodec.TryDecode(
                         payload, m_context, out string serverUri, out byte value, out long ticks))
                 {

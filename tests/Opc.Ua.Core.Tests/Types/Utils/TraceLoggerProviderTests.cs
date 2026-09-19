@@ -102,7 +102,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         /// </summary>
         /// <remarks>
         /// It answers for the configuration as a whole rather than for the
-        /// level: a core event id carries its own category bits, so a mask
+        /// level: an explicitly named legacy event id selects its category, so a mask
         /// derived from the level alone would report a configured category
         /// disabled. Log() applies the exact, event-specific filter.
         /// </remarks>
@@ -133,7 +133,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         }
 
         /// <summary>
-        /// A call whose event id carries a category the mask has enabled still
+        /// A call whose explicitly named legacy event id selects an enabled category still
         /// reaches the trace file, even though its level maps to a different
         /// mask bit. This is the case a level-derived IsEnabled dropped.
         /// </summary>

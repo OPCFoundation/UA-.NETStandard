@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Security.Cryptography;
@@ -65,6 +66,7 @@ namespace Opc.Ua.Server
 
         private readonly IKeyCredentialStore m_store;
         private readonly KeyCredentialBridgeOptions m_options;
+        private readonly ConcurrentDictionary<string, long> m_seenNonces = new(StringComparer.Ordinal);
 
         /// <summary>
         /// Creates the bridge authenticator.
@@ -153,11 +155,27 @@ namespace Opc.Ua.Server
                 credential.Secret,
                 token.CredentialId,
                 token.Nonce,
-                token.IssuedAt);
+                token.IssuedAt,
+                token.Audience);
 
             if (!CryptoUtils.FixedTimeEquals(suppliedProof, expectedProof))
             {
                 return Reject(StatusCodes.BadIdentityTokenRejected, "KeyCredential proof validation failed.");
+            }
+
+            string? audience = context.EndpointDescription.Server?.ApplicationUri;
+            if (token.Version != 2 ||
+                string.IsNullOrWhiteSpace(token.Audience) ||
+                !string.Equals(token.Audience, audience, StringComparison.Ordinal))
+            {
+                return Reject(StatusCodes.BadIdentityTokenRejected, "KeyCredential proof audience is invalid.");
+            }
+
+            RemoveExpiredNonces();
+            string replayKey = token.CredentialId + "\n" + token.Nonce;
+            if (!m_seenNonces.TryAdd(replayKey, token.IssuedAt))
+            {
+                return Reject(StatusCodes.BadIdentityTokenRejected, "KeyCredential proof has already been used.");
             }
 
             IReadOnlyDictionary<string, object?> claims = BuildClaims(token.CredentialId, credential);
@@ -183,6 +201,21 @@ namespace Opc.Ua.Server
             string nonce,
             DateTime issuedAt)
         {
+            return CreateTokenData(credentialId, secret, nonce, issuedAt, string.Empty);
+        }
+
+        /// <summary>
+        /// Creates a versioned bridge-token payload bound to an audience.
+        /// </summary>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ArgumentNullException"><paramref name="secret"/> is <c>null</c>.</exception>
+        public static byte[] CreateTokenData(
+            string credentialId,
+            byte[] secret,
+            string nonce,
+            DateTime issuedAt,
+            string audience)
+        {
             if (string.IsNullOrWhiteSpace(credentialId))
             {
                 throw new ArgumentException("CredentialId must be supplied.", nameof(credentialId));
@@ -195,11 +228,22 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentException("Nonce must be supplied.", nameof(nonce));
             }
+            if (audience == null)
+            {
+                throw new ArgumentNullException(nameof(audience));
+            }
 
             long issuedAtSeconds = new DateTimeOffset(DateTime.SpecifyKind(issuedAt, DateTimeKind.Utc))
                 .ToUnixTimeSeconds();
-            string proof = Base64UrlEncode(ComputeProof(secret, credentialId, nonce, issuedAtSeconds));
-            string json = "{\"credentialId\":\"" +
+            string proof = Base64UrlEncode(ComputeProof(
+                secret,
+                credentialId,
+                nonce,
+                issuedAtSeconds,
+                audience));
+            string json = "{\"version\":2,\"aud\":\"" +
+                EscapeJson(audience) +
+                "\",\"credentialId\":\"" +
                 EscapeJson(credentialId) +
                 "\",\"nonce\":\"" +
                 EscapeJson(nonce) +
@@ -225,7 +269,25 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(secret));
             }
-            return Base64UrlEncode(ComputeProof(secret, credentialId, nonce, issuedAt));
+            return Base64UrlEncode(ComputeProof(secret, credentialId, nonce, issuedAt, string.Empty));
+        }
+
+        /// <summary>
+        /// Creates a versioned HMAC proof bound to the supplied audience.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="secret"/> is <c>null</c>.</exception>
+        public static string CreateProof(
+            byte[] secret,
+            string credentialId,
+            string nonce,
+            long issuedAt,
+            string audience)
+        {
+            if (secret == null)
+            {
+                throw new ArgumentNullException(nameof(secret));
+            }
+            return Base64UrlEncode(ComputeProof(secret, credentialId, nonce, issuedAt, audience));
         }
 
         private bool HandlesProfile(
@@ -244,7 +306,7 @@ namespace Opc.Ua.Server
             }
 
             DateTime issuedAtUtc = DateTimeOffset.FromUnixTimeSeconds(issuedAt).UtcDateTime;
-            TimeSpan age = DateTime.UtcNow - issuedAtUtc;
+            TimeSpan age = m_options.TimeProvider.GetUtcNow().UtcDateTime - issuedAtUtc;
             return age >= TimeSpan.Zero && age <= m_options.NonceLifetime;
         }
 
@@ -258,6 +320,8 @@ namespace Opc.Ua.Server
 
             JsonElement root = document.RootElement;
             return new BridgeToken(
+                (int)GetInt64(root, "version"),
+                GetString(root, "aud"),
                 GetString(root, "credentialId"),
                 GetString(root, "nonce"),
                 GetInt64(root, "issuedAt"),
@@ -288,15 +352,31 @@ namespace Opc.Ua.Server
             byte[] secret,
             string credentialId,
             string nonce,
-            long issuedAt)
+            long issuedAt,
+            string audience)
         {
             string input = credentialId +
                 "\n" +
                 nonce +
                 "\n" +
-                issuedAt.ToString(CultureInfo.InvariantCulture);
+                issuedAt.ToString(CultureInfo.InvariantCulture) +
+                "\n" +
+                audience;
             using var hmac = new HMACSHA256(secret);
             return hmac.ComputeHash(Encoding.UTF8.GetBytes(input));
+        }
+
+        private void RemoveExpiredNonces()
+        {
+            long cutoff = m_options.TimeProvider.GetUtcNow().ToUnixTimeSeconds() -
+                (long)m_options.NonceLifetime.TotalSeconds;
+            foreach (KeyValuePair<string, long> item in m_seenNonces)
+            {
+                if (item.Value < cutoff)
+                {
+                    m_seenNonces.TryRemove(item.Key, out _);
+                }
+            }
         }
 
         private static string GetString(JsonElement root, string propertyName)
@@ -388,6 +468,8 @@ namespace Opc.Ua.Server
         }
 
         private sealed record BridgeToken(
+            int Version,
+            string Audience,
             string CredentialId,
             string Nonce,
             long IssuedAt,

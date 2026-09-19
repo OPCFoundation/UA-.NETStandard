@@ -90,7 +90,7 @@ namespace Opc.Ua
 #else // !NET8_0_OR_GREATER (NET78 and NET80)
             if (m_ecdh != null)
             {
-                ikm = m_ecdh.DeriveKeyMaterial(remoteNonce.m_ecdh!.PublicKey);
+                throw new NotSupportedException("Raw ECDHE shared-secret extraction requires .NET 8 or later.");
             }
             else if (m_rsadh != null)
             {
@@ -564,10 +564,11 @@ namespace Opc.Ua
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing && m_ecdh != null)
+            if (disposing)
             {
-                m_ecdh.Dispose();
+                m_ecdh?.Dispose();
                 m_ecdh = null;
+                m_rsadh = null;
             }
         }
     }

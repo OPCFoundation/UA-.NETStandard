@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Formats.Asn1;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -1512,7 +1511,7 @@ namespace Opc.Ua
                 document.LoadInnerXml(xml);
 
                 // nothing to write: the encoder produced no element.
-                if (document.DocumentElement == null)
+                if (document.DocumentElement == null && !remove)
                 {
                     return;
                 }
@@ -1535,7 +1534,7 @@ namespace Opc.Ua
                             return;
                         }
 
-                        xmlElements[ii] = XmlElement.From(document.DocumentElement!);
+                        xmlElements[ii] = XmlElement.From(document.DocumentElement);
                         extensions = xmlElements.ToArrayOf();
                         return;
                     }
@@ -1544,7 +1543,7 @@ namespace Opc.Ua
 
             if (!remove)
             {
-                xmlElements.Add(XmlElement.From(document.DocumentElement!));
+                xmlElements.Add(XmlElement.From(document.DocumentElement));
                 extensions = xmlElements.ToArrayOf();
             }
         }
@@ -1613,10 +1612,11 @@ namespace Opc.Ua
             where T : IEncodeable
         {
             elementName ??= GetEncodeableXmlName(typeof(T));
+            bool remove = EqualityComparer<T>.Default.Equals(value!, default!);
 
             var document = new XmlDocument();
 
-            if (!EqualityComparer<T>.Default.Equals(value!, default!))
+            if (!remove)
             {
                 using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry!);
                 using var encoder = new XmlEncoder(AmbientMessageContext.CurrentContext);
@@ -1627,7 +1627,7 @@ namespace Opc.Ua
                 document.LoadInnerXml(xml);
             }
 
-            if (document.DocumentElement == null)
+            if (document.DocumentElement == null && !remove)
             {
                 return;
             }
@@ -1642,7 +1642,7 @@ namespace Opc.Ua
                         element.LocalName == elementName.Name &&
                         element.NamespaceURI == elementName.Namespace)
                     {
-                        if (EqualityComparer<T>.Default.Equals(value!, default!))
+                        if (remove)
                         {
                             xmlElements.RemoveAt(ii);
                             extensions = xmlElements.ToArrayOf();
@@ -1656,7 +1656,7 @@ namespace Opc.Ua
                 }
             }
 
-            if (!EqualityComparer<T>.Default.Equals(value!, default!))
+            if (!remove)
             {
                 xmlElements.Add(XmlElement.From(document.DocumentElement));
                 extensions = xmlElements.ToArrayOf();
@@ -1859,7 +1859,7 @@ namespace Opc.Ua
             ITelemetryContext? telemetry,
             bool useAsnParser = false)
         {
-            CertificateCollection? certificateChain = new();
+            CertificateCollection? certificateChain = [];
             try
             {
                 int offset = 0;
@@ -1875,7 +1875,7 @@ namespace Opc.Ua
                         certBlob = AsnUtils.ParseX509Blob(certBlob);
                     }
 #endif
-                    using Certificate certificate = Certificate.FromRawData(certBlob);
+                    using var certificate = Certificate.FromRawData(certBlob);
                     certificateChain.Add(certificate);
                     offset += certificate.RawData.Length;
                 }

@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Tests.NodeManager;
@@ -68,7 +67,26 @@ namespace Opc.Ua.Server.Tests
         /// Verifies that long durable lifetimes are capped correctly without overflowing a 32-bit millisecond value.
         /// </summary>
         [Test]
-        public void DurableLifetimeConversionDoesNotOverflowUInt32Milliseconds()
+        [TestCase(1193, 1.0, 4_294_800_000u)]
+        [TestCase(1194, 1.0, uint.MaxValue)]
+        public void DurableLifetimeConversionDoesNotOverflowUInt32Milliseconds(
+            int hours,
+            double interval,
+            uint expected)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (var manager = new RevisionHooks(server.Object, hours))
+            {
+                Assert.That(manager.Lifetime(interval, 1, uint.MaxValue), Is.EqualTo(expected));
+            }
+        }
+
+        /// <summary>
+        /// Verifies the existing 2000-hour lifetime boundary remains exact.
+        /// </summary>
+        [Test]
+        public void DurableLifetimeConversionPreservesExistingBoundary()
         {
             Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
             using (queues)

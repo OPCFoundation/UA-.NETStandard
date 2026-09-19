@@ -344,11 +344,14 @@ namespace Opc.Ua.Bindings
                 ClientCertificate?.Dispose();
                 ClientCertificate = null;
 
-                m_localNonce?.Dispose();
-                m_localNonce = null;
-
-                m_remoteNonce?.Dispose();
-                m_remoteNonce = null;
+                lock (m_nonceLock)
+                {
+                    m_noncesDisposed = true;
+                    m_localNonce?.Dispose();
+                    m_localNonce = null;
+                    m_remoteNonce?.Dispose();
+                    m_remoteNonce = null;
+                }
             }
         }
 
@@ -442,9 +445,7 @@ namespace Opc.Ua.Bindings
             bool isLegacy = SecurityPolicy!.LegacySequenceNumbers;
 
             long newSeqNumber = Interlocked.Increment(ref m_sequenceNumber);
-            bool maxValueOverflow = isLegacy
-                ? newSeqNumber > kMaxValueLegacyTrue
-                : newSeqNumber > kMaxValueLegacyFalse;
+            bool maxValueOverflow = newSeqNumber > uint.MaxValue;
 
             // LegacySequenceNumbers are TRUE for non ECC profiles
             // https://reference.opcfoundation.org/Core/Part6/v105/docs/6.7.2.4
@@ -485,11 +486,19 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected bool VerifySequenceNumber(uint sequenceNumber, string context)
         {
+            return VerifySequenceNumberCore(sequenceNumber, context, false);
+        }
+
+        /// <summary>
+        /// Tracks a reconnect's continued sequence until the retained channel can validate it.
+        /// </summary>
+        private protected bool VerifySequenceNumberCore(uint sequenceNumber, string context, bool reconnecting)
+        {
             // Accept the first sequence number depending on security policy
             bool usesLegacySequenceNumbers = SecurityPolicy?.LegacySequenceNumbers ?? true;
             if (m_firstReceivedSequenceNumber)
             {
-                if (usesLegacySequenceNumbers || sequenceNumber == 0)
+                if (usesLegacySequenceNumbers || sequenceNumber == 0 || reconnecting)
                 {
                     m_remoteSequenceNumber = sequenceNumber;
                     m_firstReceivedSequenceNumber = false;
@@ -1120,7 +1129,7 @@ namespace Opc.Ua.Bindings
                         static completed => _ = completed.Exception,
                         CancellationToken.None,
                         TaskContinuationOptions.ExecuteSynchronously |
-                            TaskContinuationOptions.DenyChildAttach,
+                        TaskContinuationOptions.DenyChildAttach,
                         TaskScheduler.Default);
             }
         }
@@ -1792,8 +1801,6 @@ namespace Opc.Ua.Bindings
         private ReceiveLoop? m_receiveLoop;
 
         private volatile TcpChannelStateEventHandler? m_stateChanged;
-        private const uint kMaxValueLegacyTrue = TcpMessageLimits.MinSequenceNumber;
-        private const uint kMaxValueLegacyFalse = uint.MaxValue;
     }
 
     /// <summary>
@@ -1857,7 +1864,7 @@ namespace Opc.Ua.Bindings
             Message = "Sender Certificate {Certificate}")]
         public static partial void UaSCChannelLog2(
             this ILogger logger,
-            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+            Certificate? certificate);
 
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryChannel + 3, Level = LogLevel.Error,
             Message = "ChannelId {ChannelId}: {Context} - Duplicate sequence number: {SequenceNumber} " +
@@ -1883,7 +1890,7 @@ namespace Opc.Ua.Bindings
         public static partial void UaSCChannelLog6(
             this ILogger logger,
             uint channelId,
-            global::Opc.Ua.Bindings.TcpChannelState state);
+            TcpChannelState state);
 
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryChannel + 7, Level = LogLevel.Warning,
             Message = "Message is not an integral multiple of the block size. Length = {Length}, " +
@@ -1907,7 +1914,7 @@ namespace Opc.Ua.Bindings
         public static partial void UaSCChannelLog9(
             this ILogger logger,
             uint channelId,
-            global::System.DateTime createdAt,
+            DateTime createdAt,
             long createdAtTimestamp,
             int lifetime);
 
@@ -1918,7 +1925,7 @@ namespace Opc.Ua.Bindings
             this ILogger logger,
             uint id,
             uint tokenId,
-            global::System.DateTime createdAt,
+            DateTime createdAt,
             long createdAtTimestamp,
             int lifetime);
 
@@ -1929,7 +1936,7 @@ namespace Opc.Ua.Bindings
             this ILogger logger,
             uint id,
             uint tokenId,
-            global::System.DateTime createdAt,
+            DateTime createdAt,
             long createdAtTimestamp,
             int lifetime);
 
@@ -1968,5 +1975,4 @@ namespace Opc.Ua.Bindings
             this ILogger logger,
             Exception exception);
     }
-
 }

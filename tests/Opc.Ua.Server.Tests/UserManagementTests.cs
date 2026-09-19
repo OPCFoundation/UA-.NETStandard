@@ -29,10 +29,13 @@
 
 #nullable enable
 
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using Opc.Ua.Server.UserDatabase;
+using Opc.Ua.Tests;
 using UserManagementImpl = Opc.Ua.Server.UserManagement.UserManagement;
 
 namespace Opc.Ua.Server.Tests
@@ -296,6 +299,49 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void JsonDatabasePersistsUserConfigurationAndDescriptionAcrossReload()
+        {
+            string fileName = Path.Combine(
+                Path.GetTempPath(),
+                "opcua-user-metadata-" + Guid.NewGuid().ToString("N") + ".json");
+            try
+            {
+                using (var initial = new UserManagementImpl(
+                    new JsonUserDatabase(fileName),
+                    passwordLength: new Range { Low = 4, High = 64 }))
+                {
+                    ServiceResult result = initial.AddUser(
+                        "alice",
+                        "secret",
+                        UserConfigurationMask.Disabled | UserConfigurationMask.MustChangePassword,
+                        "Disabled until verified");
+                    Assert.That(ServiceResult.IsGood(result), Is.True);
+                }
+
+                IUserDatabase loadedDatabase = JsonUserDatabase.Load(
+                    fileName,
+                    NUnitTelemetryContext.Create());
+                using var reloaded = new UserManagementImpl(
+                    loadedDatabase,
+                    passwordLength: new Range { Low = 4, High = 64 });
+
+                UserManagementDataType alice = reloaded.SnapshotUsers()
+                    .Single(user => user.UserName == "alice");
+                Assert.That(
+                    (UserConfigurationMask)alice.UserConfiguration,
+                    Is.EqualTo(UserConfigurationMask.Disabled | UserConfigurationMask.MustChangePassword));
+                Assert.That(alice.Description, Is.EqualTo("Disabled until verified"));
+            }
+            finally
+            {
+                if (File.Exists(fileName))
+                {
+                    File.Delete(fileName);
+                }
+            }
+        }
+
+        [Test]
         public void ChangePassword_SameAsOld_ReturnsBadAlreadyExists()
         {
             using UserManagementImpl um = CreateManager();
@@ -501,24 +547,24 @@ namespace Opc.Ua.Server.Tests
                 m_users = users;
             }
 
-            public bool CreateUser(string userName, System.ReadOnlySpan<byte> password, ICollection<Role> roles)
+            public bool CreateUser(string userName, ReadOnlySpan<byte> password, ICollection<Role> roles)
             {
-                throw new System.NotSupportedException();
+                throw new NotSupportedException();
             }
 
             public bool DeleteUser(string userName)
             {
-                throw new System.NotSupportedException();
+                throw new NotSupportedException();
             }
 
-            public bool CheckCredentials(string userName, System.ReadOnlySpan<byte> password)
+            public bool CheckCredentials(string userName, ReadOnlySpan<byte> password)
             {
-                throw new System.NotSupportedException();
+                throw new NotSupportedException();
             }
 
             public ICollection<Role> GetUserRoles(string userName)
             {
-                throw new System.NotSupportedException();
+                throw new NotSupportedException();
             }
 
             public IReadOnlyList<UserManagementDataType> GetUsers()
@@ -528,10 +574,10 @@ namespace Opc.Ua.Server.Tests
 
             public bool ChangePassword(
                 string userName,
-                System.ReadOnlySpan<byte> oldPassword,
-                System.ReadOnlySpan<byte> newPassword)
+                ReadOnlySpan<byte> oldPassword,
+                ReadOnlySpan<byte> newPassword)
             {
-                throw new System.NotSupportedException();
+                throw new NotSupportedException();
             }
         }
     }

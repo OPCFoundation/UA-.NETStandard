@@ -206,8 +206,8 @@ jobs:
     # stalls the test host during PROCESS EXIT (after every test has already
     # passed and all teardowns have run; managed threads are frozen so no in-test
     # mitigation can fire), and the blame collector then kills the host with a
-    # non-zero exit even though the run was functionally green. A real test
-    # failure is still caught: it is recorded in the TRX and fails the gate.
+    # non-zero exit even though the run was functionally green. Test failures,
+    # aborted runs and incomplete reports are still rejected by the TRX gate.
     continueOnError: true
     inputs:
       command: test
@@ -263,80 +263,16 @@ jobs:
     displayName: 'Evaluate test results ${{ parameters.configuration }} (${{ parameters.framework }})'
     # Result-driven gate: the job's pass/fail is defined by the emitted TRX, not
     # by the 'dotnet test' exit code (the test step runs with continueOnError).
-    # Fails the job if any test failed/errored/timed-out/aborted, or if no results
-    # were produced at all. Tolerates ONLY a non-zero exit when every recorded
-    # test passed - i.e. the benign macOS test-host process-exit stall that the
-    # blame collector turns into a non-zero exit after a fully green run. This
-    # runs before the failure-only artifact steps below so their failed()
-    # conditions still see a genuine failure.
+    # Every TRX must describe a completed successful run, with no run-level
+    # errors and consistent results/counters. Green counters alone can describe
+    # a partial run whose host crashed. Completed green TRX runs still tolerate
+    # benign post-completion host exits; no-TRX MTP jobs retain their exit-status
+    # fallback. Run before failure-only artifacts so failed() sees real failures.
     condition: succeededOrFailed()
     inputs:
-      targetType: inline
-      script: |
-        $ErrorActionPreference = 'Stop'
-        $dir = "$(Agent.TempDirectory)"
-
-        function Get-CounterValue([System.Xml.XmlElement] $element, [string] $name) {
-            $raw = $element.GetAttribute($name)
-            if ([string]::IsNullOrEmpty($raw)) { return 0 }
-            return [int]$raw
-        }
-
-        $trx = @(Get-ChildItem -Path $dir -Filter *.trx -ErrorAction SilentlyContinue)
-        if ($trx.Count -eq 0) {
-            # No VSTest TRX in the results directory. This is expected for
-            # Microsoft.Testing.Platform (MTP) test projects, which do not emit a
-            # VSTest-style TRX there. For those, defer to the test host's own exit
-            # code as reflected by Agent.JobStatus: 'Succeeded' means the test step
-            # (and every prior step) exited cleanly -> pass; anything else (the
-            # continueOnError test step exited non-zero, or an earlier step failed)
-            # -> fail. This preserves the original exit-code behaviour for MTP
-            # projects while the TRX path below tolerates the VSTest macOS at-exit
-            # stall.
-            $jobStatus = $env:AGENT_JOBSTATUS
-            Write-Host "No VSTest TRX found in $dir; deferring to the test host exit (Agent.JobStatus=$jobStatus)."
-            if ($jobStatus -eq 'Succeeded') {
-                Write-Host "Test host exited cleanly; treating the run as successful."
-                exit 0
-            }
-            Write-Host "##vso[task.logissue type=error]Test host did not exit cleanly and produced no TRX results."
-            exit 1
-        }
-        $passed = 0
-        $failed = 0
-        $total = 0
-        foreach ($f in $trx) {
-            # Use XmlDocument.Load (not [xml](Get-Content ...)) so large TRX
-            # files - PubSub emits ~9400 results, several MB - parse reliably;
-            # the array-of-lines cast fails on big files ("Cannot convert value
-            # System.String[]").
-            $doc = New-Object System.Xml.XmlDocument
-            try {
-                $doc.Load($f.FullName)
-            }
-            catch {
-                Write-Host "##vso[task.logissue type=error]Could not parse TRX $($f.Name): $($_.Exception.Message)"
-                exit 1
-            }
-            foreach ($c in $doc.GetElementsByTagName('Counters')) {
-                $passed += Get-CounterValue $c 'passed'
-                $total += Get-CounterValue $c 'total'
-                $failed += (Get-CounterValue $c 'failed') + (Get-CounterValue $c 'error') +
-                    (Get-CounterValue $c 'timeout') + (Get-CounterValue $c 'aborted') +
-                    (Get-CounterValue $c 'passedButRunAborted')
-            }
-        }
-        Write-Host "Aggregated test results: total=$total, passed=$passed, failed/error/timeout/aborted=$failed (from $($trx.Count) trx file(s))."
-        if ($failed -gt 0) {
-            Write-Host "##vso[task.logissue type=error]$failed test(s) failed or the run was aborted mid-execution."
-            exit 1
-        }
-        if ($total -le 0) {
-            Write-Host "##vso[task.logissue type=error]No tests were recorded (total=0); the run did not execute."
-            exit 1
-        }
-        Write-Host "No test failures recorded across $total test(s); treating the run as successful (tolerating any non-zero test-host exit after a fully green run)."
-        exit 0
+      targetType: filePath
+      filePath: '$(Build.SourcesDirectory)/.azurepipelines/evaluate-test-results.ps1'
+      arguments: '-ResultsDirectory "$(Agent.TempDirectory)"'
   # Hand the raw per-project Cobertura report to the 'Code coverage' stage
   # instead of letting a gate job re-run the whole suite with coverage enabled.
   # Re-running defeats the point of fanning the suite out across matrix jobs and

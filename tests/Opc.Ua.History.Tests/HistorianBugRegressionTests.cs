@@ -78,7 +78,7 @@ namespace Opc.Ua.History.Tests
         {
             var nodeId = new NodeId(identifier, m_namespaceIndex);
             var client = new HistoryClient(Session);
-            DateTime start = new(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            DateTime start = s_timeProvider.GetUtcNow().UtcDateTime.AddMinutes(-5);
             if (reverse)
             {
                 start = start.AddMinutes(1);
@@ -128,7 +128,7 @@ namespace Opc.Ua.History.Tests
         {
             var nodeId = new NodeId(identifier, m_namespaceIndex);
             var client = new HistoryClient(Session);
-            DateTime start = new(2025, 1, 2, 0, 0, 0, DateTimeKind.Utc);
+            DateTime start = s_timeProvider.GetUtcNow().UtcDateTime.AddMinutes(-5);
             ArrayOf<StatusCode> statuses = await client.InsertAsync(
                 nodeId,
                 [
@@ -208,7 +208,7 @@ namespace Opc.Ua.History.Tests
             filter.AddSelectClause(ObjectTypeIds.BaseEventType, BrowseNames.EventId, Attributes.Value);
             filter.AddSelectClause(ObjectTypeIds.BaseEventType, BrowseNames.EventType, Attributes.Value);
             filter.AddSelectClause(ObjectTypeIds.BaseEventType, BrowseNames.Time, Attributes.Value);
-            DateTime lower = new(2025, 1, 3, 0, 0, 0, DateTimeKind.Utc);
+            DateTime lower = s_timeProvider.GetUtcNow().UtcDateTime.AddMinutes(-5);
             DateTime upper = lower.AddSeconds(10);
             ArrayOf<StatusCode> statuses = await client.InsertEventsAsync(
                 nodeId,
@@ -324,8 +324,8 @@ namespace Opc.Ua.History.Tests
         {
             var client = new HistoryClient(Session);
             var nodeId = new NodeId("Extrema", m_namespaceIndex);
-            DateTime start = new DateTime(2025, 1, 5, 0, 0, 0, DateTimeKind.Utc)
-                .AddSeconds(aggregateTypeId * 20);
+            DateTime start = s_timeProvider.GetUtcNow().UtcDateTime.AddMinutes(-5)
+                .AddSeconds((aggregateTypeId - Objects.AggregateFunction_Minimum) * 20);
             ArrayOf<StatusCode> statuses = await client.InsertAsync(
                 nodeId,
                 [
@@ -373,6 +373,8 @@ namespace Opc.Ua.History.Tests
         private const string kNamespaceUri =
             "urn:opcfoundation:history-tests:server-core-regressions";
 
+        private static readonly TimeProvider s_timeProvider = new HistoryTimeProvider();
+
         /// <summary>
         /// Resolves regression NodeIds using the server's assigned namespace index.
         /// </summary>
@@ -382,6 +384,18 @@ namespace Opc.Ua.History.Tests
         /// Supplies controlled raw pages for exact aggregate-output-limit assertions.
         /// </summary>
         private readonly StreamingPageProvider m_streamingProvider = new();
+
+        /// <summary>
+        /// Provides the same fixed clock for history samples and the provider's wall-clock retention.
+        /// </summary>
+        private sealed class HistoryTimeProvider : TimeProvider
+        {
+            /// <inheritdoc/>
+            public override DateTimeOffset GetUtcNow()
+            {
+                return new DateTimeOffset(2025, 1, 5, 0, 0, 0, TimeSpan.Zero);
+            }
+        }
 
         /// <summary>
         /// Creates the regression address space with the shared raw-page provider.
@@ -556,7 +570,7 @@ namespace Opc.Ua.History.Tests
             /// <summary>
             /// Stores data and events for the ordinary regression nodes.
             /// </summary>
-            private readonly InMemoryHistorianProvider m_provider = new();
+            private readonly InMemoryHistorianProvider m_provider = new(new InMemoryHistorianOptions(), s_timeProvider);
 
             /// <summary>
             /// Supplies the specially spaced raw values for output-limit testing.
@@ -608,6 +622,7 @@ namespace Opc.Ua.History.Tests
             /// <summary>
             /// Rejects insertion because the controlled raw points are immutable.
             /// </summary>
+            /// <exception cref="NotSupportedException"></exception>
             public ValueTask<HistorianUpdateOutcome<DataValue>> InsertAsync(
                 HistorianOperationContext context,
                 NodeId nodeId,
@@ -620,6 +635,7 @@ namespace Opc.Ua.History.Tests
             /// <summary>
             /// Rejects replacement of the controlled raw points.
             /// </summary>
+            /// <exception cref="NotSupportedException"></exception>
             public ValueTask<HistorianUpdateOutcome<DataValue>> ReplaceAsync(
                 HistorianOperationContext context,
                 NodeId nodeId,
@@ -632,6 +648,7 @@ namespace Opc.Ua.History.Tests
             /// <summary>
             /// Rejects updates to the fixed output-limit scenario.
             /// </summary>
+            /// <exception cref="NotSupportedException"></exception>
             public ValueTask<HistorianUpdateOutcome<DataValue>> UpdateAsync(
                 HistorianOperationContext context,
                 NodeId nodeId,
@@ -644,6 +661,7 @@ namespace Opc.Ua.History.Tests
             /// <summary>
             /// Rejects deletion of the controlled raw-history range.
             /// </summary>
+            /// <exception cref="NotSupportedException"></exception>
             public ValueTask<HistorianUpdateOutcome<DataValue>> DeleteRawAsync(
                 HistorianOperationContext context,
                 NodeId nodeId,
@@ -658,6 +676,7 @@ namespace Opc.Ua.History.Tests
             /// <summary>
             /// Rejects timestamp-based deletion from the fixed raw-history scenario.
             /// </summary>
+            /// <exception cref="NotSupportedException"></exception>
             public ValueTask<HistorianUpdateOutcome<DataValue>> DeleteAtTimeAsync(
                 HistorianOperationContext context,
                 NodeId nodeId,

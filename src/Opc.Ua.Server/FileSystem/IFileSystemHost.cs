@@ -106,6 +106,19 @@ namespace Opc.Ua.Server.FileSystem
         FileHandle? GetOrCreateHandle(NodeId nodeId, string providerPath);
 
         /// <summary>
+        /// Looks up existing handle state without allocating it for a metadata request.
+        /// </summary>
+        /// <param name="providerPath">The provider-relative path whose handle state is requested.</param>
+        /// <returns>The retained handle, or null if no handle state exists.</returns>
+        FileHandle? FindHandle(string providerPath);
+
+        /// <summary>
+        /// Releases retained handle state when no open stream or pending reservation still needs it.
+        /// </summary>
+        /// <param name="handle">The handle whose idle state may be released.</param>
+        void ReleaseHandle(FileHandle handle);
+
+        /// <summary>
         /// Drops the handle tracked for a node.
         /// </summary>
         /// <param name="nodeId">The file NodeId.</param>

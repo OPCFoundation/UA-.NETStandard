@@ -1064,18 +1064,20 @@ namespace Opc.Ua.Client.FileSystem
             UaDirectoryInfo? parentInfo = null;
             if (segments.Length > 1)
             {
-                ResolvedNode? parent = await ResolveSegmentsAsync(
-                    [.. segments.Take(segments.Length - 1)],
-                    throwOnMissing: true,
-                    ct).ConfigureAwait(false);
-                if (parent != null)
+                parentInfo = Root;
+                for (int index = 0; index < segments.Length - 1; index++)
                 {
+                    QualifiedName[] parentSegments = [.. segments.Take(index + 1)];
+                    ResolvedNode parent = (await ResolveSegmentsAsync(
+                        parentSegments,
+                        throwOnMissing: true,
+                        ct).ConfigureAwait(false))!.Value;
                     parentInfo = new UaDirectoryInfo(
                         this,
-                        parent: null, // grandparent reference omitted for the synthesized parent stub
-                        parent.Value.NodeId,
-                        parent.Value.BrowseName,
-                        [.. segments.Take(segments.Length - 1)]);
+                        parentInfo,
+                        parent.NodeId,
+                        parent.BrowseName,
+                        parentSegments);
                 }
             }
             else

@@ -137,8 +137,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             using (client)
             using (accepted)
             {
-                var gate = idle.Gate.Enter();
-                Task admission = Task.Run(() => harness.Admit(accepted));
+                ChannelGate.Releaser gate = idle.Gate.Enter();
+                var admission = Task.Run(() => harness.Admit(accepted));
                 Task? lookup = null;
                 try
                 {
@@ -147,7 +147,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     {
                         ServiceResultException error = Assert.Throws<ServiceResultException>(() =>
                             harness.Listener.ReconnectToExistingChannel(
-                                Mock.Of<IUaSCByteTransport>(), 1, 1, 99, null!, null!,
+                                idle, Mock.Of<IUaSCByteTransport>(), 1, 1, 99, null!, null!,
                                 new OpenSecureChannelRequest { RequestType = SecurityTokenRequestType.Renew }))!;
                         Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadTcpSecureChannelUnknown));
                     });
@@ -166,6 +166,39 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 Assert.That(harness.Channels.Values, Does.Not.Contain(idle));
                 Assert.That(harness.Channels, Has.Count.EqualTo(1));
             }
+        }
+
+        /// <summary>
+        /// Verifies channel removal cannot leave empty entries in the listener's disposal snapshot.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        public async Task DisposalUsesStableChannelSnapshotWhenConnectionsCloseAsync(int closedDuringCopy)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            await using var harness = new AcceptHarness(telemetry);
+            using var first = new IdleChannel(harness.Listener, harness.Buffers, harness.Quotas, telemetry);
+            using var second = new IdleChannel(
+                harness.Listener, harness.Buffers, harness.Quotas, telemetry, channelId: 2);
+            var channels = new ClosingOnCopyDictionary(() =>
+            {
+                for (uint channelId = 1; channelId <= closedDuringCopy; channelId++)
+                {
+                    harness.Listener.ChannelClosed(channelId);
+                }
+            })
+            {
+                [1] = first,
+                [2] = second
+            };
+            SetField(harness.Listener, "m_channels", channels);
+
+            await harness.Listener.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(channels, Is.Empty);
+            Assert.That(first.ResourcesDisposed, Is.True);
+            Assert.That(second.ResourcesDisposed, Is.True);
         }
 
         /// <summary>
@@ -194,7 +227,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             using (client)
             using (accepted)
             {
-                Task first = Task.Run(() => harness.Admit(accepted));
+                var first = Task.Run(() => harness.Admit(accepted));
                 try
                 {
                     await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
@@ -234,6 +267,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// Sets an existing private listener seam needed to control admission deterministically.
         /// </summary>
         /// <typeparam name="T">The value type of the listener field.</typeparam>
+        /// <exception cref="InvalidOperationException"></exception>
         private static void SetField<T>(TcpTransportListener listener, string name, T value)
         {
             FieldInfo field = typeof(TcpTransportListener).GetField(name, BindingFlags.NonPublic | BindingFlags.Instance)
@@ -250,11 +284,46 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             /// Creates the idle channel occupying the listener's only capacity slot.
             /// </summary>
             public IdleChannel(
-                ITcpChannelListener listener, BufferManager buffers, ChannelQuotas quotas, ITelemetryContext telemetry)
+                ITcpChannelListener listener,
+                BufferManager buffers,
+                ChannelQuotas quotas,
+                ITelemetryContext telemetry,
+                uint channelId = 1)
                 : base("idle", listener, buffers, quotas, null!, [], telemetry, new FakeTimeProvider())
             {
-                ChannelId = 1;
+                ChannelId = channelId;
                 State = TcpChannelState.Open;
+            }
+
+            /// <summary>
+            /// Gets whether the channel's owned resources have been disposed.
+            /// </summary>
+            public bool ResourcesDisposed { get; private set; }
+
+            /// <inheritdoc/>
+            protected override void Dispose(bool disposing)
+            {
+                base.Dispose(disposing);
+                if (disposing)
+                {
+                    ResourcesDisposed = true;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Models connection closure between a collection copy's count and copy operations.
+        /// </summary>
+        private sealed class ClosingOnCopyDictionary(Action closeChannels)
+            : ConcurrentDictionary<uint, TcpListenerChannel>, ICollection<KeyValuePair<uint, TcpListenerChannel>>
+        {
+            /// <inheritdoc/>
+            void ICollection<KeyValuePair<uint, TcpListenerChannel>>.CopyTo(
+                KeyValuePair<uint, TcpListenerChannel>[] array,
+                int arrayIndex)
+            {
+                closeChannels();
+                ToArray().CopyTo(array, arrayIndex);
             }
         }
 

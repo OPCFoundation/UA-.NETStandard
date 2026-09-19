@@ -1,7 +1,34 @@
-// ------------------------------------------------------------
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
 //  Copyright (c) Microsoft Corporation.  All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
-// ------------------------------------------------------------
 
 #nullable enable
 
@@ -78,6 +105,55 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
 
             Assert.That(builder, Is.Not.Null);
             Assert.That(builder.Services, Is.SameAs(services));
+        }
+
+        [Test]
+        public async Task CachedSessionConnectSurvivesCancelledWaitersAndRetriesAfterFailureAsync()
+        {
+            var pending = new TaskCompletionSource<ApplicationConfiguration>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var configurationProvider = new Mock<IOpcUaApplicationConfigurationProvider>();
+            configurationProvider.Setup(provider => provider.Configuration).Returns(CreateConfig());
+            int calls = 0;
+            configurationProvider.Setup(provider => provider.GetAsync(It.IsAny<CancellationToken>()))
+                .Returns((CancellationToken token) =>
+                {
+                    Assert.That(token.CanBeCanceled, Is.False);
+                    return Interlocked.Increment(ref calls) == 1
+                        ? pending.Task
+                        : Task.FromException<ApplicationConfiguration>(new IOException("Retry configuration failure."));
+                });
+            var services = new ServiceCollection();
+            services.AddSingleton(configurationProvider.Object);
+            services.AddOpcUa().AddClient(options =>
+                options.Session = new ManagedSessionOptions { Endpoint = CreateEndpoint() });
+            await using ServiceProvider provider = services.BuildServiceProvider();
+            Func<CancellationToken, Task<Client.ManagedSession>> connect = provider.GetRequiredService<Func<CancellationToken, Task<Client.ManagedSession>>>();
+            using var cancellation = new CancellationTokenSource();
+            var cancelledWaiters = new Task<Client.ManagedSession>[16];
+            for (int ii = 0; ii < cancelledWaiters.Length; ii++)
+            {
+                cancelledWaiters[ii] = connect(cancellation.Token);
+            }
+            Task<Client.ManagedSession> survivor = connect(CancellationToken.None);
+
+            cancellation.Cancel();
+            await Assert.ThatAsync(
+                () => Task.WhenAll(cancelledWaiters).WaitAsync(TimeSpan.FromSeconds(5)),
+                Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(survivor.IsCompleted, Is.False);
+
+            pending.SetException(new IOException("Shared configuration failure."));
+            await Assert.ThatAsync(
+                () => survivor.WaitAsync(TimeSpan.FromSeconds(5)),
+                Throws.TypeOf<IOException>().With.Message.EqualTo("Shared configuration failure."))
+                .ConfigureAwait(false);
+            await Assert.ThatAsync(
+                () => connect(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(5)),
+                Throws.TypeOf<IOException>().With.Message.EqualTo("Retry configuration failure."))
+                .ConfigureAwait(false);
+            Assert.That(calls, Is.EqualTo(2));
         }
 
         [Test]
@@ -233,10 +309,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             services.AddSingleton<IOpcUaApplicationConfigurationProvider>(
                 configurationProvider);
             services.AddOpcUa()
-                .ConfigureApplication(options =>
-                {
-                    options.ApplicationName = "ConfiguredClient";
-                })
+                .ConfigureApplication(options => options.ApplicationName = "ConfiguredClient")
                 .AddClient(_ => { });
 
             ServiceProvider sp = services.BuildServiceProvider();
@@ -361,6 +434,124 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Assert.That(builder.Services, Is.SameAs(services));
             Assert.That(sp.GetService<ReverseConnectManager>(), Is.Not.Null);
             Assert.That(sp.GetService<Func<CancellationToken, Task<Client.ManagedSession>>>(), Is.Not.Null);
+        }
+
+        [Test]
+        public async Task ManagedSessionPoolKeepsDisconnectedSessionIdentityAsync()
+        {
+            await using Client.ManagedSession session = CreateUnconnectedManagedSession();
+            session.StateMachine.Start();
+            var factory = new Mock<IManagedSessionFactory>();
+            int attempts = 0;
+            factory.Setup(value => value.ConnectAsync(
+                    It.IsAny<ConfiguredEndpoint>(), It.IsAny<Action<ManagedSessionBuilder>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(() => ++attempts == 1
+                    ? session
+                    : throw new InvalidOperationException("A disconnected session must not be replaced."));
+            await using var pool = new ManagedSessionPool(factory.Object);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+            Client.ManagedSession first = await pool.GetOrConnectAsync("primary", CreateEndpoint(), timeout.Token)
+                .ConfigureAwait(false);
+            Client.ManagedSession second = await pool.GetOrConnectAsync("primary", CreateEndpoint(), timeout.Token)
+                .ConfigureAwait(false);
+
+            Assert.That(first, Is.SameAs(session));
+            Assert.That(second, Is.SameAs(session));
+            Assert.That(attempts, Is.EqualTo(1));
+            Assert.That(session.StateMachine.State, Is.EqualTo(ConnectionState.Disconnected));
+        }
+
+        [Test]
+        public async Task ManagedSessionPoolRejectsClosedFactoryResultWithoutRetryAsync()
+        {
+            await using Client.ManagedSession session = CreateUnconnectedManagedSession();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            session.StateMachine.Start();
+            await session.CloseAsync(timeout.Token).ConfigureAwait(false);
+            var factory = new Mock<IManagedSessionFactory>();
+            int attempts = 0;
+            factory.Setup(value => value.ConnectAsync(
+                    It.IsAny<ConfiguredEndpoint>(), It.IsAny<Action<ManagedSessionBuilder>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(() => ++attempts <= 2
+                    ? session
+                    : throw new InvalidOperationException("The pool retried a closed factory result."));
+            await using var pool = new ManagedSessionPool(factory.Object);
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await pool.GetOrConnectAsync("primary", CreateEndpoint(), timeout.Token).ConfigureAwait(false))!;
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNotConnected));
+            Assert.That(attempts, Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task ManagedSessionPoolReplacesExplicitlyClosedSessionOnceAsync()
+        {
+            await using Client.ManagedSession first = CreateUnconnectedManagedSession();
+            await using Client.ManagedSession replacement = CreateUnconnectedManagedSession();
+            first.StateMachine.Start();
+            replacement.StateMachine.Start();
+            var factory = new Mock<IManagedSessionFactory>();
+            factory.SetupSequence(value => value.ConnectAsync(
+                    It.IsAny<ConfiguredEndpoint>(), It.IsAny<Action<ManagedSessionBuilder>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(first)
+                .ReturnsAsync(replacement);
+            await using var pool = new ManagedSessionPool(factory.Object);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            Client.ManagedSession cached = await pool.GetOrConnectAsync(
+                "primary", CreateEndpoint(), timeout.Token).ConfigureAwait(false);
+            Assert.That(cached, Is.SameAs(first));
+
+            await first.CloseAsync(timeout.Token).ConfigureAwait(false);
+            Client.ManagedSession next = await pool.GetOrConnectAsync(
+                "primary", CreateEndpoint(), timeout.Token).ConfigureAwait(false);
+
+            Assert.That(next, Is.SameAs(replacement));
+            Assert.That(first.Disposed, Is.True);
+            factory.Verify(value => value.ConnectAsync(
+                It.IsAny<ConfiguredEndpoint>(), It.IsAny<Action<ManagedSessionBuilder>>(),
+                It.IsAny<CancellationToken>()), Times.Exactly(2));
+        }
+
+        [Test]
+        public async Task ManagedSessionPoolRemovalBoundsIgnoringFactoryAndDisposesLateSessionAsync()
+        {
+            await using Client.ManagedSession late = CreateUnconnectedManagedSession();
+            late.StateMachine.Start();
+            var completion = new TaskCompletionSource<Client.ManagedSession>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var factory = new Mock<IManagedSessionFactory>();
+            factory.Setup(value => value.ConnectAsync(
+                    It.IsAny<ConfiguredEndpoint>(), It.IsAny<Action<ManagedSessionBuilder>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(completion.Task);
+            await using var pool = new ManagedSessionPool(factory.Object);
+            using var caller = new CancellationTokenSource();
+            Task<Client.ManagedSession> waiting = pool.GetOrConnectAsync("primary", CreateEndpoint(), caller.Token);
+            caller.Cancel();
+            Assert.ThrowsAsync(Is.InstanceOf<OperationCanceledException>(),
+                async () => await waiting.ConfigureAwait(false));
+            Task<bool> removal = pool.RemoveAsync("primary").AsTask();
+            try
+            {
+                Assert.That(await removal.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false), Is.True);
+            }
+            finally
+            {
+                completion.TrySetResult(late);
+                await removal.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            }
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            await late.StateMachine.WaitForClosedAsync(timeout.Token).ConfigureAwait(false);
+            while (!late.Disposed)
+            {
+                await Task.Delay(10, timeout.Token).ConfigureAwait(false);
+            }
+            Assert.That(late.Disposed, Is.True);
         }
 
         [Test]

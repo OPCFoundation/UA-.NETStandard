@@ -147,6 +147,10 @@ services.AddOpcUa()
 
 When `MaxOutstandingBytesPerProcess` is positive, the singleton factory wraps every manager it creates with `LimitingBufferManager` and shares one `BufferManagerMemoryLimiter` across them. A synchronous rent blocks without holding a manager lock until another buffer is returned. A single rent whose conservative expected size exceeds the budget fails immediately instead of waiting forever.
 
+Capacity changes notify only currently registered renters; idle buffer returns
+do not accumulate wakeups. Cancellation removes any unclaimed wakeup, and
+disposal wakes all blocked renters before releasing the wait primitive.
+
 Applications can replace the complete policy by registering an `IBufferManagerFactory` before `AddOpcUa()`:
 
 ```csharp
@@ -552,7 +556,10 @@ serverBuilder
 
 `AliasNameServerOptions` is in `Opc.Ua.Server.AliasNames`; its
 `MaterializeAliasNodes` defaults to `false`. Materialized browse nodes
-are a startup snapshot, not a live mirror of store mutations.
+are a startup snapshot by default. Also set `RefreshAliasNodesOnChange = true`
+to opt a materialized host into bounded, coalesced live refresh. This second
+option does not enable materialization by itself; query-only servers remain
+query-only.
 This setting is independent of `AliasNameNodeManagerOptions` for custom
 categories, whose `MaterializeAliasNodes` default remains `true`.
 See [Alias Names](AliasNames.md#browsable-alias-nodes) for capabilities,

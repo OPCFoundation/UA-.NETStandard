@@ -35,6 +35,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Historian;
@@ -166,16 +167,16 @@ namespace Opc.Ua.Server.Tests.Historian
                     },
                     TimestampsToReturn.Source,
                     result,
-                    CancellationToken.None);
+                    CancellationToken.None).ConfigureAwait(false);
             }
 
-            Assert.That(await h.Provider.IsHistorizingAsync(notHistorized, CancellationToken.None), Is.False);
+            Assert.That(await h.Provider.IsHistorizingAsync(notHistorized, CancellationToken.None).ConfigureAwait(false), Is.False);
             Assert.That(
-                (await ReadRawAsync(notHistorized, new HistoryReadResult())).StatusCode,
+                (await ReadRawAsync(notHistorized, new HistoryReadResult()).ConfigureAwait(false)).StatusCode,
                 Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported));
 
             var historizedResult = new HistoryReadResult();
-            Assert.That(ServiceResult.IsGood(await ReadRawAsync(historized, historizedResult)), Is.True);
+            Assert.That(ServiceResult.IsGood(await ReadRawAsync(historized, historizedResult).ConfigureAwait(false)), Is.True);
             Assert.That(historizedResult.HistoryData.IsNull, Is.False);
 
             ServiceResult atTime = await HistorianDispatcher.DispatchAtTimeReadAsync(
@@ -186,7 +187,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 new ReadAtTimeDetails { ReqTimes = [HarnessFixture.BaseTime] },
                 TimestampsToReturn.Source,
                 new HistoryReadResult(),
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
             Assert.That(atTime.StatusCode, Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported));
         }
 
@@ -1104,7 +1105,9 @@ namespace Opc.Ua.Server.Tests.Historian
             public HarnessFixture(
                 ISessionContinuationPoints? continuationPoints = null)
             {
-                Provider = new InMemoryHistorianProvider();
+                Provider = new InMemoryHistorianProvider(
+                    new InMemoryHistorianOptions(),
+                    new FakeTimeProvider(BaseTime));
 
                 var mockTelemetry = new Mock<ITelemetryContext>();
 

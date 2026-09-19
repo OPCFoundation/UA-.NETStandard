@@ -29,8 +29,8 @@
 
 using System;
 using System.Net;
+using System.Net.Security;
 using System.Net.WebSockets;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -86,7 +86,8 @@ namespace Opc.Ua.Bindings
                     .ConfigureAwait(false);
 #else
                 ArraySegment<byte> segment;
-                if (MemoryMarshal.TryGetArray(chunk, out ArraySegment<byte> seg) && seg.Array != null)
+                if (System.Runtime.InteropServices.MemoryMarshal.TryGetArray(
+                    chunk, out ArraySegment<byte> seg) && seg.Array != null)
                 {
                     segment = seg;
                 }
@@ -412,7 +413,8 @@ namespace Opc.Ua.Bindings
                         (sender, cert, chain, errors) => ValidateRemoteCertificate(
                             validator,
                             cert as X509Certificate2,
-                            chain);
+                            chain,
+                            errors);
                 }
                 if (ClientTlsCertificate != null)
                 {
@@ -466,7 +468,8 @@ namespace Opc.Ua.Bindings
         private bool ValidateRemoteCertificate(
             ICertificateValidatorEx validator,
             X509Certificate2? cert,
-            X509Chain? chain)
+            X509Chain? chain,
+            SslPolicyErrors sslPolicyErrors)
         {
             if (cert == null)
             {
@@ -474,6 +477,12 @@ namespace Opc.Ua.Bindings
             }
             try
             {
+                if ((sslPolicyErrors & SslPolicyErrors.RemoteCertificateNameMismatch) != 0)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadCertificateHostNameInvalid,
+                        "The TLS certificate host name does not match the endpoint.");
+                }
                 using CertificateCollection validation = CertificateValidationHelpers
                     .BuildValidationCertificateCollection(cert, chain);
                 // Run the async validator from the sync TLS callback; the

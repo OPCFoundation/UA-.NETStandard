@@ -36,6 +36,7 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Registers a historian builder whose capture pipeline must be managed by the server.
         /// </summary>
+        /// <param name="builder">The builder whose capture pipeline the server will drain during shutdown.</param>
         void RegisterHistorianBuilder(HistorianBuilder builder);
     }
 }

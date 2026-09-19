@@ -37,22 +37,26 @@ using Opc.Ua.Server.UserDatabase;
 namespace Opc.Ua.Server.UserManagement
 {
     /// <summary>
-    /// Default in-memory <see cref="IUserManagement"/> implementation. Wraps
-    /// an <see cref="IUserDatabase"/> for credential persistence and keeps
-    /// the per-user <see cref="UserConfigurationMask"/> and description in
-    /// memory.
+    /// Default <see cref="IUserManagement"/> implementation. Wraps an
+    /// <see cref="IUserDatabase"/> for credential persistence and uses the
+    /// optional metadata capability when the database supports it.
     /// </summary>
     /// <remarks>
-    /// Per Part 18 §6.4 "the management of these Users is server-specific" —
-    /// this default keeps the metadata in memory across the server lifetime.
-    /// Integrators that need persistence of the metadata implement
-    /// <see cref="IUserManagement"/> directly and inject the instance via
-    /// <see cref="StandardServer.CreateUserManagement"/>, or by registering it
-    /// in the service container.
+    /// <para>
+    /// Databases that implement <see cref="IUserMetadataDatabase"/> commit credentials and metadata together.
+    /// This manager publishes its metadata only after the database mutation succeeds.
+    /// </para>
+    /// <para>
+    /// Databases that do not implement <see cref="IUserMetadataDatabase"/>
+    /// retain historical in-memory metadata and the legacy delete-and-create password reset.
+    /// That reset is not atomic: if recreation fails, the user account can be lost.
+    /// Implement the optional capability when flags must survive a restart or resets must be atomic.
+    /// </para>
     /// </remarks>
     public sealed class UserManagement : IUserManagement, IDisposable
     {
         private readonly IUserDatabase m_userDatabase;
+        private readonly IUserMetadataDatabase? m_userMetadataDatabase;
 
         private readonly Dictionary<string, UserMetadata> m_metadata
             = new(StringComparer.Ordinal);
@@ -84,6 +88,7 @@ namespace Opc.Ua.Server.UserManagement
             LocalizedText? passwordRestrictions = null)
         {
             m_userDatabase = userDatabase ?? throw new ArgumentNullException(nameof(userDatabase));
+            m_userMetadataDatabase = userDatabase as IUserMetadataDatabase;
             PasswordLength = passwordLength ?? new Range { Low = 8, High = 256 };
             PasswordOptions = passwordOptions
                 ?? (PasswordOptionsMask.SupportDisableUser |
@@ -162,7 +167,11 @@ namespace Opc.Ua.Server.UserManagement
                     return new ServiceResult(StatusCodes.BadAlreadyExists,
                         new LocalizedText($"User '{userName}' already exists."));
                 }
-                if (!m_userDatabase.CreateUser(userName, GetPasswordBytes(password), []))
+                bool created = m_userMetadataDatabase != null
+                    ? m_userMetadataDatabase.CreateUser(
+                        userName, GetPasswordBytes(password), [], userConfiguration, description ?? string.Empty)
+                    : m_userDatabase.CreateUser(userName, GetPasswordBytes(password), []);
+                if (!created)
                 {
                     return new ServiceResult(StatusCodes.BadResourceUnavailable,
                         new LocalizedText("User-database rejected the create operation."));
@@ -208,6 +217,9 @@ namespace Opc.Ua.Server.UserManagement
                 UserConfigurationMask effectiveConfig = modifyUserConfiguration
                     ? userConfiguration
                     : existing.Configuration;
+                string effectiveDescription = modifyDescription
+                    ? description ?? string.Empty
+                    : existing.Description;
 
                 if (modifyUserConfiguration)
                 {
@@ -237,44 +249,42 @@ namespace Opc.Ua.Server.UserManagement
                         return passwordValidation;
                     }
 
-                    // The IUserDatabase API only exposes ChangePassword which
-                    // requires the old password — admin password resets are
-                    // emulated by delete + recreate to keep the abstraction
-                    // stable. The previously assigned roles are snapshotted
-                    // and re-applied to preserve role assignments across the
-                    // reset (Part 18 §5.2.6 does not mandate role removal on
-                    // password change).
-                    //
-                    // KNOWN LIMITATION (see docs/RoleBasedUserManagement.md):
-                    // this two-step is not atomic — if CreateUser fails after
-                    // DeleteUser succeeds, the user account is lost. The
-                    // built-in LinqUserDatabase / JsonUserDatabase delete and
-                    // create operations succeed unconditionally so this is
-                    // only a concern for custom IUserDatabase implementations
-                    // that may fail mid-reset.
-                    ICollection<Role> preservedRoles = SnapshotUserRolesSafe(userName);
-                    if (!m_userDatabase.DeleteUser(userName))
+                    if (m_userMetadataDatabase != null)
                     {
-                        return new ServiceResult(StatusCodes.BadResourceUnavailable,
-                            new LocalizedText("User-database rejected the delete during password reset."));
+                        if (!m_userMetadataDatabase.ResetPassword(
+                            userName, GetPasswordBytes(password), effectiveConfig, effectiveDescription))
+                        {
+                            return new ServiceResult(StatusCodes.BadResourceUnavailable,
+                                new LocalizedText("User-database rejected the password reset."));
+                        }
                     }
-                    if (!m_userDatabase.CreateUser(userName, GetPasswordBytes(password), preservedRoles))
+                    else
                     {
-                        // User has been deleted but recreate failed — surface
-                        // a clear error. There is no way to recover the
-                        // original password from IUserDatabase.
-                        m_metadata.Remove(userName);
-                        return new ServiceResult(StatusCodes.BadResourceUnavailable,
-                            new LocalizedText(
-                                "User-database rejected the create during password reset; " +
-                                "the user account has been removed."));
+                        // Legacy stores expose no transaction or prior verifier for an admin reset.
+                        ICollection<Role> preservedRoles = SnapshotUserRolesSafe(userName);
+                        if (!m_userDatabase.DeleteUser(userName))
+                        {
+                            return new ServiceResult(StatusCodes.BadResourceUnavailable,
+                                new LocalizedText("User-database rejected the delete during password reset."));
+                        }
+                        if (!m_userDatabase.CreateUser(userName, GetPasswordBytes(password), preservedRoles))
+                        {
+                            m_metadata.Remove(userName);
+                            return new ServiceResult(StatusCodes.BadResourceUnavailable,
+                                new LocalizedText(
+                                    "User-database rejected the create during password reset; " +
+                                    "the user account has been removed."));
+                        }
                     }
+                }
+                else if (!PersistUserMetadata(userName, effectiveConfig, effectiveDescription))
+                {
+                    return new ServiceResult(StatusCodes.BadResourceUnavailable,
+                        new LocalizedText("User-database rejected the metadata write."));
                 }
 
                 disabled = (effectiveConfig & UserConfigurationMask.Disabled) != 0;
-                m_metadata[userName] = new UserMetadata(
-                    effectiveConfig,
-                    modifyDescription ? description ?? string.Empty : existing.Description);
+                m_metadata[userName] = new UserMetadata(effectiveConfig, effectiveDescription);
             }
             finally
             {
@@ -350,7 +360,7 @@ namespace Opc.Ua.Server.UserManagement
                     new LocalizedText("New password matches the old password."));
             }
 
-            m_lock.EnterReadLock();
+            m_lock.EnterWriteLock();
             try
             {
                 if (!m_metadata.TryGetValue(userName, out UserMetadata? metadata))
@@ -362,29 +372,16 @@ namespace Opc.Ua.Server.UserManagement
                     return new ServiceResult(StatusCodes.BadNotSupported,
                         new LocalizedText($"User '{userName}' is marked NoChangeByUser."));
                 }
-            }
-            finally
-            {
-                m_lock.ExitReadLock();
-            }
-
-            if (!m_userDatabase.ChangePassword(userName,
+                if (!m_userDatabase.ChangePassword(userName,
                     GetPasswordBytes(oldPassword), GetPasswordBytes(newPassword)))
-            {
-                return new ServiceResult(StatusCodes.BadIdentityTokenInvalid,
-                    new LocalizedText("Old password does not match."));
-            }
-
-            m_lock.EnterWriteLock();
-            try
-            {
-                if (m_metadata.TryGetValue(userName, out UserMetadata? current))
                 {
-                    // Successful change clears the MustChangePassword bit.
-                    m_metadata[userName] = new UserMetadata(
-                        current.Configuration & ~UserConfigurationMask.MustChangePassword,
-                        current.Description);
+                    return new ServiceResult(StatusCodes.BadIdentityTokenInvalid,
+                        new LocalizedText("Old password does not match."));
                 }
+
+                m_metadata[userName] = new UserMetadata(
+                    metadata.Configuration & ~UserConfigurationMask.MustChangePassword,
+                    metadata.Description);
             }
             finally
             {
@@ -445,6 +442,18 @@ namespace Opc.Ua.Server.UserManagement
                     (UserConfigurationMask)user.UserConfiguration,
                     user.Description ?? string.Empty);
             }
+        }
+
+        private bool PersistUserMetadata(
+            string userName,
+            UserConfigurationMask configuration,
+            string? description)
+        {
+            return m_userMetadataDatabase == null ||
+                m_userMetadataDatabase.UpdateUserMetadata(
+                    userName,
+                    configuration,
+                    description ?? string.Empty);
         }
 
         private ServiceResult ValidatePassword(string password)

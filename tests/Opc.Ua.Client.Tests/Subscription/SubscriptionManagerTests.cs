@@ -592,7 +592,7 @@ namespace Opc.Ua.Client.Subscriptions
 
                 var actionEntered = new TaskCompletionSource<bool>(
                     TaskCreationOptions.RunContinuationsAsynchronously);
-                var dropped = 0;
+                int dropped = 0;
                 Task quiesced = sut.RunWithPublishingQuiescedAsync(_ =>
                 {
                     dropped = sut.DropPendingForSubscription(1);
@@ -944,7 +944,7 @@ namespace Opc.Ua.Client.Subscriptions
                 OptionsFactory.Create<SubscriptionOptions>();
 
             var created = new FakeManagedSubscription { Id = 1u, Created = true };
-            var pending = new FakeManagedSubscription { Id = 0u };
+            var pending = new FakeManagedSubscription { Id = 0u, IsCreationInProgress = true };
 
             var sut = new SubscriptionManager(session,
                 loggerFactory, DiagnosticsMasks.None);
@@ -977,6 +977,7 @@ namespace Opc.Ua.Client.Subscriptions
                 // Once nothing is pending creation the orphan is cleaned up.
                 pending.Id = 2u;
                 pending.Created = true;
+                pending.IsCreationInProgress = false;
                 sut.Update();
 
                 await WaitUntilAsync(() => session.DeleteCallsCount > 0, testCt)
@@ -1176,7 +1177,7 @@ namespace Opc.Ua.Client.Subscriptions
                 OptionsFactory.Create<SubscriptionOptions>();
 
             var created = new FakeManagedSubscription { Id = 1u, Created = true };
-            var pending = new FakeManagedSubscription { Id = 0u };
+            var pending = new FakeManagedSubscription { Id = 0u, IsCreationInProgress = true };
 
             var sut = new SubscriptionManager(session,
                 loggerFactory, DiagnosticsMasks.None);
@@ -1208,6 +1209,7 @@ namespace Opc.Ua.Client.Subscriptions
                     Is.LessThan(kMaxExpectedPublishes),
                     "The publish worker must throttle while a subscription id " +
                     "cannot be resolved instead of republishing in a tight loop.");
+                Assert.That(session.DeleteCalls, Is.Empty);
             }
         }
 
@@ -1339,7 +1341,7 @@ namespace Opc.Ua.Client.Subscriptions
                 loggerFactory, DiagnosticsMasks.None);
             await using (sut.ConfigureAwait(false))
             {
-                var nextId = 0;
+                int nextId = 0;
                 var survivors = new ConcurrentBag<ISubscription>();
                 var partitions = new ConcurrentDictionary<
                     IOptionsMonitor<SubscriptionOptions>, FakeManagedSubscription>();

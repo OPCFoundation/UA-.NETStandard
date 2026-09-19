@@ -469,6 +469,25 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             Assert.That(Filter(element).Evaluate(m_context, advanced), Is.True);
         }
 
+        [TestCase(3)]
+        [TestCase(4)]
+        [TestCase(5)]
+        public void RelatedToNullStringParameterDoesNotMatch(int parameter)
+        {
+            var advanced = new AdvancedCoverageFilterTarget { IsRelatedToResult = true };
+            FilterOperand[] operands =
+            [
+                new LiteralOperand(Variant.From(new NodeId(1))),
+                new LiteralOperand(Variant.From(new NodeId(2))),
+                new LiteralOperand(Variant.From(new NodeId(3))),
+                new LiteralOperand(Variant.From(1)),
+                new LiteralOperand(Variant.From(false)),
+                new LiteralOperand(Variant.From(false))
+            ];
+            operands[parameter] = new LiteralOperand(Variant.From((string)null));
+            Assert.That(Filter(Element(FilterOperator.RelatedTo, operands)).Evaluate(m_context, advanced), Is.False);
+        }
+
         [Test]
         public void RelatedToWithNonNodeIdSourceYieldsFalse()
         {
@@ -534,6 +553,28 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
                 new LiteralOperand(Variant.From(new NodeId(4))),
                 new LiteralOperand(Variant.From(new NodeId(2))));
             Assert.That(Filter(root, chained).Evaluate(m_context, advanced), Is.True);
+        }
+
+        [Test]
+        public void DeepRelatedToChainEvaluatesEachLinkOnce()
+        {
+            var advanced = new AdvancedCoverageFilterTarget
+            {
+                IsRelatedToResult = true,
+                RelatedNodes = [new NodeId(100)]
+            };
+            var elements = new ContentFilterElement[1024];
+            for (int ii = 0; ii < elements.Length; ii++)
+            {
+                elements[ii] = RelatedToElement(
+                    new LiteralOperand(Variant.From(new NodeId(1))),
+                    ii + 1 < elements.Length
+                        ? new ElementOperand((uint)(ii + 1))
+                        : new LiteralOperand(Variant.From(new NodeId(2))));
+            }
+
+            Assert.That(Filter(elements).Evaluate(m_context, advanced), Is.True);
+            Assert.That(advanced.RelatedNodeReads, Is.EqualTo(1023));
         }
 
         [Test]
@@ -661,6 +702,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             public bool ThrowOnIsRelatedTo { get; set; }
             public Variant RelatedAttributeValue { get; set; } = Variant.Null;
             public IList<NodeId> RelatedNodes { get; set; } = [];
+            public int RelatedNodeReads { get; private set; }
 
             public bool IsTypeOf(IFilterContext context, NodeId typeDefinitionId)
             {
@@ -713,6 +755,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
                 bool includeTypeDefintionSubtypes,
                 bool includeReferenceSubtypes)
             {
+                RelatedNodeReads++;
                 return RelatedNodes;
             }
 

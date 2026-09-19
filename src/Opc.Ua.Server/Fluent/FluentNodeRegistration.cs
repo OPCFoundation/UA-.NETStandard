@@ -27,7 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server.Fluent
 {
@@ -36,6 +40,7 @@ namespace Opc.Ua.Server.Fluent
         /// <summary>
         /// Resolves an unsealed owning builder for registering handlers on an existing node.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         internal static NodeBuilder GetHandlerBuilder(INodeManagerBuilder builder, NodeState node)
         {
             NodeManagerBuilder owner = builder as NodeManagerBuilder ??
@@ -90,74 +95,213 @@ namespace Opc.Ua.Server.Fluent
         /// object as a root notifier.
         /// </summary>
         /// <returns>
-        /// Exactly what was changed, so that teardown can undo it. Nodes that already
-        /// carried SubscribeToEvents are not reported: they were not ours to clear.
+        /// An ownership reference that keeps shared notifier flags and browse links
+        /// alive until the last alarm releases them. Pre-existing state is retained.
         /// </returns>
         internal static AlarmEventSourceRegistration RegisterAlarmEventSource(
             INodeManagerBuilder builder,
             NodeState source)
         {
-            BaseObjectState? firstSource = null;
-            var promoted = new List<BaseObjectState>();
+            var chain = new List<BaseObjectState>();
             for (NodeState? current = source; current != null;)
             {
                 if (current is BaseObjectState notifier)
                 {
-                    firstSource ??= notifier;
-                    if ((notifier.EventNotifier & EventNotifiers.SubscribeToEvents) == 0)
-                    {
-                        notifier.EventNotifier |= EventNotifiers.SubscribeToEvents;
-                        promoted.Add(notifier);
-                    }
+                    chain.Add(notifier);
                 }
 
                 current = current is BaseInstanceState instance ? instance.Parent : null;
             }
 
-            BaseObjectState? rootNotifier = null;
-            if (firstSource != null)
-            {
-                // Only claim ownership when this alarm actually inserted the
-                // registration. AddRootNotifier is an upsert, so claiming it
-                // unconditionally would have teardown remove a pre-existing root
-                // notifier — along with its event callback and HasNotifier reference.
-                //
-                // The probe needs the concrete manager. Where it is unavailable we
-                // claim nothing: leaving a registration behind is the lesser harm
-                // against tearing down one that was never ours.
-                bool owned =
-                    builder.NodeManager is AsyncCustomNodeManager manager &&
-                    !manager.IsRootNotifier(firstSource.NodeId);
-
-                builder.NodeManager.AddRootNotifier(firstSource);
-                rootNotifier = owned ? firstSource : null;
-            }
-
-            return new AlarmEventSourceRegistration(promoted, rootNotifier);
+            AlarmNotifierOwnership ownership = s_notifierOwnership.GetValue(
+                builder.NodeManager, static manager => new AlarmNotifierOwnership(manager));
+            return ownership.Register(chain);
         }
+
+        private static readonly ConditionalWeakTable<IAsyncNodeManager, AlarmNotifierOwnership> s_notifierOwnership =
+#if NET8_0_OR_GREATER
+            [];
+#else
+            new();
+#endif
     }
 
     /// <summary>
     /// Records what registering an alarm event source changed in the address space.
     /// </summary>
-    internal sealed class AlarmEventSourceRegistration
+    internal sealed class AlarmEventSourceRegistration : IAsyncDisposable
     {
         public AlarmEventSourceRegistration(
-            List<BaseObjectState> promotedNotifiers,
-            BaseObjectState? rootNotifier)
+            AlarmNotifierOwnership ownership,
+            List<BaseObjectState> chain)
         {
-            PromotedNotifiers = promotedNotifiers;
-            RootNotifier = rootNotifier;
+            m_ownership = ownership;
+            m_chain = chain;
         }
 
-        /// <summary>
-        /// Gets the nodes whose EventNotifier this registration turned on.
-        /// </summary>
-        public List<BaseObjectState> PromotedNotifiers { get; }
+        public ValueTask DisposeAsync()
+        {
+            return Interlocked.Exchange(ref m_released, 1) == 0
+                ? m_ownership.ReleaseAsync(m_chain)
+                : default;
+        }
 
-        /// <summary>
-        /// Gets the node registered as a root notifier, if any.
-        /// </summary>
-        public BaseObjectState? RootNotifier { get; }
+        private readonly AlarmNotifierOwnership m_ownership;
+        private readonly List<BaseObjectState> m_chain;
+        private int m_released;
+    }
+
+    internal sealed class AlarmNotifierOwnership
+    {
+        public AlarmNotifierOwnership(IAsyncNodeManager manager)
+        {
+            m_manager = manager;
+        }
+
+        public AlarmEventSourceRegistration Register(List<BaseObjectState> chain)
+        {
+            lock (m_lock)
+            {
+                foreach (BaseObjectState node in chain)
+                {
+                    if (m_nodes.TryGetValue(node.NodeId, out NodeOwnership? prior) &&
+                        (prior.Retiring || !ReferenceEquals(prior.Node, node)))
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadInvalidState, "The alarm notifier generation is being released.");
+                    }
+                }
+                foreach (BaseObjectState node in chain)
+                {
+                    if (!m_nodes.TryGetValue(node.NodeId, out NodeOwnership? state))
+                    {
+                        state = new NodeOwnership(node);
+                        m_nodes.Add(node.NodeId, state);
+                        node.EventNotifier |= EventNotifiers.SubscribeToEvents;
+                    }
+                    state.References++;
+                }
+                for (int i = 1; i < chain.Count; i++)
+                {
+                    BaseObjectState parent = chain[i];
+                    BaseObjectState child = chain[i - 1];
+                    (NodeId, NodeId) key = (parent.NodeId, child.NodeId);
+                    if (!m_links.TryGetValue(key, out LinkOwnership? link))
+                    {
+                        link = new LinkOwnership(parent, child);
+                        m_links.Add(key, link);
+                        // Only browsing edges: AddNotifier would add a second event-delivery route.
+                        parent.AddReferenceIfMissing(ReferenceTypeIds.HasNotifier, false, child.NodeId);
+                        child.AddReferenceIfMissing(ReferenceTypeIds.HasNotifier, true, parent.NodeId);
+                    }
+                    link.References++;
+                }
+                if (chain.Count != 0)
+                {
+                    NodeOwnership root = m_nodes[chain[^1].NodeId];
+                    if (root.RootReferences++ == 0)
+                    {
+                        root.RootOwned = m_manager is AsyncCustomNodeManager manager &&
+                            !manager.IsRootNotifier(root.Node.NodeId);
+                        m_manager.AddRootNotifier(root.Node);
+                    }
+                }
+            }
+            return new AlarmEventSourceRegistration(this, chain);
+        }
+
+        public async ValueTask ReleaseAsync(List<BaseObjectState> chain)
+        {
+            NodeOwnership? retiringRoot = null;
+            lock (m_lock)
+            {
+                if (chain.Count != 0)
+                {
+                    NodeOwnership root = m_nodes[chain[^1].NodeId];
+                    if (--root.RootReferences == 0 && root.RootOwned)
+                    {
+                        root.Retiring = true;
+                        retiringRoot = root;
+                    }
+                }
+            }
+            try
+            {
+                if (retiringRoot != null && m_manager is AsyncCustomNodeManager manager)
+                {
+                    await manager.RemoveAlarmRootNotifierAsync(retiringRoot.Node).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                lock (m_lock)
+                {
+                    for (int i = 1; i < chain.Count; i++)
+                    {
+                        (NodeId, NodeId) key = (chain[i].NodeId, chain[i - 1].NodeId);
+                        LinkOwnership link = m_links[key];
+                        if (--link.References == 0)
+                        {
+                            if (link.OwnForward)
+                            {
+                                chain[i].RemoveReference(ReferenceTypeIds.HasNotifier, false, chain[i - 1].NodeId);
+                            }
+                            if (link.OwnInverse)
+                            {
+                                chain[i - 1].RemoveReference(ReferenceTypeIds.HasNotifier, true, chain[i].NodeId);
+                            }
+                            m_links.Remove(key);
+                        }
+                    }
+                    foreach (BaseObjectState node in chain)
+                    {
+                        NodeOwnership state = m_nodes[node.NodeId];
+                        if (--state.References == 0)
+                        {
+                            if (state.Promoted)
+                            {
+                                node.EventNotifier = (byte)(node.EventNotifier &
+                                    unchecked((byte)~EventNotifiers.SubscribeToEvents));
+                            }
+                            m_nodes.Remove(node.NodeId);
+                        }
+                    }
+                }
+            }
+        }
+
+        private sealed class NodeOwnership
+        {
+            public NodeOwnership(BaseObjectState node)
+            {
+                Node = node;
+                Promoted = (node.EventNotifier & EventNotifiers.SubscribeToEvents) == 0;
+            }
+
+            public BaseObjectState Node { get; }
+            public bool Promoted { get; }
+            public int References { get; set; }
+            public int RootReferences { get; set; }
+            public bool RootOwned { get; set; }
+            public bool Retiring { get; set; }
+        }
+
+        private sealed class LinkOwnership
+        {
+            public LinkOwnership(BaseObjectState parent, BaseObjectState child)
+            {
+                OwnForward = !parent.ReferenceExists(ReferenceTypeIds.HasNotifier, false, child.NodeId);
+                OwnInverse = !child.ReferenceExists(ReferenceTypeIds.HasNotifier, true, parent.NodeId);
+            }
+
+            public bool OwnForward { get; }
+            public bool OwnInverse { get; }
+            public int References { get; set; }
+        }
+
+        private readonly IAsyncNodeManager m_manager;
+        private readonly Lock m_lock = new();
+        private readonly Dictionary<NodeId, NodeOwnership> m_nodes = [];
+        private readonly Dictionary<(NodeId Parent, NodeId Child), LinkOwnership> m_links = [];
     }
 }

@@ -806,7 +806,12 @@ namespace Opc.Ua.Server
         {
             UserTokenType tokenType = identity.TokenType;
             string criteria = rule.Criteria ?? string.Empty;
-            var claims = identity as IIdentityClaims;
+            IUserIdentity claimIdentity = identity;
+            while (claimIdentity is RoleBasedIdentity roleBasedIdentity)
+            {
+                claimIdentity = roleBasedIdentity.InnerIdentity;
+            }
+            var claims = claimIdentity as IIdentityClaims;
 
             return rule.CriteriaType switch
             {

@@ -587,6 +587,12 @@ namespace Opc.Ua.Client.WebApi
         {
             try
             {
+                if ((sslPolicyErrors & SslPolicyErrors.RemoteCertificateNameMismatch) != 0)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadCertificateHostNameInvalid,
+                        "The TLS certificate host name does not match the endpoint.");
+                }
                 using CertificateCollection validationCollection = CertificateValidationHelpers
                     .BuildValidationCertificateCollection(certificate, chain);
                 ICertificateValidatorEx? validator = m_quotas?.CertificateValidator;
@@ -633,7 +639,6 @@ namespace Opc.Ua.Client.WebApi
                 return false;
             }
         }
-
 
         private static Uri NormalizeUrl(Uri url)
         {
@@ -682,5 +687,4 @@ namespace Opc.Ua.Client.WebApi
             this ILogger logger,
             string channelType);
     }
-
 }
