@@ -40,19 +40,41 @@ using Quickstarts.Servers;
 
 namespace TestData
 {
+    /// <summary>
+    /// Receives simulated data changes and value-generation requests.
+    /// </summary>
     public interface ITestDataSystemCallback
     {
+        /// <summary>
+        /// Reports a newly sampled value for a test-data variable.
+        /// </summary>
+        /// <param name="variable">The variable whose value changed.</param>
+        /// <param name="value">The new simulated value.</param>
+        /// <param name="statusCode">The quality of the sampled value.</param>
+        /// <param name="timestamp">The timestamp associated with the sampled value.</param>
         void OnDataChange(
             BaseVariableState variable,
             Variant value,
             StatusCode statusCode,
             DateTime timestamp);
 
+        /// <summary>
+        /// Requests regeneration of a test-data variable's simulated value.
+        /// </summary>
+        /// <param name="variable">The variable whose value should be generated.</param>
         void OnGenerateValues(BaseVariableState variable);
     }
 
+    /// <summary>
+    /// Generates simulated values for a test-data variable.
+    /// </summary>
     public interface ITestDataSystemValuesGenerator
     {
+        /// <summary>
+        /// Generates a new simulated value using the supplied system context.
+        /// </summary>
+        /// <param name="context">The context used to generate and publish the value.</param>
+        /// <returns>The status of the value-generation operation.</returns>
         StatusCode OnGenerateValues(ISystemContext context);
     }
 
