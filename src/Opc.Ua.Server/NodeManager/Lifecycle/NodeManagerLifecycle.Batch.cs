@@ -215,7 +215,10 @@ namespace Opc.Ua.Server
                             entry.DroppedReferences,
                             needsDetachment: true,
                             allowActiveMonitoredItems: !entry.Change.Immediate,
-                            detachActiveMonitoredItems: entry.Change.Immediate));
+                            detachActiveMonitoredItems: entry.Change.Immediate)
+                        {
+                            DrainPending = entry.Change.Immediate
+                        });
                     }
                 }
 
@@ -254,6 +257,22 @@ namespace Opc.Ua.Server
                             }
                             m_retiredNodeManagers.AddRange(retired);
                         }
+                        foreach (RetiredNodeManager generation in retired)
+                        {
+                            if (!generation.DetachActiveMonitoredItems)
+                            {
+                                continue;
+                            }
+                            try
+                            {
+                                batch.Host.SetRetiredGenerationNotifications(generation.NodeManager, enabled: false);
+                                generation.NotificationsSuspended = true;
+                            }
+                            catch (Exception failure) when (failure is not OutOfMemoryException)
+                            {
+                                failures.Add(failure);
+                            }
+                        }
                         try
                         {
                             publishCommittedState?.Invoke();
@@ -265,6 +284,7 @@ namespace Opc.Ua.Server
                     },
                     async () =>
                     {
+                        await CutOffImmediateBatchSourcesAsync(batch, retired, failures).ConfigureAwait(false);
                         foreach (BatchEntry entry in batch.Entries)
                         {
                             if (entry.Manager is null)
@@ -294,8 +314,11 @@ namespace Opc.Ua.Server
                     }
                     try
                     {
-                        await RecoverDetachedMonitoredItemsAsync(batch.Server, entry.Manager, CancellationToken.None)
-                            .ConfigureAwait(false);
+                        if (!entry.Change.Immediate)
+                        {
+                            await RecoverDetachedMonitoredItemsAsync(
+                                batch.Server, entry.Manager, CancellationToken.None).ConfigureAwait(false);
+                        }
                         await CompleteReadinessOutsideLifecycleSemaphoreAsync(
                             batch.Server, batch.Host, entry.Next, CancellationToken.None).ConfigureAwait(false);
                     }
@@ -332,6 +355,56 @@ namespace Opc.Ua.Server
             finally
             {
                 m_lifecycleSemaphore.Release();
+            }
+        }
+
+        private async ValueTask CutOffImmediateBatchSourcesAsync(
+            PreparedBatch batch,
+            List<RetiredNodeManager> retired,
+            List<Exception> failures)
+        {
+            try
+            {
+                foreach (RetiredNodeManager generation in retired)
+                {
+                    if (!generation.DetachActiveMonitoredItems)
+                    {
+                        continue;
+                    }
+                    try
+                    {
+                        // Cut off sources under publication admission, not the later request/destruction drain.
+                        await WaitForNotificationDispatchesOutsideLifecycleSemaphoreAsync(
+                            batch.Server, batch.Host, generation.NodeManager).ConfigureAwait(false);
+                        await DetachActiveMonitoredItemsAsync(batch.Server, generation.NodeManager)
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception failure) when (failure is not OutOfMemoryException)
+                    {
+                        failures.Add(failure);
+                    }
+                    try
+                    {
+                        await FinalizeNotificationsOutsideLifecycleSemaphoreAsync(
+                            batch.Server, batch.Host, generation.NodeManager).ConfigureAwait(false);
+                        generation.ShutdownCleanup.NotificationsFinalized = true;
+                        RecordShutdownCleanupProgress();
+                    }
+                    catch (Exception failure) when (failure is not OutOfMemoryException)
+                    {
+                        failures.Add(failure);
+                    }
+                }
+            }
+            finally
+            {
+                foreach (RetiredNodeManager generation in retired)
+                {
+                    if (generation.DetachActiveMonitoredItems)
+                    {
+                        generation.DrainPending = false;
+                    }
+                }
             }
         }
 

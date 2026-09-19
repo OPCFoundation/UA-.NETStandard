@@ -618,6 +618,29 @@ bad subscription results after publication are reported through
 `NodeManagerBatchResult.CleanupFailure`; they do not turn a committed decision into
 an abort or prevent the other candidates, readiness, and retirement from being processed.
 
+#### Prepared immediate source cutoff
+
+For batch replacements or removals with `immediate: true`, committed publication
+suspends new lifecycle notification dispatches to the retired generation. Within
+the same admission boundary, the lifecycle drains already captured notification
+dispatches, detaches the retired generation's own data/event MonitoredItems, and
+unsubscribes its exact retained all-events bindings. This source cutoff precedes
+candidate binding callbacks, committed readiness, and reference notifications;
+an unrelated candidate's stalled readiness cannot keep the old sources attached.
+Graceful sources remain attached according to their existing ownership rules.
+
+Immediate cutoff reports `BadNodeIdUnknown` on retired data items without deleting
+their Subscription-scoped service identities or unrelated items. Immediate batch
+replacements do not recover these items onto the replacement. Previously queued
+events and dispatches admitted before cutoff retain their existing delivery rules.
+Requests that captured the old routing image can finish on the old manager;
+address-space destruction and disposal still wait for the request drain.
+
+A rejected decision performs no cutoff. Post-publication cutoff errors are
+committed `CleanupFailure` warnings: later sources, candidates, and readiness
+still reconcile. Final teardown retries retained failed all-events bindings
+instead of unsubscribing successful bindings a second time.
+
 #### Prepared external references
 
 Prepared batches stage the external references of surviving and candidate

@@ -3633,7 +3633,7 @@ namespace Opc.Ua.Server
                         .ConfigureAwait(false);
                 }
                 EnsureNoActiveMonitoredItems(server, retired.NodeManager);
-                if (retired.AllowActiveMonitoredItems &&
+                if (retired.NotificationsSuspended &&
                     !cleanup.NotificationsFinalized)
                 {
                     await FinalizeNotificationsOutsideLifecycleSemaphoreAsync(
@@ -3649,7 +3649,7 @@ namespace Opc.Ua.Server
                     server,
                     retired.NodeManager,
                     CancellationToken.None,
-                    unsubscribeAllEvents: !retired.AllowActiveMonitoredItems)
+                    unsubscribeAllEvents: !retired.AllowActiveMonitoredItems && !cleanup.NotificationsFinalized)
                     .ConfigureAwait(false);
                 retired.NeedsDetachment = false;
                 if (!cleanup.Detached)
@@ -4129,7 +4129,8 @@ namespace Opc.Ua.Server
 
             /// <summary>
             /// Gets whether active monitored items should be detached and marked deleted
-            /// once requests using this generation have drained.
+            /// before destruction. Prepared batches cut off these sources before readiness;
+            /// destruction still waits for requests using this generation to drain.
             /// </summary>
             public bool DetachActiveMonitoredItems { get; }
 

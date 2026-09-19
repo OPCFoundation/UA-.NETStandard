@@ -1011,7 +1011,7 @@ namespace Opc.Ua.Server
             foreach (IEventMonitoredItem monitoredItem in monitoredItems)
             {
                 using var eventContext = new OperationContext(monitoredItem);
-                await nodeManager
+                ServiceResult result = await nodeManager
                     .SubscribeToAllEventsAsync(
                         eventContext,
                         monitoredItem.SubscriptionId,
@@ -1019,6 +1019,10 @@ namespace Opc.Ua.Server
                         true,
                         ct)
                     .ConfigureAwait(false);
+                if (ServiceResult.IsBad(result))
+                {
+                    throw new ServiceResultException(result);
+                }
                 lock (m_retiredGenerationNotificationsLock)
                 {
                     if (m_retiredGenerationNotifications.Contains(notifications))

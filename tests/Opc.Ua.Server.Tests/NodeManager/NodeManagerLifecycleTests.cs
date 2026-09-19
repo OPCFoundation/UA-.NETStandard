@@ -7627,6 +7627,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             public ServiceResult AllEventsSubscribeResult { get; set; } = ServiceResult.Good;
 
+            public ServiceResult AllEventsUnsubscribeResult { get; set; } = ServiceResult.Good;
+
             public int AllEventsSubscribeCount =>
                 Volatile.Read(ref m_allEventsSubscribeCount);
 
@@ -7759,6 +7761,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 if (!unsubscribe && ServiceResult.IsBad(AllEventsSubscribeResult))
                 {
                     return AllEventsSubscribeResult;
+                }
+                if (unsubscribe && ServiceResult.IsBad(AllEventsUnsubscribeResult))
+                {
+                    return AllEventsUnsubscribeResult;
                 }
 
                 return await base
