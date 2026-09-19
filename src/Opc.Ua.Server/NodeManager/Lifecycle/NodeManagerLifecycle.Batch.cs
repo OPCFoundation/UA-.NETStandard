@@ -145,8 +145,6 @@ namespace Opc.Ua.Server
                             server, entry.Manager, publishResolver: false, cancellationToken: cancellationToken)
                             .ConfigureAwait(false) ??
                             resolver;
-                        entry.Bindings = await BindToServerAsync(server, entry.Manager, cancellationToken)
-                            .ConfigureAwait(false);
                         var registration = new NodeManagerRegistration(
                             current?.Registration.Id ?? Guid.NewGuid(),
                             (current?.Registration.Generation ?? 0) + 1,
@@ -169,7 +167,7 @@ namespace Opc.Ua.Server
                     using IDisposable? types = preparedTypes is null || preparedFactory is null
                         ? null
                         : batchHost.UseTypeImage(preparedTypes, preparedFactory);
-                    Exception? cleanup = await AbortBatchEntriesAsync(server, host, entries, allowRequestCallback)
+                    Exception? cleanup = await AbortBatchEntriesAsync(host, entries, allowRequestCallback)
                         .ConfigureAwait(false);
                     if (cleanup is not null)
                     {
@@ -209,13 +207,6 @@ namespace Opc.Ua.Server
                         !ReferenceEquals(GetCurrentState(entry.Current.Registration), entry.Current))
                     {
                         throw new InvalidOperationException("A registration changed while the batch was prepared.");
-                    }
-                    if (entry.Manager is not null && entry.Bindings is not null)
-                    {
-                        using IDisposable types = ((IDynamicNodeManagerBatchHost)batch.Host)
-                            .UseTypeImage(batch.TypeTree, batch.Factory);
-                        await ReconcileBindingsAsync(
-                            batch.Server, entry.Manager, entry.Bindings, cancellationToken).ConfigureAwait(false);
                     }
                     if (entry.Current is not null)
                     {
@@ -272,6 +263,26 @@ namespace Opc.Ua.Server
                             failures.Add(failure);
                         }
                     },
+                    async () =>
+                    {
+                        foreach (BatchEntry entry in batch.Entries)
+                        {
+                            if (entry.Manager is null)
+                            {
+                                continue;
+                            }
+                            try
+                            {
+                                await ReconcileBindingsAsync(
+                                    batch.Server, entry.Manager, new ServerBindings(), CancellationToken.None)
+                                    .ConfigureAwait(false);
+                            }
+                            catch (Exception failure) when (failure is not OutOfMemoryException)
+                            {
+                                failures.Add(failure);
+                            }
+                        }
+                    },
                     failures.Add,
                     cancellationToken).ConfigureAwait(false);
 
@@ -325,7 +336,6 @@ namespace Opc.Ua.Server
         }
 
         private async ValueTask<Exception?> AbortBatchEntriesAsync(
-            IServerInternal server,
             IDynamicNodeManagerHost host,
             List<BatchEntry> entries,
             bool allowRequestCallback)
@@ -337,7 +347,7 @@ namespace Opc.Ua.Server
                 if (entry.Prepared is not null)
                 {
                     Exception? failure = await CleanupPreparedAsync(
-                        server, host, entry.Prepared, allowRequestCallback).ConfigureAwait(false);
+                        null, host, entry.Prepared, allowRequestCallback).ConfigureAwait(false);
                     if (failure is not null)
                     {
                         failures.Add(failure);
@@ -367,7 +377,6 @@ namespace Opc.Ua.Server
             public RegistrationState? Current { get; }
             public IAsyncNodeManager? Manager { get; set; }
             public PreparedNodeManager? Prepared { get; set; }
-            public ServerBindings? Bindings { get; set; }
             public RegistrationState? Next { get; set; }
             public List<LocalReference> DroppedReferences { get; set; } = [];
         }
@@ -466,7 +475,7 @@ namespace Opc.Ua.Server
                         try
                         {
                             Exception? failure = await m_owner.AbortBatchEntriesAsync(
-                                Server, Host, Entries, AllowRequestCallback).ConfigureAwait(false);
+                                Host, Entries, AllowRequestCallback).ConfigureAwait(false);
                             if (failure is not null)
                             {
                                 throw failure;

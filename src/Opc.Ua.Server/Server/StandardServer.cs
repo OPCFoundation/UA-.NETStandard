@@ -947,30 +947,11 @@ namespace Opc.Ua.Server
 
             try
             {
-                // activate the session.
-                (bool identityChanged, serverNonce, ServiceResult activationStatus) = await ServerInternal.SessionManager.ActivateSessionAsync(
-                        context,
-                        requestHeader.AuthenticationToken,
-                        clientSignature,
-                        userIdentityToken,
-                        userTokenSignature,
-                        localeIds,
-                        requestLifetime.CancellationToken)
-                    .ConfigureAwait(false);
-
-                if (identityChanged)
-                {
-                    ISession? activatedSession = ServerInternal.SessionManager
-                        .GetSession(requestHeader.AuthenticationToken);
-
-                    if (activatedSession != null)
-                    {
-                        await ServerInternal.NodeManager.SessionActivatedAsync(
-                            context,
-                            activatedSession.Id,
-                            requestLifetime.CancellationToken).ConfigureAwait(false);
-                    }
-                }
+                (serverNonce, ServiceResult activationStatus) =
+                    ServerInternal.NodeManager is IDynamicNodeManagerBatchHost batchHost
+                        ? await batchHost.DispatchSessionActivationAsync(
+                            ActivateAndNotifyAsync, requestLifetime.CancellationToken).ConfigureAwait(false)
+                        : await ActivateAndNotifyAsync().ConfigureAwait(false);
 
                 ISession? session = ServerInternal.SessionManager
                     .GetSession(requestHeader.AuthenticationToken)
@@ -1041,6 +1022,30 @@ namespace Opc.Ua.Server
             finally
             {
                 OnRequestComplete(context);
+            }
+
+            async ValueTask<(ByteString ServerNonce, ServiceResult ActivationStatus)> ActivateAndNotifyAsync()
+            {
+                (bool identityChanged, ByteString nonce, ServiceResult status) =
+                    await ServerInternal.SessionManager.ActivateSessionAsync(
+                        context,
+                        requestHeader.AuthenticationToken,
+                        clientSignature,
+                        userIdentityToken,
+                        userTokenSignature,
+                        localeIds,
+                        requestLifetime.CancellationToken).ConfigureAwait(false);
+                if (identityChanged)
+                {
+                    ISession? activatedSession = ServerInternal.SessionManager
+                        .GetSession(requestHeader.AuthenticationToken);
+                    if (activatedSession != null)
+                    {
+                        await ServerInternal.NodeManager.SessionActivatedAsync(
+                            context, activatedSession.Id, requestLifetime.CancellationToken).ConfigureAwait(false);
+                    }
+                }
+                return (nonce, status);
             }
         }
 

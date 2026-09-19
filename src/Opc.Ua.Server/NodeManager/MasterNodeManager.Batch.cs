@@ -50,6 +50,23 @@ namespace Opc.Ua.Server
             return m_nodeManagers.UseTypeImage(typeTree, factory);
         }
 
+        async ValueTask<(ByteString ServerNonce, ServiceResult ActivationStatus)>
+            IDynamicNodeManagerBatchHost.DispatchSessionActivationAsync(
+                Func<ValueTask<(ByteString ServerNonce, ServiceResult ActivationStatus)>> activateAsync,
+                CancellationToken cancellationToken)
+        {
+            await m_bindingSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                using IDisposable routing = m_nodeManagers.UseLiveRouting();
+                return await activateAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                m_bindingSemaphore.Release();
+            }
+        }
+
         async ValueTask IDynamicNodeManagerBatchHost.CommitBatchAsync(
             ArrayOf<PreparedNodeManager> candidates,
             ArrayOf<IAsyncNodeManager> removed,
@@ -62,6 +79,7 @@ namespace Opc.Ua.Server
             long factoryRevision,
             Func<CancellationToken, ValueTask> decideAsync,
             Action published,
+            Func<ValueTask> reconcileBindingsAsync,
             Action<Exception> reportCleanupFailure,
             CancellationToken cancellationToken)
         {
@@ -131,31 +149,42 @@ namespace Opc.Ua.Server
                     cancellationToken.ThrowIfCancellationRequested();
                     await decideAsync(cancellationToken).ConfigureAwait(false);
 
-                    foreach (IAsyncNodeManager manager in retiring)
+                    // Admissions remain available during the durable decision. After it accepts,
+                    // finish admitted mutations before publishing and bind before admitting more.
+                    await m_bindingSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                    try
                     {
-                        RetainRetiredGenerationNotifications(manager);
+                        foreach (IAsyncNodeManager manager in retiring)
+                        {
+                            RetainRetiredGenerationNotifications(manager);
+                        }
+                        routes.Publish();
+                        types.Complete();
+                        registrations.Complete();
+                        foreach (NodeState.ReferenceUpdate update in referenceUpdates)
+                        {
+                            update.Complete();
+                        }
+                        foreach (IAsyncNodeManager manager in retiring)
+                        {
+                            m_dynamicExternalReferences.Remove(manager);
+                        }
+                        foreach (PreparedNodeManager candidate in candidates)
+                        {
+                            m_dynamicExternalReferences.Add(candidate.NodeManager, candidate.ExternalReferences);
+                            candidate.Staged = false;
+                            candidate.Published = true;
+                            candidate.ReplacedNodeManager = null;
+                            candidate.ReplacedExternalReferences = null;
+                            SetPreparing(candidate.NodeManager, preparing: false);
+                        }
+                        published();
+                        await reconcileBindingsAsync().ConfigureAwait(false);
                     }
-                    routes.Publish();
-                    types.Complete();
-                    registrations.Complete();
-                    foreach (NodeState.ReferenceUpdate update in referenceUpdates)
+                    finally
                     {
-                        update.Complete();
+                        m_bindingSemaphore.Release();
                     }
-                    foreach (IAsyncNodeManager manager in retiring)
-                    {
-                        m_dynamicExternalReferences.Remove(manager);
-                    }
-                    foreach (PreparedNodeManager candidate in candidates)
-                    {
-                        m_dynamicExternalReferences.Add(candidate.NodeManager, candidate.ExternalReferences);
-                        candidate.Staged = false;
-                        candidate.Published = true;
-                        candidate.ReplacedNodeManager = null;
-                        candidate.ReplacedExternalReferences = null;
-                        SetPreparing(candidate.NodeManager, preparing: false);
-                    }
-                    published();
                     foreach (NodeState.ReferenceUpdate update in referenceUpdates)
                     {
                         update.Notify(reportCleanupFailure);

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
@@ -7616,6 +7617,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
             public int SessionActivatedCount =>
                 Volatile.Read(ref m_sessionActivatedCount);
 
+            public ArrayOf<NodeId> ActivatedSessionIds => [.. m_activatedSessionIds];
+
+            public ArrayOf<NodeId> ClosedSessionIds => [.. m_closedSessionIds];
+
+            public ArrayOf<uint> SubscribedAllEventIds => [.. m_subscribedAllEventIds];
+
+            public ArrayOf<uint> UnsubscribedAllEventIds => [.. m_unsubscribedAllEventIds];
+
+            public ServiceResult AllEventsSubscribeResult { get; set; } = ServiceResult.Good;
+
             public int AllEventsSubscribeCount =>
                 Volatile.Read(ref m_allEventsSubscribeCount);
 
@@ -7633,6 +7644,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             public int DisposeCount =>
                 Volatile.Read(ref m_disposeCount);
+
+            public Task DisposalCompleted => m_disposalCompleted.Task;
 
             public int DeleteAddressSpaceFailuresRemaining
             {
@@ -7696,6 +7709,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 CancellationToken cancellationToken = default)
             {
                 Interlocked.Increment(ref m_sessionActivatedCount);
+                m_activatedSessionIds.Enqueue(sessionId);
                 if (SessionActivatedCallback is not null)
                 {
                     await SessionActivatedCallback(cancellationToken).ConfigureAwait(false);
@@ -7705,6 +7719,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         sessionId,
                         cancellationToken)
                     .ConfigureAwait(false);
+            }
+
+            public override ValueTask SessionClosingAsync(
+                OperationContext context,
+                NodeId sessionId,
+                bool deleteSubscriptions,
+                CancellationToken cancellationToken = default)
+            {
+                m_closedSessionIds.Enqueue(sessionId);
+                return base.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken);
             }
 
             public override async ValueTask<ServiceResult> SubscribeToAllEventsAsync(
@@ -7717,10 +7741,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 if (unsubscribe)
                 {
                     Interlocked.Increment(ref m_allEventsUnsubscribeCount);
+                    m_unsubscribedAllEventIds.Enqueue(monitoredItem.Id);
                 }
                 else
                 {
                     Interlocked.Increment(ref m_allEventsSubscribeCount);
+                    m_subscribedAllEventIds.Enqueue(monitoredItem.Id);
                 }
 
                 if (AllEventsCallback is not null)
@@ -7729,6 +7755,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         monitoredItem,
                         unsubscribe,
                         cancellationToken).ConfigureAwait(false);
+                }
+                if (!unsubscribe && ServiceResult.IsBad(AllEventsSubscribeResult))
+                {
+                    return AllEventsSubscribeResult;
                 }
 
                 return await base
@@ -7784,6 +7814,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     }
                 }
                 base.Dispose(disposing);
+                if (disposing)
+                {
+                    m_disposalCompleted.TrySetResult(true);
+                }
             }
 
             private static bool TryConsumeFailure(ref int failuresRemaining)
@@ -7803,6 +7837,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
                 return false;
             }
+
+            private readonly ConcurrentQueue<NodeId> m_activatedSessionIds = new();
+            private readonly ConcurrentQueue<NodeId> m_closedSessionIds = new();
+            private readonly ConcurrentQueue<uint> m_subscribedAllEventIds = new();
+            private readonly ConcurrentQueue<uint> m_unsubscribedAllEventIds = new();
+            private readonly TaskCompletionSource<bool> m_disposalCompleted =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
         }
 
         /// <summary>

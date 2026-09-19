@@ -601,6 +601,23 @@ factory is rejected before candidate creation. When a server stops, a supplied
 private factory retains its committed registrations and can be reused by a later
 server lifetime.
 
+#### Prepared Session and all-events bindings
+
+Preparing a batch does not activate Sessions or subscribe event sources on its
+candidates. Session activation and MonitoredItem operations remain available while
+the durable decision callback awaits. After acceptance, the host finishes admitted
+binding operations, publishes the joint routing/type/factory/reference image, and
+binds the candidates to the still-live Sessions and all-events MonitoredItems.
+New activations and MonitoredItem create, modify, and delete operations wait until
+this reconciliation finishes, then use the published routes. This admission boundary
+prevents both missed arrivals and duplicate subscriptions across the final snapshot.
+
+Closed Sessions and deleted MonitoredItems are not restored by reconciliation.
+Rejection leaves binding effects on the serving generation only. Exceptions and
+bad subscription results after publication are reported through
+`NodeManagerBatchResult.CleanupFailure`; they do not turn a committed decision into
+an abort or prevent the other candidates, readiness, and retirement from being processed.
+
 #### Prepared external references
 
 Prepared batches stage the external references of surviving and candidate

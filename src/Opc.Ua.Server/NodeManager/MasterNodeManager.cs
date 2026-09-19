@@ -229,6 +229,7 @@ namespace Opc.Ua.Server
 
                 m_startupShutdownSemaphoreSlim.Dispose();
                 m_dynamicMutationSemaphore.Dispose();
+                m_bindingSemaphore.Dispose();
             }
         }
 
@@ -2241,6 +2242,7 @@ namespace Opc.Ua.Server
         private readonly ILogger m_logger;
         private readonly SemaphoreSlim m_dynamicMutationSemaphore = new(1, 1);
         private readonly SemaphoreSlim m_startupShutdownSemaphoreSlim = new(1, 1);
+        private readonly SemaphoreSlim m_bindingSemaphore = new(1, 1);
         private readonly NodeManagerRoutingTable m_nodeManagers;
         private readonly EncodeableFactory.ViewOwner? m_factoryViewOwner;
         private readonly HashSet<object> m_shutdownCompletedNodeManagers =

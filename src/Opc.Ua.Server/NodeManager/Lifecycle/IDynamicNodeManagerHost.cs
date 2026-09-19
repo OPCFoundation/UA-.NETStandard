@@ -239,6 +239,13 @@ namespace Opc.Ua.Server
         /// </summary>
         IDisposable UseTypeImage(TypeTable typeTree, EncodeableFactory factory);
 
+        /// <summary>
+        /// Dispatches Session activation and its notifications against the published bindings.
+        /// </summary>
+        ValueTask<(ByteString ServerNonce, ServiceResult ActivationStatus)> DispatchSessionActivationAsync(
+            Func<ValueTask<(ByteString ServerNonce, ServiceResult ActivationStatus)>> activateAsync,
+            CancellationToken cancellationToken);
+
         ValueTask CommitBatchAsync(
             ArrayOf<PreparedNodeManager> candidates,
             ArrayOf<IAsyncNodeManager> removed,
@@ -251,6 +258,7 @@ namespace Opc.Ua.Server
             long factoryRevision,
             Func<CancellationToken, ValueTask> decideAsync,
             Action published,
+            Func<ValueTask> reconcileBindingsAsync,
             Action<Exception> reportCleanupFailure,
             CancellationToken cancellationToken);
     }

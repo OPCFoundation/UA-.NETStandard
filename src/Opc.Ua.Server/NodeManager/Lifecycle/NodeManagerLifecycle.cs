@@ -2673,7 +2673,7 @@ namespace Opc.Ua.Server
             using var context = new OperationContext(monitoredItem);
             try
             {
-                await nodeManager
+                ServiceResult result = await nodeManager
                     .SubscribeToAllEventsAsync(
                         context,
                         monitoredItem.SubscriptionId,
@@ -2681,12 +2681,16 @@ namespace Opc.Ua.Server
                         false,
                         ct)
                     .ConfigureAwait(false);
+                if (ServiceResult.IsBad(result))
+                {
+                    throw new ServiceResultException(result);
+                }
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 try
                 {
-                    await nodeManager
+                    ServiceResult cleanup = await nodeManager
                         .SubscribeToAllEventsAsync(
                             context,
                             monitoredItem.SubscriptionId,
@@ -2694,6 +2698,10 @@ namespace Opc.Ua.Server
                             true,
                             CancellationToken.None)
                         .ConfigureAwait(false);
+                    if (ServiceResult.IsBad(cleanup))
+                    {
+                        throw new ServiceResultException(cleanup);
+                    }
                 }
                 catch (Exception cleanupException) when (
                     cleanupException is not OutOfMemoryException)
