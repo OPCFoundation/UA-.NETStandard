@@ -526,6 +526,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             IServerInternal server = m_server.CurrentInstance;
             TrackingLifecycleNodeManager failing = null;
             TrackingLifecycleNodeManager healthy = null;
+            TrackingLifecycleNodeManager survivor = null;
             NodeManagerRegistration first = await m_server.NodeManagerLifecycle.AddAsync(
                 CreateTrackingNodeManagementFactory(
                     kGeneration1Value, manager => failing = manager, kSecondModelNamespaceUri),
@@ -534,9 +535,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 CreateTrackingNodeManagementFactory(
                     kGeneration2Value, manager => healthy = manager, kReadinessProbeNamespaceUri),
                 null, timeout.Token).ConfigureAwait(false);
+            await m_server.NodeManagerLifecycle.AddAsync(CreateTrackingNodeManagementFactory(
+                303, manager => survivor = manager, "urn:opcfoundation.org:Tests:CutoffFailureSurvivor"),
+                null, timeout.Token).ConfigureAwait(false);
             var services = new ServerTestServices(m_server, m_secureChannelContext);
             (uint subscriptionId, uint itemId) = await CreateSubscriptionAndEventMonitoredItemAsync(
                 services, ObjectIds.Server).ConfigureAwait(false);
+            await ModifyEventMonitoredItemAsync(services, subscriptionId, itemId).ConfigureAwait(false);
             var failure = new IOException("The retired source rejected its first unsubscribe.");
             if (badStatus)
             {
@@ -569,6 +574,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
             try
             {
                 await ready.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await failing.ReportOwnedEmissionAsync("failed-unsubscribe-new-business", timeout.Token)
+                    .ConfigureAwait(false);
+                await healthy.ReportOwnedEmissionAsync("healthy-retired-new-business", timeout.Token)
+                    .ConfigureAwait(false);
+                await survivor.ReportOwnedEmissionAsync("cleanup-failure-fence", timeout.Token).ConfigureAwait(false);
+                var delivery = await PublishForModelChangeEventAsync(services, subscriptionId, default)
+                    .ConfigureAwait(false);
+                Assert.That(delivery.EventFields.EventFields[1].TryGetValue(out LocalizedText message), Is.True);
+                Assert.That(message.Text, Is.EqualTo("cleanup-failure-fence"));
                 using (Assert.EnterMultipleScope())
                 {
                     Assert.That(prepared.IsCommitted, Is.True);

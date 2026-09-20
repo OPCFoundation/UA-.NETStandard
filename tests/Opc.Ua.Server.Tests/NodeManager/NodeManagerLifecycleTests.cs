@@ -1711,7 +1711,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .ConfigureAwait(false);
                 Assert.That(
                     modifyResponse.Results[0].StatusCode,
-                    Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                    Is.EqualTo(StatusCodes.Good));
 
                 header = m_requestHeader;
                 header.Timestamp = DateTimeUtc.Now;

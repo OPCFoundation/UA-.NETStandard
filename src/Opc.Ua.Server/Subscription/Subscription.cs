@@ -2707,6 +2707,11 @@ namespace Opc.Ua.Server
                 // check session.
                 VerifySession(context);
 
+                if (monitoringMode is < MonitoringMode.Disabled or > MonitoringMode.Reporting)
+                {
+                    throw new ServiceResultException(StatusCodes.BadMonitoringModeInvalid);
+                }
+
                 // clear lifetime counter.
                 ResetLifetimeCount();
 

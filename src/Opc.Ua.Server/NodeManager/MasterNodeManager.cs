@@ -1119,6 +1119,7 @@ namespace Opc.Ua.Server
                         if (notifications.DispatchState.Enabled &&
                             notifications.DispatchState.BusinessEmissionsEnabled &&
                             notifications.DispatchState.EmissionCutoffReservations == 0 &&
+                            notifications.DispatchState.CustomSourceCreations == 0 &&
                             notifications.DispatchState.ActiveDispatches == 0)
                         {
                             m_notificationDispatchStates.Remove(notifications.DispatchState);
@@ -1129,6 +1130,7 @@ namespace Opc.Ua.Server
                     dispatchState.Enabled &&
                     dispatchState.BusinessEmissionsEnabled &&
                     dispatchState.EmissionCutoffReservations == 0 &&
+                    dispatchState.CustomSourceCreations == 0 &&
                     dispatchState.ActiveDispatches == 0 &&
                     dispatchState.References(nodeManager));
             }
@@ -1384,6 +1386,7 @@ namespace Opc.Ua.Server
                     if (dispatchState.Enabled &&
                         dispatchState.BusinessEmissionsEnabled &&
                         dispatchState.EmissionCutoffReservations == 0 &&
+                        dispatchState.CustomSourceCreations == 0 &&
                         !m_retiredGenerationNotifications.Any(notifications =>
                             ReferenceEquals(
                                 notifications.DispatchState,
@@ -2252,6 +2255,8 @@ namespace Opc.Ua.Server
             public bool BusinessEmissionsEnabled { get; set; } = true;
 
             public int EmissionCutoffReservations { get; set; }
+
+            public int CustomSourceCreations { get; set; }
 
             public int ActiveDispatches { get; set; }
 

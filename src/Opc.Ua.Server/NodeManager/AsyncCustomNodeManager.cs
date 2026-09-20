@@ -330,6 +330,12 @@ namespace Opc.Ua.Server
         protected ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems
             => m_monitoredItemManager.MonitoredItems;
 
+        internal bool SupportsSourceEmissionCutoff =>
+            (m_monitoredItemManager.GetType() == typeof(MonitoredNodeMonitoredItemManager) ||
+                m_monitoredItemManager.GetType() == typeof(SamplingGroupMonitoredItemManager)) &&
+            m_monitoredItemManager.MonitoredItems.Values.All(item =>
+                item is null || item.GetType() == typeof(MonitoredItem));
+
         /// <inheritdoc/>
         async ValueTask<IReadOnlyList<IMonitoredItem>>
             INodeManagerMonitoredItemLifecycle.GetMonitoredItemsSnapshotAsync(
@@ -6904,6 +6910,12 @@ namespace Opc.Ua.Server
             ISampledDataChangeMonitoredItem dataChangeMonitoredItem;
             if (decision.Kind == MonitoredItemCreateDecisionKind.Custom)
             {
+                bool admitted = MasterNodeManager.TryBeginCustomSourceCreation(Server, this, out var admission);
+                using var creationAdmission = admission;
+                if (!admitted)
+                {
+                    return (StatusCodes.BadNotSupported, filterResult, monitoredItem);
+                }
                 if (m_monitoredItemManager is not ICustomMonitoredItemManager customManager)
                 {
                     return (StatusCodes.BadNotSupported, filterResult, monitoredItem);

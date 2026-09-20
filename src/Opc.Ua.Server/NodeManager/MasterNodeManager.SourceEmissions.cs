@@ -82,6 +82,30 @@ namespace Opc.Ua.Server
             }
         }
 
+        internal static bool TryBeginCustomSourceCreation(
+            IServerInternal server,
+            IAsyncNodeManager nodeManager,
+            out IDisposable? admission)
+        {
+            admission = null;
+            if (server.NodeManager is not MasterNodeManager master)
+            {
+                return true;
+            }
+            lock (master.m_retiredGenerationNotificationsLock)
+            {
+                NotificationDispatchState state = master.GetOrCreateNotificationDispatchState(nodeManager);
+                if (state.EmissionCutoffReservations != 0 || !state.BusinessEmissionsEnabled)
+                {
+                    return false;
+                }
+                state.CustomSourceCreations++;
+                admission = new CustomSourceCreation(
+                    master, master.CreateNotificationDispatch(nodeManager, state, null));
+                return true;
+            }
+        }
+
         private SourceEmissionScope EnterSourceEmission(NotificationDispatchLease emission)
         {
             NotificationDispatchLease? previous = m_currentSourceEmission.Value;
@@ -92,12 +116,40 @@ namespace Opc.Ua.Server
         private PreparedSourceEmissionCutoff PrepareSourceEmissionCutoff(
             ArrayOf<IAsyncNodeManager> nodeManagers)
         {
+            if (nodeManagers.Count > 0)
+            {
+                if (CoreNodeManager is not Opc.Ua.Server.CoreNodeManager)
+                {
+                    throw new NotSupportedException(
+                        "The configured Core provider cannot service immediately retired monitored items.");
+                }
+                foreach (ISubscription subscription in Server.SubscriptionManager.GetSubscriptions())
+                {
+                    if (subscription.MonitoredItemCount > 0 && subscription is not ISubscriptionMonitoredItemLifecycle)
+                    {
+                        throw new NotSupportedException(
+                            "The configured subscription cannot retain immediately retired monitored-item identities.");
+                    }
+                }
+            }
             var states = new NotificationDispatchState[nodeManagers.Count];
             lock (m_retiredGenerationNotificationsLock)
             {
                 for (int index = 0; index < nodeManagers.Count; index++)
                 {
-                    states[index] = GetOrCreateNotificationDispatchState(nodeManagers[index]);
+                    IAsyncNodeManager manager = nodeManagers[index];
+                    if (manager is not AsyncCustomNodeManager { SupportsSourceEmissionCutoff: true })
+                    {
+                        throw new NotSupportedException(
+                            "Immediate batch retirement requires the stock source and monitored-item emission paths.");
+                    }
+                    NotificationDispatchState state = GetOrCreateNotificationDispatchState(manager);
+                    if (state.CustomSourceCreations != 0)
+                    {
+                        throw new NotSupportedException(
+                            "A custom source factory is still establishing its emission ownership.");
+                    }
+                    states[index] = state;
                 }
                 foreach (NotificationDispatchState state in states)
                 {
@@ -117,6 +169,31 @@ namespace Opc.Ua.Server
             {
                 owner.m_currentSourceEmission.Value = previous;
             }
+        }
+
+        private sealed class CustomSourceCreation : IDisposable
+        {
+            public CustomSourceCreation(MasterNodeManager owner, NotificationDispatchLease dispatch)
+            {
+                m_owner = owner;
+                m_dispatch = dispatch;
+            }
+
+            public void Dispose()
+            {
+                MasterNodeManager? current = Interlocked.Exchange(ref m_owner, null);
+                if (current is not null)
+                {
+                    lock (current.m_retiredGenerationNotificationsLock)
+                    {
+                        m_dispatch.DispatchState.CustomSourceCreations--;
+                    }
+                    m_dispatch.Dispose();
+                }
+            }
+
+            private MasterNodeManager? m_owner;
+            private readonly NotificationDispatchLease m_dispatch;
         }
 
         private sealed class PreparedSourceEmissionCutoff(

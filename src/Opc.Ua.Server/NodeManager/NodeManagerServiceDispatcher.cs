@@ -2528,22 +2528,33 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (monitoredItems[ii] is IDetachableMonitoredItem
-                    {
-                        IsDetached: true
-                    })
-                {
-                    errors[ii] = StatusCodes.BadNodeIdUnknown;
-                    itemsToModify[ii].Processed = true;
-                    continue;
-                }
-
                 // validate request parameters.
                 errors[ii] = MasterNodeManager.ValidateMonitoredItemModifyRequest(itemsToModify[ii])!;
 
                 if (ServiceResult.IsBad(errors[ii]))
                 {
                     itemsToModify[ii].Processed = true;
+                    continue;
+                }
+
+                if (monitoredItems[ii] is IDetachableMonitoredItem { IsDetached: true } &&
+                    (monitoredItems[ii].MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0)
+                {
+                    itemsToModify[ii].Processed = true;
+                    if (monitoredItems[ii] is MonitoredItem detached &&
+                        m_owner.CoreNodeManager is CoreNodeManager core)
+                    {
+                        (ServiceResult? error, MonitoringFilterResult? result) =
+                            await core.ModifyDetachedMonitoredItemAsync(
+                                context, timestampsToReturn, detached, itemsToModify[ii], cancellationToken)
+                                .ConfigureAwait(false);
+                        errors[ii] = error!;
+                        filterResults[ii] = result!;
+                    }
+                    else
+                    {
+                        errors[ii] = StatusCodes.BadNotSupported;
+                    }
                     continue;
                 }
 
@@ -2685,7 +2696,7 @@ namespace Opc.Ua.Server
                     }
                 }
                 // only subscribe to the node manager that owns the node.
-                else
+                else if (monitoredItem is not IDetachableMonitoredItem { IsDetached: true })
                 {
                     await monitoredItem.NodeManager.SubscribeToEventsAsync(
                         context,
@@ -2929,7 +2940,7 @@ namespace Opc.Ua.Server
                     ServiceResult.IsBad(errors[ii]) ||
                     monitoredItem == null ||
                     isDetached);
-                if (isDetached && monitoredItem is not null)
+                if (isDetached && monitoredItem is not null && ServiceResult.IsGood(errors[ii]))
                 {
                     errors[ii] = ServiceResult.Good;
                     if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) != 0)
@@ -3102,7 +3113,7 @@ namespace Opc.Ua.Server
                     ServiceResult.IsBad(errors[ii]) ||
                     monitoredItem == null ||
                     isDetached);
-                if (isDetached && monitoredItem is not null)
+                if (isDetached && monitoredItem is not null && ServiceResult.IsGood(errors[ii]))
                 {
                     MonitoringMode previousMode =
                         monitoredItem.SetMonitoringMode(monitoringMode);

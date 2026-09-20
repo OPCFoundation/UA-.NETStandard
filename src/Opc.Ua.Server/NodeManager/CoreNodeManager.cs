@@ -92,6 +92,41 @@ namespace Opc.Ua.Server
             }
         }
 
+        internal async ValueTask<(ServiceResult? Error, MonitoringFilterResult? FilterResult)>
+            ModifyDetachedMonitoredItemAsync(
+                OperationContext context,
+                TimestampsToReturn timestampsToReturn,
+                MonitoredItem monitoredItem,
+                MonitoredItemModifyRequest request,
+                CancellationToken cancellationToken)
+        {
+            MonitoringParameters parameters = request.RequestedParameters;
+            NodeState? metadata = monitoredItem.SourceMetadata;
+            if (metadata is null && !parameters.Filter.IsNull)
+            {
+                return (StatusCodes.BadMonitoredItemFilterUnsupported, null);
+            }
+            double samplingInterval = SubscriptionManager.CalculateRevisedSamplingInterval(
+                parameters.SamplingInterval, monitoredItem.SamplingInterval, metadata,
+                monitoredItem.AttributeId, MinSupportedSamplingInterval);
+            uint queueSize = SubscriptionManager.CalculateRevisedQueueSize(
+                monitoredItem.IsDurable, parameters.QueueSize, MaxQueueSize, MaxDurableQueueSize);
+            ValidateMonitoringFilterResult validated = await ValidateMonitoringFilterAsync(
+                SystemContext.Copy(context),
+                new NodeHandle { NodeId = monitoredItem.NodeId, Node = metadata! },
+                monitoredItem.AttributeId, samplingInterval, queueSize, parameters.Filter, cancellationToken)
+                .ConfigureAwait(false);
+            if (ServiceResult.IsBad(validated.StatusCode))
+            {
+                return (validated.StatusCode, validated.FilterResult);
+            }
+            ServiceResult? error = monitoredItem.ModifyAttributes(
+                context.DiagnosticsMask, timestampsToReturn, parameters.ClientHandle,
+                validated.FilterToUse, validated.FilterToUse, validated.Range, samplingInterval,
+                queueSize, parameters.DiscardOldest);
+            return (error, validated.FilterResult);
+        }
+
         /// <summary>
         /// Updates the diagnostics node manager with the nodes that were imported.
         /// </summary>

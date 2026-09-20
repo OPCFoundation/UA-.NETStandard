@@ -725,14 +725,20 @@ an abort or prevent the other candidates, readiness, and retirement from being p
 
 #### Prepared immediate source cutoff
 
-For batch replacements or removals with `immediate: true`, committed publication
-suspends new lifecycle notification dispatches to the retired generation. Within
-the same admission boundary, the lifecycle drains already captured notification
-dispatches, detaches the retired generation's own data/event MonitoredItems, and
-unsubscribes its exact retained all-events bindings. This source cutoff precedes
-candidate binding callbacks, committed readiness, and reference notifications;
-an unrelated candidate's stalled readiness cannot keep the old sources attached.
-Graceful sources remain attached according to their existing ownership rules.
+For batch replacements or removals with `immediate: true`, preparation reserves
+source-emission ownership before the durable decision. The routing publication
+closes emission admission for **all** immediately retired owners under one
+publication boundary. New samples and business events are cut off even while an
+earlier owner's notification callback is still running; no per-manager drain,
+source detachment, candidate binding callback, or readiness callback is needed to
+establish the cutoff. Graceful sources retain their existing emission rights.
+
+Stock source queues retain a generation lease for an admitted sample, event
+snapshot, or custom-factory invocation. Existing authorized work drains before
+source teardown. Forwarding an event through the Server object preserves its
+original source owner. A successful cutoff neither purges queued notifications
+nor retracts messages already sent to a Client. Detachment and exact retained
+all-events unsubscription remain separately retryable cleanup operations.
 
 Immediate cutoff reports `BadNodeIdUnknown` on retired data items without deleting
 their Subscription-scoped service identities or unrelated items. Immediate batch
@@ -740,6 +746,27 @@ replacements do not recover these items onto the replacement. Previously queued
 events and dispatches admitted before cutoff retain their existing delivery rules.
 Requests that captured the old routing image can finish on the old manager;
 address-space destruction and disposal still wait for the request drain.
+
+Valid `ModifyMonitoredItems`, `DeleteMonitoredItems`, and `SetMonitoringMode`
+requests continue to work on surviving items. A detached data item uses source
+capabilities cached at attachment (numeric classification, minimum sampling
+interval, and EURange) with the Core filter and queue-limit validation; it does
+not retain or call the retired NodeManager. Event modification validates and
+updates the existing item without resubscribing its removed source. Invalid
+filters, modes, SubscriptionIds, and MonitoredItemIds retain their service-specific
+errors; repeated deletion returns `BadMonitoredItemIdInvalid`.
+
+Immediate prepared retirement supports `AsyncCustomNodeManager` sources using
+the stock monitored-node or sampling-group manager and stock `MonitoredItem`
+queues. Opaque managers, replacement monitored-item implementations, and
+unsupported Core/Subscription providers fail preflight before the durable
+decision rather than silently bypassing cutoff. Custom code that emits outside
+the source-owned reporting APIs is not covered by this contract. An in-progress
+custom item factory prevents immediate preparation; while an immediate decision
+is pending, a new custom factory request returns `BadNotSupported` without
+invoking the factory. Normal stock creation and existing source emissions remain
+usable before publication. Rejection or cancellation releases this reservation,
+including admission for custom factories; graceful retirement does not reserve it.
 
 A rejected decision performs no cutoff. Post-publication cutoff errors are
 committed `CleanupFailure` warnings: later sources, candidates, and readiness

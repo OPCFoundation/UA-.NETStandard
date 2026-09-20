@@ -166,6 +166,25 @@ Name matching is exact and ordinal after trimming. A missing or ambiguous name
 is an error that lists the matching candidates and NodeIds; the MCP layer never
 chooses the first candidate or requests command authority as a side effect.
 
+## Surviving MonitoredItems after source retirement
+
+**Behavior correction:** removing a source does not remove its Subscription-owned
+MonitoredItem. Valid `ModifyMonitoredItems` requests now return `Good` for detached
+survivors instead of the former `BadNodeIdUnknown` shortcut. `DeleteMonitoredItems`
+and `SetMonitoringMode` retain their normal Core rules. Data notifications still
+report `BadNodeIdUnknown`, and retired sources cannot resume business delivery
+through a modification or monitoring-mode change. Update tests or recovery logic
+that treated the former Modify result as the item's service identity.
+
+Prepared immediate batches establish emission cutoff for every retiring owner at
+publication, independently of subsequent callback/source cleanup. Their preflight
+requires the stock source, monitored-item, Core, and Subscription capabilities.
+Unsupported providers fail before the durable decision. In-flight custom factories
+prevent preparation; a new custom-factory request while the decision is reserved
+returns `BadNotSupported` without invoking that factory. Rejection or cancellation
+restores its admission. See [prepared immediate source cutoff](NodeManagers.md#prepared-immediate-source-cutoff)
+for supported paths and retained-work semantics.
+
 ## Migrating code that used the exposed diagnostics locks
 
 `IServerInternal`, `ISession` and `ISubscription` no longer expose their

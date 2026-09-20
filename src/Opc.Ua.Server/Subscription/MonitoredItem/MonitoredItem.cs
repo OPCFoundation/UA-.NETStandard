@@ -176,6 +176,7 @@ namespace Opc.Ua.Server
             m_server = server;
             NodeManager = nodeManager;
             ManagerHandle = managerHandle;
+            SourceMetadata = CaptureSourceMetadata(server, managerHandle);
             SubscriptionId = subscriptionId;
             Id = id;
             NodeId = itemToMonitor.NodeId;
@@ -393,6 +394,8 @@ namespace Opc.Ua.Server
         /// The node manager that created the item.
         /// </summary>
         public IAsyncNodeManager NodeManager { get; private set; }
+
+        internal NodeState? SourceMetadata { get; private set; }
 
         /// <inheritdoc/>
         bool IDetachableMonitoredItem.IsDetached
@@ -684,10 +687,12 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         void IDetachableMonitoredItem.Rebind(IAsyncNodeManager nodeManager, object managerHandle)
         {
+            NodeState? metadata = CaptureSourceMetadata(m_server, managerHandle);
             lock (m_lock)
             {
                 NodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
                 ManagerHandle = managerHandle;
+                SourceMetadata = metadata;
                 m_isDetached = false;
                 m_isDeleted = false;
                 }
@@ -1216,7 +1221,9 @@ namespace Opc.Ua.Server
 
                 // add the value to the queue.
                 AddValueToQueue(current, error!);
-                if (m_isDeleted)
+                if (m_isDeleted &&
+                    m_server.NodeManager is MasterNodeManager master &&
+                    !master.IsSourceEmissionAllowed(NodeManager, includeCaptured: false))
                 {
                     QueueNodeIdUnknown();
                 }
@@ -1989,10 +1996,41 @@ namespace Opc.Ua.Server
             }
         }
 
+        private static NodeState? CaptureSourceMetadata(IServerInternal server, object managerHandle)
+        {
+            if (managerHandle is not NodeHandle { Node: { } source })
+            {
+                return null;
+            }
+            if (source is not BaseVariableState variable)
+            {
+                return new BaseObjectState(null) { NodeId = source.NodeId };
+            }
+            var metadata = new BaseDataVariableState(null)
+            {
+                NodeId = source.NodeId,
+                DataType = server.TypeTree.IsTypeOf(variable.DataType, DataTypeIds.Number)
+                    ? DataTypeIds.Number
+                    : variable.DataType,
+                MinimumSamplingInterval = variable.MinimumSamplingInterval
+            };
+            if (variable.FindChild(server.DefaultSystemContext, QualifiedName.From(BrowseNames.EURange)) is
+                PropertyState property && property.Value.TryGetStructure<Range>(out Range? range))
+            {
+                metadata.AddChild(new PropertyState(metadata)
+                {
+                    BrowseName = QualifiedName.From(BrowseNames.EURange),
+                    Value = new Variant(new ExtensionObject(new Range { Low = range.Low, High = range.High }))
+                });
+            }
+            return metadata;
+        }
+
         private bool CanQueueSourceEmission()
         {
             return !m_isDetached &&
                 (!m_isDeleted ||
+                    (!UsesExternalValueSource && (MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0) ||
                     (m_server.NodeManager is MasterNodeManager master &&
                         master.HasCapturedSourceEmission(NodeManager) &&
                         !master.IsSourceEmissionAllowed(NodeManager, includeCaptured: false)));
