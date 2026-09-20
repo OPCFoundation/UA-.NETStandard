@@ -33,16 +33,16 @@ using System.Collections.Generic;
 namespace Opc.Ua.Server.Historian
 {
     /// <summary>
-    /// Continuation-point state persisted by the dispatcher between
+    /// Continuation-point state retained by the dispatcher between
     /// HistoryRead pages.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The dispatcher serialises one instance per outstanding paginated
-    /// read into the session's continuation-point dictionary
+    /// The dispatcher retains one instance per outstanding paginated
+    /// read in the session's continuation-point cache
     /// (<see cref="ISessionContinuationPoints.SaveHistory"/>).
     /// On the next page request the dispatcher restores the state
-    /// (which removes it from the session's storage), calls the same
+    /// (which checks it out without releasing its generation owners), calls the same
     /// provider with the saved <see cref="ResumeToken"/>, and either
     /// retires the continuation (final page → <see cref="Dispose"/>) or
     /// re-saves it with the new resume token under a fresh <see cref="Id"/>.
@@ -51,12 +51,11 @@ namespace Opc.Ua.Server.Historian
     /// <para>
     /// State held here must stay small — it is stored verbatim in the
     /// session for as long as the client keeps the continuation point
-    /// active. The session pool already invokes <see cref="Dispose"/>
-    /// when an entry is evicted (max-cp eviction or session close), so
-    /// future provider implementations that need to release backend
-    /// resources from a saved cursor can do so by extending
-    /// <see cref="ResumeToken"/> with a payload type that hooks into
-    /// disposal — the framework guarantees the call.
+    /// active. The session disposes available entries on eviction or close. Checked-out
+    /// entries remain owned until their request completes, fails, or is cancelled.
+    /// Disposal releases the exact source and dependency owners through the existing
+    /// continuation ownership mechanism. Mirrored envelopes do not reconstruct this
+    /// process-local state or its opaque provider token.
     /// </para>
     /// </remarks>
     internal sealed class HistorianContinuationState : IHistoryContinuationPoint
@@ -68,6 +67,14 @@ namespace Opc.Ua.Server.Historian
         public required HistorianReadKind Kind { get; init; }
 
         public required NodeId NodeId { get; init; }
+
+        public NodeId OriginNodeId { get; init; }
+
+        public NodeState? SourceNode { get; init; }
+
+        internal ContinuationPoint Ownership { get; } = new();
+
+        internal bool Saved { get; set; }
 
         public required HistorianResumeToken ResumeToken { get; set; }
 
@@ -105,13 +112,25 @@ namespace Opc.Ua.Server.Historian
 
         public void Dispose()
         {
-            // Reserved hook so the session's continuation-point pool can
-            // release provider resources when an entry is evicted. Today
-            // the InMemoryHistorianProvider holds no resources in a resume
-            // token; provider implementations that do (e.g. database
-            // cursors) should attach disposal logic here in a future
-            // extension.
-            BufferedProcessedOutputs = null;
+            try
+            {
+                BufferedProcessedOutputs = null;
+            }
+            finally
+            {
+                Ownership.Dispose();
+            }
+        }
+
+        internal sealed class Use(HistorianContinuationState? state) : IDisposable
+        {
+            public void Dispose()
+            {
+                if (state is { Saved: false })
+                {
+                    state.Dispose();
+                }
+            }
         }
     }
 

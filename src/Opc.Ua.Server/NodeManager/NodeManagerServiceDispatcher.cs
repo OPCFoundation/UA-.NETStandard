@@ -55,7 +55,7 @@ namespace Opc.Ua.Server
     /// subclass overrides effective for internal dispatch.
     /// </para>
     /// </summary>
-    internal sealed class NodeManagerServiceDispatcher
+    internal sealed partial class NodeManagerServiceDispatcher
     {
         /// <summary>
         /// Initializes the dispatcher over the owning master node manager's routing table.
@@ -1102,7 +1102,7 @@ namespace Opc.Ua.Server
             }
             ArrayOf<IAsyncNodeManager> retainedOwners = [.. owners];
             point.SetDependencyOwners(retainedOwners);
-            point.RoutingSnapshot = snapshot.ForBrowse(retainedOwners);
+            point.RoutingSnapshot = snapshot.ForContinuation(retainedOwners);
             return ServiceResult.Good;
         }
 
@@ -1323,12 +1323,14 @@ namespace Opc.Ua.Server
             return (values, diagnosticInfos);
         }
 
-        internal async ValueTask<(ArrayOf<HistoryReadResult> values, ArrayOf<DiagnosticInfo> diagnosticInfos)> HistoryReadAsync(
+        private async ValueTask<(ArrayOf<HistoryReadResult> values, ArrayOf<DiagnosticInfo> diagnosticInfos)>
+            HistoryReadCoreAsync(
             OperationContext context,
             ExtensionObject historyReadDetails,
             TimestampsToReturn timestampsToReturn,
             bool releaseContinuationPoints,
             ArrayOf<HistoryReadValueId> nodesToRead,
+            List<HistoryReadResult> results,
             CancellationToken cancellationToken = default)
         {
             using NodeManagerRoutingTable.ReadScope routing = m_nodeManagers.Capture();
@@ -1345,7 +1347,6 @@ namespace Opc.Ua.Server
 
             // create result lists.
             bool diagnosticsExist = false;
-            var results = new List<HistoryReadResult>(nodesToRead.Count);
             var diagnosticInfos = new List<DiagnosticInfo>(nodesToRead.Count);
 
             // pre-validate items.
@@ -1362,6 +1363,27 @@ namespace Opc.Ua.Server
                 // Limit permission restrictions to Client initiated service call
                 HistoryReadResult? result = null;
                 DiagnosticInfo? diagnosticInfo = null;
+
+                if (!nodesToRead[ii].ContinuationPoint.IsEmpty &&
+                    context.Session?.ContinuationPoints is SessionContinuationPoints holder)
+                {
+                    (result, errors[ii]) = await ReadHistoryContinuationAsync(
+                        context, holder, nodesToRead[ii], details!, timestampsToReturn,
+                        releaseContinuationPoints, ii, nodesToRead.Count, cancellationToken).ConfigureAwait(false);
+                    nodesToRead[ii].Processed = true;
+                    if (ServiceResult.IsBad(errors[ii]))
+                    {
+                        result.StatusCode = errors[ii].StatusCode;
+                        if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                        {
+                            diagnosticInfo = ServerUtils.CreateDiagnosticInfo(Server, context, errors[ii], m_logger);
+                            diagnosticsExist = true;
+                        }
+                    }
+                    results.Add(result);
+                    diagnosticInfos.Add(diagnosticInfo!);
+                    continue;
+                }
 
                 // pre-validate and pre-parse parameter.
                 errors[ii] = (await ValidateHistoryReadRequestAsync(context, nodesToRead[ii], cancellationToken)
@@ -1400,6 +1422,15 @@ namespace Opc.Ua.Server
             {
                 foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
                 {
+                    bool[] pending = [];
+                    if (m_owner.RequiresHistoryContinuationOwnership(nodeManager))
+                    {
+                        pending = new bool[nodesToRead.Count];
+                        for (int ii = 0; ii < pending.Length; ii++)
+                        {
+                            pending[ii] = !nodesToRead[ii].Processed;
+                        }
+                    }
                     await nodeManager.HistoryReadAsync(
                          context,
                         details!,
@@ -1409,6 +1440,19 @@ namespace Opc.Ua.Server
                         results,
                         errors,
                         cancellationToken).ConfigureAwait(false);
+                    for (int ii = 0; ii < pending.Length; ii++)
+                    {
+                        if (pending[ii] && nodesToRead[ii].Processed &&
+                            results[ii] is { ContinuationPoint.IsEmpty: false } page &&
+                            (context.Session?.ContinuationPoints is not SessionContinuationPoints points ||
+                                !points.IsCapturedHistoryPoint(page.ContinuationPoint)))
+                        {
+                            context.Session?.ContinuationPoints.RestoreHistory(page.ContinuationPoint)?.Dispose();
+                            results[ii] = new HistoryReadResult { StatusCode = StatusCodes.BadNotSupported };
+                            errors[ii] = ServiceResult.Create(StatusCodes.BadNotSupported,
+                                "Opaque custom HistoryRead points do not support dynamic retirement.");
+                        }
+                    }
                 }
 
                 for (int ii = 0; ii < nodesToRead.Count; ii++)

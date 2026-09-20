@@ -39,7 +39,7 @@ namespace Opc.Ua.Server
     /// A continuation point survives between service calls, so the session owns the
     /// lifetime: saved points can be dropped when the per-session limit is reached, during
     /// immediate retirement, and when the session closes. Graceful retirement preserves
-    /// Browse ownership until each saved or executing point is disposed.
+    /// Browse and participating history ownership until each saved or executing point is disposed.
     /// </remarks>
     public interface ISessionContinuationPoints
     {
@@ -71,7 +71,9 @@ namespace Opc.Ua.Server
         void SaveHistory(IHistoryContinuationPoint continuationPoint);
 
         /// <summary>
-        /// Restores and removes a history continuation point.
+        /// Restores and removes an available history continuation point. The caller must
+        /// dispose it or save its next page; participating history states keep their owners
+        /// while checked out.
         /// </summary>
         /// <param name="continuationPoint">The identifier the client returned.</param>
         /// <returns>The continuation point, or <c>null</c> when it is not held.</returns>
@@ -80,7 +82,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invalidates points requiring a node manager that is going away, so nothing
         /// resumes against an address space that no longer exists. A currently executing
-        /// Browse point remains owned by its request but cannot be saved again.
+        /// Browse or participating history point remains owned by its request but cannot be saved again.
         /// </summary>
         /// <param name="nodeManager">The node manager being removed.</param>
         void RemoveForManager(IAsyncNodeManager nodeManager);
@@ -103,5 +105,21 @@ namespace Opc.Ua.Server
         /// Restoring a point transfers its use to the request without releasing any of its owners.
         /// </summary>
         bool HasBrowseForManager(IAsyncNodeManager nodeManager);
+    }
+
+    /// <summary>
+    /// Optional ownership capability required when sessions participate in dynamic history-source retirement.
+    /// </summary>
+    public interface ISessionHistoryContinuationPointLifecycle
+    {
+        /// <summary>
+        /// Raised after a history point releases its owners. Cleanup must be scheduled outside the current request.
+        /// </summary>
+        event Action? HistoryContinuationPointsReleased;
+
+        /// <summary>
+        /// Reports saved and checked-out history uses requiring the exact manager, including dependency owners.
+        /// </summary>
+        bool HasHistoryForManager(IAsyncNodeManager nodeManager);
     }
 }

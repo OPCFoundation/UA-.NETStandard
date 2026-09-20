@@ -820,7 +820,7 @@ namespace Opc.Ua.Server
             /// Keeps the captured images but limits continuation dispatch to its retained owners.
             /// The first two infrastructure managers keep their fixed dispatcher indexes.
             /// </summary>
-            internal RoutingSnapshot ForBrowse(ArrayOf<IAsyncNodeManager> owners)
+            internal RoutingSnapshot ForContinuation(ArrayOf<IAsyncNodeManager> owners)
             {
                 IAsyncNodeManager[] managers =
                 [

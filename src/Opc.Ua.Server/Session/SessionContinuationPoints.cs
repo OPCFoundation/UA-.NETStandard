@@ -42,7 +42,8 @@ namespace Opc.Ua.Server
     /// </summary>
     internal sealed class SessionContinuationPoints :
         ISessionContinuationPoints,
-        ISessionContinuationPointLifecycle
+        ISessionContinuationPointLifecycle,
+        ISessionHistoryContinuationPointLifecycle
     {
         /// <summary>
         /// Creates the continuation-point holder for a session.
@@ -74,6 +75,9 @@ namespace Opc.Ua.Server
 
         /// <inheritdoc/>
         public event Action? BrowseContinuationPointsReleased;
+
+        /// <inheritdoc/>
+        public event Action? HistoryContinuationPointsReleased;
 
         /// <inheritdoc/>
         public bool HasBrowseForManager(IAsyncNodeManager nodeManager)
@@ -334,14 +338,19 @@ namespace Opc.Ua.Server
                 for (int ii = m_history.Count - 1; ii >= 0; ii--)
                 {
                     HistoryContinuationPoint continuationPoint = m_history[ii];
-                    if (!IsOwnedBy(continuationPoint.Value, nodeManager))
+                    if (continuationPoint.Value is not Historian.HistorianContinuationState state ||
+                        !state.Ownership.RequiresManager(nodeManager))
                     {
                         continue;
                     }
 
-                    m_history.RemoveAt(ii);
-                    removed ??= [];
-                    removed.Add(continuationPoint);
+                    continuationPoint.Invalidated = true;
+                    if (continuationPoint.Available)
+                    {
+                        continuationPoint.Available = false;
+                        m_availableHistory--;
+                        (removed ??= []).Add(continuationPoint);
+                    }
                 }
             }
 
@@ -350,33 +359,21 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            // Persisting and disposing runs outside the lock, for the same reason as the Browse
-            // continuation points: the state belongs to the NodeManager being retired.
-            foreach (HistoryContinuationPoint continuationPoint in removed)
-            {
-                m_store?.RemoveContinuationPoint(
-                    Id,
-                    ContinuationPointKind.History,
-                    continuationPoint.Id);
-                (continuationPoint.Value as IDisposable)?.Dispose();
-            }
+            DisposeHistoryPoints(removed);
         }
 
-        /// <summary>
-        /// Reports whether a history continuation point was produced by the given NodeManager.
-        /// Only the built-in historian state records its provider, so a continuation point from a
-        /// custom implementation is left alone rather than dropped on a guess.
-        /// </summary>
-        private static bool IsOwnedBy(object? continuationPoint, IAsyncNodeManager nodeManager)
+        /// <inheritdoc/>
+        public bool HasHistoryForManager(IAsyncNodeManager nodeManager)
         {
-            if (continuationPoint is not Historian.HistorianContinuationState state)
+            if (nodeManager is null)
             {
-                return false;
+                throw new ArgumentNullException(nameof(nodeManager));
             }
-
-            object provider = state.Provider;
-            return ReferenceEquals(provider, nodeManager) ||
-                ReferenceEquals(provider, nodeManager.SyncNodeManager);
+            lock (m_lock)
+            {
+                return m_history?.Exists(entry => entry.Value is Historian.HistorianContinuationState state &&
+                    state.Ownership.RequiresManager(nodeManager)) == true;
+            }
         }
 
         /// <summary>
@@ -391,33 +388,71 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(continuationPoint));
             }
 
-            Guid id = continuationPoint.Id;
-
+            var evicted = new List<HistoryContinuationPoint>();
             lock (m_lock)
             {
-                m_history ??= [];
-
-                // remove existing continuation point if space needed.
-                while (m_history.Count >= m_maxHistory)
+                if (m_cleared)
                 {
-                    HistoryContinuationPoint oldCP = m_history[0];
-                    m_history.RemoveAt(0);
-                    m_store?.RemoveContinuationPoint(Id, ContinuationPointKind.History, oldCP.Id);
-                    oldCP.Value.Dispose();
+                    throw new ObjectDisposedException(nameof(SessionContinuationPoints));
                 }
-
-                // create the cp.
-                var cp = new HistoryContinuationPoint
+                if (m_maxHistory <= 0)
                 {
-                    Id = id,
-                    Value = continuationPoint,
-                    Timestamp = DateTime.UtcNow
-                };
-
-                m_history.Add(cp);
+                    throw new ServiceResultException(StatusCodes.BadNoContinuationPoints);
+                }
+                m_history ??= [];
+                HistoryContinuationPoint? entry = m_history.Find(
+                    point => ReferenceEquals(point.Value, continuationPoint));
+                if (entry is null)
+                {
+                    entry = new HistoryContinuationPoint(continuationPoint);
+                    if (continuationPoint is Historian.HistorianContinuationState state)
+                    {
+                        state.Ownership.SetOwnerRelease(() => ReleaseHistory(entry));
+                    }
+                }
+                else
+                {
+                    if (entry.Invalidated)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadContinuationPointInvalid);
+                    }
+                    m_history.Remove(entry);
+                    if (entry.Available)
+                    {
+                        m_availableHistory--;
+                    }
+                }
+                while (m_availableHistory >= m_maxHistory)
+                {
+                    HistoryContinuationPoint oldest = m_history.Find(point => point.Available)!;
+                    oldest.Available = false;
+                    oldest.Invalidated = true;
+                    m_availableHistory--;
+                    evicted.Add(oldest);
+                    if (oldest.Value is not Historian.HistorianContinuationState)
+                    {
+                        m_history.Remove(oldest);
+                    }
+                }
+                entry.Id = continuationPoint.Id;
+                entry.Available = true;
+                m_availableHistory++;
+                m_history.Add(entry);
             }
-
-            m_store?.StoreContinuationPoint(CreateHistoryEnvelope(id));
+            try
+            {
+                DisposeHistoryPoints(evicted);
+                m_store?.StoreContinuationPoint(CreateHistoryEnvelope(continuationPoint.Id));
+                if (continuationPoint is Historian.HistorianContinuationState state)
+                {
+                    state.Saved = true;
+                }
+            }
+            catch
+            {
+                ReleaseHistoryPoint(continuationPoint);
+                throw;
+            }
         }
 
         /// <summary>
@@ -425,12 +460,15 @@ namespace Opc.Ua.Server
         /// </summary>
         public IHistoryContinuationPoint? RestoreHistory(ByteString continuationPoint)
         {
+            if (m_historyRead.Value is { } current && current.Token == continuationPoint && !current.Consumed)
+            {
+                current.Consumed = true;
+                return current.Point;
+            }
+            IHistoryContinuationPoint? restored = null;
             lock (m_lock)
             {
-                if (m_history == null)
-                {
-                    return null;
-                }
+                m_history ??= [];
 
                 if (continuationPoint.Length != 16)
                 {
@@ -443,22 +481,136 @@ namespace Opc.Ua.Server
                 {
                     HistoryContinuationPoint cp = m_history[ii];
 
-                    if (cp.Id == id)
+                    if (cp.Available && cp.Id == id)
                     {
-                        m_history.RemoveAt(ii);
-                        m_store?.RemoveContinuationPoint(Id, ContinuationPointKind.History, id);
-                        return cp.Value;
+                        cp.Available = false;
+                        m_availableHistory--;
+                        if (cp.Value is Historian.HistorianContinuationState state)
+                        {
+                            state.Saved = false;
+                        }
+                        else
+                        {
+                            m_history.RemoveAt(ii);
+                        }
+                        restored = cp.Value;
+                        break;
                     }
                 }
 
-                if (m_mirroredHistoryOwners != null &&
+                if (restored is null && m_mirroredHistoryOwners != null &&
                     m_mirroredHistoryOwners.TryGetValue(id, out NodeId ownerSessionId))
                 {
                     m_mirroredHistoryOwners.Remove(id);
                     m_store?.RemoveContinuationPoint(ownerSessionId, ContinuationPointKind.History, id);
                 }
+            }
+            if (restored is not null)
+            {
+                try
+                {
+                    m_store?.RemoveContinuationPoint(Id, ContinuationPointKind.History, restored.Id);
+                }
+                catch
+                {
+                    restored.Dispose();
+                    throw;
+                }
+            }
+            return restored;
+        }
 
-                return null;
+        internal HistoryReadScope BeginHistoryRead(ByteString token)
+        {
+            IHistoryContinuationPoint? point = RestoreHistory(token);
+            var scope = new HistoryReadScope(this, m_historyRead.Value, token, point);
+            m_historyRead.Value = scope;
+            return scope;
+        }
+
+        internal bool IsCapturedHistoryPoint(ByteString token)
+        {
+            if (token.Length != 16)
+            {
+                return false;
+            }
+            var id = new Guid(token.ToArray());
+            lock (m_lock)
+            {
+                return m_history?.Exists(entry => entry.Available && entry.Id == id &&
+                    entry.Value is Historian.HistorianContinuationState state &&
+                    state.Ownership.HasCapturedDependencies) == true;
+            }
+        }
+
+        internal Historian.IHistorianProvider? GetRestoredHistoryProvider(NodeId nodeId)
+        {
+            return m_historyRead.Value?.Point is Historian.HistorianContinuationState state && state.NodeId == nodeId
+                ? state.Provider
+                : null;
+        }
+
+        private void ReleaseHistory(HistoryContinuationPoint entry)
+        {
+            bool removed;
+            lock (m_lock)
+            {
+                removed = m_history?.Remove(entry) == true;
+                if (removed && entry.Available)
+                {
+                    m_availableHistory--;
+                }
+            }
+            if (removed)
+            {
+                HistoryContinuationPointsReleased?.Invoke();
+            }
+        }
+
+        private void ReleaseHistoryPoint(IHistoryContinuationPoint point)
+        {
+            if (point is not Historian.HistorianContinuationState)
+            {
+                lock (m_lock)
+                {
+                    HistoryContinuationPoint? entry = m_history?.Find(item => ReferenceEquals(item.Value, point));
+                    if (entry is not null)
+                    {
+                        m_history!.Remove(entry);
+                        if (entry.Available)
+                        {
+                            m_availableHistory--;
+                        }
+                    }
+                }
+            }
+            point.Dispose();
+        }
+
+        private void DisposeHistoryPoints(List<HistoryContinuationPoint> points)
+        {
+            List<Exception>? failures = null;
+            foreach (HistoryContinuationPoint point in points)
+            {
+                try
+                {
+                    try
+                    {
+                        m_store?.RemoveContinuationPoint(Id, ContinuationPointKind.History, point.Id);
+                    }
+                    finally
+                    {
+                        ReleaseHistoryPoint(point.Value);
+                    }
+                }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    (failures ??= []).Add(failure);
+                }
+            }
+            if (failures is not null)
+            {
+                throw new AggregateException("History continuation cleanup failed.", failures);
             }
         }
 
@@ -506,7 +658,7 @@ namespace Opc.Ua.Server
         public void Clear()
         {
             var browseCPs = new List<ContinuationPoint>();
-            List<HistoryContinuationPoint>? historyCPs;
+            var historyCPs = new List<HistoryContinuationPoint>();
             lock (m_lock)
             {
                 m_cleared = true;
@@ -523,8 +675,19 @@ namespace Opc.Ua.Server
                     }
                 }
                 m_availableBrowse = 0;
-                historyCPs = m_history;
-                m_history = null;
+                if (m_history is not null)
+                {
+                    foreach (HistoryContinuationPoint entry in m_history)
+                    {
+                        entry.Invalidated = true;
+                        if (entry.Available)
+                        {
+                            entry.Available = false;
+                            historyCPs.Add(entry);
+                        }
+                    }
+                }
+                m_availableHistory = 0;
             }
 
             try
@@ -533,14 +696,7 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                if (historyCPs != null)
-                {
-                    for (int ii = 0; ii < historyCPs.Count; ii++)
-                    {
-                        m_store?.RemoveContinuationPoint(Id, ContinuationPointKind.History, historyCPs[ii].Id);
-                        historyCPs[ii].Value.Dispose();
-                    }
-                }
+                DisposeHistoryPoints(historyCPs);
             }
         }
 
@@ -589,11 +745,34 @@ namespace Opc.Ua.Server
             public bool Invalidated { get; set; }
         }
 
-        private sealed class HistoryContinuationPoint
+        internal sealed class HistoryReadScope(
+            SessionContinuationPoints owner,
+            HistoryReadScope? previous,
+            ByteString token,
+            IHistoryContinuationPoint? point) : IDisposable
         {
-            public Guid Id;
-            public IHistoryContinuationPoint Value = null!;
-            public DateTime Timestamp;
+            public ByteString Token { get; } = token;
+
+            public IHistoryContinuationPoint? Point { get; } = point;
+
+            public bool Consumed { get; set; }
+
+            public void Dispose()
+            {
+                owner.m_historyRead.Value = previous;
+                if (Point is Historian.HistorianContinuationState { Saved: false } || !Consumed)
+                {
+                    Point?.Dispose();
+                }
+            }
+        }
+
+        private sealed class HistoryContinuationPoint(IHistoryContinuationPoint value)
+        {
+            public Guid Id { get; set; } = value.Id;
+            public IHistoryContinuationPoint Value { get; } = value;
+            public bool Available { get; set; }
+            public bool Invalidated { get; set; }
         }
 
         private readonly Func<NodeId> m_sessionIdProvider;
@@ -604,6 +783,8 @@ namespace Opc.Ua.Server
         private int m_availableBrowse;
         private bool m_cleared;
         private List<HistoryContinuationPoint>? m_history;
+        private int m_availableHistory;
+        private readonly AsyncLocal<HistoryReadScope?> m_historyRead = new();
         private Dictionary<Guid, NodeId>? m_mirroredBrowseOwners;
         private Dictionary<Guid, NodeId>? m_mirroredHistoryOwners;
     }

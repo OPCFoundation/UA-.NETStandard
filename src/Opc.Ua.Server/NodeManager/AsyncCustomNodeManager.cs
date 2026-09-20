@@ -4648,6 +4648,12 @@ namespace Opc.Ua.Server
             return HistorianDispatcher.ResolveProvider(Server, node, GetHistorianProvider(node));
         }
 
+        private IHistorianProvider? ResolveHistoryReadProvider(ServerSystemContext context, NodeState node)
+        {
+            return (context.OperationContext?.Session?.ContinuationPoints as SessionContinuationPoints)?
+                .GetRestoredHistoryProvider(node.NodeId) ?? ResolveHistorianProvider(node);
+        }
+
         /// <summary>
         /// Returns whether history services are wired for the specified node.
         /// </summary>
@@ -4840,7 +4846,7 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    IHistorianProvider? annotationProvider = ResolveHistorianProvider(parent);
+                    IHistorianProvider? annotationProvider = ResolveHistoryReadProvider(context, parent);
                     if (annotationProvider == null)
                     {
                         errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
@@ -4865,7 +4871,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                IHistorianProvider? provider = ResolveHistorianProvider(source);
+                IHistorianProvider? provider = ResolveHistoryReadProvider(context, source);
                 if (provider == null)
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
@@ -4928,7 +4934,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                IHistorianProvider? provider = ResolveHistorianProvider(source);
+                IHistorianProvider? provider = ResolveHistoryReadProvider(context, source);
                 if (provider == null)
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
@@ -4998,7 +5004,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                IHistorianProvider? provider = ResolveHistorianProvider(source);
+                IHistorianProvider? provider = ResolveHistoryReadProvider(context, source);
                 if (provider == null)
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
@@ -5055,7 +5061,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                IHistorianProvider? provider = ResolveHistorianProvider(source);
+                IHistorianProvider? provider = ResolveHistoryReadProvider(context, source);
                 if (provider == null)
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;

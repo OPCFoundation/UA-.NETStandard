@@ -1687,7 +1687,21 @@ namespace Opc.Ua.Server
                 throw new NotSupportedException(
                     "The configured master NodeManager does not support live lifecycle operations.");
             }
+            if (host is MasterNodeManager master)
+            {
+                master.SetHistoryContinuationLifecycle(this);
+            }
             return (server, host);
+        }
+
+        internal bool OwnsHistorySource(IAsyncNodeManager nodeManager)
+        {
+            lock (m_registrationLock)
+            {
+                return m_registrations.Values.Any(
+                    state => ReferenceEquals(state.Registration.NodeManager, nodeManager)) ||
+                    m_retiredNodeManagers.Exists(state => ReferenceEquals(state.NodeManager, nodeManager));
+            }
         }
 
         private OperationLifetime EnterLifecycleOperation()
@@ -2328,6 +2342,17 @@ namespace Opc.Ua.Server
                 }
                 owner.BrowseContinuationPointsReleased -= ScheduleRetiredGenerationDrainCleanup;
                 owner.BrowseContinuationPointsReleased += ScheduleRetiredGenerationDrainCleanup;
+                if (session.ContinuationPoints is not ISessionHistoryContinuationPointLifecycle historyOwner)
+                {
+                    throw new NotSupportedException(
+                        "The configured session cannot verify HistoryRead continuation ownership.");
+                }
+                historyOwner.HistoryContinuationPointsReleased -= ScheduleRetiredGenerationDrainCleanup;
+                historyOwner.HistoryContinuationPointsReleased += ScheduleRetiredGenerationDrainCleanup;
+                if (historyOwner.HasHistoryForManager(nodeManager))
+                {
+                    return true;
+                }
                 if (owner.HasBrowseForManager(nodeManager))
                 {
                     return true;

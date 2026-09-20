@@ -102,7 +102,7 @@ namespace Opc.Ua.Server.Historian
         /// errors slot.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="systemContext"/> is <c>null</c>.</exception>
-        public static ValueTask<ServiceResult> DispatchRawReadAsync(
+        public static async ValueTask<ServiceResult> DispatchRawReadAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
             NodeState node,
@@ -141,6 +141,7 @@ namespace Opc.Ua.Server.Historian
                 systemContext, nodeToRead, expectedKind: details.IsReadModified
                     ? HistorianReadKind.Modified
                     : HistorianReadKind.Raw);
+            using var use = new HistorianContinuationState.Use(state);
 
             // A non-empty ContinuationPoint that does not resolve to a saved history
             // continuation (unknown, released, foreign, or a Browse CP) is invalid
@@ -149,7 +150,7 @@ namespace Opc.Ua.Server.Historian
             {
                 result.StatusCode = StatusCodes.BadContinuationPointInvalid;
                 result.ContinuationPoint = ByteString.Empty;
-                return new ValueTask<ServiceResult>(ServiceResult.Good);
+                return ServiceResult.Good;
             }
 
             // Part 11 6.5.3.3: Bounding Values are not defined for modified reads.
@@ -157,9 +158,16 @@ namespace Opc.Ua.Server.Historian
             {
                 result.StatusCode = StatusCodes.BadInvalidArgument;
                 result.ContinuationPoint = ByteString.Empty;
-                return new ValueTask<ServiceResult>(ServiceResult.Good);
+                return ServiceResult.Good;
             }
 
+            if (state is not null)
+            {
+                provider = state.Provider;
+                node = state.SourceNode ?? node;
+                timestampsToReturn = state.TimestampsToReturn;
+                nodeToRead = RestoreReadParameters(state, nodeToRead);
+            }
             HistorianOperationContext opContext = new(
                 systemContext,
                 systemContext.OperationContext!,
@@ -167,12 +175,12 @@ namespace Opc.Ua.Server.Historian
                 HistoryUpdateType.Insert);
 
             return details.IsReadModified
-                ? ReadModifiedPageAsync(
+                ? await ReadModifiedPageAsync(
                     systemContext, provider, node, nodeToRead, details,
-                    timestampsToReturn, result, state, opContext, cancellationToken)
-                : ReadRawPageAsync(
+                    timestampsToReturn, result, state, opContext, cancellationToken).ConfigureAwait(false)
+                : await ReadRawPageAsync(
                     systemContext, provider, node, nodeToRead, details,
-                    timestampsToReturn, result, state, opContext, cancellationToken);
+                    timestampsToReturn, result, state, opContext, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -359,7 +367,7 @@ namespace Opc.Ua.Server.Historian
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="systemContext"/> is <c>null</c>.</exception>
         [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
-            Justification = "HistorianContinuationState ownership is transferred to the session via ContinuationPoints.SaveHistory or disposed inline by EmitProcessedPage.")]
+            Justification = "The session owns saved state; EmitProcessedPageAsync disposes completed state.")]
         public static async ValueTask<ServiceResult> DispatchProcessedReadAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -396,11 +404,33 @@ namespace Opc.Ua.Server.Historian
                 throw new ArgumentNullException(nameof(result));
             }
 
-            // Part 11 v1.05.07 §6.5.4.2: the request domain is defined by StartTime, EndTime and
-            // ProcessingInterval, all of which shall be specified. A zero ProcessingInterval is
-            // valid and requests one aggregate over the entire range; negative or non-finite
-            // durations are invalid. If StartTime equals EndTime there is no meaningful way to
-            // interpret the zero-width time domain.
+            HistorianContinuationState? cont = TryRestoreContinuation(
+                systemContext, nodeToRead, HistorianReadKind.Processed);
+            using var use = new HistorianContinuationState.Use(cont);
+            if (cont is null && !nodeToRead.ContinuationPoint.IsEmpty)
+            {
+                result.StatusCode = StatusCodes.BadContinuationPointInvalid;
+                return ServiceResult.Good;
+            }
+            if (cont is not null)
+            {
+                provider = cont.Provider;
+                node = cont.SourceNode ?? node;
+                timestampsToReturn = cont.TimestampsToReturn;
+                nodeToRead = RestoreReadParameters(cont, nodeToRead);
+            }
+
+            // Resume from buffered output if a continuation already exists.
+            if (cont?.BufferedProcessedOutputs is { })
+            {
+                await EmitProcessedPageAsync(
+                    cont, result, nodeToRead, timestampsToReturn, systemContext, cancellationToken)
+                    .ConfigureAwait(false);
+                return ServiceResult.Good;
+            }
+
+            // The original request has already been validated for buffered continuations.
+            // Validate the time domain only when starting a new processed read.
             if (details.StartTime == details.EndTime ||
                 details.ProcessingInterval < 0 ||
                 double.IsNaN(details.ProcessingInterval) ||
@@ -408,16 +438,6 @@ namespace Opc.Ua.Server.Historian
             {
                 result.StatusCode = StatusCodes.BadInvalidArgument;
                 return StatusCodes.BadInvalidArgument;
-            }
-
-            HistorianContinuationState? cont = TryRestoreContinuation(
-                systemContext, nodeToRead, HistorianReadKind.Processed);
-
-            // Resume from buffered output if a continuation already exists.
-            if (cont?.BufferedProcessedOutputs is { })
-            {
-                EmitProcessedPage(cont, result, nodeToRead, timestampsToReturn, systemContext);
-                return ServiceResult.Good;
             }
 
             HistorianOperationContext opContext = new(
@@ -574,6 +594,8 @@ namespace Opc.Ua.Server.Historian
                 Id = Guid.NewGuid(),
                 Provider = provider,
                 NodeId = node.NodeId,
+                OriginNodeId = nodeToRead.NodeId,
+                SourceNode = node,
                 Kind = HistorianReadKind.Processed,
                 ResumeToken = default,
                 ProcessedRequest = processedRequest,
@@ -583,16 +605,18 @@ namespace Opc.Ua.Server.Historian
                 BufferedProcessedOutputs = values,
                 BufferedProcessedOffset = 0
             };
-            EmitProcessedPage(state, result, nodeToRead, timestampsToReturn, systemContext);
+            await EmitProcessedPageAsync(
+                state, result, nodeToRead, timestampsToReturn, systemContext, cancellationToken).ConfigureAwait(false);
             return ServiceResult.Good;
         }
 
-        private static void EmitProcessedPage(
+        private static async ValueTask EmitProcessedPageAsync(
             HistorianContinuationState state,
             HistoryReadResult result,
             HistoryReadValueId nodeToRead,
             TimestampsToReturn timestampsToReturn,
-            ServerSystemContext systemContext)
+            ServerSystemContext systemContext,
+            CancellationToken cancellationToken)
         {
             List<DataValue> buffered = state.BufferedProcessedOutputs!;
             int remaining = buffered.Count - state.BufferedProcessedOffset;
@@ -614,13 +638,7 @@ namespace Opc.Ua.Server.Historian
                 return;
             }
 
-            state.Id = Guid.NewGuid();
-            systemContext.OperationContext?.Session?.ContinuationPoints.SaveHistory(state);
-            // Per OPC UA Part 11 6.5.3.2 a HistoryRead that returns a ContinuationPoint
-            // (more data available) uses StatusCode Good, not Good_MoreData; the non-empty
-            // ContinuationPoint alone signals to the client that more data can be fetched.
-            result.StatusCode = StatusCodes.Good;
-            result.ContinuationPoint = new ByteString(state.Id.ToByteArray());
+            await SaveHistoryContinuationAsync(systemContext, state, result, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -631,7 +649,7 @@ namespace Opc.Ua.Server.Historian
         /// unsupported for the node.
         /// </summary>
         [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
-            Justification = "HistorianContinuationState ownership is transferred to the session via ContinuationPoints.SaveHistory or disposed inline by EmitProcessedPage.")]
+            Justification = "The session owns saved state; EmitProcessedPageAsync disposes completed state.")]
         private static async ValueTask<ServiceResult> ComputeAnnotationCountAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -698,6 +716,8 @@ namespace Opc.Ua.Server.Historian
                 Id = Guid.NewGuid(),
                 Provider = provider,
                 NodeId = node.NodeId,
+                OriginNodeId = nodeToRead.NodeId,
+                SourceNode = node,
                 Kind = HistorianReadKind.Processed,
                 ResumeToken = default,
                 ProcessedRequest = processedRequest,
@@ -707,7 +727,8 @@ namespace Opc.Ua.Server.Historian
                 BufferedProcessedOutputs = outputs,
                 BufferedProcessedOffset = 0
             };
-            EmitProcessedPage(state, result, nodeToRead, timestampsToReturn, systemContext);
+            await EmitProcessedPageAsync(
+                state, result, nodeToRead, timestampsToReturn, systemContext, cancellationToken).ConfigureAwait(false);
             return ServiceResult.Good;
         }
 
@@ -951,13 +972,25 @@ namespace Opc.Ua.Server.Historian
                 throw new ArgumentNullException(nameof(result));
             }
 
+            HistorianContinuationState? state = TryRestoreContinuation(
+                systemContext, nodeToRead, HistorianReadKind.Annotations);
+            using var use = new HistorianContinuationState.Use(state);
+            if (state is null && !nodeToRead.ContinuationPoint.IsEmpty)
+            {
+                result.StatusCode = StatusCodes.BadContinuationPointInvalid;
+                return ServiceResult.Good;
+            }
+            if (state is not null)
+            {
+                provider = state.Provider;
+                parentVariable = state.SourceNode as BaseVariableState ?? parentVariable;
+                timestampsToReturn = state.TimestampsToReturn;
+                nodeToRead = RestoreReadParameters(state, nodeToRead);
+            }
             if (provider is not IHistorianAnnotationProvider annotations)
             {
                 return StatusCodes.BadHistoryOperationUnsupported;
             }
-
-            HistorianContinuationState? state = TryRestoreContinuation(
-                systemContext, nodeToRead, HistorianReadKind.Annotations);
 
             HistorianAnnotationReadRequest request;
             HistorianResumeToken resumeToken;
@@ -1006,10 +1039,10 @@ namespace Opc.Ua.Server.Historian
             }
             FillHistoryData(result, dataValues, nodeToRead, timestampsToReturn);
 
-            SaveOrReleaseAnnotationContinuation(
+            await SaveOrReleaseAnnotationContinuationAsync(
                 systemContext, nodeToRead, result, state, page.NextToken,
                 provider, parentVariable, request, timestampsToReturn,
-                nodeToRead.ParsedIndexRange, nodeToRead.DataEncoding);
+                nodeToRead.ParsedIndexRange, nodeToRead.DataEncoding, cancellationToken).ConfigureAwait(false);
 
             return ServiceResult.Good;
         }
@@ -1110,7 +1143,7 @@ namespace Opc.Ua.Server.Historian
 
         [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
             Justification = "HistorianContinuationState ownership is transferred to the session via ContinuationPoints.SaveHistory.")]
-        private static void SaveOrReleaseAnnotationContinuation(
+        private static async ValueTask SaveOrReleaseAnnotationContinuationAsync(
             ServerSystemContext systemContext,
             HistoryReadValueId nodeToRead,
             HistoryReadResult result,
@@ -1121,7 +1154,8 @@ namespace Opc.Ua.Server.Historian
             HistorianAnnotationReadRequest request,
             TimestampsToReturn timestampsToReturn,
             NumericRange indexRange,
-            QualifiedName dataEncoding)
+            QualifiedName dataEncoding,
+            CancellationToken cancellationToken)
         {
             if (nextToken.IsEmpty)
             {
@@ -1144,6 +1178,8 @@ namespace Opc.Ua.Server.Historian
                     Id = Guid.NewGuid(),
                     Provider = provider,
                     NodeId = parentVariable.NodeId,
+                    OriginNodeId = nodeToRead.NodeId,
+                    SourceNode = parentVariable,
                     Kind = HistorianReadKind.Annotations,
                     ResumeToken = nextToken,
                     AnnotationRequest = request,
@@ -1153,13 +1189,7 @@ namespace Opc.Ua.Server.Historian
                 };
             }
 
-            state.Id = Guid.NewGuid();
-            systemContext.OperationContext?.Session?.ContinuationPoints.SaveHistory(state);
-            // Per OPC UA Part 11 6.5.3.2 a HistoryRead that returns a ContinuationPoint
-            // (more data available) uses StatusCode Good, not Good_MoreData; the non-empty
-            // ContinuationPoint alone signals to the client that more data can be fetched.
-            result.StatusCode = StatusCodes.Good;
-            result.ContinuationPoint = new ByteString(state.Id.ToByteArray());
+            await SaveHistoryContinuationAsync(systemContext, state, result, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1206,13 +1236,23 @@ namespace Opc.Ua.Server.Historian
             }
             _ = timestampsToReturn;
 
+            HistorianContinuationState? state = TryRestoreContinuation(
+                systemContext, nodeToRead, HistorianReadKind.Events);
+            using var use = new HistorianContinuationState.Use(state);
+            if (state is null && !nodeToRead.ContinuationPoint.IsEmpty)
+            {
+                result.StatusCode = StatusCodes.BadContinuationPointInvalid;
+                return ServiceResult.Good;
+            }
+            if (state is not null)
+            {
+                provider = state.Provider;
+                node = state.SourceNode ?? node;
+            }
             if (provider is not IHistorianEventProvider events)
             {
                 return StatusCodes.BadHistoryOperationUnsupported;
             }
-
-            HistorianContinuationState? state = TryRestoreContinuation(
-                systemContext, nodeToRead, HistorianReadKind.Events);
 
             HistorianEventReadRequest request;
             HistorianResumeToken token;
@@ -1237,7 +1277,7 @@ namespace Opc.Ua.Server.Historian
                     EndTime = end,
                     MaxValues = details.NumValuesPerNode,
                     IsForward = isForward,
-                    Filter = details.Filter
+                    Filter = (EventFilter)details.Filter.Clone()
                 };
                 token = default;
             }
@@ -1253,7 +1293,7 @@ namespace Opc.Ua.Server.Historian
 
             // Evaluate the WhereClause if any elements are present.
             IReadOnlyList<HistorianEventRecord> filtered = page.Values;
-            if (details.Filter.WhereClause.Elements.Count > 0 &&
+            if (request.Filter.WhereClause.Elements.Count > 0 &&
                 systemContext.Server is IServerInternal serverInternal)
             {
                 var context = new FilterContext(
@@ -1265,7 +1305,7 @@ namespace Opc.Ua.Server.Historian
                 foreach (HistorianEventRecord record in page.Values)
                 {
                     var target = new HistorianEventFilterTarget(record);
-                    var evaluator = new FilterEvaluator(details.Filter.WhereClause, context, target);
+                    var evaluator = new FilterEvaluator(request.Filter.WhereClause, context, target);
                     if (evaluator.Result)
                     {
                         keep.Add(record);
@@ -1277,7 +1317,7 @@ namespace Opc.Ua.Server.Historian
             var fields = new HistoryEventFieldList[filtered.Count];
             for (int i = 0; i < filtered.Count; i++)
             {
-                fields[i] = ProjectEventFields(filtered[i], details.Filter);
+                fields[i] = ProjectEventFields(filtered[i], request.Filter);
             }
 
             result.HistoryData = new ExtensionObject(new HistoryEvent
@@ -1285,9 +1325,9 @@ namespace Opc.Ua.Server.Historian
                 Events = fields
             });
 
-            SaveOrReleaseEventContinuation(
+            await SaveOrReleaseEventContinuationAsync(
                 systemContext, nodeToRead, result, state, page.NextToken,
-                provider, node, request);
+                provider, node, request, cancellationToken).ConfigureAwait(false);
             return ServiceResult.Good;
         }
 
@@ -1523,7 +1563,7 @@ namespace Opc.Ua.Server.Historian
 
         [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
             Justification = "HistorianContinuationState ownership is transferred to the session via ContinuationPoints.SaveHistory.")]
-        private static void SaveOrReleaseEventContinuation(
+        private static async ValueTask SaveOrReleaseEventContinuationAsync(
             ServerSystemContext systemContext,
             HistoryReadValueId nodeToRead,
             HistoryReadResult result,
@@ -1531,7 +1571,8 @@ namespace Opc.Ua.Server.Historian
             HistorianResumeToken nextToken,
             IHistorianProvider provider,
             NodeState node,
-            HistorianEventReadRequest request)
+            HistorianEventReadRequest request,
+            CancellationToken cancellationToken)
         {
             if (nextToken.IsEmpty)
             {
@@ -1554,6 +1595,8 @@ namespace Opc.Ua.Server.Historian
                     Id = Guid.NewGuid(),
                     Provider = provider,
                     NodeId = node.NodeId,
+                    OriginNodeId = nodeToRead.NodeId,
+                    SourceNode = node,
                     Kind = HistorianReadKind.Events,
                     ResumeToken = nextToken,
                     EventRequest = request,
@@ -1561,14 +1604,7 @@ namespace Opc.Ua.Server.Historian
                 };
             }
 
-            state.Id = Guid.NewGuid();
-            systemContext.OperationContext?.Session?.ContinuationPoints.SaveHistory(state);
-            // Per OPC UA Part 11 6.5.3.2 a HistoryRead that returns a ContinuationPoint
-            // (more data available) uses StatusCode Good, not Good_MoreData; the non-empty
-            // ContinuationPoint alone signals to the client that more data can be fetched.
-            result.StatusCode = StatusCodes.Good;
-            result.ContinuationPoint = new ByteString(state.Id.ToByteArray());
-            _ = nodeToRead;
+            await SaveHistoryContinuationAsync(systemContext, state, result, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1596,11 +1632,13 @@ namespace Opc.Ua.Server.Historian
 
             IHistoryContinuationPoint? state = systemContext.OperationContext?.Session?.ContinuationPoints.RestoreHistory(
                 nodeToRead.ContinuationPoint);
-            if (state is HistorianContinuationState cont)
+            if (state is HistorianContinuationState cont &&
+                (cont.OriginNodeId.IsNull ? cont.NodeId : cont.OriginNodeId) == nodeToRead.NodeId)
             {
                 cont.Dispose();
                 return ServiceResult.Good;
             }
+            state?.Dispose();
             return StatusCodes.BadContinuationPointInvalid;
         }
 
@@ -1687,12 +1725,13 @@ namespace Opc.Ua.Server.Historian
             }
             FillHistoryData(result, values, nodeToRead, timestampsToReturn);
 
-            SaveOrReleaseContinuation(
+            await SaveOrReleaseContinuationAsync(
                 systemContext, nodeToRead, result, state, page.NextToken,
                 provider, node, request, kind: HistorianReadKind.Raw,
                 timestampsToReturn: timestampsToReturn,
                 indexRange: nodeToRead.ParsedIndexRange,
-                dataEncoding: nodeToRead.DataEncoding);
+                dataEncoding: nodeToRead.DataEncoding,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
 
             // Per OPC UA Part 11 6.5.3.2, an interval in which no data exists (and no
             // Bounding Values were requested/returned) is reported with Good_NoData.
@@ -1776,12 +1815,13 @@ namespace Opc.Ua.Server.Historian
             }
             FillHistoryModifiedData(result, values, infos, nodeToRead, timestampsToReturn);
 
-            SaveOrReleaseContinuation(
+            await SaveOrReleaseContinuationAsync(
                 systemContext, nodeToRead, result, state, page.NextToken,
                 provider, node, modifiedRequest: request, kind: HistorianReadKind.Modified,
                 timestampsToReturn: timestampsToReturn,
                 indexRange: nodeToRead.ParsedIndexRange,
-                dataEncoding: nodeToRead.DataEncoding);
+                dataEncoding: nodeToRead.DataEncoding,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
 
             // Per OPC UA Part 11 6.5.3.2, an interval in which no data exists is reported
             // with Good_NoData.
@@ -1806,16 +1846,19 @@ namespace Opc.Ua.Server.Historian
                 nodeToRead.ContinuationPoint);
             if (raw is not HistorianContinuationState state)
             {
+                raw?.Dispose();
                 return null;
             }
+            state.Saved = false;
             if (state.Kind != expectedKind)
             {
+                state.Dispose();
                 return null;
             }
             // Reject cross-wired continuation points — a client that
             // submits a CP from one node against a different node would
             // otherwise get the wrong page from the wrong provider.
-            if (state.NodeId != nodeToRead.NodeId)
+            if ((state.OriginNodeId.IsNull ? state.NodeId : state.OriginNodeId) != nodeToRead.NodeId)
             {
                 state.Dispose();
                 return null;
@@ -1833,7 +1876,7 @@ namespace Opc.Ua.Server.Historian
 
         [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
             Justification = "HistorianContinuationState ownership is transferred to the session via ContinuationPoints.SaveHistory.")]
-        private static void SaveOrReleaseContinuation(
+        private static async ValueTask SaveOrReleaseContinuationAsync(
             ServerSystemContext systemContext,
             HistoryReadValueId nodeToRead,
             HistoryReadResult result,
@@ -1846,7 +1889,8 @@ namespace Opc.Ua.Server.Historian
             HistorianReadKind kind = HistorianReadKind.Raw,
             TimestampsToReturn timestampsToReturn = TimestampsToReturn.Source,
             NumericRange indexRange = default,
-            QualifiedName? dataEncoding = null)
+            QualifiedName dataEncoding = default,
+            CancellationToken cancellationToken = default)
         {
             if (nextToken.IsEmpty)
             {
@@ -1874,23 +1918,78 @@ namespace Opc.Ua.Server.Historian
                     Id = Guid.NewGuid(),
                     Provider = provider,
                     NodeId = node.NodeId,
+                    OriginNodeId = nodeToRead.NodeId,
+                    SourceNode = node,
                     Kind = kind,
                     ResumeToken = nextToken,
                     RawRequest = rawRequest,
                     ModifiedRequest = modifiedRequest,
                     TimestampsToReturn = timestampsToReturn,
                     IndexRange = indexRange,
-                    DataEncoding = dataEncoding ?? QualifiedName.Null
+                    DataEncoding = dataEncoding
                 };
             }
 
-            state.Id = Guid.NewGuid();
-            systemContext.OperationContext?.Session?.ContinuationPoints.SaveHistory(state);
-            // Per OPC UA Part 11 6.5.3.2 a HistoryRead that returns a ContinuationPoint
-            // (more data available) uses StatusCode Good, not Good_MoreData; the non-empty
-            // ContinuationPoint alone signals to the client that more data can be fetched.
-            result.StatusCode = StatusCodes.Good;
-            result.ContinuationPoint = new ByteString(state.Id.ToByteArray());
+            await SaveHistoryContinuationAsync(systemContext, state, result, cancellationToken).ConfigureAwait(false);
+        }
+
+        private static async ValueTask SaveHistoryContinuationAsync(
+            ServerSystemContext context,
+            HistorianContinuationState state,
+            HistoryReadResult result,
+            CancellationToken cancellationToken)
+        {
+            bool saved = false;
+            try
+            {
+                ISessionContinuationPoints? points = context.OperationContext?.Session?.ContinuationPoints;
+                ServiceResult error = points is null ? StatusCodes.BadNoContinuationPoints : ServiceResult.Good;
+                if (ServiceResult.IsGood(error) && context.Server?.NodeManager is MasterNodeManager master)
+                {
+                    error = await master.CaptureHistoryContinuationAsync(state, cancellationToken)
+                        .ConfigureAwait(false);
+                    if (ServiceResult.IsGood(error) && state.Ownership.HasCapturedDependencies &&
+                        points is not SessionContinuationPoints)
+                    {
+                        error = StatusCodes.BadNotSupported;
+                    }
+                }
+                if (ServiceResult.IsBad(error))
+                {
+                    result.StatusCode = error.StatusCode;
+                    result.HistoryData = default;
+                    result.ContinuationPoint = ByteString.Empty;
+                    return;
+                }
+                cancellationToken.ThrowIfCancellationRequested();
+                state.Id = Guid.NewGuid();
+                points!.SaveHistory(state);
+                state.Saved = true;
+                saved = true;
+                result.StatusCode = StatusCodes.Good;
+                result.ContinuationPoint = new ByteString(state.Id.ToByteArray());
+            }
+            finally
+            {
+                if (!saved)
+                {
+                    state.Dispose();
+                }
+            }
+        }
+
+        private static HistoryReadValueId RestoreReadParameters(
+            HistorianContinuationState state,
+            HistoryReadValueId current)
+        {
+            return new HistoryReadValueId
+            {
+                NodeId = current.NodeId,
+                ContinuationPoint = current.ContinuationPoint,
+                IndexRange = state.IndexRange.ToString(),
+                ParsedIndexRange = state.IndexRange,
+                DataEncoding = state.DataEncoding
+            };
         }
 
         private static void FillHistoryData(

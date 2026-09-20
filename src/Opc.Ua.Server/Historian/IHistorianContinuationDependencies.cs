@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -27,36 +27,27 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-
 namespace Opc.Ua.Server.Historian
 {
     /// <summary>
-    /// Opaque resume marker produced by an <see cref="IHistorianProvider"/>
-    /// to support paged history reads.
+    /// Optional provider capability declaring all local Node dependencies of a paginated history read.
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// A <see cref="HistorianResumeToken"/> is the provider's "where to
-    /// resume next" hint. It carries arbitrary provider-specific state
-    /// (keyset position, opaque cursor id, byte offset, etc.) and is
-    /// retained server-side by the framework behind the OPC UA HistoryRead continuation
-    /// identifier. The framework guarantees the token will be passed back
-    /// verbatim to the same provider on the next page read or released
-    /// when the client abandons the continuation.
-    /// </para>
-    /// <para>
-    /// Providers <strong>must not</strong> hold long-lived resources
-    /// (database connections, cursors, transactions) in a resume token;
-    /// the framework retains tokens across requests and the originating
-    /// task may have completed before the next page is requested.
-    /// </para>
+    /// Dynamic sources require a complete declaration before their first continuation is saved.
+    /// The source and requested Node are retained automatically. An empty successful declaration means
+    /// no additional NodeManagers are needed for any remaining page. Returning false rejects pagination
+    /// with BadNotSupported, without returning partial data. Non-paginated reads and legacy providers
+    /// on sources outside the dynamic lifecycle do not require this capability.
     /// </remarks>
-    public readonly record struct HistorianResumeToken(ReadOnlyMemory<byte> State)
+    public interface IHistorianContinuationDependencies
     {
         /// <summary>
-        /// Returns <c>true</c> when the token carries no state (no more pages).
+        /// Declares every additional local Node needed by this token and all its successor pages.
+        /// The framework never interprets the opaque token. Dependencies must not grow on later pages.
         /// </summary>
-        public bool IsEmpty => State.IsEmpty;
+        bool TryGetContinuationDependencies(
+            NodeId sourceNodeId,
+            HistorianResumeToken resumeToken,
+            out ArrayOf<NodeId> dependencies);
     }
 }

@@ -594,7 +594,39 @@ Session close/disposal release the corresponding ownership. The cache evicts onl
 points, not points currently executing in a request. Releasing one point does not release another
 point or another manager, and a continuation for an unrelated manager does not prevent cleanup.
 Cleanup is scheduled through the existing lifecycle drain; destruction waits until that owner's
-MonitoredItems, Browse continuations, and captured requests have drained.
+MonitoredItems, Browse and participating HistoryRead continuations, and captured requests have drained.
+
+The stock historian also retains old-generation HistoryRead points during shadow reload and
+graceful prepared-batch replacement/removal, even with no Browse points or MonitoredItems.
+Each point keeps its exact provider, source Node, requested Node identity, original query and
+data selection, and captured routing/type/factory/reference images. Resumed reads recheck the
+calling Session's permissions against the retained source; they do not look up a replacement
+provider or route a token to the new model. A foreign Session cannot consume the point.
+New history reads use the active generation.
+
+For paginated dynamic sources, providers implement `IHistorianContinuationDependencies` and
+declare every additional local Node needed for any remaining page. The requested Node and
+provider source are included automatically, including an Annotations Property's parent.
+`InMemoryHistorianProvider` declares no extra owners. Only exact resolved owners are retained,
+not namespace peers or the entire routing snapshot. Unpaged history and legacy providers on
+sources outside the dynamic lifecycle do not require this optional capability. Missing or
+incomplete declarations on dynamic sources return `BadNotSupported`, without partial data or
+a continuation. Opaque custom NodeManager history states cannot be made retirement-safe by
+examining their contents and are likewise rejected for dynamic pagination.
+
+Saved and checked-out history states share the session cache's ownership accounting. Final
+pages, explicit release, eviction, failure/cancellation, and Session close/disposal release
+their corresponding uses; a checked-out point is neither an eviction victim nor disposed by
+another request. Failed multi-Node HistoryRead responses discard all undelivered continuations.
+Immediate retirement invalidates points requiring either the source or a dependency, and
+shutdown keeps the existing bounded request drain. The stock cache implements
+`ISessionHistoryContinuationPointLifecycle`; dynamic historian pagination currently requires
+that stock cache, because an arbitrary external cache cannot restore its captured dispatch
+scope. Reporting history ownership alone does not supply that routing capability.
+
+History persistence and standby envelopes remain metadata-only: they identify the originating
+Session for cleanup, but cannot recreate a provider cursor, source object, or generation on
+another process. Such a mirrored token returns `BadContinuationPointInvalid`.
 
 Normal and immediate reload/removal invalidate points requiring the removed manager, whether it
 is the source or a dependency. A later `BrowseNext` returns

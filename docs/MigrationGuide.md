@@ -497,6 +497,31 @@ Implement `IHistoryContinuationPoint` on whatever type you store. The session
 previously disposed only those points that happened to implement `IDisposable`
 and silently leaked the rest; every point is now disposed.
 
+### History continuation ownership during dynamic retirement
+
+Paginated historian providers serving lifecycle-managed NodeManagers must implement the
+optional `IHistorianContinuationDependencies` capability. Return the complete
+`ArrayOf<NodeId>` of additional local dependencies for the token's entire remaining lifetime.
+The framework includes the requested Node and provider source automatically; returning `true`
+with an empty array promises that no other manager is required. Missing/incomplete declarations
+return `BadNotSupported` without a partial page on dynamic sources. Unpaged reads and providers
+outside dynamic retirement are unchanged. The stock `InMemoryHistorianProvider` opts in.
+
+Use the stock session continuation cache for dynamic history pagination. Its
+`ISessionHistoryContinuationPointLifecycle` capability accounts for saved and checked-out
+states and signals final release. An external cache's reporting interface alone cannot supply
+captured routing; such caches are not supported for dynamically retained historian pagination.
+Custom NodeManager history implementations that save opaque `IHistoryContinuationPoint`
+objects must use the stock historian/provider path to participate in dynamic retirement;
+the framework does not inspect or reconstruct their payloads.
+
+The stack now keeps the original source, provider, query/filter, and routing images until every
+history use drains. Resumed reads still recheck Session permissions. Immediate retirement
+invalidates affected points. Failed service responses release undelivered points, and mirrored
+envelopes remain cleanup metadata rather than portable provider cursors.
+See [historian pagination](HistoricalAccess.md) and
+[NodeManager continuation points](NodeManagers.md#continuation-points).
+
 ## Migrating code that called IServerInternal.Set* mutators
 
 `IServerInternal` no longer exposes the twelve `Set*` binding methods or
