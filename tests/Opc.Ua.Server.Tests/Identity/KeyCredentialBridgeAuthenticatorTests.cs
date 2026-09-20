@@ -175,17 +175,16 @@ namespace Opc.Ua.Server.Tests.Identity
         }
 
         [Test]
-        public void CreateTokenDataWithoutAudienceFailsFastInsteadOfIssuingUnusableToken()
+        public void CreateTokenDataRequiresAnAudienceInsteadOfIssuingAnUnusableToken()
         {
             Assert.That(
-#pragma warning disable CS0618 // the audience-less overload is retained only for source compatibility
                 () => KeyCredentialBridgeAuthenticator.CreateTokenData(
                     CredentialId,
                     s_secret,
                     "nonce-" + Guid.NewGuid().ToString("N"),
-                    DateTime.UtcNow),
-#pragma warning restore CS0618
-                Throws.TypeOf<NotSupportedException>());
+                    DateTime.UtcNow,
+                    null!),
+                Throws.TypeOf<ArgumentNullException>());
         }
 
         [Test]
@@ -210,19 +209,26 @@ namespace Opc.Ua.Server.Tests.Identity
         [Test]
         public void CreateProofValidatesSecretAndReturnsBase64UrlProof()
         {
+            long issuedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             string proof = KeyCredentialBridgeAuthenticator.CreateProof(
                 s_secret,
                 CredentialId,
                 "nonce",
-                DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+                issuedAt,
+                "urn:test:server");
 
             Assert.Multiple(() =>
             {
                 Assert.That(proof, Is.Not.Empty);
                 Assert.That(proof, Does.Not.Contain("+"));
                 Assert.That(proof, Does.Not.Contain("/"));
+                Assert.That(
+                    KeyCredentialBridgeAuthenticator.CreateProof(
+                        s_secret, CredentialId, "nonce", issuedAt, "urn:test:other"),
+                    Is.Not.EqualTo(proof));
                 Assert.Throws<ArgumentNullException>(() =>
-                    KeyCredentialBridgeAuthenticator.CreateProof(null, CredentialId, "nonce", 1));
+                    KeyCredentialBridgeAuthenticator.CreateProof(
+                        null, CredentialId, "nonce", 1, "urn:test:server"));
             });
         }
 

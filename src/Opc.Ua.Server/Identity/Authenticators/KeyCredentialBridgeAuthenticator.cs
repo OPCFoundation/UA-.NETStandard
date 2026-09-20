@@ -189,37 +189,19 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Creates a bridge-token JSON payload for a credential secret.
+        /// Creates a bridge-token payload bound to an audience.
         /// </summary>
-        /// <remarks>
-        /// Superseded by the overload that binds the token to an audience. A token
-        /// without an audience can never authenticate, because verification requires
-        /// the audience to match the server's ApplicationUri.
-        /// </remarks>
-        /// <exception cref="ArgumentNullException">Thrown when <paramref name="secret"/> is <c>null</c>.</exception>
+        /// <param name="credentialId">Identifies the credential in the store.</param>
+        /// <param name="secret">The credential secret that keys the HMAC proof.</param>
+        /// <param name="nonce">A single-use value that bounds proof replay.</param>
+        /// <param name="issuedAt">The proof creation time, in UTC.</param>
+        /// <param name="audience">The resource server's ApplicationUri.</param>
         /// <exception cref="ArgumentException">
         /// Thrown when <paramref name="credentialId"/> or <paramref name="nonce"/> is <c>null</c>, empty, or whitespace.
         /// </exception>
-        /// <exception cref="NotSupportedException">
-        /// Always thrown: a token without an audience cannot authenticate.
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when <paramref name="secret"/> or <paramref name="audience"/> is <c>null</c>.
         /// </exception>
-        [Obsolete("Use the overload that supplies the audience; audience-less tokens are always rejected.")]
-        public static byte[] CreateTokenData(
-            string credentialId,
-            byte[] secret,
-            string nonce,
-            DateTime issuedAt)
-        {
-            throw new NotSupportedException(
-                "A KeyCredential bridge token must be bound to the server's ApplicationUri. " +
-                "Use CreateTokenData(credentialId, secret, nonce, issuedAt, audience).");
-        }
-
-        /// <summary>
-        /// Creates a versioned bridge-token payload bound to an audience.
-        /// </summary>
-        /// <exception cref="ArgumentException"></exception>
-        /// <exception cref="ArgumentNullException"><paramref name="secret"/> is <c>null</c>.</exception>
         public static byte[] CreateTokenData(
             string credentialId,
             byte[] secret,
@@ -267,24 +249,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Creates the base64url HMAC proof for a bridge token.
-        /// </summary>
-        /// <exception cref="ArgumentNullException">Thrown when <paramref name="secret"/> is <c>null</c>.</exception>
-        public static string CreateProof(
-            byte[] secret,
-            string credentialId,
-            string nonce,
-            long issuedAt)
-        {
-            if (secret == null)
-            {
-                throw new ArgumentNullException(nameof(secret));
-            }
-            return Base64UrlEncode(ComputeProof(secret, credentialId, nonce, issuedAt, string.Empty));
-        }
-
-        /// <summary>
-        /// Creates a versioned HMAC proof bound to the supplied audience.
+        /// Creates the base64url HMAC proof bound to the supplied audience.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="secret"/> is <c>null</c>.</exception>
         public static string CreateProof(

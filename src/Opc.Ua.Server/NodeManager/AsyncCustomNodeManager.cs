@@ -8149,40 +8149,6 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Reads the initial value for a monitored item.
-        /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="handle">The item handle.</param>
-        /// <param name="monitoredItem">The monitored item.</param>
-        [Obsolete("Override ReadInitialValueAsync instead.")]
-        protected virtual ServiceResult ReadInitialValue(
-            ISystemContext context,
-            NodeHandle handle,
-            IDataChangeMonitoredItem2 monitoredItem)
-        {
-            var initialValue = new DataValue(
-                Variant.Null,
-                StatusCodes.BadWaitingForInitialData,
-                DateTimeUtc.MinValue,
-                DateTime.UtcNow);
-
-            ServiceResult error = handle.Node.ReadAttribute(
-                context,
-                monitoredItem.AttributeId,
-                monitoredItem.IndexRange,
-                monitoredItem.DataEncoding,
-                ref initialValue);
-
-            QueueInitialValue(
-                monitoredItem,
-                initialValue,
-                error,
-                ignoreFilters: true);
-
-            return error;
-        }
-
-        /// <summary>
         /// Called after creating a MonitoredItem.
         /// </summary>
         /// <param name="context">The context.</param>
