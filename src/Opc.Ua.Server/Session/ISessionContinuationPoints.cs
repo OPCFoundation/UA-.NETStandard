@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+
 namespace Opc.Ua.Server
 {
     /// <summary>
@@ -35,9 +37,9 @@ namespace Opc.Ua.Server
     /// </summary>
     /// <remarks>
     /// A continuation point survives between service calls, so the session owns the
-    /// lifetime: points are dropped when the per-session limit is reached, when the node
-    /// manager that issued them goes away, and when the session closes. A dropped history
-    /// point is disposed.
+    /// lifetime: saved points can be dropped when the per-session limit is reached, during
+    /// immediate retirement, and when the session closes. Graceful retirement preserves
+    /// Browse ownership until each saved or executing point is disposed.
     /// </remarks>
     public interface ISessionContinuationPoints
     {
@@ -54,7 +56,8 @@ namespace Opc.Ua.Server
         void SaveBrowse(ContinuationPoint continuationPoint);
 
         /// <summary>
-        /// Restores and removes a browse continuation point.
+        /// Restores and removes an available browse continuation point. The caller must
+        /// dispose it or save its next page; restoring does not release generation ownership.
         /// </summary>
         /// <param name="continuationPoint">The identifier the client returned.</param>
         /// <returns>The continuation point, or <c>null</c> when it is not held.</returns>
@@ -75,10 +78,29 @@ namespace Opc.Ua.Server
         IHistoryContinuationPoint? RestoreHistory(ByteString continuationPoint);
 
         /// <summary>
-        /// Drops every point issued by a node manager that is going away, so nothing
-        /// resumes against an address space that no longer exists.
+        /// Invalidates points issued by a node manager that is going away, so nothing
+        /// resumes against an address space that no longer exists. A currently executing
+        /// Browse point remains owned by its request but cannot be saved again.
         /// </summary>
         /// <param name="nodeManager">The node manager being removed.</param>
         void RemoveForManager(IAsyncNodeManager nodeManager);
+    }
+
+    /// <summary>
+    /// Optional ownership capability used to drain gracefully retired Browse sources.
+    /// </summary>
+    public interface ISessionContinuationPointLifecycle
+    {
+        /// <summary>
+        /// Raised after a Browse continuation releases its source, including after a restored
+        /// point completes or fails. Subscribers must schedule cleanup outside the current request.
+        /// </summary>
+        event Action? BrowseContinuationPointsReleased;
+
+        /// <summary>
+        /// Reports saved and currently restored Browse continuations owned by the exact manager.
+        /// Restoring a point transfers its use to the request without releasing its source.
+        /// </summary>
+        bool HasBrowseForManager(IAsyncNodeManager nodeManager);
     }
 }

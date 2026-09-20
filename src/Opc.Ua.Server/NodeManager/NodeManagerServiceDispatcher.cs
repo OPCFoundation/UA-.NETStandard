@@ -747,139 +747,109 @@ namespace Opc.Ua.Server
 
             uint continuationPointsAssigned = 0;
 
-            for (int ii = 0; ii < continuationPoints.Count; ii++)
+            try
             {
-                ContinuationPoint? cp;
-
-                // check if request has timed out or been canceled.
-                if (StatusCode.IsBad(context.OperationStatus))
+                for (int ii = 0; ii < continuationPoints.Count; ii++)
                 {
-                    // release all allocated continuation points.
-                    foreach (BrowseResult current in results)
+                    if (StatusCode.IsBad(context.OperationStatus))
                     {
-                        if (current != null && !current.ContinuationPoint.IsEmpty)
-                        {
-                            cp = context.Session
-                                .ContinuationPoints.RestoreBrowse(current.ContinuationPoint);
-                            cp?.Dispose();
-                        }
+                        throw new ServiceResultException(context.OperationStatus);
                     }
 
-                    throw new ServiceResultException(context.OperationStatus);
-                }
-
-                // find the continuation point.
-                cp = context.Session.ContinuationPoints.RestoreBrowse(continuationPoints[ii]);
-
-                // validate access rights and role permissions
-                if (cp != null)
-                {
-                    ServiceResult validationResult = await ValidatePermissionsAsync(
-                            context,
-                            cp.Manager,
-                            cp.NodeToBrowse,
-                            PermissionType.Browse,
-                            null,
-                            true,
-                            cancellationToken)
-                        .ConfigureAwait(false);
-                    if (ServiceResult.IsBad(validationResult))
+                    ContinuationPoint? cp = context.Session.ContinuationPoints.RestoreBrowse(continuationPoints[ii]);
+                    var result = new BrowseResult
                     {
-                        var badResult = new BrowseResult
-                        {
-                            StatusCode = validationResult.Code,
-                            ContinuationPoint = default
-                        };
-                        results.Add(badResult);
-
-                        // put placeholder for diagnostics
-                        diagnosticInfos.Add(null!);
-                        continue;
-                    }
-                }
-
-                // initialize result.
-                var result = new BrowseResult
-                {
-                    StatusCode = StatusCodes.Good,
-                    ContinuationPoint = default
-                };
-                results.Add(result);
-
-                // check if simply releasing the continuation point.
-                if (releaseContinuationPoints)
-                {
-                    cp?.Dispose();
-
-                    continue;
-                }
-
-                ServiceResult? error = null;
-
-                // check if continuation point has expired.
-                if (cp == null)
-                {
-                    error = StatusCodes.BadContinuationPointInvalid;
-                }
-
-                if (cp != null)
-                {
-                    // need to trap unexpected exceptions to handle bugs in the node managers.
+                        StatusCode = StatusCodes.Good,
+                        ContinuationPoint = default
+                    };
+                    results.Add(result);
+                    ServiceResult error = ServiceResult.Good;
                     try
                     {
-                        ArrayOf<ReferenceDescription> references = result.References;
+                        using NodeManagerRoutingTable.ReadScope continuationRouting =
+                            m_nodeManagers.Capture(cp?.RoutingSnapshot);
+                        if (cp is not null)
+                        {
+                            error = await ValidatePermissionsAsync(
+                                context, cp.Manager, cp.NodeToBrowse, PermissionType.Browse,
+                                null, true, cancellationToken).ConfigureAwait(false);
+                        }
 
-                        (error, cp, references) = await FetchReferencesAsync(
-                                context,
-                                continuationPointsAssigned < m_owner.MaxContinuationPointsPerBrowse,
-                                cp!,
-                                references,
-                                cancellationToken)
-                            .ConfigureAwait(false);
-
-                        result.References = references;
+                        if (ServiceResult.IsGood(error) && !releaseContinuationPoints)
+                        {
+                            if (cp is null)
+                            {
+                                error = StatusCodes.BadContinuationPointInvalid;
+                            }
+                            else
+                            {
+                                ContinuationPoint fetching = cp;
+                                cp = null;
+                                try
+                                {
+                                    ArrayOf<ReferenceDescription> references = result.References;
+                                    (error, cp, references) = await FetchReferencesAsync(
+                                        context,
+                                        continuationPointsAssigned < m_owner.MaxContinuationPointsPerBrowse,
+                                        fetching,
+                                        references,
+                                        cancellationToken).ConfigureAwait(false);
+                                    result.References = references;
+                                }
+                                catch (Exception e)
+                                {
+                                    error = ServiceResult.Create(
+                                        e, StatusCodes.BadUnexpectedError, "Unexpected error browsing node.");
+                                }
+                                if (cp is not null && ServiceResult.IsGood(error))
+                                {
+                                    result.ContinuationPoint = cp.Id.ToByteArray().ToByteString();
+                                    continuationPointsAssigned++;
+                                    cp = null;
+                                }
+                            }
+                        }
                     }
-                    catch (Exception e)
+                    finally
                     {
-                        error = ServiceResult.Create(
-                            e,
-                            StatusCodes.BadUnexpectedError,
-                            "Unexpected error browsing node.");
+                        cp?.Dispose();
                     }
-
-                    // check for continuation point.
-                    if (!result.ContinuationPoint.IsEmpty)
+                    result.StatusCode = error.StatusCode;
+                    if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                     {
-                        continuationPointsAssigned++;
+                        DiagnosticInfo? diagnosticInfo = null;
+                        if (error.Code != StatusCodes.Good)
+                        {
+                            diagnosticInfo = ServerUtils.CreateDiagnosticInfo(Server, context, error, m_logger);
+                            diagnosticsExist = true;
+                        }
+                        diagnosticInfos.Add(diagnosticInfo!);
                     }
                 }
-
-                // check for error.
-                result.StatusCode = error!.StatusCode;
-
-                if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+            }
+            catch (Exception failure) when (failure is not OutOfMemoryException)
+            {
+                List<Exception>? cleanupFailures = null;
+                foreach (BrowseResult result in results)
                 {
-                    DiagnosticInfo? diagnosticInfo = null;
-
-                    if (error != null && error.Code != StatusCodes.Good)
+                    if (result.ContinuationPoint.IsEmpty)
                     {
-                        diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
-                            Server,
-                            context,
-                            error,
-                            m_logger);
-                        diagnosticsExist = true;
+                        continue;
                     }
-
-                    diagnosticInfos.Add(diagnosticInfo!);
+                    try
+                    {
+                        context.Session.ContinuationPoints.RestoreBrowse(result.ContinuationPoint)?.Dispose();
+                    }
+                    catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
+                    {
+                        (cleanupFailures ??= [failure]).Add(cleanupFailure);
+                    }
                 }
-
-                // check for continuation point.
-                if (cp != null && ServiceResult.IsGood(error))
+                if (cleanupFailures is not null)
                 {
-                    result.StatusCode = StatusCodes.Good;
-                    result.ContinuationPoint = cp.Id.ToByteArray().ToByteString();
+                    throw new AggregateException("BrowseNext and continuation cleanup failed.", cleanupFailures);
                 }
+                throw;
             }
 
             // clear the diagnostics array if no diagnostics requested or no errors occurred.
@@ -943,6 +913,7 @@ namespace Opc.Ua.Server
                 tempCp = new ContinuationPoint
                 {
                     Manager = nodeManager!,
+                    RoutingSnapshot = m_nodeManagers.CapturedRevision,
                     View = view,
                     NodeToBrowse = handle,
                     RequestedNodeId = nodeToBrowse.NodeId,
@@ -1015,68 +986,74 @@ namespace Opc.Ua.Server
             BrowseResultMask resultMask = cp.ResultMask;
             var referenceList = references.ToList();
             ContinuationPoint? currentCp = cp;
-            // loop until browse is complete or max results.
-            while (currentCp != null)
+            NodeManagerRoutingTable.RoutingSnapshot snapshot = cp.RoutingSnapshot ?? m_nodeManagers.CapturedRevision;
+            using NodeManagerRoutingTable.ReadScope routing = m_nodeManagers.Capture(snapshot);
+            bool saved = false;
+            try
             {
-                currentCp = await nodeManager.BrowseAsync(context!, currentCp, referenceList, cancellationToken)
-                    .ConfigureAwait(false);
-
-                var referencesToKeep = new List<ReferenceDescription>(referenceList.Count);
-
-                // check for incomplete reference descriptions.
-                for (int ii = 0; ii < referenceList.Count; ii++)
+                while (currentCp != null)
                 {
-                    ReferenceDescription reference = referenceList[ii];
-
-                    // check if filtering must be applied.
-                    if (reference.Unfiltered)
+                    ContinuationPoint previous = currentCp;
+                    currentCp = await nodeManager.BrowseAsync(context!, currentCp, referenceList, cancellationToken)
+                        .ConfigureAwait(false);
+                    if (!ReferenceEquals(previous, currentCp))
                     {
-                        // ignore unknown external references.
-                        if (reference.NodeId.IsAbsolute)
-                        {
-                            continue;
-                        }
-
-                        // update the description.
-                        bool include = await UpdateReferenceDescriptionAsync(
-                                context!,
-                                (NodeId)reference.NodeId,
-                                nodeClassMask,
-                                resultMask,
-                                reference,
-                                cancellationToken)
-                            .ConfigureAwait(false);
-
-                        if (!include)
-                        {
-                            continue;
-                        }
+                        previous.Dispose();
+                    }
+                    if (currentCp is not null)
+                    {
+                        currentCp.RoutingSnapshot = snapshot;
                     }
 
-                    // add to list.
-                    referencesToKeep.Add(reference);
+                    var referencesToKeep = new List<ReferenceDescription>(referenceList.Count);
+                    for (int ii = 0; ii < referenceList.Count; ii++)
+                    {
+                        ReferenceDescription reference = referenceList[ii];
+                        if (reference.Unfiltered)
+                        {
+                            if (reference.NodeId.IsAbsolute)
+                            {
+                                continue;
+                            }
+                            bool include = await UpdateReferenceDescriptionAsync(
+                                context!, (NodeId)reference.NodeId, nodeClassMask, resultMask,
+                                reference, cancellationToken).ConfigureAwait(false);
+                            if (!include)
+                            {
+                                continue;
+                            }
+                        }
+                        referencesToKeep.Add(reference);
+                    }
+                    referenceList = referencesToKeep;
+                    if (currentCp != null && referenceList.Count >= currentCp.MaxResultsToReturn)
+                    {
+                        if (!assignContinuationPoint)
+                        {
+                            return (StatusCodes.BadNoContinuationPoints, null, referenceList);
+                        }
+                        currentCp.Id = Guid.NewGuid();
+                        context!.Session!.ContinuationPoints.SaveBrowse(currentCp);
+                        saved = true;
+                        break;
+                    }
                 }
-
-                // replace list.
-                referenceList = referencesToKeep;
-
-                // check if browse limit reached.
-                if (currentCp != null && referenceList.Count >= currentCp.MaxResultsToReturn)
+                return (ServiceResult.Good, currentCp, referenceList);
+            }
+            finally
+            {
+                if (!saved)
                 {
-                    if (!assignContinuationPoint)
+                    try
                     {
-                        currentCp.Dispose();
-                        return (StatusCodes.BadNoContinuationPoints, null, referenceList);
+                        currentCp?.Dispose();
                     }
-
-                    currentCp.Id = Guid.NewGuid();
-                    context!.Session!.ContinuationPoints.SaveBrowse(currentCp);
-                    break;
+                    finally
+                    {
+                        cp.Dispose();
+                    }
                 }
             }
-
-            // all is good.
-            return (ServiceResult.Good, currentCp, referenceList);
         }
 
         /// <summary>

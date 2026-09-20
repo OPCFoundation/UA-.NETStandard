@@ -7681,6 +7681,34 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             public NodeId ReadCallbackNodeId { get; set; }
 
+            public Func<NodeId, CancellationToken, ValueTask> ValidateNodeCallback { get; set; }
+
+            public async ValueTask AddContinuationChildrenAsync(
+                string prefix,
+                CancellationToken cancellationToken)
+            {
+                ushort namespaceIndex = NamespaceIndexes[0];
+                var root = (BaseObjectState)Find(new NodeId(kRootNodeId, namespaceIndex));
+                for (uint index = 0; index < 2; index++)
+                {
+                    string name = prefix + (index == 0 ? "First" : "Second");
+                    var child = new BaseDataVariableState(root)
+                    {
+                        NodeId = new NodeId(8010 + index, namespaceIndex),
+                        BrowseName = new QualifiedName(name, namespaceIndex),
+                        DisplayName = LocalizedText.From(name),
+                        ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                        DataType = DataTypeIds.Int32,
+                        ValueRank = ValueRanks.Scalar,
+                        AccessLevel = AccessLevels.CurrentRead,
+                        UserAccessLevel = AccessLevels.CurrentRead,
+                        Value = 42
+                    };
+                    root.AddChild(child);
+                    await AddPredefinedNodeAsync(SystemContext, child, cancellationToken).ConfigureAwait(false);
+                }
+            }
+
             public override async ValueTask ReadAsync(
                 OperationContext context,
                 double maxAge,
@@ -7807,6 +7835,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     throw new SentinelException("DeleteAddressSpaceAsync failed.");
                 }
                 await base.DeleteAddressSpaceAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            protected override async ValueTask<NodeState> ValidateNodeAsync(
+                ServerSystemContext context,
+                NodeHandle handle,
+                IDictionary<NodeId, NodeState> cache,
+                CancellationToken cancellationToken = default)
+            {
+                if (ValidateNodeCallback is not null)
+                {
+                    await ValidateNodeCallback(handle.NodeId, cancellationToken).ConfigureAwait(false);
+                }
+                return await base.ValidateNodeAsync(context, handle, cache, cancellationToken).ConfigureAwait(false);
             }
 
             protected override void Dispose(bool disposing)

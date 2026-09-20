@@ -1251,7 +1251,7 @@ namespace Opc.Ua.Server
                 }
 
                 // Register the drain observer so the host can trigger prompt cleanup once a
-                // shadow-retired generation's monitored items drain, rather than waiting for
+                // shadow-retired generation's retained uses drain, rather than waiting for
                 // the next lifecycle operation or server shutdown.
                 if (deferForActiveMonitoredItems)
                 {
@@ -1261,7 +1261,7 @@ namespace Opc.Ua.Server
 
                 bool retiredDrainClaimed =
                     !deferForActiveMonitoredItems ||
-                    !HasActiveMonitoredItems(
+                    !HasRetainedUses(
                         server,
                         retired.NodeManager);
                 bool retiredDrainReady = retiredDrainClaimed;
@@ -1281,7 +1281,7 @@ namespace Opc.Ua.Server
                             retired.NodeManager)
                         .ConfigureAwait(false);
                     if (deferForActiveMonitoredItems &&
-                        HasActiveMonitoredItems(server, retired.NodeManager))
+                        HasRetainedUses(server, retired.NodeManager))
                     {
                         host.SetRetiredGenerationNotifications(
                             retired.NodeManager,
@@ -1290,7 +1290,7 @@ namespace Opc.Ua.Server
                         retired.DrainPending = false;
                         retiredDrainReady = false;
                     }
-                    else
+                    else if (!deferForActiveMonitoredItems)
                     {
                         InvalidateContinuationPoints(server, retired.NodeManager);
                     }
@@ -1320,7 +1320,7 @@ namespace Opc.Ua.Server
                     {
                         retired.RequestsDrained = true;
                         if (deferForActiveMonitoredItems &&
-                            HasActiveMonitoredItems(
+                            HasRetainedUses(
                                 server,
                                 retired.NodeManager))
                         {
@@ -2304,6 +2304,29 @@ namespace Opc.Ua.Server
             return false;
         }
 
+        private bool HasRetainedUses(IServerInternal server, IAsyncNodeManager nodeManager)
+        {
+            if (HasActiveMonitoredItems(server, nodeManager))
+            {
+                return true;
+            }
+            foreach (ISession session in server.SessionManager.GetSessions())
+            {
+                if (session.ContinuationPoints is not ISessionContinuationPointLifecycle owner)
+                {
+                    throw new NotSupportedException(
+                        "The configured session cannot verify Browse continuation ownership.");
+                }
+                owner.BrowseContinuationPointsReleased -= ScheduleRetiredGenerationDrainCleanup;
+                owner.BrowseContinuationPointsReleased += ScheduleRetiredGenerationDrainCleanup;
+                if (owner.HasBrowseForManager(nodeManager))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         private static void InvalidateContinuationPoints(
             IServerInternal server,
             IAsyncNodeManager nodeManager)
@@ -3234,12 +3257,12 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Schedules a background pass that disposes any shadow-retired generation whose
-        /// monitored items have drained. Invoked by the host from an ownership-sensitive
-        /// monitored item request (for example, the Delete that drains the last item), so
+        /// monitored items and Browse continuations have drained. Invoked from an
+        /// ownership-sensitive request or continuation disposal, so
         /// the teardown must never run inline on the request path: it is dispatched to the
         /// thread pool with the request's execution context suppressed. Background and direct
         /// cleanup use the same claim protocol: briefly take the lifecycle semaphore to suspend
-        /// retired-generation notifications and invalidate continuation points, release it for
+        /// retired-generation notifications and invalidate immediate continuation points, release it for
         /// the request drain, then reacquire and revalidate before destruction. This prevents
         /// either cleanup schedule from forming a circular wait with a callback-safe lifecycle
         /// call.
@@ -3387,7 +3410,7 @@ namespace Opc.Ua.Server
                 {
                     if (retiredNodeManager.DrainPending ||
                         (retiredNodeManager.AllowActiveMonitoredItems &&
-                            HasActiveMonitoredItems(
+                            HasRetainedUses(
                                 server,
                                 retiredNodeManager.NodeManager)))
                     {
@@ -3435,7 +3458,7 @@ namespace Opc.Ua.Server
                             continue;
                         }
                         if (retiredNodeManager.AllowActiveMonitoredItems &&
-                            HasActiveMonitoredItems(
+                            HasRetainedUses(
                                 server,
                                 retiredNodeManager.NodeManager))
                         {
@@ -3445,7 +3468,7 @@ namespace Opc.Ua.Server
                             retiredNodeManager.NotificationsSuspended = false;
                             continue;
                         }
-                        if (retiredNodeManager.NeedsDetachment)
+                        if (retiredNodeManager.NeedsDetachment && !retiredNodeManager.AllowActiveMonitoredItems)
                         {
                             InvalidateContinuationPoints(
                                 server,
@@ -3501,7 +3524,7 @@ namespace Opc.Ua.Server
                             continue;
                         }
                         if (retiredNodeManager.AllowActiveMonitoredItems &&
-                            HasActiveMonitoredItems(
+                            HasRetainedUses(
                                 server,
                                 retiredNodeManager.NodeManager))
                         {
@@ -3574,7 +3597,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            if (!HasActiveMonitoredItems(server, retired.NodeManager))
+            if (!HasRetainedUses(server, retired.NodeManager))
             {
                 return;
             }
@@ -3589,7 +3612,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Detaches and destroys a retired NodeManager generation, returning <c>true</c>
         /// once fully cleaned up. A shadow-reloaded generation that still owns active
-        /// monitored items is left untouched (requests, continuation points, and
+        /// monitored items or Browse continuations is left untouched (requests, continuation points, and
         /// monitored items that already captured it keep working) and <c>false</c> is
         /// returned so the caller retries cleanup on a later opportunity. An immediate
         /// retirement instead invalidates owned monitored items before detachment; neither
@@ -3605,7 +3628,7 @@ namespace Opc.Ua.Server
             if (retired.NeedsDetachment)
             {
                 if (retired.AllowActiveMonitoredItems &&
-                    HasActiveMonitoredItems(server, retired.NodeManager))
+                    HasRetainedUses(server, retired.NodeManager))
                 {
                     return false;
                 }

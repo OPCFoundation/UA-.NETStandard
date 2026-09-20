@@ -38,16 +38,18 @@ namespace Opc.Ua.Server
     {
         internal RoutingSnapshot Revision => Volatile.Read(ref m_snapshot);
 
+        internal RoutingSnapshot CapturedRevision => ReadSnapshot;
+
         internal TypeTable? TypeTree => m_preparedTypes.Value ?? ReadSnapshot.TypeTree;
 
         internal EncodeableFactory? Factory => m_preparedFactory.Value ?? ReadSnapshot.Factory;
 
         private RoutingSnapshot ReadSnapshot => m_readSnapshot.Value ?? Volatile.Read(ref m_snapshot);
 
-        internal ReadScope Capture()
+        internal ReadScope Capture(RoutingSnapshot? snapshot = null)
         {
             RoutingSnapshot? previous = m_readSnapshot.Value;
-            m_readSnapshot.Value = previous ?? Volatile.Read(ref m_snapshot);
+            m_readSnapshot.Value = snapshot ?? previous ?? Volatile.Read(ref m_snapshot);
             return new ReadScope(this, previous);
         }
 

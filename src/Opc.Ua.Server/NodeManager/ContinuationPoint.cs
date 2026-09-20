@@ -28,11 +28,12 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
 
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// The table of all reference types known to the server.
+    /// The parameters, state, and source ownership of a resumable Browse operation.
     /// </summary>
     /// <remarks>This class is thread safe.</remarks>
     public class ContinuationPoint : IDisposable
@@ -54,13 +55,33 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// An overrideable version of the Dispose.
+        /// Releases the Browse data and session ownership once. Overrides must call the base implementation.
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing)
+            if (disposing && Interlocked.Exchange(ref m_disposed, 1) == 0)
             {
-                (Data as IDisposable)?.Dispose();
+                try
+                {
+                    (Data as IDisposable)?.Dispose();
+                }
+                finally
+                {
+                    RoutingSnapshot = null;
+                    Interlocked.Exchange(ref m_releaseOwner, null)?.Invoke();
+                }
+            }
+        }
+
+        internal void SetOwnerRelease(Action releaseOwner)
+        {
+            if (Volatile.Read(ref m_disposed) != 0)
+            {
+                throw new ObjectDisposedException(nameof(ContinuationPoint));
+            }
+            if (Interlocked.CompareExchange(ref m_releaseOwner, releaseOwner, null) is not null)
+            {
+                throw new InvalidOperationException("The continuation point already has a session owner.");
             }
         }
 
@@ -73,6 +94,8 @@ namespace Opc.Ua.Server
         /// The node manager that created the continuation point.
         /// </summary>
         public IAsyncNodeManager Manager { get; set; } = null!;
+
+        internal NodeManagerRoutingTable.RoutingSnapshot? RoutingSnapshot { get; set; }
 
         /// <summary>
         /// The view being browsed.
@@ -193,5 +216,8 @@ namespace Opc.Ua.Server
                     ) != 0;
             }
         }
+
+        private Action? m_releaseOwner;
+        private int m_disposed;
     }
 }
