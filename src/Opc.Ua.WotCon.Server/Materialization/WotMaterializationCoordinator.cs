@@ -163,10 +163,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         return RejectedResult(invocation, start);
                     }
 
+                    WotRegistrySnapshot expectedRegistry = m_registry.Current;
                     using WotRefreshCapture capture = await CaptureInputsAsync(invocation, cancellationToken)
                         .ConfigureAwait(false);
                     return invocation.Atomicity == WoTAtomicityEnum.PerRegistry
-                        ? await RefreshPreparedRegistryAsync(capture, start, cancellationToken).ConfigureAwait(false)
+                        ? await RefreshPreparedRegistryAsync(
+                            capture, expectedRegistry, start, cancellationToken).ConfigureAwait(false)
                         : await RefreshCoreAsync(capture, start, cancellationToken).ConfigureAwait(false);
                 }
                 finally

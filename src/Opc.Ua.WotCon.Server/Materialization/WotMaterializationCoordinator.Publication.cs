@@ -51,6 +51,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         private async ValueTask<WotRefreshResult> RefreshPreparedRegistryAsync(
             WotRefreshCapture refresh,
+            WotRegistrySnapshot snapshot,
             DateTime start,
             CancellationToken cancellationToken)
         {
@@ -61,7 +62,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     StatusCodes.BadNotSupported, "The configured owners cannot prepare a PerRegistry publication.");
             }
             WotCapturedRefreshRequest request = refresh.Request;
-            WotRegistrySnapshot snapshot = refresh.Inputs.Registry;
             var capture = new PublicationCapture(m_closures, m_projectionNamespaceUris);
             WotRefreshResult staged;
             m_preparing = capture;
