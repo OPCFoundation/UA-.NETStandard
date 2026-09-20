@@ -607,6 +607,10 @@ encodeables so existing Sessions and in-flight values remain decodable.
 
 `INodeManagerBatchLifecycle` prepares type relationships, reference-type names,
 encoding mappings, and encodeable-factory registrations in private images.
+A completed commit releases its lifecycle operation ownership, including when
+it returns a cleanup warning. Calling `DisposeAsync` afterward is optional and
+does not undo publication. An unpublished batch still requires `DisposeAsync`,
+including after a failed commit attempt, to discard its candidates.
 Commit reveals the batch's candidates even when they register namespace routes
 during preparation; unrelated hidden registrations remain hidden.
 Publication switches both images with the routing snapshot. An in-flight request

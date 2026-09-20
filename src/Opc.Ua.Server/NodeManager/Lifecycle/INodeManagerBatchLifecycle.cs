@@ -71,6 +71,9 @@ namespace Opc.Ua.Server
         /// exceptions must escape it. A caller with a committed durability warning must retain that
         /// warning and return normally so publication completes. After the decision, cancellation
         /// cannot undo the unit; cleanup failures are returned with the committed registrations.
+        /// Committed reconciliation releases operation ownership before this call completes,
+        /// including when it returns a cleanup warning. Disposal is then optional and idempotent.
+        /// An uncommitted unit must still be disposed after a failed commit attempt.
         /// </summary>
         /// <exception cref="InvalidOperationException">
         /// Routing changed after preparation; the durable decision is not invoked.

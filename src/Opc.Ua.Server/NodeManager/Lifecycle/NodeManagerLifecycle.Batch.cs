@@ -586,6 +586,10 @@ namespace Opc.Ua.Server
                 }
                 finally
                 {
+                    if (IsCommitted)
+                    {
+                        Interlocked.Exchange(ref m_operation, null)?.Dispose();
+                    }
                     Volatile.Write(ref m_state, 2);
                     m_finished.TrySetResult(true);
                 }
