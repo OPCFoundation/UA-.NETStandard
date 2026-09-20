@@ -152,7 +152,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     {
                         for (int i = 0; i < runtimePublications.Count; i++)
                         {
-                            runtimePublications[i].Publish(projections[i].Generation);
+                            runtimePublications[i].Publish(Projections[i].Generation);
                         }
                         publishCommittedState();
                     },
