@@ -1574,6 +1574,13 @@ namespace Opc.Ua
             if (includePrivateKey)
             {
                 RestrictPrivateDirectory(fileInfo.Directory, directoryExisted);
+                if (fileExisted)
+                {
+                    // An existing file keeps its own explicit permissions, which the
+                    // directory change does not alter. Restrict it before the new key
+                    // material is written so the bytes are never briefly world-readable.
+                    RestrictPrivateFile(fileInfo, existed: true);
+                }
             }
 
             // write file.
