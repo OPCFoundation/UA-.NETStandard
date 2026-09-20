@@ -326,10 +326,9 @@ The rule applied by `SubscriptionManager.CalculateRevisedSamplingInterval` is:
 
 1. A requested interval below zero is resolved to the default sampling interval:
    the **publishing interval of the subscription** when the item is created, and
-   the item's **current sampling interval** when it is modified. (The modify case
-   preserves the behaviour of 1.5.378 and earlier, so a `ModifyMonitoredItems`
-   call that leaves the sampling interval unspecified does not silently retune
-   the item.)
+   the item's **current sampling interval** when it is modified. A
+   `ModifyMonitoredItems` call that leaves the sampling interval unspecified
+   therefore does not silently retune the item.
 2. If the node declares `MinimumSamplingIntervals.Continuous` (`0`) for the
    `Value` Attribute, it reports by exception and **no** lower bound is applied —
    the requested interval is returned unchanged.
@@ -1430,8 +1429,7 @@ and cleanup remain serialized, and the operation lifetime prevents disposal
 from releasing owned resources before the read completes. Request cancellation
 removes unaccepted registrations instead of publishing a cancelled read as a
 successful initial sample. Override `ReadInitialValueAsync` for custom initial
-acquisition; the legacy synchronous `ReadInitialValue` hook is obsolete and is
-not called by asynchronous admission.
+acquisition.
 
 Manager-level asynchronous batch hooks receive only successful items and
 run after the monitored-item manager has applied its changes:
@@ -2615,10 +2613,9 @@ argument, every type — generated or hand-written — sees the real
 `ISystemContext` during a copy; nothing wraps the context to hide the
 `NodeIdFactory`.
 
-> **Breaking change in 2.0.** The four argument `FindChild` and the two
-> argument `CreateChild` are gone. An override written against 1.5.378 fails
-> to compile until the parameter is added; see the
-> [migration guide](migrate/2.0.x/node-states.md#nodestate-findchild-and-createchild-state-nodeid-assignment).
+`NodeState.FindChild` takes the request as an argument and `CreateChild` takes
+the state NodeId; migrating an override written against 1.5.378 is covered by the
+[migration guide](migrate/2.0.x/node-states.md#nodestate-findchild-and-createchild-state-nodeid-assignment).
 
 ### Current limitations
 

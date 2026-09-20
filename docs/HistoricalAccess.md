@@ -366,8 +366,9 @@ values do not collide, and replacement cannot move an annotation to a different 
 
 Timestamped reads filter and order by source time, then annotation time. Both directions support exclusive composite
 resume tokens, bounded pages, and open-ended quotas. Exact-time reads return every annotation at that source time.
-The legacy `IHistorianAnnotationProvider` remains available: writes map source time to annotation time, and reads
-order/filter by annotation time. Use the timestamped API to update annotations whose two timestamps differ.
+The `IHistorianAnnotationProvider` interface remains available for backends that key annotations by annotation
+time alone: writes map source time to annotation time, and reads order/filter by annotation time. Use the
+timestamped API to update annotations whose two timestamps differ.
 
 The standard-history access path is defined in
 [Part 11, 5.1.2](https://reference.opcfoundation.org/specs/OPC-10000-11/5.1.2);
@@ -535,7 +536,7 @@ public sealed class MyTsdbProvider :
 | `IHistorianModifiedProvider` | Modified history | INSERT records and retained prior versions with modification metadata. |
 | `IHistorianAtTimeProvider` | Native at-time reads | Optional. Framework falls back to interpolation over raw reads if absent. |
 | `IHistorianProcessedProvider` | Native aggregate push-down | Optional. Framework falls back to streaming through `AggregateManager` if absent. |
-| `IHistorianAnnotationProvider` | Legacy annotations | Maps source time to `AnnotationTime` on writes. |
+| `IHistorianAnnotationProvider` | Annotations keyed by annotation time | Maps source time to `AnnotationTime` on writes. |
 | `IHistorianTimestampedAnnotationProvider` | Timestamped annotations | Keys and pages by both timestamps. |
 | `IHistorianEventProvider` | Event history | Read / Insert / Replace / Update / Delete events keyed by `EventId`. |
 | `IHistorianStructuredDataProvider` | StructuredHistoryData (Part 11 §6.8.3) | Update-only. Entries are keyed by the composite `HistoricalValueKey`; reads go through the raw / modified / at-time interfaces. |

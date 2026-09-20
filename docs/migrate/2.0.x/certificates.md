@@ -161,7 +161,7 @@ See [CertificateManager.md](../../CertificateManager.md) for the full API refere
 | `using var id = new CertificateIdentifier(...);` | `var id = new CertificateIdentifier(...);` (no `using`) |
 | `IList<CertificateIdentifier> issuers = ...; var cert = issuers[i].Certificate;` | `IList<CertificateIssuerReference> issuers = ...; var cert = issuers[i].Certificate;` |
 
-See [CertificateManager.md](../../CertificateManager.md#migration-certificateidentifier-is-metadata-only) for the full migration walkthrough.
+See [CertificateManager.md](../../CertificateManager.md#materializing-a-certificate-from-a-certificateidentifier) for the resolver API this migration targets.
 
 ### CertificateStoreIdentifier is a store description — `OpenStore` returns a caller-owned store
 

@@ -598,16 +598,6 @@ revised filter directly through internal, nonvirtual methods. The request is
 not rewritten, and the unrelated monitoring/lifecycle hooks are unchanged.
 This is an intentional API removal, not an obsolete forwarding shim.
 
-## Migrating asynchronous NodeManager initial-value overrides
-
-`AsyncCustomNodeManager.ReadInitialValue` is obsolete. Move custom initial-value
-acquisition to the existing `ReadInitialValueAsync` override. The default async
-pipeline now honors `NodeState.ReadAttributeAsync` and `OnReadValueAsync` during
-creation, filter validation, and lifecycle reattachment instead of falling back
-to the node's stored value. Keep provider access asynchronous and propagate the
-cancellation token; do not add a synchronous provider bridge. See
-[monitored-item creation and lifecycle](NodeManagers.md#monitored-item-creation-and-lifecycle).
-
 ## Migrating callers of the synchronous MonitoredNode2 notification wrappers
 
 `MonitoredNode2.OnReportEvent` and `MonitoredNode2.OnMonitoredNodeChanged`

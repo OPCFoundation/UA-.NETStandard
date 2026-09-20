@@ -49,8 +49,8 @@ namespace Opc.Ua.Server.Historian
     /// <strong>Update semantics</strong> follow the same patterns as
     /// <see cref="IHistorianDataProvider"/>: per-value best-effort with
     /// <see cref="StatusCodes.BadEntryExists"/> / <see cref="StatusCodes.BadNoEntryExists"/>
-    /// signalling. This legacy API uses <see cref="Annotation.AnnotationTime"/>
-    /// as its timestamp. The in-memory provider maps writes to a source timestamp
+    /// signalling. This interface uses <see cref="Annotation.AnnotationTime"/>
+    /// as its only timestamp. The in-memory provider maps writes to a source timestamp
     /// equal to that timestamp. Use <see cref="IHistorianTimestampedAnnotationProvider"/>
     /// to address annotations whose value source timestamp differs.
     /// </para>

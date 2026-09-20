@@ -244,8 +244,7 @@ and timestamp; invalid input never reaches the store. Both methods require
 the SecurityAdmin role and an encrypted SecureChannel.
 The envelope nonce is deliberately not compared with a session nonce:
 outside `ActivateSession`, OPC UA Part 4 Table 185 requires the receiver not
-to check it. A peer may therefore supply a 32-128 byte random nonce without
-causing an otherwise valid credential push to be rejected.
+to check it.
 
 The push binding accepts `Basic256Sha256`, `Aes128_Sha256_RsaOaep` and
 `Aes256_Sha256_RsaPss`. Restrict or reorder these through
@@ -285,10 +284,12 @@ Client-side, `GdsKeyCredentialAccessTokenProvider` adapts a
 `IssuedTokenIdentityProvider` can materialize a UA `IssuedIdentityToken`
 for the bridge profile.
 
-The bridge requires version-2 proofs. Their HMAC covers a non-empty `aud` that
-must exactly match the resource server's `ApplicationUri`; version-1 proofs
-and proofs for another server are rejected. Client and server must therefore
-be upgraded together.
+The bridge token payload carries a `"version"` field. It versions this vendor
+extension's own JSON payload, and has no OPC UA counterpart: Part 6 §6.5.3 and
+the GDS KeyCredential services define neither this payload nor a version field.
+The server accepts `"version": 2` only, whose HMAC proof covers a non-empty
+`aud` that must exactly match the resource server's `ApplicationUri`, so a proof
+minted for one server is rejected by another.
 
 The provider implements `IEndpointAccessTokenProvider`. Normal identity
 selection forwards the selected endpoint automatically, including for the

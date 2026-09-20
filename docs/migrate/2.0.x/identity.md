@@ -177,17 +177,6 @@ Repeat the pattern per token type: `UserTokenType.UserName`,
 `IssuedTokenProfileUri = Profiles.JwtUserToken`, or a vendor profile such
 as the experimental KeyCredential bridge.
 
-The experimental KeyCredential bridge now requires version-2, audience-bound
-proofs on both client and server. Use
-`new IssuedTokenIdentityProvider(provider, GdsKeyCredentialAccessTokenProvider.ProfileUri)`
-to forward the selected server endpoint automatically, or call
-`provider.AcquireAsync(metadata, targetEndpoint, cancellationToken)` directly.
-When policy metadata supplies only an authority URI, the audience falls back
-to `targetEndpoint.Server.ApplicationUri`. The older metadata-only overload
-needs an explicit audience/resource URI; it no longer emits a token with an
-empty audience. Existing version-1 bridge clients must be upgraded with the
-server; accepting unbound proofs is not a supported compatibility fallback.
-
 - SelfAdmin elevation now runs through `IIdentityAugmenter` after an authenticator accepts. Register an
   augmenter via `services.AddIdentityAugmenter<T>()` or `IdentityRegistry.RegisterAugmenter(...)`.
 - GDS hosts get `GdsApplicationSelfAdminProvider` automatically via `AddDefaultIdentityAuthenticators(...)`
