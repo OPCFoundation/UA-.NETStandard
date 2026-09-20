@@ -83,6 +83,7 @@ namespace Opc.Ua.Client
             bool poolNotifications,
             bool enableTokenReuseFailover,
             NetworkRedundancyOptions? networkRedundancy,
+            ServerRedundancyOptions? serverRedundancy,
             IClientChannelManager? channelManager,
             IClientConnectGate? connectGate)
         {
@@ -95,6 +96,9 @@ namespace Opc.Ua.Client
             m_reconnectPolicy = reconnectPolicy
                 ?? throw new ArgumentNullException(nameof(reconnectPolicy));
             m_redundancyHandler = redundancyHandler;
+            ServerRedundancyOptions redundancyOptions = serverRedundancy ?? new ServerRedundancyOptions();
+            redundancyOptions.Validate();
+            m_redundancyRefreshTimeout = redundancyOptions.RefreshTimeout;
             m_logger = logger
                 ?? throw new ArgumentNullException(nameof(logger));
             m_identity = identity;
@@ -187,6 +191,9 @@ namespace Opc.Ua.Client
         /// Optional alternate Endpoints for OPC 10000-4 §6.6.4 non-transparent network redundancy. Transparent network
         /// redundancy is handled by the infrastructure endpoint and does not require alternates.
         /// </param>
+        /// <param name="serverRedundancy">
+        /// Optional bounds for the best-effort server-redundancy refresh. Defaults to two seconds per operation.
+        /// </param>
         /// <param name="reverseConnectManager">Optional reverse-connect manager.</param>
         /// <param name="connectGate">Optional shared initial connect
         /// admission gate.</param>
@@ -216,6 +223,7 @@ namespace Opc.Ua.Client
             TimeProvider? timeProvider = null,
             IClientChannelManager? channelManager = null,
             NetworkRedundancyOptions? networkRedundancy = null,
+            ServerRedundancyOptions? serverRedundancy = null,
             ReverseConnectManager? reverseConnectManager = null,
             IClientConnectGate? connectGate = null,
             ITransportWaitingConnection? connection = null,
@@ -258,6 +266,7 @@ namespace Opc.Ua.Client
                 poolNotifications,
                 enableTokenReuseFailover,
                 networkRedundancy,
+                serverRedundancy,
                 channelManager,
                 connectGate)
             {
@@ -1699,7 +1708,7 @@ namespace Opc.Ua.Client
             {
                 refresh = FetchRedundancySnapshotAsync(operation, ct);
                 m_redundancyRefreshTask = refresh;
-                m_redundancyInfo = await refresh.WaitAsync(s_redundancyRefreshTimeout, m_timeProvider, ct)
+                m_redundancyInfo = await refresh.WaitAsync(m_redundancyRefreshTimeout, m_timeProvider, ct)
                     .ConfigureAwait(false)
                     ?? throw ServiceResultException.Unexpected("The redundancy handler returned no snapshot.");
                 if (handler is IServerRedundancyEndpointCache cache &&
@@ -1768,7 +1777,7 @@ namespace Opc.Ua.Client
             CancellationToken ct)
         {
             using CancellationTokenSource timeout = m_timeProvider.CreateCancellationTokenSource(
-                s_redundancyRefreshTimeout);
+                m_redundancyRefreshTimeout);
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, timeout.Token);
             return await operation(linked.Token).ConfigureAwait(false);
         }
@@ -2437,7 +2446,7 @@ namespace Opc.Ua.Client
         private ServerRedundancyInfo? m_redundancyInfo;
         private Task<ServerRedundancyInfo>? m_redundancyRefreshTask;
         private Task<ServerRedundancyInfo>? m_redundancyEndpointRefreshTask;
-        private static readonly TimeSpan s_redundancyRefreshTimeout = TimeSpan.FromSeconds(2);
+        private readonly TimeSpan m_redundancyRefreshTimeout;
         private readonly Lock m_identityRefreshLock = new();
 #pragma warning disable CA2213
         // Owned and disposed by StopIdentityRefreshLoopAsync.

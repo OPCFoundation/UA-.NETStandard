@@ -58,7 +58,7 @@ from the caller's perspective:
 In-place recreation refreshes an existing discovery snapshot over the installed
 channel, including a reverse connection or a scoped channel-manager recovery
 view. It does not open an outbound discovery connection or consume a reverse
-connection twice. Expected discovery availability failures are logged and fall
+connection again. Expected discovery availability failures are logged and fall
 back to the stored snapshot. The `CreateSession` endpoint list, selected user-token
 policy, server certificate and signature still undergo normal validation;
 cancellation and discovery security failures are not treated as availability
@@ -195,8 +195,12 @@ an `ISession` facade that wraps a raw `Session` and adds:
 - A **server-redundancy handler** (`IServerRedundancyHandler`,
   default: `DefaultServerRedundancyHandler`) that reads the server's
   `ServerRedundancy` object and can fail over to a backup endpoint.
-  Refresh is best effort and bounded to two seconds at connect, reconnect,
-  and failover. A failed or unresponsive refresh retains the previous
+  Refresh is best effort and bounded at connect, reconnect, and failover by
+  `ManagedSessionOptions.ServerRedundancy` (`ServerRedundancyOptions`), which
+  bounds the metadata read (`RefreshTimeout`) and each peer endpoint lookup
+  (`PeerDiscoveryTimeout`) at two seconds each by default. Raise them on a
+  high-latency link, or set `Timeout.InfiniteTimeSpan` when the caller already
+  bounds the operation. A failed or unresponsive refresh retains the previous
   snapshot, so an unavailable primary cannot prevent selecting a cached
   backup. A provider that ignores cancellation is still observed, and no
   overlapping refresh is started while it remains in flight.
@@ -763,7 +767,7 @@ For migration notes on the budget-aware APIs, see
 
 ### Diagnostics surface contract — what tags and structured log fields carry
 
-The channel manager emits diagnostics through three independent channels: `System.Diagnostics.Activity` tags (distributed tracing), structured `ILogger` logs under the `Opc.Ua.ChannelManager` category, and `System.Diagnostics.Metrics` instruments. The channel manager previously emitted its own `Opc.Ua.ChannelManager` `EventSource` (ETW / `dotnet-trace`); that provider is removed. The structured logs are the replacement — same category name, same event identities — routed through `Microsoft.Extensions.Logging` / OpenTelemetry logging instead of ETW.
+The channel manager emits diagnostics through three independent channels: `System.Diagnostics.Activity` tags (distributed tracing), structured `ILogger` logs under the `Opc.Ua.ChannelManager` category, and `System.Diagnostics.Metrics` instruments. There is no `EventSource` (ETW / `dotnet-trace`) provider; the structured logs carry the same category name and event identities, routed through `Microsoft.Extensions.Logging` / OpenTelemetry logging.
 
 Each event kept its original `EventId` and `EventName` on the `[LoggerMessage]` replacement, so tooling matching on the numeric id or name keeps working:
 

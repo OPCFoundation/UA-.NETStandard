@@ -75,12 +75,22 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Initializes a new instance of the <see cref="DefaultServerRedundancyHandler"/> class.
         /// </summary>
+        /// <param name="endpointResolver">Resolves a peer URI to an endpoint.</param>
+        /// <param name="timeProvider">Clock used for the discovery bound.</param>
+        /// <param name="options">
+        /// Bounds applied to peer discovery. Defaults to
+        /// <see cref="ServerRedundancyOptions.DefaultTimeout"/> per peer.
+        /// </param>
         public DefaultServerRedundancyHandler(
             IRedundantServerEndpointResolver? endpointResolver = null,
-            TimeProvider? timeProvider = null)
+            TimeProvider? timeProvider = null,
+            ServerRedundancyOptions? options = null)
         {
             m_endpointResolver = endpointResolver ?? new DefaultRedundantServerEndpointResolver();
             m_timeProvider = timeProvider ?? TimeProvider.System;
+            ServerRedundancyOptions effective = options ?? new ServerRedundancyOptions();
+            effective.Validate();
+            m_peerDiscoveryTimeout = effective.PeerDiscoveryTimeout;
         }
 
         /// <inheritdoc/>
@@ -329,12 +339,12 @@ namespace Opc.Ua.Client
             if (!string.IsNullOrEmpty(server.ServerUri))
             {
                 using CancellationTokenSource timeout = m_timeProvider.CreateCancellationTokenSource(
-                    s_peerDiscoveryTimeout);
+                    m_peerDiscoveryTimeout);
                 using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, timeout.Token);
                 try
                 {
                     endpoint = await ResolveEndpointAsync(server.ServerUri, currentEndpoint, linked.Token)
-                        .WaitAsync(s_peerDiscoveryTimeout, m_timeProvider, ct).ConfigureAwait(false);
+                        .WaitAsync(m_peerDiscoveryTimeout, m_timeProvider, ct).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
                 {
@@ -642,13 +652,13 @@ namespace Opc.Ua.Client
 
         private readonly TimeProvider m_timeProvider;
 
+        private readonly TimeSpan m_peerDiscoveryTimeout;
+
         private readonly ILogger m_logger =
             AmbientMessageContext.Telemetry.CreateLogger<DefaultServerRedundancyHandler>();
 
         private readonly ConcurrentDictionary<EndpointCacheKey, Lazy<Task<ConfiguredEndpoint?>>> m_pendingResolutions =
             new();
-
-        private static readonly TimeSpan s_peerDiscoveryTimeout = TimeSpan.FromSeconds(2);
 
         private readonly record struct EndpointCacheKey(string ServerUri, ManagedChannelKey Channel);
     }

@@ -160,6 +160,72 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         [Test]
+        public async Task ConfiguredPeerDiscoveryTimeoutReplacesTheDefaultBoundAsync()
+        {
+            var time = new FakeTimeProvider();
+            var handler = new DefaultServerRedundancyHandler(
+                m_resolver.Object,
+                time,
+                new ServerRedundancyOptions { PeerDiscoveryTimeout = TimeSpan.FromSeconds(30) });
+            var blocked = new TaskCompletionSource<ConfiguredEndpoint?>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            m_resolver.Setup(resolver => resolver.ResolveAsync(
+                    "urn:offline", It.IsAny<ConfiguredEndpoint>(), It.IsAny<CancellationToken>()))
+                .Returns((string _, ConfiguredEndpoint _, CancellationToken ct) =>
+                    new ValueTask<ConfiguredEndpoint?>(blocked.Task.WaitAsync(ct)));
+            Mock<ISession> session = CreateMockSession(
+                (int)RedundancySupport.Cold, ServiceLevels.Maximum, serverUris: ["urn:offline"]);
+            var cache = (IServerRedundancyEndpointCache)handler;
+            ServerRedundancyInfo basic = await cache.ReadRedundancyInfoAsync(session.Object, CancellationToken.None)
+                .ConfigureAwait(false);
+            try
+            {
+                Task<ServerRedundancyInfo> resolving = cache.ResolveCachedEndpointsAsync(
+                    basic, session.Object.ConfiguredEndpoint, CancellationToken.None).AsTask();
+
+                time.Advance(TimeSpan.FromSeconds(2));
+                await Task.Yield();
+                Assert.That(resolving.IsCompleted, Is.False);
+
+                time.Advance(TimeSpan.FromSeconds(28));
+                ServerRedundancyInfo resolved = await resolving.WaitAsync(TimeSpan.FromSeconds(10))
+                    .ConfigureAwait(false);
+
+                Assert.That(resolved.RedundantServers[0].Endpoint, Is.Null);
+            }
+            finally
+            {
+                blocked.TrySetResult(null);
+            }
+        }
+
+        [Test]
+        public void ServerRedundancyOptionsRejectNonPositiveBounds()
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    () => new ServerRedundancyOptions { RefreshTimeout = TimeSpan.Zero }.Validate(),
+                    Throws.InstanceOf<ArgumentOutOfRangeException>());
+                Assert.That(
+                    () => new ServerRedundancyOptions
+                    {
+                        PeerDiscoveryTimeout = TimeSpan.FromSeconds(-5)
+                    }.Validate(),
+                    Throws.InstanceOf<ArgumentOutOfRangeException>());
+                Assert.That(
+                    () => new ServerRedundancyOptions
+                    {
+                        RefreshTimeout = Timeout.InfiniteTimeSpan,
+                        PeerDiscoveryTimeout = Timeout.InfiniteTimeSpan
+                    }.Validate(),
+                    Throws.Nothing);
+                Assert.That(new ServerRedundancyOptions().RefreshTimeout,
+                    Is.EqualTo(ServerRedundancyOptions.DefaultTimeout));
+            });
+        }
+
+        [Test]
         public async Task PeerDiscoveryPropagatesCallerCancellationAsync()
         {
             using var cancellation = new CancellationTokenSource();

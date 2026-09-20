@@ -734,7 +734,8 @@ namespace Opc.Ua.Client
             IServerRedundancyHandler redundancy = m_redundancyHandler ??
                 new DefaultServerRedundancyHandler(
                     new DefaultRedundantServerEndpointResolver(m_telemetry),
-                    opts.TimeProvider);
+                    opts.TimeProvider,
+                    opts.ServerRedundancy);
 
             IClientChannelManager? channelManager = m_channelManager;
             ServiceProviderHttpClientFactory? ownedHttpClientFactory = null;
@@ -809,6 +810,7 @@ namespace Opc.Ua.Client
                 opts.TimeProvider,
                 channelManager,
                 opts.NetworkRedundancy,
+                opts.ServerRedundancy,
                 m_reverseConnectManager,
                 opts.ConnectGate,
                 ct: ct).ConfigureAwait(false);
