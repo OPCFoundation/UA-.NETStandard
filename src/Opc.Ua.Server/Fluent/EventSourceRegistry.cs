@@ -786,6 +786,25 @@ namespace Opc.Ua.Server.Fluent
             }
         }
 
+        /// <summary>
+        /// Clears the retry back-off once a generation has started successfully, so a
+        /// later failure retries promptly instead of inheriting the previous delay.
+        /// </summary>
+        private void MarkSourceStarted(SourceEntry entry, CancellationTokenSource generation)
+        {
+            lock (m_sourcesLock)
+            {
+                if (Volatile.Read(ref m_disposed) != 0 ||
+                    !ReferenceEquals(entry.WorkerCts, generation) ||
+                    ReferenceEquals(entry.FailedGeneration, generation))
+                {
+                    return;
+                }
+                entry.ConsecutiveFailures = 0;
+                entry.RetryAfter = default;
+            }
+        }
+
         private void MarkSourceFailed(SourceEntry entry, CancellationTokenSource generation)
         {
             lock (m_sourcesLock)
@@ -847,6 +866,7 @@ namespace Opc.Ua.Server.Fluent
                     await readiness.WaitUntilReadyAsync(cancellationToken).AsTask()
                         .WaitAsync(cancellationToken).ConfigureAwait(false);
                 }
+                MarkSourceStarted(entry, generation);
                 ready.TrySetResult(true);
             }
             catch (OperationCanceledException)
