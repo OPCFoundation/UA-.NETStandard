@@ -29,6 +29,8 @@
 
 using System;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 
@@ -38,6 +40,111 @@ namespace Opc.Ua.Server.Tests
     [Category("Session")]
     public sealed class SessionContinuationOwnershipTests
     {
+        [Test]
+        public async Task ConcurrentBrowseSaveAndDisposalCannotRetainOwnerAsync()
+        {
+            var manager = new Mock<IAsyncNodeManager>();
+            for (int attempt = 0; attempt < 20000; attempt++)
+            {
+                var holder = new SessionContinuationPoints(() => new NodeId(1), 1, 1, null);
+                var data = new DisposalCounter();
+                using ContinuationPoint point = CreatePoint(manager.Object, data);
+                var readyToSave = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var readyToDispose = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var start = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                bool saved = false;
+                int released = 0;
+                holder.BrowseContinuationPointsReleased += () => Interlocked.Increment(ref released);
+                Task saving = Task.Run(async () =>
+                {
+                    readyToSave.TrySetResult(true);
+                    await start.Task.ConfigureAwait(false);
+                    try
+                    {
+                        holder.SaveBrowse(point);
+                        saved = true;
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        // Disposal may win before the cache takes ownership.
+                    }
+                });
+                Task disposing = Task.Run(async () =>
+                {
+                    readyToDispose.TrySetResult(true);
+                    await start.Task.ConfigureAwait(false);
+                    point.Dispose();
+                });
+                await Task.WhenAll(readyToSave.Task, readyToDispose.Task).ConfigureAwait(false);
+                start.TrySetResult(true);
+                await Task.WhenAll(saving, disposing).ConfigureAwait(false);
+                bool retained = holder.HasBrowseForManager(manager.Object);
+                holder.Clear();
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(retained, Is.False,
+                        $"Concurrent SaveBrowse/Dispose retained its source at attempt {attempt}.");
+                    Assert.That(data.Count, Is.EqualTo(1));
+                    Assert.That(Volatile.Read(ref released), Is.EqualTo(saved ? 1 : 0));
+                }
+            }
+        }
+
+        [Test]
+        public void DisposedBrowsePointCannotAcquireSessionOwnership()
+        {
+            var holder = new SessionContinuationPoints(() => new NodeId(1), 1, 1, null);
+            var manager = new Mock<IAsyncNodeManager>();
+            var data = new DisposalCounter();
+            using ContinuationPoint point = CreatePoint(manager.Object, data);
+            point.Dispose();
+            Assert.That(() => holder.SaveBrowse(point), Throws.TypeOf<ObjectDisposedException>());
+            Assert.That(holder.HasBrowseForManager(manager.Object), Is.False);
+            Assert.That(holder.RestoreBrowse(point.Id.ToByteArray().ToByteString()), Is.Null);
+            holder.Clear();
+            Assert.That(data.Count, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void AdditionalSessionCannotReplaceTheOriginalContinuationOwner()
+        {
+            var first = new SessionContinuationPoints(() => new NodeId(1), 1, 1, null);
+            var second = new SessionContinuationPoints(() => new NodeId(2), 1, 1, null);
+            var manager = new Mock<IAsyncNodeManager>();
+            var data = new DisposalCounter();
+            using ContinuationPoint point = CreatePoint(manager.Object, data);
+            int firstReleased = 0;
+            int secondReleased = 0;
+            first.BrowseContinuationPointsReleased += () => firstReleased++;
+            second.BrowseContinuationPointsReleased += () => secondReleased++;
+            first.SaveBrowse(point);
+            Assert.That(() => second.SaveBrowse(point), Throws.TypeOf<InvalidOperationException>());
+            Assert.That(first.HasBrowseForManager(manager.Object), Is.True);
+            Assert.That(second.HasBrowseForManager(manager.Object), Is.False);
+            point.Dispose();
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(first.HasBrowseForManager(manager.Object), Is.False);
+                Assert.That(second.HasBrowseForManager(manager.Object), Is.False);
+                Assert.That(firstReleased, Is.EqualTo(1));
+                Assert.That(secondReleased, Is.Zero);
+                Assert.That(data.Count, Is.EqualTo(1));
+            }
+        }
+
+        [Test]
+        public void InvalidReleaseCallbackDoesNotConsumeContinuationOwnership()
+        {
+            var manager = new Mock<IAsyncNodeManager>();
+            using ContinuationPoint point = CreatePoint(manager.Object);
+            Assert.That(() => point.SetOwnerRelease(null), Throws.ArgumentNullException);
+            var holder = new SessionContinuationPoints(() => new NodeId(1), 1, 1, null);
+            holder.SaveBrowse(point);
+            Assert.That(holder.HasBrowseForManager(manager.Object), Is.True);
+            point.Dispose();
+            Assert.That(holder.HasBrowseForManager(manager.Object), Is.False);
+        }
+
         [Test]
         public void RestoredBrowseRetainsExactOwnerUntilDisposal()
         {

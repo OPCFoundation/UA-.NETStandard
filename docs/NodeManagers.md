@@ -567,6 +567,8 @@ points even when the old NodeManager has no MonitoredItems. Restoring a point tr
 the executing `BrowseNext` without releasing its generation. Each page uses the captured routing
 and reference image, preserves the original Browse filters, and rechecks current permissions.
 New Browse operations use the active generation.
+Disposal and initial ownership registration are coordinated so a concurrent disposal cannot
+leave a disposed continuation retaining its generation.
 
 Final-page completion, explicit release, cache eviction, failed or cancelled `BrowseNext`, and
 Session close/disposal release the corresponding ownership. The cache evicts only available

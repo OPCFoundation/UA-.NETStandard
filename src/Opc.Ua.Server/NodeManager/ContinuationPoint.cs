@@ -59,8 +59,13 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing && Interlocked.Exchange(ref m_disposed, 1) == 0)
+            if (disposing)
             {
+                OwnerReleaseState? owner = Interlocked.Exchange(ref m_ownerState, s_disposedOwner);
+                if (ReferenceEquals(owner, s_disposedOwner))
+                {
+                    return;
+                }
                 try
                 {
                     (Data as IDisposable)?.Dispose();
@@ -68,18 +73,24 @@ namespace Opc.Ua.Server
                 finally
                 {
                     RoutingSnapshot = null;
-                    Interlocked.Exchange(ref m_releaseOwner, null)?.Invoke();
+                    owner?.Release?.Invoke();
                 }
             }
         }
 
         internal void SetOwnerRelease(Action releaseOwner)
         {
-            if (Volatile.Read(ref m_disposed) != 0)
+            if (releaseOwner is null)
+            {
+                throw new ArgumentNullException(nameof(releaseOwner));
+            }
+            OwnerReleaseState? previous = Interlocked.CompareExchange(
+                ref m_ownerState, new OwnerReleaseState(releaseOwner), null);
+            if (ReferenceEquals(previous, s_disposedOwner))
             {
                 throw new ObjectDisposedException(nameof(ContinuationPoint));
             }
-            if (Interlocked.CompareExchange(ref m_releaseOwner, releaseOwner, null) is not null)
+            if (previous is not null)
             {
                 throw new InvalidOperationException("The continuation point already has a session owner.");
             }
@@ -217,7 +228,12 @@ namespace Opc.Ua.Server
             }
         }
 
-        private Action? m_releaseOwner;
-        private int m_disposed;
+        private static readonly OwnerReleaseState s_disposedOwner = new(null);
+        private OwnerReleaseState? m_ownerState;
+
+        private sealed class OwnerReleaseState(Action? release)
+        {
+            public Action? Release { get; } = release;
+        }
     }
 }
