@@ -246,6 +246,11 @@ namespace Opc.Ua.Server
         IAsyncDisposable SuspendBindingAdmission();
 
         /// <summary>
+        /// Checks whether the admitted operation is already removing this exact monitored item.
+        /// </summary>
+        bool IsRemovingBinding(IMonitoredItem monitoredItem);
+
+        /// <summary>
         /// Dispatches Session activation and its notifications against the published bindings.
         /// </summary>
         ValueTask<(ByteString ServerNonce, ServiceResult ActivationStatus)> DispatchSessionActivationAsync(

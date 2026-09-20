@@ -55,6 +55,11 @@ namespace Opc.Ua.Server
             return m_currentBindingAdmission.Value?.Suspend() ?? BindingAdmissionSuspension.Empty;
         }
 
+        bool IDynamicNodeManagerBatchHost.IsRemovingBinding(IMonitoredItem monitoredItem)
+        {
+            return m_currentBindingAdmission.Value?.IsRemoving(monitoredItem) == true;
+        }
+
         async ValueTask<(ByteString ServerNonce, ServiceResult ActivationStatus)>
             IDynamicNodeManagerBatchHost.DispatchSessionActivationAsync(
                 Func<ValueTask<(ByteString ServerNonce, ServiceResult ActivationStatus)>> activateAsync,

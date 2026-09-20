@@ -643,6 +643,11 @@ suspends its binding admission for that nested operation. Admission resumes afte
 all overlapping nested operations release lifecycle serialization, so publication does not wait on a callback
 that is waiting for the same lifecycle owner. Committed binding reconciliation
 does not retain host mutation serialization while draining notification callbacks.
+When such a callback owns notification-dispatch leases, admission resumes only
+after those leases and their binding updates are released. Immediate retirement
+can therefore drain the callback without opening admission to new operations.
+Nested lifecycle work excludes the exact items already being deleted by its
+admitted operation, so deletion cannot create a fresh binding on another manager.
 If provisional all-events creation fails, compensation includes owners published
 while its callback was suspended.
 

@@ -2702,6 +2702,10 @@ namespace Opc.Ua.Server
             IEventMonitoredItem monitoredItem,
             CancellationToken ct)
         {
+            if ((server.NodeManager as IDynamicNodeManagerBatchHost)?.IsRemovingBinding(monitoredItem) == true)
+            {
+                return false;
+            }
             using var context = new OperationContext(monitoredItem);
             try
             {

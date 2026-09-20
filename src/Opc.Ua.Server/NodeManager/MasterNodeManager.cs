@@ -346,6 +346,7 @@ namespace Opc.Ua.Server
             await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
             m_dynamicMutationSemaphore.Release();
 
+            await using var bindingResumption = DeferBindingAdmissionResumption().ConfigureAwait(false);
             await m_startupShutdownSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
@@ -389,6 +390,7 @@ namespace Opc.Ua.Server
             NodeId sessionId,
             CancellationToken cancellationToken = default)
         {
+            await using var bindingResumption = DeferBindingAdmissionResumption().ConfigureAwait(false);
             IAsyncNodeManager[] activeNodeManagers = [.. m_nodeManagers];
             NotificationDispatchLease[] dispatches =
                 GetSessionNotificationDispatches(activeNodeManagers);

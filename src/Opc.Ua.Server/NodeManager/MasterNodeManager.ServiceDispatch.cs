@@ -605,7 +605,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             await m_bindingSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            using BindingAdmission admission = EnterBindingAdmission();
+            using BindingAdmission admission = EnterBindingAdmission([.. itemsToDelete]);
             using IDisposable routing = m_nodeManagers.UseLiveRouting();
             await m_serviceDispatch.DeleteMonitoredItemsAsync(
                 context,

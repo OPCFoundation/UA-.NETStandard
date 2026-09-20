@@ -35,9 +35,14 @@ namespace Opc.Ua.Server
 {
     public partial class MasterNodeManager
     {
-        private BindingAdmission EnterBindingAdmission()
+        internal BindingAdmissionSuspension DeferBindingAdmissionResumption()
         {
-            var admission = new BindingAdmission(this, m_currentBindingAdmission.Value);
+            return m_currentBindingAdmission.Value?.DeferResumption() ?? BindingAdmissionSuspension.Empty;
+        }
+
+        private BindingAdmission EnterBindingAdmission(ArrayOf<IMonitoredItem> removingItems = default)
+        {
+            var admission = new BindingAdmission(this, m_currentBindingAdmission.Value, removingItems);
             m_currentBindingAdmission.Value = admission;
             return admission;
         }
@@ -46,8 +51,40 @@ namespace Opc.Ua.Server
 
         private sealed class BindingAdmission(
             MasterNodeManager owner,
-            BindingAdmission? previous) : IDisposable
+            BindingAdmission? previous,
+            ArrayOf<IMonitoredItem> removingItems) : IDisposable
         {
+            public bool IsRemoving(IMonitoredItem monitoredItem)
+            {
+                lock (m_lock)
+                {
+                    if (!m_disposed)
+                    {
+                        foreach (IMonitoredItem removing in removingItems)
+                        {
+                            if (ReferenceEquals(removing, monitoredItem))
+                            {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                return previous?.IsRemoving(monitoredItem) == true;
+            }
+
+            public BindingAdmissionSuspension DeferResumption()
+            {
+                lock (m_lock)
+                {
+                    if (m_disposed)
+                    {
+                        return BindingAdmissionSuspension.Empty;
+                    }
+                    m_notificationDeferrals++;
+                    return new BindingAdmissionSuspension(CompleteNotificationAsync);
+                }
+            }
+
             public BindingAdmissionSuspension Suspend()
             {
                 lock (m_lock)
@@ -84,14 +121,31 @@ namespace Opc.Ua.Server
                 }
             }
 
-            private async ValueTask ResumeAsync()
+            private ValueTask CompleteNotificationAsync()
+            {
+                lock (m_lock)
+                {
+                    m_notificationDeferrals--;
+                }
+                return RestoreAdmissionAsync();
+            }
+
+            private ValueTask ResumeAsync()
+            {
+                lock (m_lock)
+                {
+                    m_suspensions--;
+                }
+                return RestoreAdmissionAsync();
+            }
+
+            private async ValueTask RestoreAdmissionAsync()
             {
                 TaskCompletionSource<bool>? resumption = null;
                 Task<bool> resumed;
                 lock (m_lock)
                 {
-                    m_suspensions--;
-                    if (m_disposed || Volatile.Read(ref m_suspensions) != 0)
+                    if (m_disposed || m_held || m_suspensions != 0 || m_notificationDeferrals != 0)
                     {
                         return;
                     }
@@ -109,7 +163,9 @@ namespace Opc.Ua.Server
                         await owner.m_bindingSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
                         lock (m_lock)
                         {
-                            if (m_disposed || m_suspensions != 0)
+                            if (m_disposed ||
+                                Volatile.Read(ref m_suspensions) != 0 ||
+                                Volatile.Read(ref m_notificationDeferrals) != 0)
                             {
                                 owner.m_bindingSemaphore.Release();
                             }
@@ -136,6 +192,7 @@ namespace Opc.Ua.Server
             private readonly Lock m_lock = new();
             private TaskCompletionSource<bool>? m_resuming;
             private int m_suspensions;
+            private int m_notificationDeferrals;
             private bool m_held = true;
             private bool m_disposed;
         }

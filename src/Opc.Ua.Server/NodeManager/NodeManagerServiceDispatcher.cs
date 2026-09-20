@@ -1773,6 +1773,7 @@ namespace Opc.Ua.Server
             IList<IEventMonitoredItem> monitoredItems,
             CancellationToken cancellationToken = default)
         {
+            await using var bindingResumption = m_owner.DeferBindingAdmissionResumption().ConfigureAwait(false);
             IAsyncNodeManager[] activeNodeManagers = [.. m_nodeManagers];
             NotificationDispatchLease[] dispatches =
                 m_owner.GetConditionRefreshDispatches(
@@ -2564,6 +2565,7 @@ namespace Opc.Ua.Server
                 // subscribe to all node managers.
                 if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.AllEvents) != 0)
                 {
+                    await using var bindingResumption = m_owner.DeferBindingAdmissionResumption().ConfigureAwait(false);
                     IAsyncNodeManager[] activeNodeManagers = [.. m_nodeManagers];
                     NotificationDispatchLease[] dispatches =
                         m_owner.GetAllEventNotificationDispatches(
@@ -2907,13 +2909,14 @@ namespace Opc.Ua.Server
                 IAsyncNodeManager owningNodeManager = monitoredItem.NodeManager;
                 processedItems[ii] = true;
 
-                // unsubscribe to all node managers.
-                if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.AllEvents) != 0)
+                await using var bindingResumption = m_owner.DeferBindingAdmissionResumption().ConfigureAwait(false);
+                NotificationDispatchLease[]? dispatches = null;
+                try
                 {
-                    NotificationDispatchLease[] dispatches =
-                        m_owner.GetAllEventUnsubscribeDispatches(monitoredItem);
-                    try
+                    // unsubscribe to all node managers.
+                    if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.AllEvents) != 0)
                     {
+                        dispatches = m_owner.GetAllEventUnsubscribeDispatches(monitoredItem);
                         foreach (NotificationDispatchLease dispatch in dispatches)
                         {
                             await dispatch.NodeManager.SubscribeToAllEventsAsync(
@@ -2934,29 +2937,32 @@ namespace Opc.Ua.Server
                             monitoredItem,
                             dispatches);
                     }
-                    finally
+                    // only unsubscribe to the node manager that owns the node.
+                    else
+                    {
+                        await owningNodeManager.SubscribeToEventsAsync(
+                            context,
+                            monitoredItem.ManagerHandle,
+                            subscriptionId,
+                            monitoredItem,
+                            true,
+                            cancellationToken).ConfigureAwait(false);
+                    }
+
+                    // Remove the binding before retiring notification owners can finish their drain.
+                    Server.EventManager.DeleteMonitoredItem(monitoredItem.Id);
+                    retiredGenerationDrained |= !m_nodeManagers.Contains(owningNodeManager);
+
+                    // success.
+                    errors[ii] = StatusCodes.Good;
+                }
+                finally
+                {
+                    if (dispatches is not null)
                     {
                         MasterNodeManager.DisposeNotificationDispatches(dispatches);
                     }
                 }
-                // only unsubscribe to the node manager that owns the node.
-                else
-                {
-                    await owningNodeManager.SubscribeToEventsAsync(
-                        context,
-                        monitoredItem.ManagerHandle,
-                        subscriptionId,
-                        monitoredItem,
-                        true,
-                        cancellationToken).ConfigureAwait(false);
-                }
-
-                // delete the item.
-                Server.EventManager.DeleteMonitoredItem(monitoredItem.Id);
-                retiredGenerationDrained |= !m_nodeManagers.Contains(owningNodeManager);
-
-                // success.
-                errors[ii] = StatusCodes.Good;
             }
 
             if (retiredGenerationDrained)
