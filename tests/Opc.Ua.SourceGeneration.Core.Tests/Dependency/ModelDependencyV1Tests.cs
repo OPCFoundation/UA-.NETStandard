@@ -150,6 +150,14 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 Kind = DependencyNodeKind.ObjectType,
                 OpaqueId = "M/RbKBsRVkePCePcx24oRA=="
             });
+            dependency.Nodes.Add(new DependencyNode
+            {
+                SymbolicName = "EmptyOpaqueType",
+                SymbolicNamespace = "http://example.org/UA/ExtendedIds/",
+                ClassName = "EmptyOpaqueType",
+                Kind = DependencyNodeKind.ObjectType,
+                OpaqueId = string.Empty
+            });
 
             var decoded = ModelDependencyV1.FromBase64Payload(dependency.ToBase64Payload());
 
@@ -162,6 +170,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 Assert.That(decoded.Nodes[0].OpaqueId, Is.Null);
                 Assert.That(decoded.Nodes[1].GuidId, Is.Null);
                 Assert.That(decoded.Nodes[1].OpaqueId, Is.EqualTo("M/RbKBsRVkePCePcx24oRA=="));
+                Assert.That(decoded.Nodes[2].GuidId, Is.Null);
+                Assert.That(decoded.Nodes[2].OpaqueId, Is.Empty);
             });
         }
 

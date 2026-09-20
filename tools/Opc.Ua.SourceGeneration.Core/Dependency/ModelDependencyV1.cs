@@ -785,7 +785,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
             foreach (DependencyNode node in Nodes)
             {
                 if (!string.IsNullOrEmpty(node.GuidId) ||
-                    !string.IsNullOrEmpty(node.OpaqueId))
+                    node.OpaqueId != null)
                 {
                     return true;
                 }
