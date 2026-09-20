@@ -169,34 +169,44 @@ namespace Opc.Ua
             // handle ECC and RSADH encryption.
             else
             {
-                // check if the complete chain is included in the sender issuers.
-                if (senderIssuerCertificates != null &&
-                    senderIssuerCertificates.Count > 0 &&
-                    senderIssuerCertificates[0].Thumbprint == senderCertificate?.Thumbprint)
+                // The trimmed chain owns its own certificate references, so it must be
+                // released again once the secret has been created.
+                CertificateCollection? trimmedIssuers = null;
+                try
                 {
-                    var issuers = new CertificateCollection();
-
-                    for (int ii = 1; ii < senderIssuerCertificates.Count; ii++)
+                    // check if the complete chain is included in the sender issuers.
+                    if (senderIssuerCertificates != null &&
+                        senderIssuerCertificates.Count > 0 &&
+                        senderIssuerCertificates[0].Thumbprint == senderCertificate?.Thumbprint)
                     {
-                        issuers.Add(senderIssuerCertificates[ii]);
+                        trimmedIssuers = [];
+
+                        for (int ii = 1; ii < senderIssuerCertificates.Count; ii++)
+                        {
+                            trimmedIssuers.Add(senderIssuerCertificates[ii]);
+                        }
+
+                        senderIssuerCertificates = trimmedIssuers;
                     }
 
-                    senderIssuerCertificates = issuers;
+                    using var senderNonce = Nonce.CreateNonce(securityPolicy);
+                    using var secret = EncryptedSecret.CreateForEcc(
+                        context: context,
+                        securityPolicyUri: securityPolicyUri,
+                        senderIssuerCertificates: senderIssuerCertificates!,
+                        receiverCertificate: receiverCertificate,
+                        receiverNonce: receiverEphemeralKey!,
+                        senderCertificate: senderCertificate!,
+                        senderNonce: senderNonce,
+                        doNotEncodeSenderCertificate: doNotEncodeSenderCertificate);
+
+                    m_token.Password = secret.Encrypt(DecryptedPassword, receiverNonce).ToByteString();
+                    m_token.EncryptionAlgorithm = null;
                 }
-
-                using var senderNonce = Nonce.CreateNonce(securityPolicy);
-                using var secret = EncryptedSecret.CreateForEcc(
-                    context: context,
-                    securityPolicyUri: securityPolicyUri,
-                    senderIssuerCertificates: senderIssuerCertificates!,
-                    receiverCertificate: receiverCertificate,
-                    receiverNonce: receiverEphemeralKey!,
-                    senderCertificate: senderCertificate!,
-                    senderNonce: senderNonce,
-                    doNotEncodeSenderCertificate: doNotEncodeSenderCertificate);
-
-                m_token.Password = secret.Encrypt(DecryptedPassword, receiverNonce).ToByteString();
-                m_token.EncryptionAlgorithm = null;
+                finally
+                {
+                    trimmedIssuers?.Dispose();
+                }
             }
 
             await Task.CompletedTask.ConfigureAwait(false);
