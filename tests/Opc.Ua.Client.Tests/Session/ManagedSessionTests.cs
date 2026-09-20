@@ -1395,6 +1395,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     typeof(bool),
                     typeof(bool),
                     typeof(NetworkRedundancyOptions),
+                    typeof(ServerRedundancyOptions),
                     typeof(IClientChannelManager),
                     typeof(IClientConnectGate)
                 ],
@@ -1421,6 +1422,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 false,
                 false,
                 networkRedundancy,
+                null,
                 null,
                 null
             ]);
