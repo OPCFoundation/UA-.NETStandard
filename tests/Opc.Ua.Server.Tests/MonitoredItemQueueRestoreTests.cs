@@ -187,17 +187,48 @@ namespace Opc.Ua.Server.Tests
             {
                 SecurityNone = true
             };
-            await fixture.StartAsync().ConfigureAwait(false);
-
-            var telemetry = new TestTelemetryContext(loggerFactory);
-            var serverMock = new Mock<IServerInternal>();
-            serverMock.Setup(s => s.Telemetry).Returns(telemetry);
-            serverMock.Setup(s => s.NamespaceUris).Returns(fixture.Server.CurrentInstance.NamespaceUris);
-            serverMock.Setup(s => s.MainNodeManagerFactory).Returns(fixture.Server.CurrentInstance.MainNodeManagerFactory);
-            serverMock.Setup(s => s.SubscriptionStore).Returns((ISubscriptionStore)null!);
-
-            var manager = new MasterNodeManager(serverMock.Object, fixture.Config, null, Array.Empty<INodeManager>());
-            return new MasterNodeManagerFixture(fixture, serverMock, manager, telemetry);
+            TestTelemetryContext telemetry = null;
+            MasterNodeManager manager = null;
+            bool transferred = false;
+            try
+            {
+                await fixture.StartAsync().ConfigureAwait(false);
+                telemetry = new TestTelemetryContext(loggerFactory);
+                NamespaceTable namespaces = fixture.Server.CurrentInstance.NamespaceUris;
+                var serverMock = new Mock<IServerInternal>();
+                serverMock.Setup(s => s.Telemetry).Returns(telemetry);
+                serverMock.Setup(s => s.NamespaceUris).Returns(namespaces);
+                serverMock.Setup(s => s.TypeTree).Returns(new TypeTable(namespaces));
+                serverMock.Setup(s => s.Factory).Returns(EncodeableFactory.Create());
+                serverMock.Setup(s => s.MainNodeManagerFactory)
+                    .Returns(fixture.Server.CurrentInstance.MainNodeManagerFactory);
+                serverMock.Setup(s => s.SubscriptionStore).Returns((ISubscriptionStore)null!);
+                manager = new MasterNodeManager(serverMock.Object, fixture.Config, null, Array.Empty<INodeManager>());
+                var owner = new MasterNodeManagerFixture(fixture, serverMock, manager, telemetry);
+                transferred = true;
+                return owner;
+            }
+            finally
+            {
+                if (!transferred)
+                {
+                    try
+                    {
+                        manager?.Dispose();
+                    }
+                    finally
+                    {
+                        try
+                        {
+                            telemetry?.Dispose();
+                        }
+                        finally
+                        {
+                            await fixture.StopAsync().ConfigureAwait(false);
+                        }
+                    }
+                }
+            }
         }
 
         private static async Task InvokePreHydrateAsync(
@@ -235,9 +266,21 @@ namespace Opc.Ua.Server.Tests
 
             public async ValueTask DisposeAsync()
             {
-                Manager.Dispose();
-                Telemetry.Dispose();
-                await Fixture.StopAsync().ConfigureAwait(false);
+                try
+                {
+                    Manager.Dispose();
+                }
+                finally
+                {
+                    try
+                    {
+                        Telemetry.Dispose();
+                    }
+                    finally
+                    {
+                        await Fixture.StopAsync().ConfigureAwait(false);
+                    }
+                }
             }
         }
 
