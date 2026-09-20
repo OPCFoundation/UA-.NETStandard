@@ -270,7 +270,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(committed.NewGeneration, Is.EqualTo(1u));
             Assert.That(committed.Summary.Generation, Is.EqualTo(1u));
             Assert.That(committed.Summary.Outcome, Is.EqualTo(WoTOutcomeEnum.Warning));
-            Assert.That(committed.Results.Length, Is.EqualTo(2));
+            Assert.That(committed.Results, Has.Length.EqualTo(2));
             Assert.That(committed.Results.All(row => row.Generation == 1 && row.VersionId == "v1"), Is.True);
             Assert.That(committed.Results.Any(row => row.Message is { } message &&
                 message.Contains(failureMessage, StringComparison.Ordinal)), Is.True,

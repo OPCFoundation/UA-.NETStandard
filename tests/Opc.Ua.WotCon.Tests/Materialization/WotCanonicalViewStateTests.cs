@@ -74,7 +74,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(views.Single(view => view.ResourceXid == "child").ViewNodeId,
                 Is.EqualTo(new ExpandedNodeId("Child", kNamespace)));
             Assert.That(views.All(view => view.ViewVersion == 1), Is.True);
-            Assert.That(prepared.AffectedResourceXids.ToArray(), Is.EquivalentTo(new[] { "child", "left", "right" }));
+            Assert.That(prepared.AffectedResourceXids.ToArray(), Is.EquivalentTo(s_sharedResourceXids));
             Assert.That(prepared.HasChanges, Is.True);
         }
 
@@ -150,8 +150,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 context, original, [update], []);
 
             Assert.That(changed.AffectedResourceXids.ToArray(),
-                Is.EquivalentTo(new[] { "child", "left", "right" }));
-            foreach (string resource in new[] { "child", "left", "right" })
+                Is.EquivalentTo(s_sharedResourceXids));
+            foreach (string resource in s_sharedResourceXids)
             {
                 Assert.That(View(changed.State, resource).ViewVersion, Is.EqualTo(2));
                 Assert.That(View(changed.State, resource).MembershipDigest.Length, Is.EqualTo(32));
@@ -418,7 +418,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             WotCanonicalViewPreparation changed = WotProjectionViewBuilder.PrepareCanonicalGraph(
                 retiredSourceImage, initial, [], []);
 
-            Assert.That(changed.AffectedResourceXids.ToArray(), Is.EquivalentTo(new[] { "child", "parent" }));
+            Assert.That(changed.AffectedResourceXids.ToArray(), Is.EquivalentTo(s_childAndParentXids));
             Assert.That(View(changed.State, "child").Membership, Is.Empty);
             Assert.That(View(changed.State, "child").ViewVersion, Is.EqualTo(2));
             Assert.That(View(changed.State, "parent").ViewVersion, Is.EqualTo(2));
@@ -667,5 +667,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         private const string kNamespace = "urn:c2:canonical";
         private const string kAllocationNamespace = "urn:c2:view-allocation";
+        private static readonly string[] s_sharedResourceXids = ["child", "left", "right"];
+        private static readonly string[] s_childAndParentXids = ["child", "parent"];
     }
 }
