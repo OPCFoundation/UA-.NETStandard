@@ -3292,6 +3292,7 @@ namespace Opc.Ua.SourceGeneration
         {
             return node.NumericIdSpecified ||
                 !string.IsNullOrEmpty(node.StringId) ||
+                node.HasNonConstantIdentifier() ||
                 node.FindNumericIdentifier().HasValue;
         }
 
@@ -3418,6 +3419,10 @@ namespace Opc.Ua.SourceGeneration
                     else if (hierarchyNode.Identifier is string stringId)
                     {
                         hierarchyNode.Instance.StringId = stringId;
+                    }
+                    else if (hierarchyNode.Identifier is Guid or ByteString)
+                    {
+                        hierarchyNode.Instance.SetIdentifier(hierarchyNode.Identifier);
                     }
                     else
                     {

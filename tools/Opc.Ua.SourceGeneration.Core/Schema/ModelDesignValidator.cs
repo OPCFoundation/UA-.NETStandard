@@ -1617,6 +1617,22 @@ namespace Opc.Ua.Schema.Model
             model.Items = [.. nodes];
         }
 
+        /// <summary>
+        /// Creates a NodeId from an identifier of any of the four identifier
+        /// types defined by OPC 10000-3 5.2.2.
+        /// </summary>
+        private static NodeId CreateNodeId(object identifier, ushort namespaceIndex)
+        {
+            return identifier switch
+            {
+                uint numericId => new NodeId(numericId, namespaceIndex),
+                string stringId => new NodeId(stringId, namespaceIndex),
+                Guid guidId => new NodeId(guidId, namespaceIndex),
+                ByteString opaqueId => new NodeId(opaqueId, namespaceIndex),
+                _ => NodeId.Null
+            };
+        }
+
         private void IndexNodesByNodeId(
             NamespaceTable namespaceUris,
             IEnumerable<NodeDesign> nodes,
@@ -1625,12 +1641,15 @@ namespace Opc.Ua.Schema.Model
         {
             foreach (NodeDesign node in nodes)
             {
-                bool hasNumericId = node.NumericIdSpecified && node.NumericId > 0;
-                bool hasStringId = !node.NumericIdSpecified && !string.IsNullOrEmpty(node.StringId);
-
-                if (hasNumericId || hasStringId)
+                object identifier = node.GetIdentifier();
+                if (identifier is uint numericId && numericId == 0)
                 {
-                    NodeId nodeId = hasNumericId ? new NodeId(node.NumericId) : new NodeId(node.StringId, 0);
+                    identifier = null;
+                }
+
+                if (identifier != null)
+                {
+                    NodeId nodeId = CreateNodeId(identifier, 0);
                     nodeId = nodeId.WithNamespaceIndex(namespaceUris.GetIndexOrAppend(node.SymbolicId.Namespace));
 
                     index[nodeId] = node;
@@ -1782,6 +1801,7 @@ namespace Opc.Ua.Schema.Model
                         if (ii.Value.Instance is InstanceDesign instance &&
                             instance.NumericId <= 0 &&
                             instance.StringId == null &&
+                            !instance.HasNonConstantIdentifier() &&
                             instance.ModellingRule == ModellingRule.Mandatory)
                         {
                             // Not an error, show informational
@@ -2784,6 +2804,14 @@ namespace Opc.Ua.Schema.Model
                     {
                         id = stringId;
                     }
+                    else if (nodeId.TryGetValue(out Guid guid))
+                    {
+                        id = guid;
+                    }
+                    else if (nodeId.TryGetValue(out ByteString opaque))
+                    {
+                        id = opaque;
+                    }
                     else
                     {
                         id = assignedIds.FindUnusedId(node.SymbolicId.Namespace, isImplicitlyDefined);
@@ -2822,18 +2850,7 @@ namespace Opc.Ua.Schema.Model
             }
 
             // set identifier for node.
-            if (id is uint numericId)
-            {
-                node.NumericId = numericId;
-                node.NumericIdSpecified = true;
-                node.StringId = null;
-            }
-            else
-            {
-                node.NumericId = 0;
-                node.NumericIdSpecified = false;
-                node.StringId = id as string;
-            }
+            node.SetIdentifier(id);
 
             if (m_logger.IsEnabled(LogLevel.Debug))
             {
@@ -2880,9 +2897,16 @@ namespace Opc.Ua.Schema.Model
             {
                 Type lhst = lhs.GetType();
                 Type rhst = rhs.GetType();
-                if (lhst == rhst && lhs is IComparable c)
+                if (lhst == rhst)
                 {
-                    return c.CompareTo(rhs);
+                    if (lhs is ByteString lhsOpaque && rhs is ByteString rhsOpaque)
+                    {
+                        return lhsOpaque.CompareTo(rhsOpaque);
+                    }
+                    if (lhs is IComparable c)
+                    {
+                        return c.CompareTo(rhs);
+                    }
                 }
                 return lhst.Name.CompareTo(rhst.Name, StringComparison.Ordinal);
             });
@@ -2946,18 +2970,7 @@ namespace Opc.Ua.Schema.Model
                         current.Identifier = id;
 
                         // set identifier for node.
-                        if (id is uint numericId)
-                        {
-                            current.Instance.NumericId = numericId;
-                            current.Instance.NumericIdSpecified = true;
-                            current.Instance.StringId = null;
-                        }
-                        else
-                        {
-                            current.Instance.NumericId = 0;
-                            current.Instance.NumericIdSpecified = false;
-                            current.Instance.StringId = id as string;
-                        }
+                        current.Instance.SetIdentifier(id);
 
                         if (m_logger.IsEnabled(LogLevel.Debug))
                         {
@@ -3063,6 +3076,13 @@ namespace Opc.Ua.Schema.Model
             {
                 int ns = m_context.NamespaceUris.GetIndex(node.SymbolicId.Namespace);
                 var nodeId = new NodeId(node.StringId, (ushort)ns);
+                m_nodesByNodeId[nodeId] = node;
+                m_symbolicIdToNodeId[node.SymbolicId] = nodeId;
+            }
+            else if (node.HasNonConstantIdentifier())
+            {
+                int ns = m_context.NamespaceUris.GetIndex(node.SymbolicId.Namespace);
+                NodeId nodeId = CreateNodeId(node.GetIdentifier(), (ushort)ns);
                 m_nodesByNodeId[nodeId] = node;
                 m_symbolicIdToNodeId[node.SymbolicId] = nodeId;
             }
@@ -4691,6 +4711,9 @@ namespace Opc.Ua.Schema.Model
             {
                 encoding.NumericId = target.NumericId;
                 encoding.NumericIdSpecified = target.NumericIdSpecified;
+                encoding.GuidId = target.GuidId;
+                encoding.GuidIdSpecified = target.GuidIdSpecified;
+                encoding.OpaqueId = target.OpaqueId;
                 m_nodes.Remove(symbolicId);
             }
 
@@ -4867,9 +4890,7 @@ namespace Opc.Ua.Schema.Model
             {
                 mergedType = type.Copy();
 
-                mergedType.NumericId = 0;
-                mergedType.NumericIdSpecified = false;
-                mergedType.StringId = null;
+                mergedType.SetIdentifier(null);
             }
             else
             {
@@ -4888,6 +4909,9 @@ namespace Opc.Ua.Schema.Model
             mergedType.NumericId = type.NumericId;
             mergedType.NumericIdSpecified = type.NumericIdSpecified;
             mergedType.StringId = type.StringId;
+            mergedType.GuidId = type.GuidId;
+            mergedType.GuidIdSpecified = type.GuidIdSpecified;
+            mergedType.OpaqueId = type.OpaqueId;
             mergedType.ClassName = type.ClassName;
             mergedType.BrowseName = type.BrowseName;
             mergedType.DisplayName = type.DisplayName;
@@ -5042,6 +5066,9 @@ namespace Opc.Ua.Schema.Model
                 mergedInstance.NumericId = source.NumericId;
                 mergedInstance.NumericIdSpecified = source.NumericIdSpecified;
                 mergedInstance.StringId = source.StringId;
+                mergedInstance.GuidId = source.GuidId;
+                mergedInstance.GuidIdSpecified = source.GuidIdSpecified;
+                mergedInstance.OpaqueId = source.OpaqueId;
                 mergedInstance.BrowseName = rootId.Name;
                 mergedInstance.DisplayName.Value = rootId.Name;
                 mergedInstance.DisplayName.IsAutogenerated = true;
@@ -5191,6 +5218,13 @@ namespace Opc.Ua.Schema.Model
                 {
                     mergedInstance.StringId = source.StringId;
                     mergedInstance.NumericIdSpecified = source.NumericIdSpecified;
+                }
+
+                if (source.HasNonConstantIdentifier())
+                {
+                    mergedInstance.GuidId = source.GuidId;
+                    mergedInstance.GuidIdSpecified = source.GuidIdSpecified;
+                    mergedInstance.OpaqueId = source.OpaqueId;
                 }
 
                 if (mergedInstance.SymbolicName != source.SymbolicName)
@@ -6657,6 +6691,16 @@ namespace Opc.Ua.Schema.Model
             if (!string.IsNullOrEmpty(entry.StringId))
             {
                 design.StringId = entry.StringId;
+            }
+            if (!string.IsNullOrEmpty(entry.GuidId) &&
+                Guid.TryParse(entry.GuidId, out Guid guidId))
+            {
+                design.GuidId = guidId;
+                design.GuidIdSpecified = true;
+            }
+            if (!string.IsNullOrEmpty(entry.OpaqueId))
+            {
+                design.OpaqueId = Convert.FromBase64String(entry.OpaqueId);
             }
 
             if (design is DataTypeDesign dataTypeDesign)

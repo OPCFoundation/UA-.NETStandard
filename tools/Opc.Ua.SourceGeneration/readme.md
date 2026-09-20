@@ -42,9 +42,11 @@ a node in one input may reference a type defined in another (for example, instan
 `ModelDesign` whose `TypeDefinition` points at object types authored as a `NodeSet2`). Every input is
 supplied to the others as a resolution dependency, so such cross-model references resolve automatically.
 
-A `NodeSet2` input may only use Numeric and String NodeId identifiers. The generated model cannot
-represent the Guid and Opaque identifier types defined in OPC 10000-3 5.2.2, so a node using one of
-them fails the build with a diagnostic instead of being generated without its identifier.
+All four NodeId identifier types defined in OPC 10000-3 5.2.2 are supported: Numeric, String, Guid
+and Opaque. A `ModelDesign` carries them in the `NumericId`, `StringId`, `GuidId` and `OpaqueId`
+attributes of a node. Because `System.Guid` and `Opc.Ua.ByteString` values cannot be C# constants,
+the generated identifier fields for Guid and Opaque nodes are emitted as `static readonly` instead
+of `const`.
 
 Per-file behaviour is controlled with `AdditionalFiles` metadata:
 

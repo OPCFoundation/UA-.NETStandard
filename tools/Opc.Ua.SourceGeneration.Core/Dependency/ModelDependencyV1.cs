@@ -335,6 +335,16 @@ namespace Opc.Ua.SourceGeneration.Dependency
         public string? StringId { get; set; }
 
         /// <summary>
+        /// Optional Guid NodeId in the "D" format (null when not assigned).
+        /// </summary>
+        public string? GuidId { get; set; }
+
+        /// <summary>
+        /// Optional opaque NodeId as base64 (null when not assigned).
+        /// </summary>
+        public string? OpaqueId { get; set; }
+
+        /// <summary>
         /// True when the type is abstract.
         /// </summary>
         public bool IsAbstract { get; set; }
@@ -379,6 +389,8 @@ namespace Opc.Ua.SourceGeneration.Dependency
         private const byte kFluentAccessorsKnown = 0x40;
         private const byte kMethodIdentityTrailer = 0x80;
         private const byte kMethodIdentityTrailerVersion = 1;
+        private const byte kExtendedIdentifierTrailer = 0x20;
+        private const byte kExtendedIdentifierTrailerVersion = 1;
         private const byte kAccessLevelSpecified = 0x01;
         private const byte kRawAccessLevel = 0x02;
         private const byte kRawUserAccessLevel = 0x04;
@@ -566,7 +578,10 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 }
             }
             bool hasMethodIdentityTrailer = HasMethodIdentityTrailer();
-            if (FluentAccessorsEmitted.HasValue || hasMethodIdentityTrailer)
+            bool hasExtendedIdentifierTrailer = HasExtendedIdentifierTrailer();
+            if (FluentAccessorsEmitted.HasValue ||
+                hasMethodIdentityTrailer ||
+                hasExtendedIdentifierTrailer)
             {
                 byte capabilities = 0;
                 if (FluentAccessorsEmitted.HasValue)
@@ -581,10 +596,18 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 {
                     capabilities |= kMethodIdentityTrailer;
                 }
+                if (hasExtendedIdentifierTrailer)
+                {
+                    capabilities |= kExtendedIdentifierTrailer;
+                }
                 writer.Write(capabilities);
                 if (hasMethodIdentityTrailer)
                 {
                     WriteMethodIdentityTrailer(writer);
+                }
+                if (hasExtendedIdentifierTrailer)
+                {
+                    WriteExtendedIdentifierTrailer(writer);
                 }
             }
         }
@@ -749,6 +772,56 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 {
                     ReadMethodIdentityTrailer(reader);
                 }
+                if ((capabilities & kExtendedIdentifierTrailer) != 0 &&
+                    reader.BaseStream.Position < reader.BaseStream.Length)
+                {
+                    ReadExtendedIdentifierTrailer(reader);
+                }
+            }
+        }
+
+        private bool HasExtendedIdentifierTrailer()
+        {
+            foreach (DependencyNode node in Nodes)
+            {
+                if (!string.IsNullOrEmpty(node.GuidId) ||
+                    !string.IsNullOrEmpty(node.OpaqueId))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private void WriteExtendedIdentifierTrailer(BinaryWriter writer)
+        {
+            writer.Write(kExtendedIdentifierTrailerVersion);
+            writer.Write(Nodes.Count);
+            foreach (DependencyNode node in Nodes)
+            {
+                WriteNullableString(writer, node.GuidId);
+                WriteNullableString(writer, node.OpaqueId);
+            }
+        }
+
+        private void ReadExtendedIdentifierTrailer(BinaryReader reader)
+        {
+            byte trailerVersion = reader.ReadByte();
+            if (trailerVersion != kExtendedIdentifierTrailerVersion)
+            {
+                return;
+            }
+
+            int nodeCount = reader.ReadInt32();
+            if (nodeCount != Nodes.Count)
+            {
+                throw new InvalidDataException(
+                    "ModelDependencyV1: invalid extended identifier node count " + nodeCount);
+            }
+            for (int i = 0; i < nodeCount; i++)
+            {
+                Nodes[i].GuidId = ReadNullableString(reader);
+                Nodes[i].OpaqueId = ReadNullableString(reader);
             }
         }
 

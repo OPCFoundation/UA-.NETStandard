@@ -557,11 +557,7 @@ namespace Opc.Ua.Schema.Model
             };
             output.SymbolicId = output.SymbolicName;
 
-            if (nodeId.TryGetValue(out uint id))
-            {
-                output.NumericId = id;
-                output.NumericIdSpecified = true;
-            }
+            output.SetIdentifier(ImportIdentifier(nodeId));
 
             // <References> is optional in the schema.
             foreach (Export.Reference ii in input.References ?? [])
@@ -1421,27 +1417,8 @@ namespace Opc.Ua.Schema.Model
             output.ReleaseStatus = ImportReleaseStatus(input.ReleaseStatus);
             output.Category = ImportCategories(input.Category);
 
-            if (nodeId.TryGetValue(out uint id))
-            {
-                output.NumericId = id;
-                output.NumericIdSpecified = true;
-            }
-            else if (nodeId.TryGetValue(out string stringId))
-            {
-                output.StringId = stringId;
-                output.NumericIdSpecified = false;
-            }
-            else
-            {
-                // The model design can only carry numeric and string identifiers.
-                // Guid and Opaque identifiers (OPC 10000-3 5.2.2) would be dropped
-                // and code would be generated for a node without any identity, so
-                // the import fails instead of silently producing wrong output.
-                throw new InvalidDataException(
-                    $"NodeId ({input.NodeId}) of node '{input.BrowseName}' uses the " +
-                    $"{nodeId.IdType} identifier type which is not supported by the model " +
-                    "design. Only Numeric and String identifiers can be imported.");
-            }
+            // All four identifier types of OPC 10000-3 5.2.2 are carried over.
+            output.SetIdentifier(ImportIdentifier(nodeId));
 
             m_settings.NodesByQName[output.SymbolicId] = output;
             m_settings.NodesById[nodeId] = output;
@@ -2716,6 +2693,32 @@ namespace Opc.Ua.Schema.Model
                 IsInverse = !source.IsForward,
                 TargetId = targetId
             };
+        }
+
+        /// <summary>
+        /// Returns the identifier of a NodeId in the representation used by
+        /// <see cref="NodeDesign"/>. All four identifier types defined by
+        /// OPC 10000-3 5.2.2 are supported.
+        /// </summary>
+        private static object ImportIdentifier(NodeId nodeId)
+        {
+            if (nodeId.TryGetValue(out uint numericId))
+            {
+                return numericId;
+            }
+            if (nodeId.TryGetValue(out string stringId))
+            {
+                return stringId;
+            }
+            if (nodeId.TryGetValue(out Guid guidId))
+            {
+                return guidId;
+            }
+            if (nodeId.TryGetValue(out ByteString opaqueId))
+            {
+                return opaqueId;
+            }
+            return null;
         }
 
         /// <summary>

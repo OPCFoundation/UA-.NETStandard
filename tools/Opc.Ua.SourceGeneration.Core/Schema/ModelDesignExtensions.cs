@@ -3028,6 +3028,124 @@ namespace Opc.Ua.Schema.Model
             }
         }
 
+        /// <summary>
+        /// Returns the identifier assigned to the node as one of the four
+        /// identifier types defined by OPC 10000-3 5.2.2, or <c>null</c> when
+        /// the node does not carry an explicit identifier.
+        /// </summary>
+        public static object GetIdentifier(this NodeDesign node)
+        {
+            if (node == null)
+            {
+                return null;
+            }
+            if (node.NumericIdSpecified)
+            {
+                return node.NumericId;
+            }
+            if (!string.IsNullOrEmpty(node.StringId))
+            {
+                return node.StringId;
+            }
+            if (node.GuidIdSpecified)
+            {
+                return node.GuidId;
+            }
+            if (node.OpaqueId != null)
+            {
+                return ByteString.From(node.OpaqueId);
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Assigns the identifier of the node, clearing the identifiers of all
+        /// other identifier types. Passing <c>null</c> clears the identifier.
+        /// </summary>
+        public static void SetIdentifier(this NodeDesign node, object identifier)
+        {
+            if (node == null)
+            {
+                return;
+            }
+            node.NumericId = 0;
+            node.NumericIdSpecified = false;
+            node.StringId = null;
+            node.GuidId = Guid.Empty;
+            node.GuidIdSpecified = false;
+            node.OpaqueId = null;
+
+            switch (identifier)
+            {
+                case uint numericId:
+                    node.NumericId = numericId;
+                    node.NumericIdSpecified = true;
+                    break;
+                case string stringId:
+                    node.StringId = stringId;
+                    break;
+                case Guid guidId:
+                    node.GuidId = guidId;
+                    node.GuidIdSpecified = true;
+                    break;
+                case ByteString opaqueId:
+                    node.OpaqueId = opaqueId.ToArray();
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Returns true when the node carries an explicit identifier of any of
+        /// the four identifier types defined by OPC 10000-3 5.2.2.
+        /// </summary>
+        public static bool HasIdentifier(this NodeDesign node)
+        {
+            return node.GetIdentifier() != null;
+        }
+
+        /// <summary>
+        /// Returns true when the node carries a Guid or Opaque identifier.
+        /// These cannot be emitted as a C# <c>const</c> and are not part of the
+        /// generated identifier reflection tables.
+        /// </summary>
+        public static bool HasNonConstantIdentifier(this NodeDesign node)
+        {
+            return node != null &&
+                !node.NumericIdSpecified &&
+                string.IsNullOrEmpty(node.StringId) &&
+                (node.GuidIdSpecified || node.OpaqueId != null);
+        }
+
+        /// <summary>
+        /// Returns the C# literal for an identifier together with the C# type
+        /// the literal has.
+        /// </summary>
+        public static string GetIdentifierAsCode(object identifier, out string type)
+        {
+            switch (identifier)
+            {
+                case uint numericId:
+                    type = "uint";
+                    return CoreUtils.Format("{0}u", numericId);
+                case string stringId:
+                    type = "string";
+                    return stringId.AsStringLiteral();
+                case Guid guidId:
+                    type = "global::System.Guid";
+                    return CoreUtils.Format(
+                        "new global::System.Guid({0})",
+                        guidId.ToString("D", CultureInfo.InvariantCulture).AsStringLiteral());
+                case ByteString opaqueId:
+                    type = "global::Opc.Ua.ByteString";
+                    return CoreUtils.Format(
+                        "global::Opc.Ua.ByteString.FromBase64({0})",
+                        opaqueId.ToBase64().AsStringLiteral());
+                default:
+                    type = null;
+                    return null;
+            }
+        }
+
         public static string GetNodeIdAsCode(
             this NodeDesign node,
             Namespace[] namespaces,
@@ -3045,6 +3163,10 @@ namespace Opc.Ua.Schema.Model
             else if (!string.IsNullOrEmpty(node.StringId))
             {
                 identifier = node.StringId.AsStringLiteral();
+            }
+            else if (node.HasNonConstantIdentifier())
+            {
+                identifier = GetIdentifierAsCode(node.GetIdentifier(), out _);
             }
             else
             {
@@ -3086,6 +3208,10 @@ namespace Opc.Ua.Schema.Model
             else if (!string.IsNullOrEmpty(node.StringId))
             {
                 identifier = node.StringId.AsStringLiteral();
+            }
+            else if (node.HasNonConstantIdentifier())
+            {
+                identifier = GetIdentifierAsCode(node.GetIdentifier(), out _);
             }
             else
             {

@@ -127,16 +127,16 @@ namespace Opc.Ua.Schema.Model.Tests
             </UANodeSet>
             """;
 
-        private const string UnsupportedIdNodeSetTemplate = """
+        private const string ExtendedIdNodeSetTemplate = """
             <?xml version="1.0" encoding="utf-8"?>
             <UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                 xmlns:xsd="http://www.w3.org/2001/XMLSchema"
                 xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
                 <NamespaceUris>
-                    <Uri>http://test.org/UA/UnsupportedId/</Uri>
+                    <Uri>http://test.org/UA/ExtendedId/</Uri>
                 </NamespaceUris>
                 <Models>
-                    <Model ModelUri="http://test.org/UA/UnsupportedId/"
+                    <Model ModelUri="http://test.org/UA/ExtendedId/"
                         PublicationDate="2026-08-12T00:00:00Z"
                         Version="1.0.0" />
                 </Models>
@@ -163,8 +163,8 @@ namespace Opc.Ua.Schema.Model.Tests
                         <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
                     </References>
                 </UAObjectType>
-                <UAObject NodeId="__NODEID__" BrowseName="1:Unsupported">
-                    <DisplayName>Unsupported</DisplayName>
+                <UAObject NodeId="__NODEID__" BrowseName="1:ExtendedId">
+                    <DisplayName>ExtendedId</DisplayName>
                     <References>
                         <Reference ReferenceType="Organizes" IsForward="false">i=85</Reference>
                         <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
@@ -437,21 +437,52 @@ namespace Opc.Ua.Schema.Model.Tests
         }
 
         /// <summary>
-        /// Verifies that identifier types which the model design cannot represent
-        /// fail the import instead of producing nodes without any identifier.
+        /// Verifies that Guid identifiers (OPC 10000-3 5.2.2) are imported into the
+        /// model design instead of being dropped.
         /// </summary>
-        [TestCase("ns=1;g=09087e75-8e5e-499b-954f-f2a9603db28a", "Guid")]
-        [TestCase("ns=1;b=M/RbKBsRVkePCePcx24oRA==", "Opaque")]
-        [TestCase("ns=1;g=00000000-0000-0000-0000-000000000000", "Guid")]
-        public void ImportUnsupportedNodeIdTypeThrowsInvalidDataException(
-            string nodeId,
-            string idType)
+        [TestCase("09087e75-8e5e-499b-954f-f2a9603db28a")]
+        [TestCase("00000000-0000-0000-0000-000000000000")]
+        public void ImportGuidNodeIdKeepsIdentifier(string guid)
         {
-            const string path = "memory://UnsupportedId.NodeSet2.xml";
+            ObjectDesign node = ImportNodeWithIdentifier("ns=1;g=" + guid);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(node.GuidIdSpecified, Is.True);
+                Assert.That(node.GuidId, Is.EqualTo(Guid.Parse(guid)));
+                Assert.That(node.NumericIdSpecified, Is.False);
+                Assert.That(node.StringId, Is.Null);
+                Assert.That(node.OpaqueId, Is.Null);
+            });
+        }
+
+        /// <summary>
+        /// Verifies that opaque identifiers (OPC 10000-3 5.2.2) are imported into the
+        /// model design instead of being dropped.
+        /// </summary>
+        [Test]
+        public void ImportOpaqueNodeIdKeepsIdentifier()
+        {
+            const string base64 = "M/RbKBsRVkePCePcx24oRA==";
+
+            ObjectDesign node = ImportNodeWithIdentifier("ns=1;b=" + base64);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(node.OpaqueId, Is.EqualTo(Convert.FromBase64String(base64)));
+                Assert.That(node.NumericIdSpecified, Is.False);
+                Assert.That(node.GuidIdSpecified, Is.False);
+                Assert.That(node.StringId, Is.Null);
+            });
+        }
+
+        private ObjectDesign ImportNodeWithIdentifier(string nodeId)
+        {
+            const string path = "memory://ExtendedId.NodeSet2.xml";
             m_fileSystem.Add(
                 path,
                 Encoding.UTF8.GetBytes(
-                    UnsupportedIdNodeSetTemplate.Replace(
+                    ExtendedIdNodeSetTemplate.Replace(
                         "__NODEID__",
                         nodeId,
                         StringComparison.Ordinal)));
@@ -463,14 +494,11 @@ namespace Opc.Ua.Schema.Model.Tests
                 settings,
                 CreateTelemetry());
 
-            InvalidDataException ex = Assert.Throws<InvalidDataException>(
-                () => importer.Import("UnsupportedId", "UnsupportedId"));
+            ModelDesign model = importer.Import("ExtendedId", "ExtendedId");
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(ex.Message, Does.Contain(nodeId));
-                Assert.That(ex.Message, Does.Contain(idType));
-            });
+            return model.Items
+                .OfType<ObjectDesign>()
+                .Single(x => x.SymbolicName?.Name == "ExtendedId");
         }
 
         [Test]
