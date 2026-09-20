@@ -55,7 +55,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// generation. An unchanged closure (same digest, options and binder version)
     /// returns <see cref="WoTOutcomeEnum.Unchanged"/> and emits no model change.
     /// </summary>
-    public sealed class WotMaterializationCoordinator : IWotRefreshCaptureProvider, IDisposable
+    public sealed partial class WotMaterializationCoordinator : IWotRefreshCaptureProvider, IDisposable
     {
         /// <summary>
         /// Initializes a new coordinator.
@@ -72,8 +72,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
         {
             m_registry = registry ?? throw new ArgumentNullException(nameof(registry));
             m_deletePolicyRegistry = registry as IWotDeletePolicyRegistryService;
-            m_host = projectionHost ?? throw new ArgumentNullException(nameof(projectionHost));
-            m_binders = binderRegistry ?? NullWotBinderRegistry.Instance;
+            m_sourceHost = projectionHost ?? throw new ArgumentNullException(nameof(projectionHost));
+            m_host = new ProjectionCaptureAdapter(m_sourceHost, () => m_preparing);
+            m_sourceBinders = binderRegistry ?? NullWotBinderRegistry.Instance;
+            m_binders = new BinderCaptureAdapter(m_sourceBinders, () => m_preparing);
             m_converterOptions = converterOptions ?? new WotNodeSetConverterOptions();
             m_converterOptions.Validate();
             m_converter = documentConverter
@@ -82,7 +84,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 ? []
                 : [.. nodeSetContributors];
             m_nodeSetResolver = nodeSetResolver;
-            m_viewHost = viewProjectionHost ?? new InMemoryWotViewProjectionHost();
+            m_sourceViewHost = viewProjectionHost ?? new InMemoryWotViewProjectionHost();
+            m_viewHost = new ViewCaptureAdapter(m_sourceViewHost, () => m_preparing);
+            m_committedPublication = new WotCommittedPublicationState(m_registry.Current);
+            m_generation = m_registry.Current.RefreshGeneration;
         }
 
         /// <summary>
@@ -160,167 +165,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
                     using WotRefreshCapture capture = await CaptureInputsAsync(invocation, cancellationToken)
                         .ConfigureAwait(false);
-                    WotMaterializationSnapshot inputs = capture.Inputs;
-                    bool dryRun = invocation.DryRun;
-                    bool force = invocation.Force;
-                    bool strict = capture.StrictBindings;
-                    WotRegistrySnapshot snapshot = inputs.Registry;
-                    List<WotDependencyClosure> closures = inputs.Closures.ToList();
-                    var selectedXids = new HashSet<string>(
-                        inputs.Selection.ToList().Select(selected => selected.Resource.Xid), StringComparer.Ordinal);
-                    var contentCache = new Dictionary<string, ByteString>(inputs.Contents, StringComparer.Ordinal);
-
-                    var targetKeys = new HashSet<string>(
-                        closures.Select(c => c.Key), StringComparer.Ordinal);
-                    var inputXids = new HashSet<string>(
-                        inputs.Resources.ToList().Select(resource => resource.Xid), StringComparer.Ordinal);
-                    foreach (ClosureState tracked in m_closures.Values)
-                    {
-                        if ((!inputs.SelectsAll && !tracked.MemberXids.Any(selectedXids.Contains)) ||
-                            tracked.MemberXids.Any(inputXids.Contains))
-                        {
-                            targetKeys.Add(tracked.Key);
-                        }
-                    }
-                    var declarationContext = new WotProjectionDeclarationContext(
-                        snapshot, m_converterOptions.MaxJsonDepth,
-                        (version, token) => ReadCachedContentAsync(contentCache, version, token),
-                        m_converterOptions.MaxNodeCount);
-                    declarationContext.AddAvailableNativePartitions(
-                        contentCache, m_converterOptions, cancellationToken);
-
-                    uint newGeneration = m_generation + 1;
-                    ImmutableArray<WoTResourceLoadResultDataType>.Builder results =
-                        ImmutableArray.CreateBuilder<WoTResourceLoadResultDataType>();
-                    var projections = new List<WotResourceProjection>();
-                    var closureOutcomes = new List<(WotDependencyClosure Closure, ClosureOutcome Outcome)>();
-                    int succeeded = 0;
-                    int unchanged = 0;
-                    int failed = 0;
-                    int skipped = 0;
-                    int retired = 0;
-
-                    foreach (WotSelectedResource selected in inputs.Selection)
-                    {
-                        if (selected.Resource.Enabled && selected.Version?.HasContent == true)
-                        {
-                            continue;
-                        }
-                        results.Add(new WoTResourceLoadResultDataType
-                        {
-                            Xid = selected.ResultXid,
-                            GroupId = selected.Resource.GroupId,
-                            ResourceId = selected.Resource.ResourceId,
-                            VersionId = selected.Version?.VersionId ?? string.Empty,
-                            Kind = selected.Resource.Kind,
-                            Outcome = WoTOutcomeEnum.Skipped,
-                            Phase = WoTPhaseEnum.Fetch,
-                            LoadState = selected.Resource.LoadState,
-                            Generation = m_generation,
-                            ContentDigest = selected.Version is null ? ByteString.Empty : selected.Version.Digest,
-                            Message = "The selected Version is disabled or has no committed content."
-                        });
-                        skipped++;
-                    }
-
-                    // Retire tracked closures no longer desired (deleted / disabled /
-                    // membership changed) after their monitored items drain.
-                    (int retiredCount, ImmutableArray<WoTResourceLoadResultDataType> retiredResults) =
-                        await ReconcileRetirementsAsync(
-                            targetKeys, newGeneration, dryRun, cancellationToken).ConfigureAwait(false);
-                    retired += retiredCount;
-                    skipped += retiredResults.Length;
-                    results.AddRange(retiredResults);
-
-                    foreach (WotDependencyClosure closure in closures)
-                    {
-                        cancellationToken.ThrowIfCancellationRequested();
-                        ClosureOutcome outcome = await ProcessClosureAsync(
-                            capture, snapshot, closure, newGeneration, force,
-                            dryRun, strict, contentCache, declarationContext, cancellationToken).ConfigureAwait(false);
-                        retired += outcome.Retired;
-
-                        foreach (WoTResourceLoadResultDataType result in outcome.Results)
-                        {
-                            WotSelectedResource? selected = inputs.Selection.ToList().FirstOrDefault(candidate =>
-                                candidate.Resource.Xid == result.Xid);
-                            if (selected is not null)
-                            {
-                                result.Xid = selected.ResultXid;
-                            }
-                            results.Add(result);
-                            switch (result.Outcome)
-                            {
-                                case WoTOutcomeEnum.Success:
-                                case WoTOutcomeEnum.Warning:
-                                    succeeded++;
-                                    break;
-                                case WoTOutcomeEnum.Unchanged:
-                                    unchanged++;
-                                    break;
-                                case WoTOutcomeEnum.Skipped:
-                                    skipped++;
-                                    break;
-                                default:
-                                    failed++;
-                                    break;
-                            }
-                        }
-                        closureOutcomes.Add((closure, outcome));
-                    }
-
-                    uint observedGeneration = succeeded != 0 || retired != 0 ? newGeneration : m_generation;
-                    foreach ((WotDependencyClosure closure, ClosureOutcome outcome) in closureOutcomes)
-                    {
-                        if (!dryRun && capture.SupportsDependencySnapshots)
-                        {
-                            AddDependencyObservations(
-                                capture, closure, outcome, observedGeneration);
-                        }
-                        projections.AddRange(outcome.Projections);
-                    }
-
-                    if (!dryRun && projections.Count > 0)
-                    {
-                        await m_registry.ApplyProjectionResultsAsync(
-                            projections, cancellationToken).ConfigureAwait(false);
-                    }
-                    if (!dryRun && (succeeded != 0 || retired != 0))
-                    {
-                        m_generation = newGeneration;
-                    }
-
-                    WoTOutcomeEnum overall = failed > 0
-                        ? (succeeded > 0 ? WoTOutcomeEnum.Warning : WoTOutcomeEnum.Failed)
-                        : (succeeded > 0 ? WoTOutcomeEnum.Success : WoTOutcomeEnum.Unchanged);
-
-                    var summary = new WoTRefreshSummaryDataType
-                    {
-                        RequestId = invocation.RequestId,
-                        Generation = m_generation,
-                        Outcome = overall,
-                        Atomicity = invocation.Atomicity,
-                        StartTime = start,
-                        EndTime = DateTime.UtcNow,
-                        Total = (uint)results.Count,
-                        Succeeded = (uint)succeeded,
-                        Unchanged = (uint)unchanged,
-                        Failed = (uint)failed,
-                        Skipped = (uint)skipped,
-                        Retired = (uint)retired
-                    };
-
-                    RaiseEvent(new WotMaterializationEventArgs(
-                        WotMaterializationEventKind.RefreshCompleted)
-                    {
-                        Generation = m_generation,
-                        RequestId = invocation.RequestId,
-                        Outcome = overall,
-                        Summary = summary
-                    });
-
-                    return new WotRefreshResult(
-                        summary, results.ToImmutable(), m_generation);
+                    return invocation.Atomicity == WoTAtomicityEnum.PerRegistry
+                        ? await RefreshPreparedRegistryAsync(capture, start, cancellationToken).ConfigureAwait(false)
+                        : await RefreshCoreAsync(capture, start, cancellationToken).ConfigureAwait(false);
                 }
                 finally
                 {
@@ -331,6 +178,182 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 EndOperation();
             }
+        }
+
+        private async ValueTask<WotRefreshResult> RefreshCoreAsync(
+            WotRefreshCapture capture,
+            DateTime start,
+            CancellationToken cancellationToken)
+        {
+            WotCapturedRefreshRequest invocation = capture.Request;
+            WotMaterializationSnapshot inputs = capture.Inputs;
+            bool dryRun = invocation.DryRun;
+            bool force = invocation.Force;
+            bool strict = capture.StrictBindings;
+            WotRegistrySnapshot snapshot = inputs.Registry;
+            List<WotDependencyClosure> closures = inputs.Closures.ToList();
+            var selectedXids = new HashSet<string>(
+                inputs.Selection.ToList().Select(selected => selected.Resource.Xid), StringComparer.Ordinal);
+            var contentCache = new Dictionary<string, ByteString>(inputs.Contents, StringComparer.Ordinal);
+
+            var targetKeys = new HashSet<string>(
+                closures.Select(c => c.Key), StringComparer.Ordinal);
+            var inputXids = new HashSet<string>(
+                inputs.Resources.ToList().Select(resource => resource.Xid), StringComparer.Ordinal);
+            foreach (ClosureState tracked in ClosureStates.Values)
+            {
+                if ((!inputs.SelectsAll && !tracked.MemberXids.Any(selectedXids.Contains)) ||
+                    tracked.MemberXids.Any(inputXids.Contains))
+                {
+                    targetKeys.Add(tracked.Key);
+                }
+            }
+            var declarationContext = new WotProjectionDeclarationContext(
+                snapshot, m_converterOptions.MaxJsonDepth,
+                (version, token) => ReadCachedContentAsync(contentCache, version, token),
+                m_converterOptions.MaxNodeCount);
+            declarationContext.AddAvailableNativePartitions(
+                contentCache, m_converterOptions, cancellationToken);
+
+            uint newGeneration = m_generation + 1;
+            ImmutableArray<WoTResourceLoadResultDataType>.Builder results =
+                ImmutableArray.CreateBuilder<WoTResourceLoadResultDataType>();
+            var projections = new List<WotResourceProjection>();
+            var closureOutcomes = new List<(WotDependencyClosure Closure, ClosureOutcome Outcome)>();
+            int succeeded = 0;
+            int unchanged = 0;
+            int failed = 0;
+            int skipped = 0;
+            int retired = 0;
+
+            foreach (WotSelectedResource selected in inputs.Selection)
+            {
+                if (selected.Resource.Enabled && selected.Version?.HasContent == true)
+                {
+                    continue;
+                }
+                results.Add(new WoTResourceLoadResultDataType
+                {
+                    Xid = selected.ResultXid,
+                    GroupId = selected.Resource.GroupId,
+                    ResourceId = selected.Resource.ResourceId,
+                    VersionId = selected.Version?.VersionId ?? string.Empty,
+                    Kind = selected.Resource.Kind,
+                    Outcome = WoTOutcomeEnum.Skipped,
+                    Phase = WoTPhaseEnum.Fetch,
+                    LoadState = selected.Resource.LoadState,
+                    Generation = m_generation,
+                    ContentDigest = selected.Version is null ? ByteString.Empty : selected.Version.Digest,
+                    Message = "The selected Version is disabled or has no committed content."
+                });
+                skipped++;
+            }
+
+            // Retire tracked closures no longer desired (deleted / disabled /
+            // membership changed) after their monitored items drain.
+            (int retiredCount, ImmutableArray<WoTResourceLoadResultDataType> retiredResults) =
+                await ReconcileRetirementsAsync(
+                    targetKeys, newGeneration, dryRun, cancellationToken).ConfigureAwait(false);
+            retired += retiredCount;
+            skipped += retiredResults.Length;
+            results.AddRange(retiredResults);
+
+            foreach (WotDependencyClosure closure in closures)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                ClosureOutcome outcome = await ProcessClosureAsync(
+                    capture, snapshot, closure, newGeneration, force,
+                    dryRun, strict, contentCache, declarationContext, cancellationToken).ConfigureAwait(false);
+                retired += outcome.Retired;
+
+                foreach (WoTResourceLoadResultDataType result in outcome.Results)
+                {
+                    WotSelectedResource? selected = inputs.Selection.ToList().FirstOrDefault(candidate =>
+                        candidate.Resource.Xid == result.Xid);
+                    if (selected is not null)
+                    {
+                        result.Xid = selected.ResultXid;
+                    }
+                    results.Add(result);
+                    switch (result.Outcome)
+                    {
+                        case WoTOutcomeEnum.Success:
+                        case WoTOutcomeEnum.Warning:
+                            succeeded++;
+                            break;
+                        case WoTOutcomeEnum.Unchanged:
+                            unchanged++;
+                            break;
+                        case WoTOutcomeEnum.Skipped:
+                            skipped++;
+                            break;
+                        default:
+                            failed++;
+                            break;
+                    }
+                }
+                closureOutcomes.Add((closure, outcome));
+            }
+
+            uint observedGeneration = succeeded != 0 || retired != 0 ? newGeneration : m_generation;
+            foreach ((WotDependencyClosure closure, ClosureOutcome outcome) in closureOutcomes)
+            {
+                if (!dryRun && capture.SupportsDependencySnapshots)
+                {
+                    AddDependencyObservations(
+                        capture, closure, outcome, observedGeneration);
+                }
+                projections.AddRange(outcome.Projections);
+            }
+
+            if (!dryRun && projections.Count > 0)
+            {
+                if (m_preparing is { } preparing)
+                {
+                    preparing.Projections.AddRange(projections);
+                }
+                else
+                {
+                    await m_registry.ApplyProjectionResultsAsync(
+                        projections, cancellationToken).ConfigureAwait(false);
+                }
+            }
+            if (!dryRun && m_preparing is null && (succeeded != 0 || retired != 0))
+            {
+                m_generation = newGeneration;
+            }
+
+            WoTOutcomeEnum overall = failed > 0
+                ? (succeeded > 0 ? WoTOutcomeEnum.Warning : WoTOutcomeEnum.Failed)
+                : (succeeded > 0 ? WoTOutcomeEnum.Success : WoTOutcomeEnum.Unchanged);
+
+            var summary = new WoTRefreshSummaryDataType
+            {
+                RequestId = invocation.RequestId,
+                Generation = m_generation,
+                Outcome = overall,
+                Atomicity = invocation.Atomicity,
+                StartTime = start,
+                EndTime = DateTime.UtcNow,
+                Total = (uint)results.Count,
+                Succeeded = (uint)succeeded,
+                Unchanged = (uint)unchanged,
+                Failed = (uint)failed,
+                Skipped = (uint)skipped,
+                Retired = (uint)retired
+            };
+
+            RaiseEvent(new WotMaterializationEventArgs(
+                WotMaterializationEventKind.RefreshCompleted)
+            {
+                Generation = m_generation,
+                RequestId = invocation.RequestId,
+                Outcome = overall,
+                Summary = summary
+            });
+
+            return new WotRefreshResult(
+                summary, results.ToImmutable(), m_generation);
         }
 
         /// <summary>
@@ -795,8 +818,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             IReadOnlyList<WotResource> members = MembersOf(closure);
             IReadOnlyList<WotResource> activeMembers =
                 [.. members.Where(member => member.Enabled)];
-            m_closures.TryGetValue(closure.Key, out ClosureState? tracked);
-            if (tracked is null && m_closures.Values.Any(existing =>
+            ClosureStates.TryGetValue(closure.Key, out ClosureState? tracked);
+            if (tracked is null && ClosureStates.Values.Any(existing =>
                 existing.MemberXids.Any(xid => members.Any(member => member.Xid == xid))))
             {
                 const string reason =
@@ -1183,7 +1206,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
             }
 
-            m_closures[closure.Key] = new ClosureState
+            ClosureStates[closure.Key] = new ClosureState
             {
                 Key = closure.Key,
                 Handle = handle,
@@ -1205,7 +1228,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             };
             foreach (string namespaceUri in sources.SelectMany(s => s.ModelNamespaceUris))
             {
-                m_projectionNamespaceUris.Add(namespaceUri);
+                ProjectionNamespaces.Add(namespaceUri);
             }
 
             foreach (WotBindingPlan plan in bindingPlans)
@@ -1284,9 +1307,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             ImmutableArray<WoTResourceLoadResultDataType>.Builder results =
                 ImmutableArray.CreateBuilder<WoTResourceLoadResultDataType>();
             int retired = 0;
-            foreach (string key in (List<string>)[.. m_closures.Keys.Where(k => !targetKeys.Contains(k))])
+            foreach (string key in (List<string>)[.. ClosureStates.Keys.Where(k => !targetKeys.Contains(k))])
             {
-                if (m_closures.TryGetValue(key, out ClosureState? state))
+                if (ClosureStates.TryGetValue(key, out ClosureState? state))
                 {
                     if (state.Handle is not null)
                     {
@@ -1315,7 +1338,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             await m_viewHost.RemoveAsync(viewHandle, cancellationToken)
                                 .ConfigureAwait(false);
                         }
-                        m_closures.Remove(key);
+                        ClosureStates.Remove(key);
                     }
                 }
             }
@@ -1989,7 +2012,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         private async ValueTask<bool> IsKnownToServerAsync(string namespaceUri, CancellationToken cancellationToken)
         {
-            foreach (ClosureState closure in m_closures.Values)
+            foreach (ClosureState closure in ClosureStates.Values)
             {
                 if (closure.Handle is not null &&
                     closure.ModelNamespaceUris.Contains(namespaceUri, StringComparer.Ordinal))
@@ -1997,7 +2020,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     return true;
                 }
             }
-            if (m_projectionNamespaceUris.Contains(namespaceUri))
+            if (ProjectionNamespaces.Contains(namespaceUri))
             {
                 return false;
             }
@@ -2358,6 +2381,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         private void RaiseEvent(WotMaterializationEventArgs args)
         {
+            if (m_preparing is { } preparing)
+            {
+                preparing.Events.Add(args);
+                return;
+            }
             Event?.Invoke(this, args);
         }
 
@@ -2428,9 +2456,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         private readonly IWotRegistryService m_registry;
         private readonly IWotDeletePolicyRegistryService? m_deletePolicyRegistry;
-        private readonly IWotProjectionHost m_host;
-        private readonly IWotViewProjectionHost m_viewHost;
-        private readonly IWotBinderRegistry m_binders;
+        private readonly ProjectionCaptureAdapter m_host;
+        private readonly ViewCaptureAdapter m_viewHost;
+        private readonly BinderCaptureAdapter m_binders;
         private readonly IWotDocumentConverter m_converter;
         private readonly ImmutableArray<IWotNodeSetContributor> m_nodeSetContributors;
         private readonly IWotNodeSetResolver? m_nodeSetResolver;
