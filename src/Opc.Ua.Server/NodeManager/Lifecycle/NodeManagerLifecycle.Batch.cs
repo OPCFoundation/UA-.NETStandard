@@ -235,7 +235,10 @@ namespace Opc.Ua.Server
                     .ToArrayOf();
 
                 await ((IDynamicNodeManagerBatchHost)batch.Host).CommitBatchAsync(
-                    candidates, removed, batch.RoutingRevision, batch.TypeTree, batch.OriginalTypes,
+                    candidates, removed,
+                    retired.Where(generation => generation.DetachActiveMonitoredItems)
+                        .Select(generation => generation.NodeManager).ToArrayOf(),
+                    batch.RoutingRevision, batch.TypeTree, batch.OriginalTypes,
                     batch.TypeRevision, batch.Factory, batch.OriginalFactory, batch.FactoryRevision, decideAsync,
                     () =>
                     {
