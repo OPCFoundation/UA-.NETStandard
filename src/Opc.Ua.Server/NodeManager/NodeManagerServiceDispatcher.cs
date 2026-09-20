@@ -1032,6 +1032,15 @@ namespace Opc.Ua.Server
                         {
                             return (StatusCodes.BadNoContinuationPoints, null, referenceList);
                         }
+                        if (!currentCp.HasCapturedDependencies)
+                        {
+                            ServiceResult dependencyResult = await CaptureBrowseDependenciesAsync(
+                                currentCp, snapshot, cancellationToken).ConfigureAwait(false);
+                            if (ServiceResult.IsBad(dependencyResult))
+                            {
+                                return (dependencyResult, null, []);
+                            }
+                        }
                         currentCp.Id = Guid.NewGuid();
                         context!.Session!.ContinuationPoints.SaveBrowse(currentCp);
                         saved = true;
@@ -1054,6 +1063,47 @@ namespace Opc.Ua.Server
                     }
                 }
             }
+        }
+
+        private async ValueTask<ServiceResult> CaptureBrowseDependenciesAsync(
+            ContinuationPoint point,
+            NodeManagerRoutingTable.RoutingSnapshot snapshot,
+            CancellationToken cancellationToken)
+        {
+            if (point.Data is not IBrowseContinuationDependencies dependencies ||
+                !dependencies.TryGetContinuationDependencies(out ArrayOf<ExpandedNodeId> targetIds))
+            {
+                return ServiceResult.Create(StatusCodes.BadNotSupported,
+                    "The Browse continuation cannot declare its complete remaining dependencies.");
+            }
+
+            var targets = new HashSet<NodeId>();
+            foreach (ExpandedNodeId targetId in targetIds)
+            {
+                if (!targetId.IsAbsolute && !targetId.IsNull)
+                {
+                    targets.Add((NodeId)targetId);
+                }
+            }
+            if (point.View is not null && !point.View.ViewId.IsNull)
+            {
+                targets.Add(point.View.ViewId);
+            }
+            var owners = new List<IAsyncNodeManager> { point.Manager };
+            foreach (NodeId targetId in targets)
+            {
+                (object? handle, IAsyncNodeManager? manager) = await m_owner.GetManagerHandleAsync(
+                    targetId, cancellationToken).ConfigureAwait(false);
+                if (handle is not null && manager is not null &&
+                    !owners.Exists(owner => ReferenceEquals(owner, manager)))
+                {
+                    owners.Add(manager);
+                }
+            }
+            ArrayOf<IAsyncNodeManager> retainedOwners = [.. owners];
+            point.SetDependencyOwners(retainedOwners);
+            point.RoutingSnapshot = snapshot.ForBrowse(retainedOwners);
+            return ServiceResult.Good;
         }
 
         /// <summary>

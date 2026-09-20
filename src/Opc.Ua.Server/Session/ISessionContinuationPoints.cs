@@ -78,7 +78,7 @@ namespace Opc.Ua.Server
         IHistoryContinuationPoint? RestoreHistory(ByteString continuationPoint);
 
         /// <summary>
-        /// Invalidates points issued by a node manager that is going away, so nothing
+        /// Invalidates points requiring a node manager that is going away, so nothing
         /// resumes against an address space that no longer exists. A currently executing
         /// Browse point remains owned by its request but cannot be saved again.
         /// </summary>
@@ -87,7 +87,7 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// Optional ownership capability used to drain gracefully retired Browse sources.
+    /// Optional ownership capability used to drain gracefully retired Browse sources and dependencies.
     /// </summary>
     public interface ISessionContinuationPointLifecycle
     {
@@ -98,8 +98,9 @@ namespace Opc.Ua.Server
         event Action? BrowseContinuationPointsReleased;
 
         /// <summary>
-        /// Reports saved and currently restored Browse continuations owned by the exact manager.
-        /// Restoring a point transfers its use to the request without releasing its source.
+        /// Reports saved and currently restored Browse continuations requiring the exact manager.
+        /// Implementations must include dependencies by using <see cref="ContinuationPoint.RequiresManager"/>.
+        /// Restoring a point transfers its use to the request without releasing any of its owners.
         /// </summary>
         bool HasBrowseForManager(IAsyncNodeManager nodeManager);
     }

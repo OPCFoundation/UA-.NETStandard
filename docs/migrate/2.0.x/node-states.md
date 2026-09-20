@@ -315,6 +315,38 @@ that to the browser's own `Next()`.
 
 Analyzer `UA0027` reports every remaining `NodeBrowser.DataLock` reference.
 
+### Paginated Browse declares all remaining generation dependencies
+
+**Behavior change for custom and derived browsers:** a saved Browse continuation now
+retains every required target owner, not just its issuing NodeManager. Its data must
+implement `IBrowseContinuationDependencies`. The standard `NodeBrowser` implements
+the contract for its stored reference snapshot; the async manager's browser wrapper
+forwards it. A derived browser does not inherit a completeness promise for targets
+it might produce lazily.
+
+Override `TryGetContinuationDependencies` only when you can declare every remaining
+external target before saving the first page. For a browser with a complete, fixed
+`m_futureTargets` set:
+
+```csharp
+public override bool TryGetContinuationDependencies(out ArrayOf<ExpandedNodeId> targetIds)
+{
+    targetIds = [.. GetRemainingReferenceTargets(), .. m_futureTargets];
+    return true;
+}
+```
+
+The query must not advance the browser. Returning `true` with an empty set promises
+that no owner other than the issuer is needed. If lazy dependencies cannot be
+bounded, return `false`: paginated Browse reports `BadNotSupported` with no partial
+references or continuation; unpaged Browse is unchanged. Do not guess from the
+currently buffered references or enumerate unrelated sources.
+
+Custom Session ownership caches must use `ContinuationPoint.RequiresManager` for
+both retention and invalidation rather than comparing only `Manager`. The query
+includes exact captured dependency owners and equivalent synchronous adapters.
+See [continuation ownership](../../NodeManagers.md#continuation-points).
+
 ## `INodeCache` changes
 
 Version 2.0 collapses the two parallel node-cache contracts into a single public interface and removes the remaining synchronous wrappers from the cache surface.

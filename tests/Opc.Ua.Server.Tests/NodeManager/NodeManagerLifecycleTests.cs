@@ -7582,7 +7582,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
-        private sealed class TrackingLifecycleNodeManager :
+        private sealed partial class TrackingLifecycleNodeManager :
             NodeManagementLifecycleNodeManager
         {
             private int m_sessionActivatedCount;

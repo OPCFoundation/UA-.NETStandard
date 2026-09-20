@@ -518,7 +518,7 @@ The modes differ in the client contract for work already attached to the retired
 | Mode | Existing MonitoredItems | Browse continuation points and in-flight requests | When to choose it | Cost |
 | --- | --- | --- | --- | --- |
 | Normal reload, `ReloadAsync` | The server detaches items from the retired generation before the routing switch, attaches compatible items to the replacement after commit, and reports `BadNodeIdUnknown` once for removed or incompatible items. Subscriptions and compatible MonitoredItem ids are preserved. | Existing requests complete on the generation they captured. Continuation points that captured the retired generation are invalidated after that request drain because no old MonitoredItems remain to keep the generation alive. | The default for compatible model updates where Clients should keep subscriptions and receive a clear status only for removed nodes. | Requires the replacement to support monitored-item attachment and may fail the reload if an unexpected item incompatibility is detected. |
-| Shadow reload, `ShadowReloadAsync` | Existing items stay on the retired generation and continue sampling there. New MonitoredItems are created on the replacement. The retired generation is disposed only after all retained items, Browse continuations, and requests drain. | Each saved or executing Browse continuation retains its exact old owner independently of MonitoredItems. Final-page completion, explicit release, cache eviction, or Session teardown releases that continuation's ownership. | Use when existing subscriptions and Browse operations must keep the old model semantics while new operations move to the replacement, for example during long migrations or when compatible hand-over is not desirable. | Runs two generations at once, including the old sampling/event fan-out, so memory and model resources remain allocated until Clients drain. |
+| Shadow reload, `ShadowReloadAsync` | Existing items stay on the retired generation and continue sampling there. New MonitoredItems are created on the replacement. The retired generation is disposed only after all retained items, Browse continuations, and requests drain. | Each saved or executing Browse continuation retains its issuing owner and exact required target owners independently of MonitoredItems. Final-page completion, explicit release, cache eviction, or Session teardown releases that continuation's ownership; in-flight metadata work still drains before disposal. | Use when existing subscriptions and Browse operations must keep the old model semantics while new operations move to the replacement, for example during long migrations or when compatible hand-over is not desirable. | Runs two generations at once, including the old sampling/event fan-out, so memory and model resources remain allocated until Clients drain. |
 | Immediate reload, `ImmediateReloadAsync` | The server detaches every item owned by the retired generation and reports `BadNodeIdUnknown`; it does not try to attach compatible items to the replacement. Clients may recreate items against the new generation. | Existing requests complete on the generation they captured. Continuation points that captured the retired generation are invalidated after the request drain, and the old generation can then be detached promptly. | Use for destructive or security-sensitive changes where serving or migrating old items is worse than forcing Clients to resubscribe. | Causes deliberate subscription churn and one bad status per old data MonitoredItem. |
 
 All three modes are intentional: normal reload preserves compatible subscriptions, shadow reload
@@ -563,12 +563,31 @@ custom Subscription implementation needs the equivalent snapshots from
 #### Continuation points
 
 `ShadowReloadAsync` and graceful prepared-batch replacement/removal retain saved Browse continuation
-points even when the old NodeManager has no MonitoredItems. Restoring a point transfers its use to
-the executing `BrowseNext` without releasing its generation. Each page uses the captured routing
+points even when the old NodeManagers have no MonitoredItems. A point retains both its issuing
+manager and every old-generation owner needed by its remaining targets, including cross-manager
+metadata and filtering. Owners are resolved by exact NodeId against the captured route image, not
+by namespace membership. Two points sharing a target retain that target independently; unrelated
+managers, including other managers in the same namespace, can retire.
+Restoring a point transfers its use to the executing `BrowseNext` without releasing any owner.
+Each page uses the captured routing
 and reference image, preserves the original Browse filters, and rechecks current permissions.
-New Browse operations use the active generation.
+The continuation's routing view excludes unrelated retired managers while preserving the
+captured type, factory, and reference images. New Browse operations use the active generation.
 Disposal and initial ownership registration are coordinated so a concurrent disposal cannot
 leave a disposed continuation retaining its generation.
+
+**Custom browser compatibility:** paginated Browse requires a complete dependency declaration
+through `IBrowseContinuationDependencies` on `ContinuationPoint.Data`. The built-in
+`AsyncCustomNodeManager` forwards that query to its browser; `CustomNodeManager2` stores the browser
+directly. The standard `NodeBrowser` reports its remaining stored references, including pushback,
+without advancing. Derived or custom lazy browsers must explicitly implement/override the query
+and include every future target owner they can need, not just currently buffered targets.
+`GetRemainingReferenceTargets()` supplies the stored part for a derived browser's declaration.
+An empty successful declaration promises that only the issuing owner is needed.
+If the complete set cannot be declared, paginated Browse returns `BadNotSupported`, with no
+continuation or partial references, instead of guessing, retaining the whole server, or silently
+losing targets later. Unpaged Browse is unchanged. A declaration is captured before first save and
+remains valid for that point's lifetime; arbitrary new external dependencies cannot appear later.
 
 Final-page completion, explicit release, cache eviction, failed or cancelled `BrowseNext`, and
 Session close/disposal release the corresponding ownership. The cache evicts only available
@@ -577,14 +596,17 @@ point or another manager, and a continuation for an unrelated manager does not p
 Cleanup is scheduled through the existing lifecycle drain; destruction waits until that owner's
 MonitoredItems, Browse continuations, and captured requests have drained.
 
-Normal and immediate reload/removal still invalidate saved points. A later `BrowseNext` returns
+Normal and immediate reload/removal invalidate points requiring the removed manager, whether it
+is the source or a dependency. A later `BrowseNext` returns
 `BadContinuationPointInvalid` rather than invoking a disposed generation. An invalidated or
 closed-session point cannot be saved again by a request that was already executing. Shutdown
 discards saved points and retains the existing bounded request-drain and cleanup behavior.
 
 Custom Session continuation caches can implement `ISessionContinuationPointLifecycle` to report
-exact saved and executing Browse ownership and signal final release. Existing
-`ISessionContinuationPoints` callers need no changes. Graceful cleanup refuses an unsupported
+exact saved and executing Browse ownership and signal final release. Their ownership and
+invalidation checks must use `ContinuationPoint.RequiresManager`, not only `Manager`, so they
+include dependencies. Existing `ISessionContinuationPoints` callers need no changes.
+Graceful cleanup refuses an unsupported
 ownership query instead of guessing that the manager is unused; a prepared batch reports that
 post-commit failure through `CleanupFailure` without rolling back publication.
 

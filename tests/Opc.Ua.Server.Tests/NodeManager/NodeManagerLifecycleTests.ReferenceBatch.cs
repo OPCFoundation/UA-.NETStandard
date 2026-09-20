@@ -606,7 +606,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             private readonly ArrayOf<LocalReference> m_references;
         }
 
-        private sealed class ReferenceSynchronousNodeManager : CustomNodeManager2
+        private sealed partial class ReferenceSynchronousNodeManager : CustomNodeManager2
         {
             public ReferenceSynchronousNodeManager(
                 IServerInternal server,

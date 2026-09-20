@@ -38,7 +38,7 @@ namespace Opc.Ua.Server.Tests
 {
     [TestFixture]
     [Category("Session")]
-    public sealed class SessionContinuationOwnershipTests
+    public sealed partial class SessionContinuationOwnershipTests
     {
         [Test]
         public async Task ConcurrentBrowseSaveAndDisposalCannotRetainOwnerAsync()

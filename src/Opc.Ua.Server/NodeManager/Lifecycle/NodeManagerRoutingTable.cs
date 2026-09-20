@@ -817,6 +817,37 @@ namespace Opc.Ua.Server
             { get; }
 
             /// <summary>
+            /// Keeps the captured images but limits continuation dispatch to its retained owners.
+            /// The first two infrastructure managers keep their fixed dispatcher indexes.
+            /// </summary>
+            internal RoutingSnapshot ForBrowse(ArrayOf<IAsyncNodeManager> owners)
+            {
+                IAsyncNodeManager[] managers =
+                [
+                    .. NodeManagers.Where((manager, index) =>
+                        index < 2 || owners.Contains(owner => ReferenceEquals(owner, manager)))
+                ];
+                var routes = new Dictionary<int, IReadOnlyList<IAsyncNodeManager>>();
+                foreach (KeyValuePair<int, IReadOnlyList<IAsyncNodeManager>> route in NamespaceManagers)
+                {
+                    IAsyncNodeManager[] retained =
+                    [
+                        .. route.Value.Where(manager => Array.Exists(
+                            managers, owner => ReferenceEquals(owner, manager)))
+                    ];
+                    if (retained.Length > 0)
+                    {
+                        routes.Add(route.Key, retained);
+                    }
+                }
+                return new RoutingSnapshot(
+                    managers, routes,
+                    [.. HiddenNodeManagers.Where(manager => Array.Exists(
+                        managers, owner => ReferenceEquals(owner, manager)))],
+                    TypeTree, Factory, References);
+            }
+
+            /// <summary>
             /// Builds the namespace routes that exclude hidden NodeManagers, dropping namespaces
             /// left without any visible NodeManager.
             /// </summary>

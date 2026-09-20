@@ -262,9 +262,7 @@ namespace Opc.Ua.Server
 
         private static bool IsOwnedBy(ContinuationPoint point, IAsyncNodeManager nodeManager)
         {
-            return ReferenceEquals(point.Manager, nodeManager) ||
-                (point.Manager?.SyncNodeManager is { } syncManager &&
-                    ReferenceEquals(syncManager, nodeManager.SyncNodeManager));
+            return point.RequiresManager(nodeManager);
         }
 
         private void ReleaseBrowse(BrowseContinuationPoint entry)

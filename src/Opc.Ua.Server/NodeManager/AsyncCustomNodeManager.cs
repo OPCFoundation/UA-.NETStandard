@@ -8378,7 +8378,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// A wrapper for the browser that provides a lock.
         /// </summary>
-        private class BrowserContext : IDisposable
+        private class BrowserContext : IDisposable, IBrowseContinuationDependencies
         {
             public INodeBrowser Browser { get; }
             public SemaphoreSlim Semaphore { get; } = new(1, 1);
@@ -8386,6 +8386,16 @@ namespace Opc.Ua.Server
             public BrowserContext(INodeBrowser browser)
             {
                 Browser = browser;
+            }
+
+            public bool TryGetContinuationDependencies(out ArrayOf<ExpandedNodeId> targetIds)
+            {
+                if (Browser is IBrowseContinuationDependencies dependencies)
+                {
+                    return dependencies.TryGetContinuationDependencies(out targetIds);
+                }
+                targetIds = default;
+                return false;
             }
 
             public void Dispose()
