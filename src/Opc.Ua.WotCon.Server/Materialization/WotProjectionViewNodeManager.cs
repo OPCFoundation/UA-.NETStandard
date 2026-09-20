@@ -49,7 +49,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// (which are owned by other NodeManagers) with forward-only references and
     /// creates no affordance Node of its own.
     /// </summary>
-    internal sealed class WotProjectionViewNodeManager : AsyncCustomNodeManager
+    internal sealed partial class WotProjectionViewNodeManager : AsyncCustomNodeManager
     {
         /// <summary>
         /// Initializes a new projection-view NodeManager.
