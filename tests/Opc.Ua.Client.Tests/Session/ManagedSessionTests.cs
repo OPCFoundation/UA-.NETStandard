@@ -824,6 +824,135 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         [Test]
+        public void ConnectConsultsTheProviderWhenNoTokenPoliciesAndNoFallbackIdentityExist()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ApplicationConfiguration configuration = CreateClientConfiguration(telemetry);
+            ConfiguredEndpoint endpoint = CreateEndpointWithoutTokenPolicies();
+
+            IUserIdentity? observed = null;
+            var sessionFactory = new Mock<ISessionFactory>();
+            sessionFactory.SetupGet(f => f.Telemetry).Returns(telemetry);
+            sessionFactory.Setup(f => f.WithSubscriptionEngine(
+                    It.IsAny<ISubscriptionEngineFactory>(), It.IsAny<TimeProvider?>()))
+                .Returns(sessionFactory.Object);
+            sessionFactory.Setup(f => f.CreateAsync(
+                    It.IsAny<ApplicationConfiguration>(), It.IsAny<ConfiguredEndpoint>(),
+                    It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<string>(), It.IsAny<uint>(),
+                    It.IsAny<IUserIdentity?>(), It.IsAny<ArrayOf<string>>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<ApplicationConfiguration, ConfiguredEndpoint, bool, bool, string, uint,
+                    IUserIdentity?, ArrayOf<string>, CancellationToken>(
+                    (_, _, _, _, _, _, identity, _, _) => observed = identity)
+                .ThrowsAsync(new ServiceResultException(StatusCodes.BadCertificateUntrusted));
+
+            var provider = new Mock<IClientIdentityProvider>();
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await Client.ManagedSession.CreateAsync(
+                    configuration,
+                    endpoint,
+                    sessionFactory.Object,
+                    reconnectPolicy: NoRetryPolicy(),
+                    identityProvider: provider.Object).ConfigureAwait(false));
+
+            // Without a configured identity there is nothing to defer to, so the
+            // provider must be consulted. Deferring would hand the factory null,
+            // which the inner session silently turns into Anonymous and then
+            // rejects with BadIdentityTokenInvalid on a non-anonymous endpoint.
+            Assert.Multiple(() =>
+            {
+                Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
+                Assert.That(observed, Is.Null);
+            });
+            sessionFactory.Verify(f => f.CreateAsync(
+                    It.IsAny<ApplicationConfiguration>(), It.IsAny<ConfiguredEndpoint>(),
+                    It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<string>(), It.IsAny<uint>(),
+                    It.IsAny<IUserIdentity?>(), It.IsAny<ArrayOf<string>>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        [Test]
+        public void ConnectKeepsTheConfiguredIdentityWhenTheEndpointAdvertisesNoTokenPolicies()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ApplicationConfiguration configuration = CreateClientConfiguration(telemetry);
+            ConfiguredEndpoint endpoint = CreateEndpointWithoutTokenPolicies();
+            var configured = new UserIdentity();
+
+            IUserIdentity? observed = null;
+            var sessionFactory = new Mock<ISessionFactory>();
+            sessionFactory.SetupGet(f => f.Telemetry).Returns(telemetry);
+            sessionFactory.Setup(f => f.WithSubscriptionEngine(
+                    It.IsAny<ISubscriptionEngineFactory>(), It.IsAny<TimeProvider?>()))
+                .Returns(sessionFactory.Object);
+            sessionFactory.Setup(f => f.CreateAsync(
+                    It.IsAny<ApplicationConfiguration>(), It.IsAny<ConfiguredEndpoint>(),
+                    It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<string>(), It.IsAny<uint>(),
+                    It.IsAny<IUserIdentity?>(), It.IsAny<ArrayOf<string>>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<ApplicationConfiguration, ConfiguredEndpoint, bool, bool, string, uint,
+                    IUserIdentity?, ArrayOf<string>, CancellationToken>(
+                    (_, _, _, _, _, _, identity, _, _) => observed = identity)
+                .ThrowsAsync(new ServiceResultException(StatusCodes.BadCertificateUntrusted));
+
+            var provider = new Mock<IClientIdentityProvider>(MockBehavior.Strict);
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await Client.ManagedSession.CreateAsync(
+                    configuration,
+                    endpoint,
+                    sessionFactory.Object,
+                    identity: configured,
+                    reconnectPolicy: NoRetryPolicy(),
+                    identityProvider: provider.Object).ConfigureAwait(false));
+
+            // A fallback identity exists, so selection is deferred until discovery
+            // populates the policies and the attempt fails at the transport layer
+            // for the reconnect policy to retry.
+            Assert.Multiple(() =>
+            {
+                Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUntrusted));
+                Assert.That(observed, Is.SameAs(configured));
+            });
+            provider.VerifyNoOtherCalls();
+        }
+
+        private static ReconnectPolicy NoRetryPolicy()
+        {
+            return new ReconnectPolicy
+            {
+                Strategy = BackoffStrategy.Constant,
+                InitialDelay = TimeSpan.FromMilliseconds(1),
+                MaxRetries = 0,
+                JitterFactor = 0.0,
+                MaxTotalReconnectTime = TimeSpan.FromSeconds(5)
+            };
+        }
+
+        private static ConfiguredEndpoint CreateEndpointWithoutTokenPolicies()
+        {
+            var description = new EndpointDescription
+            {
+                EndpointUrl = "opc.tcp://localhost:4840",
+                SecurityMode = MessageSecurityMode.None,
+                SecurityPolicyUri = SecurityPolicies.None,
+                TransportProfileUri = Profiles.UaTcpTransport
+            };
+            description.Server.ApplicationUri = description.EndpointUrl;
+            description.Server.ApplicationType = ApplicationType.Server;
+
+            return new ConfiguredEndpoint(
+                null,
+                description,
+                new EndpointConfiguration { OperationTimeout = 6000 })
+            {
+                UpdateBeforeConnect = false
+            };
+        }
+
+        [Test]
         public void CreateAsyncThrowsInitialConnectErrorInsteadOfReturningUnconnectedSession()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();

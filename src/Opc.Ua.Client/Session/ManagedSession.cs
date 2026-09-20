@@ -1160,13 +1160,19 @@ namespace Opc.Ua.Client
                                 identityContext,
                                 certificate?.Certificate,
                                 m_securityPolicies ?? SecurityPolicies.Default);
-                        if (ConfiguredEndpoint.Description.UserIdentityTokens.Count == 0)
+                        if (ConfiguredEndpoint.Description.UserIdentityTokens.Count == 0 &&
+                            m_identity != null)
                         {
                             // Discovery has not populated the endpoint's token policies yet,
                             // typically because the server was down at startup. Selecting an
                             // identity now could only fail at the identity layer and mask the
                             // real cause, so keep the configured identity and let the attempt
                             // fail at the transport layer for the reconnect policy to retry.
+                            // This needs a configured identity to fall back to: without one
+                            // the inner session turns the absent identity into Anonymous and
+                            // rejects it, which is neither the caller's intent nor a usable
+                            // diagnostic. In that case consult the provider instead, so its
+                            // own error names the missing policies.
                             m_logger.ManagedSessionIdentityProviderDeferredUntilDiscovery();
                         }
                         else
