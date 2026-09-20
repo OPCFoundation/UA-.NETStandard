@@ -4709,11 +4709,7 @@ namespace Opc.Ua.Schema.Model
 
             if (m_nodes.TryGetValue(symbolicId, out NodeDesign target))
             {
-                encoding.NumericId = target.NumericId;
-                encoding.NumericIdSpecified = target.NumericIdSpecified;
-                encoding.GuidId = target.GuidId;
-                encoding.GuidIdSpecified = target.GuidIdSpecified;
-                encoding.OpaqueId = target.OpaqueId;
+            encoding.SetIdentifier(target.GetIdentifier());
                 m_nodes.Remove(symbolicId);
             }
 
