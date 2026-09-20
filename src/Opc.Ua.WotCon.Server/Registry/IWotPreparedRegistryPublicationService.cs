@@ -88,7 +88,9 @@ namespace Opc.Ua.WotCon.Server.Registry
 
         /// <summary>
         /// Publishes the already-committed metadata when the coordinator switches the runtime image.
-        /// It never makes another store decision.
+        /// It never makes another store decision. The caller installs its prepared bookkeeping before
+        /// calling this method so Changed observers see the committed unit. Observer failures surface
+        /// as committed warnings after publication and do not prevent the other observers from running.
         /// </summary>
         void Publish();
     }

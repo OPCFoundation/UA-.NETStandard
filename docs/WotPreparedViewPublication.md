@@ -204,6 +204,33 @@ failure in `NodeManagerBatchResult.CleanupFailure` and still runs reconciliation
 Readiness and retirement failures are also reported as committed outcomes, not
 as permission to discard the active registrations.
 
+### Committed coordinator handoff
+
+The PerRegistry coordinator installs the exact prepared source handles, closure
+bookkeeping, namespace ownership, committed View/plan image and refresh generation
+before releasing registry `Changed` observers. The View participant is acknowledged
+before those notifications; registry publication still runs if that acknowledgment
+fails. This uses the existing prepared registry decision and Core committed-state
+callback, not a second transaction or a replay of the decision.
+
+A confirmed noncommit or cancellation before the decision leaves the previous
+registry and live owners intact and disposes the private candidates. A confirmed
+commit, including a store durability warning, completes publication despite caller
+cancellation. Store, observer and Core reconciliation warnings remain explicit in
+the committed refresh result. Registry and committed materialization-event
+observers are each invoked once; one observer's exception does not skip the remaining
+observers or later committed event intents. A notification failure does not poison
+admission of the next publication.
+
+An indeterminate decision is not converted into a committed result. The registry
+continues to block conflicting mutation until its existing recovery path establishes
+the deciding store state. Failure to reacquire validated store evidence likewise
+retains the existing reload requirement; a committed image is not rolled back.
+This correction does not implement store recovery or canonical View validation/reload.
+The captured selected input image remains distinct from the complete authoritative
+registry snapshot, including unselected Resources. Null, empty and retained-history
+graph carriers keep their existing meanings.
+
 A full coordinator/runtime adapter must still stage and publish source routing, references, metadata and
 View state through one owner before advertising atomicity. Do not infer
 multi-resource atomicity, stock host support, or lock-free visibility merely
@@ -216,12 +243,12 @@ prepared metadata retains exact-Version dependency observations and the
 graph-root carrier. These are composition requirements, not evidence that all
 atomicity modes or native canonical publication are complete.
 
-The retained atomic-emission checkpoint still has two failing assertions for
-`ModifyMonitoredItems` on detached survivors: they expect `Good`, while the
-existing baseline returns `BadNodeIdUnknown`. Neither expectation has been
-weakened here. Full regression, style and custom-provider preflight, native
-canonical publication, authoritative refresh state and coordinated mutations
-remain unfinished. JSON Schema validation remains deferred.
+The consolidated Core follow-up corrected detached-survivor service identity and
+the prehydration queue fixture without weakening their assertions. Those changes
+are separate from the coordinator handoff above. Native canonical publication,
+other authoritative refresh-state failures, coordinated mutations and remaining
+atomicity modes are not certified by this bounded correction. JSON Schema
+validation remains deferred.
 
 See [prepared registry metadata commits](WotRegistryPreparedStore.md) for the
 validated content and generation lease contract.

@@ -89,7 +89,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         RaiseEvent(CopyEvent(change, m_generation, request.RequestId));
                     }
                 }
-                RaiseCompletion(result, request.RequestId);
+                RaiseEvent(CreateCompletion(result, request.RequestId));
                 return result;
             }
 
@@ -165,7 +165,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     },
                     () =>
                     {
-                        metadata.Publish();
                         m_closures.Clear();
                         foreach (KeyValuePair<string, ClosureState> entry in capture.Closures)
                         {
@@ -175,7 +174,22 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         m_projectionNamespaceUris.UnionWith(capture.Namespaces);
                         m_generation = generation;
                         Volatile.Write(ref m_committedPublication, publication);
-                        views?.OnPublished(publication);
+                        try
+                        {
+                            views?.OnPublished(publication);
+                        }
+                        finally
+                        {
+                            // Changed observers must see the complete committed image.
+                            try
+                            {
+                                metadata.Publish();
+                            }
+                            catch (WotRegistryCommitDurabilityUncertainException warning) when (metadata.IsCommitted)
+                            {
+                                publicationWarning = warning;
+                            }
+                        }
                     },
                     cancellationToken).ConfigureAwait(false);
 
@@ -187,39 +201,33 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     }
                     else
                     {
-                        await m_sourceBinders.DeactivateAsync(action.Plan, CancellationToken.None).ConfigureAwait(false);
-                    }
-                }
-                foreach (WotMaterializationEventArgs change in capture.Events)
-                {
-                    if (change.Kind != WotMaterializationEventKind.RefreshCompleted)
-                    {
-                        RaiseEvent(CopyEvent(change, generation, request.RequestId));
+                        await m_sourceBinders.DeactivateAsync(action.Plan, CancellationToken.None)
+                            .ConfigureAwait(false);
                     }
                 }
                 staged.Summary.Generation = generation;
                 WotRegistryCommitDurabilityUncertainException? durabilityWarning =
-                    metadata.DurabilityWarning ?? publicationWarning;
+                    publicationWarning ?? metadata.DurabilityWarning;
                 if (durabilityWarning is not null)
                 {
-                    foreach (WoTResourceLoadResultDataType row in staged.Results)
-                    {
-                        if (row.Outcome is WoTOutcomeEnum.Success or WoTOutcomeEnum.Warning)
-                        {
-                            row.Outcome = WoTOutcomeEnum.Warning;
-                            row.Message = (row.Message ?? string.Empty) +
-                                " Committed durability warning: " + durabilityWarning.Message;
-                        }
-                    }
+                    AddCommittedWarning(staged,
+                        "Committed durability warning: " + durabilityWarning.Message + " " +
+                        DescribeCommittedFailure(durabilityWarning.PersistenceFailure));
                 }
-                if (metadata.DurabilityWarning is not null ||
-                    publicationWarning is not null ||
-                    prepared.CleanupFailure is not null)
+                if (prepared.CleanupFailure is { } cleanupFailure)
                 {
-                    staged.Summary.Outcome = WoTOutcomeEnum.Warning;
+                    AddCommittedWarning(staged,
+                        "Committed reconciliation warning: " + DescribeCommittedFailure(cleanupFailure));
                 }
                 var committed = new WotRefreshResult(staged.Summary, staged.Results, generation);
-                RaiseCompletion(committed, request.RequestId);
+                foreach (WotMaterializationEventArgs change in capture.Events)
+                {
+                    if (change.Kind != WotMaterializationEventKind.RefreshCompleted)
+                    {
+                        RaiseCommittedEvent(CopyEvent(change, generation, request.RequestId), committed);
+                    }
+                }
+                RaiseCommittedEvent(CreateCompletion(committed, request.RequestId), committed);
                 return committed;
             }
             finally
@@ -229,6 +237,47 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     await views.DisposeAsync().ConfigureAwait(false);
                 }
             }
+        }
+
+        private static string DescribeCommittedFailure(Exception failure)
+        {
+            return failure is AggregateException aggregate
+                ? string.Join(" ", aggregate.Flatten().InnerExceptions.Select(inner => inner.Message))
+                : failure.Message;
+        }
+
+        private void RaiseCommittedEvent(WotMaterializationEventArgs change, WotRefreshResult committed)
+        {
+            EventHandler<WotMaterializationEventArgs>? observers = Event;
+            if (observers is null)
+            {
+                return;
+            }
+            foreach (EventHandler<WotMaterializationEventArgs> observer in observers.GetInvocationList())
+            {
+                try
+                {
+                    observer(this, change);
+                }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    AddCommittedWarning(committed,
+                        "Committed notification warning: " + DescribeCommittedFailure(failure));
+                }
+            }
+        }
+
+        private static void AddCommittedWarning(WotRefreshResult result, string message)
+        {
+            foreach (WoTResourceLoadResultDataType row in result.Results)
+            {
+                if (row.Outcome is WoTOutcomeEnum.Success or WoTOutcomeEnum.Warning)
+                {
+                    row.Outcome = WoTOutcomeEnum.Warning;
+                    row.Message = (row.Message ?? string.Empty) + " " + message;
+                }
+            }
+            result.Summary.Outcome = WoTOutcomeEnum.Warning;
         }
 
         private static void MergeViewGraphMetadata(
@@ -302,15 +351,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return new WotRefreshResult(staged.Summary, staged.Results, generation);
         }
 
-        private void RaiseCompletion(WotRefreshResult result, string? requestId)
+        private static WotMaterializationEventArgs CreateCompletion(WotRefreshResult result, string? requestId)
         {
-            RaiseEvent(new WotMaterializationEventArgs(WotMaterializationEventKind.RefreshCompleted)
+            return new WotMaterializationEventArgs(WotMaterializationEventKind.RefreshCompleted)
             {
                 Generation = result.NewGeneration,
                 RequestId = requestId ?? string.Empty,
                 Outcome = result.Summary.Outcome,
                 Summary = result.Summary
-            });
+            };
         }
 
         private static WotMaterializationEventArgs CopyEvent(

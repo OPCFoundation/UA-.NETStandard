@@ -48,7 +48,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     [Category("Integration")]
     [Category("NativeTcp")]
     [NonParallelizable]
-    public sealed class WotAtomicPublicationNativeTests : IAsyncDisposable
+    public sealed partial class WotAtomicPublicationNativeTests : IAsyncDisposable
     {
         [SetUp]
         public async Task SetUpAsync()
@@ -56,6 +56,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             m_disposed = 0;
             m_failDecision = false;
             m_committedWarning = false;
+            m_indeterminateDecision = false;
             m_events.Clear();
             m_root = Path.Combine(
                 TestContext.CurrentContext.WorkDirectory,
@@ -66,6 +67,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 directorySyncFailureInjector: null,
                 manifestReplace: (source, destination, backup) =>
                 {
+                    if (m_indeterminateDecision)
+                    {
+                        File.Move(destination, backup);
+                        throw new IOException("The publication decision has no authoritative primary.");
+                    }
                     if (m_failDecision)
                     {
                         throw new IOException("The publication decision was conclusively not committed.");
@@ -403,6 +409,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         private Opc.Ua.Client.ISession m_session = null!;
         private bool m_failDecision;
         private bool m_committedWarning;
+        private bool m_indeterminateDecision;
         private int m_disposed;
     }
 }

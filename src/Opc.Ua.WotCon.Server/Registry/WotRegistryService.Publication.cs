@@ -177,9 +177,16 @@ namespace Opc.Ua.WotCon.Server.Registry
                     m_reloadRequired = true;
                     throw;
                 }
-                await RefreshValidatedStoreGenerationAfterCommitAsync(
-                    publication.IntendedSnapshot, publication.DurabilityWarning?.PersistenceFailure)
-                    .ConfigureAwait(false);
+                try
+                {
+                    await RefreshValidatedStoreGenerationAfterCommitAsync(
+                        publication.IntendedSnapshot, publication.DurabilityWarning?.PersistenceFailure)
+                        .ConfigureAwait(false);
+                }
+                catch (WotRegistryCommitDurabilityUncertainException warning) when (publication.IsCommitted)
+                {
+                    publication.DurabilityWarning = warning;
+                }
             }
             finally
             {
@@ -201,7 +208,8 @@ namespace Opc.Ua.WotCon.Server.Registry
             ReleasePublication(publication);
             RaiseChanged(
                 publication.PreviousSnapshot, publication.IntendedSnapshot,
-                publication.Changed.ToList(), projectionOnly: true);
+                publication.Changed.ToList(), projectionOnly: true,
+                publication.DurabilityWarning?.PersistenceFailure);
         }
 
         private void ReleasePublication(PreparedRegistryPublication publication)
@@ -272,7 +280,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                             publish(this);
                             throw new WotRegistryCommitDurabilityUncertainException(
                                 IntendedSnapshot,
-                                new InvalidOperationException("A committed publication was disposed before publication."));
+                                new InvalidOperationException(
+                                    "A committed publication was disposed before publication."));
                         }
                     }
                     finally

@@ -2601,18 +2601,34 @@ namespace Opc.Ua.WotCon.Server.Registry
             bool projectionOnly,
             Exception? priorFailure = null)
         {
-            try
+            EventHandler<WotRegistryChangedEventArgs>? observers = Changed;
+            if (observers is null)
             {
-                Changed?.Invoke(
-                    this,
-                    new WotRegistryChangedEventArgs(previous, current, changed, projectionOnly));
+                return;
             }
-            catch (Exception failure) when (failure is not OutOfMemoryException)
+            var change = new WotRegistryChangedEventArgs(previous, current, changed, projectionOnly);
+            List<Exception>? failures = null;
+            foreach (EventHandler<WotRegistryChangedEventArgs> observer in observers.GetInvocationList())
             {
-                throw new WotRegistryCommitDurabilityUncertainException(
-                    current,
-                    priorFailure is null ? failure : new AggregateException(priorFailure, failure));
+                try
+                {
+                    observer(this, change);
+                }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    (failures ??= []).Add(failure);
+                }
             }
+            if (failures is null)
+            {
+                return;
+            }
+            if (priorFailure is not null)
+            {
+                failures.Insert(0, priorFailure);
+            }
+            throw new WotRegistryCommitDurabilityUncertainException(
+                current, failures.Count == 1 ? failures[0] : new AggregateException(failures));
         }
 
         private bool TryTrim(
