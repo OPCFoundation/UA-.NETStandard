@@ -2121,16 +2121,40 @@ namespace Opc.Ua.Server
 
             // The subscription has not accepted ownership yet. Include the failing manager,
             // which may have subscribed some of its root notifiers before reporting failure.
+            using IDisposable? liveBindings = monitoredItem.MonitoringAllEvents
+                ? m_nodeManagers.UseLiveRouting()
+                : null;
+            var compensationManagers = new List<IAsyncNodeManager>();
+            for (int ii = 0; ii <= lastAttempted; ii++)
+            {
+                compensationManagers.Add(eventManagers[ii]);
+            }
+            if (monitoredItem.MonitoringAllEvents)
+            {
+                // A suspended callback can publish new owners that also observe this provisional event item.
+                foreach (IAsyncNodeManager manager in m_nodeManagers)
+                {
+                    bool captured = false;
+                    for (int ii = 0; ii < eventManagers.Count; ii++)
+                    {
+                        captured |= NodeManagerRoutingTable.AreSameManager(manager, eventManagers[ii]);
+                    }
+                    if (!captured)
+                    {
+                        compensationManagers.Add(manager);
+                    }
+                }
+            }
             Server.EventManager.DeleteMonitoredItem(monitoredItem.Id);
             var compensationFailures = new List<Exception>();
             try
             {
-                for (int ii = lastAttempted; ii >= 0; ii--)
+                for (int ii = compensationManagers.Count - 1; ii >= 0; ii--)
                 {
                     try
                     {
                         ServiceResult result = await SetEventSubscriptionAsync(
-                            eventManagers[ii], context, subscriptionId, monitoredItem, true, CancellationToken.None)
+                            compensationManagers[ii], context, subscriptionId, monitoredItem, true, CancellationToken.None)
                             .ConfigureAwait(false);
                         if (ServiceResult.IsBad(result) &&
                             result.StatusCode != StatusCodes.BadNodeIdUnknown &&

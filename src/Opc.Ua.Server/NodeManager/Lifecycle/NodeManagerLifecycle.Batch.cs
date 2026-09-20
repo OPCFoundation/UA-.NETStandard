@@ -88,6 +88,7 @@ namespace Opc.Ua.Server
                 using IDisposable routing = batchHost.UseLiveRouting();
                 using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? waiter =
                     EnterRequestLifecycleWaiter(server);
+                await using var bindingAdmission = batchHost.SuspendBindingAdmission().ConfigureAwait(false);
                 await WaitForLifecycleSemaphoreAsync(waiter, cancellationToken).ConfigureAwait(false);
                 TypeTable? preparedTypes = null;
                 EncodeableFactory? preparedFactory = null;
@@ -195,6 +196,8 @@ namespace Opc.Ua.Server
             using IDisposable routing = ((IDynamicNodeManagerBatchHost)batch.Host).UseLiveRouting();
             using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? waiter =
                 EnterRequestLifecycleWaiter(batch.Server);
+            await using var bindingAdmission =
+                ((IDynamicNodeManagerBatchHost)batch.Host).SuspendBindingAdmission().ConfigureAwait(false);
             await WaitForLifecycleSemaphoreAsync(waiter, cancellationToken).ConfigureAwait(false);
             var retired = new List<RetiredNodeManager>();
             var failures = new List<Exception>();

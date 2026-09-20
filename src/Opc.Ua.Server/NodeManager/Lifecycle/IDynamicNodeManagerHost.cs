@@ -240,6 +240,12 @@ namespace Opc.Ua.Server
         IDisposable UseTypeImage(TypeTable typeTree, EncodeableFactory factory);
 
         /// <summary>
+        /// Releases the current binding admission while a callback waits for and executes lifecycle work.
+        /// Async disposal resumes admission after lifecycle serialization has been released.
+        /// </summary>
+        IAsyncDisposable SuspendBindingAdmission();
+
+        /// <summary>
         /// Dispatches Session activation and its notifications against the published bindings.
         /// </summary>
         ValueTask<(ByteString ServerNonce, ServiceResult ActivationStatus)> DispatchSessionActivationAsync(
@@ -261,6 +267,18 @@ namespace Opc.Ua.Server
             Func<ValueTask> reconcileBindingsAsync,
             Action<Exception> reportCleanupFailure,
             CancellationToken cancellationToken);
+    }
+
+    internal sealed class BindingAdmissionSuspension(Func<ValueTask>? resume) : IAsyncDisposable
+    {
+        internal static BindingAdmissionSuspension Empty { get; } = new(null);
+
+        public ValueTask DisposeAsync()
+        {
+            return Interlocked.Exchange(ref m_resume, null)?.Invoke() ?? default;
+        }
+
+        private Func<ValueTask>? m_resume = resume;
     }
 
     /// <summary>

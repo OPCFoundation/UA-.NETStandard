@@ -684,7 +684,7 @@ namespace Opc.Ua.Server
         /// Gets whether two entries denote the same NodeManager. Two adapters that wrap the same
         /// synchronous NodeManager count as the same NodeManager.
         /// </summary>
-        private static bool AreSameManager(
+        internal static bool AreSameManager(
             IAsyncNodeManager left,
             IAsyncNodeManager right)
         {

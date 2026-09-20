@@ -431,25 +431,19 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             await m_bindingSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
-            {
-                using IDisposable routing = m_nodeManagers.UseLiveRouting();
-                await m_serviceDispatch.CreateMonitoredItemsAsync(
-                    context,
-                    subscriptionId,
-                    publishingInterval,
-                    timestampsToReturn,
-                    itemsToCreate,
-                    errors,
-                    filterResults,
-                    monitoredItems,
-                    createDurable,
-                    cancellationToken).ConfigureAwait(false);
-            }
-            finally
-            {
-                m_bindingSemaphore.Release();
-            }
+            using BindingAdmission admission = EnterBindingAdmission();
+            using IDisposable routing = m_nodeManagers.UseLiveRouting();
+            await m_serviceDispatch.CreateMonitoredItemsAsync(
+                context,
+                subscriptionId,
+                publishingInterval,
+                timestampsToReturn,
+                itemsToCreate,
+                errors,
+                filterResults,
+                monitoredItems,
+                createDurable,
+                cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -514,22 +508,16 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             await m_bindingSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
-            {
-                using IDisposable routing = m_nodeManagers.UseLiveRouting();
-                await m_serviceDispatch.ModifyMonitoredItemsAsync(
-                    context,
-                    timestampsToReturn,
-                    monitoredItems,
-                    itemsToModify,
-                    errors,
-                    filterResults,
-                    cancellationToken).ConfigureAwait(false);
-            }
-            finally
-            {
-                m_bindingSemaphore.Release();
-            }
+            using BindingAdmission admission = EnterBindingAdmission();
+            using IDisposable routing = m_nodeManagers.UseLiveRouting();
+            await m_serviceDispatch.ModifyMonitoredItemsAsync(
+                context,
+                timestampsToReturn,
+                monitoredItems,
+                itemsToModify,
+                errors,
+                filterResults,
+                cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -617,20 +605,14 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             await m_bindingSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
-            {
-                using IDisposable routing = m_nodeManagers.UseLiveRouting();
-                await m_serviceDispatch.DeleteMonitoredItemsAsync(
-                    context,
-                    subscriptionId,
-                    itemsToDelete,
-                    errors,
-                    cancellationToken).ConfigureAwait(false);
-            }
-            finally
-            {
-                m_bindingSemaphore.Release();
-            }
+            using BindingAdmission admission = EnterBindingAdmission();
+            using IDisposable routing = m_nodeManagers.UseLiveRouting();
+            await m_serviceDispatch.DeleteMonitoredItemsAsync(
+                context,
+                subscriptionId,
+                itemsToDelete,
+                errors,
+                cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>

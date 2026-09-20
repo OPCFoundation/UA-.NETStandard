@@ -536,6 +536,9 @@ namespace Opc.Ua.Server
             using IDisposable? routing = (entryHost as IDynamicNodeManagerBatchHost)?.UseLiveRouting();
             using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? requestWaiter =
                 EnterRequestLifecycleWaiter(entryServer);
+            await using var bindingAdmission =
+                ((entryServer.NodeManager as IDynamicNodeManagerBatchHost)?.SuspendBindingAdmission() ??
+                    BindingAdmissionSuspension.Empty).ConfigureAwait(false);
             await WaitForLifecycleSemaphoreAsync(requestWaiter, ct)
                 .ConfigureAwait(false);
             try
@@ -821,6 +824,9 @@ namespace Opc.Ua.Server
             using IDisposable? routing = (entryHost as IDynamicNodeManagerBatchHost)?.UseLiveRouting();
             using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? requestWaiter =
                 EnterRequestLifecycleWaiter(entryServer);
+            await using var bindingAdmission =
+                ((entryServer.NodeManager as IDynamicNodeManagerBatchHost)?.SuspendBindingAdmission() ??
+                    BindingAdmissionSuspension.Empty).ConfigureAwait(false);
             await WaitForLifecycleSemaphoreAsync(requestWaiter, ct)
                 .ConfigureAwait(false);
             IAsyncNodeManager? nodeManager = null;
@@ -1078,6 +1084,9 @@ namespace Opc.Ua.Server
             using IDisposable? routing = (entryHost as IDynamicNodeManagerBatchHost)?.UseLiveRouting();
             using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? requestWaiter =
                 EnterRequestLifecycleWaiter(entryServer);
+            await using var bindingAdmission =
+                ((entryServer.NodeManager as IDynamicNodeManagerBatchHost)?.SuspendBindingAdmission() ??
+                    BindingAdmissionSuspension.Empty).ConfigureAwait(false);
             await WaitForLifecycleSemaphoreAsync(requestWaiter, ct)
                 .ConfigureAwait(false);
             IAsyncNodeManager? replacementManager = null;

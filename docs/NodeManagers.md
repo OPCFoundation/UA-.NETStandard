@@ -629,12 +629,20 @@ server lifetime.
 
 Preparing a batch does not activate Sessions or subscribe event sources on its
 candidates. Session activation and MonitoredItem operations remain available while
-the durable decision callback awaits. After acceptance, the host finishes admitted
-binding operations, publishes the joint routing/type/factory/reference image, and
+the durable decision callback awaits. After acceptance, the host waits for binding
+callbacks that are still dispatching, publishes the joint routing/type/factory/reference image, and
 binds the candidates to the still-live Sessions and all-events MonitoredItems.
 New activations and MonitoredItem create, modify, and delete operations wait until
 this reconciliation finishes, then use the published routes. This admission boundary
 prevents both missed arrivals and duplicate subscriptions across the final snapshot.
+
+An admitted callback entering an opted-in, callback-safe lifecycle operation
+suspends its binding admission for that nested operation. Admission resumes after
+all overlapping nested operations release lifecycle serialization, so publication does not wait on a callback
+that is waiting for the same lifecycle owner. Committed binding reconciliation
+does not retain host mutation serialization while draining notification callbacks.
+If provisional all-events creation fails, compensation includes owners published
+while its callback was suspended.
 
 Closed Sessions and deleted MonitoredItems are not restored by reconciliation.
 Rejection leaves binding effects on the serving generation only. Exceptions and

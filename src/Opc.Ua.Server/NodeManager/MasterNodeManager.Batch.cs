@@ -50,21 +50,20 @@ namespace Opc.Ua.Server
             return m_nodeManagers.UseTypeImage(typeTree, factory);
         }
 
+        IAsyncDisposable IDynamicNodeManagerBatchHost.SuspendBindingAdmission()
+        {
+            return m_currentBindingAdmission.Value?.Suspend() ?? BindingAdmissionSuspension.Empty;
+        }
+
         async ValueTask<(ByteString ServerNonce, ServiceResult ActivationStatus)>
             IDynamicNodeManagerBatchHost.DispatchSessionActivationAsync(
                 Func<ValueTask<(ByteString ServerNonce, ServiceResult ActivationStatus)>> activateAsync,
                 CancellationToken cancellationToken)
         {
-            await m_bindingSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
-            {
-                using IDisposable routing = m_nodeManagers.UseLiveRouting();
-                return await activateAsync().ConfigureAwait(false);
-            }
-            finally
-            {
-                m_bindingSemaphore.Release();
-            }
+        await m_bindingSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+        using BindingAdmission admission = EnterBindingAdmission();
+        using IDisposable routing = m_nodeManagers.UseLiveRouting();
+        return await activateAsync().ConfigureAwait(false);
         }
 
         async ValueTask IDynamicNodeManagerBatchHost.CommitBatchAsync(
@@ -83,77 +82,78 @@ namespace Opc.Ua.Server
             Action<Exception> reportCleanupFailure,
             CancellationToken cancellationToken)
         {
-            await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            var referenceUpdates = new List<NodeState.ReferenceUpdate>();
+            bool bindingAdmissionHeld = false;
             try
             {
-                await m_startupShutdownSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
-                var referenceUpdates = new List<NodeState.ReferenceUpdate>();
+                await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
                 try
                 {
-                    foreach (PreparedNodeManager candidate in candidates)
-                    {
-                        ValidatePreparedNodeManager(candidate);
-                        if (!candidate.Staged)
-                        {
-                            throw new InvalidOperationException("A batch candidate is not staged.");
-                        }
-                    }
-                    HashSet<IAsyncNodeManager> retiring = [.. removed];
-                    foreach (PreparedNodeManager candidate in candidates)
-                    {
-                        if (candidate.ReplacedNodeManager is { } old)
-                        {
-                            retiring.Add(old);
-                        }
-                    }
-                    foreach (IAsyncNodeManager manager in retiring)
-                    {
-                        if (!m_dynamicExternalReferences.ContainsKey(manager))
-                        {
-                            throw new InvalidOperationException("A batch retirement is no longer registered.");
-                        }
-                    }
-
-                    var nextReferences = m_dynamicExternalReferences
-                        .Where(entry => !retiring.Contains(entry.Key))
-                        .ToDictionary(entry => entry.Key, entry => entry.Value);
-                    foreach (PreparedNodeManager candidate in candidates)
-                    {
-                        nextReferences.Add(candidate.NodeManager, candidate.ExternalReferences);
-                    }
-                    Dictionary<NodeState, NodeState.ReferenceSnapshot> referenceImages =
-                        routingRevision.References.ToDictionary(entry => entry.Key, entry => entry.Value);
-                    using (m_nodeManagers.UseTypeImage(typeTree, factory))
-                    {
-                        ArrayOf<PreparedReferenceSource> sources = await PrepareReferenceSourcesAsync(
-                            candidates, retiring, nextReferences, cancellationToken).ConfigureAwait(false);
-                        foreach (PreparedReferenceSource source in sources)
-                        {
-                            referenceUpdates.Add(m_nodeManagers.PrepareReferences(
-                                source.Owner, source.Node, source.Additions, source.Removals, referenceImages));
-                        }
-                    }
-
-                    NodeManagerRoutingTable.PreparedRoutes routes =
-                        m_nodeManagers.PrepareBatch(
-                            candidates, removed, routingRevision, ResolveNamespaceIndexes,
-                            typeTree, factory, referenceImages);
-                    routes.Validate();
-                    using TypeTable.Publication types = Server.TypeTree.BeginPublication(originalTypes, typeRevision);
-                    using EncodeableFactory.Publication registrations =
-                        originalFactory.BeginPublication(originalFactory, factoryRevision);
-                    foreach (NodeState.ReferenceUpdate update in referenceUpdates)
-                    {
-                        update.Reserve();
-                    }
-                    cancellationToken.ThrowIfCancellationRequested();
-                    await decideAsync(cancellationToken).ConfigureAwait(false);
-
-                    // Admissions remain available during the durable decision. After it accepts,
-                    // finish admitted mutations before publishing and bind before admitting more.
-                    await m_bindingSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                    await m_startupShutdownSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
                     try
                     {
+                        foreach (PreparedNodeManager candidate in candidates)
+                        {
+                            ValidatePreparedNodeManager(candidate);
+                            if (!candidate.Staged)
+                            {
+                                throw new InvalidOperationException("A batch candidate is not staged.");
+                            }
+                        }
+                        HashSet<IAsyncNodeManager> retiring = [.. removed];
+                        foreach (PreparedNodeManager candidate in candidates)
+                        {
+                            if (candidate.ReplacedNodeManager is { } old)
+                            {
+                                retiring.Add(old);
+                            }
+                        }
+                        foreach (IAsyncNodeManager manager in retiring)
+                        {
+                            if (!m_dynamicExternalReferences.ContainsKey(manager))
+                            {
+                                throw new InvalidOperationException("A batch retirement is no longer registered.");
+                            }
+                        }
+
+                        var nextReferences = m_dynamicExternalReferences
+                            .Where(entry => !retiring.Contains(entry.Key))
+                            .ToDictionary(entry => entry.Key, entry => entry.Value);
+                        foreach (PreparedNodeManager candidate in candidates)
+                        {
+                            nextReferences.Add(candidate.NodeManager, candidate.ExternalReferences);
+                        }
+                        Dictionary<NodeState, NodeState.ReferenceSnapshot> referenceImages =
+                            routingRevision.References.ToDictionary(entry => entry.Key, entry => entry.Value);
+                        using (m_nodeManagers.UseTypeImage(typeTree, factory))
+                        {
+                            ArrayOf<PreparedReferenceSource> sources = await PrepareReferenceSourcesAsync(
+                                candidates, retiring, nextReferences, cancellationToken).ConfigureAwait(false);
+                            foreach (PreparedReferenceSource source in sources)
+                            {
+                                referenceUpdates.Add(m_nodeManagers.PrepareReferences(
+                                    source.Owner, source.Node, source.Additions, source.Removals, referenceImages));
+                            }
+                        }
+
+                        NodeManagerRoutingTable.PreparedRoutes routes =
+                            m_nodeManagers.PrepareBatch(
+                                candidates, removed, routingRevision, ResolveNamespaceIndexes,
+                                typeTree, factory, referenceImages);
+                        routes.Validate();
+                        using TypeTable.Publication types = Server.TypeTree.BeginPublication(originalTypes, typeRevision);
+                        using EncodeableFactory.Publication registrations =
+                            originalFactory.BeginPublication(originalFactory, factoryRevision);
+                        foreach (NodeState.ReferenceUpdate update in referenceUpdates)
+                        {
+                            update.Reserve();
+                        }
+                        cancellationToken.ThrowIfCancellationRequested();
+                        await decideAsync(cancellationToken).ConfigureAwait(false);
+
+                        // Lifecycle-waiting callbacks suspend their admission while the committed image is installed.
+                        await m_bindingSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                        bindingAdmissionHeld = true;
                         foreach (IAsyncNodeManager manager in retiring)
                         {
                             RetainRetiredGenerationNotifications(manager);
@@ -179,29 +179,34 @@ namespace Opc.Ua.Server
                             SetPreparing(candidate.NodeManager, preparing: false);
                         }
                         published();
-                        await reconcileBindingsAsync().ConfigureAwait(false);
                     }
                     finally
                     {
-                        m_bindingSemaphore.Release();
-                    }
-                    foreach (NodeState.ReferenceUpdate update in referenceUpdates)
-                    {
-                        update.Notify(reportCleanupFailure);
+                        m_startupShutdownSemaphoreSlim.Release();
                     }
                 }
                 finally
                 {
-                    foreach (NodeState.ReferenceUpdate update in referenceUpdates)
-                    {
-                        update.Dispose();
-                    }
-                    m_startupShutdownSemaphoreSlim.Release();
+                    m_dynamicMutationSemaphore.Release();
+                }
+                await reconcileBindingsAsync().ConfigureAwait(false);
+                m_bindingSemaphore.Release();
+                bindingAdmissionHeld = false;
+                foreach (NodeState.ReferenceUpdate update in referenceUpdates)
+                {
+                    update.Notify(reportCleanupFailure);
                 }
             }
             finally
             {
-                m_dynamicMutationSemaphore.Release();
+                if (bindingAdmissionHeld)
+                {
+                    m_bindingSemaphore.Release();
+                }
+                foreach (NodeState.ReferenceUpdate update in referenceUpdates)
+                {
+                    update.Dispose();
+                }
             }
         }
 
