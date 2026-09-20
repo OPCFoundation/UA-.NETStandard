@@ -35,7 +35,7 @@ The UA .NET Standard stack supports the following certificate stores:
 
 ### X509Store on Windows
 
-Starting with Version 1.5.xx of the UA .NET Standard Stack the X509Store supports the storage and retrieval of CRLS, if used on the **Windows OS**.
+On the **Windows OS** the X509Store supports the storage and retrieval of CRLs.
 This enables the usage of the X509Store instead of the Directory Store for stores requiring the use of crls, e.g. the issuer or the directory Store.
 
 ### Certificate and CertificateCollection Types
