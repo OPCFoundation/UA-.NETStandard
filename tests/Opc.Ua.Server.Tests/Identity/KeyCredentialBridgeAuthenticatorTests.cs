@@ -175,6 +175,20 @@ namespace Opc.Ua.Server.Tests.Identity
         }
 
         [Test]
+        public void CreateTokenDataWithoutAudienceFailsFastInsteadOfIssuingUnusableToken()
+        {
+            Assert.That(
+#pragma warning disable CS0618 // the audience-less overload is retained only for source compatibility
+                () => KeyCredentialBridgeAuthenticator.CreateTokenData(
+                    CredentialId,
+                    s_secret,
+                    "nonce-" + Guid.NewGuid().ToString("N"),
+                    DateTime.UtcNow),
+#pragma warning restore CS0618
+                Throws.TypeOf<NotSupportedException>());
+        }
+
+        [Test]
         public void ConstructorAndMetadataExposeConfiguredIssuedTokenProfile()
         {
             using var store = new InMemoryKeyCredentialStore();

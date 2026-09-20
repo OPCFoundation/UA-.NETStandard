@@ -191,17 +191,28 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates a bridge-token JSON payload for a credential secret.
         /// </summary>
+        /// <remarks>
+        /// Superseded by the overload that binds the token to an audience. A token
+        /// without an audience can never authenticate, because verification requires
+        /// the audience to match the server's ApplicationUri.
+        /// </remarks>
         /// <exception cref="ArgumentNullException">Thrown when <paramref name="secret"/> is <c>null</c>.</exception>
         /// <exception cref="ArgumentException">
         /// Thrown when <paramref name="credentialId"/> or <paramref name="nonce"/> is <c>null</c>, empty, or whitespace.
         /// </exception>
+        /// <exception cref="NotSupportedException">
+        /// Always thrown: a token without an audience cannot authenticate.
+        /// </exception>
+        [Obsolete("Use the overload that supplies the audience; audience-less tokens are always rejected.")]
         public static byte[] CreateTokenData(
             string credentialId,
             byte[] secret,
             string nonce,
             DateTime issuedAt)
         {
-            return CreateTokenData(credentialId, secret, nonce, issuedAt, string.Empty);
+            throw new NotSupportedException(
+                "A KeyCredential bridge token must be bound to the server's ApplicationUri. " +
+                "Use CreateTokenData(credentialId, secret, nonce, issuedAt, audience).");
         }
 
         /// <summary>
