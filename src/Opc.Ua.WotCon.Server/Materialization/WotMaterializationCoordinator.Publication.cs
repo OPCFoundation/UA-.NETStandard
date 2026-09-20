@@ -49,10 +49,101 @@ namespace Opc.Ua.WotCon.Server.Materialization
         private Dictionary<string, ClosureState> ClosureStates => m_preparing?.Closures ?? m_closures;
         private HashSet<string> ProjectionNamespaces => m_preparing?.Namespaces ?? m_projectionNamespaceUris;
 
-        private async ValueTask<WotRefreshResult> RefreshPreparedRegistryAsync(
+        private async ValueTask<WotRefreshResult> RefreshPreparedUnitsAsync(
             WotRefreshCapture refresh,
             WotRegistrySnapshot snapshot,
             DateTime start,
+            CancellationToken cancellationToken)
+        {
+            WotPublicationPlan plan = WotPublicationPlanner.Create(
+                refresh.Inputs.Closures, refresh.Request.Atomicity,
+                m_closures.Values.Select(closure => new WotPublicationFootprint(
+                    closure.Members.Select(member => member.Xid).ToArrayOf(), closure.MemberXids.ToArrayOf()))
+                    .ToArrayOf());
+            var rows = ImmutableArray.CreateBuilder<WoTResourceLoadResultDataType>();
+            var satisfied = new HashSet<string>(StringComparer.Ordinal);
+            var activation = new HashSet<string>(
+                refresh.Inputs.Closures.ToList().SelectMany(closure => closure.ActivationMembers.ToList())
+                    .Select(member => member.Xid), StringComparer.Ordinal);
+            uint retired = 0;
+            bool includeSkipped = true;
+            for (int i = 0; i < plan.Units.Count; i++)
+            {
+                ArrayOf<WotDependencyClosure> unit = plan.Units[i];
+                var unitXids = new HashSet<string>(unit.ToList()
+                    .SelectMany(closure => closure.ActivationMembers.ToList()).Select(member => member.Xid),
+                    StringComparer.Ordinal);
+                bool blocked = unit.ToList().SelectMany(closure => closure.Dependencies).Any(edge =>
+                    edge.Resolved && edge.TargetXid is { } target && activation.Contains(target) &&
+                    !unitXids.Contains(target) && !satisfied.Contains(target));
+                if (blocked)
+                {
+                    foreach (WotResource member in unit.ToList()
+                        .SelectMany(closure => closure.ActivationMembers.ToList()))
+                    {
+                        rows.Add(FailResult(member, m_generation, WoTPhaseEnum.DependencyResolution,
+                            "An exact required activation prerequisite did not commit."));
+                    }
+                    continue;
+                }
+                using WotRefreshCapture unitCapture = refresh.ForPublication(unit);
+                WotRefreshResult result = await RefreshPreparedUnitAsync(
+                    unitCapture, snapshot, start, unit, includeSkipped, cancellationToken).ConfigureAwait(false);
+                rows.AddRange(result.Results);
+                if (result.Summary.Failed == 0)
+                {
+                    satisfied.UnionWith(unitXids);
+                }
+                retired += result.Summary.Retired;
+                snapshot = m_registry.Current;
+                includeSkipped = false;
+            }
+            if (plan.Units.IsEmpty)
+            {
+                WotRefreshResult empty = await RefreshPreparedUnitAsync(
+                    refresh, snapshot, start, [], true, cancellationToken).ConfigureAwait(false);
+                rows.AddRange(empty.Results);
+                retired = empty.Summary.Retired;
+            }
+            uint succeeded = (uint)rows.Count(row => row.Outcome is WoTOutcomeEnum.Success or WoTOutcomeEnum.Warning);
+            uint failed = (uint)rows.Count(row => row.Outcome == WoTOutcomeEnum.Failed);
+            bool warning = rows.Any(row => row.Outcome == WoTOutcomeEnum.Warning);
+            var summary = new WoTRefreshSummaryDataType
+            {
+                RequestId = refresh.Request.RequestId,
+                Generation = m_generation,
+                Atomicity = plan.AppliedAtomicity,
+                Outcome = failed != 0
+                    ? succeeded != 0 ? WoTOutcomeEnum.Warning : WoTOutcomeEnum.Failed
+                    : warning ? WoTOutcomeEnum.Warning
+                    : succeeded != 0 ? WoTOutcomeEnum.Success : WoTOutcomeEnum.Unchanged,
+                StartTime = start,
+                EndTime = DateTime.UtcNow,
+                Total = (uint)rows.Count,
+                Succeeded = succeeded,
+                Failed = failed,
+                Unchanged = (uint)rows.Count(row => row.Outcome == WoTOutcomeEnum.Unchanged),
+                Skipped = (uint)rows.Count(row => row.Outcome == WoTOutcomeEnum.Skipped),
+                Retired = retired
+            };
+            var completed = new WotRefreshResult(summary, rows.ToImmutable(), m_generation);
+            if (succeeded != 0 && !refresh.Request.DryRun)
+            {
+                RaiseCommittedEvent(CreateCompletion(completed, refresh.Request.RequestId), completed);
+            }
+            else
+            {
+                RaiseEvent(CreateCompletion(completed, refresh.Request.RequestId));
+            }
+            return completed;
+        }
+
+        private async ValueTask<WotRefreshResult> RefreshPreparedUnitAsync(
+            WotRefreshCapture refresh,
+            WotRegistrySnapshot snapshot,
+            DateTime start,
+            ArrayOf<WotDependencyClosure> unit,
+            bool includeSkipped,
             CancellationToken cancellationToken)
         {
             if (m_sourceHost is not IWotPreparedProjectionHost { SupportsPreparedPublication: true } host ||
@@ -67,7 +158,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             m_preparing = capture;
             try
             {
-                staged = await RefreshCoreAsync(refresh, start, cancellationToken).ConfigureAwait(false);
+                staged = await RefreshCoreAsync(refresh, start, cancellationToken, unit, includeSkipped)
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -80,16 +172,30 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 capture.ViewUpdates.Count != 0 || capture.ViewRemovals.Count != 0;
             if (failed || dryRun || !changed)
             {
+                if (failed)
+                {
+                    var complete = staged.Results.ToBuilder();
+                    foreach (WotResource member in unit.ToList()
+                        .SelectMany(closure => closure.ActivationMembers.ToList()))
+                    {
+                        if (!complete.Any(row => row.GroupId == member.GroupId && row.ResourceId == member.ResourceId))
+                        {
+                            complete.Add(FailResult(member, m_generation, WoTPhaseEnum.Activation,
+                                "The publication unit was not committed because another member failed."));
+                        }
+                    }
+                    staged.Summary.Total = (uint)complete.Count;
+                    staged = new WotRefreshResult(staged.Summary, complete.ToImmutable(), m_generation);
+                }
                 WotRefreshResult result = NormalizeUncommitted(staged, snapshot, failed, dryRun);
                 foreach (WotMaterializationEventArgs change in capture.Events)
                 {
-                    if (change.Kind is WotMaterializationEventKind.ValidationFailure or
-                        WotMaterializationEventKind.LoadFailure or WotMaterializationEventKind.BindingFailure)
+                    if (!dryRun && change.Kind is (WotMaterializationEventKind.ValidationFailure or
+                        WotMaterializationEventKind.LoadFailure or WotMaterializationEventKind.BindingFailure))
                     {
                         RaiseEvent(CopyEvent(change, m_generation, request.RequestId));
                     }
                 }
-                RaiseEvent(CreateCompletion(result, request.RequestId));
                 return result;
             }
 
@@ -227,7 +333,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         RaiseCommittedEvent(CopyEvent(change, generation, request.RequestId), committed);
                     }
                 }
-                RaiseCommittedEvent(CreateCompletion(committed, request.RequestId), committed);
                 return committed;
             }
             finally
@@ -332,9 +437,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         ? snapshot.FindResource(groupId, resourceId)
                         : null;
                     row.Outcome = WoTOutcomeEnum.Failed;
+                    row.Phase = WoTPhaseEnum.Activation;
                     row.LoadState = previous?.LoadState ?? WoTLoadStateEnum.Unloaded;
                     row.RootNodeId = previous is null ? default : previous.RootNodeId;
-                    row.Message = "The PerRegistry publication was not committed because another member failed.";
+                    row.Message = "The publication unit was not committed because another member failed.";
                 }
             }
             staged.Summary.Generation = generation;

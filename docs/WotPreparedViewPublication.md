@@ -179,6 +179,34 @@ The stock WoT projection supplies this dispatcher through its reconciliation
 queue. Generic xRegistry users without a dispatcher keep the direct path.
 The queue does not supply the prepared batch or durable publication decision.
 
+## Publication unit planning
+
+When the source host and registry support prepared publication, all four
+atomicity requests use the same prepared source/View/store owner. PerResource
+starts with one activation Resource, PerGroup with selected work in one group,
+PerClosure with a dependency closure, and PerRegistry with all selected and
+required activation work in one deciding transaction. Unrelated registry rows
+remain in the authoritative full snapshot but are not added to the work.
+
+Resolution inputs and activation members are distinct. Legal reference SCCs
+coactivate; only the ordering graph can reject a cycle. Grouping cycles coarsen
+before publication, and the summary reports the applied mode. Disabled inputs
+remain available to conversion without becoming source owners or group members.
+A dependent unit requires a successful or exact unchanged prerequisite
+publication, not merely fetched or converted bytes.
+
+An update retains the complete affected old/new closure, including merges and
+splits. Old source registrations are replaced/retired in the same prepared
+batch as their complete replacement. A failed member remains in its intended
+unit; its prepared peers do not publish. Independent units advance the committed
+refresh generation separately and retain earlier successes after later
+validation failures. No-op and dry-run units do not advance it.
+
+Views join their source unit and still require
+`IWotPreparedViewProjectionHost`; the immediate View API is not an atomic
+substitute. Unsupported View preparation fails before source publication.
+The unit planner does not change the canonical graph algorithm or renderer.
+
 ## Integration status
 
 The declarations and graph-root persistence are independently composable.
@@ -206,7 +234,7 @@ as permission to discard the active registrations.
 
 ### Committed coordinator handoff
 
-The PerRegistry coordinator installs the exact prepared source handles, closure
+The prepared-unit coordinator installs the exact prepared source handles, closure
 bookkeeping, namespace ownership, committed View/plan image and refresh generation
 before releasing registry `Changed` observers. The View participant is acknowledged
 before those notifications; registry publication still runs if that acknowledgment

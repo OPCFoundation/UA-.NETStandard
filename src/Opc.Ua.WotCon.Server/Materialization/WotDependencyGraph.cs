@@ -147,6 +147,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             HasCycle = hasCycle;
             HasMissingDependency = hasMissingDependency;
             StronglyConnectedComponents = components;
+            ActivationMembers = members.Where(member => member.Enabled).ToArrayOf();
         }
 
         /// <summary>
@@ -195,6 +196,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
         public ArrayOf<WotDependencyComponent> StronglyConnectedComponents { get; }
 
         /// <summary>
+        /// Gets the exact Resources to activate, excluding inputs retained only for resolution.
+        /// A publication partition can use definitions from members outside this set.
+        /// </summary>
+        public ArrayOf<WotResource> ActivationMembers { get; internal init; }
+
+        /// <summary>
         /// Gets whether the closure is projectable (no cycle, no missing dependency).
         /// </summary>
         public bool IsProjectable => !HasCycle && !HasMissingDependency && AcquisitionFailures.IsEmpty;
@@ -205,7 +212,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 Key, Members, OrderedResources, Dependencies, Diagnostics, HasCycle, HasMissingDependency,
                 StronglyConnectedComponents)
             {
-                AcquisitionFailures = failures
+                AcquisitionFailures = failures,
+                ActivationMembers = ActivationMembers
             };
         }
     }
@@ -540,11 +548,22 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Thing Model lands in a single closure), then each component is
         /// topologically ordered.
         /// </summary>
-        public static async ValueTask<ImmutableArray<WotDependencyClosure>> BuildClosuresAsync(
+        public static ValueTask<ImmutableArray<WotDependencyClosure>> BuildClosuresAsync(
             WotRegistrySnapshot snapshot,
             IReadOnlyCollection<WotResource> selected,
             int maxJsonDepth,
             Func<WotResourceVersion, CancellationToken, ValueTask<ByteString>> readContent,
+            CancellationToken cancellationToken)
+        {
+            return BuildClosuresAsync(snapshot, selected, maxJsonDepth, readContent, [], cancellationToken);
+        }
+
+        internal static async ValueTask<ImmutableArray<WotDependencyClosure>> BuildClosuresAsync(
+            WotRegistrySnapshot snapshot,
+            IReadOnlyCollection<WotResource> selected,
+            int maxJsonDepth,
+            Func<WotResourceVersion, CancellationToken, ValueTask<ByteString>> readContent,
+            ArrayOf<ArrayOf<string>> replacementClosures,
             CancellationToken cancellationToken)
         {
             if (selected.Count == 0)
@@ -721,6 +740,29 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 byXid.Add(resource.Xid, resource);
                 queue.Enqueue(resource);
+                var replacements = new Queue<string>();
+                replacements.Enqueue(resource.Xid);
+                while (replacements.Count != 0)
+                {
+                    string xid = replacements.Dequeue();
+                    foreach (ArrayOf<string> previous in replacementClosures)
+                    {
+                        if (!previous.Contains(xid))
+                        {
+                            continue;
+                        }
+                        foreach (string peer in previous)
+                        {
+                            if (!byXid.ContainsKey(peer) &&
+                                snapshot.FindResourceByXid(peer) is { Enabled: true } required)
+                            {
+                                byXid.Add(peer, required);
+                                queue.Enqueue(required);
+                                replacements.Enqueue(peer);
+                            }
+                        }
+                    }
+                }
                 return true;
             }
         }
@@ -873,7 +915,63 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 components);
         }
 
-        private static ArrayOf<WotDependencyComponent> BuildStronglyConnectedComponents(
+        internal static WotDependencyClosure PartitionClosure(
+            WotDependencyClosure closure, HashSet<string> activationXids)
+        {
+            WotResource[] active = [.. closure.ActivationMembers.ToList()
+                .Where(member => activationXids.Contains(member.Xid))];
+            var required = new HashSet<string>(active.Select(member => member.Xid), StringComparer.Ordinal);
+            var pending = new Queue<string>(required);
+            while (pending.Count != 0)
+            {
+                string source = pending.Dequeue();
+                foreach (WotDependency edge in closure.Dependencies.Where(edge => edge.SourceXid == source))
+                {
+                    if (edge.TargetXid is { } target && required.Add(target))
+                    {
+                        pending.Enqueue(target);
+                    }
+                }
+            }
+            List<WotResource> members = [.. closure.Members.Where(member => required.Contains(member.Xid))];
+            var edges = closure.Dependencies.Where(edge => required.Contains(edge.SourceXid))
+                .GroupBy(edge => edge.SourceXid).ToDictionary(group => group.Key, group => group.ToList(),
+                    StringComparer.Ordinal);
+            WotDependencyClosure ordered = BuildClosure(
+                members, edges, members.ToDictionary(member => member.Xid, StringComparer.Ordinal));
+            return new WotDependencyClosure(
+                string.Join("|", active.Select(member => member.Xid).Order(StringComparer.Ordinal)),
+                ordered.Members, ordered.OrderedResources, ordered.Dependencies, ordered.Diagnostics,
+                ordered.HasCycle, ordered.HasMissingDependency, ordered.StronglyConnectedComponents)
+            {
+                ActivationMembers = active.ToArrayOf()
+            }.WithAcquisitionFailures(closure.AcquisitionFailures.ToList()
+                .Where(failure => required.Contains(failure.Resource.Xid)).ToArrayOf());
+        }
+
+        internal static WotDependencyClosure CombinePublicationClosures(
+            IReadOnlyCollection<WotDependencyClosure> closures)
+        {
+            List<WotResource> members = [.. closures.SelectMany(closure => closure.Members)
+                .DistinctBy(member => member.Xid)];
+            var edges = closures.SelectMany(closure => closure.Dependencies).Distinct()
+                .GroupBy(edge => edge.SourceXid).ToDictionary(group => group.Key, group => group.ToList(),
+                    StringComparer.Ordinal);
+            WotDependencyClosure ordered = BuildClosure(
+                members, edges, members.ToDictionary(member => member.Xid, StringComparer.Ordinal));
+            ArrayOf<WotResource> active = closures.SelectMany(closure => closure.ActivationMembers.ToList())
+                .DistinctBy(member => member.Xid).OrderBy(member => member.Xid, StringComparer.Ordinal).ToArrayOf();
+            return new WotDependencyClosure(
+                string.Join("|", active.ToList().Select(member => member.Xid)),
+                ordered.Members, ordered.OrderedResources, ordered.Dependencies, ordered.Diagnostics,
+                ordered.HasCycle, ordered.HasMissingDependency, ordered.StronglyConnectedComponents)
+            {
+                ActivationMembers = active
+            }.WithAcquisitionFailures(closures.SelectMany(closure => closure.AcquisitionFailures.ToList())
+                .DistinctBy(failure => failure.Resource.Xid).ToArrayOf());
+        }
+
+        internal static ArrayOf<WotDependencyComponent> BuildStronglyConnectedComponents(
             ImmutableArray<WotResource> members,
             ImmutableArray<WotDependency> dependencies,
             ImmutableArray<WotResource> ordered)

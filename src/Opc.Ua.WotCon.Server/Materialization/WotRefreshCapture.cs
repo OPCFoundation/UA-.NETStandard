@@ -366,6 +366,19 @@ namespace Opc.Ua.WotCon.Server.Materialization
             Inputs.Dispose();
         }
 
+        internal WotRefreshCapture ForPublication(ArrayOf<WotDependencyClosure> closures)
+        {
+            var inputs = new WotMaterializationSnapshot(
+                Inputs.Registry, Inputs.Selection, Inputs.SelectsAll, closures, Inputs.Contents, []);
+            return new WotRefreshCapture(
+                Request, PreparationGeneration, inputs, RegistryOrigin, SupportsDependencySnapshots,
+                MaxJsonDepth, DocumentSetMode, ProjectionCompatibilityMode, BinderRevision,
+                StrictBindings, RetirementPolicy,
+                (resource, version) => m_versionNodeIds.TryGetValue(
+                    WotDependencyGraph.VersionXid(resource, version), out ExpandedNodeId nodeId)
+                    ? nodeId : ExpandedNodeId.Null);
+        }
+
         private void RequireClosure(WotDependencyClosure closure)
         {
             _ = closure ?? throw new ArgumentNullException(nameof(closure));

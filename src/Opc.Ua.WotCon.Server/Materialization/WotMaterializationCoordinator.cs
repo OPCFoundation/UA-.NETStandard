@@ -166,10 +166,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     WotRegistrySnapshot expectedRegistry = m_registry.Current;
                     using WotRefreshCapture capture = await CaptureInputsAsync(invocation, cancellationToken)
                         .ConfigureAwait(false);
-                    return invocation.Atomicity == WoTAtomicityEnum.PerRegistry
-                        ? await RefreshPreparedRegistryAsync(
+                    return m_sourceHost is IWotPreparedProjectionHost { SupportsPreparedPublication: true } &&
+                        m_registry is IWotPreparedRegistryPublicationService { SupportsPreparedPublication: true }
+                        ? await RefreshPreparedUnitsAsync(
                             capture, expectedRegistry, start, cancellationToken).ConfigureAwait(false)
-                        : await RefreshCoreAsync(capture, start, cancellationToken).ConfigureAwait(false);
+                        : invocation.Atomicity == WoTAtomicityEnum.PerRegistry
+                            ? throw new ServiceResultException(
+                                StatusCodes.BadNotSupported, "The configured owners cannot prepare publication.")
+                            : await RefreshCoreAsync(capture, start, cancellationToken).ConfigureAwait(false);
                 }
                 finally
                 {
@@ -185,7 +189,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
         private async ValueTask<WotRefreshResult> RefreshCoreAsync(
             WotRefreshCapture capture,
             DateTime start,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            ArrayOf<WotDependencyClosure> selectedClosures = default,
+            bool includeSkipped = true)
         {
             WotCapturedRefreshRequest invocation = capture.Request;
             WotMaterializationSnapshot inputs = capture.Inputs;
@@ -193,7 +199,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             bool force = invocation.Force;
             bool strict = capture.StrictBindings;
             WotRegistrySnapshot snapshot = inputs.Registry;
-            List<WotDependencyClosure> closures = inputs.Closures.ToList();
+            List<WotDependencyClosure> closures = selectedClosures.IsNull
+                ? inputs.Closures.ToList() : selectedClosures.ToList();
             var selectedXids = new HashSet<string>(
                 inputs.Selection.ToList().Select(selected => selected.Resource.Xid), StringComparer.Ordinal);
             var contentCache = new Dictionary<string, ByteString>(inputs.Contents, StringComparer.Ordinal);
@@ -230,7 +237,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
             foreach (WotSelectedResource selected in inputs.Selection)
             {
-                if (selected.Resource.Enabled && selected.Version?.HasContent == true)
+                if (!includeSkipped || (selected.Resource.Enabled && selected.Version?.HasContent == true))
                 {
                     continue;
                 }
@@ -709,8 +716,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
             bool strictBindings = StrictBindings;
             WotProjectionRetirementPolicy retirementPolicy = RetirementPolicy;
             var versionNodeIdResolver = VersionNodeIdResolver;
-            WotMaterializationSnapshot inputs = await WotDependencyGraph.CaptureAsync(
-                m_registry, request.Selection, request.IncludeDependents, maxJsonDepth, cancellationToken)
+            ArrayOf<ArrayOf<string>> replacementClosures =
+                m_sourceHost is IWotPreparedProjectionHost { SupportsPreparedPublication: true }
+                    ? m_closures.Values.Select(closure => closure.MemberXids.ToArrayOf()).ToArrayOf()
+                    : [];
+            WotMaterializationSnapshot inputs = await WotDependencyGraph.CapturePublicationAsync(
+                m_registry, request.Selection, request.IncludeDependents, maxJsonDepth,
+                replacementClosures, cancellationToken)
                 .ConfigureAwait(false);
             bool transferred = false;
             try
@@ -818,11 +830,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 ImmutableArray.CreateBuilder<WoTResourceLoadResultDataType>();
             var projections = new List<WotResourceProjection>();
             IReadOnlyList<WotResource> members = MembersOf(closure);
-            IReadOnlyList<WotResource> activeMembers =
-                [.. members.Where(member => member.Enabled)];
+            IReadOnlyList<WotResource> activeMembers = closure.ActivationMembers.ToList();
             ClosureStates.TryGetValue(closure.Key, out ClosureState? tracked);
-            if (tracked is null && ClosureStates.Values.Any(existing =>
-                existing.MemberXids.Any(xid => members.Any(member => member.Xid == xid))))
+            List<ClosureState> replaced = tracked is null
+                ? ClosureStates.Values.Where(existing =>
+                    existing.Members.Any(owner => activeMembers.Any(member => member.Xid == owner.Xid))).ToList()
+                : [];
+            if (replaced.Count != 0 && m_preparing is null)
             {
                 const string reason =
                     "Replacing an existing inseparable closure requires prepared-generation publication support.";
@@ -832,6 +846,25 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     projections.Add(FailProjection(member, reason));
                 }
                 return new ClosureOutcome(results.ToImmutable(), projections, 0);
+            }
+            if (replaced.Count != 0)
+            {
+                tracked = new ClosureState
+                {
+                    Key = closure.Key,
+                    Handle = replaced.Select(state => state.Handle).FirstOrDefault(handle => handle is not null),
+                    Members = [.. replaced.SelectMany(state => state.Members)],
+                    BindingPlans = [.. replaced.SelectMany(state => state.BindingPlans)],
+                    ViewHandles = [.. replaced.SelectMany(state => state.ViewHandles)]
+                };
+                foreach (ClosureState previous in replaced)
+                {
+                    if (previous.Handle is { } retiredHandle && !ReferenceEquals(retiredHandle, tracked.Handle))
+                    {
+                        await m_host.RemoveAsync(retiredHandle, cancellationToken).ConfigureAwait(false);
+                    }
+                    ClosureStates.Remove(previous.Key);
+                }
             }
             var activeXids = new HashSet<string>(
                 activeMembers.Select(member => member.Xid),
@@ -862,7 +895,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
             // Project in topological (dependency-first) order.
             members = closure.OrderedResources;
-            activeMembers = [.. members.Where(member => member.Enabled)];
+            activeMembers = [.. members.Where(member => activeXids.Contains(member.Xid))];
 
             byte[] aggregateDigest = capture.GetRegistryInputDigest(closure).Span.ToArray();
 
@@ -902,7 +935,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 if (version is null)
                 {
                     const string reason = "Resource has no default version.";
-                    foreach (WotResource affected in member.Enabled ? [member] : activeMembers)
+                    foreach (WotResource affected in activeXids.Contains(member.Xid) ? [member] : activeMembers)
                     {
                         results.Add(FailResult(
                             affected,
@@ -929,7 +962,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 (bool projectionPlan, string? projectionError) = GetProjectionAdmission(member, version, memberContent);
                 if (projectionPlan && projectionError is null)
                 {
-                    if (member.Enabled)
+                    if (activeXids.Contains(member.Xid))
                     {
                         projectionMembers.Add(member);
                     }
@@ -956,7 +989,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 if (nodeSet is null)
                 {
-                    foreach (WotResource affected in member.Enabled ? [member] : activeMembers)
+                    foreach (WotResource affected in activeXids.Contains(member.Xid) ? [member] : activeMembers)
                     {
                         results.Add(FailResult(
                             affected,
@@ -990,7 +1023,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
 
                 declarationContext.AddNodeSet(member.Xid, nodeSet, root, memberContent);
-                if (member.Enabled)
+                if (activeXids.Contains(member.Xid))
                 {
                     WotBindingPlanRequest planRequest = (await BuildPlanRequestAsync(
                         member, version, memberContent, snapshot, contentCache, cancellationToken)
@@ -1008,8 +1041,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     perMemberRoot[member.Xid] = root;
                 }
-                convertedSources.Add((member.ResourceId, nodeSet, memberContent));
-                CollectRequiredNamespaces(nodeSet, requiredNamespaces, ownedNamespaces);
+                if (activeXids.Contains(member.Xid))
+                {
+                    convertedSources.Add((member.ResourceId, nodeSet, memberContent));
+                    CollectRequiredNamespaces(nodeSet, requiredNamespaces, ownedNamespaces);
+                }
             }
 
             try

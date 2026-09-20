@@ -198,12 +198,23 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Resolves selector identity and requested dependents from metadata before acquiring
         /// any document. The caller owns the returned exact-Version leases.
         /// </summary>
-        public static async ValueTask<WotMaterializationSnapshot> CaptureAsync(
+        public static ValueTask<WotMaterializationSnapshot> CaptureAsync(
             IWotRegistryService registry,
             ArrayOf<WoTResourceSelectorDataType> selectors,
             bool includeDependents,
             int maxJsonDepth,
             CancellationToken cancellationToken = default)
+        {
+            return CapturePublicationAsync(registry, selectors, includeDependents, maxJsonDepth, [], cancellationToken);
+        }
+
+        internal static async ValueTask<WotMaterializationSnapshot> CapturePublicationAsync(
+            IWotRegistryService registry,
+            ArrayOf<WoTResourceSelectorDataType> selectors,
+            bool includeDependents,
+            int maxJsonDepth,
+            ArrayOf<ArrayOf<string>> replacementClosures,
+            CancellationToken cancellationToken)
         {
             _ = registry ?? throw new ArgumentNullException(nameof(registry));
             WotRegistrySnapshot original = registry.Current;
@@ -257,7 +268,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
 
                 ImmutableArray<WotDependencyClosure> closures = await BuildClosuresAsync(
-                    pinned, roots, maxJsonDepth, ReadAsync, cancellationToken).ConfigureAwait(false);
+                    pinned, roots, maxJsonDepth, ReadAsync, replacementClosures, cancellationToken)
+                    .ConfigureAwait(false);
                 var groups = ImmutableDictionary.CreateBuilder<string, WotResourceGroup>(StringComparer.Ordinal);
                 foreach (WotResource resource in closures.SelectMany(closure => closure.Members))
                 {
