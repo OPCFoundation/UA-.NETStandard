@@ -209,5 +209,19 @@ View state through one owner before advertising atomicity. Do not infer
 multi-resource atomicity, stock host support, or lock-free visibility merely
 from these carrier types.
 
+The consolidated draft includes the unfinished PerRegistry coordinator,
+prepared registry/source adapters, canonical graph planner and native View
+candidate. Both refresh paths use the coordinator's immutable captured inputs;
+prepared metadata retains exact-Version dependency observations and the
+graph-root carrier. These are composition requirements, not evidence that all
+atomicity modes or native canonical publication are complete.
+
+The retained atomic-emission checkpoint still has two failing assertions for
+`ModifyMonitoredItems` on detached survivors: they expect `Good`, while the
+existing baseline returns `BadNodeIdUnknown`. Neither expectation has been
+weakened here. Full regression, style and custom-provider preflight, native
+canonical publication, authoritative refresh state and coordinated mutations
+remain unfinished. JSON Schema validation remains deferred.
+
 See [prepared registry metadata commits](WotRegistryPreparedStore.md) for the
 validated content and generation lease contract.
