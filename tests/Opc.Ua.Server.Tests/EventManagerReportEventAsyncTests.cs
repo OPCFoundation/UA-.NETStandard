@@ -184,5 +184,38 @@ namespace Opc.Ua.Server.Tests
             permittedItem.Verify(m => m.QueueEvent(ev), Times.Once);
             deniedItem.Verify(m => m.QueueEvent(It.IsAny<IFilterTarget>()), Times.Never);
         }
+
+        /// <summary>
+        /// An Uncertain verdict is not a denial, so the event must still be delivered.
+        /// </summary>
+        [Test]
+        public async Task ReportEventAsync_WithUncertainPermission_StillQueuesEventAsync(
+            [ValueSource(nameof(UncertainStatusCodes))] StatusCode statusCode)
+        {
+            var nodeManagerMock = new Mock<IAsyncNodeManager>();
+            nodeManagerMock
+                .Setup(m => m.ValidateEventRolePermissionsAsync(
+                    It.IsAny<IEventMonitoredItem>(),
+                    It.IsAny<IFilterTarget>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ServiceResult>(new ServiceResult(statusCode)));
+
+            var item = new Mock<IEventMonitoredItem>();
+            item.Setup(m => m.Id).Returns(1u);
+
+            IList<IEventMonitoredItem> receivers = [item.Object];
+            var ev = new BaseEventState(null);
+
+            await EventManager.ReportEventAsync(ev, nodeManagerMock.Object, receivers).ConfigureAwait(false);
+
+            Assert.That(StatusCode.IsUncertain(statusCode), Is.True);
+            item.Verify(m => m.QueueEvent(ev), Times.Once);
+        }
+
+        private static StatusCode[] UncertainStatusCodes =>
+        [
+            StatusCodes.UncertainNotAllNodesAvailable,
+            StatusCodes.UncertainReferenceOutOfServer
+        ];
     }
 }

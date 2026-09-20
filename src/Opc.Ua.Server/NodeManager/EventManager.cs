@@ -165,7 +165,8 @@ namespace Opc.Ua.Server
                     ServiceResult result = await nodeManager
                         .ValidateEventRolePermissionsAsync(monitoredItem, e, cancellationToken)
                         .ConfigureAwait(false);
-                    if (ServiceResult.IsGood(result))
+                    // An Uncertain verdict is not a denial, so it must not drop the event.
+                    if (!ServiceResult.IsBad(result))
                     {
                         monitoredItem.QueueEvent(e);
                     }

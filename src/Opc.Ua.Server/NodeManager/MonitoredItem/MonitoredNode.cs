@@ -586,7 +586,8 @@ namespace Opc.Ua.Server
                 cancellationToken.ThrowIfCancellationRequested();
                 ServiceResult validationResult = await GetOrAddEventPermissionAsync(
                     monitoredItem, target, eventTypeId, sourceNodeId, cancellationToken).ConfigureAwait(false);
-                if (ServiceResult.IsGood(validationResult))
+                // An Uncertain verdict is not a denial, so it must not drop the event.
+                if (!ServiceResult.IsBad(validationResult))
                 {
                     monitoredItem.QueueEvent(target);
                 }
