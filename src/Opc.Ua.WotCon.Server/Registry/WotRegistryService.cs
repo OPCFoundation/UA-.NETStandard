@@ -62,6 +62,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         IWotVersionedRegistryService,
         IWotTypedRegistryService,
         IWotRegistryVersionLeaseProvider,
+        IWotPreparedRegistryPublicationService,
         IDisposable
     {
         /// <summary>
@@ -1988,62 +1989,14 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 EnsureMutationAllowed();
                 WotRegistrySnapshot snapshot = m_snapshot;
-                long generation = snapshot.Generation + 1;
-                var changed = new List<string>();
-                WotRegistrySnapshot next = snapshot;
-                foreach (WotResourceProjection projection in projections)
-                {
-                    WotResource? resource = next.FindResource(
-                        projection.GroupId, projection.ResourceId);
-                    if (resource is null)
-                    {
-                        continue;
-                    }
-                    string? activeVersionId = projection.RetainPreviousActiveVersion
-                        ? resource.ActiveVersionId
-                        : projection.ActiveVersionId;
-                    string? validationVersionId =
-                        projection.VersionId ?? resource.DefaultVersionId;
-                    ImmutableArray<WotResourceVersion> versions = resource.Versions;
-                    WotResourceVersion? validationVersion =
-                        resource.FindVersion(validationVersionId);
-                    if (validationVersion is not null)
-                    {
-                        versions = versions.SetItem(
-                            versions.IndexOf(validationVersion),
-                            validationVersion.With(
-                                validation: projection.Validation,
-                                clearValidation: projection.Validation is null));
-                    }
-                    WotResource updated = resource.With(
-                        versions: versions,
-                        activeVersionId: activeVersionId,
-                        loadState: projection.LoadState,
-                        validation: projection.Validation,
-                        diagnostics: projection.Diagnostics,
-                        epoch: resource.Epoch,
-                        refreshGeneration: projection.RefreshGeneration,
-                        lastRefreshTime: projection.LastRefreshTime,
-                        materializedNodeCount: projection.MaterializedNodeCount,
-                        rootNodeId: projection.RootNodeId,
-                        clearActiveVersion: activeVersionId is null,
-                        clearValidation: projection.Validation is null,
-                        clearRootNodeId: projection.RootNodeId.IsNull);
-                    WotResourceGroup group = next.FindGroup(projection.GroupId)!;
-                    next = ReplaceResource(
-                        next,
-                        group,
-                        updated,
-                        generation,
-                        bumpGroupEpoch: false);
-                    changed.Add(updated.Xid);
-                }
+                (WotRegistrySnapshot next, ArrayOf<string> changed) =
+                    BuildProjectionSnapshot(snapshot, projections);
                 if (changed.Count == 0)
                 {
                     return;
                 }
                 await CommitAndPublishAsync(
-                        snapshot, next, changed, projectionOnly: true, cancellationToken,
+                        snapshot, next, changed.ToList(), projectionOnly: true, cancellationToken,
                         WotRegistryCommitScope.ProjectionMetadata)
                     .ConfigureAwait(false);
             }

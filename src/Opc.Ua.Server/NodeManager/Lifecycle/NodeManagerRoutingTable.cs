@@ -50,25 +50,25 @@ namespace Opc.Ua.Server
     /// namespace routes Clients see, which is how a NodeManager is staged before it is committed.
     /// </para>
     /// </summary>
-    internal sealed class NodeManagerRoutingTable : IReadOnlyList<IAsyncNodeManager>
+    internal sealed partial class NodeManagerRoutingTable : IReadOnlyList<IAsyncNodeManager>
     {
         /// <summary>
         /// Gets the number of registered NodeManagers, including hidden ones.
         /// </summary>
-        public int Count => Volatile.Read(ref m_snapshot).NodeManagers.Length;
+        public int Count => ReadSnapshot.NodeManagers.Length;
 
         /// <summary>
         /// Gets the registered NodeManager at the given position, including hidden ones.
         /// </summary>
         /// <param name="index">The position of the NodeManager.</param>
         public IAsyncNodeManager this[int index]
-            => Volatile.Read(ref m_snapshot).NodeManagers[index];
+            => ReadSnapshot.NodeManagers[index];
 
         /// <summary>
         /// Gets the NodeManagers that serve each namespace index, excluding hidden ones.
         /// </summary>
         public IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> NamespaceManagers
-            => Volatile.Read(ref m_snapshot).VisibleNamespaceManagers;
+            => ReadSnapshot.VisibleNamespaceManagers;
 
         /// <summary>
         /// Adds a NodeManager during server startup, before the namespace routes are built.
@@ -616,7 +616,7 @@ namespace Opc.Ua.Server
         public IEnumerator<IAsyncNodeManager> GetEnumerator()
         {
             IAsyncNodeManager[] nodeManagers =
-                Volatile.Read(ref m_snapshot).VisibleNodeManagers;
+                ReadSnapshot.VisibleNodeManagers;
             return ((IEnumerable<IAsyncNodeManager>)nodeManagers).GetEnumerator();
         }
 
@@ -681,7 +681,7 @@ namespace Opc.Ua.Server
         /// An immutable view of the routing table. Every mutation publishes a new instance, which
         /// is what allows readers to work without locking.
         /// </summary>
-        private sealed class RoutingSnapshot
+        internal sealed class RoutingSnapshot
         {
             /// <summary>
             /// Initializes a new instance of the <see cref="RoutingSnapshot"/> class and

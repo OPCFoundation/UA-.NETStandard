@@ -220,6 +220,30 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
+    /// Optional host support for a single prepared routing publication.
+    /// </summary>
+    internal interface IDynamicNodeManagerBatchHost
+    {
+        /// <summary>
+        /// Gets the current live routing image whose identity is the preparation revision.
+        /// </summary>
+        NodeManagerRoutingTable.RoutingSnapshot RoutingRevision { get; }
+
+        /// <summary>
+        /// Uses live routing during lifecycle work instead of an enclosing Client request's captured image.
+        /// </summary>
+        IDisposable UseLiveRouting();
+
+        ValueTask CommitBatchAsync(
+            ArrayOf<PreparedNodeManager> candidates,
+            ArrayOf<IAsyncNodeManager> removed,
+            NodeManagerRoutingTable.RoutingSnapshot routingRevision,
+            Func<CancellationToken, ValueTask> decideAsync,
+            Action published,
+            CancellationToken cancellationToken);
+    }
+
+    /// <summary>
     /// Carries a NodeManager and the bookkeeping a lifecycle operation needs to move it through
     /// the prepare, publish, commit, and rollback stages of <see cref="IDynamicNodeManagerHost"/>.
     /// </summary>

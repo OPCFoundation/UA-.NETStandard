@@ -39,7 +39,7 @@ namespace Opc.Ua.Server.Hosting
     /// singleton before a server exists, so it stays valid across host restarts and reports a
     /// clear error while no server is attached.
     /// </summary>
-    internal sealed class HostedNodeManagerLifecycle : INodeManagerLifecycle
+    internal sealed class HostedNodeManagerLifecycle : INodeManagerBatchLifecycle
     {
         /// <inheritdoc/>
         public ArrayOf<NodeManagerRegistration> Registrations
@@ -48,6 +48,18 @@ namespace Opc.Ua.Server.Hosting
         /// <inheritdoc/>
         public bool IsShuttingDown
             => Current.IsShuttingDown;
+
+        /// <inheritdoc/>
+        public ValueTask<IPreparedNodeManagerBatch> PrepareAsync(
+            ArrayOf<NodeManagerBatchChange> changes,
+            CancellationToken cancellationToken = default)
+        {
+            if (Current is not INodeManagerBatchLifecycle batch)
+            {
+                throw new NotSupportedException("The attached lifecycle does not support prepared publication.");
+            }
+            return batch.PrepareAsync(changes, cancellationToken);
+        }
 
         /// <inheritdoc/>
         public ValueTask<NodeManagerRegistration> AddAsync(
