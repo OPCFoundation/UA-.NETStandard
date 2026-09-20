@@ -1352,6 +1352,15 @@ namespace Opc.Ua.Client.Subscriptions
         /// soft signal — workers complete their current cycle before
         /// observing the pause.
         /// </summary>
+        /// <remarks>
+        /// A worker that began its request before the quiesce can be parked
+        /// inside the service call waiting for the channel to become ready.
+        /// That wait cannot finish while the caller draining here is the very
+        /// operation that makes the channel ready, so the attempts are aborted
+        /// first. Aborting only cancels the client-side attempt: the worker
+        /// rolls its acknowledgements back and returns to the paused park, so
+        /// publish ingress stays quiesced for the caller's operation.
+        /// </remarks>
         /// <param name="ct">Cancellation token.</param>
         internal Task DrainAsync(CancellationToken ct)
         {
@@ -1359,7 +1368,58 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 return Task.CompletedTask;
             }
+            AbortActivePublishRequests();
             return m_drainSignal.WaitAsync(ct);
+        }
+
+        /// <summary>
+        /// Cancels the publish attempts that are currently in flight without
+        /// stopping their workers.
+        /// </summary>
+        private void AbortActivePublishRequests()
+        {
+            CancellationTokenSource[] attempts;
+            lock (m_publishStateLock)
+            {
+                if (m_activePublishAttempts.Count == 0)
+                {
+                    return;
+                }
+                attempts = [.. m_activePublishAttempts];
+            }
+            foreach (CancellationTokenSource attempt in attempts)
+            {
+                try
+                {
+                    attempt.Cancel();
+                }
+                catch (ObjectDisposedException)
+                {
+                    // The worker completed its attempt and released the source.
+                }
+            }
+        }
+
+        /// <summary>
+        /// Registers a publish attempt so a quiesce can abort it.
+        /// </summary>
+        private void RegisterPublishAttempt(CancellationTokenSource attempt)
+        {
+            lock (m_publishStateLock)
+            {
+                m_activePublishAttempts.Add(attempt);
+            }
+        }
+
+        /// <summary>
+        /// Removes a completed publish attempt from the abortable set.
+        /// </summary>
+        private void UnregisterPublishAttempt(CancellationTokenSource attempt)
+        {
+            lock (m_publishStateLock)
+            {
+                m_activePublishAttempts.Remove(attempt);
+            }
         }
 
         private bool TryBeginPublishRequest()
@@ -1819,6 +1879,10 @@ namespace Opc.Ua.Client.Subscriptions
                     ArrayOf<SubscriptionAcknowledgement> acks = [];
                     uint handle = 0;
                     bool publishActive = true;
+                    // A quiesce can abort this attempt without stopping the worker.
+                    var attempt = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    CancellationToken attemptToken = attempt.Token;
+                    m_outer.RegisterPublishAttempt(attempt);
                     try
                     {
                         acks = GetAcksReadyToSend();
@@ -1827,7 +1891,7 @@ namespace Opc.Ua.Client.Subscriptions
                         if (acks.Count == 0 && !moreNotifications && ackWaitTimeout != 0)
                         {
                             // Throttle publishing as we wait for acks to arrive
-                            acks = await WaitForAcksAsync(ackWaitTimeout, ct).ConfigureAwait(false);
+                            acks = await WaitForAcksAsync(ackWaitTimeout, attemptToken).ConfigureAwait(false);
                         }
                         if (!m_outer.m_running.IsSet)
                         {
@@ -1842,7 +1906,7 @@ namespace Opc.Ua.Client.Subscriptions
                                 TimeoutHint = timeoutHint,
                                 ReturnDiagnostics = (uint)(int)m_outer.ReturnDiagnostics,
                                 RequestHandle = handle
-                            }, acks, ct).ConfigureAwait(false);
+                            }, acks, attemptToken).ConfigureAwait(false);
 
                         moreNotifications = response.MoreNotifications;
                         uint subscriptionId = response.SubscriptionId;
@@ -1974,6 +2038,13 @@ namespace Opc.Ua.Client.Subscriptions
                         {
                             acks.ForEach(ack => m_outer.m_acks.Writer.TryWrite(ack));
                         }
+                        if (!ct.IsCancellationRequested)
+                        {
+                            // A quiesce aborted this attempt, not the worker. Release
+                            // the request so the drain completes, then return to the
+                            // paused park and resume once the caller finishes.
+                            continue;
+                        }
                         break;
                     }
                     catch (Exception e)
@@ -2102,6 +2173,8 @@ namespace Opc.Ua.Client.Subscriptions
                         {
                             m_outer.EndPublishRequest();
                         }
+                        m_outer.UnregisterPublishAttempt(attempt);
+                        attempt.Dispose();
                     }
                 }
                 m_logger.PublishWorkerStopped(Index);
@@ -2346,6 +2419,7 @@ namespace Opc.Ua.Client.Subscriptions
         private readonly AsyncManualResetEvent m_drainSignal = new(true);
         private readonly SemaphoreSlim m_publishQuiescenceGate = new(1, 1);
         private readonly Lock m_publishStateLock = new();
+        private readonly HashSet<CancellationTokenSource> m_activePublishAttempts = [];
         private readonly CancellationToken m_disposeToken;
         private int m_activePublishRequests;
         private int m_disposed;

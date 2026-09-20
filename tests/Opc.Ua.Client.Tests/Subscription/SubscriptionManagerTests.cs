@@ -552,6 +552,80 @@ namespace Opc.Ua.Client.Subscriptions
 
         [Test]
         [CancelAfter(30_000)]
+        public async Task PublishingQuiescenceCompletesWhileAWorkerWaitsForAReadyChannelAsync(
+            CancellationToken testCt)
+        {
+            // Regression for #4508: a worker parked inside the service call
+            // waiting for the channel to become ready holds an active publish
+            // request. The recreate that would make the channel ready awaits
+            // the drain, so an unbounded drain deadlocks. The drain must abort
+            // the parked attempt instead of waiting for it forever.
+            ILoggerFactory loggerFactory = m_telemetry.LoggerFactory;
+            var session = new FakeSubscriptionManagerContext();
+            var subscription = new FakeManagedSubscription { Id = 1, Created = true };
+            var sut = new SubscriptionManager(session, loggerFactory, DiagnosticsMasks.None);
+            try
+            {
+                session.CreateSubscriptionFactory = (_, _, _) => subscription;
+                var publishCalled = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                // Never completes on its own: the only way out is cancellation,
+                // exactly like ChannelEntry.WaitForReadyAsync on a faulted channel.
+                var readyGate = new TaskCompletionSource<PublishResponse>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                int publishAttempts = 0;
+                session.OnPublishAsync = (_, _, publishCt) =>
+                {
+                    Interlocked.Increment(ref publishAttempts);
+                    publishCalled.TrySetResult(true);
+                    return new ValueTask<PublishResponse>(readyGate.Task.WaitAsync(publishCt));
+                };
+
+                sut.MinPublishWorkerCount = 1;
+                sut.MaxPublishWorkerCount = 1;
+                sut.Add(m_mockNotificationDataHandler.Object,
+                    Mock.Of<IOptionsMonitor<SubscriptionOptions>>());
+                sut.Resume();
+                await publishCalled.Task.WaitAsync(testCt).ConfigureAwait(false);
+
+                bool operationRan = false;
+                int dropped = -1;
+                await sut.RunWithPublishingQuiescedAsync(_ =>
+                {
+                    operationRan = true;
+                    // The documented contract: ingress is quiesced here, so
+                    // dropping pending acknowledgements is still safe.
+                    dropped = sut.DropPendingForSubscription(1);
+                    return default;
+                }, testCt).ConfigureAwait(false);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(operationRan, Is.True,
+                        "the quiesced operation must run instead of deadlocking on the drain.");
+                    Assert.That(dropped, Is.Zero);
+                    Assert.That(publishAttempts, Is.GreaterThan(0));
+                });
+
+                // The worker survived the abort and resumes publishing.
+                var resumed = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                session.OnPublishAsync = (_, _, publishCt) =>
+                {
+                    resumed.TrySetResult(true);
+                    return new ValueTask<PublishResponse>(readyGate.Task.WaitAsync(publishCt));
+                };
+                sut.Resume();
+                await resumed.Task.WaitAsync(testCt).ConfigureAwait(false);
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        [CancelAfter(30_000)]
         public async Task PublishingQuiescenceWaitsForAckRollbackAsync(
             CancellationToken testCt)
         {
