@@ -509,13 +509,24 @@ namespace Opc.Ua.Bindings
             {
                 // everything ok if new number is greater.
                 m_remoteSequenceNumber = sequenceNumber;
+                if (m_sequenceRollover &&
+                    sequenceNumber >= TcpMessageLimits.MaxRolloverSequenceNumber &&
+                    sequenceNumber <= TcpMessageLimits.MinSequenceNumber)
+                {
+                    // The counter traversed the normal range, so the guard against repeated
+                    // low numbers right after a wrap has served its purpose. Part 6 does not
+                    // cap a channel at a single wrap, and a long-lived busy channel reaches
+                    // the next legal one.
+                    m_sequenceRollover = false;
+                }
                 return true;
             }
             else if (m_remoteSequenceNumber > TcpMessageLimits.MinSequenceNumber &&
                 sequenceNumber < TcpMessageLimits.MaxRolloverSequenceNumber)
             {
                 // check for a valid rollover.
-                // only one rollover per token is allowed and with valid values depending on security policy
+                // only one rollover per rollover window is allowed and with valid values
+                // depending on security policy
                 if (!m_sequenceRollover &&
                     (usesLegacySequenceNumbers || sequenceNumber == 0))
                 {
