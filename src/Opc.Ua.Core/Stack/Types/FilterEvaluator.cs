@@ -767,9 +767,10 @@ namespace Opc.Ua
                     Variant hopsValue = GetValue(operands[3]);
                     Variant typeSubtypesValue = GetValue(operands[4]);
                     Variant referenceSubtypesValue = GetValue(operands[5]);
+                    // Part 4 7.7.4: the optional subtype operands both default to true.
                     int hops = 1;
-                    bool typeSubtypes = false;
-                    bool referenceSubtypes = false;
+                    bool typeSubtypes = true;
+                    bool referenceSubtypes = true;
                     if ((!hopsValue.IsNull &&
                         !ConvertValue(hopsValue, BuiltInType.Int32).TryGetValue(out hops)) ||
                         (!typeSubtypesValue.IsNull &&

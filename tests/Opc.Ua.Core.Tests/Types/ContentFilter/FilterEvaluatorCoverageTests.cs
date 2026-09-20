@@ -489,6 +489,49 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         }
 
         [Test]
+        public void RelatedToWithOmittedSubtypeOperandsIncludesSubtypes()
+        {
+            var advanced = new AdvancedCoverageFilterTarget { IsRelatedToResult = true };
+            ContentFilterElement element = RelatedToElement(
+                new LiteralOperand(Variant.From(new NodeId(1))),
+                new LiteralOperand(Variant.From(new NodeId(2))));
+
+            Assert.That(Filter(element).Evaluate(m_context, advanced), Is.True);
+            Assert.Multiple(() =>
+            {
+                // Part 4 7.7.4: both optional subtype operands default to true.
+                Assert.That(advanced.LastIncludeTypeDefinitionSubtypes, Is.True);
+                Assert.That(advanced.LastIncludeReferenceSubtypes, Is.True);
+            });
+        }
+
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public void RelatedToWithSuppliedSubtypeOperandsForwardsThem(
+            bool includeTypeSubtypes,
+            bool includeReferenceSubtypes)
+        {
+            var advanced = new AdvancedCoverageFilterTarget { IsRelatedToResult = true };
+            ContentFilterElement element = Element(
+                FilterOperator.RelatedTo,
+                new LiteralOperand(Variant.From(new NodeId(1))),
+                new LiteralOperand(Variant.From(new NodeId(2))),
+                new LiteralOperand(Variant.From(new NodeId(3))),
+                new LiteralOperand(Variant.Null),
+                new LiteralOperand(Variant.From(includeTypeSubtypes)),
+                new LiteralOperand(Variant.From(includeReferenceSubtypes)));
+
+            Assert.That(Filter(element).Evaluate(m_context, advanced), Is.True);
+            Assert.Multiple(() =>
+            {
+                Assert.That(advanced.LastIncludeTypeDefinitionSubtypes, Is.EqualTo(includeTypeSubtypes));
+                Assert.That(advanced.LastIncludeReferenceSubtypes, Is.EqualTo(includeReferenceSubtypes));
+            });
+        }
+
+        [Test]
         public void RelatedToWithNonNodeIdSourceYieldsFalse()
         {
             var advanced = new AdvancedCoverageFilterTarget { IsRelatedToResult = true };
@@ -703,6 +746,8 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             public Variant RelatedAttributeValue { get; set; } = Variant.Null;
             public IList<NodeId> RelatedNodes { get; set; } = [];
             public int RelatedNodeReads { get; private set; }
+            public bool? LastIncludeTypeDefinitionSubtypes { get; private set; }
+            public bool? LastIncludeReferenceSubtypes { get; private set; }
 
             public bool IsTypeOf(IFilterContext context, NodeId typeDefinitionId)
             {
@@ -742,6 +787,8 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
                 {
                     throw new InvalidOperationException("IsRelatedTo failed.");
                 }
+                LastIncludeTypeDefinitionSubtypes = includeTypeDefintionSubtypes;
+                LastIncludeReferenceSubtypes = includeReferenceSubtypes;
                 return IsRelatedToResult;
             }
 
