@@ -181,6 +181,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                EnsureMutable();
                 if (m_referenceOwners.TryGetValue(node, out IAsyncNodeManager? existing) &&
                     !AreSameManager(existing, owner))
                 {
@@ -197,6 +198,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                EnsureMutable();
                 NodeState[] nodes =
                 [
                     .. m_referenceOwners.Where(entry => AreSameManager(entry.Value, owner)).Select(entry => entry.Key)
@@ -229,10 +231,20 @@ namespace Opc.Ua.Server
             return ReadSnapshot.References.TryGetValue(node, out NodeState.ReferenceSnapshot? image) ? image : null;
         }
 
+        private void EnsureMutable()
+        {
+            if (m_reservedRoutes is not null)
+            {
+                throw new InvalidOperationException(
+                    "The routing image belongs to a pending publication and cannot be changed.");
+            }
+        }
+
         private readonly AsyncLocal<RoutingSnapshot?> m_readSnapshot = new();
         private readonly AsyncLocal<TypeTable?> m_preparedTypes = new();
         private readonly AsyncLocal<EncodeableFactory?> m_preparedFactory = new();
         private readonly Dictionary<NodeState, IAsyncNodeManager> m_referenceOwners = [];
+        private PreparedRoutes? m_reservedRoutes;
 
         private sealed class TypeScope(
             NodeManagerRoutingTable owner,
@@ -273,7 +285,7 @@ namespace Opc.Ua.Server
             private readonly RoutingSnapshot? m_previous;
         }
 
-        internal sealed class PreparedRoutes
+        internal sealed class PreparedRoutes : IDisposable
         {
             internal PreparedRoutes(
                 NodeManagerRoutingTable owner,
@@ -285,22 +297,57 @@ namespace Opc.Ua.Server
                 m_next = next;
             }
 
-            public void Validate()
+            public void Reserve()
             {
-                if (!ReferenceEquals(Volatile.Read(ref m_owner.m_snapshot), m_previous))
+                lock (m_owner.m_lock)
                 {
-                    throw new InvalidOperationException("Routing changed during batch preparation.");
+                    if (m_disposed || m_published || ReferenceEquals(m_owner.m_reservedRoutes, this))
+                    {
+                        throw new InvalidOperationException("The routing publication is no longer preparable.");
+                    }
+                    if (!ReferenceEquals(m_owner.m_snapshot, m_previous))
+                    {
+                        throw new InvalidOperationException("Routing changed during batch preparation.");
+                    }
+                    m_owner.EnsureMutable();
+                    m_owner.m_reservedRoutes = this;
                 }
             }
 
             public void Publish()
             {
-                Volatile.Write(ref m_owner.m_snapshot, m_next);
+                lock (m_owner.m_lock)
+                {
+                    if (m_published)
+                    {
+                        return;
+                    }
+                    if (m_disposed || !ReferenceEquals(m_owner.m_reservedRoutes, this))
+                    {
+                        throw new InvalidOperationException("The routing publication has not been reserved.");
+                    }
+                    Volatile.Write(ref m_owner.m_snapshot, m_next);
+                    m_published = true;
+                }
+            }
+
+            public void Dispose()
+            {
+                lock (m_owner.m_lock)
+                {
+                    if (ReferenceEquals(m_owner.m_reservedRoutes, this))
+                    {
+                        m_owner.m_reservedRoutes = null;
+                    }
+                    m_disposed = true;
+                }
             }
 
             private readonly NodeManagerRoutingTable m_owner;
             private readonly RoutingSnapshot m_previous;
             private readonly RoutingSnapshot m_next;
+            private bool m_published;
+            private bool m_disposed;
         }
     }
 }

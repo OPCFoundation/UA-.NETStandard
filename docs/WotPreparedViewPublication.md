@@ -188,8 +188,13 @@ implements this interface. The hosted lifecycle forwards it to the attached
 server, or reports that a custom lifecycle does not support it.
 
 The lifecycle privately prepares additions, replacements and removals. Commit
-rechecks the exact registrations and routing revision before calling the supplied
-durable decision. It then publishes one routing image. A prepared batch can be
+rechecks the exact registrations and atomically validates/reserves the serving
+routing revision before calling the supplied durable decision. Conflicting routing
+writes fail before effects rather than being accepted and overwritten. The reservation
+protects the single routing switch and internal host bookkeeping; it releases on
+noncommit/cancellation or before committed-state and binding-reconciliation callbacks.
+Readers retain coherent captured images, and successful later writes are preserved.
+A prepared batch can be
 consumed only once; disposal aborts an uncommitted candidate. Post-decision
 cancellation cannot undo the committed image.
 

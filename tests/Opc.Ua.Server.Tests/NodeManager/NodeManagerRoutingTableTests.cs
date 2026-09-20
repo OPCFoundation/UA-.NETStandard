@@ -41,7 +41,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
     [TestFixture]
     [Category("NodeManagerLifecycle")]
     [Parallelizable(ParallelScope.All)]
-    public sealed class NodeManagerRoutingTableTests
+    public sealed partial class NodeManagerRoutingTableTests
     {
         private static readonly int[] AddNamespaceIndexes = [2, 2, 3];
         private static readonly int[] ReplaceNamespaceIndexes = [3, 4];
@@ -68,12 +68,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Staged = true,
                 ReplacedNodeManager = replace ? original : null
             };
-            NodeManagerRoutingTable.PreparedRoutes routes = table.PrepareBatch(
+            using NodeManagerRoutingTable.PreparedRoutes routes = table.PrepareBatch(
                 [prepared], [], table.Revision, _ => BatchNamespaceIndexes,
                 new TypeTable(new NamespaceTable()), (EncodeableFactory)EncodeableFactory.Create());
             using (table.Capture())
             {
-                routes.Validate();
+                routes.Reserve();
                 routes.Publish();
                 Assert.That(table.Any(manager => ReferenceEquals(manager, candidate)), Is.False,
                     "An in-flight request must retain the unpublished routing image.");

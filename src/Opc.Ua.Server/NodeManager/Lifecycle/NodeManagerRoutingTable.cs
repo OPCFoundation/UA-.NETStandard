@@ -84,6 +84,7 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
+                EnsureMutable();
                 RoutingSnapshot snapshot = m_snapshot;
                 m_snapshot = new RoutingSnapshot(
                     [.. snapshot.NodeManagers, nodeManager],
@@ -114,6 +115,7 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
+                EnsureMutable();
                 m_snapshot = new RoutingSnapshot(
                     m_snapshot.NodeManagers,
                     namespaceManagers.ToDictionary(
@@ -152,6 +154,7 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
+                EnsureMutable();
                 RoutingSnapshot snapshot = m_snapshot;
                 if (Array.IndexOf(snapshot.NodeManagers, nodeManager) >= 0)
                 {
@@ -237,6 +240,7 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
+                EnsureMutable();
                 RoutingSnapshot snapshot = m_snapshot;
                 int managerIndex = Array.IndexOf(snapshot.NodeManagers, current);
                 if (managerIndex < 2)
@@ -354,6 +358,7 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
+                EnsureMutable();
                 RoutingSnapshot snapshot = m_snapshot;
                 int managerIndex = Array.IndexOf(snapshot.NodeManagers, nodeManager);
                 if (managerIndex < 2)
@@ -409,6 +414,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                EnsureMutable();
                 RoutingSnapshot snapshot = m_snapshot;
                 Dictionary<int, IReadOnlyList<IAsyncNodeManager>> routes =
                     CopyRoutes(snapshot.NamespaceManagers);
@@ -461,6 +467,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                EnsureMutable();
                 RoutingSnapshot snapshot = m_snapshot;
                 if (!snapshot.NamespaceManagers.TryGetValue(
                     namespaceIndex,
@@ -515,6 +522,7 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
+                EnsureMutable();
                 RoutingSnapshot snapshot = m_snapshot;
                 Dictionary<int, IReadOnlyList<IAsyncNodeManager>> routes =
                     CopyRoutes(snapshot.NamespaceManagers);
@@ -597,6 +605,7 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
+                EnsureMutable();
                 RoutingSnapshot snapshot = m_snapshot;
                 if (!snapshot.NodeManagers.Any(manager =>
                     ReferenceEquals(manager, nodeManager)))
@@ -636,6 +645,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                EnsureMutable();
                 foreach (NodeState node in m_referenceOwners.Keys)
                 {
                     m_snapshot.References.TryGetValue(node, out NodeState.ReferenceSnapshot? image);

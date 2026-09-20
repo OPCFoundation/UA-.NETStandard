@@ -141,11 +141,11 @@ namespace Opc.Ua.Server
                             }
                         }
 
-                        NodeManagerRoutingTable.PreparedRoutes routes =
+                        using NodeManagerRoutingTable.PreparedRoutes routes =
                             m_nodeManagers.PrepareBatch(
                                 candidates, removed, routingRevision, ResolveNamespaceIndexes,
                                 typeTree, factory, referenceImages);
-                        routes.Validate();
+                        routes.Reserve();
                         using TypeTable.Publication types = Server.TypeTree.BeginPublication(originalTypes, typeRevision);
                         using EncodeableFactory.Publication registrations =
                             originalFactory.BeginPublication(originalFactory, factoryRevision);
@@ -183,6 +183,8 @@ namespace Opc.Ua.Server
                             candidate.ReplacedExternalReferences = null;
                             SetPreparing(candidate.NodeManager, preparing: false);
                         }
+                        // Callbacks may mutate the committed image after internal publication bookkeeping.
+                        routes.Dispose();
                         published();
                     }
                     finally

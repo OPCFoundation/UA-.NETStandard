@@ -622,6 +622,18 @@ silently discarded by publication. Retired images remain readable but cannot be
 changed. Preparation does not replace the shared schema resolver; that update
 belongs to successful publication.
 
+Before invoking the durable decision, the batch atomically validates and reserves
+the exact serving routing revision. All routing writers, including public namespace
+registration/unregistration, visibility, startup/reset, and reference-view ownership
+changes, fail with `InvalidOperationException` before routing effects while that
+reservation is held. This is a table-wide reservation, not a per-namespace merge:
+callers may retry against the current image after it releases. Readers and
+request-captured routing images remain available without taking the mutation lock.
+Noncommit or cancellation releases only that prepared owner's reservation.
+After acceptance, the reservation protects the switch and internal host bookkeeping,
+then releases before committed-state and binding-reconciliation callbacks. Successful
+later writes therefore remain effective, and callbacks can use the normal routing APIs.
+
 Prepared batches require the stock `EncodeableFactory`. An unsupported custom
 factory is rejected before candidate creation. When a server stops, a supplied
 private factory retains its committed registrations and can be reused by a later
