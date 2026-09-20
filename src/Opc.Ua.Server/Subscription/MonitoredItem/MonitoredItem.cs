@@ -444,6 +444,8 @@ namespace Opc.Ua.Server
         {
             get
             {
+                EnsureSourceRetirement(includeCaptured: false);
+
                 // check if aggregate interval has passed.
                 if (m_calculator != null && m_calculator.HasEndTimePassed(DateTime.UtcNow))
                 {
@@ -1119,8 +1121,18 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException"></exception>
         public virtual void QueueValue(in DataValue value, ServiceResult? error, bool ignoreFilters)
         {
+            bool admitted = MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out var emission);
+            using var emissionLease = emission;
+            if (!admitted)
+            {
+                EnsureSourceRetirement();
+                return;
+            }
+            using var emissionScope = emission?.EnterSourceEmission();
             lock (m_lock)
             {
+                EnsureSourceRetirement();
+
                 // this method should only be called for variables.
                 if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) == 0)
                 {
@@ -1130,7 +1142,7 @@ namespace Opc.Ua.Server
                 // check monitoring mode.
                 if (m_isDisposed ||
                     MonitoringMode == MonitoringMode.Disabled ||
-                    (UsesExternalValueSource && (m_isDeleted || m_isDetached) && !IsBadNodeIdUnknown(value, error)))
+                    (!CanQueueSourceEmission() && !IsBadNodeIdUnknown(value, error)))
                 {
                     return;
                 }
@@ -1204,6 +1216,10 @@ namespace Opc.Ua.Server
 
                 // add the value to the queue.
                 AddValueToQueue(current, error!);
+                if (m_isDeleted)
+                {
+                    QueueNodeIdUnknown();
+                }
             }
         }
 
@@ -1306,10 +1322,22 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(instance));
             }
+            bool admitted = MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out var emission);
+            using var emissionLease = emission;
+            if (!admitted)
+            {
+                return;
+            }
+            using var emissionScope = emission?.EnterSourceEmission();
             m_server.EventManager?.AdmitEvent(m_server.DefaultSystemContext, instance);
 
             lock (m_lock)
             {
+                if (!CanQueueSourceEmission())
+                {
+                    return;
+                }
+
                 // this method should only be called for objects or views.
                 if ((MonitoredItemType & MonitoredItemTypeMask.Events) == 0)
                 {
@@ -1364,9 +1392,20 @@ namespace Opc.Ua.Server
         /// </summary>
         public virtual void QueueEvent(EventFieldList fields)
         {
+            bool admitted = MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out var emission);
+            using var emissionLease = emission;
+            if (!admitted)
+            {
+                return;
+            }
+            using var emissionScope = emission?.EnterSourceEmission();
             m_server.EventManager?.AdmitEventFields(fields);
             lock (m_lock)
             {
+                if (!CanQueueSourceEmission())
+                {
+                    return;
+                }
                 m_eventQueueHandler!.QueueEvent(fields);
                 m_readyToPublish = true;
                 m_readyToTrigger = true;
@@ -1947,6 +1986,29 @@ namespace Opc.Ua.Server
                         ? [.. m_filteredRetainConditionIds]
                         : ArrayOf<string>.Null
                 };
+            }
+        }
+
+        private bool CanQueueSourceEmission()
+        {
+            return !m_isDetached &&
+                (!m_isDeleted ||
+                    (m_server.NodeManager is MasterNodeManager master &&
+                        master.HasCapturedSourceEmission(NodeManager) &&
+                        !master.IsSourceEmissionAllowed(NodeManager, includeCaptured: false)));
+        }
+
+        private void EnsureSourceRetirement(bool includeCaptured = true)
+        {
+            lock (m_lock)
+            {
+                if (!m_isDeleted &&
+                    m_server.NodeManager is MasterNodeManager master &&
+                    !master.IsSourceEmissionAllowed(NodeManager, includeCaptured))
+                {
+                    m_isDeleted = true;
+                    QueueNodeIdUnknown();
+                }
             }
         }
 

@@ -74,6 +74,7 @@ namespace Opc.Ua.Server
         async ValueTask IDynamicNodeManagerBatchHost.CommitBatchAsync(
             ArrayOf<PreparedNodeManager> candidates,
             ArrayOf<IAsyncNodeManager> removed,
+            ArrayOf<IAsyncNodeManager> immediateRetirements,
             NodeManagerRoutingTable.RoutingSnapshot routingRevision,
             TypeTable typeTree,
             TypeTable originalTypes,
@@ -153,6 +154,8 @@ namespace Opc.Ua.Server
                         {
                             update.Reserve();
                         }
+                        using PreparedSourceEmissionCutoff emissions =
+                            PrepareSourceEmissionCutoff(immediateRetirements);
                         cancellationToken.ThrowIfCancellationRequested();
                         await decideAsync(cancellationToken).ConfigureAwait(false);
 
@@ -163,7 +166,7 @@ namespace Opc.Ua.Server
                         {
                             RetainRetiredGenerationNotifications(manager);
                         }
-                        routes.Publish();
+                        emissions.Publish(routes);
                         types.Complete();
                         registrations.Complete();
                         foreach (NodeState.ReferenceUpdate update in referenceUpdates)

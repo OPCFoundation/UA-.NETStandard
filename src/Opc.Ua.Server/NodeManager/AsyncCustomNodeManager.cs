@@ -6291,13 +6291,20 @@ namespace Opc.Ua.Server
         /// <param name="node">The notifier node.</param>
         /// <param name="e">The event.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
-        protected virtual ValueTask OnReportEventAsync(
+        protected virtual async ValueTask OnReportEventAsync(
             ISystemContext context,
             NodeState node,
             IFilterTarget e,
             CancellationToken cancellationToken = default)
         {
-            return Server.ReportEventAsync(context, e, cancellationToken);
+            bool admitted = MasterNodeManager.TryCaptureSourceEmission(Server, this, out var emission);
+            using var emissionLease = emission;
+            if (!admitted)
+            {
+                return;
+            }
+            using var emissionScope = emission?.EnterSourceEmission();
+            await Server.ReportEventAsync(context, e, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>

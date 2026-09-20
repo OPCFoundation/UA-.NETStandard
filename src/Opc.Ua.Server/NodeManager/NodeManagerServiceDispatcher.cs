@@ -1879,6 +1879,7 @@ namespace Opc.Ua.Server
                 {
                     try
                     {
+                        using var emission = dispatch.EnterSourceEmission();
                         await dispatch.NodeManager
                             .ConditionRefreshAsync(
                                 context,

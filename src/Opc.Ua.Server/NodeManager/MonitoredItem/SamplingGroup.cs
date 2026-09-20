@@ -504,6 +504,14 @@ namespace Opc.Ua.Server
                 // read values for all enabled items.
                 if (items != null && items.Count > 0)
                 {
+                    bool admitted = MasterNodeManager.TryCaptureSourceEmission(
+                        m_server, m_nodeManager, out var emission);
+                    using var emissionLease = emission;
+                    if (!admitted)
+                    {
+                        return;
+                    }
+                    using var emissionScope = emission?.EnterSourceEmission();
                     var itemsToRead = new List<ReadValueId>(items.Count);
                     var values = new List<DataValue>(items.Count);
                     var errors = new List<ServiceResult>(items.Count);

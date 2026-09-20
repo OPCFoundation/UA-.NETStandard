@@ -260,6 +260,7 @@ namespace Opc.Ua.Server
         ValueTask CommitBatchAsync(
             ArrayOf<PreparedNodeManager> candidates,
             ArrayOf<IAsyncNodeManager> removed,
+            ArrayOf<IAsyncNodeManager> immediateRetirements,
             NodeManagerRoutingTable.RoutingSnapshot routingRevision,
             TypeTable typeTree,
             TypeTable originalTypes,
