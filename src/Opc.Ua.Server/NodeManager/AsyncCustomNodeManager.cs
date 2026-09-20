@@ -2076,6 +2076,12 @@ namespace Opc.Ua.Server
                     }
                     catch (ServiceResultException ex)
                     {
+                        // The node is already registered, but its parent never gained the matching
+                        // forward reference. Unregister it so the address space keeps no node whose
+                        // inverse reference points at a parent that cannot browse back to it.
+                        await RemovePredefinedNodeAsync(
+                            systemContext, instance, [], CancellationToken.None).ConfigureAwait(false);
+                        instance.RemoveReference(item.ReferenceTypeId, true, parentNodeId);
                         return (new ServiceResult(ex), NodeId.Null);
                     }
                 }
