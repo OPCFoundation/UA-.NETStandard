@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -84,7 +85,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 });
             var channel = new OpcUaWotBindingChannel(
                 session.Object, false, form, new WotExecutorContext(), new OpcUaWotBindingOptions());
-            await using var owner = channel.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable owner = channel.ConfigureAwait(false);
 
             WotInvokeResult result = contextual
                 ? await channel.InvokeAsync(new WotInvokeRequest([new Variant(eventId)], context))
@@ -118,12 +119,66 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 });
             var channel = new OpcUaWotBindingChannel(
                 session.Object, false, form, new WotExecutorContext(), new OpcUaWotBindingOptions());
-            await using var owner = channel.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable owner = channel.ConfigureAwait(false);
 
             WotInvokeResult result = await channel.InvokeAsync(
                 [new Variant(new ByteString(new byte[] { 1 }))]).ConfigureAwait(false);
 
             Assert.That(result.Status, Is.EqualTo(StatusCodes.BadArgumentsMissing));
+        }
+
+        [Test]
+        public async Task OmittedRequiredCommentIsRejectedBeforeNativeInvocation()
+        {
+            WotCompiledForm form = Compile("Acknowledge", commentRequired: true);
+            ServiceMessageContext context = Context();
+            var session = new Mock<ISession>();
+            session.SetupGet(value => value.NamespaceUris).Returns(context.NamespaceUris);
+            session.Setup(value => value.CallAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CallResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results = [new CallMethodResult { StatusCode = StatusCodes.Good }]
+                });
+            var channel = new OpcUaWotBindingChannel(
+                session.Object, false, form, new WotExecutorContext(), new OpcUaWotBindingOptions());
+            await using ConfiguredAsyncDisposable owner = channel.ConfigureAwait(false);
+
+            WotInvokeResult result = await channel.InvokeAsync(
+                [new Variant(new ByteString(new byte[] { 1 }))]).ConfigureAwait(false);
+
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.BadArgumentsMissing));
+            session.Verify(value => value.CallAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        [Test]
+        public async Task OrdinaryRequiredArgumentsAreRejectedBeforeNativeInvocation()
+        {
+            WotCompiledForm form = Compile("Ordinary", commentRequired: true);
+            ServiceMessageContext context = Context();
+            var session = new Mock<ISession>();
+            session.SetupGet(value => value.NamespaceUris).Returns(context.NamespaceUris);
+            session.Setup(value => value.CallAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CallResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results = [new CallMethodResult { StatusCode = StatusCodes.Good }]
+                });
+            var channel = new OpcUaWotBindingChannel(
+                session.Object, false, form, new WotExecutorContext(), new OpcUaWotBindingOptions());
+            await using ConfiguredAsyncDisposable owner = channel.ConfigureAwait(false);
+
+            WotInvokeResult result = await channel.InvokeAsync(
+                [new Variant(new ByteString(new byte[] { 1 }))]).ConfigureAwait(false);
+
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.BadArgumentsMissing));
+            session.Verify(value => value.CallAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()),
+                Times.Never);
         }
 
         [Test]
@@ -145,7 +200,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
 
         private static ServiceMessageContext Context()
         {
-            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(
+            var context = ServiceMessageContext.CreateEmpty(
                 TelemetryExtensions.InternalOnly__TelemetryHook());
             context.NamespaceUris.Append("urn:source");
             return context;

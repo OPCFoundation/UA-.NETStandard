@@ -975,6 +975,9 @@ namespace Opc.Ua.Wot
                     case WotNodeSetConverter.ValueRankTerm:
                     case WotNodeSetConverter.ArrayDimensionsTerm:
                         break;
+                    case "uav:argumentLayout" when
+                        member.Value.ValueKind == JsonValueKind.String && member.Value.GetString() == "named":
+                        break;
                     case "properties" when member.Value.ValueKind == JsonValueKind.Object:
                         foreach (JsonProperty argument in member.Value.EnumerateObject())
                         {

@@ -339,6 +339,31 @@ namespace Opc.Ua.WotCon.Bindings
         /// Gets binding-specific payload metadata (for example numeric type / byte order).
         /// </summary>
         public ImmutableDictionary<string, string> Metadata { get; }
+
+        /// <summary>
+        /// Gets the complete action input layout, or null for a transport-only descriptor.
+        /// </summary>
+        public WotMethodArgumentLayout? InputLayout { get; private init; }
+
+        /// <summary>
+        /// Gets the complete action output layout, or null for a transport-only descriptor.
+        /// </summary>
+        public WotMethodArgumentLayout? OutputLayout { get; private init; }
+
+        /// <summary>
+        /// Returns a payload descriptor carrying the converter-resolved action layouts.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public WotPayloadDescriptor WithArgumentLayouts(
+            WotMethodArgumentLayout input,
+            WotMethodArgumentLayout output)
+        {
+            return new WotPayloadDescriptor(ContentType, CodecId, Metadata)
+            {
+                InputLayout = input ?? throw new ArgumentNullException(nameof(input)),
+                OutputLayout = output ?? throw new ArgumentNullException(nameof(output))
+            };
+        }
     }
 
     /// <summary>

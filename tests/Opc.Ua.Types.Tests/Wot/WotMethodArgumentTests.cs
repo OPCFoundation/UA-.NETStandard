@@ -61,6 +61,7 @@ namespace Opc.Ua.Types.Tests.Wot
             JsonElement input = action.GetProperty("input");
 
             Assert.That(input.GetProperty("type").GetString(), Is.EqualTo("object"));
+            Assert.That(input.GetProperty("uav:argumentLayout").GetString(), Is.EqualTo("named"));
             Assert.That(
                 Order(input),
                 Is.EqualTo(s_resetInputOrder),
@@ -83,6 +84,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo(s_levelDimensions));
 
             JsonElement output = action.GetProperty("output");
+            Assert.That(output.GetProperty("uav:argumentLayout").GetString(), Is.EqualTo("named"));
             Assert.That(Order(output), Is.EqualTo(s_resetOutputOrder));
             Assert.That(
                 output.GetProperty("properties").GetProperty("Accepted")
@@ -318,6 +320,59 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(input[0].DataType, Is.EqualTo("i=22"));
         }
 
+        [TestCase("input", "InputArguments")]
+        [TestCase("output", "OutputArguments")]
+        public void ExplicitSingleObjectLayoutDoesNotFlattenItsFields(string member, string browseName)
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                "\"actions\":{\"run\":{\"@type\":\"uav:method\"," +
+                "\"" + member + "\":{\"type\":\"object\",\"uav:argumentLayout\":\"single\"," +
+                "\"uav:fieldOrder\":[\"Reason\",\"Level\"],\"properties\":{" +
+                "\"Reason\":{\"type\":\"string\"},\"Level\":{\"type\":\"integer\"}}}}}");
+
+            Assert.That(result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error), Is.Empty);
+            List<DecodedArgument> arguments = ArgumentsOf(result.Value!, browseName);
+            Assert.That(arguments, Has.Count.EqualTo(1));
+            Assert.That(arguments[0].DataType, Is.EqualTo("i=22"));
+            Assert.That(arguments[0].ValueRank, Is.EqualTo("-1"));
+        }
+
+        [TestCase("input", "InputArguments")]
+        [TestCase("output", "OutputArguments")]
+        public void ExplicitNamedLayoutUsesItsCompleteOrder(string member, string browseName)
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                "\"actions\":{\"run\":{\"@type\":\"uav:method\"," +
+                "\"" + member + "\":{\"type\":\"object\",\"uav:argumentLayout\":\"named\"," +
+                "\"uav:fieldOrder\":[\"Level\",\"Reason\"],\"properties\":{" +
+                "\"Reason\":{\"type\":\"string\"},\"Level\":{\"type\":\"integer\",\"uav:mapToType\":\"i=7\"}}}}}");
+
+            Assert.That(result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error), Is.Empty);
+            List<DecodedArgument> arguments = ArgumentsOf(result.Value!, browseName);
+            Assert.That(arguments.Select(argument => argument.Name), Is.EqualTo(s_explicitInputOrder));
+            Assert.That(arguments.Select(argument => argument.DataType), Is.EqualTo(s_explicitInputTypes));
+        }
+
+        [TestCase("\"uav:argumentLayout\":\"named\",")]
+        [TestCase("\"uav:argumentLayout\":\"named\",\"uav:mapToType\":\"i=22\",\"uav:fieldOrder\":[\"Value\"],")]
+        [TestCase("\"uav:argumentLayout\":\"flattened\",\"uav:fieldOrder\":[\"Value\"],")]
+        [TestCase("\"uav:argumentLayout\":null,\"uav:fieldOrder\":[\"Value\"],")]
+        [TestCase("\"uav:argumentLayout\":1,\"uav:fieldOrder\":[\"Value\"],")]
+        [TestCase("\"uav:argumentLayout\":\"named\",\"uav:fieldOrder\":[],")]
+        [TestCase("\"uav:argumentLayout\":\"named\",\"uav:fieldOrder\":[\"Value\",\"Value\"],")]
+        public void InvalidExplicitLayoutDoesNotMaterializeAnArgumentList(string layout)
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                "\"actions\":{\"run\":{\"@type\":\"uav:method\"," +
+                "\"input\":{\"type\":\"object\"," + layout +
+                "\"properties\":{\"Value\":{\"type\":\"string\"}}}}}");
+
+            Assert.That(result.Diagnostics.Any(d =>
+                d.Severity == WotDiagnosticSeverity.Error &&
+                d.Code == WotDiagnosticCode.MethodArgumentSchemaInvalid), Is.True);
+            Assert.That(result.Value!.Items.OfType<UAVariable>().Any(v => v.BrowseName == "InputArguments"), Is.False);
+        }
+
         /// <summary>
         /// JSON object member order carries no meaning, so a two-argument
         /// schema that states none is reported rather than silently ordered by
@@ -439,6 +494,33 @@ namespace Opc.Ua.Types.Tests.Wot
                 ? string.Empty
                 : string.Concat(result.Value.Extensions.Select(e => e.OuterXml));
             Assert.That(extensions, Does.Not.Contain("/input"));
+        }
+
+        [Test]
+        public void ExplicitNamedArgumentLayoutsAreNotRetainedAsUnmappedResidue()
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                "\"actions\":{\"reset\":{\"@type\":\"uav:method\"," +
+                "\"input\":{\"type\":\"object\",\"uav:argumentLayout\":\"named\"," +
+                "\"uav:fieldOrder\":[\"Reason\"],\"properties\":{\"Reason\":{\"type\":\"string\"}}}}}");
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+            string extensions = string.Concat((result.Value!.Extensions ?? []).Select(value => value.OuterXml));
+            Assert.That(extensions, Does.Not.Contain("uav:argumentLayout"));
+            Assert.That(extensions, Does.Not.Contain("/input"));
+        }
+
+        [Test]
+        public void GeneratedArgumentLayoutsDoNotAddResidueToPreservedNativeModels()
+        {
+            UANodeSet source = CreateMethodNodeSet();
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+
+            WotConversionResult<UANodeSet> restored = WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(restored.Success, Is.True, string.Join("; ", restored.Diagnostics));
+            Assert.That((restored.Value!.Extensions ?? []).Select(value => value.OuterXml),
+                Is.EqualTo((source.Extensions ?? []).Select(value => value.OuterXml)));
         }
 
         private static IReadOnlyList<string> Order(JsonElement schema)
@@ -614,7 +696,7 @@ namespace Opc.Ua.Types.Tests.Wot
             string browseName,
             params string[] arguments)
         {
-            var value = WotTestData.ParseValue(
+            System.Xml.XmlElement value = WotTestData.ParseValue(
                 "<uax:ListOfExtensionObject xmlns:uax=\"" + UaXsd + "\">" +
                 string.Concat(arguments.Select(a =>
                     "<uax:ExtensionObject><uax:TypeId>" +
@@ -687,11 +769,13 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"securityDefinitions\":{\"nosec_sc\":{\"scheme\":\"nosec\"}}," +
                 members + "}");
 
-            using WotDocument document = WotDocument.Parse(json);
+            using var document = WotDocument.Parse(json);
             return WotNodeSetConverter.ToNodeSetResult(document);
         }
 
         private static readonly string[] s_resetInputOrder = ["Reason", "Level"];
+        private static readonly string[] s_explicitInputOrder = ["Level", "Reason"];
+        private static readonly string[] s_explicitInputTypes = ["i=7", "i=12"];
         private static readonly string[] s_resetOutputOrder = ["Accepted"];
         private static readonly uint[] s_levelDimensions = [4];
         private static readonly string[] s_levelDimensionText = ["4"];

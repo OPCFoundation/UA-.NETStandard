@@ -82,6 +82,12 @@ namespace Opc.Ua.Types.Tests.Wot
             "uav:symmetric"
         ];
 
+        private static readonly string[] s_callTerms =
+        [
+            "uav:callObjectId",
+            "uav:argumentLayout"
+        ];
+
         [Test]
         public void AnEventDataSchemaWithoutPropertiesIsPreservedAsResidue()
         {
@@ -493,8 +499,13 @@ namespace Opc.Ua.Types.Tests.Wot
             {
                 Assert.That(
                     WotBindingConformance.VocabularyTerms.Count,
-                    Is.EqualTo(113),
-                    "The published @context of revision 1.1 mints 113 uav IRIs.");
+                    Is.EqualTo(113 + s_callTerms.Length),
+                    "The implementation retains the 113 revision 1.1 IRIs and recognizes the explicit Call terms.");
+                foreach (string term in s_callTerms)
+                {
+                    Assert.That(WotBindingConformance.IsKnownTerm(term), Is.True, term);
+                    Assert.That(WotBindingConformance.VocabularyTerms.ToArray(), Does.Contain(term));
+                }
                 Assert.That(
                     WotBindingConformance.ScopedTerms.Count,
                     Is.EqualTo(13),
