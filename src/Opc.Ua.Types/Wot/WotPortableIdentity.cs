@@ -372,6 +372,43 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
+        /// Returns a canonical portable NodeId, preserving string payloads and escaping the NamespaceUri once.
+        /// </summary>
+        public static string CanonicalNodeId(string value)
+        {
+            if (!IsPortableNodeId(value))
+            {
+                throw new ArgumentException("A portable NodeId is required.", nameof(value));
+            }
+            ExpandedNodeId expanded = ExpandedNodeId.Parse(value);
+            int delimiter = value.StartsWith("nsu=", StringComparison.Ordinal) ? value.IndexOf(';', 4) : -1;
+            NodeId identifier = NodeId.Parse(delimiter < 0 ? value : value[(delimiter + 1)..]);
+            if (identifier.IsNull)
+            {
+                throw new ArgumentException("A canonical identity cannot be null.", nameof(value));
+            }
+            string? uri = expanded.NamespaceUri;
+            return string.IsNullOrEmpty(uri) || string.Equals(uri, WotVocabulary.OpcUaNamespace, StringComparison.Ordinal)
+                ? identifier.ToString()
+                : "nsu=" + CoreUtils.EscapeUri(uri) + ";" + identifier;
+        }
+
+        /// <summary>
+        /// Computes the full SHA-256 of canonical, unique, code-point-ordered semantic membership.
+        /// </summary>
+        public static ByteString ProjectionMembershipDigest(ArrayOf<string> members)
+        {
+            var distinct = new HashSet<string>(StringComparer.Ordinal);
+            foreach (string member in members)
+            {
+                distinct.Add(CanonicalNodeId(member));
+            }
+            var ordered = new List<string>(distinct);
+            ordered.Sort(WotCodePointComparer.Instance);
+            return SequenceDigest(ordered.ToArrayOf());
+        }
+
+        /// <summary>
         /// Computes the <c>ViewVersion</c> of Section 12.6 from a View's
         /// resolved membership.
         /// </summary>

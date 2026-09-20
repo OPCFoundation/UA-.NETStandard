@@ -122,6 +122,16 @@ namespace Opc.Ua.WotCon.Server.Materialization
         public ArrayOf<WotOrganizationalGroup> Groups { get; }
 
         /// <summary>
+        /// Gets whether this plan participates in pure canonical graph preparation.
+        /// </summary>
+        public bool IsCanonical { get; private init; }
+
+        /// <summary>
+        /// Gets organizing links to canonical projection Resources, without copying their affordances.
+        /// </summary>
+        public ArrayOf<WotCanonicalViewLink> CanonicalLinks { get; private init; }
+
+        /// <summary>
         /// Gets the deterministic membership version copied to the View's
         /// standard <c>ViewVersion</c> attribute. Per <i>OPC UA — WoT Binding</i>
         /// §12.6 it is a deterministic function of the resolved membership
@@ -149,7 +159,24 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// counts the Nodes the View organizes, because those are materialized
         /// from their own source documents.
         /// </summary>
-        public int MaterializedNodeCount => 1 + CountGroups(Groups);
+        public int MaterializedNodeCount => IsCanonical ? 1 + (2 * CanonicalLinks.Count) : 1 + CountGroups(Groups);
+
+        /// <summary>
+        /// Creates a canonical plan whose publication token is assigned by graph preparation, not by refresh counters.
+        /// </summary>
+        public static WotViewProjectionPlan CreateCanonical(
+            string scenario,
+            WotDocumentKind documentKind,
+            ArrayOf<NodeId> organizedNodeIds,
+            ArrayOf<WotCanonicalViewLink> organizingLinks,
+            ArrayOf<string> omissions = default)
+        {
+            return new WotViewProjectionPlan(scenario, documentKind, organizedNodeIds, [], 0, omissions)
+            {
+                IsCanonical = true,
+                CanonicalLinks = organizingLinks.IsNull ? ArrayOf<WotCanonicalViewLink>.Empty : organizingLinks
+            };
+        }
 
         private static int CountGroups(ArrayOf<WotOrganizationalGroup> groups)
         {

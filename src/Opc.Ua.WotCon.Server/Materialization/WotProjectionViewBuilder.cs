@@ -55,7 +55,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// it performs no address-space mutation. An <see cref="IWotViewProjectionHost"/>
     /// applies the plan it returns.
     /// </remarks>
-    public sealed class WotProjectionViewBuilder
+    public sealed partial class WotProjectionViewBuilder
     {
         /// <summary>
         /// Initializes a new builder.

@@ -76,6 +76,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
             await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                if (m_live.TryGetValue(request.ViewNodeId, out WotViewProjectionHandle? owner) &&
+                    !string.Equals(owner.ResourceXid, request.ResourceXid, StringComparison.Ordinal))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNodeIdExists, "The View identity is owned by another logical Resource.");
+                }
                 WotProjectionViewNodeManager manager =
                     await EnsureManagerAsync(cancellationToken).ConfigureAwait(false);
                 List<string> applyOmissions = [];
