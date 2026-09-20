@@ -5158,7 +5158,15 @@ namespace Opc.Ua.Client
             else if (configuration.SecurityConfiguration != null &&
                 !configuration.SecurityConfiguration.SupportedSecurityPolicies.IsNull)
             {
-                enabledPolicies = configuration.SecurityConfiguration.SupportedSecurityPolicies;
+                // The channel policy was already accepted for this endpoint, so a user-token
+                // policy naming it must pass the client gate too. Without this the client
+                // contradicts itself and rejects the server's own policy as NotEnabledByClient
+                // whenever SupportedSecurityPolicies is narrower than the negotiated channel.
+                // Policies with an empty SecurityPolicyUri inherit the channel policy and are
+                // already accepted unconditionally by the gate.
+                enabledPolicies = UnionWithChannelPolicy(
+                    configuration.SecurityConfiguration.SupportedSecurityPolicies,
+                    endpoint.SecurityPolicyUri);
             }
             else
             {
@@ -5176,6 +5184,36 @@ namespace Opc.Ua.Client
                 CurrentEphemeralKeyPolicyUri = currentEphemeralKeyPolicyUri,
                 SecurityPolicyRegistry = securityPolicies
             };
+        }
+
+        /// <summary>
+        /// Adds the negotiated channel security policy to the client's supported set.
+        /// </summary>
+        /// <param name="supportedPolicies">The configured client policies.</param>
+        /// <param name="channelPolicyUri">The endpoint's channel security policy.</param>
+        /// <returns>The supported policies including the channel policy.</returns>
+        private static ArrayOf<string> UnionWithChannelPolicy(
+            ArrayOf<string> supportedPolicies,
+            string? channelPolicyUri)
+        {
+            if (string.IsNullOrEmpty(channelPolicyUri) || supportedPolicies.Count == 0)
+            {
+                return supportedPolicies;
+            }
+
+            ReadOnlySpan<string> span = supportedPolicies.Span;
+            for (int ii = 0; ii < span.Length; ii++)
+            {
+                if (string.Equals(span[ii], channelPolicyUri, StringComparison.Ordinal))
+                {
+                    return supportedPolicies;
+                }
+            }
+
+            string[] union = new string[supportedPolicies.Count + 1];
+            span.CopyTo(union);
+            union[^1] = channelPolicyUri!;
+            return new ArrayOf<string>(union);
         }
 
         private void BuildCertificateData(

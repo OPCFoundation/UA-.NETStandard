@@ -1151,8 +1151,21 @@ namespace Opc.Ua.Client
                                 identityContext,
                                 certificate?.Certificate,
                                 m_securityPolicies ?? SecurityPolicies.Default);
-                        initialIdentity = await m_identityProvider.AcquireIdentityAsync(selectionContext, ct)
-                            .ConfigureAwait(false);
+                        if (ConfiguredEndpoint.Description.UserIdentityTokens.Count == 0)
+                        {
+                            // Discovery has not populated the endpoint's token policies yet,
+                            // typically because the server was down at startup. Selecting an
+                            // identity now could only fail at the identity layer and mask the
+                            // real cause, so keep the configured identity and let the attempt
+                            // fail at the transport layer for the reconnect policy to retry.
+                            m_logger.ManagedSessionIdentityProviderDeferredUntilDiscovery();
+                        }
+                        else
+                        {
+                            initialIdentity = await m_identityProvider
+                                .AcquireIdentityAsync(selectionContext, ct)
+                                .ConfigureAwait(false);
+                        }
                     }
 
                     if (waitingConnection != null)
@@ -2540,5 +2553,11 @@ namespace Opc.Ua.Client
         public static partial void ManagedSessionRedundancyDiscoveryFailed(
             this ILogger logger,
             Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 28, Level = LogLevel.Information,
+            Message = "ManagedSession: The endpoint advertises no user token policies yet; " +
+                      "connecting with the configured identity until discovery succeeds.")]
+        public static partial void ManagedSessionIdentityProviderDeferredUntilDiscovery(
+            this ILogger logger);
     }
 }
