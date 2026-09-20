@@ -87,6 +87,18 @@ namespace Opc.Ua.WotCon.Server
             return m_engine.EventSourceFor(xid);
         }
 
+        internal ExpandedNodeId GetVersionNodeId(WotResource resource, WotResourceVersion version)
+        {
+            if (!UsesVersionedProjection)
+            {
+                return ExpandedNodeId.Null;
+            }
+            NodeId nodeId = ResourceNodeId(resource.GroupId, resource.ResourceId, version.VersionId);
+            return m_manager.FindPredefinedNode<WoTDocumentState>(nodeId) is null
+                ? ExpandedNodeId.Null
+                : NodeId.ToExpandedNodeId(nodeId, m_manager.Server.NamespaceUris);
+        }
+
         /// <summary>
         /// Reconciles the browseable projection with the current registry snapshot.
         /// </summary>
@@ -189,6 +201,8 @@ namespace Opc.Ua.WotCon.Server
                 .AddRootNodeId(m_manager.SystemContext)
                 .AddRefreshGeneration(m_manager.SystemContext)
                 .AddLastRefreshTime(m_manager.SystemContext)
+                .AddDependencySnapshot(m_manager.SystemContext)
+                .AddLastDependencyAttempt(m_manager.SystemContext)
                 .AddValidate(m_manager.SystemContext)
                 .AddSetEnabled(m_manager.SystemContext)
                 .AddSetDefaultVersion(m_manager.SystemContext);
@@ -222,8 +236,58 @@ namespace Opc.Ua.WotCon.Server
                 (c, m, o, i, ot, t) => OnSetEnabledAsync(groupId, resourceId, c, i, t);
             document.SetDefaultVersion?.OnCallMethod2Async =
                 (c, m, o, i, ot, t) => OnSetDefaultVersionAsync(groupId, resourceId, c, i, t);
+            document.DependencySnapshot!.OnSimpleReadValueAsync =
+                (context, _, ct) => ReadDependencyObservationAsync(context, groupId, resourceId, versionId, false, ct);
+            document.LastDependencyAttempt!.OnSimpleReadValueAsync =
+                (context, _, ct) => ReadDependencyObservationAsync(context, groupId, resourceId, versionId, true, ct);
 
             ApplyWotResourceProperties(document, resource);
+        }
+
+        private ValueTask<AttributeSimpleReadResult> ReadDependencyObservationAsync(
+            ISystemContext context,
+            string groupId,
+            string resourceId,
+            string versionId,
+            bool attempt,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            ServiceResult status = m_manager.CheckManagementAccess(
+                context, attempt ? "ReadLastDependencyAttempt" : "ReadDependencySnapshot");
+            Variant value = Variant.Null;
+            if (ServiceResult.IsGood(status))
+            {
+                if (!m_manager.Coordinator.SupportsDependencySnapshots)
+                {
+                    status = StatusCodes.BadNotSupported;
+                }
+                else
+                {
+                    WotResource? resource = m_registry.Current.FindResource(groupId, resourceId);
+                    WotResourceVersion? version = string.IsNullOrEmpty(versionId)
+                        ? resource?.DefaultVersion
+                        : resource?.FindVersion(versionId);
+                    if (version is null)
+                    {
+                        status = StatusCodes.BadNodeIdUnknown;
+                    }
+                    else
+                    {
+                        WotDependencySnapshot? observation = attempt
+                            ? version.LastDependencyAttempt : version.DependencySnapshot;
+                        if (observation is null)
+                        {
+                            status = StatusCodes.BadWaitingForInitialData;
+                        }
+                        else
+                        {
+                            value = Variant.FromStructure(observation.ToDataType());
+                        }
+                    }
+                }
+            }
+            return new ValueTask<AttributeSimpleReadResult>(new AttributeSimpleReadResult(status, value));
         }
 
         private void ApplyWotResourceProperties(WoTDocumentState node, WotResource resource)

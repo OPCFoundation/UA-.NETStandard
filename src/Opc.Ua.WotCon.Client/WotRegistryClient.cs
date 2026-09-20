@@ -86,6 +86,9 @@ namespace Opc.Ua.WotCon.Client
                 ValidateRegistryObjectId(registryObjectId),
                 telemetry)
         {
+            IEncodeableFactoryBuilder types = session.MessageContext.Factory.Builder;
+            types.AddOpcUaXRegistry().AddOpcUaWotCon();
+            types.Commit();
             Proxy = new WoTRegistryTypeClient(session, registryObjectId, telemetry);
         }
 

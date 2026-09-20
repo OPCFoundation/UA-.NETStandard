@@ -402,6 +402,29 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// Gets or initializes the Version whose validation state this projection records.
         /// </summary>
         public string? VersionId { get; init; }
+
+        /// <summary>
+        /// Gets the committed dependency graph, when this projection actually activated.
+        /// </summary>
+        public WotDependencySnapshot? DependencySnapshot { get; init; }
+
+        /// <summary>
+        /// Gets the completed actual dependency attempt for the exact Version.
+        /// </summary>
+        public WotDependencySnapshot? LastDependencyAttempt { get; init; }
+    }
+
+    /// <summary>
+    /// Optional registry-owner capability for retaining committed and attempted
+    /// exact-Version dependency observations in its immutable snapshots.
+    /// </summary>
+    public interface IWotRegistryDependencySnapshotProvider
+    {
+        /// <summary>
+        /// Gets whether projection results preserve both dependency observations.
+        /// This does not by itself supply an authoritative runtime registry origin.
+        /// </summary>
+        bool SupportsDependencySnapshots { get; }
     }
 
     /// <summary>

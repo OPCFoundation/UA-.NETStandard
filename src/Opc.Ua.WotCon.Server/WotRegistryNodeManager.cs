@@ -121,6 +121,14 @@ namespace Opc.Ua.WotCon.Server
                 registry.NodeId == registryNodeId)
             {
                 m_registryNode = registry;
+                string? applicationUri = Server.ServerUris?.GetString(0);
+                Coordinator.RegistryOrigin = !string.IsNullOrEmpty(applicationUri) &&
+                    WotRegistryIdentity.IsAbsoluteUri(applicationUri)
+                    ? new WotRegistryOrigin(
+                        string.Empty, applicationUri,
+                        NodeId.ToExpandedNodeId(registry.NodeId, Server.NamespaceUris))
+                    : null;
+                Coordinator.VersionNodeIdResolver = m_projection.GetVersionNodeId;
                 registry.EventNotifier = EventNotifiers.SubscribeToEvents;
                 EnsureRegistryManagementMethods(context, registry);
                 WireRefreshMethod(registry);
@@ -335,6 +343,7 @@ namespace Opc.Ua.WotCon.Server
             {
                 WotRefreshResult result = await Coordinator
                     .RefreshAsync(request, cancellationToken).ConfigureAwait(false);
+                await m_projection.ReconcileProjectionAsync(cancellationToken).ConfigureAwait(false);
 
                 outputArguments.Clear();
                 outputArguments.Add(Variant.FromStructure(result.Summary));
