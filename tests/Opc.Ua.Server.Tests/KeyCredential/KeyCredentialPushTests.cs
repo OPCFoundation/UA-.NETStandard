@@ -209,9 +209,18 @@ namespace Opc.Ua.Server.Tests.KeyCredential
                     CancellationToken.None)
                 .ConfigureAwait(false);
             Assert.That(ServiceResult.IsGood(createResult.ServiceResult), Is.True);
-            Assert.That(
-                createResult.CredentialNodeId.NamespaceIndex,
-                Is.EqualTo(folder.NodeId.NamespaceIndex));
+            ushort expectedNamespaceIndex = (ushort)context.NamespaceUris.GetIndex(
+                KeyCredentialPushSubject.NamespaceUri);
+            Assert.Multiple(() =>
+            {
+                // The standard folder is in namespace 0, which is reserved for the
+                // OPC UA standard address space, so instances get a server-owned namespace.
+                Assert.That(folder.NodeId.NamespaceIndex, Is.Zero);
+                Assert.That(expectedNamespaceIndex, Is.GreaterThan((ushort)0));
+                Assert.That(
+                    createResult.CredentialNodeId.NamespaceIndex,
+                    Is.EqualTo(expectedNamespaceIndex));
+            });
 
             IList<BaseInstanceState> children = [];
             folder.GetChildren(context, children);

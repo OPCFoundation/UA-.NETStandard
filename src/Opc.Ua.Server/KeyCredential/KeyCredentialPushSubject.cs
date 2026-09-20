@@ -46,8 +46,13 @@ namespace Opc.Ua.Server
     public sealed class KeyCredentialPushSubject
     {
         /// <summary>
-        /// Legacy namespace URI retained for compatibility.
+        /// Namespace URI used for dynamically created credential configuration instances.
         /// </summary>
+        /// <remarks>
+        /// The standard <c>ServerConfiguration/KeyCredentialConfiguration</c> folder lives in
+        /// namespace 0, which is reserved for the OPC UA standard address space. Instances the
+        /// server mints at runtime are therefore placed in this server-owned namespace instead.
+        /// </remarks>
         public const string NamespaceUri = "urn:opcfoundation:netstandard:keycredential-push";
 
         /// <summary>
@@ -517,7 +522,7 @@ namespace Opc.Ua.Server
             string profileUri,
             IEnumerable<string> endpointUrls)
         {
-            ushort namespaceIndex = folder.NodeId.NamespaceIndex;
+            ushort namespaceIndex = GetInstanceNamespaceIndex(folder, context);
             QualifiedName browseName = new(name, namespaceIndex);
             KeyCredentialConfigurationState state = folder.AddServiceName_Placeholder(context, browseName);
             state.NodeId = CreateCredentialNodeId(name, namespaceIndex);
@@ -601,6 +606,46 @@ namespace Opc.Ua.Server
         private static NodeId CreateCredentialNodeId(string name, ushort namespaceIndex)
         {
             return new NodeId("KeyCredentialConfiguration/" + name, namespaceIndex);
+        }
+
+        /// <summary>
+        /// Resolves the namespace that owns dynamically created credential instances.
+        /// </summary>
+        /// <remarks>
+        /// A folder hosted in a server-owned namespace keeps its own namespace. The standard
+        /// folder is in namespace 0, which is reserved for the OPC UA standard address space,
+        /// so instances are placed in <see cref="NamespaceUri"/> instead.
+        /// </remarks>
+        /// <exception cref="ServiceResultException">
+        /// Thrown when the server namespace cannot be resolved.
+        /// </exception>
+        private static ushort GetInstanceNamespaceIndex(
+            KeyCredentialConfigurationFolderState folder,
+            ISystemContext context)
+        {
+            ushort folderNamespaceIndex = folder.NodeId.NamespaceIndex;
+            if (folderNamespaceIndex != 0)
+            {
+                return folderNamespaceIndex;
+            }
+
+            NamespaceTable? namespaces = context.NamespaceUris
+                ?? throw new ServiceResultException(
+                    StatusCodes.BadInternalError,
+                    "The namespace table required to create credential nodes is not available.");
+
+            int index = namespaces.GetIndex(NamespaceUri);
+            if (index < 0)
+            {
+                index = namespaces.Append(NamespaceUri);
+            }
+            if (index <= 0)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInternalError,
+                    "Credential nodes cannot be created in the standard namespace.");
+            }
+            return (ushort)index;
         }
 
         private readonly IKeyCredentialStore m_store;
