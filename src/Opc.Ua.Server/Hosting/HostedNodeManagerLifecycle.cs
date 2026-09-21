@@ -39,7 +39,7 @@ namespace Opc.Ua.Server.Hosting
     /// singleton before a server exists, so it stays valid across host restarts and reports a
     /// clear error while no server is attached.
     /// </summary>
-    internal sealed class HostedNodeManagerLifecycle : INodeManagerBatchLifecycle
+    internal sealed class HostedNodeManagerLifecycle : INodeManagerPublicationLifecycle
     {
         /// <inheritdoc/>
         public ArrayOf<NodeManagerRegistration> Registrations
@@ -48,6 +48,18 @@ namespace Opc.Ua.Server.Hosting
         /// <inheritdoc/>
         public bool IsShuttingDown
             => Current.IsShuttingDown;
+
+        /// <inheritdoc/>
+        public bool SupportsPublicationIsolation =>
+            Current is INodeManagerPublicationLifecycle { SupportsPublicationIsolation: true };
+
+        /// <inheritdoc/>
+        public INodeManagerPublicationCapture CapturePublication()
+        {
+            return Current is INodeManagerPublicationLifecycle { SupportsPublicationIsolation: true } publication
+                ? publication.CapturePublication()
+                : throw new NotSupportedException("The attached lifecycle cannot isolate a publication invocation.");
+        }
 
         /// <inheritdoc/>
         public ValueTask<IPreparedNodeManagerBatch> PrepareAsync(

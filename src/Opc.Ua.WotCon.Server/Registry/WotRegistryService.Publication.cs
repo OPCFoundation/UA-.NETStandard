@@ -43,6 +43,27 @@ namespace Opc.Ua.WotCon.Server.Registry
             m_store is IWotRegistryPreparedStore { SupportsPreparedCommits: true };
 
         /// <inheritdoc/>
+        public async ValueTask<IWotRegistryPublication> BeginPublicationAsync(
+            CancellationToken cancellationToken = default)
+        {
+            if (!SupportsPreparedPublication)
+            {
+                throw new NotSupportedException("The registry store cannot isolate publication.");
+            }
+            await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                EnsureMutationAllowed();
+                return new RegistryPublicationInvocation(this);
+            }
+            catch
+            {
+                m_mutex.Release();
+                throw;
+            }
+        }
+
+        /// <inheritdoc/>
         public async ValueTask<IWotPreparedRegistryPublication> PreparePublicationAsync(
             WotRegistrySnapshot expectedSnapshot,
             ArrayOf<WotResourceProjection> projections,
@@ -50,50 +71,63 @@ namespace Opc.Ua.WotCon.Server.Registry
             ByteString canonicalViewGraphState = default,
             CancellationToken cancellationToken = default)
         {
+            await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                return await PreparePublicationCoreAsync(
+                    expectedSnapshot, projections, refreshGeneration, canonicalViewGraphState, null, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                m_mutex.Release();
+            }
+        }
+
+        private async ValueTask<IWotPreparedRegistryPublication> PreparePublicationCoreAsync(
+            WotRegistrySnapshot expectedSnapshot,
+            ArrayOf<WotResourceProjection> projections,
+            uint refreshGeneration,
+            ByteString canonicalViewGraphState,
+            RegistryPublicationInvocation? invocation,
+            CancellationToken cancellationToken)
+        {
             _ = expectedSnapshot ?? throw new ArgumentNullException(nameof(expectedSnapshot));
             if (m_store is not IWotRegistryPreparedStore { SupportsPreparedCommits: true } store)
             {
                 throw new NotSupportedException("The registry store cannot prepare isolated publication.");
             }
-            await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
+            EnsureMutationAllowed();
+            if (!ReferenceEquals(m_snapshot, expectedSnapshot))
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidState, "The captured registry changed.");
+            }
+            if (refreshGeneration < expectedSnapshot.RefreshGeneration)
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidState, "Publication generation regressed.");
+            }
+            (WotRegistrySnapshot next, ArrayOf<string> changed) =
+                BuildProjectionSnapshot(expectedSnapshot, projections.ToList());
+            next = next.WithPublicationState(
+                checked(expectedSnapshot.Generation + 1), refreshGeneration, canonicalViewGraphState);
+            using IWotRegistryValidatedGeneration captured = await store
+                .CaptureValidatedGenerationAsync(cancellationToken).ConfigureAwait(false);
+            IWotRegistryPreparedCommit? decision = await store.PrepareCommitAsync(
+                next, captured, WotRegistryCommitScope.ProjectionMetadata, cancellationToken).ConfigureAwait(false);
             try
             {
-                EnsureMutationAllowed();
-                if (!ReferenceEquals(m_snapshot, expectedSnapshot))
-                {
-                    throw new ServiceResultException(StatusCodes.BadInvalidState, "The captured registry changed.");
-                }
-                if (refreshGeneration < expectedSnapshot.RefreshGeneration)
-                {
-                    throw new ServiceResultException(StatusCodes.BadInvalidState, "Publication generation regressed.");
-                }
-                (WotRegistrySnapshot next, ArrayOf<string> changed) =
-                    BuildProjectionSnapshot(expectedSnapshot, projections.ToList());
-                next = next.WithPublicationState(
-                    checked(expectedSnapshot.Generation + 1), refreshGeneration, canonicalViewGraphState);
-                using IWotRegistryValidatedGeneration captured = await store
-                    .CaptureValidatedGenerationAsync(cancellationToken).ConfigureAwait(false);
-                IWotRegistryPreparedCommit? decision = await store.PrepareCommitAsync(
-                    next, captured, WotRegistryCommitScope.ProjectionMetadata, cancellationToken).ConfigureAwait(false);
-                try
-                {
-                    var publication = new PreparedRegistryPublication(
-                        expectedSnapshot, next, changed, decision,
-                        DecidePublicationAsync, PublishPublication, ReleasePublication);
-                    decision = null;
-                    return publication;
-                }
-                finally
-                {
-                    if (decision is not null)
-                    {
-                        await decision.DisposeAsync().ConfigureAwait(false);
-                    }
-                }
+                var publication = new PreparedRegistryPublication(
+                    expectedSnapshot, next, changed, decision,
+                    DecidePublicationAsync, PublishPublication, ReleasePublication, invocation);
+                decision = null;
+                return publication;
             }
             finally
             {
-                m_mutex.Release();
+                if (decision is not null)
+                {
+                    await decision.DisposeAsync().ConfigureAwait(false);
+                }
             }
         }
 
@@ -152,7 +186,15 @@ namespace Opc.Ua.WotCon.Server.Registry
             PreparedRegistryPublication publication,
             CancellationToken cancellationToken)
         {
-            await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
+            if (publication.Invocation is null)
+            {
+                await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                publication.Invocation.RequireActive(publication);
+                cancellationToken.ThrowIfCancellationRequested();
+            }
             publication.OwnsMutation = true;
             try
             {
@@ -217,8 +259,12 @@ namespace Opc.Ua.WotCon.Server.Registry
             if (publication.OwnsMutation)
             {
                 publication.OwnsMutation = false;
-                m_mutex.Release();
+                if (publication.Invocation is null)
+                {
+                    m_mutex.Release();
+                }
             }
+            publication.Invocation?.ReleaseUnit(publication);
         }
 
         private sealed class PreparedRegistryPublication(
@@ -228,12 +274,14 @@ namespace Opc.Ua.WotCon.Server.Registry
             IWotRegistryPreparedCommit decision,
             Func<PreparedRegistryPublication, CancellationToken, ValueTask> decide,
             Action<PreparedRegistryPublication> publish,
-            Action<PreparedRegistryPublication> release) : IWotPreparedRegistryPublication
+            Action<PreparedRegistryPublication> release,
+            RegistryPublicationInvocation? invocation) : IWotPreparedRegistryPublication
         {
             public WotRegistrySnapshot PreviousSnapshot { get; } = previous;
             public WotRegistrySnapshot IntendedSnapshot { get; } = intended;
             public ArrayOf<string> Changed { get; } = changed;
             public IWotRegistryPreparedCommit Decision { get; } = decision;
+            public RegistryPublicationInvocation? Invocation { get; } = invocation;
             public bool IsCommitted { get; set; }
             public bool IsPublished { get; set; }
             public bool OwnsMutation { get; set; }
@@ -296,6 +344,126 @@ namespace Opc.Ua.WotCon.Server.Registry
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
             private int m_state;
             private int m_disposed;
+        }
+
+        private sealed class RegistryPublicationInvocation(WotRegistryService owner) : IWotRegistryPublication
+        {
+            public WotRegistrySnapshot Current => owner.Current;
+
+            public async ValueTask<IWotPreparedRegistryPublication> PrepareAsync(
+                WotRegistrySnapshot expectedSnapshot,
+                ArrayOf<WotResourceProjection> projections,
+                uint refreshGeneration,
+                ByteString canonicalViewGraphState = default,
+                CancellationToken cancellationToken = default)
+            {
+                lock (m_lifetime)
+                {
+                    if (m_closing || m_preparing || m_unit is not null)
+                    {
+                        throw new InvalidOperationException("The registry invocation is closed or has an unfinished unit.");
+                    }
+                    m_preparing = true;
+                    m_prepared = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                }
+                try
+                {
+                    IWotPreparedRegistryPublication publication = await owner.PreparePublicationCoreAsync(
+                        expectedSnapshot, projections, refreshGeneration, canonicalViewGraphState, this, cancellationToken)
+                        .ConfigureAwait(false);
+                    lock (m_lifetime)
+                    {
+                        m_unit = publication;
+                        m_publications.Add(publication);
+                    }
+                    return publication;
+                }
+                finally
+                {
+                    lock (m_lifetime)
+                    {
+                        m_preparing = false;
+                        m_prepared.TrySetResult(true);
+                    }
+                }
+            }
+
+            public void RequireActive(PreparedRegistryPublication publication)
+            {
+                lock (m_lifetime)
+                {
+                    if (m_closing || !ReferenceEquals(m_unit, publication))
+                    {
+                        throw new InvalidOperationException("The registry invocation no longer owns this unit.");
+                    }
+                }
+            }
+
+            public void ReleaseUnit(PreparedRegistryPublication publication)
+            {
+                lock (m_lifetime)
+                {
+                    if (ReferenceEquals(m_unit, publication))
+                    {
+                        m_unit = null;
+                    }
+                }
+            }
+
+            public async ValueTask DisposeAsync()
+            {
+                Task? prepared;
+                bool ownsDisposal;
+                lock (m_lifetime)
+                {
+                    ownsDisposal = !m_closing;
+                    m_closing = true;
+                    prepared = m_preparing ? m_prepared.Task : null;
+                }
+                if (!ownsDisposal)
+                {
+                    await m_finished.Task.ConfigureAwait(false);
+                    return;
+                }
+                try
+                {
+                    if (prepared is not null)
+                    {
+                        await prepared.ConfigureAwait(false);
+                    }
+                    var failures = new List<Exception>();
+                    foreach (IWotPreparedRegistryPublication publication in m_publications)
+                    {
+                        try
+                        {
+                            await publication.DisposeAsync().ConfigureAwait(false);
+                        }
+                        catch (Exception failure) when (failure is not OutOfMemoryException)
+                        {
+                            failures.Add(failure);
+                        }
+                    }
+                    if (failures.Count != 0)
+                    {
+                        throw new AggregateException("Registry invocation cleanup failed.", failures);
+                    }
+                }
+                finally
+                {
+                    owner.m_mutex.Release();
+                    m_finished.TrySetResult(true);
+                }
+            }
+
+            private readonly Lock m_lifetime = new();
+            private readonly List<IWotPreparedRegistryPublication> m_publications = [];
+            private readonly TaskCompletionSource<bool> m_finished =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private TaskCompletionSource<bool> m_prepared =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private IWotPreparedRegistryPublication? m_unit;
+            private bool m_preparing;
+            private bool m_closing;
         }
     }
 }

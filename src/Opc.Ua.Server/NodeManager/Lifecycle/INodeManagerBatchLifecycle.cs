@@ -49,6 +49,52 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
+    /// Optional isolation of an invocation containing several prepared publication units.
+    /// </summary>
+    public interface INodeManagerPublicationLifecycle : INodeManagerBatchLifecycle
+    {
+        /// <summary>
+        /// Gets whether the attached owner supports invocation-wide publication isolation.
+        /// </summary>
+        bool SupportsPublicationIsolation { get; }
+
+        /// <summary>
+        /// Captures the current routing, type and factory revisions without reserving publication.
+        /// </summary>
+        INodeManagerPublicationCapture CapturePublication();
+    }
+
+    /// <summary>
+    /// Owner-bound revision evidence captured before application preparation.
+    /// </summary>
+    public interface INodeManagerPublicationCapture
+    {
+        /// <summary>
+        /// Reserves one invocation. Conflicting lifecycle work is rejected before effects.
+        /// A stale capture returns an invocation whose IsCurrent is false and cannot prepare units.
+        /// </summary>
+        ValueTask<INodeManagerPublication> BeginAsync(CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// Retains publication admission across all units of one invocation.
+    /// </summary>
+    public interface INodeManagerPublication : IAsyncDisposable
+    {
+        /// <summary>
+        /// Gets whether all captured revisions matched when publication admission was reserved.
+        /// </summary>
+        bool IsCurrent { get; }
+
+        /// <summary>
+        /// Prepares a unit on the existing lifecycle owner. Dispose each unit before the invocation.
+        /// Ordinary lifecycle mutations, including mutations from callbacks, must retry after the invocation.
+        /// </summary>
+        ValueTask<IPreparedNodeManagerBatch> PrepareAsync(
+            ArrayOf<NodeManagerBatchChange> changes, CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
     /// Owns an unpublished unit and all resources acquired while preparing it.
     /// </summary>
     public interface IPreparedNodeManagerBatch : IAsyncDisposable

@@ -63,7 +63,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         IWotTypedRegistryService,
         IWotRegistryVersionLeaseProvider,
         IWotRegistryDependencySnapshotProvider,
-        IWotPreparedRegistryPublicationService,
+        IWotInvocationRegistryPublicationService,
         IDisposable
     {
         /// <summary>

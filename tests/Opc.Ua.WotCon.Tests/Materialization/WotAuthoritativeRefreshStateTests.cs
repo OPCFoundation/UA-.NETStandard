@@ -38,29 +38,33 @@ using Opc.Ua.WotCon.Server.Registry;
 namespace Opc.Ua.WotCon.Tests.Materialization
 {
     /// <summary>
-    /// Public refresh-state contracts; deterministic host responses are not atomic routing evidence.
+    /// Public refresh-state contracts through prepared owners with deterministic document conversion.
     /// </summary>
     [TestFixture]
+    [NonParallelizable]
+    [Platform("Win")]
     public sealed class WotAuthoritativeRefreshStateTests
     {
         [SetUp]
-        public void SetUp()
+        public async Task SetUpAsync()
         {
-            m_registry = new WotRegistryService();
-            m_host = new FakeWotProjectionHost();
+            m_runtime = await PreparedWotTestRuntime.StartAsync();
+            m_registry = await m_runtime.CreateRegistryAsync();
+            m_operations.Clear();
             m_converter = new FakeWotDocumentConverter();
             m_coordinator = new WotMaterializationCoordinator(
-                m_registry, m_host, documentConverter: m_converter);
+                m_registry, m_runtime.Observe(changes => m_operations.AddRange(changes.ToList())),
+                documentConverter: m_converter);
             m_events.Clear();
             m_identity = null;
             m_coordinator.Event += (_, change) => m_events.Add(change);
         }
 
         [TearDown]
-        public void TearDown()
+        public async Task TearDownAsync()
         {
             m_coordinator.Dispose();
-            m_registry.Dispose();
+            await m_runtime.DisposeAsync();
         }
 
         [Test]
@@ -206,7 +210,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             WotRefreshResult first = await m_coordinator.RefreshAsync(Request("initial")).ConfigureAwait(false);
             Assert.That(first.NewGeneration, Is.EqualTo(1u));
             WotRegistrySnapshot snapshot = m_registry.Current;
-            int operations = m_host.Operations.Count;
+            int operations = m_operations.Count;
             m_events.Clear();
             WotRefreshRequest request = Request("stale");
             request.ExpectedGeneration = 2;
@@ -220,7 +224,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             Assert.That(m_registry.Current, Is.SameAs(snapshot));
             Assert.That(m_coordinator.Generation, Is.EqualTo(1u));
-            Assert.That(m_host.Operations, Has.Count.EqualTo(operations));
+            Assert.That(m_operations, Has.Count.EqualTo(operations));
             Assert.That(m_events, Is.Empty);
         }
 
@@ -238,7 +242,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(result.Resource, Is.Not.Null);
             m_identity = result.Resource!;
             string modelUri = $"urn:wot:{m_identity.GroupId}/{m_identity.ResourceId}";
-            var namespaces = new NamespaceTable();
+            NamespaceTable namespaces = m_runtime.Namespaces;
             namespaces.GetIndexOrAppend(modelUri);
             m_coordinator.ServerNamespaceUris = namespaces;
             m_converter.SetRootNodeId(m_identity.ResourceId, new ExpandedNodeId(5000u, modelUri));
@@ -268,7 +272,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         private readonly List<WotMaterializationEventArgs> m_events = [];
         private WotRegistryService m_registry = null!;
-        private FakeWotProjectionHost m_host = null!;
+        private readonly List<WotProjectionChange> m_operations = [];
+        private PreparedWotTestRuntime m_runtime = null!;
         private FakeWotDocumentConverter m_converter = null!;
         private WotMaterializationCoordinator m_coordinator = null!;
         private WotResource? m_identity;

@@ -39,9 +39,17 @@ namespace Opc.Ua.Server
     public sealed partial class NodeManagerLifecycle
     {
         /// <inheritdoc/>
-        public async ValueTask<IPreparedNodeManagerBatch> PrepareAsync(
+        public ValueTask<IPreparedNodeManagerBatch> PrepareAsync(
             ArrayOf<NodeManagerBatchChange> changes,
             CancellationToken cancellationToken = default)
+        {
+            return PrepareBatchAsync(changes, null, cancellationToken);
+        }
+
+        private async ValueTask<IPreparedNodeManagerBatch> PrepareBatchAsync(
+            ArrayOf<NodeManagerBatchChange> changes,
+            PublicationInvocation? publication,
+            CancellationToken cancellationToken)
         {
             if (changes.IsNull || changes.Count == 0)
             {
@@ -74,7 +82,7 @@ namespace Opc.Ua.Server
             OperationLifetime? operation = null;
             try
             {
-                operation = EnterLifecycleOperation();
+                operation = EnterLifecycleOperation(publication?.Capture);
                 (IServerInternal server, IDynamicNodeManagerHost host) =
                     GetRunningServer(allowRequestCallback);
                 if (host is not IDynamicNodeManagerBatchHost batchHost)

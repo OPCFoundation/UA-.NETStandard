@@ -76,6 +76,16 @@ namespace Opc.Ua.WotCon.Server.Materialization
             DeletePolicy = options?.DeletePolicy ?? WoTDeletePolicyEnum.Reject;
             MaxParallelism = options?.MaxParallelism ?? 0;
             Timeout = options?.Timeout ?? 0;
+            if (Atomicity is not (WoTAtomicityEnum.PerResource or WoTAtomicityEnum.PerGroup or
+                WoTAtomicityEnum.PerClosure or WoTAtomicityEnum.PerRegistry))
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Unknown publication atomicity.");
+            }
+            if (double.IsNaN(Timeout) || double.IsInfinity(Timeout) || Timeout < 0 || Timeout > int.MaxValue)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument, "Timeout must be between zero and Int32.MaxValue milliseconds.");
+            }
         }
 
         /// <summary>

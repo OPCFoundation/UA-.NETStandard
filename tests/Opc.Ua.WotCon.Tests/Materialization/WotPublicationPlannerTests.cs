@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -100,6 +102,104 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(plan.AppliedAtomicity, Is.EqualTo(WoTAtomicityEnum.PerGroup));
             Assert.That(plan.Units.Count, Is.EqualTo(2));
             Assert.That(plan.Units.ToList().SelectMany(ActivationIds), Is.EquivalentTo(s_ac));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task NativeModelPrerequisitesAreSelectedPinnedAndOrdered(bool selectOnlyDependent)
+        {
+            var contents = new Dictionary<string, ByteString>();
+            WotResource dependency = NativeModel("a-base", "urn:unit:base", null, contents);
+            WotResource dependent = NativeModel("z-dependent", "urn:unit:dependent", "urn:unit:base", contents);
+            WotResource unrelated = NativeModel("unrelated", "urn:unit:unrelated", null, contents);
+            var group = new WotResourceGroup("models", WoTDocumentKindEnum.ThingModel,
+                ImmutableDictionary<string, WotResource>.Empty
+                    .Add(dependency.ResourceId, dependency).Add(dependent.ResourceId, dependent)
+                    .Add(unrelated.ResourceId, unrelated));
+            var snapshot = new WotRegistrySnapshot(1,
+                ImmutableDictionary<string, WotResourceGroup>.Empty.Add(group.GroupId, group));
+            var reads = new List<string>();
+            ImmutableArray<WotDependencyClosure> closures = await WotDependencyGraph.BuildClosuresAsync(
+                snapshot, selectOnlyDependent ? [dependent] : [dependent, dependency], 64,
+                (version, _) =>
+                {
+                    reads.Add(version.DigestHex);
+                    return new ValueTask<ByteString>(contents[version.DigestHex]);
+                }, CancellationToken.None).ConfigureAwait(false);
+
+            WotPublicationPlan plan = WotPublicationPlanner.Create(closures.ToArrayOf(), WoTAtomicityEnum.PerResource);
+
+            Assert.That(reads, Has.Count.EqualTo(2));
+            Assert.That(reads, Does.Not.Contain(unrelated.DefaultVersion!.DigestHex));
+            Assert.That(plan.AppliedAtomicity, Is.EqualTo(WoTAtomicityEnum.PerResource));
+            Assert.That(plan.Units.Count, Is.EqualTo(2));
+            Assert.That(ActivationIds(plan.Units[0]).Single(), Is.EqualTo("a-base"));
+            Assert.That(ActivationIds(plan.Units[1]).Single(), Is.EqualTo("z-dependent"));
+            Assert.That(plan.Units[1][0].Members.Select(member => member.Xid),
+                Is.EquivalentTo(new[] { dependency.Xid, dependent.Xid }));
+            WotDependency edge = plan.Units[1][0].Dependencies.Single();
+            Assert.That(edge.SourceXid, Is.EqualTo(dependent.Xid));
+            Assert.That(edge.TargetXid, Is.EqualTo(dependency.Xid));
+            Assert.That(edge.TargetHref, Is.EqualTo("urn:unit:base"));
+            Assert.That(edge.Resolved, Is.True);
+        }
+
+        [TestCase(-1d)]
+        [TestCase(double.NaN)]
+        [TestCase(double.NegativeInfinity)]
+        [TestCase(double.PositiveInfinity)]
+        [TestCase(2147483648d)]
+        public void CapturedBudgetRejectsInvalidValues(double timeout)
+        {
+            Assert.That(() => WotCapturedRefreshRequest.Capture(new WotRefreshRequest
+            {
+                Options = new WoTRefreshOptionsDataType { Timeout = timeout }
+            }), Throws.TypeOf<ServiceResultException>()
+                .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadInvalidArgument));
+        }
+
+        [TestCase(0d)]
+        [TestCase(1d)]
+        [TestCase(2147483647d)]
+        public void CapturedBudgetRetainsAllowedBoundaryValues(double timeout)
+        {
+            var request = new WotRefreshRequest
+            {
+                Options = new WoTRefreshOptionsDataType { Timeout = timeout, MaxParallelism = 1 }
+            };
+            WotCapturedRefreshRequest captured = WotCapturedRefreshRequest.Capture(request);
+            request.Options.Timeout = -1;
+            request.Options.MaxParallelism = 2;
+
+            Assert.That(captured.Timeout, Is.EqualTo(timeout));
+            Assert.That(captured.MaxParallelism, Is.EqualTo(1u));
+        }
+
+        [Test]
+        public void CapturedRequestRejectsUnknownAtomicity()
+        {
+            Assert.That(() => WotCapturedRefreshRequest.Capture(new WotRefreshRequest
+            {
+                Options = new WoTRefreshOptionsDataType { Atomicity = (WoTAtomicityEnum)42 }
+            }), Throws.TypeOf<ServiceResultException>()
+                .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadInvalidArgument));
+        }
+
+        private static WotResource NativeModel(
+            string id, string uri, string? required, Dictionary<string, ByteString> contents)
+        {
+            string requiredModels = required is null ? "[]" : $$"""[{"modelUri":"{{required}}"}]""";
+            ByteString bytes = ByteString.From(Encoding.UTF8.GetBytes($$$"""
+                {"id":"urn:document:{{{id}}}","uav:nodes":{"profileVersion":"1.0",
+                  "models":[{"modelUri":"{{{uri}}}","requiredModels":{{{requiredModels}}}}],"nodes":[]}}
+                """));
+            var version = new WotResourceVersion("v1", WotContentDigest.Compute(bytes), bytes.Length,
+                "application/tm+json", "WoT-TM/1.0", default, default)
+            {
+                Dependencies = WotDependencyGraph.ReadMetadata(bytes, 64)
+            };
+            contents.Add(version.DigestHex, bytes);
+            return new WotResource("models", id, WoTDocumentKindEnum.ThingModel, [version], defaultVersionId: "v1");
         }
 
         private static string[] ActivationIds(ArrayOf<WotDependencyClosure> unit)

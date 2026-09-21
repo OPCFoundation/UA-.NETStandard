@@ -45,13 +45,15 @@ using Opc.Ua.WotCon.Server.Registry;
 namespace Opc.Ua.WotCon.Tests.Materialization
 {
     [TestFixture]
+    [NonParallelizable]
+    [Platform("Win")]
     public sealed class WotSelectedDependencyTests
     {
         [TestCase(false)]
         [TestCase(true)]
         public async Task IncompatibleDependencyVersionPinsAreRejectedBeforeAcquisition(bool twoDependencies)
         {
-            using var fixture = new SelectionFixture();
+            await using SelectionFixture fixture = await SelectionFixture.CreateAsync();
             WotResource model = await fixture.RegisterAsync("model", WoTDocumentKindEnum.ThingModel, "v1");
             await fixture.RegisterAsync("model", WoTDocumentKindEnum.ThingModel, "v2");
             WotResource a = await fixture.RegisterAsync("a", content:
@@ -68,13 +70,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadInvalidArgument));
             Assert.That(fixture.Reads, Is.Empty);
-            Assert.That(fixture.Host.Operations, Is.Empty);
+            Assert.That(fixture.Operations, Is.Empty);
         }
 
         [Test]
         public async Task SelectedResourceDoesNotAcquireOrPlanIndependentResource()
         {
-            using var fixture = new SelectionFixture();
+            await using SelectionFixture fixture = await SelectionFixture.CreateAsync();
             WotResource a = await fixture.RegisterAsync("a");
             WotResource b = await fixture.RegisterAsync("b");
 
@@ -88,14 +90,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Assert.That(result.Results.Single().ResourceId, Is.EqualTo("a"));
                 Assert.That(result.Results.Single().LoadState, Is.EqualTo(WoTLoadStateEnum.Active));
                 Assert.That(fixture.Registry.Current.FindResource(b.GroupId, b.ResourceId)!.ActiveVersionId, Is.Null);
-                Assert.That(fixture.Host.Operations.Single().SourceNames, Is.EqualTo(s_aResource));
+                Assert.That(fixture.Operations.Single().SourceNames, Is.EqualTo(s_aResource));
             });
         }
 
         [Test]
         public async Task SelectedResourceDoesNotRetireUnselectedDisabledProjection()
         {
-            using var fixture = new SelectionFixture();
+            await using SelectionFixture fixture = await SelectionFixture.CreateAsync();
             WotResource a = await fixture.RegisterAsync("a");
             WotResource b = await fixture.RegisterAsync("b");
             await fixture.Coordinator.RefreshAsync(new WotRefreshRequest());
@@ -108,8 +110,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             Assert.Multiple(() =>
             {
-                Assert.That(fixture.Host.Operations.Select(operation => operation.Op), Is.EqualTo(s_shadow));
-                Assert.That(fixture.Host.Operations.Single().SourceNames, Is.EqualTo(s_aResource));
+                Assert.That(fixture.Operations.Select(operation => operation.Op), Is.EqualTo(s_shadow));
+                Assert.That(fixture.Operations.Single().SourceNames, Is.EqualTo(s_aResource));
                 Assert.That(fixture.Deactivated, Does.Not.Contain(b.Xid));
                 Assert.That(fixture.Reads.Select(version => version.DocumentId), Is.EqualTo(s_aDocument));
             });
@@ -118,7 +120,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task UnknownSelectionDoesNotAcquireOrPublish()
         {
-            using var fixture = new SelectionFixture();
+            await using SelectionFixture fixture = await SelectionFixture.CreateAsync();
             await fixture.RegisterAsync("a");
             await fixture.RegisterAsync("b");
             long registryGeneration = fixture.Registry.Current.Generation;
@@ -135,7 +137,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Assert.That(fixture.Reads, Is.Empty);
                 Assert.That(fixture.Converted, Is.Empty);
                 Assert.That(fixture.Prepared, Is.Empty);
-                Assert.That(fixture.Host.Operations, Is.Empty);
+                Assert.That(fixture.Operations, Is.Empty);
                 Assert.That(fixture.Registry.Current.Generation, Is.EqualTo(registryGeneration));
                 Assert.That(result.NewGeneration, Is.EqualTo(refreshGeneration));
             });
@@ -145,7 +147,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [TestCase(WoTDocumentKindEnum.All)]
         public async Task SelectorKindAndExactVersionBoundInputs(WoTDocumentKindEnum kind)
         {
-            using var fixture = new SelectionFixture();
+            await using SelectionFixture fixture = await SelectionFixture.CreateAsync();
             WotResource a = await fixture.RegisterAsync("a", versionId: "v1");
             await fixture.RegisterAsync("a", versionId: "v2");
             await fixture.RegisterAsync("model", WoTDocumentKindEnum.ThingModel);
@@ -170,7 +172,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task XidOverridesIdentityFiltersButNotKind()
         {
-            using var fixture = new SelectionFixture();
+            await using SelectionFixture fixture = await SelectionFixture.CreateAsync();
             WotResource model = await fixture.RegisterAsync("model", WoTDocumentKindEnum.ThingModel);
             var selector = new WoTResourceSelectorDataType
             {
@@ -201,7 +203,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task DisabledExactVersionIsSkippedWithoutAcquisition()
         {
-            using var fixture = new SelectionFixture();
+            await using SelectionFixture fixture = await SelectionFixture.CreateAsync();
             WotResource a = await fixture.RegisterAsync("a", versionId: "v1");
             await fixture.RegisterAsync("a", versionId: "v2");
             await fixture.Registry.SetEnabledAsync(a.GroupId, a.ResourceId, false);
@@ -222,7 +224,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Assert.That(result.Results.Single().VersionId, Is.EqualTo("v1"));
                 Assert.That(result.Results.Single().Outcome, Is.EqualTo(WoTOutcomeEnum.Skipped));
                 Assert.That(fixture.Reads, Is.Empty);
-                Assert.That(fixture.Host.Operations, Is.Empty);
+                Assert.That(fixture.Operations, Is.Empty);
             });
         }
 
@@ -230,7 +232,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [TestCase(true)]
         public async Task IncludeDependentsUsesOnlyIndexedReverseClosure(bool includeDependents)
         {
-            using var fixture = new SelectionFixture();
+            await using SelectionFixture fixture = await SelectionFixture.CreateAsync();
             WotResource model = await fixture.RegisterAsync("model", WoTDocumentKindEnum.ThingModel);
             await fixture.RegisterAsync("a", content: TestMaterialization.Td("urn:a", extendsHrefs: "urn:model"));
             await fixture.RegisterAsync("b");
@@ -253,7 +255,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task IndependentAcquisitionFailureRetainsSuccessfulSelectedResource()
         {
-            using var fixture = new SelectionFixture();
+            await using SelectionFixture fixture = await SelectionFixture.CreateAsync();
             WotResource a = await fixture.RegisterAsync("a");
             WotResource b = await fixture.RegisterAsync("b");
             fixture.FailedDocument = "urn:b";
@@ -282,7 +284,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task ExactIdentityOutranksResourceSuffix()
         {
-            using var fixture = new SelectionFixture();
+            await using SelectionFixture fixture = await SelectionFixture.CreateAsync();
             await fixture.RegisterAsync("pump", WoTDocumentKindEnum.ThingModel);
             WotResource exact = await fixture.RegisterAsync(
                 "actual", content: TestMaterialization.Td("https://example.test/pump"));
@@ -294,7 +296,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task UnknownAbsoluteIdentityDoesNotMatchSuffix()
         {
-            using var fixture = new SelectionFixture();
+            await using SelectionFixture fixture = await SelectionFixture.CreateAsync();
             await fixture.RegisterAsync("pump", WoTDocumentKindEnum.ThingModel);
 
             Assert.That(WotDependencyGraph.Resolve(fixture.Registry.Current, "https://unknown.test/pump"), Is.Null);
@@ -303,7 +305,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task AmbiguousUnqualifiedIdentityDoesNotChooseAnOwner()
         {
-            using var fixture = new SelectionFixture();
+            await using SelectionFixture fixture = await SelectionFixture.CreateAsync();
             await fixture.RegisterAsync("pump", groupId: "one", content: TestMaterialization.Td("urn:one"));
             await fixture.RegisterAsync("pump", groupId: "two", content: TestMaterialization.Td("urn:two"));
 
@@ -313,7 +315,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task ContextualDependencyRetainsRawReferenceAndExactTarget()
         {
-            using var fixture = new SelectionFixture();
+            await using SelectionFixture fixture = await SelectionFixture.CreateAsync();
             WotResource model = await fixture.RegisterAsync(
                 "model", WoTDocumentKindEnum.ThingModel,
                 content: TestMaterialization.Tm("https://example.test/models/Pump"));
@@ -346,7 +348,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task ReciprocalSemanticReferencesFormAProjectableClosure()
         {
-            using var fixture = new SelectionFixture();
+            await using SelectionFixture fixture = await SelectionFixture.CreateAsync();
             WotResource a = await fixture.RegisterAsync("a", content: ReferenceDocument("a", "b"));
             await fixture.RegisterAsync("b", content: ReferenceDocument("b", "a"));
 
@@ -368,7 +370,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task InheritanceCycleRemainsAnOrderingFailure()
         {
-            using var fixture = new SelectionFixture();
+            await using SelectionFixture fixture = await SelectionFixture.CreateAsync();
             WotResource a = await fixture.RegisterAsync("a", WoTDocumentKindEnum.ThingModel,
                 content: TestMaterialization.Tm("urn:a", extendsHrefs: "urn:b"));
             await fixture.RegisterAsync("b", WoTDocumentKindEnum.ThingModel,
@@ -384,7 +386,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task RetiredDependencySuppliesDefinitionsWithoutExecutingOwnership()
         {
-            using var fixture = new SelectionFixture();
+            await using SelectionFixture fixture = await SelectionFixture.CreateAsync();
             WotResource model = await fixture.RegisterAsync("model", WoTDocumentKindEnum.ThingModel);
             WotResource a = await fixture.RegisterAsync(
                 "a", content: TestMaterialization.Td("urn:a", extendsHrefs: "urn:model"));
@@ -409,7 +411,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task CapturedExactVersionLeasePreventsRetentionEvictionAcrossReload()
         {
-            using var fixture = new SelectionFixture(new WotRegistryPersistenceBounds { MaxVersionsPerResource = 2 });
+            await using SelectionFixture fixture = await SelectionFixture.CreateAsync(
+                new WotRegistryPersistenceBounds { MaxVersionsPerResource = 2 });
             WotResource original = await fixture.RegisterAsync("a", versionId: "v1");
             await fixture.RegisterAsync("a", versionId: "v2");
             await fixture.Coordinator.RefreshAsync(new WotRefreshRequest());
@@ -446,7 +449,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 await refresh;
             }
             Assert.That((await refresh).Results.Single().VersionId, Is.EqualTo("v1"));
-            Assert.That(fixture.Reads.Single().Digest, Is.EqualTo(original.FindVersion("v1")!.Digest));
+            Assert.That(fixture.Reads, Has.Count.EqualTo(2),
+                "Reload invalidates preparation, so the exact selected Version must be reacquired.");
+            foreach (WotResourceVersion acquired in fixture.Reads)
+            {
+                Assert.That(acquired.VersionId, Is.EqualTo("v1"));
+                Assert.That(acquired.Digest, Is.EqualTo(original.FindVersion("v1")!.Digest));
+            }
         }
 
         [Test]
@@ -465,7 +474,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task NamespaceTableDoesNotSatisfyRequiredModel()
         {
-            using var fixture = new SelectionFixture();
+            await using SelectionFixture fixture = await SelectionFixture.CreateAsync();
             await fixture.RegisterAsync("a");
             fixture.Converter.RequiredNamespace = "urn:table-only";
             var namespaces = new NamespaceTable();
@@ -479,7 +488,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Assert.That(result.Results.Single().Outcome, Is.EqualTo(WoTOutcomeEnum.Failed));
                 Assert.That(result.Results.Single().Phase, Is.EqualTo(WoTPhaseEnum.DependencyResolution));
                 Assert.That(result.Results.Single().Message, Does.Contain("urn:table-only"));
-                Assert.That(fixture.Host.Operations, Is.Empty);
+                Assert.That(fixture.Operations, Is.Empty);
             });
         }
 
@@ -514,11 +523,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 """);
         }
 
-        private sealed class SelectionFixture : IDisposable
+        private sealed class SelectionFixture : IAsyncDisposable
         {
-            public SelectionFixture(WotRegistryPersistenceBounds? bounds = null)
+            private SelectionFixture(PreparedWotTestRuntime runtime, WotRegistryService owner)
             {
-                Registry = new WotRegistryService(bounds: bounds);
+                m_runtime = runtime;
+                Registry = owner;
                 var registry = new Mock<IWotRegistryService>();
                 registry.SetupGet(service => service.Current).Returns(() => Registry.Current);
                 registry.SetupGet(service => service.Bounds).Returns(Registry.Bounds);
@@ -534,6 +544,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     It.IsAny<CancellationToken>()))
                     .Returns((string group, string resource, WotResourceVersion version, CancellationToken token) =>
                         Registry.AcquireVersionLeaseAsync(group, resource, version, token));
+                Mock<IWotInvocationRegistryPublicationService> publication =
+                    registry.As<IWotInvocationRegistryPublicationService>();
+                publication.SetupGet(service => service.SupportsPreparedPublication)
+                    .Returns(() => Registry.SupportsPreparedPublication);
+                publication.Setup(service => service.BeginPublicationAsync(It.IsAny<CancellationToken>()))
+                    .Returns((CancellationToken token) => Registry.BeginPublicationAsync(token));
                 var converter = new Mock<IWotDocumentConverter>();
                 converter.Setup(service => service.ConvertAsync(
                     It.IsAny<WotResource>(), It.IsAny<ByteString>(), It.IsAny<WotRegistrySnapshot>(),
@@ -559,12 +575,23 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     It.IsAny<WotBindingPlan>(), It.IsAny<CancellationToken>()))
                     .Callback((WotBindingPlan plan, CancellationToken _) => Deactivated.Add(plan.ResourceXid));
                 Coordinator = new WotMaterializationCoordinator(
-                    registry.Object, Host, binders.Object, documentConverter: converter.Object);
+                    registry.Object, runtime.Observe(changes =>
+                    {
+                        foreach (WotProjectionChange change in changes)
+                        {
+                            Operations.Add(new HostOperation(
+                                change.Document is null ? "remove" : change.Current is null ? "add" : "shadow",
+                                change.Document, change.Current?.ClosureKey ?? string.Empty));
+                        }
+                    }), binders.Object, documentConverter: converter.Object)
+                {
+                    ServerNamespaceUris = runtime.Namespaces
+                };
             }
 
             public WotRegistryService Registry { get; }
             public WotMaterializationCoordinator Coordinator { get; }
-            public FakeWotProjectionHost Host { get; } = new();
+            public List<HostOperation> Operations { get; } = [];
             public FakeWotDocumentConverter Converter { get; } = new();
             public List<WotResourceVersion> Reads { get; } = [];
             public List<string> Converted { get; } = [];
@@ -573,6 +600,20 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             public List<string> Deactivated { get; } = [];
             public string? FailedDocument { get; set; }
             public Func<WotResourceVersion, Task>? BeforeRead { get; set; }
+
+            public static async Task<SelectionFixture> CreateAsync(WotRegistryPersistenceBounds? bounds = null)
+            {
+                PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync();
+                try
+                {
+                    return new SelectionFixture(runtime, await runtime.CreateRegistryAsync(bounds));
+                }
+                catch
+                {
+                    await runtime.DisposeAsync();
+                    throw;
+                }
+            }
 
             public async Task<WotResource> RegisterAsync(
                 string resourceId,
@@ -602,13 +643,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Prepared.Clear();
                 Activated.Clear();
                 Deactivated.Clear();
-                Host.Operations.Clear();
+                Operations.Clear();
             }
 
-            public void Dispose()
+            public async ValueTask DisposeAsync()
             {
                 Coordinator.Dispose();
-                Registry.Dispose();
+                await m_runtime.DisposeAsync();
             }
 
             private async ValueTask<ByteString> ReadAsync(WotResourceVersion version, CancellationToken token)
@@ -624,6 +665,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 }
                 return await Registry.ReadContentAsync(version, token);
             }
+
+            private readonly PreparedWotTestRuntime m_runtime;
         }
 
         private static readonly string[] s_aDocument = ["urn:a"];

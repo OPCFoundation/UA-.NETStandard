@@ -574,6 +574,23 @@ namespace Opc.Ua.WotCon.Server.Materialization
             // Expand the selection to include resolvable transitive dependencies.
             var byXid = new Dictionary<string, WotResource>(StringComparer.Ordinal);
             var queue = new Queue<WotResource>();
+            var indexedModels = new Dictionary<string, List<WotResource>>(StringComparer.Ordinal);
+            foreach (WotResource resource in snapshot.AllResources())
+            {
+                if (resource.DefaultVersion?.Dependencies is not { } metadata)
+                {
+                    continue;
+                }
+                foreach (string model in metadata.OwnedModelUris)
+                {
+                    if (!indexedModels.TryGetValue(model, out List<WotResource>? owners))
+                    {
+                        owners = [];
+                        indexedModels.Add(model, owners);
+                    }
+                    owners.Add(resource);
+                }
+            }
             foreach (WotResource resource in selected)
             {
                 AddResource(resource);
@@ -597,6 +614,20 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         AddResource(target))
                     {
                         metadataQueue.Enqueue(target);
+                    }
+                }
+                foreach (string model in metadata.RequiredModelUris)
+                {
+                    if (!indexedModels.TryGetValue(model, out List<WotResource>? owners))
+                    {
+                        continue;
+                    }
+                    foreach (WotResource owner in owners)
+                    {
+                        if (AddResource(owner))
+                        {
+                            metadataQueue.Enqueue(owner);
+                        }
                     }
                 }
             }
@@ -698,7 +729,16 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     if (modelOwners.TryGetValue(model, out List<string>? owners))
                     {
-                        Union(parent, dependency.Key, owners[0]);
+                        foreach (string owner in owners)
+                        {
+                            Union(parent, dependency.Key, owner);
+                            if (owner != dependency.Key)
+                            {
+                                edges[dependency.Key].Add(new WotDependency(
+                                    dependency.Key, model, owner, "RequiredModel",
+                                    byXid[owner].DefaultVersion?.HasContent == true));
+                            }
+                        }
                     }
                 }
             }

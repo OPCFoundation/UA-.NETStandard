@@ -56,6 +56,38 @@ namespace Opc.Ua.WotCon.Server.Registry
     }
 
     /// <summary>
+    /// Optional invocation-wide publication admission on the authoritative registry owner.
+    /// </summary>
+    public interface IWotInvocationRegistryPublicationService : IWotPreparedRegistryPublicationService
+    {
+        /// <summary>
+        /// Excludes registry mutations until every unit and the final invocation bookkeeping are complete.
+        /// </summary>
+        ValueTask<IWotRegistryPublication> BeginPublicationAsync(CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// Holds the registry side of one invocation, reusing the existing deciding store owner.
+    /// </summary>
+    public interface IWotRegistryPublication : IAsyncDisposable
+    {
+        /// <summary>
+        /// Gets the complete current authoritative snapshot, including this invocation's accepted units.
+        /// </summary>
+        WotRegistrySnapshot Current { get; }
+
+        /// <summary>
+        /// Prepares the next sequential unit against the exact current snapshot.
+        /// </summary>
+        ValueTask<IWotPreparedRegistryPublication> PrepareAsync(
+            WotRegistrySnapshot expectedSnapshot,
+            ArrayOf<WotResourceProjection> projections,
+            uint refreshGeneration,
+            ByteString canonicalViewGraphState = default,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
     /// Owns one prepared registry decision and its deferred in-memory publication.
     /// </summary>
     public interface IWotPreparedRegistryPublication : IAsyncDisposable

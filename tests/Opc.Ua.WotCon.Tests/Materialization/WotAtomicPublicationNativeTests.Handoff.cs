@@ -567,6 +567,52 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     return new ValueTask<IAsyncDisposable?>(runtime.Object);
                 });
             var inner = new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle, runtimeFactory.Object);
+            IWotPreparedProjectionPublication Track(
+                IWotPreparedProjectionPublication prepared, ArrayOf<WotProjectionChange> changes)
+            {
+                probe.Changes.Add(changes);
+                probe.Publications.Add(prepared);
+                var publication = new Mock<IWotPreparedProjectionPublication>(MockBehavior.Strict);
+                publication.SetupGet(value => value.Projections).Returns(prepared.Projections);
+                publication.SetupGet(value => value.ViewGraph).Returns(prepared.ViewGraph);
+                publication.SetupGet(value => value.IsCommitted).Returns(() => prepared.IsCommitted);
+                publication.SetupGet(value => value.CleanupFailure).Returns(() => prepared.CleanupFailure);
+                publication.Setup(value => value.CommitAsync(
+                    It.IsAny<Func<CancellationToken, ValueTask>>(), It.IsAny<Action>(),
+                    It.IsAny<CancellationToken>())).Returns(async (
+                        Func<CancellationToken, ValueTask> decide, Action publish, CancellationToken ct) =>
+                    {
+                        await prepared.CommitAsync(async decisionToken =>
+                        {
+                            if (probe.BeforeDecisionAsync is { } before)
+                            {
+                                await before(decisionToken).ConfigureAwait(false);
+                            }
+                            decisionToken.ThrowIfCancellationRequested();
+                            probe.DecisionCount++;
+                            await decide(decisionToken).ConfigureAwait(false);
+                            probe.AcceptedCount++;
+                            if (probe.AfterDecisionAsync is { } after)
+                            {
+                                await after(decisionToken).ConfigureAwait(false);
+                            }
+                        }, () =>
+                        {
+                            probe.PublicationCount++;
+                            publish();
+                            if (probe.PublicationFailure is { } failure)
+                            {
+                                throw failure;
+                            }
+                        }, ct).ConfigureAwait(false);
+                    });
+                publication.Setup(value => value.DisposeAsync()).Returns(async () =>
+                {
+                    await prepared.DisposeAsync().ConfigureAwait(false);
+                    probe.DisposalCount++;
+                });
+                return publication.Object;
+            }
             var host = new Mock<IWotPreparedProjectionHost>(MockBehavior.Strict);
             host.SetupGet(owner => owner.SupportsPreparedPublication).Returns(true);
             host.Setup(owner => owner.PrepareAsync(
@@ -575,52 +621,30 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     ArrayOf<WotProjectionChange> changes,
                     IWotPreparedViewPublication? views,
                     CancellationToken token) =>
-                {
-                    IWotPreparedProjectionPublication prepared =
-                        await inner.PrepareAsync(changes, views, token).ConfigureAwait(false);
-                    probe.Changes.Add(changes);
-                    probe.Publications.Add(prepared);
-                    var publication = new Mock<IWotPreparedProjectionPublication>(MockBehavior.Strict);
-                    publication.SetupGet(value => value.Projections).Returns(prepared.Projections);
-                    publication.SetupGet(value => value.ViewGraph).Returns(prepared.ViewGraph);
-                    publication.SetupGet(value => value.IsCommitted).Returns(() => prepared.IsCommitted);
-                    publication.SetupGet(value => value.CleanupFailure).Returns(() => prepared.CleanupFailure);
-                    publication.Setup(value => value.CommitAsync(
-                        It.IsAny<Func<CancellationToken, ValueTask>>(), It.IsAny<Action>(),
-                        It.IsAny<CancellationToken>())).Returns(async (
-                            Func<CancellationToken, ValueTask> decide, Action publish, CancellationToken ct) =>
-                        {
-                            await prepared.CommitAsync(async decisionToken =>
-                            {
-                                if (probe.BeforeDecisionAsync is { } before)
-                                {
-                                    await before(decisionToken).ConfigureAwait(false);
-                                }
-                                decisionToken.ThrowIfCancellationRequested();
-                                probe.DecisionCount++;
-                                await decide(decisionToken).ConfigureAwait(false);
-                                probe.AcceptedCount++;
-                                if (probe.AfterDecisionAsync is { } after)
-                                {
-                                    await after(decisionToken).ConfigureAwait(false);
-                                }
-                            }, () =>
-                            {
-                                probe.PublicationCount++;
-                                publish();
-                                if (probe.PublicationFailure is { } failure)
-                                {
-                                    throw failure;
-                                }
-                            }, ct).ConfigureAwait(false);
-                        });
-                    publication.Setup(value => value.DisposeAsync()).Returns(async () =>
+                Track(await inner.PrepareAsync(changes, views, token).ConfigureAwait(false), changes));
+            Mock<IWotInvocationProjectionHost> isolated = host.As<IWotInvocationProjectionHost>();
+            isolated.SetupGet(owner => owner.SupportedAtomicities).Returns(() => inner.SupportedAtomicities);
+            isolated.Setup(owner => owner.CapturePublication()).Returns(() =>
+            {
+                IWotProjectionPublicationCapture captured = inner.CapturePublication();
+                var capture = new Mock<IWotProjectionPublicationCapture>(MockBehavior.Strict);
+                capture.Setup(value => value.BeginAsync(It.IsAny<CancellationToken>()))
+                    .Returns(async (CancellationToken token) =>
                     {
-                        await prepared.DisposeAsync().ConfigureAwait(false);
-                        probe.DisposalCount++;
+                        IWotProjectionPublication admitted = await captured.BeginAsync(token).ConfigureAwait(false);
+                        var invocation = new Mock<IWotProjectionPublication>(MockBehavior.Strict);
+                        invocation.SetupGet(value => value.IsCurrent).Returns(() => admitted.IsCurrent);
+                        invocation.Setup(value => value.PrepareAsync(
+                            It.IsAny<ArrayOf<WotProjectionChange>>(), It.IsAny<IWotPreparedViewPublication?>(),
+                            It.IsAny<CancellationToken>())).Returns(async (
+                                ArrayOf<WotProjectionChange> changes, IWotPreparedViewPublication? views,
+                                CancellationToken ct) =>
+                            Track(await admitted.PrepareAsync(changes, views, ct).ConfigureAwait(false), changes));
+                        invocation.Setup(value => value.DisposeAsync()).Returns(() => admitted.DisposeAsync());
+                        return invocation.Object;
                     });
-                    return publication.Object;
-                });
+                return capture.Object;
+            });
             m_coordinator.Dispose();
             m_coordinator = new WotMaterializationCoordinator(
                 m_registry, host.Object, documentConverter: m_converter)

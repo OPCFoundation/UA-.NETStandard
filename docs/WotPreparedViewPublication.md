@@ -181,7 +181,7 @@ The queue does not supply the prepared batch or durable publication decision.
 
 ## Publication unit planning
 
-When the source host and registry support prepared publication, all four
+When the source host and registry support invocation-isolated prepared publication, all four
 atomicity requests use the same prepared source/View/store owner. PerResource
 starts with one activation Resource, PerGroup with selected work in one group,
 PerClosure with a dependency closure, and PerRegistry with all selected and
@@ -194,6 +194,8 @@ before publication, and the summary reports the applied mode. Disabled inputs
 remain available to conversion without becoming source owners or group members.
 A dependent unit requires a successful or exact unchanged prerequisite
 publication, not merely fetched or converted bytes.
+Native model requirements are expanded from the registry metadata index and
+retain their model-URI target pins when a closure is partitioned.
 
 An update retains the complete affected old/new closure, including merges and
 splits. Old source registrations are replaced/retired in the same prepared
@@ -206,6 +208,74 @@ Views join their source unit and still require
 `IWotPreparedViewProjectionHost`; the immediate View API is not an atomic
 substitute. Unsupported View preparation fails before source publication.
 The unit planner does not change the canonical graph algorithm or renderer.
+A prepared View participant's affected-Resource footprint must stay within its
+planned activation/retirement unit. An unexpected outside Resource is rejected
+before the durable decision, not used as permission to mutate unrelated rows.
+
+## Invocation isolation and final plan
+
+`IWotInvocationProjectionHost` captures the source owner's routing, type and
+factory revisions before input acquisition. Its `SupportedAtomicities` is the
+actual supported subset. `IWotInvocationRegistryPublicationService` reserves
+publication on the existing registry service; each unit still uses
+`IWotPreparedRegistryPublication` and the same deciding store.
+
+The coordinator retains both admissions through its entire commit phase,
+including intervening notifications and completion bookkeeping. Before any
+switch it checks the caller generation, preparation generation, authoritative
+full registry snapshot, source revisions and captured policies. A stale
+nonzero caller generation fails `BadInvalidState`. Other stale preparation is
+reacquired and rebuilt, including when ExpectedGeneration is zero. Successful
+own units update the checked snapshot/generation without self-conflict.
+
+Registry mutations await the invocation's completion. Conflicting lifecycle
+operations fail `BadServerTooBusy` before effects and can retry afterward.
+Callbacks must not synchronously wait for mutations excluded by their own
+invocation. A lifecycle mutation attempted from a committed callback remains
+an explicit callback/cleanup failure, not a successful nested publication.
+Ordinary lifecycle operations outside an invocation retain their existing
+callback and drain behavior.
+
+`LastRefreshPlan` uses the generated `WoTRefreshPlanDataType` on the well-known
+registry. It initially reads `BadWaitingForInitialData`; an empty server startup
+does not fabricate a refresh plan. An actual Refresh publishes the final
+RequestId, PreparationGeneration, RequestedAtomicity, AppliedAtomicity and
+UnitCount under admission before its first switch. Explicit empty selections
+that match no work can report a zero-unit plan. Dry runs leave the Property
+and committed state unchanged. Returned coordinator plan objects are detached.
+
+Failed and checked-unchanged dependency attempts can persist their diagnostic
+metadata without replacing the committed dependency snapshot or advancing
+RefreshGeneration. Same-content publication metadata repair is a changed unit,
+not Unchanged. Store generation remains a separate Int64 counter.
+
+Confirmed store noncommit before any accepted unit retains its dedicated
+exception contract. After an earlier independent success it produces failed
+unit rows and a partial-success summary with the actual committed generation.
+Committed warnings do not prevent later independent units. Cancellation or an
+indeterminate decision does not fabricate a successful completion; the existing
+store recovery barrier remains authoritative. Automatic replay of an unresolved
+deciding record is not supplied by these admission interfaces.
+
+Preparation is serial, which respects every nonzero MaxParallelism upper bound;
+zero leaves that choice to the server. Timeout is an invocation-wide budget in
+milliseconds, including waits and capture. Zero disables that budget; negative,
+non-finite or values above Int32.MaxValue are rejected. Cancellation after a
+durable decision cannot undo its accepted unit.
+
+### Provider requirements
+
+Refresh no longer falls back to visible immediate Resource commits when the
+configured owners cannot provide the requested isolation. Unsupported owners
+or modes fail `BadNotSupported` before acquisition/publication. Read-only
+`CaptureAsync` remains available independently.
+
+The stock lifecycle/host and a file registry with genuine immutable-content
+leases support all four modes. The current process-local registry store and
+immediate-only custom projection/View hosts do not provide that capability;
+they must not advertise it. The file provider's existing platform constraints
+still apply. No copied byte buffer, alternate deciding owner or simulated
+successful publication substitutes for a missing provider guarantee.
 
 ## Integration status
 

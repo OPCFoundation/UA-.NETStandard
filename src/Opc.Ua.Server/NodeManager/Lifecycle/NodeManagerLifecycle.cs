@@ -50,7 +50,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Default live NodeManager lifecycle provider owned by a <see cref="StandardServer"/>.
     /// </summary>
-    public sealed partial class NodeManagerLifecycle : INodeManagerBatchLifecycle, IDisposable
+    public sealed partial class NodeManagerLifecycle : INodeManagerPublicationLifecycle, IDisposable
     {
         /// <summary>
         /// Creates a lifecycle provider for a directly constructed server.
@@ -174,7 +174,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(server));
             }
 
-            Task activeOperations = EnterShutdownMethod();
+            Task activeOperations = await EnterShutdownAfterPublicationAsync(ct).ConfigureAwait(false);
             bool semaphoreHeld = false;
             bool shutdownPrepared = false;
             try
@@ -224,7 +224,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(server));
             }
 
-            Task activeOperations = EnterShutdownMethod();
+            Task activeOperations = await EnterShutdownAfterPublicationAsync(ct).ConfigureAwait(false);
             bool semaphoreHeld = false;
             bool shutdownCompleted = false;
             try
@@ -1704,7 +1704,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        private OperationLifetime EnterLifecycleOperation()
+        private OperationLifetime EnterLifecycleOperation(PublicationCapture? publication = null)
         {
             lock (m_operationLifetimeLock)
             {
@@ -1717,9 +1717,21 @@ namespace Opc.Ua.Server
                     throw new InvalidOperationException(
                         "The NodeManager lifecycle is shutting down.");
                 }
+                if (m_publicationCapture is not null &&
+                    !ReferenceEquals(m_publicationCapture, publication))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadServerTooBusy, "An invocation owns lifecycle publication admission.");
+                }
+                if (publication is not null && !ReferenceEquals(m_publicationCapture, publication))
+                {
+                    throw new ObjectDisposedException(nameof(INodeManagerPublication));
+                }
 
                 m_activeLifecycleOperations++;
-                return new OperationLifetime(this);
+                var operation = new OperationLifetime(this, m_currentOperation.Value);
+                m_currentOperation.Value = operation;
+                return operation;
             }
         }
 
@@ -1727,7 +1739,7 @@ namespace Opc.Ua.Server
         {
             lock (m_operationLifetimeLock)
             {
-                if (m_disposed || m_shuttingDown)
+                if (m_disposed || m_shuttingDown || m_publicationCapture is not null)
                 {
                     return false;
                 }
@@ -4221,14 +4233,30 @@ namespace Opc.Ua.Server
 
         private sealed class OperationLifetime : IDisposable
         {
-            public OperationLifetime(NodeManagerLifecycle owner)
+            public OperationLifetime(NodeManagerLifecycle owner, OperationLifetime? parent)
             {
                 m_owner = owner;
+                Parent = parent;
+            }
+
+            public OperationLifetime? Parent { get; }
+
+            public bool IsOwnedBy(NodeManagerLifecycle owner)
+            {
+                return ReferenceEquals(Volatile.Read(ref m_owner), owner);
             }
 
             public void Dispose()
             {
-                Interlocked.Exchange(ref m_owner, null)?.ExitLifecycleOperation();
+                NodeManagerLifecycle? owner = Interlocked.Exchange(ref m_owner, null);
+                if (owner is not null)
+                {
+                    if (ReferenceEquals(owner.m_currentOperation.Value, this))
+                    {
+                        owner.m_currentOperation.Value = Parent;
+                    }
+                    owner.ExitLifecycleOperation();
+                }
             }
 
             private NodeManagerLifecycle? m_owner;

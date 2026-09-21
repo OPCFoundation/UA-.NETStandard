@@ -46,6 +46,21 @@ namespace Opc.Ua.WotCon.Server.Materialization
         public WotCommittedPublicationState CommittedPublication =>
             Volatile.Read(ref m_committedPublication);
 
+        /// <summary>
+        /// Gets a detached final rechecked plan, or null before an actual invocation has planned publication.
+        /// Dry runs do not replace this diagnostic value.
+        /// </summary>
+        public WoTRefreshPlanDataType? LastRefreshPlan => CoreUtils.Clone(Volatile.Read(ref m_lastRefreshPlan));
+
+        /// <summary>
+        /// Gets the actual invocation-isolated modes supported by the configured owners.
+        /// Legacy immediate projection is not advertised as this capability.
+        /// </summary>
+        public ArrayOf<WoTAtomicityEnum> SupportedAtomicities =>
+            m_registry is IWotInvocationRegistryPublicationService { SupportsPreparedPublication: true } &&
+                m_sourceHost is IWotInvocationProjectionHost source
+                ? [.. source.SupportedAtomicities] : [];
+
         private Dictionary<string, ClosureState> ClosureStates => m_preparing?.Closures ?? m_closures;
         private HashSet<string> ProjectionNamespaces => m_preparing?.Namespaces ?? m_projectionNamespaceUris;
 
@@ -53,6 +68,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WotRefreshCapture refresh,
             WotRegistrySnapshot snapshot,
             DateTime start,
+            IWotProjectionPublication? publication,
+            IWotRegistryPublication? registryPublication,
             CancellationToken cancellationToken)
         {
             WotPublicationPlan plan = WotPublicationPlanner.Create(
@@ -60,12 +77,22 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 m_closures.Values.Select(closure => new WotPublicationFootprint(
                     closure.Members.Select(member => member.Xid).ToArrayOf(), closure.MemberXids.ToArrayOf()))
                     .ToArrayOf());
+            if (!refresh.Request.DryRun)
+            {
+                if (publication is null || registryPublication is null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNotSupported, "Invocation isolation is required.");
+                }
+                Volatile.Write(ref m_lastRefreshPlan,
+                    refresh.CreateRefreshPlan(plan.AppliedAtomicity, (uint)plan.Units.Count));
+            }
             var rows = ImmutableArray.CreateBuilder<WoTResourceLoadResultDataType>();
             var satisfied = new HashSet<string>(StringComparer.Ordinal);
             var activation = new HashSet<string>(
                 refresh.Inputs.Closures.ToList().SelectMany(closure => closure.ActivationMembers.ToList())
                     .Select(member => member.Xid), StringComparer.Ordinal);
             uint retired = 0;
+            bool committedWarning = false;
             bool includeSkipped = true;
             for (int i = 0; i < plan.Units.Count; i++)
             {
@@ -87,9 +114,31 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     continue;
                 }
                 using WotRefreshCapture unitCapture = refresh.ForPublication(unit);
-                WotRefreshResult result = await RefreshPreparedUnitAsync(
-                    unitCapture, snapshot, start, unit, includeSkipped, cancellationToken).ConfigureAwait(false);
+                WotRefreshResult result;
+                try
+                {
+                    result = await RefreshPreparedUnitAsync(
+                        unitCapture, snapshot, start, unit, includeSkipped,
+                        publication, registryPublication, cancellationToken).ConfigureAwait(false);
+                }
+                catch (WotRegistryCommitNotCommittedException failure) when (
+                    rows.Any(row => row.Outcome is WoTOutcomeEnum.Success or WoTOutcomeEnum.Warning))
+                {
+                    ImmutableArray<WoTResourceLoadResultDataType> rejected = unit.ToList()
+                        .SelectMany(closure => closure.ActivationMembers.ToList())
+                        .Select(member => FailResult(member, m_generation, WoTPhaseEnum.Activation,
+                            "The store confirmed that this unit did not commit: " + failure.Message))
+                        .ToImmutableArray();
+                    result = new WotRefreshResult(new WoTRefreshSummaryDataType
+                    {
+                        Generation = m_generation,
+                        Outcome = WoTOutcomeEnum.Failed,
+                        Total = (uint)rejected.Length,
+                        Failed = (uint)rejected.Length
+                    }, rejected, m_generation);
+                }
                 rows.AddRange(result.Results);
+                committedWarning |= result.Summary.Outcome == WoTOutcomeEnum.Warning;
                 if (result.Summary.Failed == 0)
                 {
                     satisfied.UnionWith(unitXids);
@@ -101,13 +150,21 @@ namespace Opc.Ua.WotCon.Server.Materialization
             if (plan.Units.IsEmpty)
             {
                 WotRefreshResult empty = await RefreshPreparedUnitAsync(
-                    refresh, snapshot, start, [], true, cancellationToken).ConfigureAwait(false);
+                    refresh, snapshot, start, [], true, publication, registryPublication, cancellationToken)
+                    .ConfigureAwait(false);
                 rows.AddRange(empty.Results);
                 retired = empty.Summary.Retired;
             }
             uint succeeded = (uint)rows.Count(row => row.Outcome is WoTOutcomeEnum.Success or WoTOutcomeEnum.Warning);
             uint failed = (uint)rows.Count(row => row.Outcome == WoTOutcomeEnum.Failed);
-            bool warning = rows.Any(row => row.Outcome == WoTOutcomeEnum.Warning);
+            foreach (WoTResourceLoadResultDataType row in rows)
+            {
+                if (row.Outcome == WoTOutcomeEnum.Failed)
+                {
+                    row.Generation = m_generation;
+                }
+            }
+            bool warning = committedWarning || rows.Any(row => row.Outcome == WoTOutcomeEnum.Warning);
             var summary = new WoTRefreshSummaryDataType
             {
                 RequestId = refresh.Request.RequestId,
@@ -144,6 +201,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             DateTime start,
             ArrayOf<WotDependencyClosure> unit,
             bool includeSkipped,
+            IWotProjectionPublication? publication,
+            IWotRegistryPublication? registryPublication,
             CancellationToken cancellationToken)
         {
             if (m_sourceHost is not IWotPreparedProjectionHost { SupportsPreparedPublication: true } host ||
@@ -188,6 +247,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     staged = new WotRefreshResult(staged.Summary, complete.ToImmutable(), m_generation);
                 }
                 WotRefreshResult result = NormalizeUncommitted(staged, snapshot, failed, dryRun);
+                if (!dryRun && registryPublication is not null && capture.Projections.Count != 0)
+                {
+                    await PublishCompletedAttemptsAsync(
+                        capture, snapshot, result, registryPublication, cancellationToken).ConfigureAwait(false);
+                }
                 foreach (WotMaterializationEventArgs change in capture.Events)
                 {
                     if (!dryRun && change.Kind is (WotMaterializationEventKind.ValidationFailure or
@@ -217,9 +281,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         cancellationToken).ConfigureAwait(false);
                 }
 
-                IWotPreparedProjectionPublication prepared = await host.PrepareAsync(
-                    capture.Changes.Select(change => change.Change).ToArrayOf(), views, cancellationToken)
-                    .ConfigureAwait(false);
+                IWotPreparedProjectionPublication prepared = publication is null
+                    ? await host.PrepareAsync(
+                        capture.Changes.Select(change => change.Change).ToArrayOf(), views, cancellationToken)
+                        .ConfigureAwait(false)
+                    : await publication.PrepareAsync(
+                        capture.Changes.Select(change => change.Change).ToArrayOf(), views, cancellationToken)
+                        .ConfigureAwait(false);
                 await using var preparedLifetime = prepared.ConfigureAwait(false);
                 int index = 0;
                 foreach (CapturedProjection change in capture.Changes)
@@ -242,17 +310,21 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     : default;
                 if (prepared.ViewGraph is { } graphState)
                 {
-                    MergeViewGraphMetadata(capture, graphState, snapshot);
+                    MergeViewGraphMetadata(capture, graphState, snapshot, unit);
                 }
                 uint generation = checked(snapshot.RefreshGeneration + 1);
-                IWotPreparedRegistryPublication metadata = await registry.PreparePublicationAsync(
-                    snapshot, capture.Projections.ToArrayOf(), generation, graph, cancellationToken)
-                    .ConfigureAwait(false);
+                IWotPreparedRegistryPublication metadata = registryPublication is null
+                    ? await registry.PreparePublicationAsync(
+                        snapshot, capture.Projections.ToArrayOf(), generation, graph, cancellationToken)
+                        .ConfigureAwait(false)
+                    : await registryPublication.PrepareAsync(
+                        snapshot, capture.Projections.ToArrayOf(), generation, graph, cancellationToken)
+                        .ConfigureAwait(false);
                 await using var metadataLifetime = metadata.ConfigureAwait(false);
                 ArrayOf<WotViewProjectionHandle> committedViews = prepared.ViewGraph is { } completeGraph
                     ? completeGraph.Views
                     : capture.Closures.Values.SelectMany(closure => closure.ViewHandles).ToArrayOf();
-                var publication = new WotCommittedPublicationState(
+                var committedPublication = new WotCommittedPublicationState(
                     metadata.IntendedSnapshot, committedViews,
                     capture.Closures.Values.SelectMany(closure => closure.BindingPlans).ToArrayOf());
 
@@ -279,10 +351,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         m_projectionNamespaceUris.Clear();
                         m_projectionNamespaceUris.UnionWith(capture.Namespaces);
                         m_generation = generation;
-                        Volatile.Write(ref m_committedPublication, publication);
+                        Volatile.Write(ref m_committedPublication, committedPublication);
                         try
                         {
-                            views?.OnPublished(publication);
+                            views?.OnPublished(committedPublication);
                         }
                         finally
                         {
@@ -344,6 +416,95 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
+        private async ValueTask PublishCompletedAttemptsAsync(
+            PublicationCapture capture,
+            WotRegistrySnapshot snapshot,
+            WotRefreshResult result,
+            IWotRegistryPublication registryPublication,
+            CancellationToken cancellationToken)
+        {
+            var observations = new List<WotResourceProjection>();
+            foreach (WotResourceProjection projection in capture.Projections)
+            {
+                WotResource? previous = snapshot.FindResource(projection.GroupId, projection.ResourceId);
+                if (previous is null)
+                {
+                    continue;
+                }
+                WotDependencySnapshot? attempted = projection.LastDependencyAttempt;
+                WotDependencySnapshot? attempt = attempted is null ? null : new WotDependencySnapshot(
+                    attempted.SourceVersionId, m_generation, attempted.RequestId, attempted.ResolvedAt, false,
+                    attempted.EffectiveInputDigest, attempted.Edges, attempted.Targets);
+                bool active = previous.ActiveVersionId is not null && m_closures.Values.Any(closure =>
+                    closure.Members.Any(member => member.Xid == previous.Xid &&
+                        member.VersionId == previous.ActiveVersionId));
+                observations.Add(new WotResourceProjection(
+                    projection.GroupId, projection.ResourceId,
+                    active ? WoTLoadStateEnum.Active :
+                        previous.ActiveVersionId is null && projection.LoadState == WoTLoadStateEnum.Failed
+                            ? WoTLoadStateEnum.Failed : previous.LoadState,
+                    previous.ActiveVersionId, previous.RefreshGeneration, previous.MaterializedNodeCount,
+                    previous.RootNodeId, projection.Validation, projection.Diagnostics, DateTime.UtcNow)
+                {
+                    RetainPreviousActiveVersion = true,
+                    VersionId = projection.VersionId,
+                    LastDependencyAttempt = attempt
+                });
+            }
+            if (observations.Count == 0)
+            {
+                return;
+            }
+            IWotPreparedRegistryPublication prepared = await registryPublication.PrepareAsync(
+                snapshot, observations.ToArrayOf(), m_generation, cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+            await using var preparedLifetime = prepared.ConfigureAwait(false);
+            await prepared.DecideAsync(cancellationToken).ConfigureAwait(false);
+            Volatile.Write(ref m_committedPublication, new WotCommittedPublicationState(
+                prepared.IntendedSnapshot, CommittedPublication.Views, CommittedPublication.ActiveBindingPlans));
+            WotRegistryCommitDurabilityUncertainException? warning = prepared.DurabilityWarning;
+            try
+            {
+                prepared.Publish();
+            }
+            catch (WotRegistryCommitDurabilityUncertainException failure) when (prepared.IsCommitted)
+            {
+                warning = failure;
+            }
+            if (warning is not null)
+            {
+                string message = "Completed-attempt metadata committed with a warning: " +
+                    DescribeCommittedFailure(warning.PersistenceFailure);
+                foreach (WoTResourceLoadResultDataType row in result.Results)
+                {
+                    row.Message = (row.Message ?? string.Empty) + " " + message;
+                }
+                if (result.Summary.Failed == 0)
+                {
+                    result.Summary.Outcome = WoTOutcomeEnum.Warning;
+                }
+            }
+        }
+
+        private static void CheckExpectedGeneration(WotCapturedRefreshRequest request, uint generation)
+        {
+            if (request.ExpectedGeneration != 0 && request.ExpectedGeneration != generation)
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidState, "The expected refresh generation is stale.");
+            }
+        }
+
+        private bool IsCurrentCapture(WotRefreshCapture capture)
+        {
+            return capture.MaxJsonDepth == m_converterOptions.MaxJsonDepth &&
+                capture.DocumentSetMode == m_converterOptions.DocumentSetMode &&
+                capture.ProjectionCompatibilityMode == m_converterOptions.ProjectionCompatibilityMode &&
+                capture.BinderRevision == BinderVersion &&
+                capture.StrictBindings == StrictBindings &&
+                capture.RetirementPolicy == RetirementPolicy &&
+                ReferenceEquals(capture.RegistryOrigin, RegistryOrigin);
+        }
+
         private static string DescribeCommittedFailure(Exception failure)
         {
             return failure is AggregateException aggregate
@@ -386,8 +547,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         private static void MergeViewGraphMetadata(
-            PublicationCapture capture, WotPreparedViewGraphState graph, WotRegistrySnapshot snapshot)
+            PublicationCapture capture,
+            WotPreparedViewGraphState graph,
+            WotRegistrySnapshot snapshot,
+            ArrayOf<WotDependencyClosure> unit)
         {
+            var permitted = new HashSet<string>(
+                unit.ToList().SelectMany(closure => closure.ActivationMembers.ToList()).Select(member => member.Xid),
+                StringComparer.Ordinal);
+            permitted.UnionWith(capture.ViewRemovals.Select(handle => handle.ResourceXid));
             var handles = new Dictionary<string, WotViewProjectionHandle>(StringComparer.Ordinal);
             foreach (WotViewProjectionHandle handle in graph.Views)
             {
@@ -395,10 +563,16 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
             foreach (string xid in graph.AffectedResourceXids)
             {
+                if (!permitted.Contains(xid))
+                {
+                    throw new ServiceResultException(StatusCodes.BadInvalidState,
+                        "The prepared View graph affects a Resource outside its publication unit.");
+                }
                 WotResource? resource = snapshot.FindResourceByXid(xid);
                 if (resource is null)
                 {
-                    continue;
+                    throw new ServiceResultException(StatusCodes.BadNodeIdUnknown,
+                        "A prepared View Resource does not belong to the authoritative registry snapshot.");
                 }
                 handles.TryGetValue(xid, out WotViewProjectionHandle? handle);
                 WotResourceProjection? previous = capture.Projections.FirstOrDefault(projection =>
@@ -506,6 +680,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         Generation = entry.Value.Generation,
                         MemberXids = entry.Value.MemberXids,
                         Members = entry.Value.Members,
+                        PublishedMetadata = entry.Value.PublishedMetadata,
                         ModelNamespaceUris = entry.Value.ModelNamespaceUris,
                         BindingPlans = entry.Value.BindingPlans,
                         ViewHandles = entry.Value.ViewHandles
@@ -637,5 +812,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
         private readonly IWotBinderRegistry m_sourceBinders;
         private PublicationCapture? m_preparing;
         private WotCommittedPublicationState m_committedPublication;
+        private WoTRefreshPlanDataType? m_lastRefreshPlan;
     }
 }

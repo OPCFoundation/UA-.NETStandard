@@ -630,6 +630,18 @@ builder
 
 ### 11.2 Registry service and persistence
 
+Refresh requires invocation-isolated prepared source and registry providers.
+The stock lifecycle and a file store with genuine immutable-content leases
+support PerResource, PerGroup, PerClosure and PerRegistry units; a mode never
+widens selection to unrelated Resources. Dependency safety can coarsen a
+requested boundary, reported through Summary.Atomicity and the generated
+LastRefreshPlan Property before publication. Unsupported providers, including
+the current in-memory registry store, fail `BadNotSupported` before effects
+rather than publishing sequential Resources under an atomic label. Storage and
+read-only capture remain independently available. See
+[publication units and provider requirements](WotPreparedViewPublication.md)
+for isolation, generation, cancellation and platform behavior.
+
 The registry's startup refresh is an [awaited readiness
 phase](NodeManagerReadiness.md), not part of address-space preparation. Both
 ordinary `AddWotRegistryServer` startup and runtime

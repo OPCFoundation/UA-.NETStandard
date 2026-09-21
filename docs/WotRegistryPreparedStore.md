@@ -5,6 +5,15 @@ the content of independent resources on each update. This is an optional,
 owner-bound store capability, not a relaxation of content integrity checks.
 It does not by itself provide an atomic NodeManager/coordinator publication unit.
 
+For coordinator Refresh publication, the service also implements
+`IWotInvocationRegistryPublicationService`. `BeginPublicationAsync` reserves the
+existing mutation owner across final recheck and every publication unit. Its
+`Current` is the full authoritative snapshot, including accepted own units;
+`PrepareAsync` reuses the prepared metadata decision below. Releasing a unit
+does not admit intervening registry mutations while the invocation remains
+active. Normal standalone `PreparePublicationAsync` retains its single-unit
+contract. See [publication units and invocation isolation](WotPreparedViewPublication.md).
+
 ## Normal service use
 
 `WotRegistryService` discovers `IWotRegistryPreparedStore` on the store supplied
@@ -152,6 +161,10 @@ their own path semantics and do not acquire local immutable-lease capability.
 Unsupported providers retain the existing full-validation `IWotRegistryStore`
 path. Consumers requiring isolated units must reject unsupported capability;
 they must not silently advertise an isolated metadata operation.
+In particular, the current `InMemoryWotRegistryStore` has no immutable-content
+lease/prepared-store capability. The coordinator rejects its Refresh publication
+requests rather than using a non-atomic fallback; storage and read-only capture
+remain available.
 
 ## Authoritative outcomes and cancellation
 

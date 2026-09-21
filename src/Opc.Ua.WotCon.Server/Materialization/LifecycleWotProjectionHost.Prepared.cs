@@ -42,10 +42,34 @@ namespace Opc.Ua.WotCon.Server.Materialization
         public bool SupportsPreparedPublication => m_lifecycle is INodeManagerBatchLifecycle;
 
         /// <inheritdoc/>
-        public async ValueTask<IWotPreparedProjectionPublication> PrepareAsync(
+        public ArrayOf<WoTAtomicityEnum> SupportedAtomicities =>
+            m_lifecycle is INodeManagerPublicationLifecycle { SupportsPublicationIsolation: true }
+                ? [WoTAtomicityEnum.PerResource, WoTAtomicityEnum.PerGroup,
+                    WoTAtomicityEnum.PerClosure, WoTAtomicityEnum.PerRegistry]
+                : [];
+
+        /// <inheritdoc/>
+        public IWotProjectionPublicationCapture CapturePublication()
+        {
+            return m_lifecycle is INodeManagerPublicationLifecycle { SupportsPublicationIsolation: true } lifecycle
+                ? new PublicationCapture(this, lifecycle.CapturePublication())
+                : throw new NotSupportedException("The lifecycle cannot isolate a publication invocation.");
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<IWotPreparedProjectionPublication> PrepareAsync(
             ArrayOf<WotProjectionChange> changes,
             IWotPreparedViewPublication? views = null,
             CancellationToken cancellationToken = default)
+        {
+            return PrepareCoreAsync(changes, views, null, cancellationToken);
+        }
+
+        private async ValueTask<IWotPreparedProjectionPublication> PrepareCoreAsync(
+            ArrayOf<WotProjectionChange> changes,
+            IWotPreparedViewPublication? views,
+            INodeManagerPublication? publication,
+            CancellationToken cancellationToken)
         {
             if (m_lifecycle is not INodeManagerBatchLifecycle lifecycle)
             {
@@ -90,8 +114,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     lifecycleChanges.Add(change);
                 }
             }
-            IPreparedNodeManagerBatch? batch = await lifecycle.PrepareAsync(
-                lifecycleChanges.ToArrayOf(), cancellationToken).ConfigureAwait(false);
+            IPreparedNodeManagerBatch? batch = publication is null
+                ? await lifecycle.PrepareAsync(lifecycleChanges.ToArrayOf(), cancellationToken).ConfigureAwait(false)
+                : await publication.PrepareAsync(lifecycleChanges.ToArrayOf(), cancellationToken).ConfigureAwait(false);
             try
             {
                 var handles = new List<WotProjectionHandle>(sourceCount);
@@ -115,10 +140,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     }
                     graph = views.BindPreparedRegistrations(registrations.ToArrayOf());
                 }
-                var publication = new PreparedPublication(
+                var preparedPublication = new PreparedPublication(
                     batch, handles.ToArrayOf(), graph, runtimePublications.ToArrayOf());
                 batch = null;
-                return publication;
+                return preparedPublication;
             }
             finally
             {
@@ -126,6 +151,36 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     await batch.DisposeAsync().ConfigureAwait(false);
                 }
+            }
+        }
+
+        private sealed class PublicationCapture(
+            LifecycleWotProjectionHost owner, INodeManagerPublicationCapture capture) : IWotProjectionPublicationCapture
+        {
+            public async ValueTask<IWotProjectionPublication> BeginAsync(
+                CancellationToken cancellationToken = default)
+            {
+                INodeManagerPublication invocation = await capture.BeginAsync(cancellationToken).ConfigureAwait(false);
+                return new PublicationInvocation(owner, invocation);
+            }
+        }
+
+        private sealed class PublicationInvocation(
+            LifecycleWotProjectionHost owner, INodeManagerPublication publication) : IWotProjectionPublication
+        {
+            public bool IsCurrent => publication.IsCurrent;
+
+            public ValueTask<IWotPreparedProjectionPublication> PrepareAsync(
+                ArrayOf<WotProjectionChange> changes,
+                IWotPreparedViewPublication? views = null,
+                CancellationToken cancellationToken = default)
+            {
+                return owner.PrepareCoreAsync(changes, views, publication, cancellationToken);
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                return publication.DisposeAsync();
             }
         }
 

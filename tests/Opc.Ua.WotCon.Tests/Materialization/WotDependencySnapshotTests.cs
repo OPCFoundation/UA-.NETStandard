@@ -43,9 +43,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     public sealed class WotDependencySnapshotTests
     {
         [Test]
+        [Platform("Win")]
         public async Task ContentlessDependencyRecordsFailureWithoutAbortingIndependentWork()
         {
-            using var registry = new WotRegistryService();
+            await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync();
+            WotRegistryService registry = await runtime.CreateRegistryAsync();
             await registry.GetOrCreateGroupAsync("models", WoTDocumentKindEnum.ThingModel);
             await registry.GetOrCreateVersionAsync("models", "unwritten", "v1", WoTDocumentKindEnum.ThingModel);
             WotResource placeholder = registry.Current.FindResource("models", "unwritten")!;
@@ -59,7 +61,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 GroupId = "things", ResourceId = "independent", VersionId = "v1",
                 Content = ByteString.From(TestMaterialization.Td("urn:independent"))
             });
-            using WotMaterializationCoordinator coordinator = Coordinator(registry);
+            using WotMaterializationCoordinator coordinator = Coordinator(registry, runtime);
             WotRefreshResult result = await coordinator.RefreshAsync(new WotRefreshRequest
             {
                 Selection = [Selector(failed.Resource!), Selector(independent.Resource!)],
@@ -79,8 +81,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         [Test]
+        [Platform("Win")]
         public async Task PreDependencyManifestHydrationSupportsPreparedMetadataCommit()
         {
+            await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync();
             string root = Path.Combine(Path.GetTempPath(), "wot-b2-upgrade", Guid.NewGuid().ToString("N"));
             try
             {
@@ -119,7 +123,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 await reloaded.InitializeAsync();
                 Assert.That(reloaded.Current.FindResource(source.GroupId, source.ResourceId)!
                     .DefaultVersion!.Dependencies, Is.Not.Null);
-                using WotMaterializationCoordinator coordinator = Coordinator(reloaded);
+                using WotMaterializationCoordinator coordinator = Coordinator(reloaded, runtime);
                 WotRefreshResult result = await coordinator.RefreshAsync(Request(source, "upgraded"));
                 Assert.That(result.Results.Single(row => row.ResourceId == source.ResourceId).LoadState,
                     Is.EqualTo(WoTLoadStateEnum.Active));
@@ -135,11 +139,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         [Test]
+        [Platform("Win")]
         public async Task CommittedSnapshotPinsExactOriginVersionAndRawEdge()
         {
-            using var registry = new WotRegistryService();
+            await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync();
+            WotRegistryService registry = await runtime.CreateRegistryAsync();
             (WotResource model, WotResource source) = await RegisterPairAsync(registry);
-            using WotMaterializationCoordinator coordinator = Coordinator(registry);
+            using WotMaterializationCoordinator coordinator = Coordinator(registry, runtime);
 
             await coordinator.RefreshAsync(Request(source, "committed"));
             WotDependencySnapshot snapshot = Observation(registry, source);
@@ -167,12 +173,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         [Test]
+        [Platform("Win")]
         public async Task FailedAttemptDoesNotReplaceCommittedGraph()
         {
-            using var registry = new WotRegistryService();
+            await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync();
+            WotRegistryService registry = await runtime.CreateRegistryAsync();
             (_, WotResource source) = await RegisterPairAsync(registry);
             var converter = new FakeWotDocumentConverter();
-            using WotMaterializationCoordinator coordinator = Coordinator(registry, converter);
+            using WotMaterializationCoordinator coordinator = Coordinator(registry, runtime, converter);
             await coordinator.RefreshAsync(Request(source, "first"));
             WotDependencySnapshot committed = Observation(registry, source);
             uint generation = coordinator.Generation;
@@ -198,11 +206,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         [Test]
+        [Platform("Win")]
         public async Task DryRunLeavesBothDependencyObservationsUnchanged()
         {
-            using var registry = new WotRegistryService();
+            await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync();
+            WotRegistryService registry = await runtime.CreateRegistryAsync();
             (_, WotResource source) = await RegisterPairAsync(registry);
-            using WotMaterializationCoordinator coordinator = Coordinator(registry);
+            using WotMaterializationCoordinator coordinator = Coordinator(registry, runtime);
             await coordinator.RefreshAsync(Request(source, "first"));
             WotResourceVersion before = registry.Current.FindResource(source.GroupId, source.ResourceId)!
                 .FindVersion("v1")!;
@@ -225,11 +235,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         [Test]
+        [Platform("Win")]
         public async Task SameInputNoopRecordsAttemptWithoutReplacingCommittedGraph()
         {
-            using var registry = new WotRegistryService();
+            await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync();
+            WotRegistryService registry = await runtime.CreateRegistryAsync();
             (_, WotResource source) = await RegisterPairAsync(registry);
-            using WotMaterializationCoordinator coordinator = Coordinator(registry);
+            using WotMaterializationCoordinator coordinator = Coordinator(registry, runtime);
             await coordinator.RefreshAsync(Request(source, "first"));
             WotDependencySnapshot committed = Observation(registry, source);
 
@@ -252,8 +264,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         [Test]
+        [Platform("Win")]
         public async Task FileReloadKeepsSnapshotAndReverseDependencyMetadata()
         {
+            await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync();
             string root = Path.Combine(Path.GetTempPath(), "wot-b2-snapshot", Guid.NewGuid().ToString("N"));
             try
             {
@@ -262,7 +276,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 WotDependencySnapshot committed;
                 using (var store = new FileWotRegistryStore(root))
                 using (var registry = new WotRegistryService(store))
-                using (WotMaterializationCoordinator coordinator = Coordinator(registry))
+                using (WotMaterializationCoordinator coordinator = Coordinator(registry, runtime))
                 {
                     await registry.InitializeAsync();
                     (model, source) = await RegisterPairAsync(registry);
@@ -396,12 +410,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         private static WotMaterializationCoordinator Coordinator(
-            WotRegistryService registry, FakeWotDocumentConverter? converter = null)
+            WotRegistryService registry, PreparedWotTestRuntime runtime, FakeWotDocumentConverter? converter = null)
         {
             return new WotMaterializationCoordinator(
-                registry, new FakeWotProjectionHost(), documentConverter: converter ?? new FakeWotDocumentConverter())
+                registry, runtime.Host, documentConverter: converter ?? new FakeWotDocumentConverter())
             {
-                RegistryOrigin = new WotRegistryOrigin("urn:registry:b2")
+                RegistryOrigin = new WotRegistryOrigin("urn:registry:b2"),
+                ServerNamespaceUris = runtime.Namespaces
             };
         }
 

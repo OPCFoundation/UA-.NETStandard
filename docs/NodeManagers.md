@@ -693,6 +693,29 @@ factory is rejected before candidate creation. When a server stops, a supplied
 private factory retains its committed registrations and can be reused by a later
 server lifetime.
 
+#### Invocation publication units
+
+The stock and hosted lifecycles also implement
+`INodeManagerPublicationLifecycle`. `CapturePublication` records the serving
+routing, type and factory revisions without changing them. Calling the capture's
+`BeginAsync` reserves one logical invocation; `IsCurrent` reports whether those
+revisions still match. A stale invocation cannot prepare units and must be
+disposed before recapturing.
+
+An admitted invocation prepares its sequential units through
+`INodeManagerPublication.PrepareAsync`. These are the same prepared batches
+described above, with the same decision, switch and cleanup contracts. Admission
+remains held across every unit, including post-commit callbacks. Other lifecycle
+mutations fail `BadServerTooBusy` before effects and can retry after disposal;
+they are not silently merged into the invocation. Callback code must defer
+conflicting lifecycle work rather than await a nested mutation. Session,
+MonitoredItem and read-isolation behavior is unchanged.
+
+The invocation retains its operation lifetime until disposal, and shutdown
+waits for it to finish. Disposal drains/aborts its remaining prepared owners,
+reports cleanup failures, and releases admission without replaying a decision.
+The API exposes publication ownership, not a synchronization object.
+
 #### Prepared Session and all-events bindings
 
 Preparing a batch does not activate Sessions or subscribe event sources on its

@@ -51,6 +51,32 @@ Looking for the broader narrative (non-prescriptive overview of what
 changed in a release)? See
 [What's New in 2.0](WhatsNewIn2.0.md).
 
+## WoT Refresh publication providers
+
+**Behavior change:** WoT Refresh rejects unsupported publication owners or
+atomicity modes with `BadNotSupported` before effects. It no longer substitutes
+visible sequential Resource commits for the requested atomicity.
+
+Custom source hosts must provide `IWotInvocationProjectionHost`, report their
+truthful `SupportedAtomicities`, and retain invocation-wide admission while
+using the existing prepared unit owner. Registry providers must implement
+`IWotInvocationRegistryPublicationService` on the actual deciding owner.
+Views require the existing `IWotPreparedViewProjectionHost` participant.
+
+The stock lifecycle and a file registry backed by genuine immutable-content
+leases provide all four modes. The current in-memory registry store and
+immediate-only custom hosts do not provide these guarantees. Configure a
+supported store/provider for publication, or use the independent read-only
+capture API when only acquisition/planning input is needed.
+
+Stale nonzero ExpectedGeneration now fails `BadInvalidState`, rather than
+returning a fabricated rejected summary. Read the actual committed generation
+and re-plan. `LastRefreshPlan` is the generated typed diagnostic Property;
+dry runs leave it unchanged. See
+[prepared publication units](WotPreparedViewPublication.md) and
+[prepared registry storage](WotRegistryPreparedStore.md) for provider and
+platform requirements.
+
 ## Migrating Robotics and Vision MCP requests
 
 The Robotics and Vision MCP tool names remain stable, but their request schemas

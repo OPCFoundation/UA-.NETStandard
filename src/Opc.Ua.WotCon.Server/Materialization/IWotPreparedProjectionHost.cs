@@ -119,6 +119,52 @@ namespace Opc.Ua.WotCon.Server.Materialization
     }
 
     /// <summary>
+    /// Optional source-owner isolation across every unit of an invocation.
+    /// </summary>
+    public interface IWotInvocationProjectionHost : IWotPreparedProjectionHost
+    {
+        /// <summary>
+        /// Gets the atomicity modes this actual source owner can isolate.
+        /// </summary>
+        ArrayOf<WoTAtomicityEnum> SupportedAtomicities { get; }
+
+        /// <summary>
+        /// Captures source-owner revisions before input acquisition and conversion.
+        /// </summary>
+        IWotProjectionPublicationCapture CapturePublication();
+    }
+
+    /// <summary>
+    /// Captured source-owner revisions, not another publication decision.
+    /// </summary>
+    public interface IWotProjectionPublicationCapture
+    {
+        /// <summary>
+        /// Reserves publication admission and reports whether preparation is still current.
+        /// </summary>
+        ValueTask<IWotProjectionPublication> BeginAsync(CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// A source owner's invocation-wide publication admission.
+    /// </summary>
+    public interface IWotProjectionPublication : IAsyncDisposable
+    {
+        /// <summary>
+        /// Gets whether the captured revisions matched when admission was acquired.
+        /// </summary>
+        bool IsCurrent { get; }
+
+        /// <summary>
+        /// Prepares one unit using the same corrected prepared publication owner.
+        /// </summary>
+        ValueTask<IWotPreparedProjectionPublication> PrepareAsync(
+            ArrayOf<WotProjectionChange> changes,
+            IWotPreparedViewPublication? views = null,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
     /// The private source/View routing candidate for one coordinator-owned publication decision.
     /// </summary>
     public interface IWotPreparedProjectionPublication : IAsyncDisposable

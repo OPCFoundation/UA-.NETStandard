@@ -47,9 +47,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     public sealed class WotRefreshCaptureContractTests
     {
         [Test]
+        [Platform("Win")]
         public async Task RefreshFreezesRequestBeforePreparation()
         {
-            using var registry = new WotRegistryService();
+            await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync();
+            WotRegistryService registry = await runtime.CreateRegistryAsync();
             WotResource resource = await RegisterAsync(registry, "selected");
             var request = new WotRefreshRequest
             {
@@ -70,9 +72,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     request.Selection[0].ResourceId = "not-selected";
                     return inner.ConvertAsync(selected, content, snapshot, contents, token);
                 });
-            var host = new FakeWotProjectionHost();
+            int registrations = runtime.Lifecycle.Registrations.Count;
             using var coordinator = new WotMaterializationCoordinator(
-                registry, host, documentConverter: converter.Object)
+                registry, runtime.Host, documentConverter: converter.Object)
             {
                 RegistryOrigin = new WotRegistryOrigin("urn:registry:captured-contract")
             };
@@ -89,7 +91,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Assert.That(result.Results.Single().LoadState, Is.EqualTo(WoTLoadStateEnum.Active));
                 Assert.That(version.LastDependencyAttempt!.RequestId, Is.EqualTo("admitted"));
                 Assert.That(version.DependencySnapshot!.RequestId, Is.EqualTo("admitted"));
-                Assert.That(host.AddCount, Is.EqualTo(1));
+                Assert.That(runtime.Lifecycle.Registrations.Count, Is.EqualTo(registrations + 1));
             });
         }
 

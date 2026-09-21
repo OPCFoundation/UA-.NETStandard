@@ -99,7 +99,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
             }
             foreach (IGrouping<string, (string Model, string Xid)> model in members
-                .SelectMany(member => (member.DefaultVersion?.Dependencies?.OwnedModelUris ?? [])
+                .SelectMany(member => (member.DefaultVersion?.Dependencies is { } metadata
+                    ? metadata.OwnedModelUris : ArrayOf<string>.Empty)
                     .ToList().Select(model => (Model: model, member.Xid))).GroupBy(entry => entry.Model))
             {
                 partition.Join(model.Select(entry => entry.Xid));

@@ -145,6 +145,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
         {
             WotCapturedRefreshRequest invocation = WotCapturedRefreshRequest.Capture(request);
             m_converterOptions.Validate();
+            using CancellationTokenSource? budget = invocation.Timeout == 0
+                ? null : CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            if (budget is not null)
+            {
+                budget.CancelAfter(TimeSpan.FromMilliseconds(invocation.Timeout));
+                cancellationToken = budget.Token;
+            }
 
             if (!TryBeginOperation(allowDisposed: false))
             {
@@ -157,23 +164,49 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 try
                 {
                     DateTime start = DateTime.UtcNow;
-                    if (invocation.ExpectedGeneration != 0 &&
-                        invocation.ExpectedGeneration != m_generation)
+                    if (m_sourceHost is IWotInvocationProjectionHost invocationHost &&
+                        m_registry is IWotInvocationRegistryPublicationService { SupportsPreparedPublication: true }
+                            invocationRegistry)
                     {
-                        return RejectedResult(invocation, start);
+                        if (!invocationHost.SupportedAtomicities.Contains(invocation.Atomicity))
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadNotSupported, "The source owner does not support the requested atomicity.");
+                        }
+                        while (true)
+                        {
+                            cancellationToken.ThrowIfCancellationRequested();
+                            WotRegistrySnapshot expectedRegistry = m_registry.Current;
+                            CheckExpectedGeneration(invocation, expectedRegistry.RefreshGeneration);
+                            m_generation = expectedRegistry.RefreshGeneration;
+                            IWotProjectionPublicationCapture sourceCapture = invocationHost.CapturePublication();
+                            using WotRefreshCapture capture = await CaptureInputsAsync(invocation, cancellationToken)
+                                .ConfigureAwait(false);
+                            if (invocation.DryRun)
+                            {
+                                return await RefreshPreparedUnitsAsync(
+                                    capture, expectedRegistry, start, null, null, cancellationToken).ConfigureAwait(false);
+                            }
+                            IWotRegistryPublication registryPublication = await invocationRegistry
+                                .BeginPublicationAsync(cancellationToken).ConfigureAwait(false);
+                            await using var registryLifetime = registryPublication.ConfigureAwait(false);
+                            CheckExpectedGeneration(invocation, registryPublication.Current.RefreshGeneration);
+                            IWotProjectionPublication publication = await sourceCapture.BeginAsync(cancellationToken)
+                                .ConfigureAwait(false);
+                            await using var publicationLifetime = publication.ConfigureAwait(false);
+                            if (!ReferenceEquals(expectedRegistry, registryPublication.Current) ||
+                                capture.PreparationGeneration != registryPublication.Current.RefreshGeneration ||
+                                !publication.IsCurrent || !IsCurrentCapture(capture))
+                            {
+                                continue;
+                            }
+                            return await RefreshPreparedUnitsAsync(
+                                capture, expectedRegistry, start, publication, registryPublication, cancellationToken)
+                                .ConfigureAwait(false);
+                        }
                     }
-
-                    WotRegistrySnapshot expectedRegistry = m_registry.Current;
-                    using WotRefreshCapture capture = await CaptureInputsAsync(invocation, cancellationToken)
-                        .ConfigureAwait(false);
-                    return m_sourceHost is IWotPreparedProjectionHost { SupportsPreparedPublication: true } &&
-                        m_registry is IWotPreparedRegistryPublicationService { SupportsPreparedPublication: true }
-                        ? await RefreshPreparedUnitsAsync(
-                            capture, expectedRegistry, start, cancellationToken).ConfigureAwait(false)
-                        : invocation.Atomicity == WoTAtomicityEnum.PerRegistry
-                            ? throw new ServiceResultException(
-                                StatusCodes.BadNotSupported, "The configured owners cannot prepare publication.")
-                            : await RefreshCoreAsync(capture, start, cancellationToken).ConfigureAwait(false);
+                    throw new ServiceResultException(
+                        StatusCodes.BadNotSupported, "The configured owners cannot isolate the requested publication.");
                 }
                 finally
                 {
@@ -195,7 +228,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         {
             WotCapturedRefreshRequest invocation = capture.Request;
             WotMaterializationSnapshot inputs = capture.Inputs;
-            bool dryRun = invocation.DryRun;
+            bool dryRun = invocation.DryRun && m_preparing is null;
             bool force = invocation.Force;
             bool strict = capture.StrictBindings;
             WotRegistrySnapshot snapshot = inputs.Registry;
@@ -1327,6 +1360,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
             results.AddRange(viewResults);
             projections.AddRange(viewProjections);
+            ClosureStates[closure.Key].PublishedMetadata = [.. projections];
 
             return new ClosureOutcome(
                 results.ToImmutable(),
@@ -2210,8 +2244,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 ClosureMemberState? projected = tracked.Members.FirstOrDefault(candidate =>
                     string.Equals(candidate.Xid, member.Xid, StringComparison.Ordinal));
+                WotResourceProjection? metadata = tracked.PublishedMetadata.FirstOrDefault(candidate =>
+                    candidate.GroupId == member.GroupId && candidate.ResourceId == member.ResourceId);
                 if (projected is null ||
+                    metadata is null ||
                     member.LoadState != WoTLoadStateEnum.Active ||
+                    member.RootNodeId != metadata.RootNodeId ||
+                    member.MaterializedNodeCount != metadata.MaterializedNodeCount ||
+                    member.RefreshGeneration != metadata.RefreshGeneration ||
                     !string.Equals(
                         member.ActiveVersionId,
                         projected.VersionId,
@@ -2453,22 +2493,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
             Event?.Invoke(this, args);
         }
 
-        private WotRefreshResult RejectedResult(
-            WotCapturedRefreshRequest request, DateTime start)
-        {
-            var summary = new WoTRefreshSummaryDataType
-            {
-                RequestId = request.RequestId,
-                Generation = 0,
-                Outcome = WoTOutcomeEnum.Rejected,
-                StartTime = start,
-                EndTime = DateTime.UtcNow
-            };
-            return new WotRefreshResult(
-                summary, [],
-                m_generation);
-        }
-
         private sealed class ClosureMemberState
         {
             public string Xid { get; set; } = string.Empty;
@@ -2488,6 +2512,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             public ImmutableArray<string> MemberXids { get; set; } = [];
 
             public ImmutableArray<ClosureMemberState> Members { get; set; } = [];
+
+            public ImmutableArray<WotResourceProjection> PublishedMetadata { get; set; } = [];
 
             public ImmutableArray<string> ModelNamespaceUris { get; set; } = [];
 

@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -217,6 +218,10 @@ namespace Opc.Ua.WotCon.Server
             await m_refreshGate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                if (!Registry.Current.AllResources().Any())
+                {
+                    return;
+                }
                 WotRefreshResult result = await Coordinator.RefreshAsync(
                     new WotRefreshRequest { RequestId = "startup" }, cancellationToken).ConfigureAwait(false);
                 await m_projection.ReconcileProjectionAsync(cancellationToken).ConfigureAwait(false);
@@ -311,6 +316,19 @@ namespace Opc.Ua.WotCon.Server
                 new Variant((int)WoTRefreshModeEnum.EventDriven));
             SetChildValue(registry, "VocabularyVersion",
                 new Variant(Wot.WotNodeSetConverter.VocabularyNamespace));
+            if (registry is WoTRegistryState typed)
+            {
+                typed.AddLastRefreshPlan(context);
+                typed.LastRefreshPlan!.AccessLevel = AccessLevels.CurrentRead;
+                typed.LastRefreshPlan.UserAccessLevel = AccessLevels.CurrentRead;
+                typed.LastRefreshPlan.OnSimpleReadValueAsync = (_, _, _) =>
+                {
+                    WoTRefreshPlanDataType? plan = Coordinator.LastRefreshPlan;
+                    return new ValueTask<AttributeSimpleReadResult>(plan is null
+                        ? new AttributeSimpleReadResult(StatusCodes.BadWaitingForInitialData, Variant.Null)
+                        : new AttributeSimpleReadResult(StatusCodes.Good, Variant.FromStructure(plan)));
+                };
+            }
             ApplyBindingCapabilities(registry);
         }
 
