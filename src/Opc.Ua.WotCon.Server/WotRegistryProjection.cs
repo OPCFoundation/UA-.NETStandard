@@ -33,6 +33,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 using Opc.Ua.XRegistry;
 using Opc.Ua.XRegistry.Server;
@@ -260,7 +261,36 @@ namespace Opc.Ua.WotCon.Server
             document.LastDependencyAttempt!.OnSimpleReadValueAsync =
                 (context, _, ct) => ReadDependencyObservationAsync(context, groupId, resourceId, versionId, true, ct);
 
+            // The versioned strategy supplies a Version adapter for the logical Resource too.
+            if (!concreteVersion || document.Versions is not null)
+            {
+                document.AddProjectionMembershipDigest(m_manager.SystemContext);
+                document.ProjectionMembershipDigest!.OnSimpleReadValueAsync =
+                    (_, _, ct) => ReadProjectionMembershipDigestAsync(resource.Xid, ct);
+            }
+
             ApplyWotResourceProperties(document, resource);
+        }
+
+        private ValueTask<AttributeSimpleReadResult> ReadProjectionMembershipDigestAsync(
+            string resourceXid, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            ByteString payload = m_registry.Current.CanonicalViewGraphState;
+            if (!payload.IsNull && payload.Length != 0)
+            {
+                WotCanonicalViewState graph = WotCanonicalViewState.Parse(payload);
+                foreach (WotCanonicalViewPublication view in graph.Views)
+                {
+                    if (view.ResourceXid == resourceXid && view.Active)
+                    {
+                        return new ValueTask<AttributeSimpleReadResult>(
+                            new AttributeSimpleReadResult(ServiceResult.Good, Variant.From(view.MembershipDigest)));
+                    }
+                }
+            }
+            return new ValueTask<AttributeSimpleReadResult>(
+                new AttributeSimpleReadResult(StatusCodes.BadWaitingForInitialData, Variant.Null));
         }
 
         private ValueTask<AttributeSimpleReadResult> ReadDependencyObservationAsync(

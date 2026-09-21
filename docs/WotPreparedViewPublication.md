@@ -105,6 +105,20 @@ graph-root payload enter the existing registry decision together. On publication
 the View host installs its already-built bookkeeping; it performs no second
 decision, Node mutation or I/O.
 
+Ordinary TD/TM roots used by the stock participant carry their inverse
+`HasWoTProjection` in the private converted source image. Core's prepared
+reference publication installs the matching logical-Resource edge together
+with the canonical View correlations. A rejected candidate cannot add or
+remove those serving edges. This does not implement arbitrary programmatic
+cross-owner correlation repair.
+
+The generated logical-Resource `ProjectionMembershipDigest` Property reads the
+full 32-byte digest from the authoritative committed graph carrier, rather than
+maintaining a second per-Resource graph. Before an active canonical publication
+it reports `BadWaitingForInitialData`. Clients locate the Property by its
+namespace-qualified BrowseName; its NodeId is assigned by the existing registry
+projection infrastructure.
+
 The direct constructor accepts a `WotProjectionRetirementPolicy`; its default
 is graceful. DI takes that policy from `WotRegistryServerOptions`, like the
 coordinator. The complete remaining request closure governs canonical retirement,
