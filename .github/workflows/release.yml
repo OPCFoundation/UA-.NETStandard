@@ -209,7 +209,42 @@ jobs:
         if: ${{ !inputs.dry_run }}
         shell: pwsh
         run: |
-          $packages = @(Get-ChildItem promotion -Filter '*.nupkg' -File | Sort-Object Name)
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $packages = @(Get-ChildItem promotion -Filter '*.nupkg' -File |
+              Where-Object {
+                  $archive = [IO.Compression.ZipFile]::OpenRead($_.FullName)
+                  try {
+                      $nuspec = @($archive.Entries | Where-Object {
+                          $_.FullName -notmatch '/' -and $_.FullName.EndsWith('.nuspec')
+                      })
+                      if ($nuspec.Count -ne 1) {
+                          throw "Unable to identify package '$($_.Name)'."
+                      }
+                      $reader = [IO.StreamReader]::new($nuspec[0].Open())
+                      try {
+                          [xml]$metadata = $reader.ReadToEnd()
+                      }
+                      finally {
+                          $reader.Dispose()
+                      }
+
+                      $id = [string]$metadata.package.metadata.id
+                      -not $id.EndsWith(
+                          '.Debug',
+                          [StringComparison]::OrdinalIgnoreCase)
+                  }
+                  finally {
+                      $archive.Dispose()
+                  }
+              } |
+              Sort-Object Name)
+          if ($packages.Count -eq 0) {
+              throw 'The stable candidate contains no non-Debug packages to push to nuget.org.'
+          }
+          Write-Host (
+              "Publishing $($packages.Count) non-Debug package(s) to nuget.org. " +
+              'Debug package IDs remain in the signed candidate artifact and are ' +
+              'published only to GitHub Packages.')
           foreach ($package in $packages) {
               dotnet nuget push $package.FullName `
                 --source 'https://api.nuget.org/v3/index.json' `
@@ -230,6 +265,9 @@ jobs:
         if: ${{ !inputs.dry_run }}
         shell: pwsh
         run: |
+          # GitHub Packages retains the complete signed candidate, including
+          # .Debug package IDs. Public nuget.org releases above intentionally
+          # exclude them; see docs/ReleaseProcess.md.
           $packages = @(Get-ChildItem promotion -Filter '*.nupkg' -File | Sort-Object Name)
           foreach ($package in $packages) {
               dotnet nuget push $package.FullName `

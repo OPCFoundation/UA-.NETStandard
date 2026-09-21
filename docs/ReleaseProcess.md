@@ -404,7 +404,9 @@ maintainer can subsequently approve [Approved promotion](#approved-promotion).
 ## Approved promotion
 
 Publishes an already-built, already-signed stable candidate to nuget.org and
-GitHub Packages. This is the **only** path that ever publishes a stable
+GitHub Packages. nuget.org receives only non-`.Debug` package IDs (and their
+symbol packages); GitHub Packages receives the complete candidate, including
+`.Debug` package IDs. This is the **only** path that ever publishes a stable
 release; nothing else in this repository's CI does so automatically.
 
 **Owner**: a repository maintainer with `release` GitHub Environment
@@ -422,16 +424,19 @@ line you intend to release; the change has the required approvals.
 2. Approve the pending deployment to the `release` environment when
    prompted (in the GitHub UI, or `gh run watch <new-run-id>` from the CLI).
    *Completion evidence*: the run proceeds past "Push to nuget.org" and
-   "Push to GitHub Packages" without error; both `dotnet nuget push` loops
-   report `--skip-duplicate` success (not a conflict) for every package.
+   "Push to GitHub Packages" without error. The nuget.org log explicitly says
+   it is publishing only non-Debug package IDs; the GitHub Packages loop
+   reports `--skip-duplicate` success (not a conflict) for the complete
+   candidate, including its `.Debug` packages.
 
-3. Confirm the packages are live:
+3. Confirm the non-Debug packages are live on nuget.org:
    ```powershell
    Invoke-RestMethod 'https://api.nuget.org/v3-flatcontainer/opcfoundation.netstandard.opc.ua.core/index.json' |
        Select-Object -ExpandProperty versions | Select-Object -Last 3
    ```
    *Completion evidence*: the expected exact stable version (e.g. `2.0.0`)
-   appears.
+   appears. Do not expect any `.Debug` package ID on nuget.org; inspect
+   GitHub Packages for those IDs instead.
 
 4. Tag the released commit and publish the GitHub Release, binding both to
    the exact source SHA the candidate was built from (recorded in the
@@ -456,8 +461,9 @@ or [Approved promotion](#approved-promotion).
 
 **Owner**: a repository maintainer.
 
-1. **Determine whether any public write already happened.** Check both
-   feeds for the version in question:
+1. **Determine whether any public write already happened.** Check nuget.org
+   for a non-Debug package and GitHub Packages for the complete candidate
+   (including its `.Debug` package IDs):
    ```powershell
    Invoke-RestMethod 'https://api.nuget.org/v3-flatcontainer/opcfoundation.netstandard.opc.ua.core/index.json' |
        Select-Object -ExpandProperty versions
@@ -473,12 +479,14 @@ or [Approved promotion](#approved-promotion).
    at [Candidate and dry run](#candidate-and-dry-run) with that new run - do
    not attempt to reuse or repair the failed one.
 
-3. **If nuget.org or GitHub Packages already has some, but not all, of the
-   expected packages** for the version (a partial push - `dotnet nuget push`
-   is per-package and can fail partway through): re-run
+3. **If nuget.org already has some non-Debug packages, or GitHub Packages has
+   some expected packages** for the version (a partial push - `dotnet nuget
+   push` is per-package and can fail partway through): re-run
    [Approved promotion](#approved-promotion) against the **same**
    `release_run_id`. `--skip-duplicate` makes re-pushing the packages that
    already succeeded a no-op; only the missing ones are actually written.
+   `.Debug` package IDs are intentionally absent from nuget.org, so their
+   absence there is not a partial-release symptom.
    Never build a new candidate for a version that already has *any* packages
    published - that would risk two different byte sequences under the same
    immutable version. Investigate why the previous attempt stopped before
@@ -501,7 +509,8 @@ or [Approved promotion](#approved-promotion).
 Confirms a completed [Approved promotion](#approved-promotion) left the
 repository and both feeds consistent.
 
-1. Confirm both feeds have the exact expected version (repeat
+1. Confirm nuget.org has the exact expected non-Debug version and GitHub
+   Packages has the complete candidate (repeat
    [Approved promotion](#approved-promotion) step 3 for GitHub Packages too):
    ```powershell
    gh api '/orgs/OPCFoundation/packages/nuget/OPCFoundation.NetStandard.Opc.Ua.Core/versions' --paginate |

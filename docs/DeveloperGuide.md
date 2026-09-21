@@ -233,8 +233,7 @@ The following NuGet packages are released on a monthly cadence (with hot fixes f
 - [OPCFoundation.NetStandard.Opc.Ua.Bindings.Https](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Bindings.Https/) — optional `opc.https` transport.
 - [OPCFoundation.NetStandard.Opc.Ua.PubSub](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.PubSub/) (Beta) — publisher/subscriber model.
 
-For improved source-level debugging, symbol packages are published on nuget.org in `snupkg` format, and
-`Debug`-compiled packages are available with a `.Debug` suffix. Public 2.0 previews are also published on
+For improved source-level debugging, symbol packages for non-`.Debug` package IDs are published on nuget.org in `snupkg` format. `Debug`-compiled packages are retained with a `.Debug` suffix on GitHub Packages but are not published to nuget.org. Public 2.0 previews are also published on
 nuget.org. Use `2.0.0-preview.*` to float to the latest published
 `2.0.0-preview.N` release, pass `--prerelease` to `dotnet add package`, or
 select *Include prerelease* in Visual Studio. No additional package source or
