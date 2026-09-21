@@ -63,6 +63,13 @@ operations. Calling them during preparation and attempting compensation later
 does not implement this contract. A host that cannot participate in the common
 lifecycle publication must not advertise prepared support.
 
+The canonical native factory accepts a previous registration only from a
+canonical View manager with the same exact logical-server and allocation
+authority. Its candidate must retain the prior Resource allocations, Node roles
+and token history. Creation also checks the actual server instance before
+allocating a replacement manager. An unrelated registry registration is not
+authority to replace its Nodes.
+
 ## Captured dependency metadata
 
 `IWotRefreshCaptureProvider` resolves to the registered

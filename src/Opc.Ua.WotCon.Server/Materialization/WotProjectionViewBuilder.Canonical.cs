@@ -52,6 +52,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 throw new ArgumentNullException(nameof(state));
             }
+            if (previous is not null)
+            {
+                if (previous.NodeManager is not WotProjectionViewNodeManager manager)
+                {
+                    throw new ArgumentException("The previous registration is not a canonical View owner.", nameof(previous));
+                }
+                manager.ValidateCanonicalSuccessor(state);
+            }
             return new CanonicalNodeManagerFactory(WotCanonicalViewState.Parse(state.ToByteString()), previous);
         }
 
@@ -569,6 +577,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 CancellationToken cancellationToken = default)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                if (m_previous?.NodeManager is WotProjectionViewNodeManager previous)
+                {
+                    previous.ValidateCanonicalServer(server);
+                }
                 // Ownership transfers to the lifecycle through the returned factory result.
                 // TODO: Remove when CA2000 recognizes ValueTask factory ownership transfer.
 #pragma warning disable CA2000

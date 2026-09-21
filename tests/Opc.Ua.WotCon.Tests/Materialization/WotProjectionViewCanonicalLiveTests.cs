@@ -433,6 +433,60 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         [TestCase(false)]
         [TestCase(true)]
+        public async Task CanonicalFactoryRejectsAnotherAllocationAuthorityAsync(bool differentServer)
+        {
+            await using NativeHarness harness = await NativeHarness.CreateAsync(withGraphResources: true)
+                .ConfigureAwait(false);
+            NodeId child = harness.Identity("urn:c2:native-views", "Child");
+            WotViewProjectionRequest request = harness.GraphRequest("child", child, [], []);
+            WotCanonicalViewState initial = WotProjectionViewBuilder.PrepareCanonicalGraph(
+                harness.GraphContext([]), null, [request], []).State;
+            NodeManagerRegistration registration = await harness.PublishCanonicalAsync(initial).ConfigureAwait(false);
+            var foreignContext = new WotCanonicalViewGraphContext(
+                differentServer ? "urn:c2:foreign-server" : "urn:c2:native-server",
+                differentServer ? "urn:c2:native-allocation" : "urn:c2:foreign-allocation",
+                harness.NamespaceUris, []);
+            WotCanonicalViewState foreign = WotProjectionViewBuilder.PrepareCanonicalGraph(
+                foreignContext, null, [request], []).State;
+            int namespaceCount = harness.NamespaceUris.Count;
+
+            Assert.That(() => WotProjectionViewBuilder.CreateCanonicalNodeManagerFactory(foreign, registration),
+                Throws.ArgumentException);
+
+            Assert.That(harness.IsCurrent(registration), Is.True);
+            Assert.That(harness.NamespaceUris.Count, Is.EqualTo(namespaceCount));
+            Assert.That(await harness.ReadViewVersionAsync(child).ConfigureAwait(false), Is.EqualTo(1u));
+        }
+
+        [Test]
+        public async Task CanonicalFactoryRejectsAPreviousOwnerFromAnotherServerInstanceAsync()
+        {
+            await using NativeHarness original = await NativeHarness.CreateAsync(withGraphResources: true)
+                .ConfigureAwait(false);
+            NodeId child = original.Identity("urn:c2:native-views", "Child");
+            WotCanonicalViewState state = WotProjectionViewBuilder.PrepareCanonicalGraph(
+                original.GraphContext([]), null, [original.GraphRequest("child", child, [], [])], []).State;
+            NodeManagerRegistration registration = await original.PublishCanonicalAsync(state).ConfigureAwait(false);
+            await using NativeHarness foreign = await NativeHarness.CreateAsync(withGraphResources: true)
+                .ConfigureAwait(false);
+            NodeId foreignChild = foreign.Identity("urn:c2:native-views", "Child");
+            int namespaceCount = foreign.NamespaceUris.Count;
+
+            await Assert.ThatAsync(async () => await foreign.AddCanonicalAsync(
+                state, registration).ConfigureAwait(false), Throws.ArgumentException).ConfigureAwait(false);
+
+            Assert.That(original.IsCurrent(registration), Is.True);
+            Assert.That(foreign.NamespaceUris.Count, Is.EqualTo(namespaceCount));
+            ReadResponse read = await foreign.Session.ReadAsync(
+                null, 0, TimestampsToReturn.Neither,
+                [new ReadValueId { NodeId = foreignChild, AttributeId = Attributes.NodeClass }],
+                CancellationToken.None).ConfigureAwait(false);
+            Assert.That(read.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            Assert.That(await original.ReadViewVersionAsync(child).ConfigureAwait(false), Is.EqualTo(1u));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
         public async Task CanonicalCandidateCannotReassignAPreviousManagersNodeAsync(bool changeRole)
         {
             await using NativeHarness harness = await NativeHarness.CreateAsync(withGraphResources: true)
@@ -554,6 +608,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 return previous is null
                     ? await m_server!.NodeManagerLifecycle.AddAsync(factory, callerContext: null).ConfigureAwait(false)
                     : await m_server!.NodeManagerLifecycle.ShadowReloadAsync(previous, factory).ConfigureAwait(false);
+            }
+
+            public ValueTask<NodeManagerRegistration> AddCanonicalAsync(
+                WotCanonicalViewState state, NodeManagerRegistration previous)
+            {
+                return m_server!.NodeManagerLifecycle.AddAsync(
+                    WotProjectionViewBuilder.CreateCanonicalNodeManagerFactory(state, previous), callerContext: null);
             }
 
             public bool IsCurrent(NodeManagerRegistration registration)
@@ -687,6 +748,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                                         }
                                         finally
                                         {
+                                            m_store?.Dispose();
                                             try
                                             {
                                                 m_server?.Dispose();
@@ -717,7 +779,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 {
                     m_server.CurrentInstance.NamespaceUris.GetIndexOrAppend("urn:c2:restart-padding");
                 }
-                m_registry = new WotRegistryService();
+                m_store = new FileWotRegistryStore(Path.Combine(m_directory, "registry"));
+                m_registry = new WotRegistryService(m_store);
+                await m_registry.InitializeAsync().ConfigureAwait(false);
                 if (withGraphResources)
                 {
                     foreach (string resource in new[] { "child", "left", "right" })
@@ -767,6 +831,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             private ReferenceServer? m_server;
             private ClientFixture? m_client;
             private WotRegistryService? m_registry;
+            private FileWotRegistryStore? m_store;
             private WotMaterializationCoordinator? m_coordinator;
         }
     }

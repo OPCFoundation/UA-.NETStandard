@@ -249,6 +249,54 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return uris.OrderBy(uri => uri, StringComparer.Ordinal).ToArray();
         }
 
+        internal void ValidateCanonicalServer(IServerInternal server)
+        {
+            if (!ReferenceEquals(Server, server))
+            {
+                throw new ArgumentException("The previous canonical registration belongs to another server instance.");
+            }
+        }
+
+        internal void ValidateCanonicalSuccessor(WotCanonicalViewState state)
+        {
+            if (m_canonicalState is null ||
+                !string.Equals(m_canonicalState.LogicalServerUri, state.LogicalServerUri, StringComparison.Ordinal) ||
+                !string.Equals(
+                    m_canonicalState.AllocationNamespaceUri, state.AllocationNamespaceUri, StringComparison.Ordinal))
+            {
+                throw new ArgumentException("The previous registration belongs to another canonical allocation authority.");
+            }
+            var views = state.Views.ToArray()!.ToDictionary(view => view.ResourceXid, StringComparer.Ordinal);
+            foreach (WotCanonicalViewPublication previous in m_canonicalState.Views)
+            {
+                if (!views.TryGetValue(previous.ResourceXid, out WotCanonicalViewPublication? next) ||
+                    previous.ResourceNodeId != next.ResourceNodeId || previous.ViewNodeId != next.ViewNodeId)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNodeIdExists, "A canonical successor must retain every prior Resource allocation.");
+                }
+                uint version = previous.Membership.ToArray()!.SequenceEqual(next.Membership.ToArray()!)
+                    ? previous.ViewVersion
+                    : previous.ViewVersion == uint.MaxValue ? 1 : previous.ViewVersion + 1;
+                if (next.ViewVersion != version)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidState, "The canonical successor does not extend the prior token history.");
+                }
+            }
+            var nodes = state.Nodes.ToArray()!.ToDictionary(node => node.NodeId);
+            foreach (WotCanonicalViewNode previous in m_canonicalState.Nodes)
+            {
+                if (nodes.TryGetValue(previous.NodeId, out WotCanonicalViewNode? next) &&
+                    (previous.ResourceXid != next.ResourceXid || previous.Role != next.Role ||
+                    previous.BrowseName != next.BrowseName || previous.NodeIdValue != next.NodeIdValue))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNodeIdExists, "A canonical successor cannot reassign a prior Node's owner or role.");
+                }
+            }
+        }
+
         private async ValueTask ValidateCanonicalImageAsync(
             WotCanonicalViewState state, CancellationToken cancellationToken)
         {
