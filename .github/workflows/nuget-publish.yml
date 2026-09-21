@@ -366,6 +366,7 @@ jobs:
           path: downloaded
 
       - name: Aggregate and validate packages
+        id: package_set
         shell: pwsh
         run: |
           . ./.azurepipelines/package-version-policy.ps1
@@ -436,6 +437,9 @@ jobs:
           "PUBLISH_CHANNEL=$($inventory.channel)" | Out-File -FilePath $env:GITHUB_ENV -Append
           "PUBLISH_ELIGIBLE_REF=$($isEligibleRef.ToString().ToLowerInvariant())" |
               Out-File -FilePath $env:GITHUB_ENV -Append
+          "channel=$($inventory.channel)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "eligible_ref=$($isEligibleRef.ToString().ToLowerInvariant())" |
+              Out-File -FilePath $env:GITHUB_OUTPUT -Append
           Write-Host (
               "Package set channel: $($inventory.channel) (base version " +
               "$($inventory.basePackageVersion)); ref eligible for feed " +
@@ -450,7 +454,7 @@ jobs:
         # automatically - release.yml's separate, environment-gated, manually
         # approved promotion is the only path that publishes a stable
         # release. See docs/ReleaseProcess.md ("Approved promotion").
-        if: ${{ env.PUBLISH_CHANNEL == 'preview' && env.PUBLISH_ELIGIBLE_REF == 'true' }}
+        if: ${{ steps.package_set.outputs.channel == 'preview' && steps.package_set.outputs.eligible_ref == 'true' }}
         shell: pwsh
         run: |
           $packages = @(Get-ChildItem promotion -Filter '*.nupkg' -File | Sort-Object Name)
@@ -466,10 +470,10 @@ jobs:
           }
 
       - name: Skip feed publication
-        if: ${{ env.PUBLISH_CHANNEL == 'stable' || env.PUBLISH_ELIGIBLE_REF != 'true' }}
+        if: ${{ steps.package_set.outputs.channel == 'stable' || steps.package_set.outputs.eligible_ref != 'true' }}
         shell: pwsh
         run: |
-          if ('${{ env.PUBLISH_CHANNEL }}' -eq 'stable') {
+          if ('${{ steps.package_set.outputs.channel }}' -eq 'stable') {
               Write-Host (
                   'Stable package set detected; skipping automatic feed publication. ' +
                   'Run .github/workflows/release.yml against this run ID once it is ' +
@@ -498,7 +502,7 @@ jobs:
           $publishedNote = if ($manifest.channel -eq 'stable') {
               'No (stable candidate awaits release.yml promotion)'
           }
-          elseif ('${{ env.PUBLISH_ELIGIBLE_REF }}' -eq 'true') {
+          elseif ('${{ steps.package_set.outputs.eligible_ref }}' -eq 'true') {
               'Yes (GitHub Packages)'
           }
           else {
