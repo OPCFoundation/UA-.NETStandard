@@ -273,15 +273,21 @@ The version is declared once in `roslyn.props`.
 
 ### Versioning
 
-From **2.0** onward, package versions are produced by [Nerdbank.GitVersioning](https://github.com/dotnet/Nerdbank.GitVersioning) (nbgv) from the `version.json` file at the repository root. That file holds the base version (currently `2.0-preview`) and requests [SemVer 2.0](https://semver.org/) package versions (`nugetPackageVersion.semVer: 2`); nbgv derives the version height, prerelease tag, and build metadata from the git history, and `version.props` maps the computed values onto the assembly and package version properties. Stable (public-release) versions are produced only on the `main`, `master`, `develop/*`, and `release/<x.y.z>` branches — every other branch yields a prerelease build.
+From **2.0** onward, package versions are produced by [Nerdbank.GitVersioning](https://github.com/dotnet/Nerdbank.GitVersioning) (nbgv) from the `version.json` file at the repository root. That file holds the base version (currently `2.0.0-preview.{height}` while `master` is developing the next release) and requests [SemVer 2.0](https://semver.org/) package versions (`nugetPackageVersion.semVer: 2`); nbgv derives the version height, prerelease tag, and build metadata from the git history, and `version.props` maps the computed values onto the assembly and package version properties.
+
+Stable (public-release) versions are produced **only** from a canonical `release/<major>.<minor>` branch (e.g. `release/2.0`, `release/2.1`) — never from `master`, a tag, or any other branch — and only at the exact commit whose `version.json` carries the plain `<major>.<minor>.<patch>` version with no prerelease label (e.g. `2.0.0`). Patch numbers increase by exactly one per release on their line (`2.0.0` → `2.0.1` → `2.0.2`); a new minor line resets the patch to zero (`2.1.0`). See **[Release process](ReleaseProcess.md)** for the full branch/version model and the step-by-step procedure for cutting a release, shipping a patch or minor version, backporting a fix, and promoting a stable candidate.
 
 The XRegistry, WoT Connectivity, Vision, Robotics, Redundancy, Positioning,
 OpenUSD, ISA95, AI, and DI package families remain preview packages even when
 the root version is stable. Their numeric version follows the root version:
-for example, a stable `2.0.0` root produces `2.0.0-preview` for these families
-and `2.0.0` for the other packages. The same policy applies to the Robotics and
-Vision MCP extensions and the OpenUSD connector tools. The package validation
-manifest records the root package version and the distinct family versions so
+for example, a stable `2.0.0` root produces `2.0.0-preview.N` for these
+families (`N` a committed, manually curated number in `preview-version.props`
+that always sorts above every already-published preview — see
+[Release process](ReleaseProcess.md)) and `2.0.0` for the other packages. The
+same policy applies to the Robotics and Vision MCP extensions and the
+OpenUSD connector tools. The package validation manifest
+(`.azurepipelines/validate-nuget-package-set.ps1`) records the root package
+version, a `preview`/`stable` `channel`, and the distinct family versions so
 the signed release workflow can promote an intentional mixed-version set.
 
 > The earlier 1.x packages used a different, spec-derived scheme in which the first two digits encoded the embedded NodeSet spec version (for example `1.5.378.x` corresponds to OPC UA spec V1.05, mapped to release branches such as `release/1.4.372`). That scheme no longer applies from 2.0 onward.

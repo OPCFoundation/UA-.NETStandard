@@ -73,7 +73,9 @@ Official public 2.0 preview releases are also on nuget.org. Enable prerelease
 packages and use `2.0.0-preview.*` to float to the latest published
 `2.0.0-preview.N` release. The XRegistry, WoT Connectivity, Vision, Robotics,
 Redundancy, Positioning, OpenUSD, ISA95, AI, and DI package families remain
-preview packages when the root version is promoted to a stable version.
+preview packages when the root version is promoted to a stable version. See
+[docs/ReleaseProcess.md](docs/ReleaseProcess.md) for how and when stable
+versions are released.
 
 ### Samples
 
