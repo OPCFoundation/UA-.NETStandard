@@ -653,6 +653,15 @@ namespace Opc.Ua.PubSub.Kafka.Internal
             byte[] value,
             Headers headers)
         {
+#if NETFRAMEWORK
+            return new ProducerMessage<byte[], byte[]>
+            {
+                Topic = topic,
+                Key = key,
+                Value = value,
+                Headers = headers
+            };
+#else
             var message = (ProducerMessage<byte[], byte[]>)
                 System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(
                     typeof(ProducerMessage<byte[], byte[]>));
@@ -661,8 +670,10 @@ namespace Opc.Ua.PubSub.Kafka.Internal
             SetProducerMessageValue(message, "Value", value);
             SetProducerMessageValue(message, "Headers", headers);
             return message;
+#endif
         }
 
+#if !NETFRAMEWORK
         private static void SetProducerMessageValue<T>(
             ProducerMessage<byte[], byte[]> message,
             string propertyName,
@@ -677,6 +688,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
             }
             property.SetValue(message, value);
         }
+#endif
 
         private static void ValidateDekafSupport(KafkaConnectionOptions options)
         {
