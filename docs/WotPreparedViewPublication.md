@@ -70,6 +70,13 @@ and token history. Creation also checks the actual server instance before
 allocating a replacement manager. An unrelated registry registration is not
 authority to replace its Nodes.
 
+Canonical managers participate in the existing reload lifecycle. Their complete
+replacement supplies graph-owned References; retained inbound navigation
+References transfer only to surviving owned Nodes. The Core lifecycle, not the
+View planner, retains or invalidates captured Browse continuations according to
+the selected graceful or immediate retirement policy. Retiring a graph does not
+retire the source Nodes it organized.
+
 ## Captured dependency metadata
 
 `IWotRefreshCaptureProvider` resolves to the registered

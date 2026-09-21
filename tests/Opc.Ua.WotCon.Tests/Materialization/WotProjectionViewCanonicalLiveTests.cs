@@ -29,6 +29,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime;
@@ -287,6 +288,61 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             ArrayOf<ReferenceDescription> correlation = await harness.BrowseAsync(
                 harness.ResourceNodeId("child"), hasProjection).ConfigureAwait(false);
             Assert.That(correlation.ToArray()!.Select(harness.Target), Is.EquivalentTo(new[] { child }));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CanonicalBatchRetirementHonorsTheCapturedBrowseImageAsync(bool immediate)
+        {
+            await using NativeHarness harness = await NativeHarness.CreateAsync(withGraphResources: true)
+                .ConfigureAwait(false);
+            NodeId child = harness.Identity("urn:c2:native-views", "Child");
+            NodeId reading = Ua.VariableIds.Server_ServerStatus_StartTime;
+            NodeId number = Ua.VariableIds.Server_ServerStatus_BuildInfo_BuildNumber;
+            NodeId product = Ua.VariableIds.Server_ServerStatus_BuildInfo_ProductName;
+            var context = harness.GraphContext(
+                [new(reading, NodeClass.Variable), new(number, NodeClass.Variable), new(product, NodeClass.Variable)]);
+            WotCanonicalViewState initial = WotProjectionViewBuilder.PrepareCanonicalGraph(context, null,
+                [harness.GraphRequest("child", child, [reading, number, product], [])], []).State;
+            NodeManagerRegistration registration = await harness.PublishCanonicalAsync(initial).ConfigureAwait(false);
+            BrowseResult first = await harness.BrowseInViewAsync(child, child, 1, 1).ConfigureAwait(false);
+            Assert.That(first.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(first.ContinuationPoint.IsNull, Is.False);
+            var retained = new List<NodeId>(first.References.ToArray()!.Select(harness.Target));
+            WotCanonicalViewState changed = WotProjectionViewBuilder.PrepareCanonicalGraph(context, initial,
+                [harness.GraphRequest("child", child, [number, product], [])], []).State;
+
+            await harness.PublishCanonicalBatchAsync(changed, registration, immediate).ConfigureAwait(false);
+
+            ByteString continuation = first.ContinuationPoint;
+            do
+            {
+                BrowseNextResponse response = await harness.Session.BrowseNextAsync(
+                    null, false, [continuation], CancellationToken.None).ConfigureAwait(false);
+                BrowseResult next = response.Results[0];
+                if (immediate)
+                {
+                    Assert.That(next.StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
+                    Assert.That(next.References.IsEmpty, Is.True);
+                    break;
+                }
+                Assert.That(next.StatusCode, Is.EqualTo(StatusCodes.Good));
+                retained.AddRange(next.References.ToArray()!.Select(harness.Target));
+                continuation = next.ContinuationPoint;
+            }
+            while (!continuation.IsNull && continuation.Length != 0);
+            if (!immediate)
+            {
+                Assert.That(retained, Is.EquivalentTo(new[] { reading, number, product }));
+            }
+            BrowseResult current = await harness.BrowseInViewAsync(child, child, 2).ConfigureAwait(false);
+            Assert.That(current.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(current.References.ToArray()!.Select(harness.Target),
+                Is.EquivalentTo(new[] { number, product }));
+            Assert.That((await harness.BrowseInViewAsync(child, child, 1).ConfigureAwait(false)).StatusCode,
+                Is.EqualTo(StatusCodes.BadViewVersionInvalid));
+            Assert.That((await harness.Session.ReadValueAsync(reading).ConfigureAwait(false)).StatusCode,
+                Is.EqualTo(StatusCodes.Good));
         }
 
         [Test]
@@ -617,16 +673,32 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     WotProjectionViewBuilder.CreateCanonicalNodeManagerFactory(state, previous), callerContext: null);
             }
 
+            public async Task PublishCanonicalBatchAsync(
+                WotCanonicalViewState state, NodeManagerRegistration previous, bool immediate)
+            {
+                var lifecycle = (INodeManagerBatchLifecycle)m_server!.NodeManagerLifecycle;
+                IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                    [NodeManagerBatchChange.Replace(previous,
+                        WotProjectionViewBuilder.CreateCanonicalNodeManagerFactory(state, previous), immediate)])
+                    .ConfigureAwait(false);
+                await using (prepared.ConfigureAwait(false))
+                {
+                    NodeManagerBatchResult result = await prepared.CommitAsync(_ => default).ConfigureAwait(false);
+                    Assert.That(result.CleanupFailure, Is.Null);
+                }
+            }
+
             public bool IsCurrent(NodeManagerRegistration registration)
             {
                 return m_server!.NodeManagerLifecycle.Registrations.ToArray()!.Any(
                     current => ReferenceEquals(current, registration));
             }
 
-            public async Task<BrowseResult> BrowseInViewAsync(NodeId nodeId, NodeId viewId, uint version)
+            public async Task<BrowseResult> BrowseInViewAsync(
+                NodeId nodeId, NodeId viewId, uint version, uint maximumReferences = 0)
             {
                 BrowseResponse response = await Session.BrowseAsync(
-                    null, new ViewDescription { ViewId = viewId, ViewVersion = version }, 0,
+                    null, new ViewDescription { ViewId = viewId, ViewVersion = version }, maximumReferences,
                     [
                         new BrowseDescription
                         {

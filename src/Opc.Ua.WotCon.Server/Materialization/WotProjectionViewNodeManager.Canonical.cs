@@ -38,7 +38,7 @@ using Opc.Ua.Server;
 
 namespace Opc.Ua.WotCon.Server.Materialization
 {
-    internal sealed partial class WotProjectionViewNodeManager
+    internal sealed partial class WotProjectionViewNodeManager : INodeManagerReloadParticipant
     {
         internal WotProjectionViewNodeManager(
             IServerInternal server,
@@ -198,6 +198,53 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 await AddPredefinedNodeAsync(SystemContext, view, cancellationToken).ConfigureAwait(false);
             }
+        }
+
+        public ValueTask<ArrayOf<LocalReference>> PrepareReloadAsync(
+            IAsyncNodeManager replacement,
+            CancellationToken ct = default)
+        {
+            if (m_canonicalState is null || replacement is not WotProjectionViewNodeManager next ||
+                next.m_canonicalState is null || !ReferenceEquals(next.m_previousCanonicalManager, this))
+            {
+                throw new ArgumentException("A canonical reload requires this exact prepared predecessor.", nameof(replacement));
+            }
+            ValidateCanonicalServer(next.Server);
+            ValidateCanonicalSuccessor(next.m_canonicalState);
+            var owned = new HashSet<(NodeId Source, NodeId Type, bool Inverse, ExpandedNodeId Target)>();
+            foreach (WotCanonicalViewReference reference in m_canonicalState.References)
+            {
+                owned.Add((Local(reference.SourceId), Local(reference.ReferenceTypeId),
+                    reference.IsInverse, new ExpandedNodeId(Local(reference.TargetId))));
+            }
+            var dropped = new List<LocalReference>();
+            foreach (NodeState source in PredefinedNodes.Values)
+            {
+                ct.ThrowIfCancellationRequested();
+                var references = new List<IReference>();
+                source.GetReferences(SystemContext, references);
+                foreach (IReference reference in references)
+                {
+                    NodeId targetId = ExpandedNodeId.ToNodeId(reference.TargetId, Server.NamespaceUris);
+                    if (owned.Contains((source.NodeId, reference.ReferenceTypeId, reference.IsInverse, reference.TargetId)) ||
+                        reference.ReferenceTypeId == Ua.ReferenceTypeIds.HasTypeDefinition ||
+                        (!targetId.IsNull && PredefinedNodes.ContainsKey(targetId)))
+                    {
+                        continue;
+                    }
+                    if (next.PredefinedNodes.TryGetValue(source.NodeId, out NodeState? retained))
+                    {
+                        retained.AddReferenceIfMissing(
+                            reference.ReferenceTypeId, reference.IsInverse, reference.TargetId);
+                    }
+                    else if (!targetId.IsNull)
+                    {
+                        dropped.Add(new LocalReference(
+                            targetId, reference.ReferenceTypeId, !reference.IsInverse, source.NodeId));
+                    }
+                }
+            }
+            return new ValueTask<ArrayOf<LocalReference>>(dropped.ToArrayOf());
         }
 
         protected override void ValidateViewDescription(ServerSystemContext context, ViewDescription view)
