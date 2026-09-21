@@ -91,4 +91,3 @@ function Test-CanonicalReleaseBranchRef {
 
     return $Ref -match '^refs/heads/release/\d+\.\d+$'
 }
-
