@@ -1963,7 +1963,11 @@ namespace Opc.Ua.Client
                 // channel.
                 if (Volatile.Read(ref m_channelReconnectInProgress) > 0)
                 {
-                    m_logger.ManagedSessionKeepAliveFailureSuppressedWhile();
+                    long since = Volatile.Read(ref m_channelReconnectStartedAt);
+                    m_logger.ManagedSessionKeepAliveFailureSuppressedWhile(
+                        since == 0
+                            ? TimeSpan.Zero
+                            : m_timeProvider.GetElapsedTime(since));
                 }
                 else
                 {
@@ -1990,13 +1994,18 @@ namespace Opc.Ua.Client
             {
                 case ChannelState.TransportReconnecting:
                 case ChannelState.TransportConnectedSessionReactivating:
-                    Interlocked.Increment(ref m_channelReconnectInProgress);
+                    if (Interlocked.Increment(ref m_channelReconnectInProgress) == 1)
+                    {
+                        Volatile.Write(ref m_channelReconnectStartedAt, m_timeProvider.GetTimestamp());
+                    }
                     break;
                 case ChannelState.Ready:
                     Interlocked.Exchange(ref m_channelReconnectInProgress, 0);
+                    Volatile.Write(ref m_channelReconnectStartedAt, 0);
                     break;
                 case ChannelState.Faulted:
                     Interlocked.Exchange(ref m_channelReconnectInProgress, 0);
+                    Volatile.Write(ref m_channelReconnectStartedAt, 0);
                     // Channel-mgr gave up. Surface to outer state
                     // machine so the IReconnectPolicy / failover path
                     // can run.
@@ -2004,6 +2013,7 @@ namespace Opc.Ua.Client
                     break;
                 case ChannelState.Closed:
                     Interlocked.Exchange(ref m_channelReconnectInProgress, 0);
+                    Volatile.Write(ref m_channelReconnectStartedAt, 0);
                     // Channel-mgr closed. Surface to outer state
                     // machine so the IReconnectPolicy / failover path
                     // can run.
@@ -2449,6 +2459,12 @@ namespace Opc.Ua.Client
         private ISubscriptionEngineFactory? m_engineFactory;
         private ISecurityPolicyRegistry? m_securityPolicies;
         private int m_channelReconnectInProgress;
+
+        /// <summary>
+        /// Timestamp of the transition into the suppression window, so a keep-alive
+        /// suppressed by a stuck reconnect reports how long it has been suppressed.
+        /// </summary>
+        private long m_channelReconnectStartedAt;
         private ServerRedundancyInfo? m_redundancyInfo;
         private Task<ServerRedundancyInfo>? m_redundancyRefreshTask;
         private Task<ServerRedundancyInfo>? m_redundancyEndpointRefreshTask;
@@ -2536,10 +2552,12 @@ namespace Opc.Ua.Client
             Message = "ManagedSession: Session close failed.")]
         public static partial void ManagedSessionSessionCloseFailed(this ILogger logger, Exception? exception);
 
-        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 22, Level = LogLevel.Debug,
-            Message = "ManagedSession: keep-alive failure suppressed while channel manager reconnect is in" +
-                " progress.")]
-        public static partial void ManagedSessionKeepAliveFailureSuppressedWhile(this ILogger logger);
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 22, Level = LogLevel.Information,
+            Message = "ManagedSession: keep-alive failure suppressed for {Elapsed} while channel manager" +
+                " reconnect is in progress.")]
+        public static partial void ManagedSessionKeepAliveFailureSuppressedWhile(
+            this ILogger logger,
+            TimeSpan elapsed);
 
         [LoggerMessage(EventId = ClientEventIds.ManagedSession + 23, Level = LogLevel.Error,
             Message = "ManagedSession: ChannelStateChanged handler threw an exception.")]

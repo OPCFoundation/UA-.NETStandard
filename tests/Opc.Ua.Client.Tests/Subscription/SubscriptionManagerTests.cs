@@ -569,15 +569,26 @@ namespace Opc.Ua.Client.Subscriptions
                 session.CreateSubscriptionFactory = (_, _, _) => subscription;
                 var publishCalled = new TaskCompletionSource<bool>(
                     TaskCreationOptions.RunContinuationsAsynchronously);
+                var resumed = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
                 // Never completes on its own: the only way out is cancellation,
                 // exactly like ChannelEntry.WaitForReadyAsync on a faulted channel.
                 var readyGate = new TaskCompletionSource<PublishResponse>(
                     TaskCreationOptions.RunContinuationsAsynchronously);
                 int publishAttempts = 0;
+                int resumeBaseline = int.MaxValue;
+                // One delegate for the whole test. Swapping it after the quiesce
+                // would race the worker: RunWithPublishingQuiescedAsync resumes
+                // publishing in its finally, so the worker can re-arm before the
+                // swap lands and then park on the old delegate forever.
                 session.OnPublishAsync = (_, _, publishCt) =>
                 {
-                    Interlocked.Increment(ref publishAttempts);
+                    int attempt = Interlocked.Increment(ref publishAttempts);
                     publishCalled.TrySetResult(true);
+                    if (attempt > Volatile.Read(ref resumeBaseline))
+                    {
+                        resumed.TrySetResult(true);
+                    }
                     return new ValueTask<PublishResponse>(readyGate.Task.WaitAsync(publishCt));
                 };
 
@@ -587,6 +598,11 @@ namespace Opc.Ua.Client.Subscriptions
                     Mock.Of<IOptionsMonitor<SubscriptionOptions>>());
                 sut.Resume();
                 await publishCalled.Task.WaitAsync(testCt).ConfigureAwait(false);
+
+                // The worker is parked in the gate and cannot start another
+                // attempt while publishing is quiesced, so this baseline is
+                // stable: any later attempt proves the worker survived the abort.
+                Volatile.Write(ref resumeBaseline, Volatile.Read(ref publishAttempts));
 
                 bool operationRan = false;
                 int dropped = -1;
@@ -608,15 +624,7 @@ namespace Opc.Ua.Client.Subscriptions
                 });
 
                 // The worker survived the abort and resumes publishing.
-                var resumed = new TaskCompletionSource<bool>(
-                    TaskCreationOptions.RunContinuationsAsynchronously);
-                session.OnPublishAsync = (_, _, publishCt) =>
-                {
-                    resumed.TrySetResult(true);
-                    return new ValueTask<PublishResponse>(readyGate.Task.WaitAsync(publishCt));
-                };
-                sut.Resume();
-                await resumed.Task.WaitAsync(testCt).ConfigureAwait(false);
+                await resumed.Task.WaitAsync(TimeSpan.FromSeconds(10), testCt).ConfigureAwait(false);
             }
             finally
             {

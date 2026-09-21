@@ -2169,6 +2169,12 @@ namespace Opc.Ua.Client.Subscriptions
                     }
                     finally
                     {
+                        // Ordering matters: the acknowledgement rollback above has
+                        // already run, and EndPublishRequest is what releases the
+                        // drain. Releasing the count first would let a quiesced
+                        // caller observe a zero count while acknowledgements from
+                        // this attempt were still unwinding, breaking the guarantee
+                        // DropPendingForSubscription relies on.
                         if (publishActive)
                         {
                             m_outer.EndPublishRequest();

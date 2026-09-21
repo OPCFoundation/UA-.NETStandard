@@ -538,6 +538,71 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         }
 
         [Test]
+        [CancelAfter(30_000)]
+        public async Task WaitForReadyAsyncObservesCancellationOnEntryAndWhileParkedAsync(
+            CancellationToken testCt)
+        {
+            // Regression for #4508: the drain unblocks a parked publish worker by
+            // cancelling its per-attempt token. That only works while this gate
+            // honours the token, so a refactor must not be able to make the wait
+            // token-blind without failing here.
+            (ClientChannelManager sut, Certificate serverCert, Mock<IChannel> chMock) = CreateMockedSut();
+            try
+            {
+                ConfiguredEndpoint endpoint = GetTestEndpoint(serverCert);
+                using IManagedTransportChannel channel = await sut.GetAsync(
+                    new TestParticipant("parked", endpoint), testCt).ConfigureAwait(false);
+                object entry = GetLeaseEntry(channel);
+                MethodInfo waitForReady = entry.GetType()
+                    .GetMethod("WaitForReadyAsync", [typeof(CancellationToken)])!;
+
+                // The channel is not ready, so the gate parks instead of
+                // completing. Nothing in the test ever makes it ready.
+                SetPrivateField(entry, "m_state", ChannelState.TransportReconnecting);
+                entry.GetType()
+                    .GetMethod("ResetReadyGate", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .Invoke(entry, null);
+                Assert.That(GetEntryState(entry), Is.EqualTo(ChannelState.TransportReconnecting));
+
+                using var parkedSource = new CancellationTokenSource();
+                var parked = (Task)waitForReady.Invoke(entry, [parkedSource.Token])!;
+                await Task.Delay(50, testCt).ConfigureAwait(false);
+                Assert.That(parked.IsCompleted, Is.False,
+                    "the gate must park while the channel is not ready.");
+
+                parkedSource.Cancel();
+
+                // Bounded so a token-blind refactor fails here quickly instead
+                // of hanging the suite on a wait that can never complete.
+                Assert.That(
+                    async () => await parked.WaitAsync(TimeSpan.FromSeconds(10), testCt)
+                        .ConfigureAwait(false),
+                    Throws.InstanceOf<OperationCanceledException>()
+                        .And.Not.InstanceOf<TimeoutException>(),
+                    "a parked caller must observe cancellation.");
+
+                // A token already cancelled on entry must be observed too, so the
+                // abort cannot be lost in the window before the wait begins.
+                using var enteredSource = new CancellationTokenSource();
+                enteredSource.Cancel();
+                var onEntry = (Task)waitForReady.Invoke(entry, [enteredSource.Token])!;
+                Assert.That(
+                    async () => await onEntry.WaitAsync(TimeSpan.FromSeconds(10), testCt)
+                        .ConfigureAwait(false),
+                    Throws.InstanceOf<OperationCanceledException>()
+                        .And.Not.InstanceOf<TimeoutException>(),
+                    "a caller entering with a cancelled token must observe cancellation.");
+
+                SetPrivateField(entry, "m_state", ChannelState.Ready);
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
+                serverCert.Dispose();
+            }
+        }
+
+        [Test]
         public async Task GetAsyncReplacesEntryWhoseTeardownIsReservedAsync()
         {
             (ClientChannelManager sut, Certificate serverCert, Mock<IChannel> chMock) = CreateMockedSut();

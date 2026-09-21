@@ -3161,6 +3161,16 @@ namespace Opc.Ua.Client
                     v2Engine.SubscriptionManager
                         is Subscriptions.SubscriptionManager v2Manager)
                 {
+                    // The drain aborts each in-flight publish attempt through a
+                    // per-attempt token linked to the worker token, never the
+                    // worker token itself: a worker parked on the channel ready
+                    // gate unwinds its attempt and returns to the paused park
+                    // instead of terminating, so it resumes once this recreate
+                    // completes. Do not replace this with a bare timeout. A
+                    // timeout leaves the worker running with a request in flight
+                    // and lifts nothing, and the quiesce must stay in place for
+                    // the whole operation so DropPendingForSubscription cannot
+                    // observe a partially unwound attempt.
                     await v2Manager.DrainAsync(ct).ConfigureAwait(false);
                 }
             }
