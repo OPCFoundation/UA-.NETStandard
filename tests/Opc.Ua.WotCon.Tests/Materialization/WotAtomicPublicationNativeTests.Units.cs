@@ -95,7 +95,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Assert.That(images[i].FindResource(unrelated.GroupId, unrelated.ResourceId), Is.SameAs(unrelated));
             }
             Assert.That(m_coordinator.CommittedPublication.RegistrySnapshot, Is.SameAs(m_registry.Current));
-            Assert.That(result.Results.Select(row => row.Generation).Distinct().Order(),
+            Assert.That(result.Results.OrderBy(row => row.Generation).Select(row => row.Generation).Distinct(),
                 Is.EqualTo(unitCount == 1 ? new uint[] { 1 } : [1u, 2u]));
             ReadResponse read = await m_session.ReadAsync(
                 null, 0, TimestampsToReturn.Neither,

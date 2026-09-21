@@ -980,7 +980,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WotDependencyClosure ordered = BuildClosure(
                 members, edges, members.ToDictionary(member => member.Xid, StringComparer.Ordinal));
             return new WotDependencyClosure(
-                string.Join("|", active.Select(member => member.Xid).Order(StringComparer.Ordinal)),
+                string.Join("|", active.OrderBy(member => member.Xid, StringComparer.Ordinal)
+                    .Select(member => member.Xid)),
                 ordered.Members, ordered.OrderedResources, ordered.Dependencies, ordered.Diagnostics,
                 ordered.HasCycle, ordered.HasMissingDependency, ordered.StronglyConnectedComponents)
             {
@@ -993,14 +994,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
             IReadOnlyCollection<WotDependencyClosure> closures)
         {
             List<WotResource> members = [.. closures.SelectMany(closure => closure.Members)
-                .DistinctBy(member => member.Xid)];
+                .GroupBy(member => member.Xid, StringComparer.Ordinal).Select(group => group.First())];
             var edges = closures.SelectMany(closure => closure.Dependencies).Distinct()
                 .GroupBy(edge => edge.SourceXid).ToDictionary(group => group.Key, group => group.ToList(),
                     StringComparer.Ordinal);
             WotDependencyClosure ordered = BuildClosure(
                 members, edges, members.ToDictionary(member => member.Xid, StringComparer.Ordinal));
             ArrayOf<WotResource> active = closures.SelectMany(closure => closure.ActivationMembers.ToList())
-                .DistinctBy(member => member.Xid).OrderBy(member => member.Xid, StringComparer.Ordinal).ToArrayOf();
+                .GroupBy(member => member.Xid, StringComparer.Ordinal).Select(group => group.First())
+                .OrderBy(member => member.Xid, StringComparer.Ordinal).ToArrayOf();
             return new WotDependencyClosure(
                 string.Join("|", active.ToList().Select(member => member.Xid)),
                 ordered.Members, ordered.OrderedResources, ordered.Dependencies, ordered.Diagnostics,
@@ -1008,7 +1010,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 ActivationMembers = active
             }.WithAcquisitionFailures(closures.SelectMany(closure => closure.AcquisitionFailures.ToList())
-                .DistinctBy(failure => failure.Resource.Xid).ToArrayOf());
+                .GroupBy(failure => failure.Resource.Xid, StringComparer.Ordinal).Select(group => group.First())
+                .ToArrayOf());
         }
 
         internal static ArrayOf<WotDependencyComponent> BuildStronglyConnectedComponents(

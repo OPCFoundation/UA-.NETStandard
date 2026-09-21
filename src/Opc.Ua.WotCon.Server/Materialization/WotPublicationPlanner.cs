@@ -59,7 +59,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 return new WotPublicationPlan(atomicity, []);
             }
             WotResource[] members = [.. closures.ToList().SelectMany(closure => closure.ActivationMembers.ToList())
-                .DistinctBy(member => member.Xid).OrderBy(member => member.Xid, StringComparer.Ordinal)];
+                .GroupBy(member => member.Xid, StringComparer.Ordinal).Select(group => group.First())
+                .OrderBy(member => member.Xid, StringComparer.Ordinal)];
             var partition = new Partition(members.Select(member => member.Xid));
             if (atomicity == WoTAtomicityEnum.PerRegistry)
             {

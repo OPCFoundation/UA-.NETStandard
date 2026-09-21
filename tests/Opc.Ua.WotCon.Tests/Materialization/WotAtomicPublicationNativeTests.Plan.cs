@@ -151,7 +151,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }).ConfigureAwait(false);
 
             Assert.That(result.NewGeneration, Is.EqualTo(3u));
-            Assert.That(result.Results.Select(row => row.Generation).Order(), Is.EqualTo(new uint[] { 2, 3 }));
+            Assert.That(result.Results.OrderBy(row => row.Generation).Select(row => row.Generation),
+                Is.EqualTo(new uint[] { 2, 3 }));
             Assert.That(m_coordinator.LastRefreshPlan!.PreparationGeneration, Is.EqualTo(1u));
             Assert.That(m_registry.Current.FindResource(existing.GroupId, existing.ResourceId), Is.SameAs(unchanged));
         }
