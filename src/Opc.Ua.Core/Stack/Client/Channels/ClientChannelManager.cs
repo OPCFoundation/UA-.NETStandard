@@ -829,7 +829,7 @@ namespace Opc.Ua
         /// </summary>
         /// <remarks>
         /// A reconnect cycle that stopped because the reconnect policy ran out of
-        /// attempts, or because the caller's retry budget ran out of time, is a
+        /// attempts, its deadline expired, or a participant reported a fatal channel error, is a
         /// deliberate terminal outcome rather than a race. It leaves the entry
         /// <see cref="ChannelState.Faulted"/> with
         /// <see cref="StatusCodes.BadSecureChannelClosed"/> - indistinguishable from a
@@ -844,7 +844,7 @@ namespace Opc.Ua
             CancellationToken ct)
         {
             return !ct.IsCancellationRequested &&
-                !entry.ReconnectStoppedByRetryPolicy &&
+                !entry.ReconnectStoppedIntentionally &&
                 sre.StatusCode == StatusCodes.BadSecureChannelClosed &&
                 entry.IsClosing;
         }

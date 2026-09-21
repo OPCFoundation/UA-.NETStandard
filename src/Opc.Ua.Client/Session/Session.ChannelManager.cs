@@ -38,7 +38,8 @@ namespace Opc.Ua.Client
     public partial class Session :
         IReconnectParticipant,
         IRecreateAwareReconnectParticipant,
-        IChannelRecoveryParticipant
+        IChannelRecoveryParticipant,
+        IReconnectBudgetParticipant
     {
         /// <summary>
         /// Stable participant identifier used by
@@ -63,6 +64,38 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         ConfiguredEndpoint IReconnectParticipant.Endpoint => ConfiguredEndpoint;
 
+        /// <inheritdoc/>
+        IRetryBudget? IReconnectBudgetParticipant.CreateReconnectBudget(TimeProvider timeProvider)
+        {
+            if (!Volatile.Read(ref m_boundChannelReconnect))
+            {
+                return null;
+            }
+            double sessionTimeout = SessionTimeout;
+            if (sessionTimeout <= 0 || double.IsInfinity(sessionTimeout) || double.IsNaN(sessionTimeout))
+            {
+                sessionTimeout = m_requestedChannelSessionTimeout;
+            }
+            return new RetryBudget(
+                ManagedSessionOptions.ResolveChannelReconnectTimeout(
+                    m_channelReconnectTimeout,
+                    KeepAliveInterval,
+                    sessionTimeout,
+                    OperationTimeout),
+                timeProvider);
+        }
+
+        internal void ConfigureChannelReconnectTimeout(TimeSpan? timeout, uint requestedSessionTimeout)
+        {
+            if (!ManagedSessionOptions.IsValidChannelReconnectTimeout(timeout))
+            {
+                throw new ArgumentOutOfRangeException(nameof(timeout));
+            }
+            m_channelReconnectTimeout = timeout;
+            m_requestedChannelSessionTimeout = requestedSessionTimeout;
+            Volatile.Write(ref m_boundChannelReconnect, true);
+        }
+
         /// <summary>
         /// The managed channel currently bound to this session, or
         /// <c>null</c> if the session was constructed against a raw
@@ -76,6 +109,8 @@ namespace Opc.Ua.Client
         /// against a raw channel.
         /// </summary>
         public IClientChannelManager? ChannelManager => m_channelManager;
+
+        internal bool ChannelRecoveryInProgress => Volatile.Read(ref m_channelRecoveryInProgress) != 0;
 
         /// <summary>
         /// Internal hook used by <see cref="CreateAsync(IClientChannelManager,
@@ -110,8 +145,15 @@ namespace Opc.Ua.Client
             int reconnectAttempt,
             CancellationToken ct)
         {
+            Volatile.Write(ref m_channelRecoveryInProgress, 1);
             using var client = new RecoverySessionClient(this, recoveryChannel);
-            return await ReconnectParticipantAsync(channel, reconnectAttempt, client, ct).ConfigureAwait(false);
+            ParticipantReconnectResult result = await ReconnectParticipantAsync(
+                channel, reconnectAttempt, client, ct).ConfigureAwait(false);
+            if (result == ParticipantReconnectResult.FatalForParticipant)
+            {
+                Volatile.Write(ref m_channelRecoveryInProgress, 0);
+            }
+            return result;
         }
 
         private async ValueTask<ParticipantReconnectResult> ReconnectParticipantAsync(
@@ -122,6 +164,7 @@ namespace Opc.Ua.Client
         {
             if (reconnectAttempt < 0)
             {
+                Volatile.Write(ref m_channelRecoveryInProgress, 0);
                 // Final shutdown notification from the manager — the
                 // channel is going away. Stop the keep-alive timer so
                 // the session doesn't keep probing a dead transport.
@@ -254,9 +297,10 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        ValueTask IChannelRecoveryParticipant.CompleteRecoveryAsync(CancellationToken ct)
+        async ValueTask IChannelRecoveryParticipant.CompleteRecoveryAsync(CancellationToken ct)
         {
-            return new ValueTask(CompleteSessionRecoveryAsync(ct));
+            await CompleteSessionRecoveryAsync(ct).ConfigureAwait(false);
+            Volatile.Write(ref m_channelRecoveryInProgress, 0);
         }
 
         private sealed class RecoverySessionClient : SessionClientBatched
@@ -330,6 +374,10 @@ namespace Opc.Ua.Client
         private IManagedTransportChannel? m_managedChannel;
         private PendingSubscriptionRecovery? m_pendingSubscriptionRecovery;
         private int m_subscriptionRecoveryDeferrals;
+        private int m_channelRecoveryInProgress;
+        private bool m_boundChannelReconnect;
+        private TimeSpan? m_channelReconnectTimeout;
+        private uint m_requestedChannelSessionTimeout;
 
         /// <summary>
         /// Creates a new <see cref="Session"/> bound to a centrally

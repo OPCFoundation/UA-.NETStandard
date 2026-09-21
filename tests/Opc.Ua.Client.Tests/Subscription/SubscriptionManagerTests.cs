@@ -360,6 +360,55 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         [Test]
+        public async Task PublishWorkersSurviveUncreatedSubscriptionsAndStillHonorPoolLimitsAsync()
+        {
+            var session = new FakeSubscriptionManagerContext();
+            OptionsMonitor<SubscriptionOptions> firstOptions = OptionsFactory.Create<SubscriptionOptions>();
+            OptionsMonitor<SubscriptionOptions> secondOptions = OptionsFactory.Create<SubscriptionOptions>();
+            var first = new FakeManagedSubscription { Id = 1 };
+            var second = new FakeManagedSubscription { Id = 2 };
+            session.CreateSubscriptionFactory = (_, options, _) => ReferenceEquals(options, firstOptions)
+                ? first
+                : second;
+            await using var manager = new SubscriptionManager(session, m_telemetry.LoggerFactory, DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 0,
+                MaxPublishWorkerCount = 4
+            };
+            manager.Add(m_mockNotificationDataHandler.Object, firstOptions);
+            manager.Add(m_mockNotificationDataHandler.Object, secondOptions);
+            Assert.That(manager.CreatedCount, Is.Zero);
+            Assert.That(manager.PublishWorkerCount, Is.Zero);
+
+            first.Created = true;
+            second.Created = true;
+            manager.Update();
+            await WaitForPublishWorkerCountAsync(manager, 2).ConfigureAwait(false);
+
+            first.Created = false;
+            second.Created = false;
+            manager.MinPublishWorkerCount = 3;
+            await WaitForPublishWorkerCountAsync(manager, 3).ConfigureAwait(false);
+            Assert.That(manager.CreatedCount, Is.Zero);
+            Assert.That(manager.Count, Is.EqualTo(2));
+
+            manager.MinPublishWorkerCount = 0;
+            manager.MaxPublishWorkerCount = 1;
+            await WaitForPublishWorkerCountAsync(manager, 1).ConfigureAwait(false);
+
+            first.Created = true;
+            second.Created = true;
+            manager.MaxPublishWorkerCount = 2;
+            manager.Update();
+            await WaitForPublishWorkerCountAsync(manager, 2).ConfigureAwait(false);
+            await manager.CompleteAsync(first, 1, CancellationToken.None).ConfigureAwait(false);
+            await WaitForPublishWorkerCountAsync(manager, 1).ConfigureAwait(false);
+            await manager.CompleteAsync(second, 2, CancellationToken.None).ConfigureAwait(false);
+            await WaitForPublishWorkerCountAsync(manager, 0).ConfigureAwait(false);
+            Assert.That(manager.Count, Is.Zero);
+        }
+
+        [Test]
         public void MinPublishWorkerCountSetAndGet()
         {
             m_subscriptionManager.MinPublishWorkerCount = 5;

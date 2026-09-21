@@ -87,6 +87,16 @@ Conventions and requirements:
 - **Testing a specific target framework.** The libraries multi-target, but the test executables run on one framework at a time. To run the suite against a non-default framework, set `CustomTestTarget` (supported values: `netstandard2.0`, `netstandard2.1`, `net472`, `net48`, `net8.0`, `net9.0`, `net10.0`). The batch file [`tests/customtest.bat`](../tests/customtest.bat) cleans, restores, and runs the tests for a chosen target; in Visual Studio, uncomment and set the `CustomTestTarget` property in [`targets.props`](../targets.props). A clean build for the target is recommended when switching.
 - **CI matrix.** The pull-request gate runs the test suite on **net48** and **net10.0**, and compiles the solution for *every* supported target framework; the remaining test matrices (Debug, .NET 9/8, .NET Framework 4.7.2, netstandard) run in scheduled or manual CI. Fix all failing, flaky, and CodeQL findings in the pipelines. See [Continuous integration](#continuous-integration).
 
+Channel recovery regressions use `ManagedSessionReconnectTests` in the client
+test project and `ClientChannelManagerManagedTests` / `ReconnectDeadlineTests`
+in the core test project. The composed fixture scripts an in-process transport
+while retaining the real session, V2 publishing workers and channel ready gate.
+Use phase signals and the injected clock rather than a server-process kill or
+sleeps. Keep every phase wait bounded. When checking the recreate/drain wiring,
+disable the managed-session channel deadline so outer takeover cannot mask a
+broken drain, and verify the parked Publish attempt has unwound before allowing
+replacement-session creation to finish.
+
 ## Coding standards (dos and don'ts)
 
 All rules apply to new code and to existing code you touch. The `.editorconfig` is authoritative and enforced at build time; the highlights below are the ones most often missed.

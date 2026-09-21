@@ -43,6 +43,7 @@ pools, when to pick which) see
 
 - [Quick reference](#quick-reference)
 - [Server retransmission queues](#server-retransmission-queues)
+- [Publishing during session recovery](#publishing-during-session-recovery)
 - [Triggering (SetTriggering)](#triggering-settriggering)
   - [Declarative triggering](#declarative-triggering)
   - [Imperative triggering](#imperative-triggering)
@@ -116,6 +117,25 @@ regardless of other sessions' subscriptions. A closing session retains
 `BadSessionClosed`. The Republish request and requested-message diagnostic
 counters remain equal, with one increment per authorized request; the
 successful-message counter advances only when a message is returned.
+
+## Publishing during session recovery
+
+V2 session recreation pauses publishing and drains active Publish attempts
+before replacing the session. The drain cancels each attempt, including an
+attempt parked at the shared channel's ready gate, without terminating its
+worker. A cancelled attempt rolls its acknowledgements back before releasing its
+active count. Recreation must await this complete unwind; a timeout that skips
+the drain could acknowledge notifications from the old subscription generation
+against a reused subscription identifier.
+
+Once the session and subscriptions are restored, publishing resumes through the
+same subscription-facing interface. Temporarily clearing server-side subscription
+identifiers does not replace existing workers; pool limits and actual subscription
+removal still apply. With transfer-on-recreate enabled, an invalid old subscription
+falls back to recreation. A
+[managed-session channel deadline](Sessions.md#shared-retry-budget-with-managedsession)
+cancels recovery and hands control to the outer reconnect policy, but never
+weakens the publishing-drain invariant.
 
 ## Triggering (SetTriggering)
 

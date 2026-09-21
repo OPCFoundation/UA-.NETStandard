@@ -421,6 +421,25 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Sets the channel recovery deadline. Null selects the automatic session-derived bound;
+        /// <see cref="Timeout.InfiniteTimeSpan"/> explicitly disables it.
+        /// </summary>
+        /// <param name="timeout">The maximum duration of a channel recovery cycle.</param>
+        /// <returns>This builder.</returns>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// The finite duration is not a supported positive timeout.
+        /// </exception>
+        public ManagedSessionBuilder WithChannelReconnectTimeout(TimeSpan? timeout)
+        {
+            if (!ManagedSessionOptions.IsValidChannelReconnectTimeout(timeout))
+            {
+                throw new ArgumentOutOfRangeException(nameof(timeout));
+            }
+            m_options = m_options with { ChannelReconnectTimeout = timeout };
+            return this;
+        }
+
+        /// <summary>
         /// Use the supplied <see cref="IReconnectPolicy"/> directly. Overrides
         /// any options-based reconnect configuration.
         /// </summary>
@@ -776,68 +795,16 @@ namespace Opc.Ua.Client
                 ownedHttpClientFactory?.Dispose();
             }
 
-            ArrayOf<string> preferredLocales = default;
-            if (opts.PreferredLocales is { Count: > 0 } locales)
-            {
-                string[] arr = new string[locales.Count];
-                for (int i = 0; i < locales.Count; i++)
-                {
-                    arr[i] = locales[i];
-                }
-                preferredLocales = new ArrayOf<string>(arr);
-            }
-
-#pragma warning disable CS0618 // Legacy eager identity remains supported when no provider is configured.
-            IUserIdentity? identity = opts.Identity;
-#pragma warning restore CS0618
-            ManagedSession session = await ManagedSession.CreateAsync(
+            return await ManagedSession.CreateAsync(
+                opts with { SubscriptionEngineFactory = engineFactory },
                 m_configuration,
-                opts.Endpoint,
                 sessionFactory,
-                identity,
                 reconnect,
                 redundancy,
                 m_telemetry,
-                opts.SessionName,
-                (uint)opts.SessionTimeout.TotalMilliseconds,
-                preferredLocales,
-                opts.CheckDomain,
-                engineFactory,
-                opts.TransferSubscriptionsOnRecreate,
-                opts.PoolNotifications,
-                opts.EnableTokenReuseFailover,
-                opts.IdentityProvider,
-                opts.TimeProvider,
                 channelManager,
-                opts.NetworkRedundancy,
-                opts.ServerRedundancy,
                 m_reverseConnectManager,
-                opts.ConnectGate,
                 ct: ct).ConfigureAwait(false);
-
-            try
-            {
-                if (opts.ModelChangeTracking)
-                {
-                    await session.EnableModelChangeTrackingAsync(ct).ConfigureAwait(false);
-                }
-                if (opts.LoadComplexTypes)
-                {
-                    // The type system owns a resolver whose NodeCache registers a
-                    // Meter; it is only needed for this one-shot load, so dispose
-                    // it rather than leaving it rooted for the process lifetime.
-                    using ComplexTypeSystem complexTypeSystem =
-                        ComplexTypes.ComplexTypeSystemClientExtensions.Create(session, m_telemetry);
-                    await complexTypeSystem.LoadAsync(ct: ct).ConfigureAwait(false);
-                }
-            }
-            catch
-            {
-                await session.DisposeAsync().ConfigureAwait(false);
-                throw;
-            }
-
-            return session;
         }
 
         private void ApplyReverseConnectEndpoint()

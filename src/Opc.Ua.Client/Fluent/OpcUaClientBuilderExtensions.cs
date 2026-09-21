@@ -1274,6 +1274,7 @@ namespace Microsoft.Extensions.DependencyInjection
             builder.WithSessionName(sessionOptions.SessionName)
                    .WithSessionTimeout(sessionOptions.SessionTimeout)
                    .WithCheckDomain(sessionOptions.CheckDomain)
+                   .WithChannelReconnectTimeout(sessionOptions.ChannelReconnectTimeout)
                    .WithReconnectPolicy(_ => sessionOptions.ReconnectPolicy);
 
             IClientIdentityProvider? identityProvider =
@@ -1645,6 +1646,12 @@ namespace Microsoft.Extensions.DependencyInjection
                 bool hasConfigurationProvider = false)
             {
                 var failures = new List<string>();
+                if (!ManagedSessionOptions.IsValidChannelReconnectTimeout(options.Session.ChannelReconnectTimeout))
+                {
+                    failures.Add(
+                        "Session.ChannelReconnectTimeout must be a positive supported duration, null, " +
+                        "or InfiniteTimeSpan.");
+                }
                 if (options.Configuration == null &&
                     !hasConfigurationProvider &&
                     !options.HasSuppliedConfigurationDocument)

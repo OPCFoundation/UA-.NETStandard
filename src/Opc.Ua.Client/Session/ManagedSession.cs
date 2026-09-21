@@ -62,7 +62,7 @@ namespace Opc.Ua.Client
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="ManagedSession"/>
-        /// class. Use <see cref="CreateAsync"/> to create a connected
+        /// class. Use <c>CreateAsync</c> to create a connected
         /// instance.
         /// </summary>
         private ManagedSession(
@@ -203,7 +203,7 @@ namespace Opc.Ua.Client
         /// <see cref="ConfiguredEndpoint.UpdateBeforeConnect"/> when set.</param>
         /// <param name="ct">Cancellation token.</param>
         /// <returns>A connected <see cref="ManagedSession"/>.</returns>
-        public static async Task<ManagedSession> CreateAsync(
+        public static Task<ManagedSession> CreateAsync(
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
             ISessionFactory sessionFactory,
@@ -230,6 +230,137 @@ namespace Opc.Ua.Client
             bool? updateBeforeConnect = null,
             CancellationToken ct = default)
         {
+            return CreateCoreAsync(
+                configuration, endpoint, sessionFactory, identity, reconnectPolicy, redundancyHandler,
+                telemetry, sessionName, sessionTimeout, preferredLocales, checkDomain, engineFactory,
+                transferSubscriptionsOnRecreate, poolNotifications, enableTokenReuseFailover, identityProvider,
+                timeProvider, channelManager, networkRedundancy, serverRedundancy, reverseConnectManager,
+                connectGate, connection, updateBeforeConnect, channelReconnectTimeout: null, ct);
+        }
+
+        /// <summary>
+        /// Creates a connected managed session from an options snapshot and injectable collaborators.
+        /// </summary>
+        /// <param name="options">The session settings, including its endpoint and channel recovery deadline.</param>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="sessionFactory">The session factory.</param>
+        /// <param name="reconnectPolicy">An optional override for the outer reconnect policy.</param>
+        /// <param name="redundancyHandler">An optional server redundancy handler.</param>
+        /// <param name="telemetry">The telemetry context, defaulting to the factory's context.</param>
+        /// <param name="channelManager">The optional shared channel manager.</param>
+        /// <param name="reverseConnectManager">The optional reverse-connect manager.</param>
+        /// <param name="connection">The waiting connection used only for the initial connect.</param>
+        /// <param name="updateBeforeConnect">An optional override for endpoint discovery.</param>
+        /// <param name="ct">Cancellation for connecting.</param>
+        /// <returns>The connected managed session.</returns>
+        /// <exception cref="ArgumentNullException">A required argument or endpoint is null.</exception>
+        /// <exception cref="ArgumentOutOfRangeException">The channel recovery timeout is invalid.</exception>
+        public static async Task<ManagedSession> CreateAsync(
+            ManagedSessionOptions options,
+            ApplicationConfiguration configuration,
+            ISessionFactory sessionFactory,
+            IReconnectPolicy? reconnectPolicy = null,
+            IServerRedundancyHandler? redundancyHandler = null,
+            ITelemetryContext? telemetry = null,
+            IClientChannelManager? channelManager = null,
+            ReverseConnectManager? reverseConnectManager = null,
+            ITransportWaitingConnection? connection = null,
+            bool? updateBeforeConnect = null,
+            CancellationToken ct = default)
+        {
+            if (options == null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+            if (sessionFactory == null)
+            {
+                throw new ArgumentNullException(nameof(sessionFactory));
+            }
+            if (!ManagedSessionOptions.IsValidChannelReconnectTimeout(options.ChannelReconnectTimeout))
+            {
+                throw new ArgumentOutOfRangeException(nameof(options), "The channel recovery timeout is invalid.");
+            }
+            ConfiguredEndpoint endpoint = options.Endpoint
+                ?? throw new ArgumentNullException(nameof(options), "A session endpoint is required.");
+            ArrayOf<string> locales = default;
+            if (options.PreferredLocales != null)
+            {
+                string[] names = [.. options.PreferredLocales];
+                locales = names;
+            }
+#pragma warning disable CS0618 // Preserve eager identities; TODO: remove when the compatibility option is retired.
+            IUserIdentity? identity = options.Identity;
+#pragma warning restore CS0618
+            telemetry ??= sessionFactory.Telemetry;
+            if (redundancyHandler == null && options.EnableServerRedundancy)
+            {
+                redundancyHandler = new DefaultServerRedundancyHandler(
+                    new DefaultRedundantServerEndpointResolver(telemetry),
+                    options.TimeProvider,
+                    options.ServerRedundancy);
+            }
+            ManagedSession session = await CreateCoreAsync(
+                configuration, endpoint, sessionFactory, identity,
+                reconnectPolicy ?? new ReconnectPolicy(options.ReconnectPolicy), redundancyHandler, telemetry,
+                options.SessionName, (uint)options.SessionTimeout.TotalMilliseconds, locales,
+                options.CheckDomain, options.SubscriptionEngineFactory, options.TransferSubscriptionsOnRecreate,
+                options.PoolNotifications, options.EnableTokenReuseFailover, options.IdentityProvider,
+                options.TimeProvider, channelManager, options.NetworkRedundancy, options.ServerRedundancy,
+                reverseConnectManager, options.ConnectGate, connection, updateBeforeConnect,
+                options.ChannelReconnectTimeout, ct).ConfigureAwait(false);
+            try
+            {
+                if (options.ModelChangeTracking)
+                {
+                    await session.EnableModelChangeTrackingAsync(ct).ConfigureAwait(false);
+                }
+                if (options.LoadComplexTypes)
+                {
+                    using ComplexTypeSystem complexTypes =
+                        ComplexTypes.ComplexTypeSystemClientExtensions.Create(session, telemetry);
+                    await complexTypes.LoadAsync(ct: ct).ConfigureAwait(false);
+                }
+                return session;
+            }
+            catch
+            {
+                await session.DisposeAsync().ConfigureAwait(false);
+                throw;
+            }
+        }
+
+        private static async Task<ManagedSession> CreateCoreAsync(
+            ApplicationConfiguration configuration,
+            ConfiguredEndpoint endpoint,
+            ISessionFactory sessionFactory,
+            IUserIdentity? identity,
+            IReconnectPolicy? reconnectPolicy,
+            IServerRedundancyHandler? redundancyHandler,
+            ITelemetryContext? telemetry,
+            string sessionName,
+            uint sessionTimeout,
+            ArrayOf<string> preferredLocales,
+            bool checkDomain,
+            ISubscriptionEngineFactory? engineFactory,
+            bool transferSubscriptionsOnRecreate,
+            bool poolNotifications,
+            bool enableTokenReuseFailover,
+            IClientIdentityProvider? identityProvider,
+            TimeProvider? timeProvider,
+            IClientChannelManager? channelManager,
+            NetworkRedundancyOptions? networkRedundancy,
+            ServerRedundancyOptions? serverRedundancy,
+            ReverseConnectManager? reverseConnectManager,
+            IClientConnectGate? connectGate,
+            ITransportWaitingConnection? connection,
+            bool? updateBeforeConnect,
+            TimeSpan? channelReconnectTimeout,
+            CancellationToken ct)
+        {
+            if (sessionFactory == null)
+            {
+                throw new ArgumentNullException(nameof(sessionFactory));
+            }
             telemetry ??= sessionFactory.Telemetry;
             ILogger<ManagedSession> logger = telemetry.CreateLogger<ManagedSession>();
 
@@ -274,7 +405,8 @@ namespace Opc.Ua.Client
                 m_securityPolicies = ResolveSecurityPolicies(sessionFactory),
                 m_reverseConnectManager = reverseConnectManager,
                 m_initialConnection = connection,
-                m_updateBeforeConnect = updateBeforeConnect
+                m_updateBeforeConnect = updateBeforeConnect,
+                m_channelReconnectTimeout = channelReconnectTimeout
             };
 
             managed.StateMachine.Start();
@@ -1248,6 +1380,7 @@ namespace Opc.Ua.Client
                             ct).ConfigureAwait(false);
                     }
 
+                    session.ConfigureChannelReconnectTimeout(m_channelReconnectTimeout, m_sessionTimeout);
                     WireSessionEvents(session);
                     m_session = session;
                 }
@@ -1953,15 +2086,16 @@ namespace Opc.Ua.Client
                 ServiceResult.IsBad(e.Status))
             {
                 // When the channel manager is wired AND it already
-                // reports the channel as not Ready (TransportReconnecting
-                // or TransportConnectedSessionReactivating), it is
+                // reports transport/session recovery, or is restoring
+                // subscriptions through its provisional Ready gate, it is
                 // already handling the reconnect. Suppress the outer
                 // state-machine churn — the manager will drive the
                 // inner Session reactivation transparently via
                 // OnReconnectAsync. The outer state machine only takes
                 // over when the channel manager terminally faults the
                 // channel.
-                if (Volatile.Read(ref m_channelReconnectInProgress) > 0)
+                if (Volatile.Read(ref m_channelReconnectInProgress) > 0 ||
+                    (session is Session inner && inner.ChannelRecoveryInProgress))
                 {
                     long since = Volatile.Read(ref m_channelReconnectStartedAt);
                     m_logger.ManagedSessionKeepAliveFailureSuppressedWhile(
@@ -2001,7 +2135,10 @@ namespace Opc.Ua.Client
                     break;
                 case ChannelState.Ready:
                     Interlocked.Exchange(ref m_channelReconnectInProgress, 0);
-                    Volatile.Write(ref m_channelReconnectStartedAt, 0);
+                    if (m_session?.ChannelRecoveryInProgress != true)
+                    {
+                        Volatile.Write(ref m_channelReconnectStartedAt, 0);
+                    }
                     break;
                 case ChannelState.Faulted:
                     Interlocked.Exchange(ref m_channelReconnectInProgress, 0);
@@ -2459,6 +2596,7 @@ namespace Opc.Ua.Client
         private ISubscriptionEngineFactory? m_engineFactory;
         private ISecurityPolicyRegistry? m_securityPolicies;
         private int m_channelReconnectInProgress;
+        private TimeSpan? m_channelReconnectTimeout;
 
         /// <summary>
         /// Timestamp of the transition into the suppression window, so a keep-alive

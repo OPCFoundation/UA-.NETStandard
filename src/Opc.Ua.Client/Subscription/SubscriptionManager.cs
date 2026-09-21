@@ -1731,7 +1731,17 @@ namespace Opc.Ua.Client.Subscriptions
 
             int GetDesiredPublishWorkerCount()
             {
-                int publishCount = CreatedCount + m_session.SessionSubscriptionCount;
+                int publishCount;
+                lock (m_subscriptionLock)
+                {
+                    // Recreation temporarily clears server ids without removing logical subscriptions.
+                    // Retain their existing workers, but do not start workers for an uncreated initial subscription.
+                    int retainedCount = Math.Max(m_logicals.Count, m_subscriptions.Count);
+                    publishCount = Math.Max(
+                        m_subscriptions.Count(subscription => subscription.Created),
+                        Math.Min(publishWorkers.Count, retainedCount));
+                }
+                publishCount += m_session.SessionSubscriptionCount;
                 if (publishCount != 0)
                 {
                     //

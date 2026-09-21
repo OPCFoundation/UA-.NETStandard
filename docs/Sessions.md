@@ -349,6 +349,11 @@ connection state machine transitions `Connected → Reconnecting` and:
 When a `ManagedSession` is backed by `IClientChannelManager`, participant reactivation uses the
 manager's `IChannelReconnectPolicy`. The default `ExponentialBackoffChannelReconnectPolicy`
 bounds each participant callback with a `ParticipantTimeout` of 30 seconds.
+`ManagedSession` also supplies a finite limit for the entire channel recovery cycle,
+including in-flight requests and subscription restoration. The default is
+`max(3 * KeepAliveInterval, revised SessionTimeout, OperationTimeout)`, sampled
+from the inner session when the cycle starts. See
+[shared retry budgets](#shared-retry-budget-with-managedsession) for overrides and handoff behaviour.
 
 Because all of this is driven internally, callers must **not** wrap a
 `ManagedSession` with `SessionReconnectHandler`; doing so throws
@@ -551,6 +556,21 @@ scoped view. Callback-dependent subscription restoration runs through
 `CompleteRecoveryAsync` after the channel admits ordinary requests, and the
 reconnect caller still awaits that restoration.
 
+`IReconnectBudgetParticipant` optionally supplies a budget for each new shared
+recovery cycle. The manager samples active participants outside its entry lock;
+the earliest participant or caller deadline wins. `Session` supplies this budget
+only when configured by its `ManagedSession` owner. Raw sessions and discovery
+clients impose no automatic limit, although a managed session sharing their
+channel can constrain the shared cycle.
+
+Budget-aware participants must return promptly from the budget callback and
+cooperatively unwind recovery when cancelled. Their cancelled recovery work is
+joined before another owner can recover the session. Final shutdown notifications
+release local state before their first asynchronous wait; best-effort notification
+cleanup cannot hold up deadline handoff. Legacy callbacks that outlive cancellation
+lose their recovery send capability, and late faults are observed. A recovery send
+also stops waiting when its scope expires even if the transport ignores cancellation.
+
 ### Retry policy — `IChannelReconnectPolicy`
 
 The default `ExponentialBackoffChannelReconnectPolicy` mirrors the
@@ -721,46 +741,87 @@ share a single `IRetryBudget` for each outer reconnect cycle:
    The manager coalesces concurrent triggers from multiple sessions on
    the same channel, retries the transport open according to its
    `IChannelReconnectPolicy`, then notifies attached sessions via
-   `OnReconnectAsync`.
+   `OnReconnectAsync`. This initial channel-owned cycle has its own finite
+   `ManagedSessionOptions.ChannelReconnectTimeout`.
 2. **Outer state stays `Connected` while the manager handles it.**
    `ManagedSession` subscribes to `IManagedTransportChannel.StateChanged`;
    while the manager is in `TransportReconnecting` /
    `TransportConnectedSessionReactivating`, `ManagedSession` suppresses
-   the keep-alive-driven outer state-machine churn.
+   the keep-alive-driven outer state-machine churn. Suppression is logged at
+   Information level with elapsed recovery time; it does not restart the deadline.
 3. **Outer retry shares its deadline with channel retry.** When the
    channel transitions to `Faulted`, `ManagedSession.StateChanged`
    raises `ConnectionState.Reconnecting`. The outer `IReconnectPolicy`
    schedules `Session.ReconnectAsync(ct)` and passes the same retry
    budget into `IClientChannelManager.ReconnectAsync(channel, budget, ct)`.
-   Both layers cap their delays to the remaining time and stop scheduling
-   retries when the budget is exhausted.
+   Both layers cap their delays to the remaining time. The channel manager
+   enforces the tighter of that remaining outer budget and its participant
+   deadlines throughout transport open, reactivation, recreation and restoration.
+
+`ChannelReconnectTimeout` defaults to `null`, selecting
+`max(3 * KeepAliveInterval, revised SessionTimeout, OperationTimeout)` in
+milliseconds. Only positive finite settings contribute; the requested session
+timeout is used until a usable revised timeout is available. Automatic values are
+clamped to the supported timer range. Changing keep-alive settings affects the
+next cycle, not the active one. An explicit override must be positive and no
+larger than `uint.MaxValue - 1` milliseconds. `Timeout.InfiniteTimeSpan` is the
+explicit opt-out; zero and other negative values are rejected.
+
+The deadline uses the manager's injected `TimeProvider`, including on .NET
+Framework. Partial progress, per-callback timeout retries and certificate changes
+do not renew the window. A tighter coalesced caller shortens an in-flight
+operation; a looser caller cannot extend it. Provisional `Ready`, which admits
+subscription-restoration requests, does not finish the cycle.
+
+On expiry the manager cancels recovery scopes, waits for built-in session
+cleanup, retires cycle ownership, and publishes `Faulted`. A Warning records
+the effective duration, elapsed time and phase. The existing outer state machine
+can then retry, fail over or close without another keep-alive tick. Late
+transport results cannot restore the old entry to `Ready`; late-opened transports
+are closed. Session recreation still drains cancelled Publish attempts completely
+before replacing session/subscription state. The deadline never bypasses that drain.
+
+Custom `IClientChannelManager` implementations must implement the optional
+participant budgets, in-flight cancellation and ownership ordering to provide
+the same guarantee. Setting the managed-session option alone cannot impose
+those semantics on a custom manager.
 
 `ReconnectPolicyOptions.MaxTotalReconnectTime` defaults to five
 minutes. Set it to the end-to-end reconnect window your application
 expects; channel-manager delays are automatically shrunk to fit inside
-that window instead of receiving a fresh budget on every outer attempt.
+that window instead of receiving a fresh budget on every outer attempt. This
+outer window starts when the outer state machine takes recovery ownership;
+it is separate from the initial channel-only window described above.
 
 For example, with `MaxTotalReconnectTime = TimeSpan.FromSeconds(30)`,
-a channel-manager reconnect that spends 27 seconds reopening transport
+a channel-manager reconnect within an active outer cycle that spends 27 seconds reopening transport
 and reactivating participants leaves about three seconds for any outer
 `ManagedSession` retry / failover decision. The channel manager clamps
 its next scheduled delay to the remaining time and transitions to
 `Faulted` once the shared budget is exhausted; the outer state machine
 then fails over or closes instead of starting another 30-second channel
-retry window. The result is one roughly 30-second reconnect cycle (plus
-any already in-flight attempt), not 30 seconds per layer or per outer
-attempt.
+retry window. In-flight channel recovery is cancelled at the deadline rather
+than being granted an additional unbounded attempt; only cooperative local
+cleanup precedes the handoff.
 
 ```csharp
 ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
     .UseEndpoint(endpoint)
     .WithChannelManager(channelManager)
+    .WithChannelReconnectTimeout(TimeSpan.FromSeconds(15))
     .WithReconnectPolicy(p => p with
     {
         MaxTotalReconnectTime = TimeSpan.FromSeconds(30)
     })
     .ConnectAsync(ct);
 ```
+
+The same setting is available through DI's `OpcUaClientOptions.Session` or direct
+construction with `ManagedSession.CreateAsync(options, configuration, sessionFactory,
+channelManager: channelManager, ct: ct)`, where `options` is a
+`ManagedSessionOptions` snapshot. Existing factory overloads select the automatic
+bound. Use `.WithChannelReconnectTimeout(Timeout.InfiniteTimeSpan)` to opt out of
+the participant-imposed bound; explicit caller budgets still apply.
 
 For migration notes on the budget-aware APIs, see
 [the migration guide](MigrationGuide.md#shared-reconnect-budget-for-managedsession-and-the-channel-manager).
@@ -807,7 +868,7 @@ The metric tag set is also bounded for routine operation:
 | `opc.ua.channel.gate.wait` | `endpoint` |
 | `opc.ua.channel.participant.timeout.count` / `opc.ua.channel.participant.recreate.count` | `endpoint`, `participant` (+ `success` on recreate) |
 
-`outcome` is one of `success`, `transient-failure`, `policy-exhausted`, `fatal-channel`. `reason` is one of `lease-released`, `manager-disposed`, `faulted`. `endpoint` cardinality is bounded by the number of distinct OPC UA endpoint URLs the application connects to.
+`outcome` is one of `success`, `transient-failure`, `policy-exhausted`, `deadline-expired`, `fatal-channel`. `reason` is one of `lease-released`, `manager-disposed`, `faulted`. `endpoint` cardinality is bounded by the number of distinct OPC UA endpoint URLs the application connects to.
 
 > The `participant` tag carries the **kind prefix** of the participant identifier (e.g. `"Session"`, `"Client"`), not the per-instance suffix. This keeps cardinality bounded by the small set of participant kinds rather than growing with every session / reconnect-storm participant ever created. The full per-instance `IReconnectParticipant.Id` is preserved on Activity tags and on the `Opc.Ua.ChannelManager` structured logs above so individual sessions remain correlatable in distributed traces. Custom participants that don't use the "kind-`-`-instance" naming convention contribute their full id to the tag, so prefer the prefix-then-suffix shape for new participant types.
 

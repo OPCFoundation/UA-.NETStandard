@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -76,8 +77,7 @@ namespace Opc.Ua
         /// current cycle (0-based). A value of <c>-1</c> indicates the
         /// manager is shutting down the channel and the participant
         /// should release any state associated with it.</param>
-        /// <param name="ct">Cancellation token bound to the manager's
-        /// shutdown.</param>
+        /// <param name="ct">Cancellation for shutdown, the cycle deadline, or this callback's timeout.</param>
         /// <returns>
         /// A <see cref="ParticipantReconnectResult"/> describing the
         /// outcome from this participant's perspective.
@@ -100,7 +100,7 @@ namespace Opc.Ua
         /// The recovery view supplied to <see cref="OnReconnectAsync"/> remains valid
         /// during this callback, but must not be used after it completes.
         /// </remarks>
-        /// <param name="ct">Cancellation token bound to the manager's shutdown.</param>
+        /// <param name="ct">Cancellation for shutdown, the cycle deadline, or this callback's timeout.</param>
         /// <returns>The asynchronous recreation work.</returns>
         ValueTask RecreateAsync(CancellationToken ct = default)
         {
@@ -108,6 +108,27 @@ namespace Opc.Ua
             return new ValueTask();
         }
 #endif
+    }
+
+    /// <summary>
+    /// Optionally supplies a deadline for a new shared channel recovery cycle.
+    /// </summary>
+    /// <remarks>
+    /// The manager combines participant and caller budgets, keeping the earliest deadline.
+    /// This callback must return promptly and must not start recovery itself.
+    /// Implementations must observe recovery cancellation and finish their local cleanup.
+    /// The manager joins their cancelled recovery callbacks before handing the channel to another owner.
+    /// Final shutdown notifications must release session state before their first asynchronous wait;
+    /// their remaining best-effort cleanup does not postpone a deadline-triggered handoff.
+    /// </remarks>
+    public interface IReconnectBudgetParticipant : IReconnectParticipant
+    {
+        /// <summary>
+        /// Creates a fresh budget for one recovery cycle, or returns null for no participant-imposed limit.
+        /// </summary>
+        /// <param name="timeProvider">The channel manager's monotonic clock.</param>
+        /// <returns>The cycle budget, or null to leave the deadline to other participants and callers.</returns>
+        IRetryBudget? CreateReconnectBudget(TimeProvider timeProvider);
     }
 
     /// <summary>
@@ -128,7 +149,7 @@ namespace Opc.Ua
         /// The recovery view supplied to <see cref="IReconnectParticipant.OnReconnectAsync"/>
         /// remains valid during this callback, but must not be used after it completes.
         /// </remarks>
-        /// <param name="ct">Cancellation token bound to the manager's shutdown.</param>
+        /// <param name="ct">Cancellation for shutdown, the cycle deadline, or this callback's timeout.</param>
         /// <returns>The asynchronous recreation work.</returns>
 #if NETSTANDARD2_1 || NET8_0_OR_GREATER
         new ValueTask RecreateAsync(CancellationToken ct = default);

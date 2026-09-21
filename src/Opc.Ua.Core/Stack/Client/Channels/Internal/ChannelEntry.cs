@@ -473,6 +473,11 @@ namespace Opc.Ua
                 participantCount = m_leases.Count(l => l.IsActive);
                 participantId = lease.Participant.Id;
                 teardown = m_refcount == 0 && m_operationRef == 0;
+                if (m_refcount == 0 && m_reconnectDeadline != null)
+                {
+                    m_closing = true;
+                    m_reconnectDeadline.Cancel();
+                }
                 if (teardown && m_state == ChannelState.Faulted)
                 {
                     reason = ChannelCloseReason.Faulted;
@@ -520,7 +525,12 @@ namespace Opc.Ua
             IRetryBudget? budget,
             CancellationToken ct)
         {
+            if (ct.IsCancellationRequested)
+            {
+                return Task.FromCanceled<bool>(ct);
+            }
             TaskCompletionSource<bool> tcs;
+            ReconnectDeadline deadline;
             bool starter;
             lock (m_lock)
             {
@@ -548,6 +558,7 @@ namespace Opc.Ua
                 {
                     // already running — join it
                     tcs = m_reconnectCoalescer;
+                    deadline = m_reconnectDeadline!;
                     starter = false;
                 }
                 else
@@ -555,6 +566,8 @@ namespace Opc.Ua
                     tcs = new TaskCompletionSource<bool>(
                         TaskCreationOptions.RunContinuationsAsynchronously);
                     m_reconnectCoalescer = tcs;
+                    deadline = new ReconnectDeadline(OwnerManager.TimeProvider, OwnerManager.ShutdownToken);
+                    m_reconnectDeadline = deadline;
                     starter = true;
                     // hold an internal op ref so disposal during
                     // reconnect doesn't tear down the entry
@@ -562,16 +575,29 @@ namespace Opc.Ua
                 }
             }
 
+            try
+            {
+                deadline.Tighten(budget);
+            }
+            catch (Exception ex)
+            {
+                if (starter)
+                {
+                    _ = CompleteRejectedReconnectAsync(tcs, ex);
+                    return tcs.Task.WaitAsync(ct);
+                }
+                return Task.FromException<bool>(ex);
+            }
             if (starter)
             {
                 // The cycle's own outcome is observed through tcs, but the manager
                 // still has to know the work exists so disposal waits for it.
                 if (!OwnerManager.BackgroundWork.Run(
                     nameof(RunReconnectCycleAsync),
-                    async _ => await RunReconnectCycleAsync(tcs).ConfigureAwait(false)))
+                    async _ => await RunReconnectCycleAsync(tcs, deadline).ConfigureAwait(false)))
                 {
                     // The manager is going away; nothing will run the cycle.
-                    tcs.TrySetException(ServiceResultException.Create(
+                    _ = CompleteRejectedReconnectAsync(tcs, ServiceResultException.Create(
                         StatusCodes.BadSecureChannelClosed,
                         "Channel manager is shutting down."));
                 }
@@ -580,21 +606,45 @@ namespace Opc.Ua
             return tcs.Task.WaitAsync(ct);
         }
 
+        private async Task CompleteRejectedReconnectAsync(TaskCompletionSource<bool> completion, Exception error)
+        {
+            await DisposeReconnectDeadlineAsync().ConfigureAwait(false);
+            lock (m_lock)
+            {
+                ReleaseReconnectOwnershipLocked();
+            }
+            completion.TrySetException(error);
+        }
+
+        private async ValueTask DisposeReconnectDeadlineAsync()
+        {
+            try
+            {
+                if (m_reconnectDeadline != null)
+                {
+                    await m_reconnectDeadline.DisposeAsync().ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                OwnerManager.Logger?.ChannelReconnectCancellationFailed(ex);
+            }
+        }
+
         /// <summary>
-        /// Whether the most recent reconnect cycle on this entry stopped because the
-        /// reconnect policy ran out of attempts or the caller's retry budget ran out
-        /// of time, rather than because it lost a race against a concurrent close.
+        /// Whether the most recent cycle stopped on a policy, deadline or fatal-participant verdict,
+        /// rather than losing a race against a concurrent close.
         /// </summary>
         /// <remarks>
-        /// Both stops leave the entry <see cref="ChannelState.Faulted"/> and surface
+        /// These stops leave the entry <see cref="ChannelState.Faulted"/> and surface
         /// the same <see cref="StatusCodes.BadSecureChannelClosed"/> to the caller, so
         /// the state and status code alone cannot tell them apart. Only a genuine race
         /// is worth retrying on a freshly swapped entry; retrying a deliberate stop
         /// would run a second, unbudgeted reconnect cycle behind the swap back-off and
         /// defeat the very limit that ended the first one.
         /// </remarks>
-        internal bool ReconnectStoppedByRetryPolicy
-            => Volatile.Read(ref m_reconnectStoppedByRetryPolicy) != 0;
+        internal bool ReconnectStoppedIntentionally
+            => Volatile.Read(ref m_reconnectStoppedIntentionally) != 0;
 
         /// <summary>
         /// Consumes a pending retry-delay hint when the current transport supports server-provided backoff.
@@ -705,17 +755,37 @@ namespace Opc.Ua
         internal async ValueTask DisposeAsync(ChannelCloseReason reason)
         {
             List<ManagedTransportChannelLease> leases;
+            Task<bool>? reconnect;
             lock (m_lock)
             {
+                m_closing = true;
                 leases = [.. m_leases];
                 m_leases.Clear();
                 m_refcount = 0;
+                reconnect = m_reconnectCoalescer?.Task;
+                m_reconnectDeadline?.Cancel();
             }
             foreach (ManagedTransportChannelLease lease in leases)
             {
                 lease.MarkReleased();
                 OwnerManager.OnEntryParticipantDetached(this, lease.Participant.Id, 0, 0);
             }
+            if (reconnect != null)
+            {
+                try
+                {
+                    await reconnect.ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Closing the entry cancels its in-flight cycle.
+                }
+                catch (Exception ex)
+                {
+                    OwnerManager.Logger?.ChannelReconnectCancellationFailed(ex);
+                }
+            }
+            await DisposeReconnectDeadlineAsync().ConfigureAwait(false);
             await TearDownAsync(reason).ConfigureAwait(false);
         }
 
@@ -814,11 +884,12 @@ namespace Opc.Ua
         /// its coalescer and operation reference.
         /// </summary>
         private async Task RunReconnectCycleAsync(
-            TaskCompletionSource<bool> tcs)
+            TaskCompletionSource<bool> tcs,
+            ReconnectDeadline deadline)
         {
             try
             {
-                bool reconnected = await ReconnectCycleAsync().ConfigureAwait(false);
+                bool reconnected = await ReconnectCycleAsync(deadline).ConfigureAwait(false);
                 tcs.TrySetResult(reconnected);
             }
             catch (Exception ex)
@@ -831,51 +902,63 @@ namespace Opc.Ua
         /// Reconnects the transport and its participants within the retry policy while rejecting superseded
         /// certificates.
         /// </summary>
-        private async Task<bool> ReconnectCycleAsync()
+        private async Task<bool> ReconnectCycleAsync(ReconnectDeadline deadline)
         {
             using Activity? activity = OwnerManager.StartReconnectActivity(this);
             long startingTimestamp = OwnerManager.TimeProvider.GetTimestamp();
             string finalOutcome = kReconnectOutcomeTransientFailure;
             ServiceResult? finalError = null;
             int attemptsStarted = 0;
+            int terminalAttempt = 0;
+            bool terminal = false;
 
             // A fresh cycle has not yet decided to stop, so any stale verdict from
             // an earlier cycle on this entry must not leak into it.
-            Volatile.Write(ref m_reconnectStoppedByRetryPolicy, 0);
+            Volatile.Write(ref m_reconnectStoppedIntentionally, 0);
 
-            CancellationToken shutdownToken = OwnerManager.ShutdownToken;
+            CancellationToken cycleToken = deadline.Token;
 
             async Task StopWithFaultAsync(
                 ServiceResult error,
-                string message,
                 int failedAttempt)
             {
                 finalError = error;
-                TransitionTo(
-                    ChannelState.Faulted,
-                    error,
-                    failedAttempt);
-                FailReady(new ServiceResultException(
-                    StatusCodes.BadSecureChannelClosed,
-                    message));
+                terminal = true;
+                terminalAttempt = failedAttempt;
 
                 // Record before completing the waiters: this is a deliberate stop
                 // (the retry policy or the caller's budget said so), not a lost race
                 // against a concurrent close, and callers inspect the flag as soon
                 // as the reconnect result completes.
-                Volatile.Write(ref m_reconnectStoppedByRetryPolicy, 1);
+                Volatile.Write(ref m_reconnectStoppedIntentionally, 1);
 
-                await NotifyParticipantsFinalAsync().ConfigureAwait(false);
+                await NotifyParticipantsFinalAsync(cycleToken).ConfigureAwait(false);
                 finalOutcome = kReconnectOutcomePolicyExhausted;
                 OwnerManager.RecordReconnectAttempt(this, finalOutcome);
             }
 
             try
             {
+                IReconnectBudgetParticipant[] budgetParticipants;
+                lock (m_lock)
+                {
+                    budgetParticipants = [.. m_leases.Where(lease => lease.IsActive)
+                        .Select(lease => lease.Participant).OfType<IReconnectBudgetParticipant>()];
+                }
+                foreach (IReconnectBudgetParticipant participant in budgetParticipants)
+                {
+                    IRetryBudget? participantBudget = participant.CreateReconnectBudget(OwnerManager.TimeProvider);
+                    deadline.Tighten(participantBudget);
+                    lock (m_lock)
+                    {
+                        m_effectiveBudget = TighterOf(m_effectiveBudget, participantBudget);
+                    }
+                }
+
                 int attempt = 0;
                 while (true)
                 {
-                    shutdownToken.ThrowIfCancellationRequested();
+                    deadline.ThrowIfCancellationRequested();
                     // Re-read the effective budget every iteration so a
                     // late joiner can tighten an in-flight cycle.
                     IRetryBudget? budget = GetEffectiveBudget();
@@ -887,7 +970,6 @@ namespace Opc.Ua
                             attempt);
                         await StopWithFaultAsync(
                                 error,
-                                "Channel reconnect budget exhausted.",
                                 attempt)
                             .ConfigureAwait(false);
                         return false;
@@ -916,7 +998,6 @@ namespace Opc.Ua
                             attempt);
                         await StopWithFaultAsync(
                                 error,
-                                "Channel reconnect policy exhausted.",
                                 attempt)
                             .ConfigureAwait(false);
                         return false;
@@ -933,9 +1014,9 @@ namespace Opc.Ua
                     {
                         try
                         {
-                            await DelayAsync(delay, shutdownToken).ConfigureAwait(false);
+                            await DelayAsync(delay, cycleToken).ConfigureAwait(false);
                         }
-                        catch (OperationCanceledException) when (!shutdownToken.IsCancellationRequested)
+                        catch (OperationCanceledException) when (!cycleToken.IsCancellationRequested)
                         {
                             // delay-cancelled by unrelated source — ignore and try
                         }
@@ -944,6 +1025,7 @@ namespace Opc.Ua
                     // Re-read after the delay: a joiner that arrived
                     // while we were sleeping may have tightened the
                     // budget, or the existing budget may have expired.
+                    deadline.ThrowIfCancellationRequested();
                     budget = GetEffectiveBudget();
                     if (budget != null && budget.IsExhausted)
                     {
@@ -953,7 +1035,6 @@ namespace Opc.Ua
                             attempt);
                         await StopWithFaultAsync(
                                 error,
-                                "Channel reconnect budget exhausted.",
                                 attempt)
                             .ConfigureAwait(false);
                         return false;
@@ -961,9 +1042,11 @@ namespace Opc.Ua
 
                     try
                     {
-                        await EnsureTransportConnectedAsync(shutdownToken).ConfigureAwait(false);
+                        Task transport = EnsureTransportConnectedAsync(cycleToken);
+                        ObserveRecoveryTask(transport);
+                        await transport.WaitAsync(cycleToken).ConfigureAwait(false);
                     }
-                    catch (OperationCanceledException) when (shutdownToken.IsCancellationRequested)
+                    catch (OperationCanceledException) when (cycleToken.IsCancellationRequested)
                     {
                         throw;
                     }
@@ -976,6 +1059,7 @@ namespace Opc.Ua
                         continue;
                     }
 
+                    deadline.ThrowIfCancellationRequested();
                     TransitionTo(
                         ChannelState.TransportConnectedSessionReactivating,
                         error: null,
@@ -984,10 +1068,10 @@ namespace Opc.Ua
                     AggregatedReactivationOutcome outcome;
                     try
                     {
-                        outcome = await NotifyParticipantsAsync(attempt, shutdownToken)
+                        outcome = await NotifyParticipantsAsync(attempt, cycleToken)
                             .ConfigureAwait(false);
                     }
-                    catch (OperationCanceledException) when (shutdownToken.IsCancellationRequested)
+                    catch (OperationCanceledException) when (cycleToken.IsCancellationRequested)
                     {
                         throw;
                     }
@@ -1002,17 +1086,13 @@ namespace Opc.Ua
 
                     if (outcome.FatalForChannel)
                     {
+                        Volatile.Write(ref m_reconnectStoppedIntentionally, 1);
                         finalError = ServiceResult.Create(
                             StatusCodes.BadSecureChannelClosed,
                             "Participant signaled fatal channel error.");
-                        TransitionTo(
-                            ChannelState.Faulted,
-                            finalError,
-                            attempt);
-                        FailReady(new ServiceResultException(
-                            StatusCodes.BadSecureChannelClosed,
-                            "Participant signaled fatal channel error."));
-                        await NotifyParticipantsFinalAsync().ConfigureAwait(false);
+                        terminal = true;
+                        terminalAttempt = attempt;
+                        await NotifyParticipantsFinalAsync(cycleToken).ConfigureAwait(false);
                         finalOutcome = kReconnectOutcomeFatalChannel;
                         OwnerManager.RecordReconnectAttempt(this, finalOutcome);
                         return false;
@@ -1044,14 +1124,14 @@ namespace Opc.Ua
                         }
                     }
 
-                    shutdownToken.ThrowIfCancellationRequested();
+                    deadline.ThrowIfCancellationRequested();
                     TransitionTo(ChannelState.Ready, error: null, attempt);
                     SignalReady();
                     try
                     {
-                        await CompleteParticipantRecoveryAsync(shutdownToken).ConfigureAwait(false);
+                        await CompleteParticipantRecoveryAsync(cycleToken).ConfigureAwait(false);
                     }
-                    catch (OperationCanceledException) when (shutdownToken.IsCancellationRequested)
+                    catch (OperationCanceledException) when (cycleToken.IsCancellationRequested)
                     {
                         throw;
                     }
@@ -1064,10 +1144,30 @@ namespace Opc.Ua
                         attempt++;
                         continue;
                     }
+                    if (!deadline.TryComplete())
+                    {
+                        throw new OperationCanceledException(cycleToken);
+                    }
                     finalOutcome = kReconnectOutcomeSuccess;
                     OwnerManager.RecordReconnectAttempt(this, finalOutcome);
                     return true;
                 }
+            }
+            catch (OperationCanceledException) when (
+                deadline.Expired && !OwnerManager.ShutdownToken.IsCancellationRequested)
+            {
+                terminal = true;
+                terminalAttempt = attemptsStarted;
+                Volatile.Write(ref m_reconnectStoppedIntentionally, 1);
+                finalError = ServiceResult.Create(
+                    StatusCodes.BadSecureChannelClosed,
+                    "Channel recovery deadline expired after {0}.",
+                    deadline.Elapsed);
+                finalOutcome = kReconnectOutcomeDeadlineExpired;
+                OwnerManager.Logger?.ChannelReconnectDeadlineExpired(deadline.Duration, deadline.Elapsed, State);
+                await NotifyParticipantsFinalAsync(cycleToken).ConfigureAwait(false);
+                OwnerManager.RecordReconnectAttempt(this, finalOutcome);
+                return false;
             }
             catch (Exception ex)
             {
@@ -1076,6 +1176,20 @@ namespace Opc.Ua
             }
             finally
             {
+                await DisposeReconnectDeadlineAsync().ConfigureAwait(false);
+
+                if (terminal)
+                {
+                    TransitionTo(
+                        ChannelState.Faulted, finalError, terminalAttempt, releaseReconnectOwnership: true);
+                }
+                else
+                {
+                    lock (m_lock)
+                    {
+                        ReleaseReconnectOwnershipLocked();
+                    }
+                }
                 OwnerManager.CompleteReconnectActivity(activity, this, attemptsStarted, finalOutcome, finalError);
                 OwnerManager.RecordReconnectDuration(
                     this,
@@ -1086,11 +1200,6 @@ namespace Opc.Ua
                 ChannelCloseReason teardownReason = ChannelCloseReason.LeaseReleased;
                 lock (m_lock)
                 {
-                    m_reconnectCoalescer = null;
-                    // Clear the coalesced budget so a brand-new cycle
-                    // starts unconstrained until its own callers tighten it.
-                    m_effectiveBudget = null;
-                    m_operationRef--;
                     teardown = m_refcount == 0 &&
                         m_operationRef == 0 &&
                         m_state != ChannelState.Closed;
@@ -1101,9 +1210,17 @@ namespace Opc.Ua
                 }
                 if (teardown)
                 {
-                    await TearDownAsync(teardownReason).ConfigureAwait(false);
+                    await TearDownAsync(teardownReason, onlyIfUnused: true).ConfigureAwait(false);
                 }
             }
+        }
+
+        private void ReleaseReconnectOwnershipLocked()
+        {
+            m_reconnectCoalescer = null;
+            m_reconnectDeadline = null;
+            m_effectiveBudget = null;
+            m_operationRef--;
         }
 
         /// <summary>
@@ -1135,6 +1252,11 @@ namespace Opc.Ua
                     try
                     {
                         await underlying.Channel.ReconnectAsync(ReverseConnection, ct).ConfigureAwait(false);
+                        if (ct.IsCancellationRequested)
+                        {
+                            await CloseTransportBestEffortAsync(underlying).ConfigureAwait(false);
+                        }
+                        ct.ThrowIfCancellationRequested();
                         MarkOpened();
                         return;
                     }
@@ -1155,7 +1277,7 @@ namespace Opc.Ua
                 bool entryClosed;
                 lock (m_lock)
                 {
-                    entryClosed = IsClosingLocked;
+                    entryClosed = IsClosingLocked || ct.IsCancellationRequested;
                     if (entryClosed)
                     {
                         old = null;
@@ -1282,6 +1404,12 @@ namespace Opc.Ua
                     ct).ConfigureAwait(false);
                 transport = new OwnedTransport(channel, certificates);
                 certificates = null;
+                if (IsClosing)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecureChannelClosed, "Channel is {0}.", State);
+                }
+                ct.ThrowIfCancellationRequested();
                 MarkOpened();
                 OwnerManager.OnEntryOpened(this);
                 return transport;
@@ -1331,13 +1459,14 @@ namespace Opc.Ua
                 {
                     using var callback = CancellationTokenSource.CreateLinkedTokenSource(ct);
                     using IManagedTransportChannel view = lease.CreateReactivationView(callback.Token);
+                    Task<ParticipantReconnectResult>? reconnectTask = null;
                     try
                     {
-                        Task<ParticipantReconnectResult> reconnectTask =
+                        reconnectTask =
                             lease.Participant is IChannelRecoveryParticipant recovery
                                 ? recovery.OnReconnectAsync(lease, view, attempt, callback.Token).AsTask()
                                 : lease.Participant.OnReconnectAsync(view, attempt, callback.Token).AsTask();
-                        ObserveFaultedParticipantTask(reconnectTask);
+                        ObserveRecoveryTask(reconnectTask);
                         ParticipantReconnectResult result = participantTimeout == Timeout.InfiniteTimeSpan
                             ? await reconnectTask.WaitAsync(ct).ConfigureAwait(false)
                             : await reconnectTask
@@ -1351,7 +1480,7 @@ namespace Opc.Ua
                         if (lease.Participant is IChannelRecoveryParticipant)
                         {
                             view.Dispose();
-                            callback.Cancel();
+                            await callback.CancelAsync().ConfigureAwait(false);
                         }
                         // Legacy RecreateAsync has no channel parameter and uses the view supplied above.
                         bool recreated = await RecreateParticipantAsync(lease, participantTimeout, ct)
@@ -1383,7 +1512,8 @@ namespace Opc.Ua
                     }
                     finally
                     {
-                        callback.Cancel();
+                        await CancelParticipantWorkAsync(lease.Participant, callback, reconnectTask)
+                            .ConfigureAwait(false);
                     }
                 }, ct))];
 
@@ -1440,9 +1570,10 @@ namespace Opc.Ua
             using ITransportChannel? view = participant is IChannelRecoveryParticipant
                 ? lease.CreateReactivationView(callback.Token)
                 : null;
+            Task? work = null;
             try
             {
-                Task work = participant is IChannelRecoveryParticipant recovery
+                work = participant is IChannelRecoveryParticipant recovery
                     ? recovery.RecreateAsync(lease, view!, callback.Token).AsTask()
                     : ResolveRecreateInvocation(participant, callback.Token).AsTask();
                 await AwaitParticipantWorkAsync(work, timeout, ct).ConfigureAwait(false);
@@ -1468,7 +1599,7 @@ namespace Opc.Ua
             }
             finally
             {
-                callback.Cancel();
+                await CancelParticipantWorkAsync(participant, callback, work).ConfigureAwait(false);
             }
         }
 
@@ -1484,21 +1615,22 @@ namespace Opc.Ua
             await Task.WhenAll(participants.Select(async participant =>
             {
                 using var callback = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                Task? work = null;
                 try
                 {
-                    await AwaitParticipantWorkAsync(
-                        participant.CompleteRecoveryAsync(callback.Token).AsTask(), timeout, ct).ConfigureAwait(false);
+                    work = participant.CompleteRecoveryAsync(callback.Token).AsTask();
+                    await AwaitParticipantWorkAsync(work, timeout, ct).ConfigureAwait(false);
                 }
                 finally
                 {
-                    callback.Cancel();
+                    await CancelParticipantWorkAsync(participant, callback, work).ConfigureAwait(false);
                 }
             })).ConfigureAwait(false);
         }
 
         private async Task AwaitParticipantWorkAsync(Task work, TimeSpan timeout, CancellationToken ct)
         {
-            ObserveFaultedParticipantTask(work);
+            ObserveRecoveryTask(work);
             if (timeout == Timeout.InfiniteTimeSpan)
             {
                 await work.WaitAsync(ct).ConfigureAwait(false);
@@ -1506,6 +1638,38 @@ namespace Opc.Ua
             else
             {
                 await work.WaitAsync(timeout, OwnerManager.TimeProvider, ct).ConfigureAwait(false);
+            }
+        }
+
+        private async Task CancelParticipantWorkAsync(
+            IReconnectParticipant participant,
+            CancellationTokenSource callback,
+            Task? work)
+        {
+            try
+            {
+                await callback.CancelAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                OwnerManager.Logger?.ChannelReconnectCancellationFailed(ex);
+            }
+
+            // Budget-aware participants promise to unwind local state before another owner can recover it.
+            // Legacy callbacks may ignore cancellation; their expired send views remain quarantined instead.
+            if (participant is IReconnectBudgetParticipant && work != null)
+            {
+                try
+                {
+                    await work.ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (callback.IsCancellationRequested)
+                {
+                }
+                catch (Exception ex)
+                {
+                    OwnerManager.Logger?.ChannelEntryLog6(ex, participant.Id);
+                }
             }
         }
 
@@ -1546,7 +1710,7 @@ namespace Opc.Ua
 #endif
         }
 
-        private static void ObserveFaultedParticipantTask(Task task)
+        internal static void ObserveRecoveryTask(Task task)
         {
             _ = task.ContinueWith(
                 static faultedTask => _ = faultedTask.Exception,
@@ -1555,7 +1719,7 @@ namespace Opc.Ua
                 TaskScheduler.Default);
         }
 
-        private async Task NotifyParticipantsFinalAsync()
+        private async Task NotifyParticipantsFinalAsync(CancellationToken ct)
         {
             ManagedTransportChannelLease[] snapshot;
             lock (m_lock)
@@ -1566,41 +1730,67 @@ namespace Opc.Ua
             {
                 return;
             }
-            Task[] tasks = [.. snapshot.Select(lease => Task.Run(async () =>
+            TimeSpan timeout = ResolveParticipantTimeout(OwnerManager.ReconnectPolicy);
+            if (timeout == Timeout.InfiniteTimeSpan)
             {
+                timeout = TimeSpan.FromSeconds(5);
+            }
+            Task[] tasks = [.. snapshot.Select(async lease =>
+            {
+                using var callback = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                CancellationToken callbackToken = callback.Token;
                 try
                 {
-                    await lease.Participant.OnReconnectAsync(lease, -1, default)
-                        .ConfigureAwait(false);
+                    Task work = lease.Participant is IReconnectBudgetParticipant
+                        ? lease.Participant.OnReconnectAsync(lease, -1, callbackToken).AsTask()
+                        : Task.Run(() => lease.Participant.OnReconnectAsync(lease, -1, callbackToken).AsTask());
+                    await AwaitParticipantWorkAsync(work, timeout, ct).ConfigureAwait(false);
                 }
-                catch
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
                 {
-                    // best-effort final notification
                 }
-            }))];
-            try
-            {
-                await Task.WhenAll(tasks).ConfigureAwait(false);
-            }
-            catch
-            {
-                // best-effort final notification
-            }
+                catch (Exception ex)
+                {
+                    OwnerManager.Logger?.ChannelEntryLog6(ex, lease.Participant.Id);
+                }
+                finally
+                {
+                    await CancelParticipantWorkAsync(lease.Participant, callback, work: null).ConfigureAwait(false);
+                }
+            })];
+            await Task.WhenAll(tasks).ConfigureAwait(false);
         }
 
-        private void TransitionTo(ChannelState next, ServiceResult? error, int attempt)
+        private void TransitionTo(
+            ChannelState next,
+            ServiceResult? error,
+            int attempt,
+            bool releaseReconnectOwnership = false)
         {
             ChannelState previous;
             IManagedTransportChannel[] subjects;
             Action<IManagedTransportChannel, ChannelStateChange>? handler;
             lock (m_lock)
             {
+                if (releaseReconnectOwnership)
+                {
+                    ReleaseReconnectOwnershipLocked();
+                }
                 previous = m_state;
-                if (previous == next)
+                if (previous == next ||
+                    ((m_closing || previous is ChannelState.Closed or ChannelState.Faulted) &&
+                        next != ChannelState.Closed))
                 {
                     return;
                 }
                 m_state = next;
+                if (next == ChannelState.Faulted)
+                {
+                    Interlocked.Increment(ref m_reconnectGeneration);
+                    m_readyGate.TrySetException(new ServiceResultException(
+                        StatusCodes.BadSecureChannelClosed, "Channel recovery failed."));
+                    ObserveRecoveryTask(m_readyGate.Task);
+                }
                 if (next == ChannelState.TransportReconnecting)
                 {
                     Interlocked.Increment(ref m_reconnectGeneration);
@@ -1645,6 +1835,7 @@ namespace Opc.Ua
             lock (m_lock)
             {
                 m_readyGate.TrySetException(ex);
+                ObserveRecoveryTask(m_readyGate.Task);
             }
         }
 
@@ -1670,6 +1861,7 @@ namespace Opc.Ua
         private const string kReconnectOutcomeTransientFailure = "transient-failure";
         private const string kReconnectOutcomeFatalChannel = "fatal-channel";
         private const string kReconnectOutcomePolicyExhausted = "policy-exhausted";
+        private const string kReconnectOutcomeDeadlineExpired = "deadline-expired";
         private readonly Lock m_lock = new();
         private readonly List<ManagedTransportChannelLease> m_leases = [];
         private int m_refcount;
@@ -1711,8 +1903,9 @@ namespace Opc.Ua
         private long m_clientCertificateVersion;
         private TaskCompletionSource<bool> m_readyGate;
         private TaskCompletionSource<bool>? m_reconnectCoalescer;
-        private int m_reconnectStoppedByRetryPolicy;
+        private int m_reconnectStoppedIntentionally;
         private IRetryBudget? m_effectiveBudget;
+        private ReconnectDeadline? m_reconnectDeadline;
     }
 
     /// <summary>
@@ -1767,5 +1960,18 @@ namespace Opc.Ua
             this ILogger logger,
             Exception? exception,
             string participant);
+
+        [LoggerMessage(EventId = CoreEventIds.ChannelEntry + 8, Level = LogLevel.Warning,
+            Message = "ClientChannelManager: recovery deadline {Duration} expired after {Elapsed} in {State}; " +
+                "handing recovery to the session owner.")]
+        public static partial void ChannelReconnectDeadlineExpired(
+            this ILogger logger,
+            TimeSpan duration,
+            TimeSpan elapsed,
+            ChannelState state);
+
+        [LoggerMessage(EventId = CoreEventIds.ChannelEntry + 9, Level = LogLevel.Warning,
+            Message = "ClientChannelManager: a recovery cancellation callback failed.")]
+        public static partial void ChannelReconnectCancellationFailed(this ILogger logger, Exception exception);
     }
 }

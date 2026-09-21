@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using Opc.Ua.Identity;
 
 namespace Opc.Ua.Client
@@ -92,6 +93,19 @@ namespace Opc.Ua.Client
         /// Reconnect policy configuration.
         /// </summary>
         public ReconnectPolicyOptions ReconnectPolicy { get; init; } = new();
+
+        /// <summary>
+        /// Maximum channel-manager recovery time before the outer reconnect policy takes over.
+        /// Null selects the maximum of three keep-alive intervals, the revised session timeout,
+        /// and the operation timeout, sampled at the beginning of each cycle.
+        /// Use <see cref="Timeout.InfiniteTimeSpan"/> to retain unbounded channel recovery.
+        /// A finite override must be positive and at most <c>uint.MaxValue - 1</c> milliseconds.
+        /// </summary>
+        /// <remarks>
+        /// Applies to the built-in channel manager. When sessions share a channel, the earliest
+        /// participant or caller deadline wins. Raw sessions have no implicit deadline.
+        /// </remarks>
+        public TimeSpan? ChannelReconnectTimeout { get; init; }
 
         /// <summary>
         /// Optional shared gate that asynchronously admits initial
@@ -228,5 +242,37 @@ namespace Opc.Ua.Client
         /// </para>
         /// </summary>
         public bool LoadComplexTypes { get; init; }
+
+        internal static bool IsValidChannelReconnectTimeout(TimeSpan? timeout)
+        {
+            return timeout == null ||
+                timeout == Timeout.InfiniteTimeSpan ||
+                (timeout > TimeSpan.Zero && timeout <= s_maxChannelReconnectTimeout);
+        }
+
+        internal static TimeSpan ResolveChannelReconnectTimeout(
+            TimeSpan? timeout,
+            int keepAliveInterval,
+            double sessionTimeout,
+            int operationTimeout)
+        {
+            if (!IsValidChannelReconnectTimeout(timeout))
+            {
+                throw new ArgumentOutOfRangeException(nameof(timeout));
+            }
+            if (timeout.HasValue)
+            {
+                return timeout.Value;
+            }
+
+            double milliseconds = Math.Max(3L * Math.Max(keepAliveInterval, 1), Math.Max(operationTimeout, 0));
+            if (!double.IsNaN(sessionTimeout) && !double.IsInfinity(sessionTimeout) && sessionTimeout > 0)
+            {
+                milliseconds = Math.Max(milliseconds, sessionTimeout);
+            }
+            return TimeSpan.FromMilliseconds(Math.Min(milliseconds, s_maxChannelReconnectTimeout.TotalMilliseconds));
+        }
+
+        private static readonly TimeSpan s_maxChannelReconnectTimeout = TimeSpan.FromMilliseconds(uint.MaxValue - 1);
     }
 }

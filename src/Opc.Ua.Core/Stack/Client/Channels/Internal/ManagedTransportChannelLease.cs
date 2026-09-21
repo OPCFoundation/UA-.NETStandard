@@ -258,7 +258,7 @@ namespace Opc.Ua
                         "Channel has no underlying transport.");
                 try
                 {
-                    return await underlying.SendRequestAsync(request, ct).ConfigureAwait(false);
+                    return await SendTransportRequestAsync(underlying, request, ct).ConfigureAwait(false);
                 }
                 catch (ServiceResultException sre) when (
                     IsActive &&
@@ -312,6 +312,23 @@ namespace Opc.Ua
                     }
                 }
             }
+        }
+
+        private static async ValueTask<IServiceResponse> SendTransportRequestAsync(
+            ITransportChannel transport,
+            IServiceRequest request,
+            CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (!ct.CanBeCanceled)
+            {
+                return await transport.SendRequestAsync(request, ct).ConfigureAwait(false);
+            }
+            Task<IServiceResponse> work = transport.SendRequestAsync(request, ct).AsTask();
+            ChannelEntry.ObserveRecoveryTask(work);
+            IServiceResponse response = await work.WaitAsync(ct).ConfigureAwait(false);
+            ct.ThrowIfCancellationRequested();
+            return response;
         }
 
         private static bool IsIdempotentRequest(IServiceRequest request)
@@ -450,11 +467,7 @@ namespace Opc.Ua
                         StatusCodes.BadInvalidState, "The recovery send channel has expired.");
                 }
                 using var linked = CancellationTokenSource.CreateLinkedTokenSource(scopeToken, ct);
-                linked.Token.ThrowIfCancellationRequested();
-                IServiceResponse response = await transport.SendRequestAsync(request, linked.Token)
-                    .ConfigureAwait(false);
-                linked.Token.ThrowIfCancellationRequested();
-                return response;
+                return await SendTransportRequestAsync(transport, request, linked.Token).ConfigureAwait(false);
             }
 
             public ValueTask CloseAsync(CancellationToken ct = default)
