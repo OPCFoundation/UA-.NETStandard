@@ -202,6 +202,10 @@ namespace Opc.Ua.Tools.Tests
         [TestCase("2.0.0-preview.1.gabc123def0", false)]
         [TestCase("2.0.0+gabc123def0", false)]
         [TestCase("2.0.0-rc.1", false)]
+        [TestCase("2.0.0.7", false)]
+        [TestCase("2.0", false)]
+        [TestCase("2.0.00", false)]
+        [TestCase("2.0.0.0-preview.1", false)]
         public async Task TestStablePackageVersionAsync(string version, bool expectedStable)
         {
             JsonElement result = await RunPolicyScriptAsync(
@@ -230,6 +234,30 @@ namespace Opc.Ua.Tools.Tests
                 """).ConfigureAwait(false);
 
             Assert.That(result.GetProperty("actual").GetBoolean(), Is.EqualTo(expectedCanonical));
+        }
+
+        [TestCase("refs/heads/release/2.0", "2.0.0", true)]
+        [TestCase("refs/heads/release/2.0", "2.0.17", true)]
+        [TestCase("refs/heads/release/2.1", "2.1.0", true)]
+        [TestCase("refs/heads/release/2.0", "2.1.0", false)]
+        [TestCase("refs/heads/release/2.1", "2.0.9", false)]
+        [TestCase("refs/heads/release/2.0.0", "2.0.0", false)]
+        [TestCase("refs/heads/master", "2.0.0", false)]
+        [TestCase("refs/heads/release/2.0", "2.0.0.7", false)]
+        [TestCase("refs/heads/release/2.0", "2.0.0-preview.6", false)]
+        public async Task TestCanonicalReleaseBranchForPackageVersionAsync(
+            string ruleRef,
+            string version,
+            bool expectedMatch)
+        {
+            JsonElement result = await RunPolicyScriptAsync(
+                $$"""
+                . '{{PolicyScriptPath}}'
+                @{ actual = (Test-CanonicalReleaseBranchForPackageVersion -Ref '{{ruleRef}}' -Version '{{version}}') } |
+                    ConvertTo-Json
+                """).ConfigureAwait(false);
+
+            Assert.That(result.GetProperty("actual").GetBoolean(), Is.EqualTo(expectedMatch));
         }
 
         [Test]

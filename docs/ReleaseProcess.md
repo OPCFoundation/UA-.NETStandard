@@ -144,6 +144,16 @@ Every procedure below starts here.
   non-stable candidate), and the `release` GitHub Environment's
   `deployment_branch_policy` (restricts which branch may even execute the
   `release.yml` job).
+- The branch and stable package version must agree: `release/2.0` may
+  release `2.0.p` only, while `release/2.1` may release `2.1.p` only.
+  `Test-CanonicalReleaseBranchForPackageVersion` enforces this in both the
+  candidate and promotion workflows, so a valid-looking `2.1.0` package set
+  cannot be released from `release/2.0`.
+- Azure Pipelines validates the same signed package-set policy as GitHub
+  Actions. Its internal preview-feed upload runs only when the manifest
+  channel is `preview`; a manually queued stable release-line build remains
+  artifact-only and must go through the same approved `release.yml`
+  promotion procedure.
 
 ## First stable release
 

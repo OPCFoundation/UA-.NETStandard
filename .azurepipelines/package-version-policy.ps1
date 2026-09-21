@@ -69,13 +69,15 @@ function Get-ExpectedPackageVersion {
 function Test-StablePackageVersion {
     <#
     .SYNOPSIS
-        Returns $true when a package version is an exact stable release
-        (no SemVer prerelease label and no build metadata), for example
-        "2.0.0" - never "2.0.0-preview.6" or "2.0.0+gabcdef".
+        Returns $true when a package version is an exact stable
+        major.minor.patch release, for example "2.0.0". The predicate
+        deliberately rejects prerelease/build metadata and an old
+        four-component NBGV build version such as "2.0.0.7": package
+        patches are explicit release decisions, never git height.
     #>
     param([Parameter(Mandatory)][string]$Version)
 
-    return $Version -notmatch '[-+]'
+    return $Version -match '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$'
 }
 
 function Test-CanonicalReleaseBranchRef {
@@ -90,4 +92,32 @@ function Test-CanonicalReleaseBranchRef {
     param([Parameter(Mandatory)][string]$Ref)
 
     return $Ref -match '^refs/heads/release/\d+\.\d+$'
+}
+
+function Test-CanonicalReleaseBranchForPackageVersion {
+    <#
+    .SYNOPSIS
+        Returns $true only when a canonical release/M.m branch matches the
+        major/minor components of an exact stable M.m.p package version.
+        This prevents a 2.1.0 candidate being built or promoted from
+        release/2.0 (or the inverse).
+    #>
+    param(
+        [Parameter(Mandatory)][string]$Ref,
+        [Parameter(Mandatory)][string]$Version
+    )
+
+    if (-not (Test-StablePackageVersion -Version $Version)) {
+        return $false
+    }
+
+    $branchMatch = [regex]::Match($Ref, '^refs/heads/release/(?<major>\d+)\.(?<minor>\d+)$')
+    if (-not $branchMatch.Success) {
+        return $false
+    }
+
+    $versionMatch = [regex]::Match($Version, '^(?<major>\d+)\.(?<minor>\d+)\.\d+$')
+    return $versionMatch.Success -and
+        $branchMatch.Groups['major'].Value -eq $versionMatch.Groups['major'].Value -and
+        $branchMatch.Groups['minor'].Value -eq $versionMatch.Groups['minor'].Value
 }

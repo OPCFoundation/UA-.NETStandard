@@ -399,11 +399,14 @@ jobs:
           # candidate from anywhere else - including master - rather than
           # silently building it. See docs/ReleaseProcess.md.
           if ($inventory.channel -eq 'stable' -and
-              -not (Test-CanonicalReleaseBranchRef -Ref '${{ github.ref }}')) {
+              -not (Test-CanonicalReleaseBranchForPackageVersion `
+                  -Ref '${{ github.ref }}' `
+                  -Version $inventory.basePackageVersion)) {
               throw (
                   "Refusing to build a stable package set ($($inventory.basePackageVersion)) " +
                   "from ref '${{ github.ref }}'. Stable releases are only produced from a " +
-                  "canonical release/<major>.<minor> branch.")
+                  "canonical release/<major>.<minor> branch whose major/minor matches " +
+                  'the package version.')
           }
 
           $manifest = [ordered]@{

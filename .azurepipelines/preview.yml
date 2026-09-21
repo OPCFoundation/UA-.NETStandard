@@ -152,11 +152,28 @@ jobs:
       versionEnvVar: 'nugetpublicversion'
   - task: PowerShell@2
     displayName: Validate package version policy
+    name: packageVersionPolicy
     inputs:
       targetType: filePath
       filePath: ./.azurepipelines/validate-nuget-package-set.ps1
       arguments: '-PackageDirectory "$(Build.ArtifactStagingDirectory)" -ManifestPath "$(Build.ArtifactStagingDirectory)/package-set.json" -ExpectedVersion "$(NBGV_NuGetPackageVersion)"'
       pwsh: true
+  - task: PowerShell@2
+    displayName: Determine package publication channel
+    inputs:
+      targetType: inline
+      pwsh: true
+      script: |
+        $manifestPath = '$(Build.ArtifactStagingDirectory)/package-set.json'
+        if (-not (Test-Path -LiteralPath $manifestPath)) {
+            throw "Package policy manifest '$manifestPath' was not produced."
+        }
+        $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+        if ($manifest.channel -notin @('preview', 'stable')) {
+            throw "Package policy manifest has an unsupported channel '$($manifest.channel)'."
+        }
+        Write-Host "##vso[task.setvariable variable=PackageChannel]$($manifest.channel)"
+        Write-Host "Package channel is '$($manifest.channel)'."
   - task: CmdLine@2
     displayName: 'List of nuget packages to sign'
     inputs:
@@ -174,6 +191,7 @@ jobs:
   - ${{ if eq(parameters.upload, 'True') }}:
     - task: NuGetCommand@2
       displayName: Upload Nuget Preview
+      condition: and(succeeded(), eq(variables['PackageChannel'], 'preview'))
       inputs:
         command: 'push'
         packagesToPush: '$(Build.ArtifactStagingDirectory)/**/OPCFoundation.*.nupkg'

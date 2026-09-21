@@ -170,6 +170,14 @@ jobs:
                   'stable candidate (no prerelease label or build metadata) may be ' +
                   'promoted through this workflow.')
           }
+          if (-not (Test-CanonicalReleaseBranchForPackageVersion `
+              -Ref $expectedRef `
+              -Version $expectedBaseVersion)) {
+              throw (
+                  "Candidate version '$expectedBaseVersion' does not match release branch " +
+                  "'$expectedRef'. A stable M.m.p candidate must be promoted only from " +
+                  'the matching release/M.m branch.')
+          }
 
           $currentPath = 'promotion/current-package-set.json'
           ./.azurepipelines/validate-nuget-package-set.ps1 `
