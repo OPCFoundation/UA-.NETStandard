@@ -102,6 +102,13 @@ jobs:
                   "canonical release/<major>.<minor> branch (for example release/2.0). Only " +
                   'that naming may be promoted; see docs/ReleaseProcess.md.')
           }
+          if ('${{ github.ref }}' -cne "refs/heads/$($run.head_branch)") {
+              throw (
+                  "This release.yml dispatch runs from '${{ github.ref }}', but the selected " +
+                  "candidate was built from 'refs/heads/$($run.head_branch)'. Dispatch " +
+                  'release.yml from that exact canonical release branch so the validation ' +
+                  'policy and promotion code are source-bound to the candidate.')
+          }
           if ($run.head_repository.full_name -cne '${{ github.repository }}') {
               throw (
                   "Run $env:RELEASE_RUN_ID came from '$($run.head_repository.full_name)', " +

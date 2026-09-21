@@ -71,7 +71,7 @@ jobs:
         # for a stable release image.
         tags: |
           type=raw,value=preview
-          type=raw,value=${{ env.NBGV_Version }}${{ env.NBGV_PrereleaseVersion }}
+          type=raw,value=${{ env.NBGV_NuGetPackageVersion }}
           type=sha
 
     - name: Build and push Docker image

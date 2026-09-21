@@ -144,7 +144,7 @@ jobs:
           dotnet build 'preview-pack.slnx' `
             --no-incremental `
             --configuration '${{ matrix.configuration }}' `
-            "/p:Version=$env:NBGV_Version" `
+            "/p:Version=$env:NBGV_NuGetPackageVersion" `
             "/p:AssemblyVersion=$env:NBGV_SimpleVersion" `
             "/p:FileVersion=$env:NBGV_AssemblyFileVersion" `
             "/p:AssemblyOriginatorKeyFile=$env:SNK_PATH" `

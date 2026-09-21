@@ -37,13 +37,13 @@ jobs:
   variables:
   - group: codesign
   - name: msbuildversion
-    value: '/p:Version=$(NBGV_Version) /p:AssemblyVersion=$(NBGV_SimpleVersion) /p:FileVersion=$(NBGV_AssemblyFileVersion)'
+    value: '/p:Version=$(NBGV_NuGetPackageVersion) /p:AssemblyVersion=$(NBGV_SimpleVersion) /p:FileVersion=$(NBGV_AssemblyFileVersion)'
   - name: msbuildsign
     value: '/p:AssemblyOriginatorKeyFile=$(strongnamefile.secureFilePath) /p:SignAssembly=true'
   - name: nugetpreviewversion
     value: '$(NBGV_NuGetPackageVersion)'
   - name: nugetpublicversion
-    value: '$(NBGV_Version)$(NBGV_PrereleaseVersion)'
+    value: '$(NBGV_NuGetPackageVersion)'
   - name: signinglist
     value: '.azurepipelines/signlist${{parameters.config}}.txt'
   steps:

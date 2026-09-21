@@ -97,7 +97,10 @@ jobs:
     - name: Prepare Tag Repo Info
       run: |
         echo IMAGE_REPOSITORY=${{ env.REGISTRY }}/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]' | awk '{gsub(/-|\./, "")}1')/${{ env.IMAGE_NAME }} >> $GITHUB_ENV
-        echo IMAGE_VERSION=$(echo ${{ env.NBGV_Version }}${{ env.NBGV_PrereleaseVersion }}) >> $GITHUB_ENV
+        # Use NBGV's canonical NuGet SemVer rather than NBGV_Version, whose
+        # fourth component is a git-height build number. Stable image tags
+        # must align with the explicit M.m.p package release version.
+        echo IMAGE_VERSION=${{ env.NBGV_NuGetPackageVersion }} >> $GITHUB_ENV
 
     - name: Prepare Tag Branch info
       # Append a branch-derived suffix to the version/"latest" tags for
