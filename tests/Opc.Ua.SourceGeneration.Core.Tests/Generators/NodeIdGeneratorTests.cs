@@ -309,6 +309,73 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 Does.Contain("public const string PlainType = \"PlainType\";"));
         }
 
+        /// <summary>
+        /// A Guid identifier cannot be a C# constant, so it is emitted as a
+        /// static readonly field initialized from its canonical literal.
+        /// </summary>
+        [Test]
+        public void EmitGuidIdEmitsStaticReadonlyField()
+        {
+            var node = new ObjectTypeDesign
+            {
+                SymbolicId = new System.Xml.XmlQualifiedName(
+                    "GuidType", "http://test.org/UA/"),
+                SymbolicName = new System.Xml.XmlQualifiedName(
+                    "GuidType", "http://test.org/UA/"),
+                GuidId = new Guid("09087e75-8e5e-499b-954f-f2a9603db28a"),
+                GuidIdSpecified = true
+            };
+
+            Assert.That(
+                EmitSingleNode(node),
+                Does.Contain(
+                    "public static readonly global::System.Guid GuidType = " +
+                    "new global::System.Guid(\"09087e75-8e5e-499b-954f-f2a9603db28a\");"));
+        }
+
+        /// <summary>
+        /// An opaque identifier is emitted as a static readonly ByteString built
+        /// from its base64 representation.
+        /// </summary>
+        [Test]
+        public void EmitOpaqueIdEmitsStaticReadonlyField()
+        {
+            var node = new ObjectTypeDesign
+            {
+                SymbolicId = new System.Xml.XmlQualifiedName(
+                    "OpaqueType", "http://test.org/UA/"),
+                SymbolicName = new System.Xml.XmlQualifiedName(
+                    "OpaqueType", "http://test.org/UA/"),
+                OpaqueId = Convert.FromBase64String("M/RbKBsRVkePCePcx24oRA==")
+            };
+
+            Assert.That(
+                EmitSingleNode(node),
+                Does.Contain(
+                    "public static readonly global::Opc.Ua.ByteString OpaqueType = " +
+                    "global::Opc.Ua.ByteString.FromBase64(\"M/RbKBsRVkePCePcx24oRA==\");"));
+        }
+
+        private string EmitSingleNode(NodeDesign node)
+        {
+            m_mockModelDesign.Setup(m => m.Nodes).Returns([node]);
+            m_mockModelDesign.Setup(m => m.IsExcluded(It.IsAny<NodeDesign>())).Returns(false);
+
+            using var fileSystem = new VirtualFileSystem();
+            m_context = new GeneratorContext
+            {
+                FileSystem = fileSystem,
+                OutputFolder = "out",
+                ModelDesign = m_mockModelDesign.Object,
+                Telemetry = m_mockTelemetry.Object,
+                Options = new GeneratorOptions()
+            };
+
+            new NodeIdGenerator(m_context).Emit();
+
+            return ReadOnlyGeneratedFile(fileSystem);
+        }
+
         private static string ReadOnlyGeneratedFile(VirtualFileSystem fileSystem)
         {
             var buffer = new System.Text.StringBuilder();

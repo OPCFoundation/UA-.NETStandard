@@ -350,11 +350,60 @@ namespace Opc.Ua.AI.Inference
 
         private static ByteArrayContent BuildContent(InferenceRequest request)
         {
-            // The payload is opaque: the caller supplies the body and its media type,
-            // and this backend adds only the routing the contract requires. A backend
-            // that rewrote the body would be typing a payload the specification
-            // deliberately leaves untyped.
-            var content = new ByteArrayContent(request.Payload.ToArray());
+            if (request.Parameters.Count == 0)
+            {
+                var passthrough = new ByteArrayContent(request.Payload.ToArray());
+                passthrough.Headers.TryAddWithoutValidation("Content-Type", request.ContentType);
+                return passthrough;
+            }
+
+            InferenceParameters parameters = InferenceParameters.Parse(request.Parameters);
+            using JsonDocument document = JsonDocument.Parse(request.Payload);
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                throw new ArgumentException(
+                    "The request payload must be a JSON object when call parameters are supplied.",
+                    nameof(request));
+            }
+
+            using var stream = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(stream))
+            {
+                writer.WriteStartObject();
+
+                foreach (JsonProperty property in document.RootElement.EnumerateObject())
+                {
+                    // Only the fields an explicit call parameter overrides are dropped so
+                    // that payload values the caller did not override survive unchanged.
+                    if ((parameters.Temperature is not null && property.NameEquals("temperature")) ||
+                        (parameters.MaxTokens is not null && property.NameEquals("max_tokens")) ||
+                        (parameters.TopP is not null && property.NameEquals("top_p")))
+                    {
+                        continue;
+                    }
+
+                    property.WriteTo(writer);
+                }
+
+                if (parameters.Temperature is float temperature)
+                {
+                    writer.WriteNumber("temperature", temperature);
+                }
+
+                if (parameters.MaxTokens is int maxTokens)
+                {
+                    writer.WriteNumber("max_tokens", maxTokens);
+                }
+
+                if (parameters.TopP is float topP)
+                {
+                    writer.WriteNumber("top_p", topP);
+                }
+
+                writer.WriteEndObject();
+            }
+
+            var content = new ByteArrayContent(stream.ToArray());
             content.Headers.TryAddWithoutValidation("Content-Type", request.ContentType);
             return content;
         }

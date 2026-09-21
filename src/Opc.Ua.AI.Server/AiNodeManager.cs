@@ -379,6 +379,9 @@ namespace Opc.Ua.AI.Server
 
             public string ContentType { get; set; } = "application/json";
 
+            public IReadOnlyDictionary<string, string> Parameters { get; init; } =
+                new Dictionary<string, string>();
+
             public DateTime ExpiresAt { get; set; }
 
             public void Dispose()

@@ -81,6 +81,12 @@ namespace Opc.Ua.SourceGeneration
                 Tokens.NamespaceUri,
                 m_context.ModelDesign.Namespaces.GetConstantSymbolForNamespace(
                     m_context.ModelDesign.TargetNamespace.Value));
+            template.AddReplacement(
+                Tokens.ModelVersion,
+                EscapeForString(
+                    m_context.ModelDesign.TargetVersion ??
+                    m_context.ModelDesign.TargetNamespace.Version ??
+                    string.Empty));
 
             template.AddReplacement(
                 Tokens.ListOfNamespaceUris,
@@ -97,6 +103,12 @@ namespace Opc.Ua.SourceGeneration
 
             template.Render();
             return [fileName.AsTextFileResource()];
+        }
+
+        private static string EscapeForString(string value)
+        {
+            return value.Replace("\\", "\\\\", StringComparison.Ordinal)
+                .Replace("\"", "\\\"", StringComparison.Ordinal);
         }
 
         private TemplateString LoadTemplate_BrowseNames(ILoadContext context)
