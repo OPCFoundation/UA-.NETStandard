@@ -605,7 +605,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         private sealed class CanonicalNodeManagerFactory :
-            IAsyncNodeManagerFactory, IRequestCallbackSafeNodeManagerFactory
+            IAsyncNodeManagerFactory, IRequestCallbackSafeNodeManagerFactory, IRegistrationBoundNodeManagerFactory
         {
             public CanonicalNodeManagerFactory(
                 WotCanonicalViewState state, NodeManagerRegistration? previous, WotPreparedSourceImage? sources)
@@ -618,6 +618,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             public ArrayOf<string> NamespacesUris =>
                 WotProjectionViewNodeManager.CanonicalNamespaces(m_state).ToArrayOf();
             public bool AllowLifecycleFromRequestCallback => true;
+            public NodeManagerRegistration? ExpectedRegistration => m_previous;
 
             public ValueTask<IAsyncNodeManager> CreateAsync(
                 IServerInternal server,

@@ -74,6 +74,7 @@ namespace Opc.Ua.Server
                 }
                 if (change.Factory is { } factory)
                 {
+                    ValidateFactoryRegistration(factory, change.Current);
                     allowRequestCallback &= IsRequestCallbackSafe(factory);
                 }
             }

@@ -363,6 +363,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(factory));
             }
 
+            ValidateFactoryRegistration(factory, null);
             return AddCoreAsync(
                 factory.CreateAsync,
                 IsRequestCallbackSafe(factory),
@@ -401,6 +402,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(replacement));
             }
 
+            ValidateFactoryRegistration(replacement, registration);
             return ReloadCoreAsync(
                 registration,
                 replacement.CreateAsync,
@@ -443,6 +445,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(replacement));
             }
 
+            ValidateFactoryRegistration(replacement, registration);
             return ReloadCoreAsync(
                 registration,
                 replacement.CreateAsync,
@@ -484,6 +487,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(replacement));
             }
 
+            ValidateFactoryRegistration(replacement, registration);
             return ReloadCoreAsync(
                 registration,
                 replacement.CreateAsync,
@@ -2018,6 +2022,17 @@ namespace Opc.Ua.Server
             return currentRequestId.HasValue && currentRequestId.Value != uint.MaxValue
                 ? extension.EnterLifecycleWaiter()
                 : null;
+        }
+
+        private static void ValidateFactoryRegistration(
+            IAsyncNodeManagerFactory factory, NodeManagerRegistration? registration)
+        {
+            if (factory is IRegistrationBoundNodeManagerFactory bound &&
+                !ReferenceEquals(bound.ExpectedRegistration, registration))
+            {
+                throw new ArgumentException(
+                    "The factory does not belong to this exact addition or replacement operation.", nameof(factory));
+            }
         }
 
         private static bool IsRequestCallbackSafe(IAsyncNodeManagerFactory factory)

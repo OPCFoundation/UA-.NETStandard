@@ -70,6 +70,12 @@ and token history. Creation also checks the actual server instance before
 allocating a replacement manager. An unrelated registry registration is not
 authority to replace its Nodes.
 
+The stock canonical factory is also bound to that exact lifecycle operation.
+A factory naming a predecessor cannot be used with `Add`, and a replacement
+cannot supply a different registration. Ordinary and aggregate lifecycle
+admission check this before invoking the factory; possession of a valid
+predecessor is not permission to create a second owner of its Nodes.
+
 Canonical managers participate in the existing reload lifecycle. Their complete
 replacement supplies graph-owned References; retained inbound navigation
 References transfer only to surviving owned Nodes. The Core lifecycle, not the

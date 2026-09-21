@@ -621,6 +621,36 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         [TestCase(false)]
         [TestCase(true)]
+        public async Task CanonicalPredecessorCannotAuthorizeAnAdditionalOwnerAsync(bool batch)
+        {
+            await using NativeHarness harness = await NativeHarness.CreateAsync(withGraphResources: true)
+                .ConfigureAwait(false);
+            NodeId child = harness.Identity("urn:c2:native-views", "Child");
+            WotCanonicalViewState state = WotProjectionViewBuilder.PrepareCanonicalGraph(
+                harness.GraphContext([]), null, [harness.GraphRequest("child", child, [], [])], []).State;
+            NodeManagerRegistration previous = await harness.PublishCanonicalAsync(state).ConfigureAwait(false);
+            ArrayOf<NodeManagerRegistration> owners = harness.Registrations;
+            int namespaceCount = harness.NamespaceUris.Count;
+
+            await Assert.ThatAsync(async () =>
+            {
+                if (batch)
+                {
+                    await harness.PrepareCanonicalAdditionAsync(state, previous).ConfigureAwait(false);
+                }
+                else
+                {
+                    await harness.AddCanonicalAsync(state, previous).ConfigureAwait(false);
+                }
+            }, Throws.ArgumentException).ConfigureAwait(false);
+
+            Assert.That(harness.Registrations.ToList(), Is.EqualTo(owners.ToList()));
+            Assert.That(harness.NamespaceUris.Count, Is.EqualTo(namespaceCount));
+            Assert.That(await harness.ReadViewVersionAsync(child).ConfigureAwait(false), Is.EqualTo(1u));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
         public async Task CanonicalFactoryRejectsAnotherAllocationAuthorityAsync(bool differentServer)
         {
             await using NativeHarness harness = await NativeHarness.CreateAsync(withGraphResources: true)
@@ -748,6 +778,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             public NodeManagerRegistration RegistryRegistration { get; private set; } = null!;
 
+            public ArrayOf<NodeManagerRegistration> Registrations => m_server!.NodeManagerLifecycle.Registrations;
+
             public static async Task<NativeHarness> CreateAsync(
                 bool withGraphResources = false, bool rebaseNamespaces = false)
             {
@@ -809,6 +841,17 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             {
                 return m_server!.NodeManagerLifecycle.AddAsync(
                     WotProjectionViewBuilder.CreateCanonicalNodeManagerFactory(state, previous), callerContext: null);
+            }
+
+            public async Task PrepareCanonicalAdditionAsync(
+                WotCanonicalViewState state, NodeManagerRegistration previous)
+            {
+                var lifecycle = (INodeManagerBatchLifecycle)m_server!.NodeManagerLifecycle;
+                IAsyncNodeManagerFactory factory = WotProjectionViewBuilder.CreateCanonicalNodeManagerFactory(
+                    state, previous);
+                IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                    [NodeManagerBatchChange.Add(factory)]).ConfigureAwait(false);
+                await prepared.DisposeAsync().ConfigureAwait(false);
             }
 
             public async Task PublishCanonicalBatchAsync(

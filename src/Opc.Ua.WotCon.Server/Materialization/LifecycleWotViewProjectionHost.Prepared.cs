@@ -142,7 +142,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             ArrayOf<WotViewProjectionRequest> updates,
             ArrayOf<string> removals)
             : IWotPreparedViewPublication, IAsyncNodeManagerFactory, IRequestCallbackSafeNodeManagerFactory,
-                IWotPreparedViewSourceConsumer
+                IWotPreparedViewSourceConsumer, IRegistrationBoundNodeManagerFactory
         {
             public ArrayOf<NodeManagerBatchChange> Changes => previous is null
                 ? [NodeManagerBatchChange.Add(this)]
@@ -151,6 +151,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
             public ArrayOf<string> NamespacesUris => [Namespaces.WotCon];
             public bool AllowLifecycleFromRequestCallback => true;
+            public NodeManagerRegistration? ExpectedRegistration => previous?.Registration;
 
             public void BindSourceImage(WotPreparedSourceImage sources)
             {
