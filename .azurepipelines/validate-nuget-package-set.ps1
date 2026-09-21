@@ -125,16 +125,24 @@ if ($duplicates.Count -gt 0) {
 
 $basePackage = @($normalPackages | Where-Object {
     # A Debug-configuration pack produces only ".Debug"-suffixed package IDs
-    # (see version.props/csproj PackageId overrides), so the anchor package
-    # for that set is "Core.Debug", not plain "Core". Accept either, since
-    # exactly one of the two is always present in a well-formed package set.
+    # (see version.props/csproj PackageId overrides), so a Debug-only package
+    # set is anchored on "Core.Debug", not plain "Core". A combined set (both
+    # configurations aggregated together, as nuget-publish.yml's "publish"
+    # job does before promotion) legitimately contains both at once; accept
+    # either, or both together provided they agree on the version.
     $_.id -ieq 'OPCFoundation.NetStandard.Opc.Ua.Core' -or
     $_.id -ieq 'OPCFoundation.NetStandard.Opc.Ua.Core.Debug'
 })
-if ($basePackage.Count -ne 1) {
-    throw "Expected exactly one OPCFoundation.NetStandard.Opc.Ua.Core (or .Core.Debug) package to anchor the package version, found $($basePackage.Count)."
+if ($basePackage.Count -eq 0) {
+    throw 'Expected at least one OPCFoundation.NetStandard.Opc.Ua.Core (or .Core.Debug) package to anchor the package version, found none.'
 }
-$baseVersion = $basePackage[0].Version
+$distinctBaseVersions = @($basePackage.Version | Sort-Object -Unique)
+if ($distinctBaseVersions.Count -ne 1) {
+    throw (
+        'OPCFoundation.NetStandard.Opc.Ua.Core and .Core.Debug disagree on the package version: ' +
+        "$($distinctBaseVersions -join ', ').")
+}
+$baseVersion = $distinctBaseVersions[0]
 if ($ExpectedVersion -and $baseVersion -cne $ExpectedVersion) {
     throw "Expected base package version '$ExpectedVersion', but found '$baseVersion'."
 }
