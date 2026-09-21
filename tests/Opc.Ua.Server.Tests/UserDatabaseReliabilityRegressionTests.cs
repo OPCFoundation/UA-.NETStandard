@@ -1047,31 +1047,37 @@ namespace Opc.Ua.Server.Tests
 
         private sealed class CustomUserDatabase : IUserDatabase
         {
+            /// <inheritdoc/>
             public bool CreateUser(string userName, ReadOnlySpan<byte> password, ICollection<Role> roles)
             {
                 return m_database.CreateUser(userName, password, roles);
             }
 
+            /// <inheritdoc/>
             public bool DeleteUser(string userName)
             {
                 return m_database.DeleteUser(userName);
             }
 
+            /// <inheritdoc/>
             public bool CheckCredentials(string userName, ReadOnlySpan<byte> password)
             {
                 return m_database.CheckCredentials(userName, password);
             }
 
+            /// <inheritdoc/>
             public ICollection<Role> GetUserRoles(string userName)
             {
                 return m_database.GetUserRoles(userName);
             }
 
+            /// <inheritdoc/>
             public IReadOnlyList<UserManagementDataType> GetUsers()
             {
                 return m_database.GetUsers();
             }
 
+            /// <inheritdoc/>
             public bool ChangePassword(
                 string userName,
                 ReadOnlySpan<byte> oldPassword,
@@ -1080,6 +1086,7 @@ namespace Opc.Ua.Server.Tests
                 return m_database.ChangePassword(userName, oldPassword, newPassword);
             }
 
+            /// <inheritdoc/>
             public bool CreateUser(
                 string userName,
                 ReadOnlySpan<byte> password,
@@ -1090,6 +1097,7 @@ namespace Opc.Ua.Server.Tests
                 return m_database.CreateUser(userName, password, roles, userConfiguration, description);
             }
 
+            /// <inheritdoc/>
             public bool ResetPassword(
                 string userName,
                 ReadOnlySpan<byte> newPassword,
@@ -1099,6 +1107,7 @@ namespace Opc.Ua.Server.Tests
                 return m_database.ResetPassword(userName, newPassword, userConfiguration, description);
             }
 
+            /// <inheritdoc/>
             public bool UpdateUserMetadata(
                 string userName,
                 UserConfigurationMask userConfiguration,

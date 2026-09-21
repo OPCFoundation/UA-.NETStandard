@@ -218,31 +218,37 @@ namespace Opc.Ua.Server.Tests.Identity
         {
             public bool CredentialsValid { get; set; }
 
+            /// <inheritdoc/>
             public bool CheckCredentials(string userName, ReadOnlySpan<byte> password)
             {
                 return CredentialsValid;
             }
 
+            /// <inheritdoc/>
             public bool CreateUser(string userName, ReadOnlySpan<byte> password, ICollection<Role> roles)
             {
                 return true;
             }
 
+            /// <inheritdoc/>
             public bool DeleteUser(string userName)
             {
                 return true;
             }
 
+            /// <inheritdoc/>
             public ICollection<Role> GetUserRoles(string userName)
             {
                 return [];
             }
 
+            /// <inheritdoc/>
             public IReadOnlyList<UserManagementDataType> GetUsers()
             {
                 return [];
             }
 
+            /// <inheritdoc/>
             public bool ChangePassword(
                 string userName,
                 ReadOnlySpan<byte> oldPassword,
@@ -251,6 +257,7 @@ namespace Opc.Ua.Server.Tests.Identity
                 return true;
             }
 
+            /// <inheritdoc/>
             public bool CreateUser(
                 string userName,
                 ReadOnlySpan<byte> password,
@@ -261,6 +268,7 @@ namespace Opc.Ua.Server.Tests.Identity
                 return true;
             }
 
+            /// <inheritdoc/>
             public bool ResetPassword(
                 string userName,
                 ReadOnlySpan<byte> newPassword,
@@ -270,6 +278,7 @@ namespace Opc.Ua.Server.Tests.Identity
                 return true;
             }
 
+            /// <inheritdoc/>
             public bool UpdateUserMetadata(
                 string userName,
                 UserConfigurationMask userConfiguration,
@@ -283,25 +292,30 @@ namespace Opc.Ua.Server.Tests.Identity
         {
             public List<IUserTokenAuthenticator> Authenticators { get; } = [];
 
+            /// <inheritdoc/>
             public void Register(IUserTokenAuthenticator authenticator)
             {
                 Authenticators.Add(authenticator);
             }
 
+            /// <inheritdoc/>
             public bool Unregister(IUserTokenAuthenticator authenticator)
             {
                 return Authenticators.Remove(authenticator);
             }
 
+            /// <inheritdoc/>
             public void RegisterAugmenter(IIdentityAugmenter augmenter)
             {
             }
 
+            /// <inheritdoc/>
             public bool UnregisterAugmenter(IIdentityAugmenter augmenter)
             {
                 return false;
             }
 
+            /// <inheritdoc/>
             public ValueTask<AuthenticationResult> AuthenticateAsync(
                 AuthenticationContext context,
                 CancellationToken ct = default)

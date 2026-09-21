@@ -767,31 +767,37 @@ namespace Opc.Ua.Gds.Tests.Hosting
 
         private sealed class StubUserDatabase : IUserDatabase
         {
+            /// <inheritdoc/>
             public bool CreateUser(string userName, ReadOnlySpan<byte> password, ICollection<Role> roles)
             {
                 return true;
             }
 
+            /// <inheritdoc/>
             public bool DeleteUser(string userName)
             {
                 return false;
             }
 
+            /// <inheritdoc/>
             public bool CheckCredentials(string userName, ReadOnlySpan<byte> password)
             {
                 return false;
             }
 
+            /// <inheritdoc/>
             public ICollection<Role> GetUserRoles(string userName)
             {
                 return Array.Empty<Role>();
             }
 
+            /// <inheritdoc/>
             public IReadOnlyList<UserManagementDataType> GetUsers()
             {
                 return [];
             }
 
+            /// <inheritdoc/>
             public bool ChangePassword(
                 string userName,
                 ReadOnlySpan<byte> oldPassword,
@@ -800,6 +806,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
                 return false;
             }
 
+            /// <inheritdoc/>
             public bool CreateUser(
                 string userName,
                 ReadOnlySpan<byte> password,
@@ -810,6 +817,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
                 return true;
             }
 
+            /// <inheritdoc/>
             public bool ResetPassword(
                 string userName,
                 ReadOnlySpan<byte> newPassword,
@@ -819,6 +827,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
                 return false;
             }
 
+            /// <inheritdoc/>
             public bool UpdateUserMetadata(
                 string userName,
                 UserConfigurationMask userConfiguration,

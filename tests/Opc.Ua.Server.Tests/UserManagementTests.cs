@@ -547,31 +547,37 @@ namespace Opc.Ua.Server.Tests
                 m_users = users;
             }
 
+            /// <inheritdoc/>
             public bool CreateUser(string userName, ReadOnlySpan<byte> password, ICollection<Role> roles)
             {
                 throw new NotSupportedException();
             }
 
+            /// <inheritdoc/>
             public bool DeleteUser(string userName)
             {
                 throw new NotSupportedException();
             }
 
+            /// <inheritdoc/>
             public bool CheckCredentials(string userName, ReadOnlySpan<byte> password)
             {
                 throw new NotSupportedException();
             }
 
+            /// <inheritdoc/>
             public ICollection<Role> GetUserRoles(string userName)
             {
                 throw new NotSupportedException();
             }
 
+            /// <inheritdoc/>
             public IReadOnlyList<UserManagementDataType> GetUsers()
             {
                 return m_users;
             }
 
+            /// <inheritdoc/>
             public bool ChangePassword(
                 string userName,
                 ReadOnlySpan<byte> oldPassword,
@@ -580,6 +586,7 @@ namespace Opc.Ua.Server.Tests
                 throw new NotSupportedException();
             }
 
+            /// <inheritdoc/>
             public bool CreateUser(
                 string userName,
                 ReadOnlySpan<byte> password,
@@ -590,6 +597,7 @@ namespace Opc.Ua.Server.Tests
                 throw new NotSupportedException();
             }
 
+            /// <inheritdoc/>
             public bool ResetPassword(
                 string userName,
                 ReadOnlySpan<byte> newPassword,
@@ -599,6 +607,7 @@ namespace Opc.Ua.Server.Tests
                 throw new NotSupportedException();
             }
 
+            /// <inheritdoc/>
             public bool UpdateUserMetadata(
                 string userName,
                 UserConfigurationMask userConfiguration,
