@@ -1963,7 +1963,8 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Emits the constructor argument used to materialize the
         /// top-level instance's <see cref="NodeId"/>. Numeric ids preferred
-        /// when present; otherwise falls back to the SymbolicId string.
+        /// when present, then string, Guid and Opaque ids; otherwise falls back
+        /// to the SymbolicId string.
         /// </summary>
         private static string EmitNodeIdConstructorArg(InstanceDesign node)
         {
@@ -1975,6 +1976,10 @@ namespace Opc.Ua.SourceGeneration
             if (!string.IsNullOrEmpty(node.StringId))
             {
                 return CoreUtils.Format("\"{0}\"", EscapeStringLiteral(node.StringId));
+            }
+            if (node.HasNonConstantIdentifier())
+            {
+                return ModelDesignExtensions.GetIdentifierAsCode(node.GetIdentifier(), out _);
             }
             // No id assigned — fall back to the SymbolicId.Name as a string id.
             return CoreUtils.Format("\"{0}\"",
