@@ -124,10 +124,15 @@ if ($duplicates.Count -gt 0) {
 }
 
 $basePackage = @($normalPackages | Where-Object {
-    $_.id -ieq 'OPCFoundation.NetStandard.Opc.Ua.Core'
+    # A Debug-configuration pack produces only ".Debug"-suffixed package IDs
+    # (see version.props/csproj PackageId overrides), so the anchor package
+    # for that set is "Core.Debug", not plain "Core". Accept either, since
+    # exactly one of the two is always present in a well-formed package set.
+    $_.id -ieq 'OPCFoundation.NetStandard.Opc.Ua.Core' -or
+    $_.id -ieq 'OPCFoundation.NetStandard.Opc.Ua.Core.Debug'
 })
 if ($basePackage.Count -ne 1) {
-    throw "Expected exactly one OPCFoundation.NetStandard.Opc.Ua.Core package to anchor the package version, found $($basePackage.Count)."
+    throw "Expected exactly one OPCFoundation.NetStandard.Opc.Ua.Core (or .Core.Debug) package to anchor the package version, found $($basePackage.Count)."
 }
 $baseVersion = $basePackage[0].Version
 if ($ExpectedVersion -and $baseVersion -cne $ExpectedVersion) {
@@ -175,6 +180,13 @@ if ($manifestDirectory) {
 $manifest = [ordered]@{
     schemaVersion = 2
     basePackageVersion = $baseVersion
+    # "stable" only for an exact release such as "2.0.0"; "preview" for every
+    # in-development build (a prerelease label and/or build metadata present).
+    # See Test-StablePackageVersion in package-version-policy.ps1 - this is
+    # the single source of truth downstream workflows rely on for whether a
+    # package set is eligible for automatic feed publication (preview) or
+    # requires the separate release.yml manual promotion (stable).
+    channel = if (Test-StablePackageVersion -Version $baseVersion) { 'stable' } else { 'preview' }
     packageVersions = @($normalPackages.version | Sort-Object -Unique)
     packageCount = $normalPackages.Count
     symbolPackageCount = @($archives | Where-Object type -eq 'symbols').Count
@@ -187,4 +199,5 @@ $manifest | ConvertTo-Json -Depth 5 |
 Write-Host (
     "Validated $($manifest.packageCount) package(s), " +
     "$($manifest.symbolPackageCount) symbol package(s), and " +
-    "$($manifest.debugPackageCount) Debug package(s) against base version $($manifest.basePackageVersion).")
+    "$($manifest.debugPackageCount) Debug package(s) against base version " +
+    "$($manifest.basePackageVersion) (channel: $($manifest.channel)).")

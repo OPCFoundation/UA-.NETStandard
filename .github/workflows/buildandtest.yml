@@ -2,9 +2,9 @@ name: Build and Test .NET 10.0
 
 on:
   push:
-    branches: [ master, main, master378, develop/* ]
+    branches: [ master, main, master378, develop/*, release/* ]
   pull_request:
-    branches: [ master, main, master378, develop/* ]
+    branches: [ master, main, master378, develop/*, release/* ]
     # NOTE: deliberately no `paths:` filter. A workflow that is filtered out by
     # `paths` never reports its checks at all, and a required status check that
     # never reports leaves a pull request permanently "Expected — waiting for
@@ -148,6 +148,16 @@ jobs:
                     $name -like '*.props' -or $name -like '*.targets' -or
                     $name -like '*.slnx' -or $name -like '*.sln' -or
                     $name -eq 'global.json' -or $name -ieq 'nuget.config' -or
+                    # version.json drives the package version for every
+                    # project (see version.props/version.targets), and the
+                    # release/publish scripts under .azurepipelines/ gate
+                    # which branches may publish which channel - both need
+                    # the same coverage as any other build-relevant change.
+                    # See docs/ReleaseProcess.md.
+                    $name -eq 'version.json' -or
+                    $file -like '.azurepipelines/*.ps1' -or
+                    $file -eq '.github/workflows/nuget-publish.yml' -or
+                    $file -eq '.github/workflows/release.yml' -or
                     $file -like 'fuzzing/*' -or
                     $file -eq '.azurepipelines/onefuzz.yml' -or
                     $file -eq '.github/workflows/buildandtest.yml') {

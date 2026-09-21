@@ -100,7 +100,17 @@ jobs:
         echo IMAGE_VERSION=$(echo ${{ env.NBGV_Version }}${{ env.NBGV_PrereleaseVersion }}) >> $GITHUB_ENV
 
     - name: Prepare Tag Branch info
-      if: env.NBGV_PublicRelease == 'False'
+      # Append a branch-derived suffix to the version/"latest" tags for
+      # every build that is not an exact stable release - not just a
+      # non-public-release build. NBGV_PublicRelease is true for the whole
+      # duration a canonical release/<major>.<minor> branch is eligible to
+      # publish, including every commit while it is still stabilizing the
+      # next patch (e.g. "2.0.1-preview.3"); without this, an in-progress
+      # release-branch commit would overwrite the global "latest" image tag
+      # before the release is actually approved. Only the exact stable
+      # commit (NBGV_PrereleaseVersion empty) skips the suffix. See
+      # docs/ReleaseProcess.md.
+      if: env.NBGV_PublicRelease == 'False' || env.NBGV_PrereleaseVersion != ''
       run: |
         echo IMAGE_TAG=-$(echo ${{ github.ref }} | tr '[:upper:]' '[:lower:]' |  awk '{sub(/([^\/]*\/){2}/,""); gsub(/\/|_/, "-")}1') >> $GITHUB_ENV
 

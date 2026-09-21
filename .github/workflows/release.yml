@@ -1,8 +1,16 @@
 name: Release to nuget.org
 
 # Manual promotion of the exact signed package bytes produced by a successful
-# nuget-publish.yml run on a release/* branch. The release environment provides
-# the approval boundary and NuGet trusted publishing identity.
+# nuget-publish.yml run on a canonical "release/<major>.<minor>" branch (e.g.
+# release/2.0). The release environment provides the approval boundary (its
+# deployment_branch_policy restricts execution to release/* branches) and the
+# NuGet trusted publishing identity. This workflow additionally requires the
+# candidate's base package version to be an exact stable release (no
+# prerelease label or build metadata, e.g. "2.0.0") - a preview candidate is
+# already published automatically by nuget-publish.yml and must never be
+# promoted here. See docs/ReleaseProcess.md ("Approved promotion") for the
+# full procedure, including how to pick a release_run_id and how to recover
+# from a partial or failed promotion.
 #
 # One-time nuget.org trusted publishing policy:
 #   Repository Owner: OPCFoundation
@@ -14,7 +22,7 @@ on:
   workflow_dispatch:
     inputs:
       release_run_id:
-        description: Successful nuget-publish.yml run ID from a release/* branch
+        description: Successful nuget-publish.yml run ID from a release/<major>.<minor> branch
         required: true
         type: string
       dry_run:
@@ -27,6 +35,7 @@ permissions:
   actions: read
   contents: read
   id-token: write
+  packages: write
 
 concurrency:
   group: nuget-release
@@ -86,6 +95,13 @@ jobs:
                   "Run $env:RELEASE_RUN_ID came from '$($run.head_branch)'. " +
                   'Only release/* branches can be promoted.')
           }
+          . ./.azurepipelines/package-version-policy.ps1
+          if (-not (Test-CanonicalReleaseBranchRef -Ref "refs/heads/$($run.head_branch)")) {
+              throw (
+                  "Run $env:RELEASE_RUN_ID came from '$($run.head_branch)', which is not a " +
+                  "canonical release/<major>.<minor> branch (for example release/2.0). Only " +
+                  'that naming may be promoted; see docs/ReleaseProcess.md.')
+          }
           if ($run.head_repository.full_name -cne '${{ github.repository }}') {
               throw (
                   "Run $env:RELEASE_RUN_ID came from '$($run.head_repository.full_name)', " +
@@ -111,6 +127,7 @@ jobs:
       - name: Validate promotion manifest and package bytes
         shell: pwsh
         run: |
+          . ./.azurepipelines/package-version-policy.ps1
           $manifestPath = 'promotion/release-manifest.json'
           if (-not (Test-Path -LiteralPath $manifestPath)) {
               throw "The selected run artifact contains no release-manifest.json."
@@ -132,6 +149,19 @@ jobs:
           }
           else {
               $manifest.packageVersion
+          }
+
+          # This workflow exists solely to promote a stable release (e.g.
+          # "2.0.0", "2.0.1", "2.1.0") to nuget.org. In-development preview
+          # candidates are already published automatically by
+          # nuget-publish.yml and must never be promoted here. See
+          # docs/ReleaseProcess.md ("Approved promotion").
+          if (-not (Test-StablePackageVersion -Version $expectedBaseVersion)) {
+              throw (
+                  "Run ${{ inputs.release_run_id }} produced base version " +
+                  "'$expectedBaseVersion', which is not an exact stable release. Only a " +
+                  'stable candidate (no prerelease label or build metadata) may be ' +
+                  'promoted through this workflow.')
           }
 
           $currentPath = 'promotion/current-package-set.json'
@@ -181,6 +211,27 @@ jobs:
                 --skip-duplicate
               if ($LASTEXITCODE -ne 0) {
                   throw "nuget.org push failed for '$($package.Name)'."
+              }
+          }
+
+      - name: Push to GitHub Packages
+        # nuget-publish.yml deliberately never pushes a stable candidate to
+        # any feed automatically (see its "Skip feed publication" step); this
+        # is the one place a stable release also gets mirrored to GitHub
+        # Packages, gated behind the same approval and dry-run switch as the
+        # nuget.org push above.
+        if: ${{ !inputs.dry_run }}
+        shell: pwsh
+        run: |
+          $packages = @(Get-ChildItem promotion -Filter '*.nupkg' -File | Sort-Object Name)
+          foreach ($package in $packages) {
+              dotnet nuget push $package.FullName `
+                --source 'https://nuget.pkg.github.com/OPCFoundation/index.json' `
+                --api-key '${{ secrets.GITHUB_TOKEN }}' `
+                --skip-duplicate `
+                --no-symbols
+              if ($LASTEXITCODE -ne 0) {
+                  throw "GitHub Packages push failed for '$($package.Name)'."
               }
           }
 

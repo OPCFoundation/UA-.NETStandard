@@ -63,8 +63,14 @@ jobs:
       uses: docker/metadata-action@v6
       with:
         images: ${{ env.IMAGE_REPOSITORY }}
+        # This workflow only ever builds from master, which never produces a
+        # stable release under the branch/version model in
+        # docs/ReleaseProcess.md - only a canonical release/<major>.<minor>
+        # branch does, and this image is not (yet) built from one. Tag the
+        # development build "preview", not "latest", so it is never mistaken
+        # for a stable release image.
         tags: |
-          type=raw,value=latest
+          type=raw,value=preview
           type=raw,value=${{ env.NBGV_Version }}${{ env.NBGV_PrereleaseVersion }}
           type=sha
 
