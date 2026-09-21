@@ -117,7 +117,7 @@ jobs:
           }
           $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
           $expectedRef = 'refs/heads/${{ steps.source.outputs.branch }}'
-          if ($manifest.schemaVersion -ne 1 -or
+          if (($manifest.schemaVersion -ne 1 -and $manifest.schemaVersion -ne 2) -or
               $manifest.repository -cne '${{ github.repository }}' -or
               $manifest.workflow -cne '.github/workflows/nuget-publish.yml' -or
               $manifest.runId -cne '${{ inputs.release_run_id }}' -or
@@ -127,12 +127,18 @@ jobs:
                   "The promotion manifest does not match nuget-publish.yml run " +
                   "${{ inputs.release_run_id }} on $expectedRef.")
           }
+          $expectedBaseVersion = if ($manifest.schemaVersion -eq 2) {
+              $manifest.basePackageVersion
+          }
+          else {
+              $manifest.packageVersion
+          }
 
           $currentPath = 'promotion/current-package-set.json'
           ./.azurepipelines/validate-nuget-package-set.ps1 `
             -PackageDirectory promotion `
             -ManifestPath $currentPath `
-            -ExpectedVersion $manifest.packageVersion `
+            -ExpectedVersion $expectedBaseVersion `
             -RequireDebug `
             -VerifySignatures
           $current = Get-Content -LiteralPath $currentPath -Raw | ConvertFrom-Json
@@ -153,7 +159,7 @@ jobs:
 
           Write-Host (
               "Validated $($current.packageCount) exact package bytes at version " +
-              "$($current.packageVersion) from run ${{ inputs.release_run_id }}.")
+              "$($current.basePackageVersion) from run ${{ inputs.release_run_id }}.")
 
       - name: NuGet login
         if: ${{ !inputs.dry_run }}
@@ -185,7 +191,12 @@ jobs:
           $manifestPath = 'promotion/release-manifest.json'
           if (Test-Path -LiteralPath $manifestPath) {
               $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
-              $version = $manifest.packageVersion
+              $version = if ($manifest.schemaVersion -eq 2) {
+                  $manifest.basePackageVersion
+              }
+              else {
+                  $manifest.packageVersion
+              }
               $count = $manifest.packageCount
           }
           else {

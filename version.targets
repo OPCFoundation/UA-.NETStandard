@@ -1,0 +1,45 @@
+<Project>
+  <PropertyGroup>
+    <_IsPreviewPackage Condition="'$(PackageId)' == '$(PackagePrefix).Opc.Ua.XRegistry' OR $([System.String]::Copy('$(PackageId)').StartsWith('$(PackagePrefix).Opc.Ua.XRegistry.'))">true</_IsPreviewPackage>
+    <_IsPreviewPackage Condition="'$(PackageId)' == '$(PackagePrefix).Opc.Ua.WotCon' OR $([System.String]::Copy('$(PackageId)').StartsWith('$(PackagePrefix).Opc.Ua.WotCon.'))">true</_IsPreviewPackage>
+    <_IsPreviewPackage Condition="'$(PackageId)' == '$(PackagePrefix).Opc.Ua.Vision' OR $([System.String]::Copy('$(PackageId)').StartsWith('$(PackagePrefix).Opc.Ua.Vision.'))">true</_IsPreviewPackage>
+    <_IsPreviewPackage Condition="'$(PackageId)' == '$(PackagePrefix).Opc.Ua.Robotics' OR $([System.String]::Copy('$(PackageId)').StartsWith('$(PackagePrefix).Opc.Ua.Robotics.'))">true</_IsPreviewPackage>
+    <_IsPreviewPackage Condition="'$(PackageId)' == '$(PackagePrefix).Opc.Ua.Redundancy' OR $([System.String]::Copy('$(PackageId)').StartsWith('$(PackagePrefix).Opc.Ua.Redundancy.'))">true</_IsPreviewPackage>
+    <_IsPreviewPackage Condition="'$(PackageId)' == '$(PackagePrefix).Opc.Ua.Positioning' OR $([System.String]::Copy('$(PackageId)').StartsWith('$(PackagePrefix).Opc.Ua.Positioning.'))">true</_IsPreviewPackage>
+    <_IsPreviewPackage Condition="'$(PackageId)' == '$(PackagePrefix).Opc.Ua.OpenUsd' OR $([System.String]::Copy('$(PackageId)').StartsWith('$(PackagePrefix).Opc.Ua.OpenUsd.'))">true</_IsPreviewPackage>
+    <_IsPreviewPackage Condition="'$(PackageId)' == '$(PackagePrefix).Opc.Ua.ISA95' OR $([System.String]::Copy('$(PackageId)').StartsWith('$(PackagePrefix).Opc.Ua.ISA95.'))">true</_IsPreviewPackage>
+    <_IsPreviewPackage Condition="'$(PackageId)' == '$(PackagePrefix).Opc.Ua.AI' OR $([System.String]::Copy('$(PackageId)').StartsWith('$(PackagePrefix).Opc.Ua.AI.'))">true</_IsPreviewPackage>
+    <_IsPreviewPackage Condition="'$(PackageId)' == '$(PackagePrefix).Opc.Ua.Di' OR $([System.String]::Copy('$(PackageId)').StartsWith('$(PackagePrefix).Opc.Ua.Di.'))">true</_IsPreviewPackage>
+    <_IsPreviewPackage Condition="'$(PackageId)' == '$(PackagePrefix).Opc.Ua.Mcp.Robotics' OR '$(PackageId)' == '$(PackagePrefix).Opc.Ua.Mcp.Vision' OR '$(PackageId)' == '$(PackagePrefix).Opc.Ua.OpenUsd.Connector' OR '$(PackageId)' == '$(PackagePrefix).Opc.Ua.OpenUsd.Connector.Viewer'">true</_IsPreviewPackage>
+    <GetPackageVersionDependsOn>
+      ApplyPreviewPackageVersion;
+      $(GetPackageVersionDependsOn)
+    </GetPackageVersionDependsOn>
+    <GenerateNuspecDependsOn>
+      ApplyPreviewPackageVersion;
+      $(GenerateNuspecDependsOn)
+    </GenerateNuspecDependsOn>
+  </PropertyGroup>
+
+  <Target Name="ApplyPreviewPackageVersion"
+          DependsOnTargets="GetBuildVersion"
+          Condition="'$(_IsPreviewPackage)' == 'true' AND '$(IsPackable)' == 'true'">
+    <PropertyGroup>
+      <_PreviewSourceVersion Condition="'$(PackageVersion)' != ''">$(PackageVersion)</_PreviewSourceVersion>
+      <_PreviewSourceVersion Condition="'$(_PreviewSourceVersion)' == '' AND '$(NuGetPackageVersion)' != ''">$(NuGetPackageVersion)</_PreviewSourceVersion>
+      <_PreviewSourceVersion Condition="'$(_PreviewSourceVersion)' == ''">$(Version)</_PreviewSourceVersion>
+      <_PreviewPackageVersion
+          Condition="$([System.String]::Copy('$(_PreviewSourceVersion)').Contains('-preview'))">$(_PreviewSourceVersion)</_PreviewPackageVersion>
+      <_PreviewPackageVersion
+          Condition="'$(_PreviewPackageVersion)' == '' AND $([System.String]::Copy('$(_PreviewSourceVersion)').Contains('-'))">$([System.String]::Copy('$(_PreviewSourceVersion)').Replace('-', '-preview.'))</_PreviewPackageVersion>
+      <_PreviewPackageVersion
+          Condition="'$(_PreviewPackageVersion)' == '' AND $([System.String]::Copy('$(_PreviewSourceVersion)').Contains('+'))">$([System.String]::Copy('$(_PreviewSourceVersion)').Replace('+', '-preview+'))</_PreviewPackageVersion>
+      <_PreviewPackageVersion
+          Condition="'$(_PreviewPackageVersion)' == ''">$(_PreviewSourceVersion)-preview</_PreviewPackageVersion>
+      <Version>$(_PreviewPackageVersion)</Version>
+      <PackageVersion>$(_PreviewPackageVersion)</PackageVersion>
+      <NuGetPackageVersion>$(_PreviewPackageVersion)</NuGetPackageVersion>
+      <NBGV_NuGetPackageVersion>$(_PreviewPackageVersion)</NBGV_NuGetPackageVersion>
+    </PropertyGroup>
+  </Target>
+</Project>

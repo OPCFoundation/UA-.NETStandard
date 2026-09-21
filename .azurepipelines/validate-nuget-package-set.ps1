@@ -24,6 +24,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'package-version-policy.ps1')
 
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 
@@ -122,12 +123,25 @@ if ($duplicates.Count -gt 0) {
     throw "Duplicate package ID/version pairs were found: $($duplicateNames -join '; ')."
 }
 
-$versions = @($normalPackages.version | Sort-Object -Unique)
-if ($versions.Count -ne 1) {
-    throw "The package set contains multiple versions: $($versions -join ', ')."
+$basePackage = @($normalPackages | Where-Object {
+    $_.id -ieq 'OPCFoundation.NetStandard.Opc.Ua.Core'
+})
+if ($basePackage.Count -ne 1) {
+    throw "Expected exactly one OPCFoundation.NetStandard.Opc.Ua.Core package to anchor the package version, found $($basePackage.Count)."
 }
-if ($ExpectedVersion -and $versions[0] -cne $ExpectedVersion) {
-    throw "Expected package version '$ExpectedVersion', but found '$($versions[0])'."
+$baseVersion = $basePackage[0].Version
+if ($ExpectedVersion -and $baseVersion -cne $ExpectedVersion) {
+    throw "Expected base package version '$ExpectedVersion', but found '$baseVersion'."
+}
+
+$invalidVersions = @($normalPackages | Where-Object {
+    $_.Version -cne (Get-ExpectedPackageVersion -PackageId $_.Id -BaseVersion $baseVersion)
+})
+if ($invalidVersions.Count -gt 0) {
+    $details = $invalidVersions | ForEach-Object {
+        "$($_.Id)=$($_.Version) (expected $(Get-ExpectedPackageVersion -PackageId $_.Id -BaseVersion $baseVersion))"
+    }
+    throw "The package set contains versions that do not match the preview policy: $($details -join '; ')."
 }
 
 $normalKeys = [System.Collections.Generic.HashSet[string]]::new(
@@ -159,7 +173,9 @@ if ($manifestDirectory) {
 }
 
 $manifest = [ordered]@{
-    packageVersion = $versions[0]
+    schemaVersion = 2
+    basePackageVersion = $baseVersion
+    packageVersions = @($normalPackages.version | Sort-Object -Unique)
     packageCount = $normalPackages.Count
     symbolPackageCount = @($archives | Where-Object type -eq 'symbols').Count
     debugPackageCount = $debugPackages.Count
@@ -171,4 +187,4 @@ $manifest | ConvertTo-Json -Depth 5 |
 Write-Host (
     "Validated $($manifest.packageCount) package(s), " +
     "$($manifest.symbolPackageCount) symbol package(s), and " +
-    "$($manifest.debugPackageCount) Debug package(s) at version $($manifest.packageVersion).")
+    "$($manifest.debugPackageCount) Debug package(s) against base version $($manifest.basePackageVersion).")

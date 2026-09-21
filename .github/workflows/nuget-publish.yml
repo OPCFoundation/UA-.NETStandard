@@ -178,7 +178,7 @@ jobs:
         shell: pwsh
         run: |
           Add-Type -AssemblyName System.IO.Compression.FileSystem
-          $versions = @(Get-ChildItem "$env:ARTIFACTS_DIR" -Filter '*.nupkg' -File |
+          $corePackages = @(Get-ChildItem "$env:ARTIFACTS_DIR" -Filter 'OPCFoundation.NetStandard.Opc.Ua.Core.*.nupkg' -File |
               ForEach-Object {
                   $archive = [IO.Compression.ZipFile]::OpenRead($_.FullName)
                   try {
@@ -195,17 +195,19 @@ jobs:
                       finally {
                           $reader.Dispose()
                       }
-                      [string]$metadata.package.metadata.version
+                      if ([string]$metadata.package.metadata.id -eq 'OPCFoundation.NetStandard.Opc.Ua.Core') {
+                          [string]$metadata.package.metadata.version
+                      }
                   }
                   finally {
                       $archive.Dispose()
                   }
-              } | Sort-Object -Unique)
-          if ($versions.Count -ne 1 -or [string]::IsNullOrWhiteSpace($versions[0])) {
-              throw "Modern packages contain unexpected versions: $($versions -join ', ')."
+              } | Where-Object { $_ } | Sort-Object -Unique)
+          if ($corePackages.Count -ne 1 -or [string]::IsNullOrWhiteSpace($corePackages[0])) {
+              throw "Unable to identify exactly one core package version: $($corePackages -join ', ')."
           }
-          "PACK_VERSION=$($versions[0])" | Out-File -FilePath $env:GITHUB_ENV -Append
-          Write-Host "Package version is $($versions[0])."
+          "PACK_VERSION=$($corePackages[0])" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Write-Host "Base package version is $($corePackages[0])."
 
       - name: Keep only distinct Debug package IDs
         if: matrix.configuration == 'Debug'
@@ -369,13 +371,14 @@ jobs:
 
           $inventory = Get-Content -LiteralPath $packageManifest -Raw | ConvertFrom-Json
           $manifest = [ordered]@{
-              schemaVersion = 1
               repository = '${{ github.repository }}'
               workflow = '.github/workflows/nuget-publish.yml'
               runId = '${{ github.run_id }}'
               ref = '${{ github.ref }}'
               commit = '${{ github.sha }}'
-              packageVersion = $inventory.packageVersion
+              schemaVersion = 2
+              basePackageVersion = $inventory.basePackageVersion
+              packageVersions = $inventory.packageVersions
               packageCount = $inventory.packageCount
               symbolPackageCount = $inventory.symbolPackageCount
               debugPackageCount = $inventory.debugPackageCount
@@ -414,7 +417,8 @@ jobs:
           @"
           ### NuGet package publication
 
-          - Version: ``$($manifest.packageVersion)``
+          - Base version: ``$($manifest.basePackageVersion)``
+          - Package versions: ``$($manifest.packageVersions -join ', ')``
           - Packages: ``$($manifest.packageCount)``
           - Debug packages: ``$($manifest.debugPackageCount)``
           - Symbol packages: ``$($manifest.symbolPackageCount)``
