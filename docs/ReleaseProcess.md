@@ -166,6 +166,19 @@ Every procedure below starts here.
   channel is `preview`; a manually queued stable release-line build remains
   artifact-only and must go through the same approved `release.yml`
   promotion procedure.
+- Container image tags follow the same line model, enforced by the
+  `Determine release line precedence` step in
+  `.github/workflows/docker-image.yml`. Every build gets its exact version
+  tag; a stable release additionally gets `<major>.<minor>` and the plain
+  `<major>.<minor>.<patch>`. The unqualified `latest` and `release` aliases
+  are claimed **only** by the newest canonical `release/<major>.<minor>`
+  branch that exists on `origin`, so a later `2.0.x` maintenance release
+  publishes `latest-2.0` instead and cannot move `latest`/`release` back
+  from an already published `2.1.x`. The check fails closed: if the newest
+  line cannot be determined, the build is treated as superseded and only
+  publishes line-specific aliases. Non-release builds keep their existing
+  branch-suffixed `latest-<branch>` alias, and the master-only pump image
+  publishes `preview` rather than `latest`.
 
 ## First stable release
 
@@ -588,8 +601,11 @@ repository and both feeds consistent.
    ```
 5. Confirm the stable container image aliases (if this release includes
    image-tagged samples - see [Container support](ContainerReferenceServer.md))
-   now point at the released commit, and no older maintenance release moved
-   a newer minor's `latest`/`release` alias backwards.
+   now point at the released commit. For the newest line expect `latest`,
+   `release`, `<major>.<minor>` and the exact version; for a superseded
+   maintenance line expect `latest-<major>.<minor>`, `<major>.<minor>` and
+   the exact version, with `latest`/`release` still on the newer minor (see
+   [Branch and channel model](#branch-and-channel-model)).
 6. Confirm every backport tracked for this release (see
    [Routine backport](#routine-backport)/[Emergency hotfix](#emergency-hotfix))
    shows as merged on every line it was required for.

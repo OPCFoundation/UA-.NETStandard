@@ -150,6 +150,26 @@ jobs:
       packagesToPack: 'nuget/Opc.*.nuspec'
       versioningScheme: 'byEnvVar'
       versionEnvVar: 'nugetpublicversion'
+  - task: CmdLine@2
+    displayName: 'List of nuget packages to sign'
+    inputs:
+      script: |
+        dir /b /s $(Build.ArtifactStagingDirectory)\OPCFoundation.*.*nupkg > .\nupkglist.txt
+        type .\nupkglist.txt
+  - task: CmdLine@2
+    displayName: Sign Nuget packages
+    condition: and(succeeded(), ne( variables['SigningClientSecret'], ''))
+    continueOnError: true
+    inputs:
+      script: |
+        NuGetKeyVaultSignTool sign $(Build.ArtifactStagingDirectory)/**/OPCFoundation.*.nupkg --file-digest sha256 --timestamp-rfc3161 http://timestamp.digicert.com --timestamp-digest sha256 --azure-key-vault-url "$(SigningVaultURL)" --azure-key-vault-client-id "$(SigningClientId)" --azure-key-vault-tenant-id "$(SigningTenantId)" --azure-key-vault-client-secret "$(SigningClientSecret)" --azure-key-vault-certificate "$(SigningCertName)"
+        NuGetKeyVaultSignTool sign $(Build.ArtifactStagingDirectory)/**/OPCFoundation.*.snupkg --file-digest sha256 --timestamp-rfc3161 http://timestamp.digicert.com --timestamp-digest sha256 --azure-key-vault-url "$(SigningVaultURL)" --azure-key-vault-client-id "$(SigningClientId)" --azure-key-vault-tenant-id "$(SigningTenantId)" --azure-key-vault-client-secret "$(SigningClientSecret)" --azure-key-vault-certificate "$(SigningCertName)"
+  # The manifest records a SHA-256 for every package, and signing rewrites
+  # each .nupkg/.snupkg in place. These two tasks must therefore stay *after*
+  # "Sign Nuget packages" - running them earlier records hashes of the
+  # unsigned bytes, so the published artifact could not be verified against
+  # the manifest that accompanies it. They must equally stay *before* the
+  # upload/publish tasks, which consume the PackageChannel variable set here.
   - task: PowerShell@2
     displayName: Validate package version policy
     name: packageVersionPolicy
@@ -174,20 +194,6 @@ jobs:
         }
         Write-Host "##vso[task.setvariable variable=PackageChannel]$($manifest.channel)"
         Write-Host "Package channel is '$($manifest.channel)'."
-  - task: CmdLine@2
-    displayName: 'List of nuget packages to sign'
-    inputs:
-      script: |
-        dir /b /s $(Build.ArtifactStagingDirectory)\OPCFoundation.*.*nupkg > .\nupkglist.txt
-        type .\nupkglist.txt
-  - task: CmdLine@2
-    displayName: Sign Nuget packages
-    condition: and(succeeded(), ne( variables['SigningClientSecret'], ''))
-    continueOnError: true
-    inputs:
-      script: |
-        NuGetKeyVaultSignTool sign $(Build.ArtifactStagingDirectory)/**/OPCFoundation.*.nupkg --file-digest sha256 --timestamp-rfc3161 http://timestamp.digicert.com --timestamp-digest sha256 --azure-key-vault-url "$(SigningVaultURL)" --azure-key-vault-client-id "$(SigningClientId)" --azure-key-vault-tenant-id "$(SigningTenantId)" --azure-key-vault-client-secret "$(SigningClientSecret)" --azure-key-vault-certificate "$(SigningCertName)"
-        NuGetKeyVaultSignTool sign $(Build.ArtifactStagingDirectory)/**/OPCFoundation.*.snupkg --file-digest sha256 --timestamp-rfc3161 http://timestamp.digicert.com --timestamp-digest sha256 --azure-key-vault-url "$(SigningVaultURL)" --azure-key-vault-client-id "$(SigningClientId)" --azure-key-vault-tenant-id "$(SigningTenantId)" --azure-key-vault-client-secret "$(SigningClientSecret)" --azure-key-vault-certificate "$(SigningCertName)"
   - ${{ if eq(parameters.upload, 'True') }}:
     - task: NuGetCommand@2
       displayName: Upload Nuget Preview

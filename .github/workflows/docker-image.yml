@@ -117,15 +117,53 @@ jobs:
       run: |
         echo IMAGE_TAG=-$(echo ${{ github.ref }} | tr '[:upper:]' '[:lower:]' |  awk '{sub(/([^\/]*\/){2}/,""); gsub(/\/|_/, "-")}1') >> $GITHUB_ENV
 
+    - name: Determine release line precedence
+      # Only the newest canonical release/<major>.<minor> line may move the
+      # unqualified ":latest" and ":release" aliases. Without this, a later
+      # 2.0.x maintenance release would drag both aliases back to the older
+      # minor after 2.1.x had already published, contradicting the guarantee
+      # in docs/ReleaseProcess.md that older maintenance lines cannot move
+      # them backwards. Fails closed: if the newest line cannot be
+      # determined, this build is treated as a superseded line and only
+      # publishes line-specific aliases.
+      if: ${{ env.NBGV_PublicRelease == 'True' && env.NBGV_PrereleaseVersion == '' && env.IS_NOT_PR == 'true' }}
+      run: |
+        set -euo pipefail
+        highest=$(git ls-remote --heads origin 'refs/heads/release/*' \
+          | sed -E 's#.*refs/heads/release/##' \
+          | grep -E '^[0-9]+\.[0-9]+$' \
+          | sort -t. -k1,1n -k2,2n \
+          | tail -n1 || true)
+        echo "Newest canonical release line: '${highest:-<none>}'; this build: '${{ env.NBGV_MajorMinorVersion }}'"
+        if [ -n "$highest" ] && [ "$highest" = "${{ env.NBGV_MajorMinorVersion }}" ]; then
+          echo IS_NEWEST_RELEASE_LINE=true >> $GITHUB_ENV
+        else
+          echo IS_NEWEST_RELEASE_LINE=false >> $GITHUB_ENV
+        fi
+
     - name: Prepare version and latest tag
       run: |
-        echo TAG_BRANCH=$(echo ${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_VERSION }}${{ env.IMAGE_TAG }}) >> $GITHUB_ENV
-        echo TAG_LATEST=$(echo ${{ env.IMAGE_REPOSITORY }}:latest${{ env.IMAGE_TAG }}) >> $GITHUB_ENV
+        set -euo pipefail
+        echo TAG_BRANCH=${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_VERSION }}${{ env.IMAGE_TAG }} >> $GITHUB_ENV
+        latest_suffix='${{ env.IMAGE_TAG }}'
+        if [ "${IS_NEWEST_RELEASE_LINE:-}" = "false" ]; then
+          # Stable release on a superseded maintenance line: leave ":latest"
+          # on the newest line and publish a line-specific alias instead.
+          latest_suffix="-${{ env.NBGV_MajorMinorVersion }}"
+        fi
+        echo TAG_LATEST=${{ env.IMAGE_REPOSITORY }}:latest${latest_suffix} >> $GITHUB_ENV
 
     - name: Prepare Release tags
       if: ${{ env.NBGV_PublicRelease == 'True' && env.NBGV_PrereleaseVersion == '' && env.IS_NOT_PR == 'true' }}
       run: |
-        echo TAG_RELEASE=,${{ env.IMAGE_REPOSITORY }}:${{ env.NBGV_MajorMinorVersion }},${{ env.IMAGE_REPOSITORY }}:${{ env.NBGV_SimpleVersion }},${{ env.IMAGE_REPOSITORY }}:release >> $GITHUB_ENV
+        set -euo pipefail
+        # Every release line keeps its exact version and major.minor tags;
+        # only the newest line also claims the unqualified ":release" alias.
+        tags=",${{ env.IMAGE_REPOSITORY }}:${{ env.NBGV_MajorMinorVersion }},${{ env.IMAGE_REPOSITORY }}:${{ env.NBGV_SimpleVersion }}"
+        if [ "${IS_NEWEST_RELEASE_LINE:-}" = "true" ]; then
+          tags="${tags},${{ env.IMAGE_REPOSITORY }}:release"
+        fi
+        echo TAG_RELEASE=${tags} >> $GITHUB_ENV
 
     # Extract metadata (tags, labels) for Docker
     # https://github.com/docker/metadata-action
