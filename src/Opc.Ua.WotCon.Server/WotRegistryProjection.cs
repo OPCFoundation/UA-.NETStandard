@@ -280,12 +280,7 @@ namespace Opc.Ua.WotCon.Server
             cancellationToken.ThrowIfCancellationRequested();
             if (context is ServerSystemContext { OperationContext: not null })
             {
-                IReadOnlyList<IAsyncNodeManager> managers = m_manager.Server.NodeManager is MasterNodeManager master
-                    ? master.NamespaceManagers.TryGetValue(m_modelNs, out IReadOnlyList<IAsyncNodeManager>? scoped)
-                        ? scoped
-                        : []
-                    : m_manager.Server.NodeManager.AsyncNodeManagers;
-                foreach (IAsyncNodeManager manager in managers)
+                foreach (IAsyncNodeManager manager in m_manager.Server.NodeManager.AsyncNodeManagers)
                 {
                     if (manager is IWotCanonicalViewReadImage image &&
                         image.TryGetMembershipDigest(resourceNodeId, out ByteString capturedDigest))

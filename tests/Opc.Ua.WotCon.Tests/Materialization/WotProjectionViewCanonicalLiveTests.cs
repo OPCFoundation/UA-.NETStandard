@@ -748,14 +748,16 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "The retained Read must not combine generation one's token with generation two's membership digest.");
         }
 
-        [Test]
-        public async Task NativeMembershipDigestUsesACustomCapturedReadImageAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task NativeMembershipDigestUsesACustomCapturedReadImageAsync(bool separateNamespace)
         {
             await using NativeHarness harness = await NativeHarness.CreateAsync(withGraphResources: true)
                 .ConfigureAwait(false);
             NodeId resource = harness.ResourceNodeId("child");
             ByteString expected = ByteString.From(Enumerable.Range(0, 32).Select(value => (byte)value).ToArray());
-            var factory = new CapturedDigestFactory(resource, expected);
+            var factory = new CapturedDigestFactory(
+                resource, expected, separateNamespace ? "urn:c2:custom-views" : Namespaces.WotCon);
             await harness.Lifecycle.AddAsync(factory, callerContext: null).ConfigureAwait(false);
             NodeId property = harness.Target((await harness.BrowseAsync(resource, Ua.ReferenceTypeIds.HasProperty)
                 .ConfigureAwait(false)).ToList().Single(reference => reference.BrowseName ==
@@ -1691,9 +1693,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             private WotMaterializationCoordinator? m_coordinator;
         }
 
-        private sealed class CapturedDigestFactory(NodeId resource, ByteString digest) : IAsyncNodeManagerFactory
+        private sealed class CapturedDigestFactory(
+            NodeId resource, ByteString digest, string namespaceUri) : IAsyncNodeManagerFactory
         {
-            public ArrayOf<string> NamespacesUris => [Namespaces.WotCon];
+            public ArrayOf<string> NamespacesUris => [namespaceUri];
 
             public ValueTask<IAsyncNodeManager> CreateAsync(
                 IServerInternal server, ApplicationConfiguration configuration,
@@ -1701,7 +1704,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             {
                 var manager = new Mock<AsyncCustomNodeManager>(
                     server, configuration, server.Telemetry.CreateLogger<CapturedDigestFactory>(),
-                    new[] { Namespaces.WotCon })
+                    new[] { namespaceUri })
                 {
                     CallBase = true
                 };

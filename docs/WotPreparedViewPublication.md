@@ -133,6 +133,8 @@ Native operations obtain the digest from the same captured NodeManager image
 that supplies the ViewVersion, including while a newer generation is active.
 Prepared View NodeManagers implement `IWotCanonicalViewReadImage` and retain
 their immutable Resource-to-digest lookup until captured operations drain.
+Providers are discovered across the captured visible NodeManagers; a custom
+View owner need not register the WoT Connectivity namespace.
 The stock source host rejects a custom View candidate without that contract
 before the durable decision. A captured image with no active projection reports
 `BadWaitingForInitialData`; it does not fall through to newer registry state.
