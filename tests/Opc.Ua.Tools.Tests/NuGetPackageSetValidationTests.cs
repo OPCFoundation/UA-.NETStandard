@@ -375,6 +375,7 @@ namespace Opc.Ua.Tools.Tests
                 process.StartInfo.FileName = "pwsh";
                 process.StartInfo.RedirectStandardOutput = true;
                 process.StartInfo.RedirectStandardError = true;
+                PowerShellScriptOutput.ConfigureDeterministicOutput(process.StartInfo);
                 process.StartInfo.ArgumentList.Add("-NoProfile");
                 process.StartInfo.ArgumentList.Add("-File");
                 process.StartInfo.ArgumentList.Add(scriptPath);
@@ -400,7 +401,7 @@ namespace Opc.Ua.Tools.Tests
 
                 string output = await standardOutput.ConfigureAwait(false);
                 string error = await standardError.ConfigureAwait(false);
-                string combined = output + error;
+                string combined = PowerShellScriptOutput.Normalize(output + error);
 
                 JsonElement? manifest = null;
                 if (File.Exists(manifestPath))
