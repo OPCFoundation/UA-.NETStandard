@@ -212,6 +212,25 @@ and probe reachability. Two implementations ship:
 Both hosted and on-device deployments use the same OPC UA nodes. The difference
 is configuration: endpoint, credentials, data jurisdiction and egress.
 
+## Invocation inputs and parameters
+
+`Invoke` and `InvokeAsync` accept an inline `Payload` or a `PayloadUri`, but the
+current server implementation supports inline payloads only. It returns
+`BadNotSupported` for URI-only input rather than accepting it and running a
+backend with no request body.
+
+Both built-in backends support `temperature` (0 through 2), `max_tokens`
+(positive integer), and `top_p` (0 through 1). Parameters are converted using
+the invariant culture, forwarded through synchronous, asynchronous, fallback,
+and oversized-transfer execution, and rejected when malformed or unsupported.
+For the REST chat-completions backend, explicit OPC UA parameters override the
+corresponding fields in the JSON request body.
+
+The server publishes `SpecificationVersion` from the source-generated
+`Opc.Ua.AI.ModelVersions.Target` constant, which is derived from the AI
+NodeSet's target model version. Updating the NodeSet therefore updates the
+published version without a second hand-maintained literal.
+
 ## Example
 
 The sample in

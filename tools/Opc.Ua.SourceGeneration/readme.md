@@ -50,6 +50,10 @@ Per-file behaviour is controlled with `AdditionalFiles` metadata:
 | `ModelSourceGeneratorName` | Overrides the generated `Namespaces` class identifier for the model. |
 | `ModelSourceGeneratorPrefix` | Overrides the C# namespace / prefix under which the model's types are generated. For a `NodeSet2` input this defaults to a value derived from the model URI — set it explicitly to choose the generated C# namespace. A `Prefix` declared inside a *referencing* `ModelDesign`'s `<opc:Namespaces>` does not rename the referenced model's generated types. |
 
+The generated namespace also exposes `ModelVersions.Target`, which is the target
+model's declared version. Use it when a host needs to publish the companion
+specification version without maintaining a second literal.
+
 ```xml
 <ItemGroup>
   <AdditionalFiles Include="Model\EquipmentTypes.NodeSet2.xml">

@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua;
@@ -55,11 +57,11 @@ namespace Opc.Ua.AI.Server
         {
             Child<InvokeMethodState>(deployment, BrowseNames.Invoke).OnCallAsync =
                 (context, method, objectId, payload, payloadUri, contentType, parameters, timeout, ct) =>
-                    InvokeAsync(objectId, payload, payloadUri, contentType, timeout, ct);
+                    InvokeAsync(objectId, payload, payloadUri, contentType, parameters, timeout, ct);
 
             Child<InvokeAsyncMethodState>(deployment, BrowseNames.InvokeAsync).OnCallAsync =
                 (context, method, objectId, payload, payloadUri, contentType, parameters, ct) =>
-                    StartJobAsync(objectId, payload, payloadUri, contentType, ct);
+                    StartJobAsync(objectId, payload, payloadUri, contentType, parameters, ct);
 
             Child<GetCapabilitiesMethodState>(deployment, BrowseNames.GetCapabilities)
                 .OnCallAsync =
@@ -67,7 +69,7 @@ namespace Opc.Ua.AI.Server
 
             Child<BeginTransferMethodState>(deployment, BrowseNames.BeginTransfer).OnCallAsync =
                 (context, method, objectId, contentType, requestSize, ct) =>
-                    BeginTransferAsync(objectId, contentType, requestSize, ct);
+                    BeginTransferAsync(objectId, contentType, requestSize, null, ct);
         }
 
         /// <summary>
@@ -94,6 +96,7 @@ namespace Opc.Ua.AI.Server
             ByteString payload,
             string payloadUri,
             string contentType,
+            ArrayOf<Opc.Ua.KeyValuePair> parameters,
             double timeout,
             CancellationToken ct)
         {
@@ -117,6 +120,22 @@ namespace Opc.Ua.AI.Server
                 };
             }
 
+            if (!string.IsNullOrEmpty(payloadUri))
+            {
+                return new InvokeMethodStateResult
+                {
+                    ServiceResult = StatusCodes.BadNotSupported
+                };
+            }
+
+            if (!TryNormalizeParameters(parameters, out Dictionary<string, string>? normalized))
+            {
+                return new InvokeMethodStateResult
+                {
+                    ServiceResult = StatusCodes.BadInvalidArgument
+                };
+            }
+
             ReadOnlyMemory<byte> body = payload.Memory;
 
             if (body.Length > m_backendOptions.MaxInlinePayloadSize)
@@ -126,6 +145,7 @@ namespace Opc.Ua.AI.Server
                         objectId,
                         contentType,
                         (ulong)body.Length,
+                        normalized,
                         ct).ConfigureAwait(false);
 
                 if (!transfer.Accepted)
@@ -162,12 +182,24 @@ namespace Opc.Ua.AI.Server
                 };
             }
 
-            InferenceOutcome outcome = await RunWithFallbackAsync(
-                deployment,
-                body,
-                contentType,
-                TimeoutOrDefault(timeout),
-                ct).ConfigureAwait(false);
+            InferenceOutcome outcome;
+            try
+            {
+                outcome = await RunWithFallbackAsync(
+                    deployment,
+                    body,
+                    contentType,
+                    normalized,
+                    TimeoutOrDefault(timeout),
+                    ct).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is ArgumentException || ex is JsonException)
+            {
+                return new InvokeMethodStateResult
+                {
+                    ServiceResult = StatusCodes.BadInvalidArgument
+                };
+            }
 
             if (!outcome.Result.Ok)
             {
@@ -271,6 +303,63 @@ namespace Opc.Ua.AI.Server
         private static double TimeoutOrDefault(double timeoutMilliseconds)
         {
             return timeoutMilliseconds > 0 ? timeoutMilliseconds : 30000;
+        }
+
+        private static bool TryNormalizeParameters(
+            ArrayOf<Opc.Ua.KeyValuePair> parameters,
+            out Dictionary<string, string> normalized)
+        {
+            normalized = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            for (int ii = 0; ii < parameters.Count; ii++)
+            {
+                Opc.Ua.KeyValuePair parameter = parameters[ii];
+                if (parameter.Key.NamespaceIndex != 0 ||
+                    string.IsNullOrWhiteSpace(parameter.Key.Name) ||
+                    !TryFormatParameterValue(parameter.Value, out string value) ||
+                    !normalized.TryAdd(parameter.Key.Name, value))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static bool TryFormatParameterValue(Variant value, out string formatted)
+        {
+            if (value.TryGetValue(out string text))
+            {
+                formatted = text;
+                return true;
+            }
+
+            if (value.TryGetValue(out double number))
+            {
+                formatted = number.ToString(CultureInfo.InvariantCulture);
+                return double.IsFinite(number);
+            }
+
+            if (value.TryGetValue(out float single))
+            {
+                formatted = single.ToString(CultureInfo.InvariantCulture);
+                return float.IsFinite(single);
+            }
+
+            if (value.TryGetValue(out int integer))
+            {
+                formatted = integer.ToString(CultureInfo.InvariantCulture);
+                return true;
+            }
+
+            if (value.TryGetValue(out uint unsigned))
+            {
+                formatted = unsigned.ToString(CultureInfo.InvariantCulture);
+                return true;
+            }
+
+            formatted = string.Empty;
+            return false;
         }
 
         private static UsageDataType ToUsage(InferenceResult result)

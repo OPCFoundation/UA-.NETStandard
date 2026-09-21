@@ -112,6 +112,12 @@ flight, not where the data went.
 discovered from a rejection, because the real bound is the smallest of several
 limits a client can see none of.
 
+**`PayloadUri`** is not implemented by this sample. A URI-only `Invoke` or
+`InvokeAsync` call returns `BadNotSupported`; the sample never accepts it and
+silently invokes a backend without request bytes. Inline calls can set
+`temperature` (0 through 2), `max_tokens` (positive integer), and `top_p`
+(0 through 1). These parameters apply to both shipped backends.
+
 **`CredentialReference`** names the credential; it never carries one. A client
 is entitled to know *which* credential is configured so it can tell whether the
 right one is. A client that could read the value could use it.
