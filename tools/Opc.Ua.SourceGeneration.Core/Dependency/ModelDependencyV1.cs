@@ -755,7 +755,9 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 byte capabilities = reader.ReadByte();
                 bool hasMethodIdentityTrailer =
                     (capabilities & kMethodIdentityTrailer) != 0;
-                if (hasMethodIdentityTrailer)
+                bool hasExtendedIdentifierTrailer =
+                    (capabilities & kExtendedIdentifierTrailer) != 0;
+                if (hasMethodIdentityTrailer || hasExtendedIdentifierTrailer)
                 {
                     FluentAccessorsEmitted =
                         (capabilities & kFluentAccessorsKnown) != 0
@@ -772,7 +774,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 {
                     ReadMethodIdentityTrailer(reader);
                 }
-                if ((capabilities & kExtendedIdentifierTrailer) != 0 &&
+                if (hasExtendedIdentifierTrailer &&
                     reader.BaseStream.Position < reader.BaseStream.Length)
                 {
                     ReadExtendedIdentifierTrailer(reader);

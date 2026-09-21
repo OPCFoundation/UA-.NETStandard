@@ -3043,7 +3043,7 @@ namespace Opc.Ua.Schema.Model
             {
                 return node.NumericId;
             }
-            if (!string.IsNullOrEmpty(node.StringId))
+            if (node.StringId != null)
             {
                 return node.StringId;
             }

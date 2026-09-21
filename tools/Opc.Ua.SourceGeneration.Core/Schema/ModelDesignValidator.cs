@@ -4709,7 +4709,7 @@ namespace Opc.Ua.Schema.Model
 
             if (m_nodes.TryGetValue(symbolicId, out NodeDesign target))
             {
-            encoding.SetIdentifier(target.GetIdentifier());
+                encoding.SetIdentifier(target.GetIdentifier());
                 m_nodes.Remove(symbolicId);
             }
 
@@ -6687,7 +6687,7 @@ namespace Opc.Ua.Schema.Model
                 design.GuidId = guidId;
                 design.GuidIdSpecified = true;
             }
-            if (!string.IsNullOrEmpty(entry.OpaqueId))
+            if (entry.OpaqueId != null)
             {
                 design.OpaqueId = Convert.FromBase64String(entry.OpaqueId);
             }

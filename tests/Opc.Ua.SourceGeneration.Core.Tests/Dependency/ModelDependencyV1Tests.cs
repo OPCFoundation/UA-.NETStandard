@@ -127,12 +127,15 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         /// Guid and opaque identifiers travel in an optional trailer so that
         /// payloads without them stay byte identical.
         /// </summary>
-        [Test]
-        public void WriteThenRead_RoundTripsExtendedIdentifiers()
+        [TestCase(null)]
+        [TestCase(true)]
+        [TestCase(false)]
+        public void WriteThenReadRoundTripsExtendedIdentifiers(bool? emitted)
         {
             var dependency = new ModelDependencyV1
             {
-                ModelUri = "http://example.org/UA/ExtendedIds/"
+                ModelUri = "http://example.org/UA/ExtendedIds/",
+                FluentAccessorsEmitted = emitted
             };
             dependency.Nodes.Add(new DependencyNode
             {
@@ -164,6 +167,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(decoded, Is.Not.Null);
             Assert.Multiple(() =>
             {
+                Assert.That(decoded.FluentAccessorsEmitted, Is.EqualTo(emitted));
                 Assert.That(
                     decoded.Nodes[0].GuidId,
                     Is.EqualTo("09087e75-8e5e-499b-954f-f2a9603db28a"));
