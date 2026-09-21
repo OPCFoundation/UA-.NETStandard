@@ -12,7 +12,15 @@
     * It MUST sort strictly above every already-published "-preview.N" (or
       legacy "-preview.YYYYMMDD") identifier for the same "OPCFoundation.
       NetStandard.Opc.Ua.*" package IDs on both nuget.org and the GitHub
-      Packages feed, including every ".Debug" package variant.
+      Packages feed, including every ".Debug" package variant. Note that
+      ordinary development keeps publishing "<base>-preview.{height}"
+      packages with a monotonically growing height, so a value that was
+      correct when it was picked goes stale on its own.
+      .azurepipelines/validate-preview-package-ordering.ps1 proves this
+      invariant against both feeds and fails the stable candidate build and
+      the release promotion when it no longer holds; the value below is a
+      headroom estimate, and that check - not this comment - is what
+      guarantees correctness.
     * It is reset/re-picked independently for every new stable base version
       (2.0.0, 2.0.1, 2.1.0, ...); do not carry a prior release's value
       forward without checking published versions again.
@@ -27,6 +35,6 @@
     property has no effect.
   -->
   <PropertyGroup>
-    <PreviewPackageBuildNumber Condition="'$(PreviewPackageBuildNumber)' == ''">6</PreviewPackageBuildNumber>
+    <PreviewPackageBuildNumber Condition="'$(PreviewPackageBuildNumber)' == ''">100</PreviewPackageBuildNumber>
   </PropertyGroup>
 </Project>

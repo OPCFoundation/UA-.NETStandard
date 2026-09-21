@@ -37,6 +37,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using NUnit.Framework;
 
 namespace Opc.Ua.Tools.Tests
@@ -75,7 +76,7 @@ namespace Opc.Ua.Tools.Tests
         {
             using PackageSetFixture fixture = PackageSetFixture.Create();
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core", "2.0.0");
-            fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.XRegistry", "2.0.0-preview.6");
+            fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.XRegistry", PreviewFamilyVersion);
 
             ValidationResult result = await fixture.ValidateAsync(expectedVersion: "2.0.0").ConfigureAwait(false);
 
@@ -87,7 +88,7 @@ namespace Opc.Ua.Tools.Tests
                     .Select(e => e.GetString()!)
                     .OrderBy(v => v, StringComparer.Ordinal)
                     .ToArray();
-                string[] expectedVersions = ["2.0.0", "2.0.0-preview.6"];
+                string[] expectedVersions = ["2.0.0", PreviewFamilyVersion];
                 Assert.That(actualVersions, Is.EqualTo(expectedVersions.OrderBy(v => v, StringComparer.Ordinal)));
             });
         }
@@ -97,7 +98,7 @@ namespace Opc.Ua.Tools.Tests
         {
             using PackageSetFixture fixture = PackageSetFixture.Create();
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core.Debug", "2.0.0");
-            fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.XRegistry.Debug", "2.0.0-preview.6");
+            fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.XRegistry.Debug", PreviewFamilyVersion);
 
             ValidationResult result = await fixture.ValidateAsync(expectedVersion: "2.0.0").ConfigureAwait(false);
 
@@ -149,7 +150,7 @@ namespace Opc.Ua.Tools.Tests
         public async Task RejectsAMissingCoreAnchorPackageAsync()
         {
             using PackageSetFixture fixture = PackageSetFixture.Create();
-            fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.XRegistry", "2.0.0-preview.6");
+            fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.XRegistry", PreviewFamilyVersion);
 
             ValidationResult result = await fixture.ValidateAsync().ConfigureAwait(false);
 
@@ -234,7 +235,7 @@ namespace Opc.Ua.Tools.Tests
         {
             using PackageSetFixture fixture = PackageSetFixture.Create();
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core", "2.0.0");
-            fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.XRegistry", "2.0.0-preview.6");
+            fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.XRegistry", PreviewFamilyVersion);
 
             ValidationResult result = await fixture.ValidateAsync(requireDebug: true).ConfigureAwait(false);
 
@@ -250,9 +251,9 @@ namespace Opc.Ua.Tools.Tests
         {
             using PackageSetFixture fixture = PackageSetFixture.Create();
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core", "2.0.0");
-            fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.XRegistry", "2.0.0-preview.6");
+            fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.XRegistry", PreviewFamilyVersion);
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core.Debug", "2.0.0");
-            fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.XRegistry.Debug", "2.0.0-preview.6");
+            fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.XRegistry.Debug", PreviewFamilyVersion);
 
             ValidationResult result = await fixture.ValidateAsync(requireDebug: true).ConfigureAwait(false);
 
@@ -270,7 +271,7 @@ namespace Opc.Ua.Tools.Tests
             using PackageSetFixture fixture = PackageSetFixture.Create();
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core", "2.0.0");
             // A .snupkg whose corresponding .nupkg never exists.
-            fixture.AddOrphanedSymbolPackage("OPCFoundation.NetStandard.Opc.Ua.XRegistry", "2.0.0-preview.6");
+            fixture.AddOrphanedSymbolPackage("OPCFoundation.NetStandard.Opc.Ua.XRegistry", PreviewFamilyVersion);
 
             ValidationResult result = await fixture.ValidateAsync().ConfigureAwait(false);
 
@@ -282,6 +283,32 @@ namespace Opc.Ua.Tools.Tests
         }
 
         private readonly record struct ValidationResult(int ExitCode, string Output, JsonElement? Manifest);
+
+        /// <summary>
+        /// The version a preview-only family carries in a stable "2.0.0"
+        /// package set, composed from the committed PreviewPackageBuildNumber
+        /// rather than hardcoded. preview-version.props mandates re-picking
+        /// that number for every new stable base version, and a literal would
+        /// silently repurpose the negative tests below: the preview-policy
+        /// check runs before the RequireDebug and orphaned-symbol checks, so
+        /// they would keep throwing - just for the wrong reason.
+        /// </summary>
+        private static string PreviewFamilyVersion { get; } =
+            $"2.0.0-preview.{ReadPreviewPackageBuildNumber()}";
+
+        private static string ReadPreviewPackageBuildNumber()
+        {
+            string propsPath = Path.Combine(FindRepositoryRoot(), "preview-version.props");
+            XElement? element = XDocument.Load(propsPath)
+                .Descendants()
+                .FirstOrDefault(e => e.Name.LocalName == "PreviewPackageBuildNumber");
+            if (element is null || string.IsNullOrWhiteSpace(element.Value))
+            {
+                throw new InvalidOperationException(
+                    $"'{propsPath}' does not define a PreviewPackageBuildNumber value.");
+            }
+            return element.Value.Trim();
+        }
 
         private sealed class PackageSetFixture : IDisposable
         {

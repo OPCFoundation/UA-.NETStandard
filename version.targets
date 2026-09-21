@@ -1,16 +1,26 @@
 <Project>
   <PropertyGroup>
-    <_IsPreviewPackage Condition="'$(PackageId)' == '$(PackagePrefix).Opc.Ua.XRegistry' OR $([System.String]::Copy('$(PackageId)').StartsWith('$(PackagePrefix).Opc.Ua.XRegistry.'))">true</_IsPreviewPackage>
-    <_IsPreviewPackage Condition="'$(PackageId)' == '$(PackagePrefix).Opc.Ua.WotCon' OR $([System.String]::Copy('$(PackageId)').StartsWith('$(PackagePrefix).Opc.Ua.WotCon.'))">true</_IsPreviewPackage>
-    <_IsPreviewPackage Condition="'$(PackageId)' == '$(PackagePrefix).Opc.Ua.Vision' OR $([System.String]::Copy('$(PackageId)').StartsWith('$(PackagePrefix).Opc.Ua.Vision.'))">true</_IsPreviewPackage>
-    <_IsPreviewPackage Condition="'$(PackageId)' == '$(PackagePrefix).Opc.Ua.Robotics' OR $([System.String]::Copy('$(PackageId)').StartsWith('$(PackagePrefix).Opc.Ua.Robotics.'))">true</_IsPreviewPackage>
-    <_IsPreviewPackage Condition="'$(PackageId)' == '$(PackagePrefix).Opc.Ua.Redundancy' OR $([System.String]::Copy('$(PackageId)').StartsWith('$(PackagePrefix).Opc.Ua.Redundancy.'))">true</_IsPreviewPackage>
-    <_IsPreviewPackage Condition="'$(PackageId)' == '$(PackagePrefix).Opc.Ua.Positioning' OR $([System.String]::Copy('$(PackageId)').StartsWith('$(PackagePrefix).Opc.Ua.Positioning.'))">true</_IsPreviewPackage>
-    <_IsPreviewPackage Condition="'$(PackageId)' == '$(PackagePrefix).Opc.Ua.OpenUsd' OR $([System.String]::Copy('$(PackageId)').StartsWith('$(PackagePrefix).Opc.Ua.OpenUsd.'))">true</_IsPreviewPackage>
-    <_IsPreviewPackage Condition="'$(PackageId)' == '$(PackagePrefix).Opc.Ua.ISA95' OR $([System.String]::Copy('$(PackageId)').StartsWith('$(PackagePrefix).Opc.Ua.ISA95.'))">true</_IsPreviewPackage>
-    <_IsPreviewPackage Condition="'$(PackageId)' == '$(PackagePrefix).Opc.Ua.AI' OR $([System.String]::Copy('$(PackageId)').StartsWith('$(PackagePrefix).Opc.Ua.AI.'))">true</_IsPreviewPackage>
-    <_IsPreviewPackage Condition="'$(PackageId)' == '$(PackagePrefix).Opc.Ua.Di' OR $([System.String]::Copy('$(PackageId)').StartsWith('$(PackagePrefix).Opc.Ua.Di.'))">true</_IsPreviewPackage>
-    <_IsPreviewPackage Condition="'$(PackageId)' == '$(PackagePrefix).Opc.Ua.Mcp.Robotics' OR '$(PackageId)' == '$(PackagePrefix).Opc.Ua.Mcp.Vision' OR '$(PackageId)' == '$(PackagePrefix).Opc.Ua.OpenUsd.Connector' OR '$(PackageId)' == '$(PackagePrefix).Opc.Ua.OpenUsd.Connector.Viewer'">true</_IsPreviewPackage>
+    <!--
+      A Debug-configuration pack renames every package to "<id>.Debug" (see
+      the per-project PackageId overrides), so classify on the base ID: the
+      Debug variant of a preview family must be pinned exactly like its
+      Release counterpart. Test-PreviewPackageId in
+      .azurepipelines/package-version-policy.ps1 strips the same suffix, and
+      validate-nuget-package-set.ps1 fails the build if the two classifiers
+      ever disagree.
+    -->
+    <_PreviewPackageBaseId>$([System.Text.RegularExpressions.Regex]::Replace('$(PackageId)', '\.Debug$', ''))</_PreviewPackageBaseId>
+    <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.XRegistry' OR $([System.String]::Copy('$(_PreviewPackageBaseId)').StartsWith('$(PackagePrefix).Opc.Ua.XRegistry.'))">true</_IsPreviewPackage>
+    <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.WotCon' OR $([System.String]::Copy('$(_PreviewPackageBaseId)').StartsWith('$(PackagePrefix).Opc.Ua.WotCon.'))">true</_IsPreviewPackage>
+    <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.Vision' OR $([System.String]::Copy('$(_PreviewPackageBaseId)').StartsWith('$(PackagePrefix).Opc.Ua.Vision.'))">true</_IsPreviewPackage>
+    <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.Robotics' OR $([System.String]::Copy('$(_PreviewPackageBaseId)').StartsWith('$(PackagePrefix).Opc.Ua.Robotics.'))">true</_IsPreviewPackage>
+    <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.Redundancy' OR $([System.String]::Copy('$(_PreviewPackageBaseId)').StartsWith('$(PackagePrefix).Opc.Ua.Redundancy.'))">true</_IsPreviewPackage>
+    <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.Positioning' OR $([System.String]::Copy('$(_PreviewPackageBaseId)').StartsWith('$(PackagePrefix).Opc.Ua.Positioning.'))">true</_IsPreviewPackage>
+    <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.OpenUsd' OR $([System.String]::Copy('$(_PreviewPackageBaseId)').StartsWith('$(PackagePrefix).Opc.Ua.OpenUsd.'))">true</_IsPreviewPackage>
+    <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.ISA95' OR $([System.String]::Copy('$(_PreviewPackageBaseId)').StartsWith('$(PackagePrefix).Opc.Ua.ISA95.'))">true</_IsPreviewPackage>
+    <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.AI' OR $([System.String]::Copy('$(_PreviewPackageBaseId)').StartsWith('$(PackagePrefix).Opc.Ua.AI.'))">true</_IsPreviewPackage>
+    <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.Di' OR $([System.String]::Copy('$(_PreviewPackageBaseId)').StartsWith('$(PackagePrefix).Opc.Ua.Di.'))">true</_IsPreviewPackage>
+    <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.Mcp.Robotics' OR '$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.Mcp.Vision' OR '$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.OpenUsd.Connector' OR '$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.OpenUsd.Connector.Viewer'">true</_IsPreviewPackage>
     <!--
       On a canonical release/M.m branch build (NBGV_PublicRelease == 'True'),
       common.props/version.props deliberately do NOT reference the

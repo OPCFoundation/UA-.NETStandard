@@ -448,6 +448,21 @@ jobs:
               "$($inventory.basePackageVersion)); ref eligible for feed " +
               "publication: $isEligibleRef.")
 
+      - name: Verify preview package ordering
+        # A stable candidate pins the preview-only families to the number
+        # committed in preview-version.props, which cannot track the growing
+        # "-preview.<height>" series that ordinary development keeps
+        # publishing. Prove the candidate still outranks every published
+        # preview before the bytes are retained for promotion - once pushed,
+        # a NuGet version can never be corrected. See docs/ReleaseProcess.md.
+        if: ${{ steps.package_set.outputs.channel == 'stable' }}
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ./.azurepipelines/validate-preview-package-ordering.ps1 `
+            -ManifestPath (Join-Path $env:GITHUB_WORKSPACE 'promotion/package-set.json')
+
       - name: Push to GitHub Packages
         # Only ever auto-publish in-development preview builds built from an
         # eligible branch (master, or a canonical release/<major>.<minor>

@@ -66,6 +66,83 @@ function Get-ExpectedPackageVersion {
     return $BaseVersion
 }
 
+function Get-BlockingPublishedPreviewVersions {
+    <#
+    .SYNOPSIS
+        Returns the already-published versions that a synthesized
+        "<BaseVersion>-preview.N" candidate does not sort strictly above.
+
+    .DESCRIPTION
+        Whenever the root version is an exact stable release it carries no
+        git-height placeholder to reuse, so version.targets pins the
+        preview-only families to the explicitly committed number in
+        preview-version.props instead. That number is a manual release
+        decision, so it goes stale on its own: ordinary development keeps
+        publishing "<BaseVersion>-preview.<height>" packages with a growing
+        height, and once the height passes the committed number the released
+        package would sort *below* a CI package under SemVer 2 precedence.
+        NuGet versions are immutable, so that mistake cannot be corrected
+        after the fact - consumers tracking the latest prerelease would
+        simply never see the release.
+
+        This predicate is deliberately pure: callers supply the published
+        version list they fetched from a feed, which keeps it deterministic
+        and offline-testable. It fails closed - a published version sharing
+        the same "<BaseVersion>-preview" base whose ordering cannot be
+        decided numerically is reported as blocking and requires an explicit
+        decision rather than being assumed lower.
+    #>
+    param(
+        [Parameter(Mandatory)][string]$BaseVersion,
+        [string[]]$PublishedVersions = @(),
+        [string]$PreviewPackageBuildNumber = (Get-PreviewPackageBuildNumber)
+    )
+
+    if ($PreviewPackageBuildNumber -notmatch '^\d+$') {
+        throw "The preview package build number '$PreviewPackageBuildNumber' is not a non-negative integer."
+    }
+    if (-not (Test-StablePackageVersion -Version $BaseVersion)) {
+        throw (
+            "Preview ordering is only defined for an exact stable base version such as '2.0.0'; " +
+            "got '$BaseVersion'.")
+    }
+
+    $candidate = [int]$PreviewPackageBuildNumber
+    $prefix = "$BaseVersion-preview"
+    $numbered = [regex]::new(
+        '^' + [regex]::Escape($prefix) + '\.(?<number>\d+)(?:[.+\-]|$)',
+        [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+
+    $blocking = foreach ($published in $PublishedVersions) {
+        if ([string]::IsNullOrWhiteSpace($published)) {
+            continue
+        }
+        $value = $published.Trim()
+        if (-not $value.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+            continue
+        }
+        if ($value.Length -eq $prefix.Length) {
+            # Exactly "<base>-preview": under SemVer 2 a prerelease with
+            # fewer dot-separated identifiers always sorts below one that
+            # shares its prefix and adds more, so this can never block.
+            continue
+        }
+
+        $match = $numbered.Match($value)
+        if (-not $match.Success) {
+            # For example a legacy "<base>-preview20240131" label: the
+            # ordering cannot be decided numerically, so surface it.
+            $value
+            continue
+        }
+        if ([int]$match.Groups['number'].Value -ge $candidate) {
+            $value
+        }
+    }
+
+    return , @($blocking | Sort-Object -Unique)
+}
+
 function Test-StablePackageVersion {
     <#
     .SYNOPSIS

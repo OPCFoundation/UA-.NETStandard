@@ -99,6 +99,18 @@ Every procedure below starts here.
    `PreviewPackageBuildNumber`, raise it (in the same PR that changes the
    root version to stable) before proceeding.
 
+   This manual sampling is only a headroom estimate. The authoritative check
+   is `.azurepipelines/validate-preview-package-ordering.ps1`, which queries
+   **every** preview-family package ID in a candidate's manifest against both
+   feeds. `nuget-publish.yml` and `release.yml` both run it automatically for
+   stable candidates, and both fail if any already-published version is not
+   strictly below the candidate's `-preview.N`. Note that ordinary `master`
+   development keeps publishing `<base>-preview.{height}` packages with a
+   growing height, so a number that was correct last week can go stale on its
+   own - always re-run the check against the **actual merged candidate**
+   ([Candidate and dry run](#candidate-and-dry-run) step 3) before approving
+   a promotion.
+
 ## Which procedure do I need?
 
 | Situation | Procedure |
@@ -401,6 +413,23 @@ maintainer can subsequently approve [Approved promotion](#approved-promotion).
    `Test-CanonicalReleaseBranchRef` call prints `True` for a release you
    intend to promote.
 
+   For a stable candidate, also prove that the preview-only families in the
+   set still sort strictly above everything already published, using the same
+   script both workflows run:
+   ```powershell
+   $env:GITHUB_TOKEN = (gh auth token)
+   ./.azurepipelines/validate-preview-package-ordering.ps1 `
+     -ManifestPath ./candidate/current-package-set.json `
+     -GitHubPackagesOwner OPCFoundation
+   ```
+   *Completion evidence*: the script prints that every preview-family package
+   ID sorts above its published versions and exits `0`. It returns early
+   (also `0`) when the manifest's `channel` is not `stable`, because a
+   preview candidate carries no synthesized `-preview.N` number to compare.
+   A non-zero exit lists every offending package ID and published version -
+   see [Failed or partial release](#failed-or-partial-release) step 2 for
+   how to recover.
+
 4. Alternatively, dry-run the actual promotion workflow itself (still no
    publication occurs):
    ```powershell
@@ -426,6 +455,11 @@ reviewer access.
 complete and its manifest shows `channel: stable` and the exact expected
 version; the run's source branch is the canonical `release/<major>.<minor>`
 line you intend to release; the change has the required approvals.
+
+`release.yml` re-runs `validate-preview-package-ordering.ps1` itself, before
+it authenticates to any feed, so an ordering violation that appeared after
+your dry run stops the promotion before the first public write rather than
+midway through it.
 
 1. Trigger the promotion for real:
    ```powershell
@@ -488,6 +522,14 @@ or [Approved promotion](#approved-promotion).
    produces a **new** `nuget-publish.yml` run and a new candidate. Start over
    at [Candidate and dry run](#candidate-and-dry-run) with that new run - do
    not attempt to reuse or repair the failed one.
+
+   Two failures are specific to the preview-ordering gate, and both stop the
+   run before any public write:
+
+   | Symptom | Cause and safe next action |
+   | --- | --- |
+   | `validate-preview-package-ordering.ps1` lists package IDs whose published versions are not below the candidate's `-preview.N` | Ordinary `master` development published a higher `<base>-preview.{height}` while this release was being prepared. Raise `PreviewPackageBuildNumber` in `preview-version.props` above every listed version, via a normal PR against the release branch, then build and validate a **new** candidate. Never lower a published version or delete packages to make room. |
+   | The script throws while querying nuget.org or GitHub Packages (for example `401`/`403`, or any non-`404` error status) | The gate deliberately fails closed: it cannot prove ordering, so it refuses to let the release proceed. Do **not** bypass it. Confirm the workflow passes a token with `packages: read`/`packages: write` for the owner being queried, and that the feed is reachable, then re-run the same workflow. A genuinely unpublished package ID returns `404`, which the script treats as "nothing to compare" and allows. |
 
 3. **If nuget.org already has some non-Debug packages, or GitHub Packages has
    some expected packages** for the version (a partial push - `dotnet nuget
@@ -596,6 +638,7 @@ Update this file, and the worked examples above, in the same pull request as
 any change to `version.json`, `version.props`, `version.targets`,
 `preview-version.props`, `.azurepipelines/package-version-policy.ps1`,
 `.azurepipelines/validate-nuget-package-set.ps1`,
+`.azurepipelines/validate-preview-package-ordering.ps1`,
 `.github/workflows/nuget-publish.yml`, `.github/workflows/release.yml`, or
 the Docker/container tagging workflows. A release procedure that no longer
 matches the scripts it describes is worse than no documentation at all.

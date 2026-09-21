@@ -206,6 +206,20 @@ jobs:
               "Validated $($current.packageCount) exact package bytes at version " +
               "$($current.basePackageVersion) from run ${{ inputs.release_run_id }}.")
 
+      - name: Verify preview package ordering
+        # Last gate before an irreversible publication: the preview-only
+        # families carry the number committed in preview-version.props, which
+        # cannot track the growing "-preview.<height>" series that ordinary
+        # development publishes. Re-prove the ordering here (including on a
+        # dry run) rather than trusting that nothing was published between
+        # candidate creation and approval. See docs/ReleaseProcess.md.
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ./.azurepipelines/validate-preview-package-ordering.ps1 `
+            -ManifestPath 'promotion/current-package-set.json'
+
       - name: NuGet login
         if: ${{ !inputs.dry_run }}
         id: login
