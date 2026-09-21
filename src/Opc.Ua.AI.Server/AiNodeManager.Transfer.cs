@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua;
@@ -65,6 +66,7 @@ namespace Opc.Ua.AI.Server
             NodeId objectId,
             string contentType,
             ulong requestSize,
+            IReadOnlyDictionary<string, string>? parameters,
             CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
@@ -129,6 +131,7 @@ namespace Opc.Ua.AI.Server
                     Node = node,
                     DeploymentId = deployment.NodeId,
                     ContentType = contentType,
+                    Parameters = parameters ?? new Dictionary<string, string>(),
                     ExpiresAt = DateTime.UtcNow.Add(m_options.TransferExpiry)
                 };
 
@@ -231,12 +234,36 @@ namespace Opc.Ua.AI.Server
                 SetTransferState(entry, TransferStateEnum.Executing);
             }
 
-            InferenceOutcome outcome = await RunWithFallbackAsync(
-                deployment,
-                payload,
-                entry.ContentType,
-                m_options.TransferInferenceTimeout.TotalMilliseconds,
-                ct).ConfigureAwait(false);
+            InferenceOutcome outcome;
+            try
+            {
+                outcome = await RunWithFallbackAsync(
+                    deployment,
+                    payload,
+                    entry.ContentType,
+                    entry.Parameters,
+                    m_options.TransferInferenceTimeout.TotalMilliseconds,
+                    ct).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is ArgumentException || ex is JsonException)
+            {
+                lock (m_sync)
+                {
+                    if (m_transfers.TryGetValue(objectId, out TransferEntry? live) &&
+                        ReferenceEquals(live, entry))
+                    {
+                        Child<PropertyState<LocalizedText>>(entry.Node, BrowseNames.LastError).Value =
+                            new LocalizedText(ex.Message);
+                        SetTransferState(entry, TransferStateEnum.Failed);
+                    }
+                }
+
+                return new ExecuteMethodStateResult
+                {
+                    ServiceResult = StatusCodes.BadInvalidArgument,
+                    Accepted = false
+                };
+            }
 
             lock (m_sync)
             {

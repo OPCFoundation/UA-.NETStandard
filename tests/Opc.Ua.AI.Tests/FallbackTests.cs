@@ -110,6 +110,42 @@ namespace Opc.Ua.AI.Tests
         }
 
         [Test]
+        public async Task AFallbackReceivesTheOriginalCallParametersAsync()
+        {
+            var primary = new FakeInferenceBackend("primary") { Healthy = false };
+            var fallback = new FakeInferenceBackend("fallback");
+            using AINodeManager nm = await CreateAsync(primary, fallback).ConfigureAwait(false);
+            DeploymentState deployment = nm.FindPredefinedNode<DeploymentState>(nm.PrimaryDeploymentId);
+            ArrayOf<Opc.Ua.KeyValuePair> parameters =
+            [
+                new Opc.Ua.KeyValuePair
+                {
+                    Key = new QualifiedName("temperature"),
+                    Value = Variant.From(0.25)
+                }
+            ];
+
+            await deployment.Invoke!.OnCallAsync!(
+                nm.SystemContext,
+                deployment.Invoke,
+                nm.PrimaryDeploymentId,
+                ByteString.From(Encoding.UTF8.GetBytes("{}")),
+                string.Empty,
+                "application/json",
+                parameters,
+                5000,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(primary.Requests, Has.Count.EqualTo(1));
+                Assert.That(fallback.Requests, Has.Count.EqualTo(1));
+                Assert.That(primary.Requests[0].Parameters["temperature"], Is.EqualTo("0.25"));
+                Assert.That(fallback.Requests[0].Parameters["temperature"], Is.EqualTo("0.25"));
+            });
+        }
+
+        [Test]
         public async Task FallbackIsNotTakenWhenThePolicySaysFailAsync()
         {
             var primary = new FakeInferenceBackend("primary") { Healthy = false };
