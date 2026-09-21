@@ -150,6 +150,13 @@ jobs:
       packagesToPack: 'nuget/Opc.*.nuspec'
       versioningScheme: 'byEnvVar'
       versionEnvVar: 'nugetpublicversion'
+  - task: PowerShell@2
+    displayName: Validate package version policy
+    inputs:
+      targetType: filePath
+      filePath: ./.azurepipelines/validate-nuget-package-set.ps1
+      arguments: '-PackageDirectory "$(Build.ArtifactStagingDirectory)" -ManifestPath "$(Build.ArtifactStagingDirectory)/package-set.json" -ExpectedVersion "$(NBGV_NuGetPackageVersion)"'
+      pwsh: true
   - task: CmdLine@2
     displayName: 'List of nuget packages to sign'
     inputs:
