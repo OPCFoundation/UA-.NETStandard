@@ -124,6 +124,10 @@ maintaining a second per-Resource graph. Before an active canonical publication
 it reports `BadWaitingForInitialData`. Clients locate the Property by its
 namespace-qualified BrowseName; its NodeId is assigned by the existing registry
 projection infrastructure.
+Reads share an immutable digest index for their captured registry snapshot;
+polling does not reconstruct the graph. The index does not retain retired
+snapshots, and a malformed or unsupported committed carrier remains an error,
+not a previously cached digest.
 
 The direct constructor accepts a `WotProjectionRetirementPolicy`; its default
 is graceful. DI takes that policy from `WotRegistryServerOptions`, like the

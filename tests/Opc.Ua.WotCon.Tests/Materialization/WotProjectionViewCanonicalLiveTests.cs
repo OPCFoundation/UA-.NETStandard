@@ -479,6 +479,171 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         [Test]
+        public async Task StockMembershipDigestTracksReplacementAndRetirementAsync()
+        {
+            await using NativeHarness harness = await NativeHarness.CreateAsync(withGraphResources: true)
+                .ConfigureAwait(false);
+            NodeId child = harness.Identity("urn:c2:native-views", "Child");
+            NodeId first = Ua.VariableIds.Server_ServerStatus_StartTime;
+            NodeId second = Ua.VariableIds.Server_ServerStatus_CurrentTime;
+            AttributeSimpleReadResult absent = await harness.ReadMembershipDigestAsync("child").ConfigureAwait(false);
+            Assert.That(absent.Result.StatusCode, Is.EqualTo(StatusCodes.BadWaitingForInitialData));
+            WotCommittedPublicationState initial = await harness.PublishPreparedGraphAsync(
+                [harness.GraphRequest("child", child, [first], [])], [],
+                new WotCommittedPublicationState(harness.Registry.Current)).ConfigureAwait(false);
+            AttributeSimpleReadResult original = await harness.ReadMembershipDigestAsync("child").ConfigureAwait(false);
+            Assert.That(original.Result, Is.EqualTo(ServiceResult.Good));
+            Assert.That(original.Value.TryGetValue(out ByteString originalDigest), Is.True);
+            Assert.That(originalDigest.Length, Is.EqualTo(32));
+            IWotPreparedViewPublication aborted = await harness.Views.PrepareAsync(
+                [harness.GraphRequest("child", child, [second], [])], [], initial).ConfigureAwait(false);
+            await aborted.DisposeAsync().ConfigureAwait(false);
+            AttributeSimpleReadResult unchanged = await harness.ReadMembershipDigestAsync("child").ConfigureAwait(false);
+            Assert.That(unchanged.Value, Is.EqualTo(original.Value));
+            WotCommittedPublicationState replacement = await harness.PublishPreparedGraphAsync(
+                [harness.GraphRequest("child", child, [second], [])], [], initial).ConfigureAwait(false);
+            AttributeSimpleReadResult updated = await harness.ReadMembershipDigestAsync("child").ConfigureAwait(false);
+            Assert.That(updated.Result, Is.EqualTo(ServiceResult.Good));
+            Assert.That(updated.Value.TryGetValue(out ByteString updatedDigest), Is.True);
+            Assert.That(updatedDigest, Is.Not.EqualTo(originalDigest));
+            Assert.That(updatedDigest, Is.EqualTo(WotCanonicalViewState.Parse(
+                replacement.RegistrySnapshot.CanonicalViewGraphState).Views[0].MembershipDigest));
+            await harness.PublishPreparedGraphAsync([], replacement.Views, replacement).ConfigureAwait(false);
+            AttributeSimpleReadResult retired = await harness.ReadMembershipDigestAsync("child").ConfigureAwait(false);
+            Assert.That(retired.Result.StatusCode, Is.EqualTo(StatusCodes.BadWaitingForInitialData));
+            using var cancelled = new CancellationTokenSource();
+            cancelled.Cancel();
+            await Assert.ThatAsync(async () =>
+                await harness.ReadMembershipDigestAsync("child", cancelled.Token).ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+        }
+
+        [TestCase(1)]
+        [TestCase(3)]
+        public async Task StockMembershipDigestPollingDoesNotReconstructTheGraphAsync(int viewCount)
+        {
+            await using NativeHarness harness = await NativeHarness.CreateAsync(withGraphResources: true)
+                .ConfigureAwait(false);
+            string[] resources = ["child", "left", "right"];
+            NodeId[] members =
+            [
+                Ua.VariableIds.Server_ServerStatus_StartTime,
+                Ua.VariableIds.Server_ServerStatus_CurrentTime,
+                Ua.VariableIds.Server_ServerStatus_State
+            ];
+            var requests = new List<WotViewProjectionRequest>();
+            for (int i = 0; i < viewCount; i++)
+            {
+                requests.Add(harness.GraphRequest(
+                    resources[i], harness.Identity("urn:c2:native-views", resources[i]), [members[i]], []));
+            }
+            WotCommittedPublicationState committed = await harness.PublishPreparedGraphAsync(
+                requests.ToArrayOf(), [], new WotCommittedPublicationState(harness.Registry.Current))
+                .ConfigureAwait(false);
+            Dictionary<string, ByteString> digests = WotCanonicalViewState.Parse(
+                committed.RegistrySnapshot.CanonicalViewGraphState).Views.ToList()
+                .ToDictionary(view => view.ResourceXid, view => view.MembershipDigest, StringComparer.Ordinal);
+            ByteString[] expected = resources.Take(viewCount).Select(resource => digests[harness.ResourceXid(resource)])
+                .ToArray();
+            await harness.ReadMembershipDigestAsync("child").ConfigureAwait(false);
+            const int iterations = 32;
+            int matched = 0;
+#if NET8_0_OR_GREATER
+            int thread = Environment.CurrentManagedThreadId;
+            long before = GC.GetAllocatedBytesForCurrentThread();
+#endif
+            for (int iteration = 0; iteration < iterations; iteration++)
+            {
+                for (int i = 0; i < viewCount; i++)
+                {
+                    AttributeSimpleReadResult read = await harness.ReadMembershipDigestAsync(resources[i])
+                        .ConfigureAwait(false);
+                    if (ServiceResult.IsGood(read.Result) && read.Value.TryGetValue(out ByteString digest) &&
+                        digest == expected[i])
+                    {
+                        matched++;
+                    }
+                }
+            }
+#if NET8_0_OR_GREATER
+            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            Assert.That(Environment.CurrentManagedThreadId, Is.EqualTo(thread));
+            TestContext.Out.WriteLine($"Digest polling: {iterations * viewCount} reads allocated {allocated} bytes.");
+            Assert.That(allocated, Is.LessThanOrEqualTo(64 * 1024),
+                "Warmed digest polling must not deserialize, rebuild or serialize the whole committed graph.");
+#endif
+            Assert.That(matched, Is.EqualTo(iterations * viewCount));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task StockMembershipDigestDoesNotHideAnInvalidCommittedImageAsync(bool unsupported)
+        {
+            await using NativeHarness harness = await NativeHarness.CreateAsync(withGraphResources: true)
+                .ConfigureAwait(false);
+            NodeId child = harness.Identity("urn:c2:native-views", "Child");
+            WotCommittedPublicationState committed = await harness.PublishPreparedGraphAsync(
+                [harness.GraphRequest("child", child, [Ua.VariableIds.Server_ServerStatus_StartTime], [])], [],
+                new WotCommittedPublicationState(harness.Registry.Current)).ConfigureAwait(false);
+            AttributeSimpleReadResult valid = await harness.ReadMembershipDigestAsync("child").ConfigureAwait(false);
+            Assert.That(valid.Result, Is.EqualTo(ServiceResult.Good));
+            ByteString invalid = ByteString.From(Encoding.UTF8.GetBytes(
+                unsupported ? "{\"schemaVersion\":99}" : "{}"));
+            IWotPreparedRegistryPublication metadata = await harness.Registry.PreparePublicationAsync(
+                committed.RegistrySnapshot, [], committed.RefreshGeneration, invalid).ConfigureAwait(false);
+            await using (metadata.ConfigureAwait(false))
+            {
+                await metadata.DecideAsync(CancellationToken.None).ConfigureAwait(false);
+                metadata.Publish();
+            }
+            for (int attempt = 0; attempt < 2; attempt++)
+            {
+                if (unsupported)
+                {
+                    await Assert.ThatAsync(async () =>
+                        await harness.ReadMembershipDigestAsync("child").ConfigureAwait(false),
+                        Throws.TypeOf<NotSupportedException>()).ConfigureAwait(false);
+                }
+                else
+                {
+                    await Assert.ThatAsync(async () =>
+                        await harness.ReadMembershipDigestAsync("child").ConfigureAwait(false),
+                        Throws.TypeOf<FormatException>()).ConfigureAwait(false);
+                }
+            }
+        }
+
+        [Test]
+        public async Task StockMembershipDigestConcurrentFirstReadsAreCoherentAsync()
+        {
+            await using NativeHarness harness = await NativeHarness.CreateAsync(withGraphResources: true)
+                .ConfigureAwait(false);
+            NodeId child = harness.Identity("urn:c2:native-views", "Child");
+            NodeId left = harness.Identity("urn:c2:native-views", "Left");
+            WotCommittedPublicationState committed = await harness.PublishPreparedGraphAsync(
+                [
+                    harness.GraphRequest("child", child, [Ua.VariableIds.Server_ServerStatus_StartTime], []),
+                    harness.GraphRequest("left", left, [Ua.VariableIds.Server_ServerStatus_CurrentTime], [])
+                ], [], new WotCommittedPublicationState(harness.Registry.Current)).ConfigureAwait(false);
+            Dictionary<string, ByteString> digests = WotCanonicalViewState.Parse(
+                committed.RegistrySnapshot.CanonicalViewGraphState).Views.ToList()
+                .ToDictionary(view => view.ResourceXid, view => view.MembershipDigest, StringComparer.Ordinal);
+            ByteString first = digests[harness.ResourceXid("child")];
+            ByteString second = digests[harness.ResourceXid("left")];
+            Assert.That(first, Is.Not.EqualTo(second));
+            (int Index, AttributeSimpleReadResult Read)[] results = await Task.WhenAll(
+                Enumerable.Range(0, 16).Select(index => Task.Run(async () =>
+                    (index, await harness.ReadMembershipDigestAsync(index % 2 == 0 ? "child" : "left")
+                        .ConfigureAwait(false))))).ConfigureAwait(false);
+            foreach ((int index, AttributeSimpleReadResult read) in results)
+            {
+                Assert.That(read.Result, Is.EqualTo(ServiceResult.Good));
+                Assert.That(read.Value.TryGetValue(out ByteString digest), Is.True);
+                Assert.That(digest, Is.EqualTo(index % 2 == 0 ? first : second));
+            }
+        }
+
+        [Test]
         public async Task StockCanonicalSwitchKeepsAnInFlightBrowseOnItsCapturedViewAsync()
         {
             await using NativeHarness harness = await NativeHarness.CreateAsync(withGraphResources: true)
@@ -993,6 +1158,15 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 var factory = new BlockingSourceFactory();
                 await Lifecycle.AddAsync(factory, callerContext: null).ConfigureAwait(false);
                 return factory.Created;
+            }
+
+            public ValueTask<AttributeSimpleReadResult> ReadMembershipDigestAsync(
+                string resource, CancellationToken cancellationToken = default)
+            {
+                var manager = (WotRegistryNodeManager)RegistryRegistration.NodeManager;
+                WoTDocumentState document = manager.FindPredefinedNode<WoTDocumentState>(ResourceNodeId(resource));
+                PropertyState<ByteString> property = document.ProjectionMembershipDigest!;
+                return property.OnSimpleReadValueAsync!(manager.SystemContext, property, cancellationToken);
             }
 
             public async Task<ByteString> LoadDurableGraphAsync()

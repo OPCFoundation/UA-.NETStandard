@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.WotCon.Server.Materialization;
@@ -276,21 +277,35 @@ namespace Opc.Ua.WotCon.Server
             string resourceXid, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            ByteString payload = m_registry.Current.CanonicalViewGraphState;
+            WotRegistrySnapshot snapshot = m_registry.Current;
+            ByteString payload = snapshot.CanonicalViewGraphState;
             if (!payload.IsNull && payload.Length != 0)
             {
-                WotCanonicalViewState graph = WotCanonicalViewState.Parse(payload);
-                foreach (WotCanonicalViewPublication view in graph.Views)
+                ImmutableDictionary<string, ByteString> digests = m_membershipDigests.GetValue(
+                    snapshot, static current => new Lazy<ImmutableDictionary<string, ByteString>>(
+                        () => CreateMembershipDigestLookup(current.CanonicalViewGraphState),
+                        LazyThreadSafetyMode.ExecutionAndPublication)).Value;
+                if (digests.TryGetValue(resourceXid, out ByteString digest))
                 {
-                    if (view.ResourceXid == resourceXid && view.Active)
-                    {
-                        return new ValueTask<AttributeSimpleReadResult>(
-                            new AttributeSimpleReadResult(ServiceResult.Good, Variant.From(view.MembershipDigest)));
-                    }
+                    return new ValueTask<AttributeSimpleReadResult>(
+                        new AttributeSimpleReadResult(ServiceResult.Good, Variant.From(digest)));
                 }
             }
             return new ValueTask<AttributeSimpleReadResult>(
                 new AttributeSimpleReadResult(StatusCodes.BadWaitingForInitialData, Variant.Null));
+        }
+
+        private static ImmutableDictionary<string, ByteString> CreateMembershipDigestLookup(ByteString payload)
+        {
+            var digests = ImmutableDictionary.CreateBuilder<string, ByteString>(StringComparer.Ordinal);
+            foreach (WotCanonicalViewPublication view in WotCanonicalViewState.Parse(payload).Views)
+            {
+                if (view.Active)
+                {
+                    digests.Add(view.ResourceXid, view.MembershipDigest);
+                }
+            }
+            return digests.ToImmutable();
         }
 
         private ValueTask<AttributeSimpleReadResult> ReadDependencyObservationAsync(
@@ -1534,5 +1549,7 @@ namespace Opc.Ua.WotCon.Server
         private readonly ushort m_modelNs;
         private readonly Strategy m_strategy;
         private readonly XRegistryProjectionEngine m_engine;
+        private readonly ConditionalWeakTable<WotRegistrySnapshot, Lazy<ImmutableDictionary<string, ByteString>>>
+            m_membershipDigests = new();
     }
 }
