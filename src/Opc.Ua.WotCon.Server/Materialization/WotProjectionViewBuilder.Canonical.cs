@@ -89,6 +89,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     throw new ArgumentException("A canonical request with a Resource identity is required.", nameof(updates));
                 }
+                WotCanonicalViewGraphContext.RequireUri(request.Plan.Scenario, nameof(updates));
+                if (request.Plan.DocumentKind is not (WotDocumentKind.ThingDescription or WotDocumentKind.ThingModel))
+                {
+                    throw new ArgumentException("A canonical View must describe a TD or TM.", nameof(updates));
+                }
                 string resourceId = context.Portable(request.ResourceNodeId);
                 definitions.TryGetValue(request.ResourceXid, out CanonicalViewDefinition? previous);
                 string viewId = request.ViewNodeId.IsNull

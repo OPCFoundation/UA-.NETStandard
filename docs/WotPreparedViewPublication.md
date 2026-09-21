@@ -54,6 +54,10 @@ the previous committed token. Source references are resolved against the same
 prepared source image; a candidate must not be reported absent merely because
 it is not yet visible in the live address space.
 
+Canonical graph preparation requires an absolute scenario URI and a TD or TM
+document kind before resolving candidate identities. Invalid updates are rejected
+without changing the expected graph image.
+
 The existing immediate `ApplyAsync` and `RemoveAsync` remain compatibility
 operations. Calling them during preparation and attempting compensation later
 does not implement this contract. A host that cannot participate in the common
