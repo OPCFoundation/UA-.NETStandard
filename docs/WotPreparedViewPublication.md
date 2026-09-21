@@ -106,6 +106,11 @@ binding runtime or executable affordance copies.
 The coordinator maps captured source identities in a private namespace table,
 then rebases them against the prepared native source image. Authored View
 namespaces must already be known; View preparation does not register them.
+Authored affordance identities are checked against the named source's captured
+converted partition, not a string-prefix relationship with its root. Numeric,
+GUID, opaque and independently named string identities retain their NodeIds.
+The shared native ownership index resolves partition aliases and namespace URIs;
+another Resource or a dependency model alone does not supply source membership.
 The bound source roots, complete View handles, affected ancestor metadata and
 graph-root payload enter the existing registry decision together. On publication
 the View host installs its already-built bookkeeping; it performs no second

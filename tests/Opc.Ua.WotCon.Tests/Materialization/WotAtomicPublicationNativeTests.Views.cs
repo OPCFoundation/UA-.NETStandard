@@ -85,6 +85,50 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [TestCase(false)]
         [TestCase(true)]
         [Platform("Win")]
+        public async Task StockCanonicalViewIncludesAuthoredNumericSourceMembers(bool alreadyActive)
+        {
+            using var views = new LifecycleWotViewProjectionHost(m_server.NodeManagerLifecycle);
+            await ConfigureStockViewsAsync(views).ConfigureAwait(false);
+            await UpsertStockSourceAsync(false, numeric: true).ConfigureAwait(false);
+            if (alreadyActive)
+            {
+                await m_coordinator.RefreshAsync(HandoffRequest("stock-numeric-source")).ConfigureAwait(false);
+            }
+            WotResource child = await AddStockViewAsync("child", false).ConfigureAwait(false);
+
+            WotRefreshResult result = await m_coordinator.RefreshAsync(
+                HandoffRequest("stock-numeric-view", alreadyActive ? 1u : 0u)).ConfigureAwait(false);
+
+            Assert.That(result.Results.All(row => row.LoadState == WoTLoadStateEnum.Active), Is.True,
+                string.Join("; ", result.Results.Select(row => row.Message)));
+            ushort index = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kStockSourceNamespace);
+            var member = new NodeId(101u, index);
+            DataValue reading = await m_session.ReadValueAsync(member).ConfigureAwait(false);
+            Assert.That(reading.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(reading.WrappedValue.TryGetValue(out int value), Is.True);
+            Assert.That(value, Is.EqualTo(42));
+            List<ReferenceDescription> membership = await BrowseStockAsync(
+                StockView("child"), Ua.ReferenceTypeIds.Organizes).ConfigureAwait(false);
+            Assert.That(membership.Select(reference => (reference.NodeId, reference.NodeClass, reference.BrowseName)),
+                Is.EqualTo(new[]
+                {
+                    (new ExpandedNodeId(member), NodeClass.Variable, new QualifiedName("Reading", index))
+                }), "Authored numeric identities belong to the source image without a string-prefix relationship.");
+            WotCanonicalViewState graph = WotCanonicalViewState.Restore(
+                m_registry.Current.CanonicalViewGraphState,
+                new WotCanonicalViewGraphContext(
+                    m_server.CurrentInstance.ServerUris.GetString(0)!, Namespaces.WotCon,
+                    m_server.CurrentInstance.NamespaceUris, [new(member, NodeClass.Variable)]));
+            WotCanonicalViewPublication published = graph.Views.ToList().Single(view => view.ResourceXid == child.Xid);
+            Assert.That(published.Membership.ToArray(),
+                Is.EqualTo(new[] { new ExpandedNodeId(101u, kStockSourceNamespace) }));
+            Assert.That(published.Omissions.IsEmpty, Is.True);
+            Assert.That(published.ViewVersion, Is.EqualTo(1u));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        [Platform("Win")]
         public async Task StockPreparedViewsPublishTheCandidateSourceAndDurableGraphTogether(bool warning)
         {
             using var views = new LifecycleWotViewProjectionHost(m_server.NodeManagerLifecycle);
@@ -505,20 +549,23 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return probe;
         }
 
-        private async Task<WotResource> UpsertStockSourceAsync(bool changed, bool thingModel = false)
+        private async Task<WotResource> UpsertStockSourceAsync(
+            bool changed, bool thingModel = false, bool numeric = false)
         {
             string other = changed
                 ? ",\"Other\":{\"type\":\"integer\",\"forms\":[{\"href\":\"https://example.test/other\"}]}"
                 : string.Empty;
             string role = thingModel ? "tm:ThingModel" : "uav:object";
+            string rootId = numeric ? "i=100" : "s=Source";
+            string readingId = numeric ? "\"uav:id\":\"nsu=urn:c2:prepared-source;i=101\"," : string.Empty;
             string content = $$$"""
                 {
                   "@context":["https://www.w3.org/2022/wot/td/v1.1",
                     {"uav":"http://opcfoundation.org/UA/WoT-Binding/","tm":"https://www.w3.org/2019/wot/tm#"}],
                   "id":"urn:stock:source","title":"Source","@type":"{{{role}}}",
-                  "uav:id":"nsu=urn:c2:prepared-source;s=Source",
+                  "uav:id":"nsu=urn:c2:prepared-source;{{{rootId}}}",
                   "properties":{
-                    "Reading":{"type":"integer","forms":[{"href":"https://example.test/reading"}]}{{{other}}}
+                    "Reading":{ {{{readingId}}}"type":"integer","forms":[{"href":"https://example.test/reading"}]}{{{other}}}
                   }
                 }
                 """;
@@ -686,6 +733,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 using JsonDocument document = JsonDocument.Parse(content.Memory);
+                bool numeric = document.RootElement.GetProperty("uav:id").GetString() ==
+                    "nsu=urn:c2:prepared-source;i=100";
                 bool changed = document.RootElement.GetProperty("properties").TryGetProperty("Other", out _);
                 string other = changed ? Variable("Other", 7) : string.Empty;
                 string root = resource.Kind == WoTDocumentKindEnum.ThingModel
@@ -712,9 +761,17 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                       {{Variable("Reading", changed ? 84 : 42)}}{{other}}
                     </UANodeSet>
                     """;
+                if (numeric)
+                {
+                    xml = xml.Replace("ns=1;s=Source/Reading", "ns=1;i=101", StringComparison.Ordinal)
+                        .Replace("ns=1;s=Source/Other", "ns=1;i=102", StringComparison.Ordinal)
+                        .Replace("ns=1;s=Source", "ns=1;i=100", StringComparison.Ordinal);
+                }
                 using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
                 return await new ValueTask<WotConversionOutput>(new WotConversionOutput(
-                    UANodeSet.Read(stream)!, [], new ExpandedNodeId("Source", kStockSourceNamespace)))
+                    UANodeSet.Read(stream)!, [], numeric
+                        ? new ExpandedNodeId(100u, kStockSourceNamespace)
+                        : new ExpandedNodeId("Source", kStockSourceNamespace)))
                     .ConfigureAwait(false);
             }
 

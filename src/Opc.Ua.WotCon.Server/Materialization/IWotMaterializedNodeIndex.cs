@@ -183,12 +183,22 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WotRegistrySnapshot snapshot,
             NamespaceTable serverNamespaceUris,
             IReadOnlyDictionary<string, NodeId> sourceRootsByXid)
+            : this(snapshot, serverNamespaceUris, sourceRootsByXid, null)
+        {
+        }
+
+        internal WotMaterializedNodeIndex(
+            WotRegistrySnapshot snapshot,
+            NamespaceTable serverNamespaceUris,
+            IReadOnlyDictionary<string, NodeId> sourceRootsByXid,
+            Func<string, NodeId, bool>? containsSourceNode)
         {
             m_snapshot = snapshot ?? throw new ArgumentNullException(nameof(snapshot));
             m_serverNamespaceUris = serverNamespaceUris ??
                 throw new ArgumentNullException(nameof(serverNamespaceUris));
             m_sourceRootsByXid = sourceRootsByXid ??
                 throw new ArgumentNullException(nameof(sourceRootsByXid));
+            m_containsSourceNode = containsSourceNode;
         }
 
         /// <inheritdoc/>
@@ -207,11 +217,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             if (!affordance.AuthoredId.IsNull)
             {
                 NodeId byId = ExpandedNodeId.ToNodeId(affordance.AuthoredId, m_serverNamespaceUris);
-                // uav:id is authored input and a projection may carry its own,
-                // so an unchecked value would let a View Organizes any Node in
-                // the address space. A projection only ever reaches Nodes that
-                // were materialized from the source it names.
-                if (!byId.IsNull && IsUnderSourceRoot(byId, sourceRoot))
+                if (!byId.IsNull && (m_containsSourceNode is not null
+                    ? m_containsSourceNode(source.Xid, byId)
+                    : IsUnderSourceRoot(byId, sourceRoot)))
                 {
                     return byId;
                 }
@@ -265,5 +273,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
         private readonly WotRegistrySnapshot m_snapshot;
         private readonly NamespaceTable m_serverNamespaceUris;
         private readonly IReadOnlyDictionary<string, NodeId> m_sourceRootsByXid;
+        private readonly Func<string, NodeId, bool>? m_containsSourceNode;
     }
 }

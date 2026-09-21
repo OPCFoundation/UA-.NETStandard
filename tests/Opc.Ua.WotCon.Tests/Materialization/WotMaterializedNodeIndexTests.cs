@@ -179,6 +179,48 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(located.IsNull, Is.True);
         }
 
+        [TestCase("i=100", "i=101")]
+        [TestCase("g=00000000-0000-0000-0000-000000000100", "g=00000000-0000-0000-0000-000000000101")]
+        [TestCase("b=AQ==", "b=Ag==")]
+        [TestCase("s=Sources/A", "s=DetachedMember")]
+        public async Task CapturedMembershipHonorsEveryAuthoredIdentifierKind(string rootId, string memberId)
+        {
+            NodeId root = NodeId.Parse("ns=3;" + rootId);
+            NodeId member = NodeId.Parse("ns=3;" + memberId);
+            WotMaterializedNodeIndex index = await IndexAsync(root, [member]).ConfigureAwait(false);
+
+            NodeId located = index.Locate(Reference(new ExpandedNodeId(member)));
+
+            Assert.That(located, Is.EqualTo(member));
+        }
+
+        [Test]
+        public async Task CapturedMembershipRejectsUnownedNumericIdentityInTheSameNamespace()
+        {
+            var member = new NodeId(101u, 3);
+            WotMaterializedNodeIndex index = await IndexAsync(new NodeId(100u, 3), [member]).ConfigureAwait(false);
+
+            NodeId located = index.Locate(Reference(new ExpandedNodeId(new NodeId(201u, 3))));
+
+            Assert.That(located.IsNull, Is.True);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CapturedMembershipDoesNotInventAMaterializedSource(bool unknown)
+        {
+            var member = new NodeId(101u, 3);
+            WotMaterializedNodeIndex index = await IndexAsync(
+                unknown ? new NodeId(100u, 3) : NodeId.Null, [member]).ConfigureAwait(false);
+            var reference = new WotMaterializedAffordanceRef(
+                unknown ? "urn:absent-source" : SourceHref, WotAffordanceKind.Property, "alpha",
+                new ExpandedNodeId(member));
+
+            NodeId located = index.Locate(reference);
+
+            Assert.That(located.IsNull, Is.True);
+        }
+
         [Test]
         public async Task ANumericSourceRootCannotDeriveAName()
         {
@@ -196,7 +238,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 SourceHref, WotAffordanceKind.Property, "alpha", authoredId);
         }
 
-        private static async Task<WotMaterializedNodeIndex> IndexAsync(NodeId rootForSource)
+        private static async Task<WotMaterializedNodeIndex> IndexAsync(
+            NodeId rootForSource, ArrayOf<NodeId> capturedNodes = default)
         {
             using var service = new WotRegistryService();
             await service.UpsertResourceAsync(new WotUpsertResourceRequest
@@ -215,7 +258,15 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Assert.That(resource, Is.Not.Null, "The source must be registered.");
                 roots[resource!.Xid] = rootForSource;
             }
-            return new WotMaterializedNodeIndex(snapshot, new NamespaceTable(), roots);
+            if (capturedNodes.IsNull)
+            {
+                return new WotMaterializedNodeIndex(snapshot, new NamespaceTable(), roots);
+            }
+            var nodes = new HashSet<NodeId>(capturedNodes.ToArray()!);
+            string xid = WotDependencyGraph.Resolve(snapshot, SourceHref)!.Xid;
+            return new WotMaterializedNodeIndex(
+                snapshot, new NamespaceTable(), roots,
+                (sourceXid, nodeId) => sourceXid == xid && nodes.Contains(nodeId));
         }
 
         private static readonly NodeId s_root = new("Sources/A", 3);

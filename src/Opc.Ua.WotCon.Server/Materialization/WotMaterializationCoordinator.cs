@@ -1264,7 +1264,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             if (projectionMembers.Count > 0)
             {
                 await MaterializeProjectionViewsAsync(
-                    snapshot, projectionMembers, perMemberRoot, generation,
+                    snapshot, projectionMembers, perMemberRoot, declarationContext, generation,
                     projectionXids, viewResults, viewProjections, viewHandles,
                     contentCache, cancellationToken).ConfigureAwait(false);
             }
@@ -1541,6 +1541,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WotRegistrySnapshot snapshot,
             List<WotResource> projectionMembers,
             Dictionary<string, ExpandedNodeId> perMemberRoot,
+            WotProjectionDeclarationContext declarationContext,
             uint generation,
             HashSet<string> projectionXids,
             List<WoTResourceLoadResultDataType> viewResults,
@@ -1563,11 +1564,19 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             StatusCodes.BadNodeIdInvalid, "A source namespace is missing."));
                 }
                 namespaces = capturedNamespaces;
-                foreach (ExpandedNodeId root in perMemberRoot.Values)
+                foreach (KeyValuePair<string, ExpandedNodeId> entry in perMemberRoot)
                 {
+                    ExpandedNodeId root = entry.Value;
                     if (!string.IsNullOrEmpty(root.NamespaceUri))
                     {
                         namespaces.GetIndexOrAppend(root.NamespaceUri);
+                    }
+                    foreach (ExpandedNodeId nodeId in declarationContext.GetNodes(entry.Key))
+                    {
+                        if (!string.IsNullOrEmpty(nodeId.NamespaceUri))
+                        {
+                            namespaces.GetIndexOrAppend(nodeId.NamespaceUri);
+                        }
                     }
                 }
             }
@@ -1588,7 +1597,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
             }
 
-            var index = new WotMaterializedNodeIndex(snapshot, namespaces, sourceRoots);
+            var index = new WotMaterializedNodeIndex(
+                snapshot, namespaces, sourceRoots,
+                (xid, nodeId) => declarationContext.ContainsNode(xid, nodeId.NamespaceIndex == 0
+                    ? new ExpandedNodeId(nodeId)
+                    : NodeId.ToExpandedNodeId(nodeId, namespaces)));
             var thingResolver = new SnapshotThingResolver(snapshot, contentCache);
             var builder = new WotProjectionViewBuilder(
                 thingResolver, index, m_converterOptions, namespaces);

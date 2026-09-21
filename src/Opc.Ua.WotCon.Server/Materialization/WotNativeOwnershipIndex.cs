@@ -49,7 +49,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             m_maxEdges = (long)maxNodes * 8;
         }
 
-        public ExpandedNodeId Add(UANodeSet nodeSet, string? rootIdentifier, ExpandedNodeId fallbackRoot)
+        public ExpandedNodeId Add(
+            UANodeSet nodeSet, string? rootIdentifier, ExpandedNodeId fallbackRoot,
+            HashSet<ExpandedNodeId>? partitionNodes = null)
         {
             if (nodeSet.Aliases is { Length: var aliasCount } && aliasCount > m_maxNodes)
             {
@@ -65,6 +67,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     throw new ServiceResultException(
                         StatusCodes.BadNodeIdInvalid, "A native ownership node has no id.");
                 }
+                partitionNodes?.Add(id);
                 NodeClass nodeClass = ClassOf(node);
                 if (!m_nodes.TryGetValue(id, out NodeEvidence? evidence))
                 {
