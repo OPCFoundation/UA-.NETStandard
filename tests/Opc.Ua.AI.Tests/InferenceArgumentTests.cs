@@ -42,7 +42,7 @@ namespace Opc.Ua.AI.Tests
 {
     [TestFixture]
     [Category("AIModelManagement")]
-    [SetCulture("en-us")]
+    [SetCulture("de-DE")]
     [SetUICulture("en-us")]
     public sealed class InferenceArgumentTests
     {
@@ -132,6 +132,82 @@ namespace Opc.Ua.AI.Tests
         }
 
         [Test]
+        public async Task IntegerParametersAreAcceptedInEveryNumericEncodingAsync()
+        {
+            var backend = new FakeInferenceBackend("primary");
+            using AINodeManager nm = await CreateAsync(backend).ConfigureAwait(false);
+            DeploymentState deployment = nm.FindPredefinedNode<DeploymentState>(nm.PrimaryDeploymentId);
+
+            InvokeMethodStateResult result = await deployment.Invoke!.OnCallAsync!(
+                nm.SystemContext,
+                deployment.Invoke,
+                nm.PrimaryDeploymentId,
+                ByteString.From(Encoding.UTF8.GetBytes("{}")),
+                string.Empty,
+                "application/json",
+                [
+                    Parameter("max_tokens", Variant.From(64L)),
+                    Parameter("top_k", Variant.From((ushort)40)),
+                    Parameter("seed", Variant.From(7UL)),
+                    Parameter("width", Variant.From((short)512)),
+                    Parameter("level", Variant.From((byte)3)),
+                    Parameter("offset", Variant.From((sbyte)-2)),
+                    Parameter("stream", Variant.From(false))
+                ],
+                5000,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
+            IReadOnlyDictionary<string, string> forwarded = backend.Requests[0].Parameters;
+            Assert.Multiple(() =>
+            {
+                Assert.That(forwarded["max_tokens"], Is.EqualTo("64"));
+                Assert.That(forwarded["top_k"], Is.EqualTo("40"));
+                Assert.That(forwarded["seed"], Is.EqualTo("7"));
+                Assert.That(forwarded["width"], Is.EqualTo("512"));
+                Assert.That(forwarded["level"], Is.EqualTo("3"));
+                Assert.That(forwarded["offset"], Is.EqualTo("-2"));
+                Assert.That(forwarded["stream"], Is.EqualTo("false"));
+            });
+        }
+
+        [Test]
+        public async Task ParametersWithUnusableValuesAreRejectedAsync()
+        {
+            var backend = new FakeInferenceBackend("primary");
+            using AINodeManager nm = await CreateAsync(backend).ConfigureAwait(false);
+            DeploymentState deployment = nm.FindPredefinedNode<DeploymentState>(nm.PrimaryDeploymentId);
+
+            var rejected = new Dictionary<string, Variant>
+            {
+                ["null string"] = Variant.From((string)null!),
+                ["not a number"] = Variant.From(double.NaN),
+                ["not a scalar"] = Variant.From(s_nonScalarValue)
+            };
+
+            foreach (KeyValuePair<string, Variant> candidate in rejected)
+            {
+                InvokeMethodStateResult result = await deployment.Invoke!.OnCallAsync!(
+                    nm.SystemContext,
+                    deployment.Invoke,
+                    nm.PrimaryDeploymentId,
+                    ByteString.From(Encoding.UTF8.GetBytes("{}")),
+                    string.Empty,
+                    "application/json",
+                    [Parameter("temperature", candidate.Value)],
+                    5000,
+                    CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(
+                    result.ServiceResult.StatusCode,
+                    Is.EqualTo(StatusCodes.BadInvalidArgument),
+                    candidate.Key + " must not reach the backend.");
+            }
+
+            Assert.That(backend.Requests, Is.Empty);
+        }
+
+        [Test]
         public async Task RootSpecificationVersionUsesTheGeneratedModelVersionAsync()
         {
             using AINodeManager nm = await CreateAsync(new FakeInferenceBackend("primary"))
@@ -150,17 +226,18 @@ namespace Opc.Ua.AI.Tests
         {
             return
             [
-                new Opc.Ua.KeyValuePair
-                {
-                    Key = new QualifiedName("temperature"),
-                    Value = Variant.From(0.25)
-                },
-                new Opc.Ua.KeyValuePair
-                {
-                    Key = new QualifiedName("max_tokens"),
-                    Value = Variant.From(64)
-                }
+                Parameter("temperature", Variant.From(0.25)),
+                Parameter("max_tokens", Variant.From(64))
             ];
+        }
+
+        private static Opc.Ua.KeyValuePair Parameter(string name, Variant value)
+        {
+            return new Opc.Ua.KeyValuePair
+            {
+                Key = new QualifiedName(name),
+                Value = value
+            };
         }
 
         private static Task<AINodeManager> CreateAsync(IInferenceBackend backend)
@@ -194,5 +271,7 @@ namespace Opc.Ua.AI.Tests
                 return ValueTask.FromResult(new BackendProbe { Reachable = true });
             }
         }
+
+        private static readonly int[] s_nonScalarValue = [1, 2];
     }
 }

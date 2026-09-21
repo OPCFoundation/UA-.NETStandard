@@ -220,11 +220,13 @@ current server implementation supports inline payloads only. It returns
 backend with no request body.
 
 Both built-in backends support `temperature` (0 through 2), `max_tokens`
-(positive integer), and `top_p` (0 through 1). Parameters are converted using
-the invariant culture, forwarded through synchronous, asynchronous, fallback,
-and oversized-transfer execution, and rejected when malformed or unsupported.
-For the REST chat-completions backend, explicit OPC UA parameters override the
-corresponding fields in the JSON request body.
+(positive integer), and `top_p` (0 through 1). Parameter values may be supplied
+as strings, as any built-in integer or floating-point type, or as booleans, and
+are converted using the invariant culture. They are forwarded through
+synchronous, asynchronous, fallback, and oversized-transfer execution, and
+rejected when malformed or unsupported. For the REST chat-completions backend,
+an explicit OPC UA parameter overrides the corresponding field in the JSON
+request body; body fields without a matching parameter are left unchanged.
 
 The server publishes `SpecificationVersion` from the source-generated
 `Opc.Ua.AI.ModelVersions.Target` constant, which is derived from the AI

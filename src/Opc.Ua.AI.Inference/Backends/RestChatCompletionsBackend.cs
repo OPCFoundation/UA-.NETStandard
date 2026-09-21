@@ -373,9 +373,11 @@ namespace Opc.Ua.AI.Inference
 
                 foreach (JsonProperty property in document.RootElement.EnumerateObject())
                 {
-                    if (property.NameEquals("temperature") ||
-                        property.NameEquals("max_tokens") ||
-                        property.NameEquals("top_p"))
+                    // Only the fields an explicit call parameter overrides are dropped so
+                    // that payload values the caller did not override survive unchanged.
+                    if ((parameters.Temperature is not null && property.NameEquals("temperature")) ||
+                        (parameters.MaxTokens is not null && property.NameEquals("max_tokens")) ||
+                        (parameters.TopP is not null && property.NameEquals("top_p")))
                     {
                         continue;
                     }

@@ -231,6 +231,33 @@ namespace Opc.Ua.AI.Tests
         }
 
         [Test]
+        public async Task InvokeOverridesOnlyTheSuppliedParameterFields()
+        {
+            using var http = Http(
+                out StubHttpMessageHandler handler,
+                Json(HttpStatusCode.OK, """{"choices":[{"finish_reason":"stop"}]}"""));
+            using var backend = Backend(Options(), http);
+
+            await backend.InvokeAsync(
+                Request(
+                    """{"messages":[],"temperature":0.9,"max_tokens":5,"top_p":0.1}""",
+                    parameters: new Dictionary<string, string> { ["temperature"] = "0.25" }),
+                CancellationToken.None).ConfigureAwait(false);
+
+            using JsonDocument document = JsonDocument.Parse(handler.Requests[0].Body!);
+            JsonElement request = document.RootElement;
+            Assert.Multiple(() =>
+            {
+                Assert.That(request.GetProperty("temperature").GetDouble(), Is.EqualTo(0.25d));
+                Assert.That(
+                    request.GetProperty("max_tokens").GetInt32(),
+                    Is.EqualTo(5),
+                    "payload fields the caller did not override must survive.");
+                Assert.That(request.GetProperty("top_p").GetDouble(), Is.EqualTo(0.1d));
+            });
+        }
+
+        [Test]
         public async Task InvokeReportsZeroUsageWhenEndpointReturnsNone()
         {
             using var http = Http(

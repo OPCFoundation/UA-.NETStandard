@@ -328,22 +328,41 @@ namespace Opc.Ua.AI.Server
 
         private static bool TryFormatParameterValue(Variant value, out string formatted)
         {
+            formatted = string.Empty;
+
+            // Each accessor matches exactly one built-in type, so every encoding a
+            // client may legitimately choose has to be probed individually.
             if (value.TryGetValue(out string text))
             {
+                if (text is null)
+                {
+                    return false;
+                }
+
                 formatted = text;
                 return true;
             }
 
             if (value.TryGetValue(out double number))
             {
+                if (!double.IsFinite(number))
+                {
+                    return false;
+                }
+
                 formatted = number.ToString(CultureInfo.InvariantCulture);
-                return double.IsFinite(number);
+                return true;
             }
 
             if (value.TryGetValue(out float single))
             {
+                if (!float.IsFinite(single))
+                {
+                    return false;
+                }
+
                 formatted = single.ToString(CultureInfo.InvariantCulture);
-                return float.IsFinite(single);
+                return true;
             }
 
             if (value.TryGetValue(out int integer))
@@ -358,7 +377,48 @@ namespace Opc.Ua.AI.Server
                 return true;
             }
 
-            formatted = string.Empty;
+            if (value.TryGetValue(out long signed64))
+            {
+                formatted = signed64.ToString(CultureInfo.InvariantCulture);
+                return true;
+            }
+
+            if (value.TryGetValue(out ulong unsigned64))
+            {
+                formatted = unsigned64.ToString(CultureInfo.InvariantCulture);
+                return true;
+            }
+
+            if (value.TryGetValue(out short signed16))
+            {
+                formatted = signed16.ToString(CultureInfo.InvariantCulture);
+                return true;
+            }
+
+            if (value.TryGetValue(out ushort unsigned16))
+            {
+                formatted = unsigned16.ToString(CultureInfo.InvariantCulture);
+                return true;
+            }
+
+            if (value.TryGetValue(out sbyte signed8))
+            {
+                formatted = signed8.ToString(CultureInfo.InvariantCulture);
+                return true;
+            }
+
+            if (value.TryGetValue(out byte unsigned8))
+            {
+                formatted = unsigned8.ToString(CultureInfo.InvariantCulture);
+                return true;
+            }
+
+            if (value.TryGetValue(out bool flag))
+            {
+                formatted = flag ? "true" : "false";
+                return true;
+            }
+
             return false;
         }
 
