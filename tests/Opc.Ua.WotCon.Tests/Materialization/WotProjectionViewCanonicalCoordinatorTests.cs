@@ -32,6 +32,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 
@@ -39,19 +40,24 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 {
     [TestFixture]
     [Category("WoT")]
+    [NonParallelizable]
     public sealed class WotProjectionViewCanonicalCoordinatorTests
     {
         [Test]
         public async Task AuthoredViewIdentityIsUsedByCoordinatorAsync()
         {
-            using var registry = new WotRegistryService();
-            var viewHost = new InMemoryWotViewProjectionHost();
+            await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync()
+                .ConfigureAwait(false);
+            WotRegistryService registry = await runtime.CreateRegistryAsync().ConfigureAwait(false);
+            using var viewHost = new LifecycleWotViewProjectionHost(runtime.Lifecycle);
             using var coordinator = new WotMaterializationCoordinator(
-                registry, new FakeWotProjectionHost(),
+                registry, runtime.Host,
                 documentConverter: new FakeWotDocumentConverter(),
                 viewProjectionHost: viewHost);
-            var namespaces = new NamespaceTable();
-            namespaces.GetIndexOrAppend(Namespaces.WotCon);
+            await runtime.Lifecycle.AddAsync(new WotRegistryNodeManagerFactory(
+                new WotRegistryServerOptions { AutoRefresh = false }, registry, coordinator), callerContext: null)
+                .ConfigureAwait(false);
+            NamespaceTable namespaces = runtime.Namespaces;
             ushort viewNamespace = namespaces.GetIndexOrAppend("urn:c2:views");
             coordinator.ServerNamespaceUris = namespaces;
             WotRegistryMutationResult source = await registry.UpsertResourceAsync(new WotUpsertResourceRequest
@@ -60,7 +66,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 ResourceId = "canonical-source",
                 Content = ByteString.From(Encoding.UTF8.GetBytes(kSourceDocument))
             }).ConfigureAwait(false);
-            Assert.That(source.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+            Assert.That(source.Outcome, Is.EqualTo(WoTOutcomeEnum.Success), source.Message);
             WotRegistryMutationResult projection = await registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
                 GroupId = WotRegistryGroups.ThingDescriptions,
@@ -70,7 +76,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.2/projection\"",
                 Content = ByteString.From(Encoding.UTF8.GetBytes(kProjectionDocument))
             }).ConfigureAwait(false);
-            Assert.That(projection.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+            Assert.That(projection.Outcome, Is.EqualTo(WoTOutcomeEnum.Success), projection.Message);
 
             WotRefreshResult refreshed = await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
@@ -78,7 +84,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(result.LoadState, Is.EqualTo(WoTLoadStateEnum.Active), result.Message);
             var expected = new NodeId("AuthoredView", viewNamespace);
             Assert.That(result.RootNodeId, Is.EqualTo(expected));
-            Assert.That(viewHost.Applied.Single().ViewNodeId, Is.EqualTo(expected));
+            Assert.That(coordinator.CommittedPublication.Views.ToList().Single().ViewNodeId, Is.EqualTo(expected));
             Assert.That(registry.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions, "canonical-view")!.RootNodeId, Is.EqualTo(expected));
         }
@@ -87,26 +93,27 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [TestCase(true)]
         public async Task UnresolvedAuthoredIdentityDoesNotAllocateNamespaceStateAsync(bool suppliedTable)
         {
-            using var registry = new WotRegistryService();
-            var viewHost = new InMemoryWotViewProjectionHost();
+            await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync()
+                .ConfigureAwait(false);
+            WotRegistryService registry = await runtime.CreateRegistryAsync().ConfigureAwait(false);
+            using var viewHost = new LifecycleWotViewProjectionHost(runtime.Lifecycle);
             using var coordinator = new WotMaterializationCoordinator(
-                registry, new FakeWotProjectionHost(),
+                registry, runtime.Host,
                 documentConverter: new FakeWotDocumentConverter(),
                 viewProjectionHost: viewHost);
-            var namespaces = new NamespaceTable();
-            namespaces.GetIndexOrAppend(Namespaces.WotCon);
+            await runtime.Lifecycle.AddAsync(new WotRegistryNodeManagerFactory(
+                new WotRegistryServerOptions { AutoRefresh = false }, registry, coordinator), callerContext: null)
+                .ConfigureAwait(false);
+            NamespaceTable namespaces = runtime.Namespaces;
             int originalCount = namespaces.Count;
-            if (suppliedTable)
-            {
-                coordinator.ServerNamespaceUris = namespaces;
-            }
+            coordinator.ServerNamespaceUris = suppliedTable ? namespaces : null;
             WotRegistryMutationResult source = await registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
                 GroupId = WotRegistryGroups.ThingDescriptions,
                 ResourceId = "canonical-source",
                 Content = ByteString.From(Encoding.UTF8.GetBytes(kSourceDocument))
             }).ConfigureAwait(false);
-            Assert.That(source.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+            Assert.That(source.Outcome, Is.EqualTo(WoTOutcomeEnum.Success), source.Message);
             WotRegistryMutationResult projection = await registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
                 GroupId = WotRegistryGroups.ThingDescriptions,
@@ -116,7 +123,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.2/projection\"",
                 Content = ByteString.From(Encoding.UTF8.GetBytes(kProjectionDocument))
             }).ConfigureAwait(false);
-            Assert.That(projection.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+            Assert.That(projection.Outcome, Is.EqualTo(WoTOutcomeEnum.Success), projection.Message);
 
             WotRefreshResult refreshed = await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
@@ -125,7 +132,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             {
                 Assert.That(result.LoadState, Is.EqualTo(WoTLoadStateEnum.Failed));
                 Assert.That(result.RootNodeId.IsNull, Is.True);
-                Assert.That(viewHost.Applied, Is.Empty);
+                Assert.That(coordinator.CommittedPublication.Views.IsEmpty, Is.True);
                 Assert.That(namespaces.Count, Is.EqualTo(originalCount));
                 Assert.That(namespaces.GetIndex("urn:c2:views"), Is.EqualTo(-1));
                 if (suppliedTable)
@@ -155,7 +162,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "https://www.w3.org/2022/wot/td/v1.1",
                 {"uav":"http://opcfoundation.org/UA/WoT-Binding/","tm":"https://www.w3.org/2019/wot/tm#"}
               ],
-              "@type":["Thing","uav:projection"],
+              "@type":["uav:projection"],
               "uav:projectionKind":"ThingDescription",
               "id":"urn:c2:view",
               "title":"Canonical View",

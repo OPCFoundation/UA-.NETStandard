@@ -188,7 +188,12 @@ namespace Microsoft.Extensions.DependencyInjection
             // the in-memory host, which is also the seam's test double.
             services.TryAddSingleton<IWotViewProjectionHost>(sp =>
                 new LifecycleWotViewProjectionHost(
-                    sp.GetRequiredService<INodeManagerLifecycle>()));
+                    sp.GetRequiredService<INodeManagerLifecycle>(),
+                    sp.GetRequiredService<WotRegistryServerOptions>().RetirementPolicy));
+
+            services.TryAddSingleton(sp =>
+                sp.GetRequiredService<IWotViewProjectionHost>() as IWotPreparedViewProjectionHost ??
+                throw new InvalidOperationException("The registered View host does not support prepared publication."));
 
             services.TryAddSingleton(sp =>
             {

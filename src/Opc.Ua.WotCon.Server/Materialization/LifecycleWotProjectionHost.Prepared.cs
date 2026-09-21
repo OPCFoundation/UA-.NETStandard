@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Server;
@@ -78,6 +79,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             var lifecycleChanges = new List<NodeManagerBatchChange>();
             var documents = new List<WotProjectionDocument>();
             var runtimePublications = new List<WotProjectionRuntimePublication>();
+            WotPreparedSourceImage? sourceImage = views is IWotPreparedViewSourceConsumer ? new() : null;
             foreach (WotProjectionChange change in changes)
             {
                 _ = change ?? throw new ArgumentException("A projection change is null.", nameof(changes));
@@ -89,6 +91,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         throw new ArgumentException("A projection belongs to another host.", nameof(changes));
                     }
                     current = registration.Registration;
+                    sourceImage?.Exclude(current.NodeManager);
                 }
                 bool immediate = change.RetirementPolicy == WotProjectionRetirementPolicy.Immediate;
                 if (change.Document is null)
@@ -100,13 +103,21 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 RuntimeNodeSetOptions options = BuildOptions(change.Document);
                 runtimePublications.Add(new WotProjectionRuntimePublication(options));
-                var factory = new RuntimeNodeSetNodeManagerFactory(options);
+                IAsyncNodeManagerFactory factory = new RuntimeNodeSetNodeManagerFactory(options);
+                if (sourceImage is not null)
+                {
+                    factory = sourceImage.Capture(factory);
+                }
                 lifecycleChanges.Add(current is null
                     ? NodeManagerBatchChange.Add(factory)
                     : NodeManagerBatchChange.Replace(current, factory, immediate));
                 documents.Add(change.Document);
             }
             int sourceCount = documents.Count;
+            if (views is IWotPreparedViewSourceConsumer consumer)
+            {
+                consumer.BindSourceImage(sourceImage!);
+            }
             if (views is not null)
             {
                 foreach (NodeManagerBatchChange change in views.Changes)
@@ -130,6 +141,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         [],
                         0));
                 }
+                sourceImage?.BindRegistrations(batch.Registrations.ToList().Take(sourceCount).ToArrayOf());
                 WotPreparedViewGraphState? graph = null;
                 if (views is not null)
                 {

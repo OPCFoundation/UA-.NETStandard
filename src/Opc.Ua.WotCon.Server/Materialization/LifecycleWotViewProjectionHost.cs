@@ -37,18 +37,13 @@ using Opc.Ua.Server;
 namespace Opc.Ua.WotCon.Server.Materialization
 {
     /// <summary>
-    /// The production <see cref="IWotViewProjectionHost"/>. It publishes projection
-    /// Views into the live server address space by lazily creating a single shared
-    /// <see cref="WotProjectionViewNodeManager"/> through the public NodeManager
-    /// lifecycle, then delegating each apply and remove to it. One shared manager is
-    /// used because the coordinator refreshes a document by applying the new View and
-    /// only then removing the old one under the same deterministic NodeId; a single
-    /// manager that replaces the View in place avoids two managers transiently
-    /// claiming the same NodeId. Removal is identity-checked against the handle that
-    /// was returned by the matching apply so a superseding refresh is never undone by
-    /// the trailing remove of the generation it replaced.
+    /// The stock prepared View participant. It contributes a complete private
+    /// canonical NodeManager image to the source host's existing lifecycle batch.
+    /// The coordinator owns the durable decision and acknowledges the prepared
+    /// bookkeeping after the switch. Immediate apply/remove remain a separate
+    /// compatibility path and cannot mutate an established canonical image.
     /// </summary>
-    public sealed class LifecycleWotViewProjectionHost : IWotViewProjectionHost, IDisposable
+    public sealed partial class LifecycleWotViewProjectionHost : IWotPreparedViewProjectionHost, IDisposable
     {
         /// <summary>
         /// Initializes a new live projection-view host.
@@ -60,8 +55,23 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <paramref name="lifecycle"/> is <c>null</c>.
         /// </exception>
         public LifecycleWotViewProjectionHost(INodeManagerLifecycle lifecycle)
+            : this(lifecycle, WotProjectionRetirementPolicy.Graceful)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a host with the retirement policy used by its prepared canonical generations.
+        /// </summary>
+        public LifecycleWotViewProjectionHost(
+            INodeManagerLifecycle lifecycle, WotProjectionRetirementPolicy retirementPolicy)
         {
             m_lifecycle = lifecycle ?? throw new ArgumentNullException(nameof(lifecycle));
+            if (retirementPolicy is not (
+                WotProjectionRetirementPolicy.Graceful or WotProjectionRetirementPolicy.Immediate))
+            {
+                throw new ArgumentOutOfRangeException(nameof(retirementPolicy));
+            }
+            m_retirementPolicy = retirementPolicy;
         }
 
         /// <inheritdoc/>
@@ -76,6 +86,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                EnsureImmediateImage();
                 if (m_live.TryGetValue(request.ViewNodeId, out WotViewProjectionHandle? owner) &&
                     !string.Equals(owner.ResourceXid, request.ResourceXid, StringComparison.Ordinal))
                 {
@@ -124,6 +135,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                EnsureImmediateImage();
                 if (m_manager is null)
                 {
                     return;
@@ -180,6 +192,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         private readonly INodeManagerLifecycle m_lifecycle;
+        private readonly WotProjectionRetirementPolicy m_retirementPolicy;
         private readonly SemaphoreSlim m_gate = new(1, 1);
         private readonly Dictionary<NodeId, WotViewProjectionHandle> m_live = new();
         private WotProjectionViewNodeManager? m_manager;

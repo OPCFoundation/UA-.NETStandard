@@ -305,12 +305,25 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         }
                     }
                 }
+                BindPreparedSourceRoots(capture, staged, snapshot);
                 ByteString graph = prepared.ViewGraph is { } preparedGraph
                     ? preparedGraph.CanonicalViewGraphState
                     : default;
                 if (prepared.ViewGraph is { } graphState)
                 {
-                    MergeViewGraphMetadata(capture, graphState, snapshot, unit);
+                    MergeViewGraphMetadata(capture, graphState, snapshot, unit, staged);
+                }
+                foreach (ClosureState closure in capture.Closures.Values)
+                {
+                    closure.PublishedMetadata = [.. closure.PublishedMetadata.Select(projection =>
+                        capture.Projections.FirstOrDefault(candidate =>
+                            candidate.GroupId == projection.GroupId && candidate.ResourceId == projection.ResourceId)
+                        ?? projection)];
+                    if (prepared.ViewGraph is { } complete)
+                    {
+                        closure.ViewHandles = [.. complete.Views.ToList().Where(view =>
+                            closure.MemberXids.Contains(view.ResourceXid, StringComparer.Ordinal))];
+                    }
                 }
                 uint generation = checked(snapshot.RefreshGeneration + 1);
                 IWotPreparedRegistryPublication metadata = registryPublication is null
@@ -546,11 +559,49 @@ namespace Opc.Ua.WotCon.Server.Materialization
             result.Summary.Outcome = WoTOutcomeEnum.Warning;
         }
 
+        private void BindPreparedSourceRoots(
+            PublicationCapture capture, WotRefreshResult staged, WotRegistrySnapshot snapshot)
+        {
+            for (int i = 0; i < capture.Projections.Count; i++)
+            {
+                WotResourceProjection projection = capture.Projections[i];
+                WotResource? resource = snapshot.FindResource(projection.GroupId, projection.ResourceId);
+                if (resource is null || !capture.SourceRoots.TryGetValue(resource.Xid, out ExpandedNodeId root))
+                {
+                    continue;
+                }
+                NodeId nodeId = ResolveRootNodeId(root);
+                if (nodeId.IsNull)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNodeIdInvalid, "A prepared source root cannot be resolved in its native image.");
+                }
+                capture.Projections[i] = new WotResourceProjection(
+                    projection.GroupId, projection.ResourceId, projection.LoadState, projection.ActiveVersionId,
+                    projection.RefreshGeneration, projection.MaterializedNodeCount, nodeId,
+                    projection.Validation, projection.Diagnostics, projection.LastRefreshTime)
+                {
+                    VersionId = projection.VersionId,
+                    RetainPreviousActiveVersion = projection.RetainPreviousActiveVersion,
+                    DependencySnapshot = projection.DependencySnapshot,
+                    LastDependencyAttempt = projection.LastDependencyAttempt
+                };
+                foreach (WoTResourceLoadResultDataType row in staged.Results)
+                {
+                    if (row.Xid == resource.Xid)
+                    {
+                        row.RootNodeId = nodeId;
+                    }
+                }
+            }
+        }
+
         private static void MergeViewGraphMetadata(
             PublicationCapture capture,
             WotPreparedViewGraphState graph,
             WotRegistrySnapshot snapshot,
-            ArrayOf<WotDependencyClosure> unit)
+            ArrayOf<WotDependencyClosure> unit,
+            WotRefreshResult staged)
         {
             var permitted = new HashSet<string>(
                 unit.ToList().SelectMany(closure => closure.ActivationMembers.ToList()).Select(member => member.Xid),
@@ -595,6 +646,20 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     DependencySnapshot = previous?.DependencySnapshot,
                     LastDependencyAttempt = previous?.LastDependencyAttempt
                 });
+                foreach (WoTResourceLoadResultDataType row in staged.Results)
+                {
+                    if (row.Xid != xid)
+                    {
+                        continue;
+                    }
+                    row.RootNodeId = handle is null ? NodeId.Null : handle.ViewNodeId;
+                    row.MaterializedNodeCount = (uint)(handle?.MaterializedNodeCount ?? 0);
+                    if (handle is not null && !handle.Omissions.IsEmpty)
+                    {
+                        row.Outcome = WoTOutcomeEnum.Warning;
+                        row.Message = handle.Message;
+                    }
+                }
             }
         }
 
@@ -697,6 +762,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             public List<BindingAction> Bindings { get; } = [];
             public List<WotMaterializationEventArgs> Events { get; } = [];
             public List<WotResourceProjection> Projections { get; } = [];
+            public Dictionary<string, ExpandedNodeId> SourceRoots { get; } = new(StringComparer.Ordinal);
         }
 
         private sealed record CapturedProjection(WotProjectionChange Change, WotProjectionHandle? Candidate);

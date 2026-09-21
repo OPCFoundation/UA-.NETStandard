@@ -77,6 +77,45 @@ View planner, retains or invalidates captured Browse continuations according to
 the selected graceful or immediate retirement policy. Retiring a graph does not
 retire the source Nodes it organized.
 
+## Stock prepared participant
+
+`LifecycleWotViewProjectionHost` implements `IWotPreparedViewProjectionHost`.
+DI resolves the typed interface to the same registered View host; a custom
+immediate-only registration is not replaced or advertised as prepared.
+The direct path pairs a `LifecycleWotViewProjectionHost` and
+`LifecycleWotProjectionHost` over the same lifecycle.
+
+The host copies request membership, links and namespace input before awaiting
+admission. It checks the expected graph bytes, exact current registration and
+issued View handles. A foreign expected image or removal handle cannot authorize
+replacement. Existing immediate images cannot silently become canonical owners.
+
+Source and View factories run in the same Core batch. A private source lookup
+uses the actual preceding candidate managers, excludes replaced/removed source
+owners, and otherwise resolves retained live sources. Binding checks those exact
+source registrations and the exact View candidate. It does not substitute the
+old serving source when its replacement is still private. The View itself has no
+binding runtime or executable affordance copies.
+
+The coordinator maps captured source identities in a private namespace table,
+then rebases them against the prepared native source image. Authored View
+namespaces must already be known; View preparation does not register them.
+The bound source roots, complete View handles, affected ancestor metadata and
+graph-root payload enter the existing registry decision together. On publication
+the View host installs its already-built bookkeeping; it performs no second
+decision, Node mutation or I/O.
+
+The direct constructor accepts a `WotProjectionRetirementPolicy`; its default
+is graceful. DI takes that policy from `WotRegistryServerOptions`, like the
+coordinator. The complete remaining request closure governs canonical retirement,
+and an empty live graph retains serialized allocation/token history.
+
+This participant is a prerequisite for source-plus-graph recovery, not an
+automatic replay implementation. Native cold materialization can consume an
+explicitly restored canonical payload through the canonical factory. A fresh
+stock host does not silently treat a persisted, unbound live image as a fresh
+publication.
+
 ## Captured dependency metadata
 
 `IWotRefreshCaptureProvider` resolves to the registered
@@ -342,29 +381,16 @@ An indeterminate decision is not converted into a committed result. The registry
 continues to block conflicting mutation until its existing recovery path establishes
 the deciding store state. Failure to reacquire validated store evidence likewise
 retains the existing reload requirement; a committed image is not rolled back.
-This correction does not implement store recovery or canonical View validation/reload.
+This handoff does not implement automatic store recovery.
 The captured selected input image remains distinct from the complete authoritative
 registry snapshot, including unselected Resources. Null, empty and retained-history
 graph carriers keep their existing meanings.
 
-A full coordinator/runtime adapter must still stage and publish source routing, references, metadata and
-View state through one owner before advertising atomicity. Do not infer
-multi-resource atomicity, stock host support, or lock-free visibility merely
-from these carrier types.
-
-The consolidated draft includes the unfinished PerRegistry coordinator,
-prepared registry/source adapters, canonical graph planner and native View
-candidate. Both refresh paths use the coordinator's immutable captured inputs;
-prepared metadata retains exact-Version dependency observations and the
-graph-root carrier. These are composition requirements, not evidence that all
-atomicity modes or native canonical publication are complete.
-
-The consolidated Core follow-up corrected detached-survivor service identity and
-the prehydration queue fixture without weakening their assertions. Those changes
-are separate from the coordinator handoff above. Native canonical publication,
-other authoritative refresh-state failures, coordinated mutations and remaining
-atomicity modes are not certified by this bounded correction. JSON Schema
-validation remains deferred.
+The stock participant now joins the existing four-mode publication owner rather
+than falling back to immediate View mutation. Full-profile conformance does not
+follow from these carrier types or this participant. Automatic durable recovery,
+coordinated programmatic mutations, the independent R35 correlation residual and
+JSON Schema validation remain separate work.
 
 See [prepared registry metadata commits](WotRegistryPreparedStore.md) for the
 validated content and generation lease contract.

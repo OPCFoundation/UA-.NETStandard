@@ -345,6 +345,138 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Is.EqualTo(StatusCodes.Good));
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task StockViewParticipantStagesTheCompleteGraphWithoutLiveEffectsAsync(bool publish)
+        {
+            await using NativeHarness harness = await NativeHarness.CreateAsync(withGraphResources: true)
+                .ConfigureAwait(false);
+            IWotViewProjectionHost viewHost = harness.Views;
+            Assert.That(viewHost, Is.AssignableTo<IWotPreparedViewProjectionHost>());
+            var host = (IWotPreparedViewProjectionHost)viewHost;
+            Assert.That(host.SupportsPreparedPublication, Is.True);
+            NodeId child = harness.Identity("urn:c2:native-views", "Child");
+            NodeId reading = Ua.VariableIds.Server_ServerStatus_StartTime;
+            WotRegistrySnapshot snapshot = harness.Registry.Current;
+            int namespaceCount = harness.NamespaceUris.Count;
+            var originalReferences = (await harness.BrowseAsync(
+                Ua.ObjectIds.ViewsFolder, Ua.ReferenceTypeIds.Organizes).ConfigureAwait(false))
+                .ToArray()!.Select(reference => (reference.ReferenceTypeId, reference.IsForward, reference.NodeId,
+                    reference.BrowseName, reference.NodeClass, reference.TypeDefinition)).ToArray();
+            var expected = new WotCommittedPublicationState(snapshot);
+            IWotPreparedViewPublication candidate = await host.PrepareAsync(
+                [harness.GraphRequest("child", child, [reading], [])], [], expected).ConfigureAwait(false);
+            await using (candidate.ConfigureAwait(false))
+            {
+                IWotPreparedProjectionPublication prepared = await harness.SourceHost.PrepareAsync([], candidate)
+                    .ConfigureAwait(false);
+                await using (prepared.ConfigureAwait(false))
+                {
+                    WotPreparedViewGraphState graph = prepared.ViewGraph!;
+                    Assert.That(graph, Is.Not.Null);
+                    Assert.That(graph.AffectedResourceXids.ToArray(),
+                        Is.EqualTo(new[] { harness.ResourceXid("child") }));
+                    Assert.That(graph.Views.ToList().Single().ViewNodeId, Is.EqualTo(child));
+                    Assert.That(harness.Registry.Current, Is.SameAs(snapshot));
+                    Assert.That(harness.NamespaceUris.Count, Is.EqualTo(namespaceCount));
+                    Assert.That((await harness.BrowseAsync(Ua.ObjectIds.ViewsFolder, Ua.ReferenceTypeIds.Organizes)
+                        .ConfigureAwait(false)).ToArray()!.Select(reference =>
+                            (reference.ReferenceTypeId, reference.IsForward, reference.NodeId,
+                                reference.BrowseName, reference.NodeClass, reference.TypeDefinition)),
+                        Is.EqualTo(originalReferences));
+                    ReadResponse hidden = await harness.Session.ReadAsync(
+                        null, 0, TimestampsToReturn.Neither,
+                        [new ReadValueId { NodeId = child, AttributeId = Attributes.NodeClass }],
+                        CancellationToken.None).ConfigureAwait(false);
+                    Assert.That(hidden.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                    Assert.That(() => candidate.BindPreparedRegistrations([harness.RegistryRegistration]),
+                        Throws.ArgumentException);
+                    if (publish)
+                    {
+                        WotResource resource = snapshot.FindResourceByXid(harness.ResourceXid("child"))!;
+                        uint generation = snapshot.RefreshGeneration + 1;
+                        var projection = new WotResourceProjection(
+                            resource.GroupId, resource.ResourceId, WoTLoadStateEnum.Active,
+                            resource.DefaultVersionId, generation, 1, child,
+                            resource.Validation, resource.Diagnostics, DateTime.UtcNow);
+                        IWotPreparedRegistryPublication metadata = await harness.Registry.PreparePublicationAsync(
+                            snapshot, [projection], generation, graph.CanonicalViewGraphState).ConfigureAwait(false);
+                        await using (metadata.ConfigureAwait(false))
+                        {
+                            var committed = new WotCommittedPublicationState(metadata.IntendedSnapshot, graph.Views);
+                            await prepared.CommitAsync(metadata.DecideAsync, () =>
+                            {
+                                candidate.OnPublished(committed);
+                                metadata.Publish();
+                            }).ConfigureAwait(false);
+                        }
+                        Assert.That(prepared.CleanupFailure, Is.Null);
+                        Assert.That(await harness.ReadViewVersionAsync(child).ConfigureAwait(false), Is.EqualTo(1u));
+                        Assert.That(harness.Registry.Current.CanonicalViewGraphState,
+                            Is.EqualTo(graph.CanonicalViewGraphState));
+                        Assert.That((await harness.BrowseAsync(child, Ua.ReferenceTypeIds.Organizes)
+                            .ConfigureAwait(false)).ToArray()!.Select(harness.Target),
+                            Is.EqualTo(new[] { reading }));
+                    }
+                }
+            }
+            if (!publish)
+            {
+                Assert.That(harness.Registry.Current, Is.SameAs(snapshot));
+                Assert.That((await harness.BrowseAsync(Ua.ObjectIds.ViewsFolder, Ua.ReferenceTypeIds.Organizes)
+                    .ConfigureAwait(false)).ToArray()!.Select(reference =>
+                        (reference.ReferenceTypeId, reference.IsForward, reference.NodeId,
+                            reference.BrowseName, reference.NodeClass, reference.TypeDefinition)),
+                    Is.EqualTo(originalReferences));
+                IWotPreparedViewPublication retry = await host.PrepareAsync(
+                    [harness.GraphRequest("child", child, [reading], [])], [], expected).ConfigureAwait(false);
+                await retry.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task StockViewPreparationFreezesCallerPlansBeforeWaitingForAdmissionAsync()
+        {
+            await using NativeHarness harness = await NativeHarness.CreateAsync(withGraphResources: true)
+                .ConfigureAwait(false);
+            LifecycleWotViewProjectionHost host = harness.Views;
+            NodeId child = harness.Identity("urn:c2:native-views", "Child");
+            NodeId reading = Ua.VariableIds.Server_ServerStatus_StartTime;
+            NodeId other = Ua.VariableIds.Server_ServerStatus_BuildInfo_BuildNumber;
+            var expected = new WotCommittedPublicationState(harness.Registry.Current);
+            IWotPreparedViewPublication first = await host.PrepareAsync(
+                [harness.GraphRequest("child", child, [reading], [])], [], expected).ConfigureAwait(false);
+            NodeId[] members = [reading];
+            Task<IWotPreparedViewPublication> waiting;
+            try
+            {
+                waiting = host.PrepareAsync(
+                    [harness.GraphRequest("child", child, members, [])], [], expected).AsTask();
+                Assert.That(waiting.IsCompleted, Is.False);
+                members[0] = other;
+            }
+            finally
+            {
+                await first.DisposeAsync().ConfigureAwait(false);
+            }
+            IWotPreparedViewPublication candidate = await waiting.ConfigureAwait(false);
+            await using (candidate.ConfigureAwait(false))
+            {
+                IWotPreparedProjectionPublication prepared = await harness.SourceHost.PrepareAsync([], candidate)
+                    .ConfigureAwait(false);
+                await using (prepared.ConfigureAwait(false))
+                {
+                    WotCanonicalViewState graph = WotCanonicalViewState.Restore(
+                        prepared.ViewGraph!.CanonicalViewGraphState,
+                        new WotCanonicalViewGraphContext(harness.LogicalServerUri, Namespaces.WotCon,
+                            harness.NamespaceUris, [new(reading, NodeClass.Variable), new(other, NodeClass.Variable)]));
+                    Assert.That(graph.Views.ToList().Single().Membership.ToArray(),
+                        Is.EqualTo(new[] { new ExpandedNodeId(reading) }));
+                }
+            }
+            Assert.That(harness.Registry.Current, Is.SameAs(expected.RegistrySnapshot));
+        }
+
         [Test]
         public async Task CanonicalCandidateRetirementAndRestartRetainSharedIdentityAsync()
         {
@@ -607,6 +739,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             public ushort NamespaceIndex { get; private set; }
 
             public NamespaceTable NamespaceUris => m_server!.CurrentInstance.NamespaceUris;
+
+            public string LogicalServerUri => m_server!.CurrentInstance.ServerUris.GetString(0)!;
+
+            public WotRegistryService Registry => m_registry!;
+
+            public LifecycleWotProjectionHost SourceHost => new(m_server!.NodeManagerLifecycle);
 
             public NodeManagerRegistration RegistryRegistration { get; private set; } = null!;
 

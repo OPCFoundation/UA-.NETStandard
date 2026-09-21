@@ -37,16 +37,57 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Wot;
 using Opc.Ua.Server;
+using Opc.Ua.WotCon.Server.Registry;
 
 namespace Opc.Ua.WotCon.Server.Materialization
 {
     public sealed partial class WotProjectionViewBuilder
     {
+        internal async ValueTask<WotViewProjectionResult> BuildCanonicalAsync(
+            WotDocument document, WotRegistrySnapshot snapshot, CancellationToken cancellationToken)
+        {
+            WotViewProjectionResult resolved = await BuildAsync(document, null, cancellationToken)
+                .ConfigureAwait(false);
+            if (!resolved.Success)
+            {
+                return resolved;
+            }
+            var diagnostics = resolved.Diagnostics.ToList();
+            var projection = WotProjection.Parse(document, diagnostics, m_options.ProjectionCompatibilityMode);
+            if (projection is null)
+            {
+                return new WotViewProjectionResult(null, diagnostics);
+            }
+            var links = new List<WotCanonicalViewLink>();
+            foreach (WotOrganizingLink link in projection.OrganizingLinks)
+            {
+                WotResource? child = WotDependencyGraph.Resolve(snapshot, link.Href);
+                if (child is null)
+                {
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error, WotDiagnosticCode.ValidationError,
+                        $"Organizing link '{link.Href}' has no captured canonical Resource."));
+                    return new WotViewProjectionResult(null, diagnostics);
+                }
+                links.Add(new WotCanonicalViewLink(child.Xid, link.RefName));
+            }
+            WotViewProjectionPlan plan = resolved.Plan!;
+            return new WotViewProjectionResult(WotViewProjectionPlan.CreateCanonical(
+                plan.Scenario, plan.DocumentKind, plan.OrganizedNodeIds, links.ToArrayOf(), plan.Omissions),
+                diagnostics);
+        }
+
         /// <summary>
         /// Creates an unpublished shared View-image factory for an existing lifecycle or aggregate preparation.
         /// </summary>
         public static IAsyncNodeManagerFactory CreateCanonicalNodeManagerFactory(
             WotCanonicalViewState state, NodeManagerRegistration? previous = null)
+        {
+            return CreateCanonicalNodeManagerFactory(state, previous, null);
+        }
+
+        internal static IAsyncNodeManagerFactory CreateCanonicalNodeManagerFactory(
+            WotCanonicalViewState state, NodeManagerRegistration? previous, WotPreparedSourceImage? sources)
         {
             if (state is null)
             {
@@ -56,11 +97,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 if (previous.NodeManager is not WotProjectionViewNodeManager manager)
                 {
-                    throw new ArgumentException("The previous registration is not a canonical View owner.", nameof(previous));
+                    throw new ArgumentException(
+                        "The previous registration is not a canonical View owner.", nameof(previous));
                 }
                 manager.ValidateCanonicalSuccessor(state);
             }
-            return new CanonicalNodeManagerFactory(WotCanonicalViewState.Parse(state.ToByteString()), previous);
+            return new CanonicalNodeManagerFactory(
+                WotCanonicalViewState.Parse(state.ToByteString()), previous, sources);
         }
 
         /// <summary>
@@ -561,15 +604,20 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 left.Omissions.SequenceEqual(right.Omissions, StringComparer.Ordinal);
         }
 
-        private sealed class CanonicalNodeManagerFactory : IAsyncNodeManagerFactory
+        private sealed class CanonicalNodeManagerFactory :
+            IAsyncNodeManagerFactory, IRequestCallbackSafeNodeManagerFactory
         {
-            public CanonicalNodeManagerFactory(WotCanonicalViewState state, NodeManagerRegistration? previous)
+            public CanonicalNodeManagerFactory(
+                WotCanonicalViewState state, NodeManagerRegistration? previous, WotPreparedSourceImage? sources)
             {
                 m_state = state;
                 m_previous = previous;
+                m_sources = sources;
             }
 
-            public ArrayOf<string> NamespacesUris => WotProjectionViewNodeManager.CanonicalNamespaces(m_state).ToArrayOf();
+            public ArrayOf<string> NamespacesUris =>
+                WotProjectionViewNodeManager.CanonicalNamespaces(m_state).ToArrayOf();
+            public bool AllowLifecycleFromRequestCallback => true;
 
             public ValueTask<IAsyncNodeManager> CreateAsync(
                 IServerInternal server,
@@ -586,13 +634,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
 #pragma warning disable CA2000
                 var manager = new WotProjectionViewNodeManager(
                     server, configuration, server.Telemetry.CreateLogger<WotProjectionViewNodeManager>(),
-                    m_state, m_previous?.NodeManager);
+                    m_state, m_previous?.NodeManager, m_sources);
 #pragma warning restore CA2000
                 return new ValueTask<IAsyncNodeManager>(manager);
             }
 
             private readonly WotCanonicalViewState m_state;
             private readonly NodeManagerRegistration? m_previous;
+            private readonly WotPreparedSourceImage? m_sources;
         }
     }
 }

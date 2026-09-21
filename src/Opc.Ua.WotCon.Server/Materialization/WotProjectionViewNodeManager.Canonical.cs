@@ -45,11 +45,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
             ApplicationConfiguration configuration,
             ILogger logger,
             WotCanonicalViewState state,
-            IAsyncNodeManager? previous)
+            IAsyncNodeManager? previous,
+            WotPreparedSourceImage? sources = null)
             : base(server, configuration, logger, CanonicalNamespaces(state))
         {
             m_canonicalState = state;
             m_previousCanonicalManager = previous;
+            m_preparedSources = sources;
         }
 
         public override async ValueTask CreateAddressSpaceAsync(
@@ -62,6 +64,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 return;
             }
             await ValidateCanonicalImageAsync(m_canonicalState, cancellationToken).ConfigureAwait(false);
+            m_preparedSources = null;
             var nodes = new Dictionary<string, NodeState>(StringComparer.Ordinal);
             var views = new Dictionary<string, ViewState>(StringComparer.Ordinal);
             foreach (WotCanonicalViewPublication publication in m_canonicalState.Views)
@@ -207,7 +210,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             if (m_canonicalState is null || replacement is not WotProjectionViewNodeManager next ||
                 next.m_canonicalState is null || !ReferenceEquals(next.m_previousCanonicalManager, this))
             {
-                throw new ArgumentException("A canonical reload requires this exact prepared predecessor.", nameof(replacement));
+                throw new ArgumentException(
+                    "A canonical reload requires this exact prepared predecessor.", nameof(replacement));
             }
             ValidateCanonicalServer(next.Server);
             ValidateCanonicalSuccessor(next.m_canonicalState);
@@ -226,7 +230,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 foreach (IReference reference in references)
                 {
                     NodeId targetId = ExpandedNodeId.ToNodeId(reference.TargetId, Server.NamespaceUris);
-                    if (owned.Contains((source.NodeId, reference.ReferenceTypeId, reference.IsInverse, reference.TargetId)) ||
+                    if (owned.Contains((
+                        source.NodeId, reference.ReferenceTypeId, reference.IsInverse, reference.TargetId)) ||
                         reference.ReferenceTypeId == Ua.ReferenceTypeIds.HasTypeDefinition ||
                         (!targetId.IsNull && PredefinedNodes.ContainsKey(targetId)))
                     {
@@ -244,6 +249,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     }
                 }
             }
+            next.m_previousCanonicalManager = null;
             return new ValueTask<ArrayOf<LocalReference>>(dropped.ToArrayOf());
         }
 
@@ -311,7 +317,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 !string.Equals(
                     m_canonicalState.AllocationNamespaceUri, state.AllocationNamespaceUri, StringComparison.Ordinal))
             {
-                throw new ArgumentException("The previous registration belongs to another canonical allocation authority.");
+                throw new ArgumentException(
+                    "The previous registration belongs to another canonical allocation authority.");
             }
             var views = state.Views.ToArray()!.ToDictionary(view => view.ResourceXid, StringComparer.Ordinal);
             foreach (WotCanonicalViewPublication previous in m_canonicalState.Views)
@@ -320,7 +327,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     previous.ResourceNodeId != next.ResourceNodeId || previous.ViewNodeId != next.ViewNodeId)
                 {
                     throw new ServiceResultException(
-                        StatusCodes.BadNodeIdExists, "A canonical successor must retain every prior Resource allocation.");
+                        StatusCodes.BadNodeIdExists,
+                        "A canonical successor must retain every prior Resource allocation.");
                 }
                 uint version = previous.Membership.ToArray()!.SequenceEqual(next.Membership.ToArray()!)
                     ? previous.ViewVersion
@@ -328,7 +336,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 if (next.ViewVersion != version)
                 {
                     throw new ServiceResultException(
-                        StatusCodes.BadInvalidState, "The canonical successor does not extend the prior token history.");
+                        StatusCodes.BadInvalidState,
+                        "The canonical successor does not extend the prior token history.");
                 }
             }
             var nodes = state.Nodes.ToArray()!.ToDictionary(node => node.NodeId);
@@ -339,7 +348,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     previous.BrowseName != next.BrowseName || previous.NodeIdValue != next.NodeIdValue))
                 {
                     throw new ServiceResultException(
-                        StatusCodes.BadNodeIdExists, "A canonical successor cannot reassign a prior Node's owner or role.");
+                        StatusCodes.BadNodeIdExists,
+                        "A canonical successor cannot reassign a prior Node's owner or role.");
                 }
             }
         }
@@ -357,8 +367,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     continue;
                 }
-                (object? handle, IAsyncNodeManager? owner) = await Server.NodeManager
-                    .GetManagerHandleAsync(nodeId, cancellationToken).ConfigureAwait(false);
+                (object? handle, IAsyncNodeManager? owner) = await FindCanonicalNodeAsync(nodeId, cancellationToken)
+                    .ConfigureAwait(false);
                 bool present = handle is not null && owner is not null;
                 if (source.Available != present)
                 {
@@ -381,8 +391,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 WotCanonicalViewPublication view = state.Views[i];
                 if (view.Active)
                 {
-                    (object? resource, IAsyncNodeManager? owner) = await Server.NodeManager
-                        .GetManagerHandleAsync(Local(view.ResourceNodeId), cancellationToken).ConfigureAwait(false);
+                    (object? resource, IAsyncNodeManager? owner) = await FindCanonicalNodeAsync(
+                        Local(view.ResourceNodeId), cancellationToken).ConfigureAwait(false);
                     if (resource is null || owner is null)
                     {
                         throw new ServiceResultException(
@@ -393,14 +403,22 @@ namespace Opc.Ua.WotCon.Server.Materialization
             for (int i = 0; i < state.Nodes.Count; i++)
             {
                 WotCanonicalViewNode node = state.Nodes[i];
-                (object? handle, IAsyncNodeManager? owner) = await Server.NodeManager
-                    .GetManagerHandleAsync(Local(node.NodeId), cancellationToken).ConfigureAwait(false);
+                (object? handle, IAsyncNodeManager? owner) = await FindCanonicalNodeAsync(
+                    Local(node.NodeId), cancellationToken).ConfigureAwait(false);
                 if (handle is not null && !ReferenceEquals(owner, m_previousCanonicalManager))
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadNodeIdExists, "A canonical candidate cannot replace another Node owner.");
                 }
             }
+        }
+
+        private ValueTask<(object? Handle, IAsyncNodeManager? Owner)> FindCanonicalNodeAsync(
+            NodeId nodeId, CancellationToken cancellationToken)
+        {
+            return m_preparedSources is null
+                ? Server.NodeManager.GetManagerHandleAsync(nodeId, cancellationToken)
+                : m_preparedSources.FindAsync(Server, nodeId, cancellationToken);
         }
 
         private QualifiedName BrowseName(WotCanonicalViewNode node)
@@ -462,7 +480,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         private readonly WotCanonicalViewState? m_canonicalState;
-        private readonly IAsyncNodeManager? m_previousCanonicalManager;
+        private IAsyncNodeManager? m_previousCanonicalManager;
+        private WotPreparedSourceImage? m_preparedSources;
         private readonly Dictionary<NodeId, HashSet<NodeId>> m_canonicalMembership = new();
         private readonly Dictionary<NodeId, uint> m_canonicalVersions = new();
     }

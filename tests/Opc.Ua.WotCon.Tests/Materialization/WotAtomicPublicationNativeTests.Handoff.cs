@@ -549,7 +549,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(completion.Summary.RequestId, Is.EqualTo(requestId));
         }
 
-        private HandoffProbe ObserveHandoff()
+        private HandoffProbe ObserveHandoff(
+            IWotViewProjectionHost? viewHost = null, IWotDocumentConverter? converter = null)
         {
             var probe = new HandoffProbe();
             var runtimeFactory = new Mock<IWotProjectionBindingRuntimeFactory>(MockBehavior.Strict);
@@ -614,7 +615,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 return publication.Object;
             }
             var host = new Mock<IWotPreparedProjectionHost>(MockBehavior.Strict);
-            host.SetupGet(owner => owner.SupportsPreparedPublication).Returns(true);
+            host.SetupGet(owner => owner.SupportsPreparedPublication).Returns(() => inner.SupportsPreparedPublication);
             host.Setup(owner => owner.PrepareAsync(
                 It.IsAny<ArrayOf<WotProjectionChange>>(), It.IsAny<IWotPreparedViewPublication?>(),
                 It.IsAny<CancellationToken>())).Returns(async (
@@ -647,7 +648,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             });
             m_coordinator.Dispose();
             m_coordinator = new WotMaterializationCoordinator(
-                m_registry, host.Object, documentConverter: m_converter)
+                m_registry, host.Object, documentConverter: converter ?? m_converter, viewProjectionHost: viewHost)
             {
                 ServerNamespaceUris = m_server.CurrentInstance.NamespaceUris
             };

@@ -1073,6 +1073,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 if (!root.IsNull)
                 {
                     perMemberRoot[member.Xid] = root;
+                    if (activeXids.Contains(member.Xid) && ServerNamespaceUris is not null &&
+                        m_preparing is { } preparing)
+                    {
+                        preparing.SourceRoots[member.Xid] = root;
+                    }
                 }
                 if (activeXids.Contains(member.Xid))
                 {
@@ -1541,17 +1546,42 @@ namespace Opc.Ua.WotCon.Server.Materialization
             // Map each already-materialized source resource to its server root
             // NodeId so the View can Organize the exact Nodes. A source absent
             // from this map is treated as not in this address space.
+            NamespaceTable namespaces = ServerNamespaceUris ?? new NamespaceTable();
+            if (m_preparing is not null)
+            {
+                var capturedNamespaces = new NamespaceTable();
+                for (int i = 0; i < namespaces.Count; i++)
+                {
+                    capturedNamespaces.GetIndexOrAppend(namespaces.GetString((uint)i)
+                        ?? throw new ServiceResultException(
+                            StatusCodes.BadNodeIdInvalid, "A source namespace is missing."));
+                }
+                namespaces = capturedNamespaces;
+                foreach (ExpandedNodeId root in perMemberRoot.Values)
+                {
+                    if (!string.IsNullOrEmpty(root.NamespaceUri))
+                    {
+                        namespaces.GetIndexOrAppend(root.NamespaceUri);
+                    }
+                }
+            }
             var sourceRoots = new Dictionary<string, NodeId>(StringComparer.Ordinal);
+            foreach (WotResource resource in snapshot.AllResources())
+            {
+                if (!resource.RootNodeId.IsNull && resource.ActiveVersionId == resource.DefaultVersionId)
+                {
+                    sourceRoots[resource.Xid] = resource.RootNodeId;
+                }
+            }
             foreach (KeyValuePair<string, ExpandedNodeId> entry in perMemberRoot)
             {
-                NodeId nodeId = ResolveRootNodeId(entry.Value);
+                NodeId nodeId = ExpandedNodeId.ToNodeId(entry.Value, namespaces);
                 if (!nodeId.IsNull)
                 {
                     sourceRoots[entry.Key] = nodeId;
                 }
             }
 
-            NamespaceTable namespaces = ServerNamespaceUris ?? new NamespaceTable();
             var index = new WotMaterializedNodeIndex(snapshot, namespaces, sourceRoots);
             var thingResolver = new SnapshotThingResolver(snapshot, contentCache);
             var builder = new WotProjectionViewBuilder(
@@ -1569,7 +1599,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 try
                 {
                     await MaterializeProjectionViewAsync(
-                        builder, member, version, generation, contentCache,
+                        builder, snapshot, namespaces, member, version, generation, contentCache,
                         viewResults, viewProjections, viewHandles, cancellationToken)
                         .ConfigureAwait(false);
                 }
@@ -1599,6 +1629,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// </summary>
         private async ValueTask MaterializeProjectionViewAsync(
             WotProjectionViewBuilder builder,
+            WotRegistrySnapshot snapshot,
+            NamespaceTable namespaces,
             WotResource member,
             WotResourceVersion version,
             uint generation,
@@ -1626,9 +1658,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             using (document)
             {
                 viewNodeId = ComputeViewNodeId(member, document);
-                build = await builder
-                    .BuildAsync(document, null, cancellationToken)
-                    .ConfigureAwait(false);
+                build = m_preparing is null
+                    ? await builder.BuildAsync(document, null, cancellationToken).ConfigureAwait(false)
+                    : await builder.BuildCanonicalAsync(document, snapshot, cancellationToken).ConfigureAwait(false);
             }
 
             if (!build.Success || build.Plan is null)
@@ -1643,7 +1675,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
             WotViewProjectionPlan plan = build.Plan;
             var request = new WotViewProjectionRequest(
-                member.Xid, member.Xid, ComputeResourceNodeId(member), viewNodeId, plan);
+                member.Xid, member.Xid, ComputeResourceNodeId(member), viewNodeId, plan)
+            {
+                CapturedNamespaceUris = Enumerable.Range(0, namespaces.Count)
+                    .Select(index => namespaces.GetString((uint)index)
+                        ?? throw new ServiceResultException(
+                            StatusCodes.BadNodeIdInvalid, "A source namespace is missing."))
+                    .ToArrayOf()
+            };
             WotViewProjectionHandle viewHandle = await m_viewHost
                 .ApplyAsync(request, cancellationToken)
                 .ConfigureAwait(false);
