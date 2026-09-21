@@ -250,6 +250,33 @@ namespace Opc.Ua.Server.Tests.Identity
             {
                 return true;
             }
+
+            public bool CreateUser(
+                string userName,
+                ReadOnlySpan<byte> password,
+                ArrayOf<Role> roles,
+                UserConfigurationMask userConfiguration,
+                string description)
+            {
+                return true;
+            }
+
+            public bool ResetPassword(
+                string userName,
+                ReadOnlySpan<byte> newPassword,
+                UserConfigurationMask userConfiguration,
+                string description)
+            {
+                return true;
+            }
+
+            public bool UpdateUserMetadata(
+                string userName,
+                UserConfigurationMask userConfiguration,
+                string description)
+            {
+                return true;
+            }
         }
 
         private sealed class RecordingRegistry : IServerIdentityRegistry

@@ -36,8 +36,15 @@ namespace Opc.Ua.Server.UserDatabase
     /// Stores user credentials and their assigned roles.
     /// </summary>
     /// <remarks>
-    /// Implementations can also provide <see cref="IUserMetadataDatabase"/> to store configuration flags and
-    /// descriptions with credentials. This base interface remains usable without that optional capability.
+    /// <para>
+    /// Implementations store configuration flags and descriptions together with credentials. A persistent
+    /// store must commit each mutation as one transaction; rejection or failure must leave the live and
+    /// persisted records unchanged.
+    /// </para>
+    /// <para>
+    /// <see cref="LinqUserDatabase"/> provides in-memory transactions.
+    /// <see cref="JsonUserDatabase"/> also persists each transaction through one atomic file replacement.
+    /// </para>
     /// </remarks>
     public interface IUserDatabase
     {
@@ -53,7 +60,8 @@ namespace Opc.Ua.Server.UserDatabase
         /// </returns>
         /// <remarks>
         /// This legacy method can change an existing record even when it returns <c>false</c>.
-        /// Use <see cref="IUserMetadataDatabase.CreateUser"/> for create-only behavior with metadata.
+        /// Use <see cref="CreateUser(string, ReadOnlySpan{byte}, ArrayOf{Role}, UserConfigurationMask, string)"/>
+        /// for create-only behavior with metadata.
         /// </remarks>
         /// <exception cref="ArgumentException">The user name or password is empty.</exception>
         bool CreateUser(string userName, ReadOnlySpan<byte> password, ICollection<Role> roles);
@@ -106,7 +114,7 @@ namespace Opc.Ua.Server.UserDatabase
         /// or the store rejected the change.
         /// </returns>
         /// <remarks>
-        /// Stores that implement <see cref="IUserMetadataDatabase"/> must clear
+        /// Implementations must clear
         /// <see cref="UserConfigurationMask.MustChangePassword"/> in the same transaction as the password change.
         /// </remarks>
         /// <exception cref="ArgumentException">The user name or either password is empty.</exception>
@@ -114,28 +122,7 @@ namespace Opc.Ua.Server.UserDatabase
             string userName,
             ReadOnlySpan<byte> oldPassword,
             ReadOnlySpan<byte> newPassword);
-    }
 
-    /// <summary>
-    /// Optional user database capability for committing credentials and user metadata together.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// Implement this capability alongside <see cref="IUserDatabase"/>. A persistent store must commit each
-    /// mutation as one transaction. Rejection or failure must leave the live and persisted records unchanged.
-    /// </para>
-    /// <para>
-    /// The store's
-    /// <see cref="IUserDatabase.ChangePassword"/> operation must commit the password and clear
-    /// <see cref="UserConfigurationMask.MustChangePassword"/> together, preserving all other metadata.
-    /// </para>
-    /// <para>
-    /// <see cref="LinqUserDatabase"/> provides in-memory transactions.
-    /// <see cref="JsonUserDatabase"/> also persists each transaction through one atomic file replacement.
-    /// </para>
-    /// </remarks>
-    public interface IUserMetadataDatabase
-    {
         /// <summary>
         /// Creates a user with credentials, roles, configuration flags, and description in one transaction.
         /// </summary>

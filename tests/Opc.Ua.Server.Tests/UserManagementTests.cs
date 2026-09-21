@@ -579,6 +579,33 @@ namespace Opc.Ua.Server.Tests
             {
                 throw new NotSupportedException();
             }
+
+            public bool CreateUser(
+                string userName,
+                ReadOnlySpan<byte> password,
+                ArrayOf<Role> roles,
+                UserConfigurationMask userConfiguration,
+                string description)
+            {
+                throw new NotSupportedException();
+            }
+
+            public bool ResetPassword(
+                string userName,
+                ReadOnlySpan<byte> newPassword,
+                UserConfigurationMask userConfiguration,
+                string description)
+            {
+                throw new NotSupportedException();
+            }
+
+            public bool UpdateUserMetadata(
+                string userName,
+                UserConfigurationMask userConfiguration,
+                string description)
+            {
+                throw new NotSupportedException();
+            }
         }
     }
 }

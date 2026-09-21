@@ -158,8 +158,7 @@ Integrators inject an `IUserManagement` instance via
 binds the address space; the default `UserManagement` implementation wraps
 an existing `IUserDatabase` for credential persistence. Built-in
 `LinqUserDatabase` and `JsonUserDatabase` also persist the per-user
-`UserConfigurationMask` and description through the optional
-`IUserMetadataDatabase` capability:
+`UserConfigurationMask` and description:
 
 ```csharp
 using Opc.Ua.Server.UserDatabase;
@@ -179,10 +178,11 @@ var userManagement = new UserManagement(
 serverInternal.SetUserManagement(userManagement);
 ```
 
-Custom databases that implement only `IUserDatabase` retain in-memory metadata
-for compatibility. Applications that require disabled and
-`MustChangePassword` decisions to survive a restart should implement
-`IUserMetadataDatabase` or use one of the built-in databases.
+`IUserDatabase` commits credentials and metadata together, so disabled and
+`MustChangePassword` decisions survive a restart. A custom database implements
+`CreateUser`, `ResetPassword` and `UpdateUserMetadata` alongside the credential
+members; each mutation must be one transaction, and a rejected or failed write
+must leave the live and persisted records unchanged.
 
 `UserManagementBinding.Bind` (called automatically by
 `ConfigurationNodeManager.CreateServerConfiguration` when an

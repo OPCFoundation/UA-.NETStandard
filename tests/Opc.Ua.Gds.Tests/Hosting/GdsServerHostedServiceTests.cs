@@ -799,6 +799,33 @@ namespace Opc.Ua.Gds.Tests.Hosting
             {
                 return false;
             }
+
+            public bool CreateUser(
+                string userName,
+                ReadOnlySpan<byte> password,
+                ArrayOf<Role> roles,
+                UserConfigurationMask userConfiguration,
+                string description)
+            {
+                return true;
+            }
+
+            public bool ResetPassword(
+                string userName,
+                ReadOnlySpan<byte> newPassword,
+                UserConfigurationMask userConfiguration,
+                string description)
+            {
+                return false;
+            }
+
+            public bool UpdateUserMetadata(
+                string userName,
+                UserConfigurationMask userConfiguration,
+                string description)
+            {
+                return false;
+            }
         }
     }
 }

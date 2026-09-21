@@ -42,7 +42,7 @@ namespace Opc.Ua.Server.UserDatabase
     /// An in-memory user database with serializable snapshots and transactional user updates.
     /// </summary>
     [DataContract(Namespace = Namespaces.UserDatabase)]
-    public class LinqUserDatabase : IUserDatabase, IUserMetadataDatabase
+    public class LinqUserDatabase : IUserDatabase
     {
         /// <summary>
         /// 128 bit

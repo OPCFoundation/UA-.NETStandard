@@ -681,21 +681,21 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void LegacyUserDatabaseRetainsUserManagementCompatibility()
+        public void CustomUserDatabaseRetainsUserManagementCompatibility()
         {
-            var database = new LegacyUserDatabase();
+            var database = new CustomUserDatabase();
             Assert.That(database.CreateUser("alice", "credential"u8, [Role.SecurityAdmin]), Is.True);
             using var management = new UserManagementFacade(database);
 
             ServiceResult reset = management.ModifyUser(
                 "alice", true, "replacement-credential", true, UserConfigurationMask.MustChangePassword,
-                true, "Legacy description", "admin");
+                true, "Custom description", "admin");
             Assert.That(ServiceResult.IsGood(reset), Is.True);
             Assert.That(database.CheckCredentials("alice", "credential"u8), Is.False);
             Assert.That(database.CheckCredentials("alice", "replacement-credential"u8), Is.True);
             Assert.That(database.GetUserRoles("alice").Single(), Is.EqualTo(Role.SecurityAdmin));
             Assert.That(management.MustChangePassword("alice"), Is.True);
-            Assert.That(management.SnapshotUsers().Single().Description, Is.EqualTo("Legacy description"));
+            Assert.That(management.SnapshotUsers().Single().Description, Is.EqualTo("Custom description"));
 
             ServiceResult changed = management.ChangePassword(
                 "alice", "replacement-credential", "third-credential");
@@ -703,7 +703,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(database.CheckCredentials("alice", "third-credential"u8), Is.True);
             Assert.That(management.MustChangePassword("alice"), Is.False);
             Assert.That(ServiceResult.IsGood(
-                management.AddUser("bob", "credential", UserConfigurationMask.Disabled, "Legacy user")), Is.True);
+                management.AddUser("bob", "credential", UserConfigurationMask.Disabled, "Custom user")), Is.True);
             Assert.That(management.IsUserActive("bob"), Is.False);
             Assert.That(ServiceResult.IsGood(management.RemoveUser("bob", "admin")), Is.True);
             Assert.That(database.CheckCredentials("bob", "credential"u8), Is.False);
@@ -1045,7 +1045,7 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         private static readonly string[] s_twoUsers = ["alice", "bob"];
 
-        private sealed class LegacyUserDatabase : IUserDatabase
+        private sealed class CustomUserDatabase : IUserDatabase
         {
             public bool CreateUser(string userName, ReadOnlySpan<byte> password, ICollection<Role> roles)
             {
@@ -1078,6 +1078,33 @@ namespace Opc.Ua.Server.Tests
                 ReadOnlySpan<byte> newPassword)
             {
                 return m_database.ChangePassword(userName, oldPassword, newPassword);
+            }
+
+            public bool CreateUser(
+                string userName,
+                ReadOnlySpan<byte> password,
+                ArrayOf<Role> roles,
+                UserConfigurationMask userConfiguration,
+                string description)
+            {
+                return m_database.CreateUser(userName, password, roles, userConfiguration, description);
+            }
+
+            public bool ResetPassword(
+                string userName,
+                ReadOnlySpan<byte> newPassword,
+                UserConfigurationMask userConfiguration,
+                string description)
+            {
+                return m_database.ResetPassword(userName, newPassword, userConfiguration, description);
+            }
+
+            public bool UpdateUserMetadata(
+                string userName,
+                UserConfigurationMask userConfiguration,
+                string description)
+            {
+                return m_database.UpdateUserMetadata(userName, userConfiguration, description);
             }
 
             private readonly LinqUserDatabase m_database = new();
