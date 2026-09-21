@@ -38,7 +38,8 @@ using Opc.Ua.Server;
 
 namespace Opc.Ua.WotCon.Server.Materialization
 {
-    internal sealed partial class WotProjectionViewNodeManager : INodeManagerReloadParticipant
+    internal sealed partial class WotProjectionViewNodeManager : INodeManagerReloadParticipant,
+        IWotCanonicalViewReadImage
     {
         internal WotProjectionViewNodeManager(
             IServerInternal server,
@@ -94,6 +95,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 m_canonicalMembership.Add(viewId, membership);
                 m_canonicalVersions.Add(viewId, publication.ViewVersion);
+                m_canonicalMembershipDigests.Add(Local(publication.ResourceNodeId), publication.MembershipDigest);
             }
             foreach (WotCanonicalViewNode descriptor in m_canonicalState.Nodes)
             {
@@ -251,6 +253,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
             next.m_previousCanonicalManager = null;
             return new ValueTask<ArrayOf<LocalReference>>(dropped.ToArrayOf());
+        }
+
+        /// <inheritdoc/>
+        public bool TryGetMembershipDigest(NodeId resourceNodeId, out ByteString digest)
+        {
+            return m_canonicalMembershipDigests.TryGetValue(resourceNodeId, out digest);
         }
 
         protected override void ValidateViewDescription(ServerSystemContext context, ViewDescription view)
@@ -484,5 +492,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
         private WotPreparedSourceImage? m_preparedSources;
         private readonly Dictionary<NodeId, HashSet<NodeId>> m_canonicalMembership = new();
         private readonly Dictionary<NodeId, uint> m_canonicalVersions = new();
+        private readonly Dictionary<NodeId, ByteString> m_canonicalMembershipDigests = new();
     }
 }

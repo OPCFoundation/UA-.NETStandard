@@ -87,6 +87,22 @@ namespace Opc.Ua.WotCon.Server.Materialization
     }
 
     /// <summary>
+    /// Supplies immutable membership metadata from a prepared canonical View NodeManager generation.
+    /// Implementations retain this image while captured operations drain after retirement.
+    /// </summary>
+    public interface IWotCanonicalViewReadImage
+    {
+        /// <summary>
+        /// Gets the full membership digest of an active logical projection Resource in this image.
+        /// The lookup must not consult a newer global registry or mutate publication state.
+        /// </summary>
+        /// <param name="resourceNodeId">The local NodeId of the logical Resource.</param>
+        /// <param name="digest">The full membership digest when the Resource is active in this image.</param>
+        /// <returns>Whether this image contains an active canonical projection for the Resource.</returns>
+        bool TryGetMembershipDigest(NodeId resourceNodeId, out ByteString digest);
+    }
+
+    /// <summary>
     /// The immutable runtime image of one authoritative materialization decision.
     /// Constructing this value does not publish it; only the coordinator advances the active image.
     /// </summary>

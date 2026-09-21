@@ -124,10 +124,18 @@ maintaining a second per-Resource graph. Before an active canonical publication
 it reports `BadWaitingForInitialData`. Clients locate the Property by its
 namespace-qualified BrowseName; its NodeId is assigned by the existing registry
 projection infrastructure.
-Reads share an immutable digest index for their captured registry snapshot;
-polling does not reconstruct the graph. The index does not retain retired
-snapshots, and a malformed or unsupported committed carrier remains an error,
-not a previously cached digest.
+Native operations obtain the digest from the same captured NodeManager image
+that supplies the ViewVersion, including while a newer generation is active.
+Prepared View NodeManagers implement `IWotCanonicalViewReadImage` and retain
+their immutable Resource-to-digest lookup until captured operations drain.
+The stock source host rejects a custom View candidate without that contract
+before the durable decision. A captured image with no active projection reports
+`BadWaitingForInitialData`; it does not fall through to newer registry state.
+
+Context-free reads share an immutable digest index for their registry snapshot;
+polling does not reconstruct the graph. This index does not retain retired
+snapshots, and a malformed or unsupported carrier remains an error rather than
+a previously cached digest.
 
 The direct constructor accepts a `WotProjectionRetirementPolicy`; its default
 is graceful. DI takes that policy from `WotRegistryServerOptions`, like the

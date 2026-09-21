@@ -34,6 +34,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 using Opc.Ua.XRegistry;
@@ -267,16 +268,35 @@ namespace Opc.Ua.WotCon.Server
             {
                 document.AddProjectionMembershipDigest(m_manager.SystemContext);
                 document.ProjectionMembershipDigest!.OnSimpleReadValueAsync =
-                    (_, _, ct) => ReadProjectionMembershipDigestAsync(resource.Xid, ct);
+                    (context, _, ct) => ReadProjectionMembershipDigestAsync(context, document.NodeId, resource.Xid, ct);
             }
 
             ApplyWotResourceProperties(document, resource);
         }
 
         private ValueTask<AttributeSimpleReadResult> ReadProjectionMembershipDigestAsync(
-            string resourceXid, CancellationToken cancellationToken)
+            ISystemContext context, NodeId resourceNodeId, string resourceXid, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            if (context is ServerSystemContext { OperationContext: not null })
+            {
+                IReadOnlyList<IAsyncNodeManager> managers = m_manager.Server.NodeManager is MasterNodeManager master
+                    ? master.NamespaceManagers.TryGetValue(m_modelNs, out IReadOnlyList<IAsyncNodeManager>? scoped)
+                        ? scoped
+                        : []
+                    : m_manager.Server.NodeManager.AsyncNodeManagers;
+                foreach (IAsyncNodeManager manager in managers)
+                {
+                    if (manager is IWotCanonicalViewReadImage image &&
+                        image.TryGetMembershipDigest(resourceNodeId, out ByteString capturedDigest))
+                    {
+                        return new ValueTask<AttributeSimpleReadResult>(
+                            new AttributeSimpleReadResult(ServiceResult.Good, Variant.From(capturedDigest)));
+                    }
+                }
+                return new ValueTask<AttributeSimpleReadResult>(
+                    new AttributeSimpleReadResult(StatusCodes.BadWaitingForInitialData, Variant.Null));
+            }
             WotRegistrySnapshot snapshot = m_registry.Current;
             ByteString payload = snapshot.CanonicalViewGraphState;
             if (!payload.IsNull && payload.Length != 0)

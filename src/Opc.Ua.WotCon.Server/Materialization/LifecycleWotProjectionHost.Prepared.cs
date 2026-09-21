@@ -148,7 +148,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     var registrations = new List<NodeManagerRegistration>();
                     for (int i = sourceCount; i < batch.Registrations.Count; i++)
                     {
-                        registrations.Add(batch.Registrations[i]);
+                        NodeManagerRegistration registration = batch.Registrations[i];
+                        if (registration.NodeManager is not IWotCanonicalViewReadImage)
+                        {
+                            throw new NotSupportedException(
+                                "A prepared View owner must retain captured membership metadata.");
+                        }
+                        registrations.Add(registration);
                     }
                     graph = views.BindPreparedRegistrations(registrations.ToArrayOf());
                 }

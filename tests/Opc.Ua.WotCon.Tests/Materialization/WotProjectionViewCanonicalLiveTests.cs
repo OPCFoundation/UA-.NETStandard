@@ -38,6 +38,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
@@ -640,6 +641,212 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Assert.That(read.Result, Is.EqualTo(ServiceResult.Good));
                 Assert.That(read.Value.TryGetValue(out ByteString digest), Is.True);
                 Assert.That(digest, Is.EqualTo(index % 2 == 0 ? first : second));
+            }
+        }
+
+        [Test]
+        public async Task PreparedViewWithoutCapturedMetadataIsRejectedBeforePublicationAsync()
+        {
+            await using NativeHarness harness = await NativeHarness.CreateAsync(withGraphResources: true)
+                .ConfigureAwait(false);
+            ArrayOf<NodeManagerRegistration> registrations = harness.Registrations;
+            WotRegistrySnapshot snapshot = harness.Registry.Current;
+            var factory = new BlockingSourceFactory();
+            var views = new Mock<IWotPreparedViewPublication>();
+            ArrayOf<NodeManagerBatchChange> changes = [NodeManagerBatchChange.Add(factory)];
+            views.SetupGet(value => value.Changes).Returns(changes);
+
+            await Assert.ThatAsync(async () =>
+            {
+                IWotPreparedProjectionPublication prepared = await harness.SourceHost.PrepareAsync([], views.Object)
+                    .ConfigureAwait(false);
+                await prepared.DisposeAsync().ConfigureAwait(false);
+            }, Throws.TypeOf<NotSupportedException>()).ConfigureAwait(false);
+
+            Assert.That(harness.Registrations, Is.EqualTo(registrations));
+            Assert.That(harness.Registry.Current, Is.SameAs(snapshot));
+            views.Verify(value => value.BindPreparedRegistrations(It.IsAny<ArrayOf<NodeManagerRegistration>>()),
+                Times.Never);
+            ReadResponse hidden = await harness.Session.ReadAsync(null, 0, TimestampsToReturn.Neither,
+                [new ReadValueId { NodeId = factory.Created.Identity("First"), AttributeId = Attributes.NodeClass }],
+                CancellationToken.None).ConfigureAwait(false);
+            Assert.That(hidden.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+        }
+
+        [Test]
+        public async Task StockBatchedReadKeepsViewTokenAndDigestInItsCapturedGenerationAsync()
+        {
+            await using NativeHarness harness = await NativeHarness.CreateAsync(withGraphResources: true)
+                .ConfigureAwait(false);
+            BlockingSource source = await harness.AddBlockingSourceAsync().ConfigureAwait(false);
+            NodeId child = harness.Identity("urn:c2:native-views", "Child");
+            NodeId first = source.Identity("First");
+            NodeId second = source.Identity("Second");
+            WotCommittedPublicationState committed = await harness.PublishPreparedGraphAsync(
+                [harness.GraphRequest("child", child, [first], [])], [],
+                new WotCommittedPublicationState(harness.Registry.Current)).ConfigureAwait(false);
+            ByteString oldDigest = WotCanonicalViewState.Parse(
+                committed.RegistrySnapshot.CanonicalViewGraphState).Views[0].MembershipDigest;
+            NodeId token = await harness.ViewVersionIdAsync(child).ConfigureAwait(false);
+            NodeId digest = harness.Target((await harness.BrowseAsync(
+                harness.ResourceNodeId("child"), Ua.ReferenceTypeIds.HasProperty).ConfigureAwait(false))
+                .ToList().Single(reference => reference.BrowseName ==
+                    new QualifiedName("ProjectionMembershipDigest", harness.NamespaceIndex)));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+
+            async Task<ReadResponse> ReadImageAsync()
+            {
+                return await harness.Session.ReadAsync(null, 0, TimestampsToReturn.Neither,
+                    [
+                        new ReadValueId { NodeId = first, AttributeId = Attributes.Value },
+                        new ReadValueId { NodeId = token, AttributeId = Attributes.Value },
+                        new ReadValueId { NodeId = digest, AttributeId = Attributes.Value }
+                    ], timeout.Token).ConfigureAwait(false);
+            }
+
+            source.BlockNextValidation();
+            Task<ReadResponse> pending = ReadImageAsync();
+            Task<WotCommittedPublicationState>? publication = null;
+            try
+            {
+                Task entered = await Task.WhenAny(source.Entered, pending).WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(entered, Is.SameAs(source.Entered), "Read must pause after capturing generation one.");
+                var published = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                publication = harness.PublishPreparedGraphAsync(
+                    [harness.GraphRequest("child", child, [second], [])], [], committed,
+                    () => published.TrySetResult(true));
+                await Task.WhenAny(published.Task, publication).WaitAsync(timeout.Token).ConfigureAwait(false);
+                if (publication.IsCompleted)
+                {
+                    await publication.ConfigureAwait(false);
+                }
+                await published.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(pending.IsCompleted, Is.False);
+                ReadResponse current = await ReadImageAsync().ConfigureAwait(false);
+                Assert.That(current.Results.ToList().All(value => value.StatusCode == StatusCodes.Good), Is.True);
+                Assert.That(current.Results[1].WrappedValue.TryGetValue(out uint newVersion), Is.True);
+                Assert.That(newVersion, Is.EqualTo(2u));
+                Assert.That(current.Results[2].WrappedValue.TryGetValue(out ByteString newDigest), Is.True);
+                Assert.That(newDigest, Is.Not.EqualTo(oldDigest));
+                Assert.That(newDigest, Is.EqualTo(WotCanonicalViewState.Parse(
+                    harness.Registry.Current.CanonicalViewGraphState).Views[0].MembershipDigest));
+            }
+            finally
+            {
+                source.Resume();
+                if (publication is not null)
+                {
+                    await publication.ConfigureAwait(false);
+                }
+            }
+            ReadResponse captured = await pending.WaitAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(captured.Results.ToList().All(value => value.StatusCode == StatusCodes.Good), Is.True);
+            Assert.That(captured.Results[1].WrappedValue.TryGetValue(out uint oldVersion), Is.True);
+            Assert.That(oldVersion, Is.EqualTo(1u));
+            Assert.That(captured.Results[2].WrappedValue.TryGetValue(out ByteString capturedDigest), Is.True);
+            Assert.That(capturedDigest, Is.EqualTo(oldDigest),
+                "The retained Read must not combine generation one's token with generation two's membership digest.");
+        }
+
+        [Test]
+        public async Task NativeMembershipDigestUsesACustomCapturedReadImageAsync()
+        {
+            await using NativeHarness harness = await NativeHarness.CreateAsync(withGraphResources: true)
+                .ConfigureAwait(false);
+            NodeId resource = harness.ResourceNodeId("child");
+            ByteString expected = ByteString.From(Enumerable.Range(0, 32).Select(value => (byte)value).ToArray());
+            var factory = new CapturedDigestFactory(resource, expected);
+            await harness.Lifecycle.AddAsync(factory, callerContext: null).ConfigureAwait(false);
+            NodeId property = harness.Target((await harness.BrowseAsync(resource, Ua.ReferenceTypeIds.HasProperty)
+                .ConfigureAwait(false)).ToList().Single(reference => reference.BrowseName ==
+                    new QualifiedName("ProjectionMembershipDigest", harness.NamespaceIndex)));
+
+            DataValue value = await harness.Session.ReadValueAsync(property).ConfigureAwait(false);
+
+            Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(value.WrappedValue.TryGetValue(out ByteString actual), Is.True);
+            Assert.That(actual, Is.EqualTo(expected));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CapturedDigestReadDoesNotCrossInitialPublicationOrRetirementAsync(bool retire)
+        {
+            await using NativeHarness harness = await NativeHarness.CreateAsync(withGraphResources: true)
+                .ConfigureAwait(false);
+            BlockingSource source = await harness.AddBlockingSourceAsync().ConfigureAwait(false);
+            NodeId child = harness.Identity("urn:c2:native-views", "Child");
+            NodeId first = source.Identity("First");
+            NodeId second = source.Identity("Second");
+            WotCommittedPublicationState committed = new(harness.Registry.Current);
+            ByteString oldDigest = default;
+            if (retire)
+            {
+                committed = await harness.PublishPreparedGraphAsync(
+                    [harness.GraphRequest("child", child, [first], [])], [], committed).ConfigureAwait(false);
+                oldDigest = WotCanonicalViewState.Parse(
+                    committed.RegistrySnapshot.CanonicalViewGraphState).Views[0].MembershipDigest;
+            }
+            NodeId property = harness.Target((await harness.BrowseAsync(
+                harness.ResourceNodeId("child"), Ua.ReferenceTypeIds.HasProperty).ConfigureAwait(false))
+                .ToList().Single(reference => reference.BrowseName ==
+                    new QualifiedName("ProjectionMembershipDigest", harness.NamespaceIndex)));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+
+            async Task<ReadResponse> ReadImageAsync()
+            {
+                return await harness.Session.ReadAsync(null, 0, TimestampsToReturn.Neither,
+                    [
+                        new ReadValueId { NodeId = first, AttributeId = Attributes.Value },
+                        new ReadValueId { NodeId = property, AttributeId = Attributes.Value }
+                    ], timeout.Token).ConfigureAwait(false);
+            }
+
+            source.BlockNextValidation();
+            Task<ReadResponse> pending = ReadImageAsync();
+            Task<WotCommittedPublicationState>? publication = null;
+            try
+            {
+                Task entered = await Task.WhenAny(source.Entered, pending).WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(entered, Is.SameAs(source.Entered));
+                var published = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                publication = harness.PublishPreparedGraphAsync(
+                    retire ? [] : [harness.GraphRequest("child", child, [second], [])],
+                    retire ? committed.Views : [], committed, () => published.TrySetResult(true));
+                await Task.WhenAny(published.Task, publication).WaitAsync(timeout.Token).ConfigureAwait(false);
+                if (publication.IsCompleted)
+                {
+                    await publication.ConfigureAwait(false);
+                }
+                await published.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(pending.IsCompleted, Is.False);
+                ReadResponse current = await ReadImageAsync().ConfigureAwait(false);
+                Assert.That(current.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(current.Results[1].StatusCode, Is.EqualTo(
+                    retire ? StatusCodes.BadWaitingForInitialData : StatusCodes.Good));
+                if (!retire)
+                {
+                    Assert.That(current.Results[1].WrappedValue.TryGetValue(out ByteString digest), Is.True);
+                    Assert.That(digest, Is.EqualTo(WotCanonicalViewState.Parse(
+                        harness.Registry.Current.CanonicalViewGraphState).Views[0].MembershipDigest));
+                }
+            }
+            finally
+            {
+                source.Resume();
+                if (publication is not null)
+                {
+                    await publication.ConfigureAwait(false);
+                }
+            }
+            ReadResponse captured = await pending.WaitAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(captured.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(captured.Results[1].StatusCode, Is.EqualTo(
+                retire ? StatusCodes.Good : StatusCodes.BadWaitingForInitialData));
+            if (retire)
+            {
+                Assert.That(captured.Results[1].WrappedValue.TryGetValue(out ByteString digest), Is.True);
+                Assert.That(digest, Is.EqualTo(oldDigest));
             }
         }
 
@@ -1482,6 +1689,26 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             private WotRegistryService? m_registry;
             private FileWotRegistryStore? m_store;
             private WotMaterializationCoordinator? m_coordinator;
+        }
+
+        private sealed class CapturedDigestFactory(NodeId resource, ByteString digest) : IAsyncNodeManagerFactory
+        {
+            public ArrayOf<string> NamespacesUris => [Namespaces.WotCon];
+
+            public ValueTask<IAsyncNodeManager> CreateAsync(
+                IServerInternal server, ApplicationConfiguration configuration,
+                CancellationToken cancellationToken = default)
+            {
+                var manager = new Mock<AsyncCustomNodeManager>(
+                    server, configuration, server.Telemetry.CreateLogger<CapturedDigestFactory>(),
+                    new[] { Namespaces.WotCon })
+                {
+                    CallBase = true
+                };
+                manager.As<IWotCanonicalViewReadImage>()
+                    .Setup(image => image.TryGetMembershipDigest(resource, out digest)).Returns(true);
+                return new ValueTask<IAsyncNodeManager>(manager.Object);
+            }
         }
 
         private sealed class BlockingSourceFactory : IAsyncNodeManagerFactory
