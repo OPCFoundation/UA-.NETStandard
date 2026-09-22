@@ -39,6 +39,18 @@ permissions:
 # tiers that lift the category filter - lives in .github/workflows/nightly.yml,
 # which expands the same table through the same expander.
 env:
+  # Nerdbank.GitVersioning's SetCloudBuildVersionVars target runs once per
+  # project and appends the NBGV_*/Git* variables to $GITHUB_ENV. A solution
+  # build evaluates ~100 projects in parallel, so those appends interleave and
+  # tear a line, and the runner then fails the step with "Unable to process
+  # file command 'env' successfully. Invalid format '2.0.0'" - after a build
+  # that reported "0 Error(s)". It is a race, so it hits a different job on
+  # every run (observed on run 35708624724, build-UA net9.0 Release (linux)).
+  # The emission is redundant anyway: the `Set cloud version` step runs
+  # `nbgv cloud -c -a` once per job, which exports the same variables safely.
+  # Disabling it does not change any computed version - those come from
+  # GetBuildVersion, which this does not touch.
+  NBGV_SetCloudBuildVersionVars: 'false'
   # Upload the merged coverage report to codecov.io. Reporting only - the
   # enforced rules live in coverage-thresholds.json and are applied by
   # check-coverage.ps1 in the `code-coverage` job below, so a codecov outage can

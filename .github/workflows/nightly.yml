@@ -24,6 +24,13 @@ on:
 permissions:
   contents: read
 
+env:
+  # See the identical setting in buildandtest.yml: Nerdbank.GitVersioning
+  # appends its cloud-build variables to $GITHUB_ENV once per project, and a
+  # parallel solution build tears a line. The `Set cloud version` step already
+  # exports the same variables once per job via `nbgv cloud -c -a`.
+  NBGV_SetCloudBuildVersionVars: 'false'
+
 # Deliberately separate from the pull-request workflow's group, and never
 # cancel-in-progress: a manual full-scope run is expensive and approved, so a
 # new push must not discard it.
