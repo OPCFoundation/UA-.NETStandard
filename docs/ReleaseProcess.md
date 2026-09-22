@@ -443,6 +443,26 @@ maintainer can subsequently approve [Approved promotion](#approved-promotion).
    see [Failed or partial release](#failed-or-partial-release) step 2 for
    how to recover.
 
+   Also prove that no version this candidate occupies is already held by a
+   different build, using the gate `release.yml` runs before either push:
+   ```powershell
+   $env:GITHUB_TOKEN = (gh auth token)
+   ./.azurepipelines/assert-published-packages-match.ps1 `
+     -PackageDirectory ./candidate `
+     -ManifestPath ./candidate/current-package-set.json `
+     -Feed 'nuget.org' -ExcludeDebugPackages
+   ./.azurepipelines/assert-published-packages-match.ps1 `
+     -PackageDirectory ./candidate `
+     -ManifestPath ./candidate/current-package-set.json `
+     -Feed 'GitHub Packages'
+   ```
+   *Completion evidence*: each invocation prints how many already-published
+   packages are byte-identical to this candidate and how many are not yet
+   published, and exits `0`. On a first release every package is "not yet
+   published"; on a recovery re-run the already-pushed ones must report as
+   identical. A non-zero exit means the version is taken by other bytes -
+   see [Failed or partial release](#failed-or-partial-release) step 3.
+
 4. Alternatively, dry-run the actual promotion workflow itself (still no
    publication occurs):
    ```powershell
@@ -451,17 +471,22 @@ maintainer can subsequently approve [Approved promotion](#approved-promotion).
    ```
    `--ref` is required and must name the same canonical release branch the
    candidate was built from: `release.yml` refuses to run when its own
-   `GITHUB_REF` differs from the candidate run's branch. Once the candidate
-   is resolved, the job re-checks-out the workspace at that run's exact
-   commit, so the validation policy and the promotion code are source-bound
-   to the bytes being promoted even if the release branch has advanced since
+   `GITHUB_REF` differs from the candidate run's branch. The job deliberately
+   checks out nothing until it has resolved the candidate, then performs its
+   one and only checkout at that run's exact commit - so no repository code
+   runs with the `release` environment's credentials before the workspace is
+   bound to the bytes being promoted, and the validation policy and promotion
+   code are source-bound to them even if the release branch has advanced since
    the candidate was built. Without `--ref`, `gh` dispatches from the default
    branch and the run stops at "Validate selected publish run".
 
    *Completion evidence*: the run succeeds through "Validate promotion
-   manifest and package bytes"; the summary reports the expected version and
-   package count; no "Push to nuget.org" or "Push to GitHub Packages" step
-   ran (both are skipped under `dry_run`).
+   manifest and package bytes", "Verify preview package ordering" and
+   "Verify already-published package identity" - the last two are read-only,
+   so a dry run proves the same feed-state preconditions the real promotion
+   will re-check; the summary reports the expected version and package count;
+   no "Push to nuget.org" or "Push to GitHub Packages" step ran (both are
+   skipped under `dry_run`).
 
 ## Approved promotion
 
@@ -482,7 +507,15 @@ line you intend to release; the change has the required approvals.
 `release.yml` re-runs `validate-preview-package-ordering.ps1` itself, before
 it authenticates to any feed, so an ordering violation that appeared after
 your dry run stops the promotion before the first public write rather than
-midway through it.
+midway through it. It then runs `assert-published-packages-match.ps1` against
+both feeds: `dotnet nuget push --skip-duplicate` treats an existing
+id/version as a successful no-op without looking at it, so this gate proves
+first that every version the candidate already occupies holds this
+candidate's own content. Comparison ignores the `.signature.p7s` part,
+because nuget.org repository-signs packages at ingestion and the bytes it
+serves therefore legitimately differ from the bytes that were pushed;
+everything else must match exactly. A version claimed by a different build
+fails the promotion instead of being silently skipped.
 
 1. Trigger the promotion for real, from the same canonical release branch the
    candidate was built from:
@@ -564,10 +597,25 @@ or [Approved promotion](#approved-promotion).
    already succeeded a no-op; only the missing ones are actually written.
    `.Debug` package IDs are intentionally absent from nuget.org, so their
    absence there is not a partial-release symptom.
+
+   The re-run is safe because `assert-published-packages-match.ps1` runs
+   before either push and proves that every version this candidate already
+   occupies really holds this candidate's own bytes (see the gate table
+   below). Because that proof exists,
+   `validate-preview-package-ordering.ps1` deliberately does **not** treat
+   the candidate's own already-published `-preview.N` as a violation -
+   otherwise the recovery in this step would be unreachable. Any *higher*
+   or more-qualified preview version still blocks.
+
    Never build a new candidate for a version that already has *any* packages
    published - that would risk two different byte sequences under the same
    immutable version. Investigate why the previous attempt stopped before
    retrying.
+
+   | Symptom | Cause and safe next action |
+   | --- | --- |
+   | `assert-published-packages-match.ps1` reports a feed that "already serves ... with different content" | A different build permanently claimed this candidate's immutable version. NuGet versions cannot be overwritten, so this candidate can never be published under it. Do **not** bypass the gate. Move to step 4 and release a new version. |
+   | The script throws while downloading a package for comparison (any non-`404` error status) | It fails closed: it cannot decide whether the version is taken, so it refuses to push. Confirm feed reachability and the token, then re-run. A genuinely unpublished version returns `404`, which the script treats as "nothing to prove" and allows. |
 
 4. **If the version needs to change entirely** (e.g. the approved candidate
    turned out to be wrong before any push happened): do not reuse the
@@ -667,6 +715,7 @@ any change to `version.json`, `version.props`, `version.targets`,
 `preview-version.props`, `.azurepipelines/package-version-policy.ps1`,
 `.azurepipelines/validate-nuget-package-set.ps1`,
 `.azurepipelines/validate-preview-package-ordering.ps1`,
+`.azurepipelines/assert-published-packages-match.ps1`,
 `.github/workflows/nuget-publish.yml`, `.github/workflows/release.yml`, or
 the Docker/container tagging workflows. A release procedure that no longer
 matches the scripts it describes is worse than no documentation at all.

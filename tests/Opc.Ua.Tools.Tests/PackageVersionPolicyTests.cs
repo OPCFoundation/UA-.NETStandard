@@ -290,6 +290,10 @@ namespace Opc.Ua.Tools.Tests
             "<PreviewPackageBuildNumber[^>]*>(?<value>[^<]+)</PreviewPackageBuildNumber>")]
         private static partial System.Text.RegularExpressions.Regex PreviewPackageBuildNumberRegex();
 
+        [System.Text.RegularExpressions.GeneratedRegex(@"'(\^refs/heads/release/[^']*)'")]
+        private static partial System.Text.RegularExpressions.Regex
+            CanonicalReleaseBranchExpressionRegex();
+
         /// <summary>
         /// version.targets and package-version-policy.ps1 must independently
         /// agree on the exact same set of preview-only package IDs;
@@ -396,7 +400,7 @@ namespace Opc.Ua.Tools.Tests
         }
 
         [Test]
-        public async Task GetBlockingPublishedPreviewVersionsRejectsAnEqualOrHigherSeriesAsync()
+        public async Task GetBlockingPublishedPreviewVersionsRejectsAHigherOrMoreQualifiedSeriesAsync()
         {
             JsonElement result = await RunBlockingPreviewVersionsAsync(
                 baseVersion: "2.0.0",
@@ -404,11 +408,12 @@ namespace Opc.Ua.Tools.Tests
                 publishedVersions:
                 [
                     "2.0.0-preview.5",
-                    // Exactly the candidate identity: the version is taken.
-                    "2.0.0-preview.6",
                     // Same number plus a commit identifier sorts *above*
                     // the bare candidate under SemVer 2.
                     "2.0.0-preview.6.gabc123def0",
+                    // A trailing alphanumeric identifier does too: SemVer 2
+                    // ranks an alphanumeric identifier above a numeric one.
+                    "2.0.0-preview.6-rc",
                     // The development series has outgrown the committed
                     // number - the case this guard exists for.
                     "2.0.0-preview.10.gabc123def0",
@@ -417,11 +422,36 @@ namespace Opc.Ua.Tools.Tests
             string[] blocking = [.. result.EnumerateArray().Select(e => e.GetString()!)];
             string[] expected =
             [
-                "2.0.0-preview.6",
                 "2.0.0-preview.6.gabc123def0",
+                "2.0.0-preview.6-rc",
                 "2.0.0-preview.10.gabc123def0",
             ];
             Assert.That(blocking, Is.EquivalentTo(expected));
+        }
+
+        [Test]
+        public async Task GetBlockingPublishedPreviewVersionsAllowsTheCandidatesOwnIdentityAsync()
+        {
+            // A promotion that failed part-way through leaves the candidate's
+            // own immutable version on the feed, and docs/ReleaseProcess.md
+            // recovers it by re-running the same candidate. If that exact
+            // identity blocked, the documented recovery would be unreachable.
+            // release.yml proves those published bytes really are this
+            // candidate's (assert-published-packages-match.ps1) before it
+            // pushes, so accepting the version here is safe.
+            JsonElement result = await RunBlockingPreviewVersionsAsync(
+                baseVersion: "2.0.0",
+                previewPackageBuildNumber: "6",
+                publishedVersions:
+                [
+                    "2.0.0-preview.5",
+                    "2.0.0-preview.6",
+                    // Build metadata is ignored for precedence by both
+                    // SemVer 2 and NuGet, so this is the same identity.
+                    "2.0.0-preview.6+abc1234",
+                ]).ConfigureAwait(false);
+
+            Assert.That(result.GetArrayLength(), Is.Zero, result.ToString());
         }
 
         [Test]
@@ -555,6 +585,232 @@ namespace Opc.Ua.Tools.Tests
                 Assert.That(result.GetProperty("forbiddenMentionsPermission").GetBoolean(), Is.True);
             });
         }
+
+        [Test]
+        public async Task GetNuGetPackageContentDigestIgnoresTheSignaturePartAsync()
+        {
+            // nuget.org repository-signs every package at ingestion, so the
+            // bytes it serves are never identical to the bytes that were
+            // pushed. A duplicate check that compared raw file hashes would
+            // therefore reject every legitimate re-run of a candidate.
+            string signedA = CreateTestPackage(
+                "candidate.nupkg",
+                new Dictionary<string, string>
+                {
+                    ["lib/net10.0/Opc.Ua.dll"] = "assembly-bytes",
+                    ["Opc.Ua.nuspec"] = "<package />",
+                    [".signature.p7s"] = "author-signature",
+                });
+            string signedB = CreateTestPackage(
+                "published.nupkg",
+                new Dictionary<string, string>
+                {
+                    // Deliberately a different zip order as well: the digest
+                    // is canonicalized, so ordering must not matter either.
+                    ["Opc.Ua.nuspec"] = "<package />",
+                    [".signature.p7s"] = "author-signature-plus-repository-countersignature",
+                    ["lib/net10.0/Opc.Ua.dll"] = "assembly-bytes",
+                });
+
+            JsonElement result = await RunContentDigestsAsync(signedA, signedB).ConfigureAwait(false);
+
+            Assert.That(
+                result.GetProperty("second").GetString(),
+                Is.EqualTo(result.GetProperty("first").GetString()),
+                "Only the signature part and the zip order differ, so the packages must " +
+                "compare equal.");
+        }
+
+        [Test]
+        public async Task GetNuGetPackageContentDigestDetectsChangedContentAsync()
+        {
+            string candidate = CreateTestPackage(
+                "mine.nupkg",
+                new Dictionary<string, string>
+                {
+                    ["lib/net10.0/Opc.Ua.dll"] = "assembly-bytes",
+                    [".signature.p7s"] = "author-signature",
+                });
+            string foreign = CreateTestPackage(
+                "theirs.nupkg",
+                new Dictionary<string, string>
+                {
+                    ["lib/net10.0/Opc.Ua.dll"] = "someone-elses-assembly-bytes",
+                    [".signature.p7s"] = "author-signature",
+                });
+
+            JsonElement result = await RunContentDigestsAsync(candidate, foreign).ConfigureAwait(false);
+
+            Assert.That(
+                result.GetProperty("second").GetString(),
+                Is.Not.EqualTo(result.GetProperty("first").GetString()),
+                "A foreign build occupying the candidate's immutable version must not be " +
+                "mistaken for a completed publication.");
+        }
+
+        [Test]
+        public void ReleaseWorkflowBranchShapeCheckMatchesThePolicyFunction()
+        {
+            // release.yml deliberately inlines this check instead of
+            // dot-sourcing Test-CanonicalReleaseBranchRef, because no
+            // repository code may execute before the candidate checkout binds
+            // the workspace to the promoted commit. Pin the two expressions
+            // together so the duplicate cannot silently drift.
+            string policy = File.ReadAllText(PolicyScriptPath);
+            string workflow = File.ReadAllText(ReleaseWorkflowPath);
+
+            // Scope to Test-CanonicalReleaseBranchRef: the same file also
+            // holds Test-CanonicalReleaseBranchForPackageVersion, whose
+            // expression additionally captures the major/minor it compares.
+            const string function = "function Test-CanonicalReleaseBranchRef";
+            int start = policy.IndexOf(function, StringComparison.Ordinal);
+            Assert.That(start, Is.GreaterThan(-1), $"'{function}' must exist.");
+            int end = policy.IndexOf("\nfunction ", start + 1, StringComparison.Ordinal);
+            string body = end < 0 ? policy[start..] : policy[start..end];
+
+            string[] policyMatches =
+            [
+                .. CanonicalReleaseBranchExpressionRegex().Matches(body)
+                    .Select(m => m.Groups[1].Value)
+            ];
+            string[] workflowMatches =
+            [
+                .. CanonicalReleaseBranchExpressionRegex().Matches(workflow)
+                    .Select(m => m.Groups[1].Value)
+            ];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    policyMatches,
+                    Has.Length.EqualTo(1),
+                    "Test-CanonicalReleaseBranchRef must define exactly one canonical " +
+                    "release-branch expression.");
+                Assert.That(
+                    workflowMatches,
+                    Has.Length.EqualTo(1),
+                    "release.yml must inline exactly one canonical release-branch expression.");
+                Assert.That(
+                    workflowMatches,
+                    Is.EqualTo(policyMatches),
+                    "The inlined bootstrap check in release.yml and " +
+                    "Test-CanonicalReleaseBranchRef must accept exactly the same refs.");
+            });
+
+            // PowerShell's -match is .NET regex, so the inlined expression can
+            // be exercised directly against the same refs that
+            // TestCanonicalReleaseBranchRefAsync pins the function to.
+            (string Ref, bool Canonical)[] cases =
+            [
+                ("refs/heads/release/2.0", true),
+                ("refs/heads/release/2.1", true),
+                ("refs/heads/release/10.42", true),
+                ("refs/heads/release/2.0.0", false),
+                ("refs/heads/master", false),
+                ("refs/heads/release/2.0-hotfix", false),
+                ("refs/heads/release/2", false),
+                ("refs/tags/2.0.0", false),
+            ];
+            Assert.Multiple(() =>
+            {
+                foreach ((string reference, bool canonical) in cases)
+                {
+                    Assert.That(
+                        System.Text.RegularExpressions.Regex.IsMatch(
+                            reference,
+                            workflowMatches[0],
+                            System.Text.RegularExpressions.RegexOptions.None,
+                            TimeSpan.FromSeconds(1)),
+                        Is.EqualTo(canonical),
+                        $"release.yml must classify '{reference}' exactly as the policy does.");
+                }
+            });
+        }
+
+        [Test]
+        public void ReleaseWorkflowRunsNoRepositoryCodeBeforeTheCandidateCheckout()
+        {
+            // The promotion job holds the release environment plus
+            // packages:write and id-token:write. If any repository script ran
+            // before the workspace was bound to the candidate's commit, a
+            // commit pushed to the release branch after the candidate was
+            // built would execute with those credentials, and the promotion
+            // would not be source-bound to the artifact it publishes.
+            string workflow = File.ReadAllText(ReleaseWorkflowPath);
+
+            int checkout = workflow.IndexOf("uses: actions/checkout@", StringComparison.Ordinal);
+            Assert.That(checkout, Is.GreaterThan(-1), "release.yml must check out the candidate.");
+
+            // Comments legitimately name the scripts while explaining why they
+            // are deferred; only executable references matter here.
+            string[] executableLines =
+            [
+                .. workflow[..checkout]
+                    .Split('\n')
+                    .Where(l => !l.TrimStart().StartsWith('#'))
+            ];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    executableLines,
+                    Has.None.Contains(".azurepipelines/"),
+                    "No repository script may run before the candidate checkout.");
+                Assert.That(
+                    workflow[checkout..],
+                    Does.StartWith("uses: actions/checkout@v6"),
+                    "The candidate checkout must be the first checkout in the job.");
+                Assert.That(
+                    workflow.Substring(checkout, Math.Min(200, workflow.Length - checkout)),
+                    Does.Contain("ref: ${{ steps.source.outputs.commit }}"),
+                    "The first checkout must bind the workspace to the candidate commit.");
+                Assert.That(
+                    executableLines,
+                    Has.Some.Contains("id: source"),
+                    "The candidate SHA must be resolved before the checkout that uses it.");
+            });
+        }
+
+        private static string CreateTestPackage(string name, Dictionary<string, string> entries)
+        {
+            string directory = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory,
+                "package-digest-fixtures",
+                Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(directory);
+            string path = Path.Combine(directory, name);
+
+            using (var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write))
+            using (var archive = new ZipArchive(stream, ZipArchiveMode.Create))
+            {
+                foreach (KeyValuePair<string, string> entry in entries)
+                {
+                    using Stream writer = archive.CreateEntry(entry.Key).Open();
+                    byte[] bytes = Encoding.UTF8.GetBytes(entry.Value);
+                    writer.Write(bytes, 0, bytes.Length);
+                }
+            }
+
+            return path.Replace('\\', '/');
+        }
+
+        private static Task<JsonElement> RunContentDigestsAsync(string first, string second)
+        {
+            return RunPolicyScriptAsync(
+                $$"""
+                . '{{PolicyScriptPath}}'
+                @{
+                    first = (Get-NuGetPackageContentDigest -Path '{{first}}')
+                    second = (Get-NuGetPackageContentDigest -Path '{{second}}')
+                } | ConvertTo-Json
+                """);
+        }
+
+        private static string ReleaseWorkflowPath { get; } = Path.Combine(
+            FindRepositoryRoot(),
+            ".github",
+            "workflows",
+            "release.yml");
 
         private static Task<JsonElement> RunBlockingPreviewVersionsAsync(
             string baseVersion,

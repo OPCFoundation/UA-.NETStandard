@@ -154,12 +154,20 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Prepare Tag Repo Info
+      env:
+        # Same rule as the ref below: pass values into the script as data
+        # rather than interpolating them into its source.
+        SOURCE_REPOSITORY: ${{ github.repository }}
       run: |
-        echo IMAGE_REPOSITORY=${{ env.REGISTRY }}/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]' | awk '{gsub(/-|\./, "")}1')/${{ env.IMAGE_NAME }} >> $GITHUB_ENV
+        set -euo pipefail
+        repository=$(printf '%s' "$SOURCE_REPOSITORY" \
+          | tr '[:upper:]' '[:lower:]' \
+          | awk '{gsub(/-|\./, "")}1')
+        echo "IMAGE_REPOSITORY=${REGISTRY}/${repository}/${IMAGE_NAME}" >> "$GITHUB_ENV"
         # Use NBGV's canonical NuGet SemVer rather than NBGV_Version, whose
         # fourth component is a git-height build number. Stable image tags
         # must align with the explicit M.m.p package release version.
-        echo IMAGE_VERSION=${{ env.NBGV_NuGetPackageVersion }} >> $GITHUB_ENV
+        echo "IMAGE_VERSION=${NBGV_NuGetPackageVersion}" >> "$GITHUB_ENV"
 
     - name: Prepare Tag Branch info
       # Append a branch-derived suffix to the version/"latest" tags for
@@ -173,8 +181,25 @@ jobs:
       # commit (NBGV_PrereleaseVersion empty) skips the suffix. See
       # docs/ReleaseProcess.md.
       if: env.NBGV_PublicRelease == 'False' || env.NBGV_PrereleaseVersion != ''
+      env:
+        # Never interpolate github.ref into the script body: a ref is
+        # attacker-influenced text and git permits shell metacharacters such
+        # as ';', '$', '`' and quotes in a branch name, which would execute
+        # here. Pass it as data and transform the quoted variable instead.
+        SOURCE_REF: ${{ github.ref }}
       run: |
-        echo IMAGE_TAG=-$(echo ${{ github.ref }} | tr '[:upper:]' '[:lower:]' |  awk '{sub(/([^\/]*\/){2}/,""); gsub(/\/|_/, "-")}1') >> $GITHUB_ENV
+        set -euo pipefail
+        # Strip "refs/heads/" (two slash-terminated segments) and reduce the
+        # remainder to the characters a Docker tag may contain, so neither the
+        # later tag-assembly steps nor the registry can receive anything else.
+        suffix=$(printf '%s' "$SOURCE_REF" \
+          | tr '[:upper:]' '[:lower:]' \
+          | awk '{sub(/([^\/]*\/){2}/,""); gsub(/\/|_/, "-"); gsub(/[^a-z0-9.-]/, "-")}1')
+        if [ -z "$suffix" ]; then
+          echo "Unable to derive an image tag suffix from '$SOURCE_REF'." >&2
+          exit 1
+        fi
+        echo "IMAGE_TAG=-${suffix}" >> "$GITHUB_ENV"
 
     - name: Determine release line precedence
       # Only the newest canonical release/<major>.<minor> line may move the
@@ -193,24 +218,24 @@ jobs:
           | grep -E '^[0-9]+\.[0-9]+$' \
           | sort -t. -k1,1n -k2,2n \
           | tail -n1 || true)
-        echo "Newest canonical release line: '${highest:-<none>}'; this build: '${{ env.NBGV_MajorMinorVersion }}'"
-        if [ -n "$highest" ] && [ "$highest" = "${{ env.NBGV_MajorMinorVersion }}" ]; then
-          echo IS_NEWEST_RELEASE_LINE=true >> $GITHUB_ENV
+        echo "Newest canonical release line: '${highest:-<none>}'; this build: '${NBGV_MajorMinorVersion}'"
+        if [ -n "$highest" ] && [ "$highest" = "${NBGV_MajorMinorVersion}" ]; then
+          echo "IS_NEWEST_RELEASE_LINE=true" >> "$GITHUB_ENV"
         else
-          echo IS_NEWEST_RELEASE_LINE=false >> $GITHUB_ENV
+          echo "IS_NEWEST_RELEASE_LINE=false" >> "$GITHUB_ENV"
         fi
 
     - name: Prepare version and latest tag
       run: |
         set -euo pipefail
-        echo TAG_BRANCH=${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_VERSION }}${{ env.IMAGE_TAG }} >> $GITHUB_ENV
-        latest_suffix='${{ env.IMAGE_TAG }}'
+        echo "TAG_BRANCH=${IMAGE_REPOSITORY}:${IMAGE_VERSION}${IMAGE_TAG:-}" >> "$GITHUB_ENV"
+        latest_suffix="${IMAGE_TAG:-}"
         if [ "${IS_NEWEST_RELEASE_LINE:-}" = "false" ]; then
           # Stable release on a superseded maintenance line: leave ":latest"
           # on the newest line and publish a line-specific alias instead.
-          latest_suffix="-${{ env.NBGV_MajorMinorVersion }}"
+          latest_suffix="-${NBGV_MajorMinorVersion}"
         fi
-        echo TAG_LATEST=${{ env.IMAGE_REPOSITORY }}:latest${latest_suffix} >> $GITHUB_ENV
+        echo "TAG_LATEST=${IMAGE_REPOSITORY}:latest${latest_suffix}" >> "$GITHUB_ENV"
 
     - name: Prepare Release tags
       if: ${{ env.NBGV_PublicRelease == 'True' && env.NBGV_PrereleaseVersion == '' && env.IS_NOT_PR == 'true' }}
@@ -218,11 +243,11 @@ jobs:
         set -euo pipefail
         # Every release line keeps its exact version and major.minor tags;
         # only the newest line also claims the unqualified ":release" alias.
-        tags=",${{ env.IMAGE_REPOSITORY }}:${{ env.NBGV_MajorMinorVersion }},${{ env.IMAGE_REPOSITORY }}:${{ env.NBGV_SimpleVersion }}"
+        tags=",${IMAGE_REPOSITORY}:${NBGV_MajorMinorVersion},${IMAGE_REPOSITORY}:${NBGV_SimpleVersion}"
         if [ "${IS_NEWEST_RELEASE_LINE:-}" = "true" ]; then
-          tags="${tags},${{ env.IMAGE_REPOSITORY }}:release"
+          tags="${tags},${IMAGE_REPOSITORY}:release"
         fi
-        echo TAG_RELEASE=${tags} >> $GITHUB_ENV
+        echo "TAG_RELEASE=${tags}" >> "$GITHUB_ENV"
 
     # Extract metadata (tags, labels) for Docker
     # https://github.com/docker/metadata-action

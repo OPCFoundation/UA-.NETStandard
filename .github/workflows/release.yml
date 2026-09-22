@@ -48,14 +48,13 @@ jobs:
     environment: release
 
     steps:
-      - name: Checkout
-        # Bootstrap only. The validator below dot-sources
-        # .azurepipelines/package-version-policy.ps1 to decide whether the
-        # selected run is promotable, and that has to happen before the
-        # candidate's commit is known. Everything after the re-checkout runs
-        # from the candidate's own source.
-        uses: actions/checkout@v6
-
+      # Deliberately no checkout here. This job holds the release environment
+      # plus packages:write and id-token:write, so no repository code may run
+      # before the workspace is bound to the candidate's own commit - the
+      # branch tip could otherwise have been changed after the candidate was
+      # built and would execute with those credentials. The step below
+      # therefore uses only the GitHub API and an inline branch-shape check,
+      # and the first and only checkout is at the candidate SHA.
       - name: Setup .NET 10.0
         uses: actions/setup-dotnet@v6
         with:
@@ -100,8 +99,13 @@ jobs:
                   "Run $env:RELEASE_RUN_ID came from '$($run.head_branch)'. " +
                   'Only release/* branches can be promoted.')
           }
-          . ./.azurepipelines/package-version-policy.ps1
-          if (-not (Test-CanonicalReleaseBranchRef -Ref "refs/heads/$($run.head_branch)")) {
+          # Inlined on purpose rather than dot-sourced from
+          # .azurepipelines/package-version-policy.ps1: nothing from the
+          # repository may execute before the candidate checkout below. This
+          # is the same shape as Test-CanonicalReleaseBranchRef, and
+          # PackageVersionPolicyTests pins the two together so they cannot
+          # drift apart.
+          if ("refs/heads/$($run.head_branch)" -notmatch '^refs/heads/release/\d+\.\d+$') {
               throw (
                   "Run $env:RELEASE_RUN_ID came from '$($run.head_branch)', which is not a " +
                   "canonical release/<major>.<minor> branch (for example release/2.0). Only " +
@@ -128,13 +132,13 @@ jobs:
               "Selected successful nuget-publish.yml run $env:RELEASE_RUN_ID " +
               "for $($run.head_branch) at $($run.head_sha).")
 
-      - name: Rebind the workspace to the candidate commit
-        # The dispatch ref pins the branch, not the commit: the bootstrap
-        # checkout above took whatever the branch tip happened to be. If the
-        # release branch advanced after the candidate was built, the promotion
-        # logic would come from one commit while the package bytes came from
-        # another. Re-checkout at the candidate's own SHA so the validator, the
-        # policy scripts and the packages all describe the same source.
+      - name: Check out the candidate commit
+        # First and only checkout, and deliberately after the validation step
+        # above: the dispatch ref pins a branch, not a commit, so checking out
+        # the branch tip would let a commit that landed after the candidate was
+        # built supply the promotion logic. Binding to the candidate's own SHA
+        # makes the validator, the policy scripts and the package bytes all
+        # describe the same source.
         uses: actions/checkout@v6
         with:
           ref: ${{ steps.source.outputs.commit }}
@@ -240,6 +244,28 @@ jobs:
           ./.azurepipelines/validate-preview-package-ordering.ps1 `
             -ManifestPath 'promotion/current-package-set.json'
 
+      - name: Verify already-published package identity
+        # "--skip-duplicate" below makes a failed promotion recoverable by
+        # re-running the same candidate, but on its own it accepts *any*
+        # pre-existing id/version as a successful no-op. Prove first that every
+        # version this candidate already occupies really is this candidate's,
+        # so a foreign build that claimed an immutable version can never be
+        # mistaken for a completed publication. Runs on a dry run too: it is
+        # read-only and is exactly what a rehearsal should establish.
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ./.azurepipelines/assert-published-packages-match.ps1 `
+            -PackageDirectory promotion `
+            -ManifestPath 'promotion/current-package-set.json' `
+            -Feed 'nuget.org' `
+            -ExcludeDebugPackages
+          ./.azurepipelines/assert-published-packages-match.ps1 `
+            -PackageDirectory promotion `
+            -ManifestPath 'promotion/current-package-set.json' `
+            -Feed 'GitHub Packages'
+
       - name: NuGet login
         if: ${{ !inputs.dry_run }}
         id: login
@@ -290,6 +316,10 @@ jobs:
               'Debug package IDs remain in the signed candidate artifact and are ' +
               'published only to GitHub Packages.')
           foreach ($package in $packages) {
+              # --skip-duplicate keeps a partially completed promotion
+              # re-runnable. "Verify already-published package identity" above
+              # has already proved that anything it skips is this candidate's
+              # own bytes.
               dotnet nuget push $package.FullName `
                 --source 'https://api.nuget.org/v3/index.json' `
                 --symbol-source 'https://api.nuget.org/v3/index.json' `
@@ -316,6 +346,8 @@ jobs:
           # exclude them; see docs/ReleaseProcess.md.
           $packages = @(Get-ChildItem promotion -Filter '*.nupkg' -File | Sort-Object Name)
           foreach ($package in $packages) {
+              # As above: the identity gate has already proved that any
+              # duplicate this skips is byte-identical to the candidate.
               dotnet nuget push $package.FullName `
                 --source 'https://nuget.pkg.github.com/OPCFoundation/index.json' `
                 --api-key $env:GITHUB_PACKAGES_TOKEN `

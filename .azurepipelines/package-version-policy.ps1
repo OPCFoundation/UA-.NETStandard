@@ -91,6 +91,19 @@ function Get-BlockingPublishedPreviewVersions {
         the same "<BaseVersion>-preview" base whose ordering cannot be
         decided numerically is reported as blocking and requires an explicit
         decision rather than being assumed lower.
+
+        One published version is deliberately *not* blocking: the candidate's
+        own exact "<BaseVersion>-preview.<N>" identity. NuGet versions are
+        immutable, so a promotion that fails part-way through leaves some of
+        the candidate's own packages on the feed, and the documented recovery
+        is to re-run the same candidate (see docs/ReleaseProcess.md). Treating
+        that as a violation would make the recovery path unreachable. It is
+        safe because release.yml proves the already-published bytes really are
+        this candidate's, through assert-published-packages-match.ps1, before
+        it pushes anything - a foreign package that happens to occupy the
+        candidate's version fails there instead. Any version that merely
+        *starts* with the candidate's number carries extra prerelease
+        identifiers, sorts strictly above it under SemVer 2, and still blocks.
     #>
     param(
         [Parameter(Mandatory)][string]$BaseVersion,
@@ -110,7 +123,7 @@ function Get-BlockingPublishedPreviewVersions {
     $candidate = [int]$PreviewPackageBuildNumber
     $prefix = "$BaseVersion-preview"
     $numbered = [regex]::new(
-        '^' + [regex]::Escape($prefix) + '\.(?<number>\d+)(?:[.+\-]|$)',
+        '^' + [regex]::Escape($prefix) + '\.(?<number>\d+)(?<rest>[.+\-].*)?$',
         [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
 
     $blocking = foreach ($published in $PublishedVersions) {
@@ -135,12 +148,99 @@ function Get-BlockingPublishedPreviewVersions {
             $value
             continue
         }
-        if ([int]$match.Groups['number'].Value -ge $candidate) {
+
+        $number = [int]$match.Groups['number'].Value
+        if ($number -gt $candidate) {
+            $value
+            continue
+        }
+        if ($number -lt $candidate) {
+            continue
+        }
+
+        # Same number as the candidate. A bare "<base>-preview.<N>" - or one
+        # carrying only "+build" metadata, which SemVer 2 and NuGet both
+        # ignore for precedence - is the candidate's own identity and is
+        # allowed so a partially completed promotion can be re-run. Extra
+        # prerelease identifiers ("-preview.<N>.gabc123") sort above it.
+        $rest = $match.Groups['rest'].Value
+        if ($rest -ne '' -and -not $rest.StartsWith('+')) {
             $value
         }
     }
 
     return , @($blocking | Sort-Object -Unique)
+}
+
+function Get-NuGetPackageContentDigest {
+    <#
+    .SYNOPSIS
+        Returns a stable SHA-256 digest over a .nupkg's *content*, ignoring
+        the package signature.
+
+    .DESCRIPTION
+        A raw file hash cannot be used to compare a local candidate with the
+        same version already sitting on a feed: nuget.org repository-signs
+        every package at ingestion, so the bytes it serves are never
+        byte-identical to the bytes that were pushed even when nothing else
+        changed. Hashing each entry except the signature part compares what
+        actually has to match - the assemblies, the nuspec and every other
+        file - while tolerating the signature the feed legitimately added.
+
+        The digest is computed over a canonical "<entry>\t<sha256>" listing
+        sorted by ordinal entry name, so zip ordering differences do not
+        change the result.
+    #>
+    param([Parameter(Mandatory)][string]$Path)
+
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $archive = [System.IO.Compression.ZipFile]::OpenRead($Path)
+    try {
+        $entryHash = [System.Security.Cryptography.SHA256]::Create()
+        try {
+            $lines = [System.Collections.Generic.List[string]]::new()
+            foreach ($entry in $archive.Entries) {
+                # ".signature.p7s" is the only part a feed rewrites.
+                if ($entry.FullName -ceq '.signature.p7s' -or $entry.FullName.EndsWith('/')) {
+                    continue
+                }
+                $stream = $entry.Open()
+                try {
+                    $hash = $entryHash.ComputeHash($stream)
+                }
+                finally {
+                    $stream.Dispose()
+                }
+                $lines.Add(
+                    "$($entry.FullName)`t" +
+                    [System.BitConverter]::ToString($hash).Replace('-', ''))
+            }
+        }
+        finally {
+            $entryHash.Dispose()
+        }
+    }
+    finally {
+        $archive.Dispose()
+    }
+
+    if ($lines.Count -eq 0) {
+        throw "'$Path' contains no package content to compare."
+    }
+
+    # Ordinal, not culture-aware: the digest has to be reproducible on every
+    # runner locale.
+    $lines.Sort([System.StringComparer]::Ordinal)
+
+    $listingHash = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $bytes = [System.Text.Encoding]::UTF8.GetBytes(($lines -join "`n"))
+        return [System.BitConverter]::ToString($listingHash.ComputeHash($bytes)).
+            Replace('-', '').ToLowerInvariant()
+    }
+    finally {
+        $listingHash.Dispose()
+    }
 }
 
 function Test-StablePackageVersion {
