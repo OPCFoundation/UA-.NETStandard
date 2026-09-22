@@ -68,12 +68,16 @@ pulls in everything, or reference individual packages directly, e.g.
 `OPCFoundation.NetStandard.Opc.Ua.Client` for clients or
 `OPCFoundation.NetStandard.Opc.Ua.Server` for servers. Preview builds from
 every successful `master` build are available from the
-[GitHub Packages NuGet feed](https://nuget.pkg.github.com/OPCFoundation/index.json).
-Official public 2.0 preview releases are also on nuget.org. Enable prerelease
-packages and use `2.0.0-preview.*` to float to the latest published
-`2.0.0-preview.N` release. The XRegistry, WoT Connectivity, Vision, Robotics,
+[GitHub Packages NuGet feed](https://nuget.pkg.github.com/OPCFoundation/index.json),
+which is the only feed they are published to. nuget.org receives a version
+only through a manually approved promotion from a `release/<major>.<minor>`
+branch — that is where the `2.0.0-preview.N` packages already on nuget.org
+came from, via the earlier `release/2.0.0` line. To use those, enable
+prerelease packages and float with `2.0.0-preview.*` until `2.0.0` is
+released. The XRegistry, WoT Connectivity, Vision, Robotics,
 Redundancy, Positioning, OpenUSD, ISA95, AI, and DI package families remain
-preview packages when the root version is promoted to a stable version. See
+preview packages when the root version is promoted to a stable version, and
+keep their own `-preview.N` versions on nuget.org. See
 [docs/ReleaseProcess.md](docs/ReleaseProcess.md) for how and when stable
 versions are released.
 

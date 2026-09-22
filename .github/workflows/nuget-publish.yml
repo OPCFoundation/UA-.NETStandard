@@ -125,7 +125,7 @@ jobs:
       - name: Determine package mode
         shell: pwsh
         run: |
-          if ('${{ github.ref_type }}' -eq 'tag') {
+          if ($env:GITHUB_REF_TYPE -eq 'tag') {
               $mode = 'Public'
           }
           else {
@@ -228,12 +228,22 @@ jobs:
           "PACK_CHANNEL=$channel" | Out-File -FilePath $env:GITHUB_ENV -Append
           Write-Host "Base package version is $($corePackages[0]) (channel: $channel)."
 
-      - name: Keep only distinct Debug package IDs
+      - name: Require every Debug package ID to be distinct
+        # The Debug leg exists purely to produce the "<id>.Debug" half of the
+        # package set. A project that packs here under its ordinary Release ID
+        # would collide byte-for-byte with the Release leg in the aggregation
+        # step below, so it must either rename itself (the per-project
+        # "<PackageId>$(PackageId).Debug</PackageId>" override) or opt out
+        # with "<IsPackable>false</IsPackable>" under Configuration=Debug.
+        # Silently deleting the offender instead would ship a package set in
+        # which some libraries simply have no Debug counterpart, with nothing
+        # anywhere reporting it. Fail closed and name the packages.
         if: matrix.configuration == 'Debug'
         shell: pwsh
         run: |
           Add-Type -AssemblyName System.IO.Compression.FileSystem
           $packages = @(Get-ChildItem "$env:ARTIFACTS_DIR" -Filter '*.nupkg' -File)
+          $unsuffixed = @()
           foreach ($package in $packages) {
               $archive = [IO.Compression.ZipFile]::OpenRead($package.FullName)
               try {
@@ -257,19 +267,24 @@ jobs:
               }
 
               if (-not $id.EndsWith('.Debug', [StringComparison]::OrdinalIgnoreCase)) {
-                  Remove-Item -LiteralPath $package.FullName
-                  $symbols = Join-Path $package.DirectoryName "$($package.BaseName).snupkg"
-                  if (Test-Path -LiteralPath $symbols) {
-                      Remove-Item -LiteralPath $symbols
-                  }
+                  $unsuffixed += $id
               }
           }
 
-          $debugPackages = @(Get-ChildItem "$env:ARTIFACTS_DIR" -Filter '*.nupkg' -File)
-          if ($debugPackages.Count -eq 0) {
+          if ($unsuffixed.Count -gt 0) {
+              throw (
+                  "The Debug configuration packed $($unsuffixed.Count) package(s) under a " +
+                  "Release package ID: $(($unsuffixed | Sort-Object -Unique) -join ', '). " +
+                  'Give each owning project a Debug PackageId override ' +
+                  '(<PackageId>$(PackageId).Debug</PackageId>) or exclude it from the ' +
+                  'Debug pack (<IsPackable>false</IsPackable>) under ' +
+                  "Condition=`"'`$(Configuration)' == 'Debug'`".")
+          }
+
+          if ($packages.Count -eq 0) {
               throw 'The Debug build produced no package IDs ending in .Debug.'
           }
-          Write-Host "Retained $($debugPackages.Count) distinct Debug package(s)."
+          Write-Host "Verified $($packages.Count) distinct Debug package(s)."
 
       - name: Validate source-generator packages
         if: matrix.configuration == 'Release'
@@ -400,21 +415,21 @@ jobs:
           # silently building it. See docs/ReleaseProcess.md.
           if ($inventory.channel -eq 'stable' -and
               -not (Test-CanonicalReleaseBranchForPackageVersion `
-                  -Ref '${{ github.ref }}' `
+                  -Ref $env:GITHUB_REF `
                   -Version $inventory.basePackageVersion)) {
               throw (
                   "Refusing to build a stable package set ($($inventory.basePackageVersion)) " +
-                  "from ref '${{ github.ref }}'. Stable releases are only produced from a " +
+                  "from ref '$($env:GITHUB_REF)'. Stable releases are only produced from a " +
                   "canonical release/<major>.<minor> branch whose major/minor matches " +
                   'the package version.')
           }
 
           $manifest = [ordered]@{
-              repository = '${{ github.repository }}'
+              repository = $env:GITHUB_REPOSITORY
               workflow = '.github/workflows/nuget-publish.yml'
-              runId = '${{ github.run_id }}'
-              ref = '${{ github.ref }}'
-              commit = '${{ github.sha }}'
+              runId = $env:GITHUB_RUN_ID
+              ref = $env:GITHUB_REF
+              commit = $env:GITHUB_SHA
               schemaVersion = 2
               basePackageVersion = $inventory.basePackageVersion
               channel = $inventory.channel
@@ -435,8 +450,8 @@ jobs:
           # three-component "release/2.0.0" naming: that line is frozen and
           # keeps its history, but no longer publishes. See
           # docs/ReleaseProcess.md.
-          $isEligibleRef = '${{ github.ref }}' -eq 'refs/heads/master' -or
-              (Test-CanonicalReleaseBranchRef -Ref '${{ github.ref }}')
+          $isEligibleRef = $env:GITHUB_REF -eq 'refs/heads/master' -or
+              (Test-CanonicalReleaseBranchRef -Ref $env:GITHUB_REF)
           "PUBLISH_CHANNEL=$($inventory.channel)" | Out-File -FilePath $env:GITHUB_ENV -Append
           "PUBLISH_ELIGIBLE_REF=$($isEligibleRef.ToString().ToLowerInvariant())" |
               Out-File -FilePath $env:GITHUB_ENV -Append
@@ -474,12 +489,14 @@ jobs:
         # release. See docs/ReleaseProcess.md ("Approved promotion").
         if: ${{ steps.package_set.outputs.channel == 'preview' && steps.package_set.outputs.eligible_ref == 'true' }}
         shell: pwsh
+        env:
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $packages = @(Get-ChildItem promotion -Filter '*.nupkg' -File | Sort-Object Name)
           foreach ($package in $packages) {
               dotnet nuget push $package.FullName `
                 --source 'https://nuget.pkg.github.com/OPCFoundation/index.json' `
-                --api-key '${{ secrets.GITHUB_TOKEN }}' `
+                --api-key $env:GITHUB_PACKAGES_TOKEN `
                 --skip-duplicate `
                 --no-symbols
               if ($LASTEXITCODE -ne 0) {
@@ -499,7 +516,7 @@ jobs:
           }
           else {
               Write-Host (
-                  "Ref '${{ github.ref }}' is not eligible for automatic feed " +
+                  "Ref '$($env:GITHUB_REF)' is not eligible for automatic feed " +
                   'publication (only master and a canonical release/<major>.<minor> ' +
                   'line are); the validated package set was still produced and ' +
                   'staged in the run artifact.')

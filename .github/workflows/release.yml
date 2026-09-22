@@ -67,14 +67,14 @@ jobs:
               throw 'release_run_id must be a numeric GitHub Actions run ID.'
           }
 
-          $runJson = gh api "repos/${{ github.repository }}/actions/runs/$env:RELEASE_RUN_ID"
+          $runJson = gh api "repos/$($env:GITHUB_REPOSITORY)/actions/runs/$env:RELEASE_RUN_ID"
           if ($LASTEXITCODE -ne 0) {
               throw "Unable to read workflow run $env:RELEASE_RUN_ID."
           }
           $run = $runJson | ConvertFrom-Json
 
           $workflowJson = gh api (
-              "repos/${{ github.repository }}/actions/workflows/$($run.workflow_id)")
+              "repos/$($env:GITHUB_REPOSITORY)/actions/workflows/$($run.workflow_id)")
           if ($LASTEXITCODE -ne 0) {
               throw "Unable to identify the workflow for run $env:RELEASE_RUN_ID."
           }
@@ -102,17 +102,17 @@ jobs:
                   "canonical release/<major>.<minor> branch (for example release/2.0). Only " +
                   'that naming may be promoted; see docs/ReleaseProcess.md.')
           }
-          if ('${{ github.ref }}' -cne "refs/heads/$($run.head_branch)") {
+          if ($env:GITHUB_REF -cne "refs/heads/$($run.head_branch)") {
               throw (
-                  "This release.yml dispatch runs from '${{ github.ref }}', but the selected " +
+                  "This release.yml dispatch runs from '$($env:GITHUB_REF)', but the selected " +
                   "candidate was built from 'refs/heads/$($run.head_branch)'. Dispatch " +
                   'release.yml from that exact canonical release branch so the validation ' +
                   'policy and promotion code are source-bound to the candidate.')
           }
-          if ($run.head_repository.full_name -cne '${{ github.repository }}') {
+          if ($run.head_repository.full_name -cne $env:GITHUB_REPOSITORY) {
               throw (
                   "Run $env:RELEASE_RUN_ID came from '$($run.head_repository.full_name)', " +
-                  "not '${{ github.repository }}'.")
+                  "not '$($env:GITHUB_REPOSITORY)'.")
           }
 
           "commit=$($run.head_sha)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
@@ -133,6 +133,10 @@ jobs:
 
       - name: Validate promotion manifest and package bytes
         shell: pwsh
+        env:
+          RELEASE_RUN_ID: ${{ inputs.release_run_id }}
+          RELEASE_BRANCH: ${{ steps.source.outputs.branch }}
+          RELEASE_COMMIT: ${{ steps.source.outputs.commit }}
         run: |
           . ./.azurepipelines/package-version-policy.ps1
           $manifestPath = 'promotion/release-manifest.json'
@@ -140,16 +144,16 @@ jobs:
               throw "The selected run artifact contains no release-manifest.json."
           }
           $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
-          $expectedRef = 'refs/heads/${{ steps.source.outputs.branch }}'
+          $expectedRef = "refs/heads/$($env:RELEASE_BRANCH)"
           if (($manifest.schemaVersion -ne 1 -and $manifest.schemaVersion -ne 2) -or
-              $manifest.repository -cne '${{ github.repository }}' -or
+              $manifest.repository -cne $env:GITHUB_REPOSITORY -or
               $manifest.workflow -cne '.github/workflows/nuget-publish.yml' -or
-              $manifest.runId -cne '${{ inputs.release_run_id }}' -or
+              $manifest.runId -cne $env:RELEASE_RUN_ID -or
               $manifest.ref -cne $expectedRef -or
-              $manifest.commit -cne '${{ steps.source.outputs.commit }}') {
+              $manifest.commit -cne $env:RELEASE_COMMIT) {
               throw (
                   "The promotion manifest does not match nuget-publish.yml run " +
-                  "${{ inputs.release_run_id }} on $expectedRef.")
+                  "$($env:RELEASE_RUN_ID) on $expectedRef.")
           }
           $expectedBaseVersion = if ($manifest.schemaVersion -eq 2) {
               $manifest.basePackageVersion
@@ -165,7 +169,7 @@ jobs:
           # docs/ReleaseProcess.md ("Approved promotion").
           if (-not (Test-StablePackageVersion -Version $expectedBaseVersion)) {
               throw (
-                  "Run ${{ inputs.release_run_id }} produced base version " +
+                  "Run $($env:RELEASE_RUN_ID) produced base version " +
                   "'$expectedBaseVersion', which is not an exact stable release. Only a " +
                   'stable candidate (no prerelease label or build metadata) may be ' +
                   'promoted through this workflow.')
@@ -204,7 +208,7 @@ jobs:
 
           Write-Host (
               "Validated $($current.packageCount) exact package bytes at version " +
-              "$($current.basePackageVersion) from run ${{ inputs.release_run_id }}.")
+              "$($current.basePackageVersion) from run $($env:RELEASE_RUN_ID).")
 
       - name: Verify preview package ordering
         # Last gate before an irreversible publication: the preview-only
@@ -230,6 +234,8 @@ jobs:
       - name: Push to nuget.org
         if: ${{ !inputs.dry_run }}
         shell: pwsh
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
         run: |
           Add-Type -AssemblyName System.IO.Compression.FileSystem
           $packages = @(Get-ChildItem promotion -Filter '*.nupkg' -File |
@@ -271,7 +277,7 @@ jobs:
               dotnet nuget push $package.FullName `
                 --source 'https://api.nuget.org/v3/index.json' `
                 --symbol-source 'https://api.nuget.org/v3/index.json' `
-                --api-key '${{ steps.login.outputs.NUGET_API_KEY }}' `
+                --api-key $env:NUGET_API_KEY `
                 --skip-duplicate
               if ($LASTEXITCODE -ne 0) {
                   throw "nuget.org push failed for '$($package.Name)'."
@@ -286,6 +292,8 @@ jobs:
         # nuget.org push above.
         if: ${{ !inputs.dry_run }}
         shell: pwsh
+        env:
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # GitHub Packages retains the complete signed candidate, including
           # .Debug package IDs. Public nuget.org releases above intentionally
@@ -294,7 +302,7 @@ jobs:
           foreach ($package in $packages) {
               dotnet nuget push $package.FullName `
                 --source 'https://nuget.pkg.github.com/OPCFoundation/index.json' `
-                --api-key '${{ secrets.GITHUB_TOKEN }}' `
+                --api-key $env:GITHUB_PACKAGES_TOKEN `
                 --skip-duplicate `
                 --no-symbols
               if ($LASTEXITCODE -ne 0) {
@@ -305,6 +313,10 @@ jobs:
       - name: Summary
         if: always()
         shell: pwsh
+        env:
+          RELEASE_RUN_ID: ${{ inputs.release_run_id }}
+          RELEASE_BRANCH: ${{ steps.source.outputs.branch }}
+          RELEASE_DRY_RUN: ${{ inputs.dry_run }}
         run: |
           $manifestPath = 'promotion/release-manifest.json'
           if (Test-Path -LiteralPath $manifestPath) {
@@ -324,9 +336,9 @@ jobs:
           @"
           ### nuget.org release
 
-          - Source run: ``${{ inputs.release_run_id }}``
-          - Source branch: ``${{ steps.source.outputs.branch }}``
+          - Source run: ``$($env:RELEASE_RUN_ID)``
+          - Source branch: ``$($env:RELEASE_BRANCH)``
           - Version: ``$version``
           - Packages: ``$count``
-          - Dry run: ``${{ inputs.dry_run }}``
+          - Dry run: ``$($env:RELEASE_DRY_RUN)``
           "@ | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY

@@ -446,8 +446,16 @@ maintainer can subsequently approve [Approved promotion](#approved-promotion).
 4. Alternatively, dry-run the actual promotion workflow itself (still no
    publication occurs):
    ```powershell
-   gh workflow run release.yml -f release_run_id=<run-id> -f dry_run=true
+   gh workflow run release.yml --ref release/<major>.<minor> `
+     -f release_run_id=<run-id> -f dry_run=true
    ```
+   `--ref` is required and must name the same canonical release branch the
+   candidate was built from: `release.yml` refuses to run when its own
+   `GITHUB_REF` differs from the candidate run's branch, so that the
+   validation policy and the promotion code are source-bound to the bytes
+   being promoted. Without `--ref`, `gh` dispatches from the default branch
+   and the run stops at "Resolve candidate run".
+
    *Completion evidence*: the run succeeds through "Validate promotion
    manifest and package bytes"; the summary reports the expected version and
    package count; no "Push to nuget.org" or "Push to GitHub Packages" step
@@ -474,9 +482,11 @@ it authenticates to any feed, so an ordering violation that appeared after
 your dry run stops the promotion before the first public write rather than
 midway through it.
 
-1. Trigger the promotion for real:
+1. Trigger the promotion for real, from the same canonical release branch the
+   candidate was built from:
    ```powershell
-   gh workflow run release.yml -f release_run_id=<run-id> -f dry_run=false
+   gh workflow run release.yml --ref release/<major>.<minor> `
+     -f release_run_id=<run-id> -f dry_run=false
    ```
 2. Approve the pending deployment to the `release` environment when
    prompted (in the GitHub UI, or `gh run watch <new-run-id>` from the CLI).
