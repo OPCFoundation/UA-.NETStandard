@@ -52,8 +52,18 @@ namespace Opc.Ua.WotCon.Server.Registry
             try
             {
                 EnsureMutationAllowed();
-                WotResourceVersion? current = m_snapshot.FindResource(groupId, resourceId)?
-                    .FindVersion(version.VersionId);
+                WotResource? resource = m_snapshot.FindResource(groupId, resourceId);
+                WotResourceVersion? current = resource?.FindVersion(version.VersionId);
+                if ((current is null || current.IncarnationId != version.IncarnationId || current.Epoch != version.Epoch ||
+                    !WotContentDigest.Equal(current.Digest, version.Digest)) &&
+                    resource?.CommittedVersion is { } committed &&
+                    committed.VersionId == version.VersionId &&
+                    committed.IncarnationId == version.IncarnationId &&
+                    committed.Epoch == version.Epoch &&
+                    WotContentDigest.Equal(committed.Digest, version.Digest))
+                {
+                    current = committed;
+                }
                 if (current is null)
                 {
                     throw new ServiceResultException(StatusCodes.BadNodeIdUnknown, "The Version no longer exists.");

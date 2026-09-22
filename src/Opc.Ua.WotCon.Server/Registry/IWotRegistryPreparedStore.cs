@@ -93,6 +93,31 @@ namespace Opc.Ua.WotCon.Server.Registry
     }
 
     /// <summary>
+    /// Retains an existing authoritative publication while its runtime image is recovered without a new decision.
+    /// </summary>
+    public interface IWotRegistryRecoveryStore : IWotRegistryPreparedStore
+    {
+        /// <summary>
+        /// Validates an owner-issued generation and retains its authority until runtime publication completes.
+        /// This operation does not write a manifest or advance a generation.
+        /// </summary>
+        ValueTask<IWotRegistryPublicationValidation> ValidatePublicationAsync(
+            IWotRegistryValidatedGeneration expectedGeneration,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// Keeps a validated durable image authoritative through the corresponding runtime switch.
+    /// </summary>
+    public interface IWotRegistryPublicationValidation : IDisposable
+    {
+        /// <summary>
+        /// Gets the existing authoritative snapshot. Disposal ends validation ownership without writing state.
+        /// </summary>
+        WotRegistrySnapshot Snapshot { get; }
+    }
+
+    /// <summary>
     /// Owns a privately prepared store mutation until its durable decision or asynchronous abort.
     /// </summary>
     public interface IWotRegistryPreparedCommit : IAsyncDisposable

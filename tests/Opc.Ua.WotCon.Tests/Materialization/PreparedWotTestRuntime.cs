@@ -55,6 +55,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         public LifecycleWotProjectionHost Host { get; }
         public NamespaceTable Namespaces => m_server.CurrentInstance.NamespaceUris;
         public INodeManagerLifecycle Lifecycle => m_server.NodeManagerLifecycle;
+        public int Port => m_fixture.Port;
 
         public static async Task<PreparedWotTestRuntime> StartAsync()
         {

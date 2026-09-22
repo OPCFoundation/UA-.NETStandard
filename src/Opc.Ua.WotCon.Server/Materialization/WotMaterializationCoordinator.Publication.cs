@@ -364,6 +364,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         m_projectionNamespaceUris.Clear();
                         m_projectionNamespaceUris.UnionWith(capture.Namespaces);
                         m_generation = generation;
+                        m_runtimeInitialized = true;
                         Volatile.Write(ref m_committedPublication, committedPublication);
                         try
                         {
@@ -763,6 +764,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             public List<WotMaterializationEventArgs> Events { get; } = [];
             public List<WotResourceProjection> Projections { get; } = [];
             public Dictionary<string, ExpandedNodeId> SourceRoots { get; } = new(StringComparer.Ordinal);
+            public uint? RecoveryGeneration { get; init; }
         }
 
         private sealed record CapturedProjection(WotProjectionChange Change, WotProjectionHandle? Candidate);

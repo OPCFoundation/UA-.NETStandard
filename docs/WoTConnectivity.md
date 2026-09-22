@@ -646,7 +646,11 @@ The registry's startup refresh is an [awaited readiness
 phase](NodeManagerReadiness.md), not part of address-space preparation. Both
 ordinary `AddWotRegistryServer` startup and runtime
 `WotRegistryNodeManagerFactory` registration await persisted-document
-materialization before returning. This also applies when `AutoRefresh` is
+materialization before returning. For an existing committed generation,
+[cold recovery](WotPreparedViewPublication.md#cold-recovery-of-a-committed-publication)
+restores the retained active inputs and canonical graph without activating a
+newer desired Version or advancing the committed generation. A fresh registry
+still materializes its initial desired documents. This also applies when `AutoRefresh` is
 `false`; no explicit `Refresh` is needed to read successfully restored nodes.
 
 Startup cancellation reaches the real projection host. Failed materialization

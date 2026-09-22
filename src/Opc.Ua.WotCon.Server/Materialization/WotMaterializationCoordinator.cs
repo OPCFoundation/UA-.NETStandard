@@ -257,7 +257,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             declarationContext.AddAvailableNativePartitions(
                 contentCache, m_converterOptions, cancellationToken);
 
-            uint newGeneration = m_generation + 1;
+            uint newGeneration = m_preparing?.RecoveryGeneration ?? m_generation + 1;
             ImmutableArray<WoTResourceLoadResultDataType>.Builder results =
                 ImmutableArray.CreateBuilder<WoTResourceLoadResultDataType>();
             var projections = new List<WotResourceProjection>();
@@ -734,10 +734,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         private async ValueTask<WotRefreshCapture> CaptureInputsAsync(
             WotCapturedRefreshRequest request,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            uint? preparationGeneration = null,
+            bool committedInputs = false)
         {
             m_converterOptions.Validate();
-            uint generation = m_generation;
+            uint generation = preparationGeneration ?? m_generation;
             WotRegistryOrigin? origin = RegistryOrigin;
             bool supportsSnapshots = origin is not null &&
                 m_registry is IWotRegistryDependencySnapshotProvider { SupportsDependencySnapshots: true } &&
@@ -755,7 +757,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     : [];
             WotMaterializationSnapshot inputs = await WotDependencyGraph.CapturePublicationAsync(
                 m_registry, request.Selection, request.IncludeDependents, maxJsonDepth,
-                replacementClosures, cancellationToken)
+                replacementClosures, cancellationToken, committedInputs)
                 .ConfigureAwait(false);
             bool transferred = false;
             try

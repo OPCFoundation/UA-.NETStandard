@@ -175,11 +175,50 @@ namespace Opc.Ua.WotCon.Server.Registry
                     clearActiveVersion: activeVersionId is null,
                     clearValidation: projection.Validation is null,
                     clearRootNodeId: projection.RootNodeId.IsNull);
+                if (!projection.RetainPreviousActiveVersion && activeVersionId is not null &&
+                    projection.LoadState == WoTLoadStateEnum.Active)
+                {
+                    updated = updated.WithCommittedVersion(updated.FindVersion(activeVersionId)
+                        ?? throw new ServiceResultException(
+                            StatusCodes.BadInvalidState, "Publication has no exact active Version."));
+                }
                 WotResourceGroup group = next.FindGroup(projection.GroupId)!;
                 next = ReplaceResource(next, group, updated, generation, bumpGroupEpoch: false);
                 changed.Add(updated.Xid);
             }
             return (next, changed.ToArrayOf());
+        }
+
+        private async ValueTask<IWotPreparedRegistryRecovery> PrepareRecoveryCoreAsync(
+            WotRegistrySnapshot expectedSnapshot,
+            WotRegistrySnapshot runtimeSnapshot,
+            RegistryPublicationInvocation invocation,
+            CancellationToken cancellationToken)
+        {
+            _ = expectedSnapshot ?? throw new ArgumentNullException(nameof(expectedSnapshot));
+            _ = runtimeSnapshot ?? throw new ArgumentNullException(nameof(runtimeSnapshot));
+            EnsureMutationAllowed();
+            if (!ReferenceEquals(m_snapshot, expectedSnapshot))
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidState, "The recovery image changed.");
+            }
+            if (m_store is not IWotRegistryRecoveryStore { SupportsPreparedCommits: true } store)
+            {
+                throw new NotSupportedException("The registry store cannot retain authoritative recovery evidence.");
+            }
+            FileWotRegistryStore.ValidateRecoveryMetadata(expectedSnapshot, runtimeSnapshot);
+            IWotRegistryValidatedGeneration captured = await store.CaptureValidatedGenerationAsync(cancellationToken)
+                .ConfigureAwait(false);
+            try
+            {
+                FileWotRegistryStore.ValidateRecoveryMetadata(captured.Snapshot, expectedSnapshot);
+                return new PreparedRegistryRecovery(this, invocation, store, captured, expectedSnapshot, runtimeSnapshot);
+            }
+            catch
+            {
+                captured.Dispose();
+                throw;
+            }
         }
 
         private async ValueTask DecidePublicationAsync(
@@ -346,7 +385,88 @@ namespace Opc.Ua.WotCon.Server.Registry
             private int m_disposed;
         }
 
-        private sealed class RegistryPublicationInvocation(WotRegistryService owner) : IWotRegistryPublication
+        private sealed class PreparedRegistryRecovery(
+            WotRegistryService owner,
+            RegistryPublicationInvocation invocation,
+            IWotRegistryRecoveryStore store,
+            IWotRegistryValidatedGeneration captured,
+            WotRegistrySnapshot expected,
+            WotRegistrySnapshot runtime) : IWotPreparedRegistryRecovery
+        {
+            public WotRegistrySnapshot RuntimeSnapshot => runtime;
+
+            public async ValueTask ValidateAsync(CancellationToken cancellationToken = default)
+            {
+                if (Interlocked.CompareExchange(ref m_state, 1, 0) != 0)
+                {
+                    throw new InvalidOperationException("The recovery validation has already been consumed.");
+                }
+                try
+                {
+                    invocation.RequireActive(this);
+                    owner.EnsureMutationAllowed();
+                    if (!ReferenceEquals(owner.Current, expected))
+                    {
+                        throw new ServiceResultException(StatusCodes.BadInvalidState, "The recovery image changed.");
+                    }
+                    m_validation = await store.ValidatePublicationAsync(captured, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                finally
+                {
+                    Volatile.Write(ref m_state, 2);
+                    m_finished.TrySetResult(true);
+                }
+            }
+
+            public void Publish()
+            {
+                invocation.RequireActive(this);
+                if (Volatile.Read(ref m_state) != 2 || m_validation is null || m_published)
+                {
+                    throw new InvalidOperationException("The recovery has no unpublished validated image.");
+                }
+                Volatile.Write(ref owner.m_snapshot, runtime);
+                m_published = true;
+                try
+                {
+                    Interlocked.Exchange(ref m_validation, null)?.Dispose();
+                }
+                finally
+                {
+                    invocation.ReleaseUnit(this);
+                }
+            }
+
+            public async ValueTask DisposeAsync()
+            {
+                if (Interlocked.CompareExchange(ref m_state, 3, 0) == 1)
+                {
+                    await m_finished.Task.ConfigureAwait(false);
+                }
+                if (Interlocked.Exchange(ref m_disposed, 1) == 0)
+                {
+                    try
+                    {
+                        Interlocked.Exchange(ref m_validation, null)?.Dispose();
+                    }
+                    finally
+                    {
+                        captured.Dispose();
+                        invocation.ReleaseUnit(this);
+                    }
+                }
+            }
+
+            private readonly TaskCompletionSource<bool> m_finished =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private IWotRegistryPublicationValidation? m_validation;
+            private int m_state;
+            private int m_disposed;
+            private bool m_published;
+        }
+
+        private sealed class RegistryPublicationInvocation(WotRegistryService owner) : IWotRegistryRecoveryPublication
         {
             public WotRegistrySnapshot Current => owner.Current;
 
@@ -357,38 +477,41 @@ namespace Opc.Ua.WotCon.Server.Registry
                 ByteString canonicalViewGraphState = default,
                 CancellationToken cancellationToken = default)
             {
-                lock (m_lifetime)
-                {
-                    if (m_closing || m_preparing || m_unit is not null)
-                    {
-                        throw new InvalidOperationException("The registry invocation is closed or has an unfinished unit.");
-                    }
-                    m_preparing = true;
-                    m_prepared = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-                }
+                BeginPreparation();
                 try
                 {
                     IWotPreparedRegistryPublication publication = await owner.PreparePublicationCoreAsync(
                         expectedSnapshot, projections, refreshGeneration, canonicalViewGraphState, this, cancellationToken)
                         .ConfigureAwait(false);
-                    lock (m_lifetime)
-                    {
-                        m_unit = publication;
-                        m_publications.Add(publication);
-                    }
+                    RegisterPublication(publication);
                     return publication;
                 }
                 finally
                 {
-                    lock (m_lifetime)
-                    {
-                        m_preparing = false;
-                        m_prepared.TrySetResult(true);
-                    }
+                    FinishPreparation();
                 }
             }
 
-            public void RequireActive(PreparedRegistryPublication publication)
+            public async ValueTask<IWotPreparedRegistryRecovery> PrepareRecoveryAsync(
+                WotRegistrySnapshot expectedSnapshot,
+                WotRegistrySnapshot runtimeSnapshot,
+                CancellationToken cancellationToken = default)
+            {
+                BeginPreparation();
+                try
+                {
+                    IWotPreparedRegistryRecovery recovery = await owner.PrepareRecoveryCoreAsync(
+                        expectedSnapshot, runtimeSnapshot, this, cancellationToken).ConfigureAwait(false);
+                    RegisterPublication(recovery);
+                    return recovery;
+                }
+                finally
+                {
+                    FinishPreparation();
+                }
+            }
+
+            public void RequireActive(IAsyncDisposable publication)
             {
                 lock (m_lifetime)
                 {
@@ -399,7 +522,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 }
             }
 
-            public void ReleaseUnit(PreparedRegistryPublication publication)
+            public void ReleaseUnit(IAsyncDisposable publication)
             {
                 lock (m_lifetime)
                 {
@@ -432,7 +555,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                         await prepared.ConfigureAwait(false);
                     }
                     var failures = new List<Exception>();
-                    foreach (IWotPreparedRegistryPublication publication in m_publications)
+                    foreach (IAsyncDisposable publication in m_publications)
                     {
                         try
                         {
@@ -455,13 +578,44 @@ namespace Opc.Ua.WotCon.Server.Registry
                 }
             }
 
+            private void BeginPreparation()
+            {
+                lock (m_lifetime)
+                {
+                    if (m_closing || m_preparing || m_unit is not null)
+                    {
+                        throw new InvalidOperationException("The registry invocation is closed or has an unfinished unit.");
+                    }
+                    m_preparing = true;
+                    m_prepared = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                }
+            }
+
+            private void RegisterPublication(IAsyncDisposable publication)
+            {
+                lock (m_lifetime)
+                {
+                    m_unit = publication;
+                    m_publications.Add(publication);
+                }
+            }
+
+            private void FinishPreparation()
+            {
+                lock (m_lifetime)
+                {
+                    m_preparing = false;
+                    m_prepared.TrySetResult(true);
+                }
+            }
+
             private readonly Lock m_lifetime = new();
-            private readonly List<IWotPreparedRegistryPublication> m_publications = [];
+            private readonly List<IAsyncDisposable> m_publications = [];
             private readonly TaskCompletionSource<bool> m_finished =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
             private TaskCompletionSource<bool> m_prepared =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
-            private IWotPreparedRegistryPublication? m_unit;
+            private IAsyncDisposable? m_unit;
             private bool m_preparing;
             private bool m_closing;
         }

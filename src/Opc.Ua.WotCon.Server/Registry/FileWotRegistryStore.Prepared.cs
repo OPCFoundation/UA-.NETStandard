@@ -36,7 +36,7 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.WotCon.Server.Registry
 {
-    public sealed partial class FileWotRegistryStore
+    public sealed partial class FileWotRegistryStore : IWotRegistryRecoveryStore
     {
         /// <inheritdoc/>
         public bool SupportsPreparedCommits =>
@@ -144,6 +144,79 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
         }
 
+        /// <inheritdoc/>
+        public async ValueTask<IWotRegistryPublicationValidation> ValidatePublicationAsync(
+            IWotRegistryValidatedGeneration expectedGeneration,
+            CancellationToken cancellationToken = default)
+        {
+            _ = expectedGeneration ?? throw new ArgumentNullException(nameof(expectedGeneration));
+            EnsurePreparedCapability();
+            if (expectedGeneration is not GenerationLease lease)
+            {
+                throw new ArgumentException("Validated input belongs to another store.", nameof(expectedGeneration));
+            }
+            CapturedGeneration? captured = lease.RetainGeneration();
+            StorageLock? storage = null;
+            try
+            {
+                ValidateCapturedOwner(captured);
+                storage = await AcquireStorageLockAsync(cancellationToken, writeIntent: false).ConfigureAwait(false);
+                await ReadCapturedGenerationAsync(captured, cancellationToken).ConfigureAwait(false);
+                var validation = new PublicationValidation(captured, storage);
+                captured = null;
+                storage = null;
+                return validation;
+            }
+            finally
+            {
+                storage?.Dispose();
+                captured?.Dispose();
+            }
+        }
+
+        internal static void ValidateRecoveryMetadata(
+            WotRegistrySnapshot expected, WotRegistrySnapshot runtime)
+        {
+            ManifestDto original = ToManifest(expected);
+            ManifestDto normalized = ToManifest(runtime);
+            GroupDto[] oldGroups = original.Groups ?? [];
+            GroupDto[] newGroups = normalized.Groups ?? [];
+            if (oldGroups.Length != newGroups.Length)
+            {
+                throw new InvalidDataException("Recovery cannot change resource groups.");
+            }
+            for (int i = 0; i < oldGroups.Length; i++)
+            {
+                ResourceDto[] oldResources = oldGroups[i].Resources ?? [];
+                ResourceDto[] newResources = newGroups[i].Resources ?? [];
+                if (oldGroups[i].GroupId != newGroups[i].GroupId || oldResources.Length != newResources.Length)
+                {
+                    throw new InvalidDataException("Recovery cannot change resource membership.");
+                }
+                for (int j = 0; j < oldResources.Length; j++)
+                {
+                    if (oldResources[j].ResourceId != newResources[j].ResourceId)
+                    {
+                        throw new InvalidDataException("Recovery cannot change Resource identities.");
+                    }
+                    NodeId beforeRoot = ParseNodeId(oldResources[j].RootNodeId);
+                    NodeId afterRoot = ParseNodeId(newResources[j].RootNodeId);
+                    if (beforeRoot.IsNull != afterRoot.IsNull ||
+                        beforeRoot.WithNamespaceIndex(0) != afterRoot.WithNamespaceIndex(0))
+                    {
+                        throw new InvalidDataException("Recovery can rebase a root namespace, not replace its identity.");
+                    }
+                    newResources[j].RootNodeId = oldResources[j].RootNodeId;
+                }
+            }
+            byte[] before = JsonSerializer.SerializeToUtf8Bytes(original, WotRegistryStoreJson.Default.ManifestDto);
+            byte[] after = JsonSerializer.SerializeToUtf8Bytes(normalized, WotRegistryStoreJson.Default.ManifestDto);
+            if (!before.AsSpan().SequenceEqual(after))
+            {
+                throw new InvalidDataException("Recovery cannot change the authoritative publication.");
+            }
+        }
+
         internal static void ValidateProjectionMetadata(
             WotRegistrySnapshot expected,
             WotRegistrySnapshot intended)
@@ -197,6 +270,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                             oldVersions[versionIndex].LastDependencyAttempt;
                     }
                     newResource.ActiveVersionId = oldResource.ActiveVersionId;
+                    newResource.CommittedVersion = oldResource.CommittedVersion;
                     newResource.LoadState = oldResource.LoadState;
                     newResource.RefreshGeneration = oldResource.RefreshGeneration;
                     newResource.LastRefreshTime = oldResource.LastRefreshTime;
@@ -307,7 +381,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 foreach (WotResource resource in snapshot.AllResources())
                 {
-                    foreach (WotResourceVersion version in resource.Versions)
+                    foreach (WotResourceVersion version in resource.RetainedVersions)
                     {
                         if (!version.HasContent)
                         {
@@ -493,6 +567,29 @@ namespace Opc.Ua.WotCon.Server.Registry
                 if (Interlocked.Exchange(ref m_disposed, 1) == 0)
                 {
                     generation.Dispose();
+                }
+            }
+
+            private int m_disposed;
+        }
+
+        private sealed class PublicationValidation(CapturedGeneration captured, StorageLock storage)
+            : IWotRegistryPublicationValidation
+        {
+            public WotRegistrySnapshot Snapshot => captured.Snapshot;
+
+            public void Dispose()
+            {
+                if (Interlocked.Exchange(ref m_disposed, 1) == 0)
+                {
+                    try
+                    {
+                        storage.Dispose();
+                    }
+                    finally
+                    {
+                        captured.Dispose();
+                    }
                 }
             }
 

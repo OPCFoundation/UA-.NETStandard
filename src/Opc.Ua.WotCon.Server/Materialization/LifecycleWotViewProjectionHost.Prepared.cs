@@ -38,7 +38,7 @@ using Opc.Ua.Wot;
 
 namespace Opc.Ua.WotCon.Server.Materialization
 {
-    public sealed partial class LifecycleWotViewProjectionHost
+    public sealed partial class LifecycleWotViewProjectionHost : IWotRecoverableViewProjectionHost
     {
         /// <inheritdoc/>
         public bool SupportsPreparedPublication => m_lifecycle is INodeManagerBatchLifecycle;
@@ -122,6 +122,40 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
+        /// <inheritdoc/>
+        public async ValueTask<IWotPreparedViewPublication> PrepareRecoveryAsync(
+            WotCommittedPublicationState committedPublication,
+            CancellationToken cancellationToken = default)
+        {
+            _ = committedPublication ?? throw new ArgumentNullException(nameof(committedPublication));
+            if (!SupportsPreparedPublication)
+            {
+                throw new NotSupportedException("The lifecycle cannot recover a canonical publication.");
+            }
+            WotCanonicalViewState recovered = WotCanonicalViewState.Parse(
+                committedPublication.RegistrySnapshot.CanonicalViewGraphState);
+            await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                CanonicalPublication? previous = m_canonicalPublication;
+                if (m_manager is not null || (previous is null
+                    ? !committedPublication.Views.IsEmpty
+                    : !previous.Graph.Views.ToList().SequenceEqual(committedPublication.Views.ToList()) ||
+                        !m_lifecycle.Registrations.Contains(registration =>
+                            ReferenceEquals(registration, previous.Registration))))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidState, "Recovery does not identify this host's current View owners.");
+                }
+                return new PreparedViewPublication(this, previous, [], [], recovered);
+            }
+            catch
+            {
+                m_gate.Release();
+                throw;
+            }
+        }
+
         private void EnsureImmediateImage()
         {
             if (m_canonicalPublication is not null)
@@ -140,7 +174,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             LifecycleWotViewProjectionHost owner,
             CanonicalPublication? previous,
             ArrayOf<WotViewProjectionRequest> updates,
-            ArrayOf<string> removals)
+            ArrayOf<string> removals,
+            WotCanonicalViewState? recovered = null)
             : IWotPreparedViewPublication, IAsyncNodeManagerFactory, IRequestCallbackSafeNodeManagerFactory,
                 IWotPreparedViewSourceConsumer, IRegistrationBoundNodeManagerFactory
         {
@@ -176,16 +211,35 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     old.ValidateCanonicalServer(server);
                 }
                 NamespaceTable namespaces = server.NamespaceUris;
+                if (recovered is not null)
+                {
+                    foreach (string uri in WotProjectionViewNodeManager.CanonicalNamespaces(recovered))
+                    {
+                        namespaces.GetIndexOrAppend(uri);
+                    }
+                    foreach (WotCanonicalViewPublication view in recovered.Views)
+                    {
+                        if (!string.IsNullOrEmpty(view.ViewNodeId.NamespaceUri))
+                        {
+                            namespaces.GetIndexOrAppend(view.ViewNodeId.NamespaceUri);
+                        }
+                    }
+                }
                 var requests = new List<WotViewProjectionRequest>();
                 var sourceIds = new HashSet<NodeId>();
                 var retainedFacts = new Dictionary<NodeId, CanonicalViewSource>();
-                if (previous is not null)
+                WotCanonicalViewState? retained = recovered ?? previous?.State;
+                if (retained is not null)
                 {
-                    foreach (CanonicalViewSource source in previous.State.SourceFacts)
+                    foreach (CanonicalViewSource source in retained.SourceFacts)
                     {
                         NodeId nodeId = ExpandedNodeId.ToNodeId(ExpandedNodeId.Parse(source.NodeId), namespaces);
                         if (nodeId.IsNull)
                         {
+                            if (recovered is not null && !source.Available)
+                            {
+                                continue;
+                            }
                             throw new ServiceResultException(
                                 StatusCodes.BadNodeIdInvalid, "A retained source namespace is missing.");
                         }
@@ -255,9 +309,20 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 string logicalServer = server.ServerUris.GetString(0)
                     ?? throw new ServiceResultException(
                         StatusCodes.BadInvalidState, "The logical server URI is missing.");
-                m_preparation = WotProjectionViewBuilder.PrepareCanonicalGraph(
-                    new WotCanonicalViewGraphContext(logicalServer, Namespaces.WotCon, namespaces, facts.ToArrayOf()),
-                    previous?.State, requests.ToArrayOf(), removals);
+                var graphContext = new WotCanonicalViewGraphContext(
+                    logicalServer, Namespaces.WotCon, namespaces, facts.ToArrayOf());
+                if (recovered is not null)
+                {
+                    WotCanonicalViewState restored = WotCanonicalViewState.Restore(
+                        recovered.ToByteString(), graphContext);
+                    m_preparation = new WotCanonicalViewPreparation(
+                        restored, restored.Views.ConvertAll(view => view.ResourceXid), false);
+                }
+                else
+                {
+                    m_preparation = WotProjectionViewBuilder.PrepareCanonicalGraph(
+                        graphContext, previous?.State, requests.ToArrayOf(), removals);
+                }
                 foreach (string uri in WotProjectionViewNodeManager.CanonicalNamespaces(m_preparation.State))
                 {
                     if (namespaces.GetIndex(uri) < 0)

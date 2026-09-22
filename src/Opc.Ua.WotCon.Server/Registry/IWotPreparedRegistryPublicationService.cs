@@ -88,6 +88,42 @@ namespace Opc.Ua.WotCon.Server.Registry
     }
 
     /// <summary>
+    /// Recovers a durable image through the same registry invocation owner without deciding another generation.
+    /// </summary>
+    public interface IWotRegistryRecoveryPublication : IWotRegistryPublication
+    {
+        /// <summary>
+        /// Prepares the local runtime representation of an existing committed snapshot.
+        /// Only derived Resource root NodeIds may be rebased; authoritative metadata remains unchanged.
+        /// </summary>
+        ValueTask<IWotPreparedRegistryRecovery> PrepareRecoveryAsync(
+            WotRegistrySnapshot expectedSnapshot,
+            WotRegistrySnapshot runtimeSnapshot,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// Owns validation and local publication of an already committed registry image.
+    /// </summary>
+    public interface IWotPreparedRegistryRecovery : IAsyncDisposable
+    {
+        /// <summary>
+        /// Gets the local representation of the durable image, including rebased Resource root NodeIds.
+        /// </summary>
+        WotRegistrySnapshot RuntimeSnapshot { get; }
+
+        /// <summary>
+        /// Revalidates the existing deciding record and retains its authority through the runtime switch.
+        /// </summary>
+        ValueTask ValidateAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Publishes the validated local representation without a store write, generation change or repeated event.
+        /// </summary>
+        void Publish();
+    }
+
+    /// <summary>
     /// Owns one prepared registry decision and its deferred in-memory publication.
     /// </summary>
     public interface IWotPreparedRegistryPublication : IAsyncDisposable

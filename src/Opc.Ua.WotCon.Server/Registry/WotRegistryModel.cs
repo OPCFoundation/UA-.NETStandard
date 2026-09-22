@@ -596,7 +596,24 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <summary>
         /// Gets the active version snapshot, if present.
         /// </summary>
-        public WotResourceVersion? ActiveVersion => FindVersion(ActiveVersionId);
+        public WotResourceVersion? ActiveVersion => CommittedVersion ?? FindVersion(ActiveVersionId);
+
+        internal WotResourceVersion? CommittedVersion { get; private set; }
+
+        internal IEnumerable<WotResourceVersion> RetainedVersions
+        {
+            get
+            {
+                foreach (WotResourceVersion version in Versions)
+                {
+                    yield return version;
+                }
+                if (CommittedVersion is not null)
+                {
+                    yield return CommittedVersion;
+                }
+            }
+        }
 
         /// <summary>
         /// Finds a version by id.
@@ -674,7 +691,9 @@ namespace Opc.Ua.WotCon.Server.Registry
                 labels ?? Labels)
             {
                 MetaCreatedAt = MetaCreatedAt,
-                MetaModifiedAt = MetaModifiedAt
+                MetaModifiedAt = MetaModifiedAt,
+                CommittedVersion = clearActiveVersion ||
+                    (activeVersionId is not null && activeVersionId != ActiveVersionId) ? null : CommittedVersion
             };
         }
 
@@ -708,7 +727,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                 updated.Labels)
             {
                 MetaCreatedAt = MetaCreatedAt,
-                MetaModifiedAt = modifiedAt ?? MetaModifiedAt
+                MetaModifiedAt = modifiedAt ?? MetaModifiedAt,
+                CommittedVersion = updated.CommittedVersion
             };
         }
 
@@ -740,8 +760,20 @@ namespace Opc.Ua.WotCon.Server.Registry
                 Labels)
             {
                 MetaCreatedAt = MetaCreatedAt,
-                MetaModifiedAt = MetaModifiedAt
+                MetaModifiedAt = MetaModifiedAt,
+                CommittedVersion = CommittedVersion
             };
+        }
+
+        internal WotResource WithCommittedVersion(WotResourceVersion? version)
+        {
+            if (version is not null && version.VersionId != ActiveVersionId)
+            {
+                throw new ArgumentException("The committed Version must match the active identity.", nameof(version));
+            }
+            WotResource updated = With();
+            updated.CommittedVersion = version;
+            return updated;
         }
 
         private readonly WoTValidationOutcomeDataType? m_validation;

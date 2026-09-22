@@ -214,10 +214,37 @@ namespace Opc.Ua.WotCon.Server.Materialization
             bool includeDependents,
             int maxJsonDepth,
             ArrayOf<ArrayOf<string>> replacementClosures,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool committedInputs = false)
         {
             _ = registry ?? throw new ArgumentNullException(nameof(registry));
             WotRegistrySnapshot original = registry.Current;
+            if (committedInputs)
+            {
+                foreach (WotResourceGroup group in original.Groups.Values)
+                {
+                    ImmutableDictionary<string, WotResource> resources = group.Resources;
+                    foreach (WotResource resource in group.Resources.Values)
+                    {
+                        if (resource.CommittedVersion is not { } version)
+                        {
+                            continue;
+                        }
+                        WotResourceVersion? current = resource.FindVersion(version.VersionId);
+                        int index = current is null ? -1 : resource.Versions.IndexOf(current);
+                        if (index < 0)
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadInvalidState, "A committed input has no retained Version identity.");
+                        }
+                        WotResource recoveredResource = resource.With(
+                            versions: resource.Versions.SetItem(index, version),
+                            defaultVersionId: version.VersionId, desiredVersionId: version.VersionId, enabled: true);
+                        resources = resources.SetItem(resource.ResourceId, recoveredResource);
+                    }
+                    original = original.WithGroup(group.WithResources(resources, group.Epoch), original.Generation);
+                }
+            }
             ArrayOf<WotSelectedResource> selection = SelectResources(original, selectors, includeDependents);
             WotRegistrySnapshot pinned = original;
             foreach (WotSelectedResource selected in selection)

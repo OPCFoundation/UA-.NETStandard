@@ -452,7 +452,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                             $"to group '{group.GroupId}'.");
                     }
 
-                    foreach (WotResourceVersion version in resource.Versions)
+                    foreach (WotResourceVersion version in resource.RetainedVersions)
                     {
                         if (!version.HasContent)
                         {
@@ -680,7 +680,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 foreach (WotResource resource in loaded.AllResources())
                 {
-                    foreach (WotResourceVersion version in resource.Versions)
+                    foreach (WotResourceVersion version in resource.RetainedVersions)
                     {
                         if (!version.HasContent)
                         {
@@ -960,10 +960,12 @@ namespace Opc.Ua.WotCon.Server.Registry
                 version.Title is not null ||
                 version.BaseUri is not null ||
                 version.ModelVersion is not null) == true;
-            if (dto.Versions is not null)
+            WotResourceVersion? committedVersion = null;
+            if (dto.Versions is not null || dto.CommittedVersion is not null)
             {
-                foreach (VersionDto version in dto.Versions)
+                foreach (VersionDto version in EnumerateVersionDtos(dto))
                 {
+                    bool committed = ReferenceEquals(version, dto.CommittedVersion);
                     if (version.DocumentId is not null &&
                         dto.ThingId is not null &&
                         !string.Equals(version.DocumentId, dto.ThingId, StringComparison.Ordinal))
@@ -972,7 +974,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                             "A Version and its Resource contain incompatible document identities.");
                     }
                     if (string.IsNullOrEmpty(version.VersionId) ||
-                        !versionIds.Add(version.VersionId))
+                        (!committed && !versionIds.Add(version.VersionId)))
                     {
                         throw new InvalidDataException(
                             $"Registry resource '{dto.GroupId}/{dto.ResourceId}' " +
@@ -1045,7 +1047,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                         }
                         loadedBlobs.Add(digestHex, contentLength);
                     }
-                    versions.Add(new WotResourceVersion(
+                    var restoredVersion = new WotResourceVersion(
                         version.VersionId,
                         hasContent ? FromHexDigest(digestHex) : ByteString.Empty,
                         contentLength,
@@ -1058,10 +1060,10 @@ namespace Opc.Ua.WotCon.Server.Registry
                         Labels = ToLabels(version.Labels),
                         HasContent = hasContent,
                         Validation = FromDto(version.Validation),
-                        DocumentId = hasPerVersionDocumentMetadata
+                        DocumentId = committed || hasPerVersionDocumentMetadata
                             ? version.DocumentId
                             : dto.ThingId,
-                        Title = hasPerVersionDocumentMetadata
+                        Title = committed || hasPerVersionDocumentMetadata
                             ? version.Title
                             : dto.Title,
                         BaseUri = version.BaseUri,
@@ -1070,7 +1072,20 @@ namespace Opc.Ua.WotCon.Server.Registry
                         DependencySnapshot = FromDto(version.DependencySnapshot, version.VersionId, committed: true),
                         LastDependencyAttempt = FromDto(
                             version.LastDependencyAttempt, version.VersionId, committed: false)
-                    });
+                    };
+                    if (committed)
+                    {
+                        if (version.VersionId != dto.ActiveVersionId || !restoredVersion.HasContent ||
+                            !versionIds.Contains(version.VersionId))
+                        {
+                            throw new InvalidDataException("The committed input has no matching active Version.");
+                        }
+                        committedVersion = restoredVersion;
+                    }
+                    else
+                    {
+                        versions.Add(restoredVersion);
+                    }
                 }
             }
 
@@ -1144,7 +1159,19 @@ namespace Opc.Ua.WotCon.Server.Registry
                 MetaModifiedAt = string.IsNullOrEmpty(dto.MetaModifiedAt)
                     ? derivedMetaModifiedAt
                     : ParseDate(dto.MetaModifiedAt)
-            };
+            }.WithCommittedVersion(committedVersion);
+        }
+
+        private static IEnumerable<VersionDto> EnumerateVersionDtos(ResourceDto resource)
+        {
+            foreach (VersionDto version in resource.Versions ?? [])
+            {
+                yield return version;
+            }
+            if (resource.CommittedVersion is not null)
+            {
+                yield return resource.CommittedVersion;
+            }
         }
 
         private static ManifestDto ToManifest(WotRegistrySnapshot snapshot)
@@ -1188,28 +1215,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             var versions = new VersionDto[resource.Versions.Length];
             for (int i = 0; i < resource.Versions.Length; i++)
             {
-                WotResourceVersion v = resource.Versions[i];
-                versions[i] = new VersionDto
-                {
-                    VersionId = v.VersionId,
-                    ContentType = v.ContentType,
-                    Format = v.Format,
-                    CreatedAt = FormatDate(v.CreatedAt),
-                    ModifiedAt = FormatDate(v.ModifiedAt),
-                    DigestHex = v.DigestHex,
-                    ContentLength = v.ContentLength,
-                    Epoch = v.Epoch,
-                    Labels = FromLabels(v.Labels),
-                    HasContent = v.HasContent,
-                    Validation = ToDto(v.Validation),
-                    DocumentId = v.DocumentId,
-                    Title = v.Title,
-                    BaseUri = v.BaseUri,
-                    ModelVersion = v.ModelVersion,
-                    Dependencies = ToDto(v.Dependencies),
-                    DependencySnapshot = ToDto(v.DependencySnapshot),
-                    LastDependencyAttempt = ToDto(v.LastDependencyAttempt)
-                };
+                versions[i] = ToDto(resource.Versions[i]);
             }
             return new ResourceDto
             {
@@ -1221,6 +1227,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 DefaultVersionId = resource.DefaultVersionId,
                 DesiredVersionId = resource.DesiredVersionId,
                 ActiveVersionId = resource.ActiveVersionId,
+                CommittedVersion = resource.CommittedVersion is null ? null : ToDto(resource.CommittedVersion),
                 Enabled = resource.Enabled,
                 LoadState = (int)resource.LoadState,
                 Epoch = resource.Epoch,
@@ -1238,6 +1245,31 @@ namespace Opc.Ua.WotCon.Server.Registry
                 Labels = FromLabels(resource.MetaLabels),
                 MetaCreatedAt = FormatDate(resource.MetaCreatedAt),
                 MetaModifiedAt = FormatDate(resource.MetaModifiedAt)
+            };
+        }
+
+        private static VersionDto ToDto(WotResourceVersion version)
+        {
+            return new VersionDto
+            {
+                VersionId = version.VersionId,
+                ContentType = version.ContentType,
+                Format = version.Format,
+                CreatedAt = FormatDate(version.CreatedAt),
+                ModifiedAt = FormatDate(version.ModifiedAt),
+                DigestHex = version.DigestHex,
+                ContentLength = version.ContentLength,
+                Epoch = version.Epoch,
+                Labels = FromLabels(version.Labels),
+                HasContent = version.HasContent,
+                Validation = ToDto(version.Validation),
+                DocumentId = version.DocumentId,
+                Title = version.Title,
+                BaseUri = version.BaseUri,
+                ModelVersion = version.ModelVersion,
+                Dependencies = ToDto(version.Dependencies),
+                DependencySnapshot = ToDto(version.DependencySnapshot),
+                LastDependencyAttempt = ToDto(version.LastDependencyAttempt)
             };
         }
 
@@ -2009,7 +2041,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             var seen = new HashSet<string>(StringComparer.Ordinal);
             foreach (WotResource resource in snapshot.AllResources())
             {
-                foreach (WotResourceVersion version in resource.Versions)
+                foreach (WotResourceVersion version in resource.RetainedVersions)
                 {
                     if (!version.HasContent)
                     {
@@ -3213,6 +3245,12 @@ namespace Opc.Ua.WotCon.Server.Registry
             /// Gets or sets the active version identifier currently materialized.
             /// </summary>
             public string? ActiveVersionId { get; set; }
+
+            /// <summary>
+            /// Gets or sets the exact input retained by the committed materialization image.
+            /// </summary>
+            [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+            public VersionDto? CommittedVersion { get; set; }
 
             /// <summary>
             /// Gets or sets whether the resource participates in materialization.

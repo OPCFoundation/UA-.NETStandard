@@ -62,6 +62,20 @@ namespace Opc.Ua.WotCon.Server.Materialization
     }
 
     /// <summary>
+    /// Restores a committed canonical graph through the existing prepared publication owner.
+    /// </summary>
+    public interface IWotRecoverableViewProjectionHost : IWotPreparedViewProjectionHost
+    {
+        /// <summary>
+        /// Prepares the exact durable graph without allocating new identities or advancing its tokens.
+        /// Existing handles, when supplied, must belong to this host's current runtime image.
+        /// </summary>
+        ValueTask<IWotPreparedViewPublication> PrepareRecoveryAsync(
+            WotCommittedPublicationState committedPublication,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
     /// Owns a graph-wide private View participant until C1 publishes or aborts its aggregate batch.
     /// </summary>
     public interface IWotPreparedViewPublication : IAsyncDisposable

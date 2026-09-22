@@ -550,7 +550,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         private async Task<WotResource> UpsertStockSourceAsync(
-            bool changed, bool thingModel = false, bool numeric = false)
+            bool changed, bool thingModel = false, bool numeric = false, string? versionId = null)
         {
             string other = changed
                 ? ",\"Other\":{\"type\":\"integer\",\"forms\":[{\"href\":\"https://example.test/other\"}]}"
@@ -576,7 +576,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 ResourceId = "stock-source",
                 Format = thingModel ? "WoT-TM/1.1" : "WoT-TD/1.1",
                 ContentType = thingModel ? "application/tm+json" : "application/td+json",
-                VersionId = changed ? "v2" : "v1", Content = ByteString.From(Encoding.UTF8.GetBytes(content))
+                VersionId = versionId ?? (changed ? "v2" : "v1"),
+                Content = ByteString.From(Encoding.UTF8.GetBytes(content))
             }).ConfigureAwait(false);
             Assert.That(result.Changed, Is.True, result.Message);
             await AwaitStockRegistryProjectionAsync().ConfigureAwait(false);

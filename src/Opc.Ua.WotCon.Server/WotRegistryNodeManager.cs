@@ -218,15 +218,16 @@ namespace Opc.Ua.WotCon.Server
             await m_refreshGate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                if (!Registry.Current.AllResources().Any())
+                if (Registry.Current.RefreshGeneration == 0 && !Registry.Current.AllResources().Any())
                 {
                     return;
                 }
-                WotRefreshResult result = await Coordinator.RefreshAsync(
+                bool recovered = await Coordinator.RecoverAsync(cancellationToken).ConfigureAwait(false);
+                WotRefreshResult? result = recovered ? null : await Coordinator.RefreshAsync(
                     new WotRefreshRequest { RequestId = "startup" }, cancellationToken).ConfigureAwait(false);
                 await m_projection.ReconcileProjectionAsync(cancellationToken).ConfigureAwait(false);
                 await m_reconcileQueue.WhenIdleAsync(cancellationToken).ConfigureAwait(false);
-                if (result.Summary.Failed != 0)
+                if (result?.Summary.Failed > 0)
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadConfigurationError,

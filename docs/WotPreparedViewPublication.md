@@ -149,11 +149,10 @@ is graceful. DI takes that policy from `WotRegistryServerOptions`, like the
 coordinator. The complete remaining request closure governs canonical retirement,
 and an empty live graph retains serialized allocation/token history.
 
-This participant is a prerequisite for source-plus-graph recovery, not an
-automatic replay implementation. Native cold materialization can consume an
-explicitly restored canonical payload through the canonical factory. A fresh
-stock host does not silently treat a persisted, unbound live image as a fresh
-publication.
+Cold startup uses `IWotRecoverableViewProjectionHost.PrepareRecoveryAsync` to
+restore the exact persisted graph through the same prepared source batch.
+An ordinary preparation still rejects a persisted, unbound image; callers do
+not bypass ownership checks by treating it as a fresh publication.
 
 ## Captured dependency metadata
 
@@ -240,6 +239,43 @@ The existing `IWotRegistryPreparedStore` remains the only durable decision
 contract. `ProjectionMetadata` scope includes graph bytes and committed refresh
 state together with affected Resource projection metadata. NotCommitted,
 DurabilityUncertain and Indeterminate retain their existing distinct meanings.
+
+## Cold recovery of a committed publication
+
+Registry readiness calls `WotMaterializationCoordinator.RecoverAsync` after
+loading the deciding store. A fresh registry without a committed refresh
+generation keeps its ordinary startup materialization behavior. A committed
+publication is restored before readiness returns, including an explicitly
+empty publication. This is independent of `AutoRefresh`.
+
+Recovery selects the retained committed input of each active Resource, not its
+newer desired/default Version. The deciding manifest retains that input's exact
+Version metadata and content digest when the publication commits. Subsequent
+uploads, including edits to the same VersionId, do not replace that input;
+its immutable content remains owned with the committed image. Older active
+manifests without this evidence fail recovery explicitly rather than guessing
+which bytes were originally published.
+
+Source and View candidates are built privately under the existing invocation
+owners. The View planner validates the recorded logical server, roles, Node facts,
+membership and token history against the recovered source image. Resource root
+NodeIds are rebased to the current namespace table only in the runtime snapshot;
+durable identities, store/refresh generations and graph bytes do not change.
+
+`IWotRegistryRecoveryStore` validates an owner-issued generation and retains its
+authority through the runtime switch. The registry's
+`IWotRegistryRecoveryPublication` prepares only this local representation.
+Recovery writes no manifest, allocates no new generation and repeats no registry
+or materialization notification intent. Concurrent store changes are rejected
+at final validation. Disposal before the switch releases private state and
+validation ownership. Repeating successful recovery is a no-op, and ordinary
+refresh can subsequently activate pending desired inputs.
+
+Direct-constructor hosts call `RecoverAsync` after initializing the registry;
+ordinary `RefreshAsync` does not reinterpret every newly constructed coordinator
+as a cold server. Warm indeterminate-decision resolution and recovery of retained
+resolution-only dependency inputs remain separate acceptance work; these cold
+startup contracts do not establish Full-profile or HA conformance.
 
 ## Ordered live reconciliation
 
@@ -427,9 +463,10 @@ graph carriers keep their existing meanings.
 
 The stock participant now joins the existing four-mode publication owner rather
 than falling back to immediate View mutation. Full-profile conformance does not
-follow from these carrier types or this participant. Automatic durable recovery,
-coordinated programmatic mutations, the independent R35 correlation residual and
-JSON Schema validation remain separate work.
+follow from these carrier types or this participant. Warm indeterminate recovery,
+retained resolution-only input recovery, coordinated programmatic mutations,
+the independent R35 correlation residual and JSON Schema validation remain
+separate work.
 
 See [prepared registry metadata commits](WotRegistryPreparedStore.md) for the
 validated content and generation lease contract.

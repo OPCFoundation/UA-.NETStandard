@@ -61,6 +61,198 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
+        public async Task RecoveryValidationRetainsAuthorityWithoutWritingAManifest()
+        {
+            using var content = new RecordingLeasedResourceStore();
+            using var store = new FileWotRegistryStore(m_root, content);
+            using var registry = new WotRegistryService(store);
+            await registry.InitializeAsync().ConfigureAwait(false);
+            await AddAsync(registry, "selected").ConfigureAwait(false);
+            ByteString original = await ReadManifestAsync().ConfigureAwait(false);
+            IWotRegistryValidatedGeneration captured = await store.CaptureValidatedGenerationAsync()
+                .ConfigureAwait(false);
+            IWotRegistryPublicationValidation validation = await store.ValidatePublicationAsync(captured)
+                .ConfigureAwait(false);
+            captured.Dispose();
+            using var observer = new FileWotRegistryStore(m_root, content);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            Task<WotRegistrySnapshot> pending = observer.LoadAsync(timeout.Token).AsTask();
+            try
+            {
+                Assert.That(validation.Snapshot.Generation, Is.EqualTo(registry.Current.Generation));
+                Assert.That(pending.IsCompleted, Is.False);
+            }
+            finally
+            {
+                validation.Dispose();
+            }
+            WotRegistrySnapshot loaded = await pending.ConfigureAwait(false);
+            Assert.That(loaded.Generation, Is.EqualTo(registry.Current.Generation));
+            Assert.That(await ReadManifestAsync().ConfigureAwait(false), Is.EqualTo(original));
+        }
+
+        [TestCase("foreign")]
+        [TestCase("disposed")]
+        [TestCase("reloaded")]
+        [TestCase("stale")]
+        public async Task RecoveryValidationRejectsInvalidAuthority(string invalid)
+        {
+            using var content = new RecordingLeasedResourceStore();
+            using var store = new FileWotRegistryStore(m_root, content);
+            using var registry = new WotRegistryService(store);
+            await registry.InitializeAsync().ConfigureAwait(false);
+            await AddAsync(registry, "selected").ConfigureAwait(false);
+            using IWotRegistryValidatedGeneration captured = await store.CaptureValidatedGenerationAsync()
+                .ConfigureAwait(false);
+            using var other = new FileWotRegistryStore(
+                invalid == "foreign" ? Path.Combine(m_root, "foreign") : m_root, content);
+            await other.LoadAsync().ConfigureAwait(false);
+            if (invalid == "disposed")
+            {
+                captured.Dispose();
+            }
+            else if (invalid == "reloaded")
+            {
+                await store.LoadAsync().ConfigureAwait(false);
+            }
+            else if (invalid == "stale")
+            {
+                using var writer = new WotRegistryService(other);
+                await writer.InitializeAsync().ConfigureAwait(false);
+                await AddAsync(writer, "newer").ConfigureAwait(false);
+            }
+            async Task ValidateAsync()
+            {
+                using IWotRegistryPublicationValidation validation = await
+                    (invalid == "foreign" ? other : store).ValidatePublicationAsync(captured).ConfigureAwait(false);
+            }
+            if (invalid == "foreign")
+            {
+                await Assert.ThatAsync(ValidateAsync, Throws.TypeOf<ArgumentException>()).ConfigureAwait(false);
+            }
+            else if (invalid == "disposed")
+            {
+                await Assert.ThatAsync(ValidateAsync, Throws.TypeOf<ObjectDisposedException>()).ConfigureAwait(false);
+            }
+            else
+            {
+                await Assert.ThatAsync(ValidateAsync, Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
+            }
+        }
+
+        [TestCase("generation")]
+        [TestCase("refresh")]
+        [TestCase("labels")]
+        [TestCase("root-identity")]
+        public async Task RecoveryCannotRewriteTheDecidedImage(string mutation)
+        {
+            using var content = new RecordingLeasedResourceStore();
+            using var store = new FileWotRegistryStore(m_root, content);
+            using var registry = new WotRegistryService(store);
+            await registry.InitializeAsync().ConfigureAwait(false);
+            WotResource resource = await AddAsync(registry, "selected").ConfigureAwait(false);
+            await registry.ApplyProjectionResultsAsync([Projection(resource, 1)]).ConfigureAwait(false);
+            WotRegistrySnapshot snapshot = registry.Current;
+            WotResource active = snapshot.FindResource(resource.GroupId, resource.ResourceId)!;
+            WotResourceGroup group = snapshot.FindGroup(resource.GroupId)!;
+            WotRegistrySnapshot changed = mutation switch
+            {
+                "generation" => snapshot.WithLabels(snapshot.Labels, snapshot.Generation + 1),
+                "refresh" => snapshot.WithPublicationState(snapshot.Generation, snapshot.RefreshGeneration + 1),
+                "labels" => snapshot.WithLabels(snapshot.Labels.Add("unexpected", "change"), snapshot.Generation),
+                _ => snapshot.WithGroup(group.WithResources(group.Resources.SetItem(resource.ResourceId,
+                    active.With(rootNodeId: new NodeId("foreign-root", 2))), group.Epoch), snapshot.Generation)
+            };
+            IWotRegistryPublication invocation = await registry.BeginPublicationAsync().ConfigureAwait(false);
+            await using (invocation.ConfigureAwait(false))
+            {
+                var recovery = (IWotRegistryRecoveryPublication)invocation;
+                await Assert.ThatAsync(async () => await recovery.PrepareRecoveryAsync(snapshot, changed)
+                    .ConfigureAwait(false), Throws.TypeOf<InvalidDataException>()).ConfigureAwait(false);
+            }
+            Assert.That(registry.Current, Is.SameAs(snapshot));
+            Assert.That((await store.LoadAsync().ConfigureAwait(false)).Generation, Is.EqualTo(snapshot.Generation));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RecoveryPublicationIsSilentAndKeepsTheOriginalDecision(bool publish)
+        {
+            using var content = new RecordingLeasedResourceStore();
+            using var store = new FileWotRegistryStore(m_root, content);
+            using var registry = new WotRegistryService(store);
+            await registry.InitializeAsync().ConfigureAwait(false);
+            WotResource resource = await AddAsync(registry, "selected").ConfigureAwait(false);
+            await registry.ApplyProjectionResultsAsync([Projection(resource, 1)]).ConfigureAwait(false);
+            WotRegistrySnapshot snapshot = registry.Current;
+            ByteString manifest = await ReadManifestAsync().ConfigureAwait(false);
+            WotResource active = snapshot.FindResource(resource.GroupId, resource.ResourceId)!;
+            WotResourceGroup group = snapshot.FindGroup(resource.GroupId)!;
+            var rebased = active.RootNodeId.WithNamespaceIndex((ushort)(active.RootNodeId.NamespaceIndex + 1));
+            WotRegistrySnapshot runtime = snapshot.WithGroup(group.WithResources(
+                group.Resources.SetItem(resource.ResourceId, active.With(rootNodeId: rebased)), group.Epoch),
+                snapshot.Generation);
+            int events = 0;
+            registry.Changed += (_, _) => events++;
+            IWotRegistryPublication invocation = await registry.BeginPublicationAsync().ConfigureAwait(false);
+            await using (invocation.ConfigureAwait(false))
+            {
+                IWotPreparedRegistryRecovery recovery = await ((IWotRegistryRecoveryPublication)invocation)
+                    .PrepareRecoveryAsync(snapshot, runtime).ConfigureAwait(false);
+                await using (recovery.ConfigureAwait(false))
+                {
+                    Assert.That(() => recovery.Publish(), Throws.TypeOf<InvalidOperationException>());
+                    await recovery.ValidateAsync().ConfigureAwait(false);
+                    Assert.That(registry.Current, Is.SameAs(snapshot));
+                    if (publish)
+                    {
+                        recovery.Publish();
+                        Assert.That(() => recovery.Publish(), Throws.TypeOf<InvalidOperationException>());
+                    }
+                }
+                await Assert.ThatAsync(async () => await recovery.ValidateAsync().ConfigureAwait(false),
+                    Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
+            }
+            Assert.That(registry.Current, Is.SameAs(publish ? runtime : snapshot));
+            Assert.That(events, Is.Zero);
+            Assert.That(await ReadManifestAsync().ConfigureAwait(false), Is.EqualTo(manifest));
+            Assert.That(registry.Current.FindResource(resource.GroupId, resource.ResourceId)!.RootNodeId,
+                Is.EqualTo(publish ? rebased : active.RootNodeId));
+            await AddAsync(registry, "next").ConfigureAwait(false);
+            Assert.That(registry.Current.Generation, Is.EqualTo(snapshot.Generation + 1));
+        }
+
+        [Test]
+        public async Task RecoveryFinalValidationRejectsAnotherWritersDecision()
+        {
+            using var content = new RecordingLeasedResourceStore();
+            using var store = new FileWotRegistryStore(m_root, content);
+            using var registry = new WotRegistryService(store);
+            await registry.InitializeAsync().ConfigureAwait(false);
+            await AddAsync(registry, "selected").ConfigureAwait(false);
+            WotRegistrySnapshot snapshot = registry.Current;
+            using var otherStore = new FileWotRegistryStore(m_root, content);
+            using var writer = new WotRegistryService(otherStore);
+            await writer.InitializeAsync().ConfigureAwait(false);
+            IWotRegistryPublication invocation = await registry.BeginPublicationAsync().ConfigureAwait(false);
+            await using (invocation.ConfigureAwait(false))
+            {
+                IWotPreparedRegistryRecovery recovery = await ((IWotRegistryRecoveryPublication)invocation)
+                    .PrepareRecoveryAsync(snapshot, snapshot).ConfigureAwait(false);
+                await using (recovery.ConfigureAwait(false))
+                {
+                    await AddAsync(writer, "winner").ConfigureAwait(false);
+                    await Assert.ThatAsync(async () => await recovery.ValidateAsync().ConfigureAwait(false),
+                        Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
+                    Assert.That(() => recovery.Publish(), Throws.TypeOf<InvalidOperationException>());
+                }
+            }
+            Assert.That(registry.Current, Is.SameAs(snapshot));
+            Assert.That((await otherStore.LoadAsync().ConfigureAwait(false)).Generation,
+                Is.EqualTo(writer.Current.Generation));
+        }
+
+        [Test]
         public async Task ProjectionMetadataUpdatesDoNotRereadIndependentBlobContent()
         {
             using var content = new RecordingLeasedResourceStore();
@@ -708,6 +900,14 @@ namespace Opc.Ua.WotCon.Tests.Registry
             return before.WithGroup(
                 group.WithResources(group.Resources.SetItem(resource.ResourceId, resource), group.Epoch),
                 before.Generation + 1);
+        }
+
+        private async Task<ByteString> ReadManifestAsync()
+        {
+            using FileStream input = File.OpenRead(Path.Combine(m_root, "manifest.json"));
+            using var output = new MemoryStream();
+            await input.CopyToAsync(output).ConfigureAwait(false);
+            return ByteString.From(output.ToArray());
         }
 
         private static async Task<WotResource> AddAsync(
