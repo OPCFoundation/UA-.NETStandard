@@ -160,6 +160,8 @@ clears the active Version, root and count in the decided metadata while removing
 the source routes. A metadata-only observation uses `PrepareReadImagesAsync` on
 the existing invocation owner: it changes the captured metadata without
 replacing source/View registrations or advancing the materialization generation.
+Because it changes no topology, this unit emits no lifecycle model-change event.
+Recovery acknowledgment retries use the same notification-silent path.
 Images contain only the projection fields, not retained document bytes or a
 second registry store. A custom source provider must bind supplied read images
 or reject the unit before its durable decision.

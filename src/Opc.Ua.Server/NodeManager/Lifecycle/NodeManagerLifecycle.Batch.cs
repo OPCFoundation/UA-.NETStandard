@@ -357,8 +357,12 @@ namespace Opc.Ua.Server
                 try
                 {
                     await CleanupRetiredNodeManagersAsync(batch.Server, batch.Host).ConfigureAwait(false);
-                    await NotifyCommittedChangeAsync(
-                        batch.Server, "batch", batch.NamespaceCount, CancellationToken.None).ConfigureAwait(false);
+                    if (batch.Entries.Count != 0)
+                    {
+                        await NotifyCommittedChangeAsync(
+                            batch.Server, "batch", batch.NamespaceCount, CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
                 }
                 catch (Exception failure) when (failure is not OutOfMemoryException)
                 {
