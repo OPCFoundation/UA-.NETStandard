@@ -12,26 +12,25 @@ There are multiple options to run the reference server in a Docker container:
 
 ## Other published sample images
 
-In addition to the reference server (`refserver`), the `Docker Sample Images CI` workflow builds and publishes the other sample servers, the redundant client, and both PubSub samples to the GitHub container registry (`ghcr.io/opcfoundation/uanetstandard/<image>`). All are `linux/amd64` + `linux/arm64`:
+In addition to the reference server (`refserver`), the [`Images CI`](../.github/workflows/docker-image.yml) workflow builds and publishes every other sample image — the sample servers, the device-integration pump server, the redundant client and both PubSub samples — to the GitHub container registry (`ghcr.io/opcfoundation/uanetstandard/<image>`). All are `linux/amd64` + `linux/arm64`, and all are built by that one workflow:
 
-| Image | Sample application | Built by |
-| --- | --- | --- |
-| `refserver` | `samples/Reference/ConsoleReferenceServer` | `Docker Sample Images CI` |
-| `ldsserver` | `samples/Lds/ConsoleLdsServer` | `Docker Sample Images CI` |
-| `boilerserver` | `samples/MinimalApi/MinimalBoilerServer` | `Docker Sample Images CI` |
-| `calcserver` | `samples/MinimalApi/MinimalCalcServer` | `Docker Sample Images CI` |
-| `mcpserver` | `tools/Opc.Ua.Mcp` | `Docker Sample Images CI` |
-| `redundantserver` | `samples/Redundancy/RedundantServer` | `Docker Sample Images CI` |
-| `redundantclient` | `samples/Redundancy/RedundantClient` | `Docker Sample Images CI` |
-| `redundantpubsub` | `samples/Redundancy/RedundantPubSub` | `Docker Sample Images CI` |
-| `pubsubclient` | `samples/PubSub/ConsoleReferencePubSubClient` | `Docker Sample Images CI` |
-| `pumpserver` | `samples/DI/PumpDeviceIntegrationServer` | `Pump Device Integration Server Docker` |
+| Image | Sample application |
+| --- | --- |
+| `refserver` | `samples/Reference/ConsoleReferenceServer` |
+| `ldsserver` | `samples/Lds/ConsoleLdsServer` |
+| `boilerserver` | `samples/MinimalApi/MinimalBoilerServer` |
+| `calcserver` | `samples/MinimalApi/MinimalCalcServer` |
+| `mcpserver` | `tools/Opc.Ua.Mcp` |
+| `redundantserver` | `samples/Redundancy/RedundantServer` |
+| `redundantclient` | `samples/Redundancy/RedundantClient` |
+| `redundantpubsub` | `samples/Redundancy/RedundantPubSub` |
+| `pubsubclient` | `samples/PubSub/ConsoleReferencePubSubClient` |
+| `pumpserver` | `samples/DI/PumpDeviceIntegrationServer` |
 
 Image tags follow the [release-branch-only publication model](ReleaseProcess.md):
 
 - **`<image>:latest`, `:release`, and the exact `<major>.<minor>` / `<major>.<minor>.<patch>` version tags** are updated only from a stable commit on a canonical `release/<major>.<minor>` branch (see [Release process](ReleaseProcess.md)). A build from that branch that is not yet stable (still `-preview.N`) does **not** move these tags.
-- **`<image>:latest-<branch>`** (for example `refserver:latest-master`) tracks the most recent development build on that branch. `Docker Sample Images CI` builds these from `master` and from `release/*` branches while they are pre-release.
-- **`pumpserver:preview`** is the pump sample's development tag: `Pump Device Integration Server Docker` only ever builds from `master`, which never produces a stable release, so it never publishes an unqualified `:latest`.
+- **`<image>:latest-<branch>`** (for example `refserver:latest-master`) tracks the most recent development build on that branch. `Images CI` builds these from `master` and from `release/*` branches while they are pre-release.
 - **`<image>:<version>`** (for example `refserver:2.0.0-preview.6` or `refserver:2.0.0`) always identifies the exact package version the image was built with, on every branch.
 
 For example: `docker pull ghcr.io/opcfoundation/uanetstandard/ldsserver:latest` gets the most recently approved stable release; `docker pull ghcr.io/opcfoundation/uanetstandard/ldsserver:latest-master` gets the most recent development build. Each image has a Dockerfile under its application folder that is built from the repository root as context (for example `docker build -f samples/Lds/ConsoleLdsServer/Dockerfile -t opcua-lds-server .`).

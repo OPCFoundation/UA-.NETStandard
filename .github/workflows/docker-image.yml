@@ -17,6 +17,9 @@ on:
     # so this workflow has to trigger on every pull request. The docs/tests
     # exclusion is applied inside the `discover` job instead, which skips the
     # expensive image builds while still letting the summary report.
+  # Rebuild and republish every image on demand, for example after a base
+  # image security update that changes nothing in this repository.
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -94,6 +97,8 @@ jobs:
             dockerfile: ./tools/Opc.Ua.Mcp/Dockerfile
           - image: redundantserver
             dockerfile: ./samples/Redundancy/RedundantServer/Dockerfile
+          - image: pumpserver
+            dockerfile: ./samples/DI/PumpDeviceIntegrationServer/Dockerfile
           # Redundant client
           - image: redundantclient
             dockerfile: ./samples/Redundancy/RedundantClient/Dockerfile
