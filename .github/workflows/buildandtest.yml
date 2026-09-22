@@ -308,6 +308,58 @@ jobs:
       # analyzer closure for every project is expensive.
       run: dotnet build ${{ env.CSPROJECT }} --framework ${{ matrix.framework }} --configuration ${{ matrix.configuration }} /p:CustomTestTarget=${{ matrix.customtesttarget }}
 
+    - name: Enable native core dumps
+      # Issue #4447: on run 34158052372 the testhost was lost to a glibc abort -
+      # `double free or corruption (out)` - and no dump was produced at all,
+      # leaving a native memory-corruption bug in the security stack with no call
+      # stack to work from. Neither dump path this job already configures can be
+      # relied on for that class of failure:
+      #   --blame-crash-dump-type mini goes through the runtime's createdump,
+      #     which the runtime invokes only for crashes it handles itself; a raw
+      #     SIGABRT out of glibc's malloc consistency check is not one of them.
+      #   --blame-hang-dump-type mini asks the testhost to dump itself over the
+      #     diagnostics socket, so it needs a runtime healthy enough to service
+      #     the request. On that run it answered 'Collect dump was enabled but no
+      #     dump file was generated'.
+      # A kernel core is written by the kernel and depends on neither, so it is
+      # the one artifact that survives heap corruption. Nothing is written unless
+      # a process actually dies on a signal, so healthy runs pay nothing.
+      #
+      # Cores land outside the workspace on purpose, so that 'Upload test
+      # results' cannot sweep a multi-gigabyte file in by accident. 'Stage Linux
+      # core dumps' below collects them deliberately, and only on failure.
+      #
+      # This step is diagnostics only, so it warns rather than fails: losing the
+      # ability to collect a core is not a reason to stop the tests from running.
+      if: ${{ runner.os == 'Linux' }}
+      shell: bash
+      run: |
+        set -uo pipefail
+        set +e   # `shell: bash` runs with -e; each command is checked explicitly
+
+        if ! (sudo mkdir -p /tmp/coredumps && sudo chmod 1777 /tmp/coredumps); then
+            echo '::warning::Could not create /tmp/coredumps; no core dumps will be collected.'
+            exit 0
+        fi
+
+        # Ubuntu pipes cores to apport by default, which discards them for
+        # processes it does not own. Write plain files instead.
+        if ! sudo sysctl -w kernel.core_pattern='/tmp/coredumps/core.%e.%p'; then
+            echo '::warning::Could not set kernel.core_pattern; a native abort will not leave a core dump.'
+        fi
+
+        # yama defaults to 1 (a tracer may only attach to its own descendants).
+        # createdump is forked by the target and traces its parent, which is not
+        # that relation; the runtime asks for an exemption via PR_SET_PTRACER,
+        # but relaxing the scope also lets `gdb -p` and `dotnet-dump collect`
+        # attach to a wedged testhost, so a live follow-up is not blocked on it.
+        if [ -e /proc/sys/kernel/yama/ptrace_scope ]; then
+            sudo sysctl -w kernel.yama.ptrace_scope=0 \
+                || echo '::warning::Could not relax kernel.yama.ptrace_scope.'
+        fi
+
+        echo "core_pattern=$(cat /proc/sys/kernel/core_pattern)"
+
     - name: Test
       # note: /p:CollectCoverage=true is only used to disable deterministic builds
       shell: pwsh
@@ -363,6 +415,25 @@ jobs:
           $testArgs += @('--filter', '(Category=Contract|Category=Integration)&Category!=ChaosTCP&Category!=Soak')
         }
 
+        # The core_pattern set by 'Enable native core dumps' only takes effect for
+        # a process whose RLIMIT_CORE is non-zero, and the limit is inherited, not
+        # global - so it has to be raised here, on the shell that launches the test
+        # host, rather than in that step's own shell. Raising the hard limit needs
+        # root; if that fails the run continues without a core, since the managed
+        # blame dumps are unaffected either way.
+        if ($IsLinux)
+        {
+          try
+          {
+            & sudo prlimit --pid $PID --core=unlimited
+          }
+          catch
+          {
+            Write-Host "::warning::Could not raise RLIMIT_CORE ($($_.Exception.Message)); a native abort will not leave a core dump."
+          }
+          Write-Host "RLIMIT_CORE (soft) for this shell: $(& bash -c 'ulimit -c')"
+        }
+
         dotnet test @testArgs
 
     - name: Stage macOS crash reports
@@ -399,6 +470,79 @@ jobs:
             Write-Host "Staged: $($f.Name)"
         }
         Write-Host "Staged $($files.Count) macOS crash report(s) to '$dst'."
+
+    - name: Stage Linux core dumps
+      # Counterpart of 'Stage macOS crash reports' for the kernel cores enabled
+      # by 'Enable native core dumps'. A core of a .NET test host runs to several
+      # gigabytes, which is not worth uploading whole, and the part that actually
+      # names the code that corrupted the heap is the native backtrace. So the
+      # backtrace is extracted here and always kept; the core itself is kept only
+      # when it compresses to something small enough to be worth transferring.
+      # Both land in TESTRESULTS, which 'Upload test results' already publishes.
+      if: ${{ failure() && runner.os == 'Linux' }}
+      shell: bash
+      run: |
+        set -uo pipefail
+        set +e   # one unprocessable core must not abandon the rest
+
+        src=/tmp/coredumps
+        dst="$TESTRESULTS/linux-diagnostics"
+        # An artifact bigger than this costs more upload time than the evidence
+        # is worth; the backtrace is kept regardless, so nothing is lost outright.
+        max_compressed=$((2 * 1024 * 1024 * 1024))
+
+        shopt -s nullglob
+        cores=("$src"/core.*)
+        if [ ${#cores[@]} -eq 0 ]; then
+            echo "No core dumps found in $src."
+            exit 0
+        fi
+
+        mkdir -p "$dst"
+        if ! command -v gdb >/dev/null 2>&1; then
+            echo 'gdb not present; installing it to extract backtraces.'
+            sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends gdb
+        fi
+
+        for core in "${cores[@]}"; do
+            name=$(basename "$core")
+            archive=''
+            echo "Found $core ($(stat -c %s "$core") bytes)"
+
+            if command -v gdb >/dev/null 2>&1; then
+                # %e in core_pattern is the executable's base name, which for a
+                # test host is always `dotnet`; pass the binary so gdb can resolve
+                # symbols for the native frames.
+                gdb -batch -nx \
+                    -ex 'set pagination off' \
+                    -ex 'info registers' \
+                    -ex 'thread apply all bt full' \
+                    "$(command -v dotnet)" "$core" \
+                    > "$dst/$name.backtrace.txt" 2>&1
+                echo "Wrote $dst/$name.backtrace.txt"
+            else
+                echo "::warning::gdb unavailable; no backtrace extracted for $name."
+            fi
+
+            if command -v zstd >/dev/null 2>&1; then
+                zstd -q -3 -T0 -o "$dst/$name.zst" "$core" && archive="$dst/$name.zst"
+            else
+                gzip -1 -c "$core" > "$dst/$name.gz" && archive="$dst/$name.gz"
+            fi
+
+            if [ -f "$archive" ]; then
+                size=$(stat -c %s "$archive")
+                if [ "$size" -gt "$max_compressed" ]; then
+                    echo "::warning::$(basename "$archive") is $size bytes; dropping it and keeping only the backtrace."
+                    rm -f "$archive"
+                else
+                    echo "Staged $archive ($size bytes)"
+                fi
+            fi
+        done
+
+        ls -la "$dst"
+
     - name: Upload test results
       uses: actions/upload-artifact@v7
       with:

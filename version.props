@@ -19,6 +19,39 @@
     <FileVersion>$(NBGV_Version)</FileVersion>
     <PackageVersion>$(NBGV_Version)$(NBGV_PrereleaseVersion)</PackageVersion>
   </PropertyGroup>
+  <!--
+    Do not let Nerdbank.GitVersioning publish cloud build variables from inside
+    MSBuild. Its SetCloudBuildVersionVars target runs once per project, and on
+    GitHub Actions the provider implements "set a variable" as an append to the
+    file named by $GITHUB_ENV. Builds here are deliberately parallel across
+    MSBuild nodes (see the Build step in .github/workflows/buildandtest.yml), so
+    several nodes append GitAssemblyInformationalVersion / GitBuildVersion /
+    GitBuildVersionSimple to that one file concurrently. Interleaved appends tear
+    a line, and the runner then rejects the leftover fragment after the compile
+    has already succeeded:
+
+        Build succeeded.  0 Error(s)
+        ##[error]Unable to process file command 'env' successfully.
+        ##[error]Invalid format '7'
+
+    ('7' being the tail of a torn `GitBuildVersion=2.0.3x7.yyyyy`.) See issue
+    #4458.
+
+    Nothing reads these three variables: every workflow and pipeline that
+    consumes version information runs .azurepipelines/set-version.ps1 first, and
+    `nbgv cloud -c -a` there writes the same Git* variables plus the NBGV_* set
+    that version.props and common.props actually use - once, from a single
+    process, with no concurrency. This leaves that script as the only writer.
+
+    Note this is deliberately an MSBuild property rather than
+    cloudBuild.setVersionVariables in version.json: the version height is the
+    number of commits since version.json last changed, so editing that file at
+    all would reset the height to 0 and drop every produced version from
+    2.0.<height> to 2.0.0.
+  -->
+  <PropertyGroup>
+    <NBGV_SetCloudBuildVersionVars>false</NBGV_SetCloudBuildVersionVars>
+  </PropertyGroup>
   <PropertyGroup>
     <GitVersionBaseDirectory>$(MSBuildThisFileDirectory)</GitVersionBaseDirectory>
   </PropertyGroup>
