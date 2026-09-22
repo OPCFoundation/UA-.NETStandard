@@ -1,4 +1,4 @@
-name: Docker Sample Images CI
+name: Images CI
 
 on:
   push:
@@ -7,10 +7,16 @@ on:
     - 'docs/**'
     - 'tests/**'
   pull_request:
-    branches: [ master ]
-    paths-ignore:
-    - 'docs/**'
-    - 'tests/**'
+    branches: [ master, main, master378, develop/*, release/* ]
+    # NOTE: deliberately no `paths-ignore` filter, and the same branch list as
+    # the `CI` workflow so both gates report on exactly the same pull requests.
+    # A workflow that is filtered out by `paths`/`paths-ignore` never reports
+    # its checks at all, and a required status check that never reports leaves
+    # a pull request permanently "Expected — waiting for status to be
+    # reported". `images summary` below is designed to be that required check,
+    # so this workflow has to trigger on every pull request. The docs/tests
+    # exclusion is applied inside the `discover` job instead, which skips the
+    # expensive image builds while still letting the summary report.
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -21,7 +27,55 @@ env:
   DOCKERSIGN: false
 
 jobs:
+  discover:
+    name: Discover image changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      relevant_changes: ${{ steps.relevance.outputs.relevant_changes }}
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        # Full history so the path-relevance check below can diff a pull
+        # request against its merge base.
+        fetch-depth: 0
+    - name: Resolve path relevance
+      id: relevance
+      shell: pwsh
+      env:
+        EVENT_NAME: ${{ github.event_name }}
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      run: |
+        # Reproduces the `paths-ignore` allow-list that used to sit on the
+        # pull_request trigger: an image is rebuilt for any change that is not
+        # purely documentation or test code. Filtering the whole workflow out
+        # would stop `images summary` from ever reporting, which would block
+        # every documentation-only pull request once it becomes required.
+        $relevantChanges = $true
+        if ($env:EVENT_NAME -eq 'pull_request' -and -not [string]::IsNullOrWhiteSpace($env:BASE_SHA)) {
+            # Triple-dot: diff from the merge base, not from the current base
+            # branch head, so a change that landed on the base branch after
+            # this one was cut is not misread as an image-relevant change.
+            $changed = @(& git diff --name-only "$($env:BASE_SHA)...HEAD")
+            $relevantChanges = $false
+            foreach ($file in $changed) {
+                if ($file -like 'docs/*' -or $file -like 'tests/*') {
+                    continue
+                }
+                $relevantChanges = $true
+                break
+            }
+            Write-Host "Changed files: $(@($changed).Count); image-relevant: $relevantChanges"
+        }
+        "relevant_changes=$($relevantChanges.ToString().ToLowerInvariant())" |
+            Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
   build-and-push-image:
+    needs: discover
+    # Skipped rather than filtered out when nothing image-relevant changed, so
+    # the summary below still reports a result.
+    if: ${{ needs.discover.outputs.relevant_changes == 'true' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -208,3 +262,54 @@ jobs:
       run: |
         echo Signing ${{ env.IMAGE_REPOSITORY }}@${{ steps.build-and-push.outputs.digest }}
         echo "${{ env.IMAGE_REPOSITORY }}" | xargs -I {} cosign sign {}@${{ steps.build-and-push.outputs.digest }}
+
+  images-summary:
+    # The single fixed-name check for every image in the matrix above. Matrix
+    # job names carry their image in parentheses, so they change whenever an
+    # image is added or renamed and cannot be pinned in a ruleset. This job's
+    # name never changes, so branch protection can require `images summary`
+    # once and automatically cover every present and future image.
+    name: images summary
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    if: ${{ always() }}
+    needs:
+    - discover
+    - build-and-push-image
+    steps:
+    - name: Evaluate job results
+      shell: pwsh
+      env:
+        RELEVANT_CHANGES: ${{ needs.discover.outputs.relevant_changes }}
+        DISCOVER_RESULT: ${{ needs.discover.result }}
+        IMAGES_RESULT: ${{ needs.build-and-push-image.result }}
+      run: |
+        if ($env:RELEVANT_CHANGES -eq 'true') {
+          Write-Host 'This change is image-relevant; every sample image was built.'
+        }
+        else {
+          Write-Host 'Only documentation or test code changed; the image matrix is expected to be skipped.'
+        }
+
+        $results = [ordered]@{
+          'discover'             = $env:DISCOVER_RESULT
+          'build-and-push-image' = $env:IMAGES_RESULT
+        }
+
+        $bad = @()
+        foreach ($job in $results.GetEnumerator()) {
+          Write-Host "$($job.Key): $($job.Value)"
+          # A matrix job aggregates to 'success' only when every leg succeeded,
+          # so one broken image fails this gate. 'skipped' is a valid outcome -
+          # nothing image-relevant changed for this event.
+          if (@('success', 'skipped') -notcontains $job.Value) {
+            $bad += "$($job.Key)=$($job.Value)"
+          }
+        }
+
+        if ($bad.Count -gt 0) {
+          Write-Host "::error::Image builds did not succeed: $($bad -join ', ')"
+          exit 1
+        }
+        Write-Host 'All image builds succeeded or were intentionally skipped.'

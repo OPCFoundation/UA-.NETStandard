@@ -368,11 +368,12 @@ The job fails loudly when any of them is missing, and the nightly summary labels
 
 ### Required checks and coverage
 
-Two concerns are deliberately kept apart:
+Three concerns are deliberately kept apart:
 
 | Concern | Check | In the branch ruleset? |
 | --- | --- | --- |
 | Every build and test passed | **`build-and-test summary`** | **Yes — required** |
+| Every sample container image built | **`images summary`** | **Eligible — require it** |
 | Coverage meets the thresholds | **`code coverage`** | **No — advisory** |
 
 `build-and-test summary` is a single rollup job on purpose. The jobs underneath it are matrix-generated, so their names change whenever a test project or a profile is added; requiring a generated name would break as soon as the matrix changed. The job runs on `always()` and inspects `needs.*.result` itself, calling `exit 1` on anything that is neither `success` nor `skipped` — a failing dependency therefore shows as a red X.
@@ -380,6 +381,8 @@ Two concerns are deliberately kept apart:
 `always()` is not optional here: a job *skipped* because a dependency failed surfaces to GitHub as `skipped`, and a required check reporting `skipped` is treated as **satisfied**. Without `always()` the rollup would wave a red build straight through.
 
 For the same reason the workflow carries no `paths:` filter. A workflow filtered out by `paths` never reports its checks at all, and a required check that never reports leaves a pull request permanently "Expected — waiting for status to be reported". The path allow-list is applied inside the `discover` job instead: a docs-only pull request skips the expensive jobs and still gets a legitimate green summary.
+
+[`.github/workflows/docker-image.yml`](../.github/workflows/docker-image.yml) (`Images CI`) follows the identical pattern for the sample container images. Its build legs are named `build-and-push-image (refserver)`, `(boilerserver)` and so on, so they cannot be pinned in a ruleset either; **`images summary`** is the fixed name that rolls all of them up. One broken image fails it, because a matrix job aggregates to `success` only when every leg succeeded. Its `pull_request` trigger carries the same branch list as the `CI` workflow and no `paths-ignore`, so both gates report on exactly the same set of pull requests; the docs/tests exclusion moved into its own `discover` job. Add `images summary` to the ruleset alongside `build-and-test summary`.
 
 The coverage check reports a clean failure when the thresholds are missed, so a miss is visible on the pull request, but it never blocks the merge. Do not add it to the ruleset — that would make a coverage dip unmergeable, which is not the intent.
 
