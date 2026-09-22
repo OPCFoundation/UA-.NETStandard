@@ -33,21 +33,21 @@ using Opc.Ua.Types;
 namespace Opc.Ua.Server.Fluent
 {
     /// <summary>
-    ///     Adds OPC UA extension methods to add argument metadata to method nodes being configured with the fluent node builder.
+    /// Adds OPC UA extension methods to add argument metadata to method nodes being configured with the fluent node builder.
     /// </summary>
     public static class MethodArgumentExtensions
     {
         /// <summary>
-        ///     Adds OPC UA input argument metadata to a method node being configured with the fluent node builder.
+        /// Adds OPC UA input argument metadata to a method node being configured with the fluent node builder.
         /// </summary>
         /// <param name="method">
-        ///     The fluent node builder for the method state.
+        /// The fluent node builder for the method state.
         /// </param>
         /// <param name="arguments">
-        ///     The input arguments to assign to the method.
+        /// The input arguments to assign to the method.
         /// </param>
         /// <returns>
-        ///     A typed node builder for the <see cref="MethodState"/>.
+        /// A typed node builder for the <see cref="MethodState"/>.
         /// </returns>
         public static INodeBuilder<MethodState> AddInputArguments(
             this INodeBuilder method, params Argument[] arguments)
@@ -58,17 +58,17 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
-        ///     Creates or replaces the input arguments properties of a method state and assigns the provided arguments.
+        /// Creates or replaces the input arguments properties of a method state and assigns the provided arguments.
         /// </summary>
         /// <param name="method">
-        ///     The method state.
+        /// The method state.
         /// </param>
         /// <param name="context">The system context.</param>
         /// <param name="arguments">
-        ///     The input arguments to assign to the method.
+        /// The input arguments to assign to the method.
         /// </param>
         /// <returns>
-        ///     The updated <see cref="MethodState"/>.
+        /// The updated <see cref="MethodState"/>.
         /// </returns>
         public static MethodState AddInputArguments(
             this MethodState method, ISystemContext context, params Argument[] arguments)
@@ -84,16 +84,16 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
-        ///     Adds OPC UA output argument metadata to a method node being configured with the fluent node builder.
+        /// Adds OPC UA output argument metadata to a method node being configured with the fluent node builder.
         /// </summary>
         /// <param name="method">
-        ///     The fluent node builder for the method state.
+        /// The fluent node builder for the method state.
         /// </param>
         /// <param name="arguments">
-        ///     The output arguments to assign to the method.
+        /// The output arguments to assign to the method.
         /// </param>
         /// <returns>
-        ///     A typed node builder for the <see cref="MethodState"/>.
+        /// A typed node builder for the <see cref="MethodState"/>.
         /// </returns>
         public static INodeBuilder<MethodState> AddOutputArguments(
             this INodeBuilder method, params Argument[] arguments)
@@ -104,17 +104,17 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
-        ///     Creates or replaces the output arguments property of a method state and assigns the provided arguments.
+        /// Creates or replaces the output arguments property of a method state and assigns the provided arguments.
         /// </summary>
         /// <param name="method">
-        ///     The method state.
+        /// The method state.
         /// </param>
         /// <param name="context">The system context.</param>
         /// <param name="arguments">
-        ///     The output arguments to assign to the method.
+        /// The output arguments to assign to the method.
         /// </param>
         /// <returns>
-        ///     The updated <see cref="MethodState"/>.
+        /// The updated <see cref="MethodState"/>.
         /// </returns>
         public static MethodState AddOutputArguments(
             this MethodState method, ISystemContext context, params Argument[] arguments)
@@ -130,13 +130,13 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
-        ///     Applies standard OPC UA property metadata and assigns argument values to an arguments property state.
+        /// Applies standard OPC UA property metadata and assigns argument values to an arguments property state.
         /// </summary>
         /// <param name="args">
-        ///     The property state that stores method argument metadata.
+        /// The property state that stores method argument metadata.
         /// </param>
         /// <param name="arguments">
-        ///     The argument values to assign.
+        /// The argument values to assign.
         /// </param>
         private static void SetArgumentProperties(
             this PropertyState<ArrayOf<Argument>> args, Argument[] arguments)
