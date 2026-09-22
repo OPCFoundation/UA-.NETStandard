@@ -295,7 +295,9 @@ the signed release workflow can promote an intentional mixed-version set.
 
 **GitHub Actions owns pull-request validation.** [`.github/workflows/buildandtest.yml`](../.github/workflows/buildandtest.yml) runs the complete build and test workload on GitHub-hosted runners for every triggering branch, and [`.github/workflows/nightly.yml`](../.github/workflows/nightly.yml) runs the full-scope workload on demand. The other workflows in [`.github/workflows/`](../.github/workflows) cover CodeQL, container images and the opt-in stress and stability suites.
 
-Azure Pipelines ([`azure-pipelines.yml`](../azure-pipelines.yml) plus the templates in [`.azurepipelines/`](../.azurepipelines)) still runs during the migration overlap, and `OPCFoundation.UA-.NETStandard (Tests passed Verify stage results)` is still a required check. It now **duplicates** coverage rather than supplying any of it; see [Migration status](#migration-status) for what is left to switch off.
+Azure Pipelines ([`azure-pipelines.yml`](../azure-pipelines.yml) plus the templates in [`.azurepipelines/`](../.azurepipelines)) no longer runs on pull requests: the Azure context was dropped from the master ruleset and the pipeline's PR trigger is now `pr: none`, leaving `build-and-test summary` as the only required check. Azure still runs on pushes to `master` and on its weekly schedule, where it **duplicates** coverage rather than supplying any of it; see [Migration status](#migration-status) for what is left to switch off.
+
+Pull requests targeting `master378` or a `release/*` line are unaffected — Azure Pipelines evaluates a pull request against the *target* branch's copy of `azure-pipelines.yml`, and those branches keep their own copy and their own required Azure context.
 
 ### What runs where
 
@@ -381,7 +383,7 @@ For the same reason the workflow carries no `paths:` filter. A workflow filtered
 
 The coverage check reports a clean failure when the thresholds are missed, so a miss is visible on the pull request, but it never blocks the merge. Do not add it to the ruleset — that would make a coverage dip unmergeable, which is not the intent.
 
-> Azure Pipelines still reports `OPCFoundation.UA-.NETStandard (Tests passed Verify stage results)` and `OPCFoundation.UA-.NETStandard (Code coverage Merge and evaluate)`. `Tests passed` is fail-*closed* rather than fail-red: its verdict lives in the stage `condition`, so when a test stage fails the stage is skipped and Azure posts **no check at all** — the required check stays unfulfilled and the merge stays blocked. You will see the failing test job in red and `Tests passed` still waiting, rather than two red checks. Verified on build 16613.
+> Azure Pipelines no longer posts any check on a pull request targeting `master`; `build-and-test summary` is the only required check. On the branches where Azure still validates pull requests (`master378`, `release/*`), note that its `Tests passed` context is fail-*closed* rather than fail-red: the verdict lives in the stage `condition`, so when a test stage fails the stage is skipped and Azure posts **no check at all** — the required check stays unfulfilled and the merge stays blocked. You will see the failing test job in red and `Tests passed` still waiting, rather than two red checks. Verified on build 16613.
 
 #### How coverage is measured
 
@@ -448,7 +450,7 @@ The script renders a markdown summary that both systems surface, so you never ha
 
 Both also publish the merged HTML report as a `coverage-report` artifact.
 
-> The two systems report **different numbers**, and that is expected. GitHub Actions merges every profile that collects coverage, whereas Azure Pipelines merges only its own fast-PR legs. The GitHub figure is the representative one, and a full-scope run reads differently again because it covers different profiles.
+> The two systems report **different numbers**, and that is expected. GitHub Actions merges every profile that collects coverage, whereas Azure Pipelines merges only its own fast legs. The GitHub figure is the representative one — and now the only one a pull request sees, since Azure no longer runs on pull requests — and a full-scope run reads differently again because it covers different profiles.
 
 To reproduce a coverage failure locally, generate the same report with [`tests/codecoverage.cmd`](../tests/codecoverage.cmd) (or [`tests/codecoverage.sh`](../tests/codecoverage.sh)) and run the script against it:
 
@@ -480,9 +482,7 @@ Add `-Coverage` to collect Cobertura fragments, and `-QuietOutput` to redirect c
 
 ### Triggering a pipeline run on a pull request
 
-Azure Pipelines is configured with **Require a team member's comment before building a pull request**, scoped to *pull requests from non-team members*. Pull requests opened by outside contributors and by the **GitHub Copilot coding agent** therefore do **not** start a pipeline automatically — this mirrors the "Approve and run workflows" gate GitHub Actions already applies to those pull requests.
-
-To start the run, a repository owner or a collaborator with `Write` permission comments on the pull request:
+Azure Pipelines no longer builds pull requests targeting `master` (`pr: none`). If you need an Azure run for comparison while the migration finishes, a repository owner or a collaborator with `Write` permission can still start one by commenting:
 
 ```text
 /azp run
@@ -490,17 +490,20 @@ To start the run, a repository owner or a collaborator with `Write` permission c
 
 `/azp run <pipeline-name>` targets a single pipeline. If a comment appears to do nothing, check that your GitHub organization membership is **public** — Azure Pipelines cannot see private organization members unless they are direct repository collaborators, and it silently ignores their commands.
 
-This setting lives in the Azure DevOps portal (pipeline → **More actions** → **Triggers** → **Pull request validation**), not in YAML.
+On the branches where Azure still validates pull requests (`master378` and the `release/*` lines, each governed by its own copy of `azure-pipelines.yml`), the definition is configured with **Require a team member's comment before building a pull request**, scoped to *pull requests from non-team members*. That setting lives in the Azure DevOps portal (pipeline → **More actions** → **Triggers** → **Pull request validation**), not in YAML. GitHub Actions applies its own equivalent "Approve and run workflows" gate to outside contributors and to the **GitHub Copilot coding agent**.
 
 ### Migration status
 
-The Actions workflows are additive: they were added while Azure Pipelines kept every trigger and required context it had, so a gap in the new system cannot leave a change untested. The remaining steps each need repository- or organization-administrator access and are therefore **not** part of the source change:
+The Actions workflows were added while Azure Pipelines kept every trigger and required context it had, so a gap in the new system could not leave a change untested. Since then the master ruleset has dropped the Azure context, leaving `build-and-test summary` as the only required check, and this repository's PR trigger has been set to `pr: none`.
+
+What is still outstanding — each needing repository- or organization-administrator access, and therefore **not** part of the source change:
 
 1. Run `nightly.yml` on a trusted SHA with the private corpus provisioned and compare its manifest against a full-scope Azure run.
-2. Move the required check: keep `build-and-test summary` and drop the Azure contexts from the master and canonical 2.x rulesets, verifying first that a genuinely failed Actions job blocks a merge and that a docs-only pull request still goes green.
-3. Disable Azure PR validation for 2.0, in `azure-pipelines.yml` and in definition 14's service-side pull-request settings.
-4. Retire both scheduling sources for the Azure full scope — the YAML `cron` *and* the service-side schedule on definition 14 — once the manual replacement is proven.
-5. Retire `azure-pipelines-preview.yml` and definition 16's build-completion trigger. Development packages already publish to GitHub Packages from [`.github/workflows/nuget-publish.yml`](../.github/workflows/nuget-publish.yml), so that publisher is a duplicate. Ensure the stale definition 13 cannot restart it.
+2. Confirm definition 14's service-side **Pull request validation** setting is off. `pr: none` covers the YAML trigger, but an enabled "Override the YAML PR trigger from here" would still queue builds.
+3. Retire both scheduling sources for the Azure full scope — the YAML `cron` *and* the service-side schedule on definition 14 — and the push trigger, once the manual replacement is proven by step 1.
+4. Retire `azure-pipelines-preview.yml` and definition 16's build-completion trigger. Development packages already publish to GitHub Packages from [`.github/workflows/nuget-publish.yml`](../.github/workflows/nuget-publish.yml), so that publisher is a duplicate. Ensure the stale definition 13 cannot restart it.
+
+> **Before cutting a canonical `release/2.<minor>` branch:** the `Release` ruleset requires `OPCFoundation.UA-.NETStandard` for *every* `refs/heads/release/*`. A new 2.x branch inherits `pr: none` from `master`, so that Azure context would never report and would block every pull request into the new line. Exclude the new ref from that ruleset — or add a 2.x ruleset requiring `build-and-test summary` — as part of creating the branch. The existing 1.x lines and the frozen `release/2.0.0` keep their own copy of `azure-pipelines.yml` and must keep the Azure requirement.
 
 Preserve the Azure definitions, their artifacts, feeds, secure files, pools and service connections — retiring a trigger is not the same as deleting history. The `master378` and 1.x pipelines are out of scope entirely.
 

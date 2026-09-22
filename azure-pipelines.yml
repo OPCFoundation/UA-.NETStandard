@@ -14,26 +14,25 @@ parameters:
 # How much of the build/test workload this pipeline runs during the migration to
 # GitHub Actions.
 #
-# GitHub Actions now owns pull-request validation outright:
+# GitHub Actions owns pull-request validation outright:
 # .github/workflows/buildandtest.yml runs the complete build and test workload
-# unconditionally and has no switch that hands any of it back. This parameter is
-# therefore no longer one half of a coupled pair - it only decides how much of
-# that workload this pipeline *duplicates* while both systems run in parallel.
+# unconditionally and has no switch that hands any of it back. Since the Azure
+# context was dropped from the master ruleset this pipeline no longer runs on
+# pull requests at all (`pr: none` below), so this parameter now only decides
+# how much of the Actions workload the remaining push, schedule and manual runs
+# duplicate while both systems run in parallel.
 #
 #   ado     - duplicate the full workload here: the Linux all-TFM build leg, the
-#             Linux test leg and Native AoT also run on pull requests.
-#   actions - (default) run the narrow PR gate here and leave the rest to the
+#             Linux test leg and Native AoT run alongside the Windows matrix.
+#   actions - (default) run the narrow gate here and leave the rest to the
 #             stages' Schedule/Manual-only cadence.
 #
-# Either way the per-(framework, configuration) coverage gate stays here, in the
-# always-on 'Fast PR test' stage, until the required status check is moved.
-#
-# Note on scope: Azure Pipelines evaluates the YAML from the PR's merge ref, so
-# a PR targeting master378 or a release branch runs *that* branch's copy of this
-# file.  In practice every PR that evaluates this file targets master, which is
-# why the conditions below only need the parameter and not a target-branch test.
+# Note on scope: Azure Pipelines evaluates a pull request against the *target*
+# branch's copy of this file, so master378 and the release/* lines are governed
+# by their own copies and keep their own Azure validation. Only master is
+# affected by the settings here.
 - name: ciBuildBackend
-  displayName: 'CI build backend: actions runs the narrow PR gate here; ado additionally duplicates the all-TFM build, cross-platform tests and AoT'
+  displayName: 'CI build backend: actions runs the narrow gate here; ado additionally duplicates the all-TFM build, cross-platform tests and AoT'
   type: string
   default: actions
   values:
@@ -80,18 +79,22 @@ trigger:
     exclude:
     - 'docs/**'
     - '**/*.md'
-pr:
-  autoCancel: 'true'
-  drafts: 'true'
-  branches:
-    include:
-    - '*'
-  paths:
-    include:
-    - '*'
-    exclude:
-    - 'docs/**'
-    - '**/*.md'
+pr: none
+# Pull-request validation is owned outright by GitHub Actions
+# (.github/workflows/buildandtest.yml, required context 'build-and-test
+# summary').  The Azure context was dropped from the master ruleset first, so
+# disabling this trigger removes a duplicate rather than a gate.
+#
+# Azure Pipelines evaluates a PR against the target branch's copy of this file,
+# and every existing release/* line is a 1.x branch or the frozen release/2.0.0.
+# Those keep their own copy of this file and their own required Azure context in
+# the 'Release' ruleset, so they are unaffected by this change.
+#
+# Before a canonical release/2.<minor> branch is cut from master, the 'Release'
+# ruleset must stop requiring the Azure context for it - the branch inherits
+# 'pr: none' from this file, so that context would otherwise never report and
+# would block every pull request into the new line.  See
+# docs/DeveloperGuide.md#migration-status.
 
 # Weekly full-scope run.  Fires every Sunday at 02:00 UTC (late Saturday
 # night in the Americas / early Sunday morning in EU).  `always: true`
@@ -114,7 +117,7 @@ variables:
   ScheduledBuild: ${{ in(variables['Build.Reason'], 'Schedule', 'Manual') }}
   # 'True' when Azure Pipelines additionally duplicates the build/test matrix
   # GitHub Actions already runs (see the ciBuildBackend parameter).  Native AoT,
-  # normally Schedule/Manual-only here, then also runs on pull requests.
+  # normally Schedule/Manual-only here, then also runs on push builds.
   AdoOwnsMatrix: ${{ eq(parameters.ciBuildBackend, 'ado') }}
   # GitHub Actions owns macOS validation. Keep the Azure definitions available
   # for emergency/manual use, but do not schedule them unless explicitly enabled.
@@ -235,8 +238,8 @@ stages:
   dependsOn: []
   displayName: 'Test Native AoT'
   # Native AoT is Schedule/Manual-only while GitHub Actions runs its own ubuntu
-  # AoT job.  When ADO owns the matrix this is the only place AoT runs, so it
-  # has to gate pull requests too.
+  # AoT job.  When ADO owns the matrix this is the only place AoT runs here, so
+  # it also runs on push builds.
   condition: and(succeeded(), or(ne(variables.ScheduledBuild, 'False'), ne(variables.AdoOwnsMatrix, 'False')))
   jobs:
   - template: .azurepipelines/test-aot.yml
@@ -427,11 +430,14 @@ stages:
 # usage.
 #
 # 'Skipped' is accepted because the Schedule/Manual-only stages report exactly
-# that on a pull request.  When a stage genuinely fails the condition is false,
-# this stage is skipped, and Azure Pipelines then posts NO check for it - which
-# leaves the required check permanently unfulfilled and blocks the merge.  That
-# is deliberately fail-closed: the failing job itself is already red, and a
+# that on an ordinary push build.  When a stage genuinely fails the condition is
+# false, this stage is skipped, and Azure Pipelines then posts NO check for it -
+# which leaves any required check permanently unfulfilled and blocks the merge.
+# That is deliberately fail-closed: the failing job itself is already red, and a
 # required check that never reports can never be mistaken for a passing one.
+# On master this now only affects push builds - `build-and-test summary` from
+# GitHub Actions is the required check, and this pipeline no longer runs on
+# pull requests - but master378 and the release/* lines still depend on it.
 - stage: gate
   displayName: 'Tests passed'
   dependsOn: ${{ parameters.testStages }}

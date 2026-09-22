@@ -8,7 +8,7 @@ You must agree to the contributor license agreement before we can accept your ch
 
 Builds are not started automatically for pull requests from outside contributors — including those opened by the GitHub Copilot coding agent. A maintainer reviews the change first and then approves the GitHub Actions workflows, which run the build and test validation. If your pull request shows no checks yet, this is expected; please wait for a maintainer rather than pushing empty commits.
 
-The required check is **`build-and-test summary`**. While the Azure Pipelines definition is still being retired a maintainer may additionally comment `/azp run` to start it.
+The required check is **`build-and-test summary`**. Azure Pipelines no longer builds pull requests; while its definition is still being retired a maintainer may comment `/azp run` to start a comparison build manually.
 
 See [Continuous integration](docs/DeveloperGuide.md#continuous-integration) in the developer guide for what CI runs, how to reproduce a failing leg locally, and the coverage gates your change has to satisfy.
 
