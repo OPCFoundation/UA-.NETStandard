@@ -204,7 +204,7 @@ namespace Opc.Ua.Fuzzing
             string path = asset.Path;
             return path != null &&
                 path.Replace('\\', '/')
-                    .IndexOf("/Assets/Repo/", StringComparison.OrdinalIgnoreCase) >= 0;
+                    .Contains("/Assets/Repo/", StringComparison.OrdinalIgnoreCase);
         }
 
         [Theory]

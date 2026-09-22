@@ -123,6 +123,62 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(decoded.Nodes[0].ClassName, Is.EqualTo("Größentyp"));
         }
 
+        /// <summary>
+        /// Guid and opaque identifiers travel in an optional trailer so that
+        /// payloads without them stay byte identical.
+        /// </summary>
+        [TestCase(null)]
+        [TestCase(true)]
+        [TestCase(false)]
+        public void WriteThenReadRoundTripsExtendedIdentifiers(bool? emitted)
+        {
+            var dependency = new ModelDependencyV1
+            {
+                ModelUri = "http://example.org/UA/ExtendedIds/",
+                FluentAccessorsEmitted = emitted
+            };
+            dependency.Nodes.Add(new DependencyNode
+            {
+                SymbolicName = "GuidType",
+                SymbolicNamespace = "http://example.org/UA/ExtendedIds/",
+                ClassName = "GuidType",
+                Kind = DependencyNodeKind.ObjectType,
+                GuidId = "09087e75-8e5e-499b-954f-f2a9603db28a"
+            });
+            dependency.Nodes.Add(new DependencyNode
+            {
+                SymbolicName = "OpaqueType",
+                SymbolicNamespace = "http://example.org/UA/ExtendedIds/",
+                ClassName = "OpaqueType",
+                Kind = DependencyNodeKind.ObjectType,
+                OpaqueId = "M/RbKBsRVkePCePcx24oRA=="
+            });
+            dependency.Nodes.Add(new DependencyNode
+            {
+                SymbolicName = "EmptyOpaqueType",
+                SymbolicNamespace = "http://example.org/UA/ExtendedIds/",
+                ClassName = "EmptyOpaqueType",
+                Kind = DependencyNodeKind.ObjectType,
+                OpaqueId = string.Empty
+            });
+
+            var decoded = ModelDependencyV1.FromBase64Payload(dependency.ToBase64Payload());
+
+            Assert.That(decoded, Is.Not.Null);
+            Assert.Multiple(() =>
+            {
+                Assert.That(decoded.FluentAccessorsEmitted, Is.EqualTo(emitted));
+                Assert.That(
+                    decoded.Nodes[0].GuidId,
+                    Is.EqualTo("09087e75-8e5e-499b-954f-f2a9603db28a"));
+                Assert.That(decoded.Nodes[0].OpaqueId, Is.Null);
+                Assert.That(decoded.Nodes[1].GuidId, Is.Null);
+                Assert.That(decoded.Nodes[1].OpaqueId, Is.EqualTo("M/RbKBsRVkePCePcx24oRA=="));
+                Assert.That(decoded.Nodes[2].GuidId, Is.Null);
+                Assert.That(decoded.Nodes[2].OpaqueId, Is.Empty);
+            });
+        }
+
         [TestCase(true)]
         [TestCase(false)]
         public void WriteThenRead_RoundTripsFluentAccessorCapability(bool emitted)
