@@ -369,6 +369,7 @@ foreach ($project in $projectList) {
         $verdict = Get-TestRunVerdict `
             -TrxFileCount $results.Files `
             -Total $results.Total `
+            -Passed $results.Passed `
             -Failed $results.Failed `
             -ExitCode $test.ExitCode `
             -TimedOut $test.TimedOut `

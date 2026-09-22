@@ -451,10 +451,12 @@ maintainer can subsequently approve [Approved promotion](#approved-promotion).
    ```
    `--ref` is required and must name the same canonical release branch the
    candidate was built from: `release.yml` refuses to run when its own
-   `GITHUB_REF` differs from the candidate run's branch, so that the
-   validation policy and the promotion code are source-bound to the bytes
-   being promoted. Without `--ref`, `gh` dispatches from the default branch
-   and the run stops at "Resolve candidate run".
+   `GITHUB_REF` differs from the candidate run's branch. Once the candidate
+   is resolved, the job re-checks-out the workspace at that run's exact
+   commit, so the validation policy and the promotion code are source-bound
+   to the bytes being promoted even if the release branch has advanced since
+   the candidate was built. Without `--ref`, `gh` dispatches from the default
+   branch and the run stops at "Validate selected publish run".
 
    *Completion evidence*: the run succeeds through "Validate promotion
    manifest and package bytes"; the summary reports the expected version and

@@ -58,7 +58,8 @@ namespace Opc.Ua.Tools.Tests
         [Test]
         public async Task CleanRunPassesAsync()
         {
-            Verdict verdict = await InvokeAsync(trxFileCount: 1, total: 128, failed: 0, exitCode: 0, timedOut: false)
+            Verdict verdict = await InvokeAsync(
+                trxFileCount: 1, total: 128, passed: 128, failed: 0, exitCode: 0, timedOut: false)
                 .ConfigureAwait(false);
 
             Assert.Multiple(() =>
@@ -81,7 +82,8 @@ namespace Opc.Ua.Tools.Tests
         [TestCase(134)]
         public async Task AtExitHostFailureIsToleratedAsync(int exitCode)
         {
-            Verdict verdict = await InvokeAsync(trxFileCount: 1, total: 256, failed: 0, exitCode: exitCode, timedOut: false)
+            Verdict verdict = await InvokeAsync(
+                trxFileCount: 1, total: 256, passed: 256, failed: 0, exitCode: exitCode, timedOut: false)
                 .ConfigureAwait(false);
 
             Assert.Multiple(() =>
@@ -105,7 +107,8 @@ namespace Opc.Ua.Tools.Tests
         [TestCase(1)]
         public async Task RecordedFailuresAreNeverToleratedAsync(int exitCode)
         {
-            Verdict verdict = await InvokeAsync(trxFileCount: 1, total: 256, failed: 3, exitCode: exitCode, timedOut: false)
+            Verdict verdict = await InvokeAsync(
+                trxFileCount: 1, total: 256, passed: 253, failed: 3, exitCode: exitCode, timedOut: false)
                 .ConfigureAwait(false);
 
             Assert.Multiple(() =>
@@ -124,7 +127,8 @@ namespace Opc.Ua.Tools.Tests
         [Test]
         public async Task MissingResultsAreRejectedAsync()
         {
-            Verdict verdict = await InvokeAsync(trxFileCount: 0, total: 0, failed: 0, exitCode: 0, timedOut: false)
+            Verdict verdict = await InvokeAsync(
+                trxFileCount: 0, total: 0, passed: 0, failed: 0, exitCode: 0, timedOut: false)
                 .ConfigureAwait(false);
 
             Assert.Multiple(() =>
@@ -141,13 +145,55 @@ namespace Opc.Ua.Tools.Tests
         [Test]
         public async Task ZeroRecordedTestsAreRejectedAsync()
         {
-            Verdict verdict = await InvokeAsync(trxFileCount: 1, total: 0, failed: 0, exitCode: 0, timedOut: false)
+            Verdict verdict = await InvokeAsync(
+                trxFileCount: 1, total: 0, passed: 0, failed: 0, exitCode: 0, timedOut: false)
                 .ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
                 Assert.That(verdict.Passed, Is.False);
                 Assert.That(verdict.Reason, Does.Contain("No tests were recorded"));
+            });
+        }
+
+        /// <summary>
+        /// A suite whose tests were all skipped records Total &gt; 0 with nothing
+        /// executed. Accepting that would let a project that silently stopped
+        /// running anything - a broken category filter, a disabled fixture, an
+        /// unmet runtime precondition - report green while verifying nothing.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(1)]
+        public async Task AllSkippedRunIsRejectedAsync(int exitCode)
+        {
+            Verdict verdict = await InvokeAsync(
+                trxFileCount: 1, total: 200, passed: 0, failed: 0, exitCode: exitCode, timedOut: false)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(verdict.Passed, Is.False);
+                Assert.That(verdict.Tolerated, Is.False);
+                Assert.That(verdict.Reason, Does.Contain("200"));
+                Assert.That(verdict.Reason, Does.Contain("skipped or not executed"));
+            });
+        }
+
+        /// <summary>
+        /// A partially skipped suite still passes: the contract is that at least
+        /// one test executed, not that every recorded test ran.
+        /// </summary>
+        [Test]
+        public async Task PartiallySkippedRunPassesAsync()
+        {
+            Verdict verdict = await InvokeAsync(
+                trxFileCount: 1, total: 200, passed: 1, failed: 0, exitCode: 0, timedOut: false)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(verdict.Passed, Is.True);
+                Assert.That(verdict.Tolerated, Is.False);
             });
         }
 
@@ -162,6 +208,7 @@ namespace Opc.Ua.Tools.Tests
             Verdict verdict = await InvokeAsync(
                 trxFileCount: 1,
                 total: 256,
+                passed: 256,
                 failed: 0,
                 exitCode: -1,
                 timedOut: true,
@@ -183,17 +230,20 @@ namespace Opc.Ua.Tools.Tests
         [Test]
         public async Task ToleratedAlwaysImpliesPassedWithAReasonAsync()
         {
-            foreach ((int trx, int total, int failed, int exit, bool timedOut) in new[]
+            foreach ((int trx, int total, int passed, int failed, int exit, bool timedOut) in new[]
             {
-                (1, 128, 0, 0, false),
-                (1, 128, 0, 1, false),
-                (1, 128, 4, 1, false),
-                (0, 0, 0, 1, false),
-                (1, 0, 0, 0, false),
-                (1, 128, 0, -1, true)
+                (1, 128, 128, 0, 0, false),
+                (1, 128, 128, 0, 1, false),
+                (1, 128, 124, 4, 1, false),
+                (0, 0, 0, 0, 1, false),
+                (1, 0, 0, 0, 0, false),
+                (1, 128, 0, 0, 0, false),
+                (1, 128, 0, 0, 1, false),
+                (1, 128, 128, 0, -1, true)
             })
             {
-                Verdict verdict = await InvokeAsync(trx, total, failed, exit, timedOut, 45).ConfigureAwait(false);
+                Verdict verdict = await InvokeAsync(trx, total, passed, failed, exit, timedOut, 45)
+                    .ConfigureAwait(false);
 
                 if (verdict.Tolerated)
                 {
@@ -210,6 +260,7 @@ namespace Opc.Ua.Tools.Tests
         private static async Task<Verdict> InvokeAsync(
             int trxFileCount,
             int total,
+            int passed,
             int failed,
             int exitCode,
             bool timedOut,
@@ -222,11 +273,12 @@ namespace Opc.Ua.Tools.Tests
             // makes the rule testable without building or running any project.
             string command = string.Format(
                 CultureInfo.InvariantCulture,
-                ". '{0}'; Get-TestRunVerdict -TrxFileCount {1} -Total {2} -Failed {3} -ExitCode {4} " +
-                "-TimedOut ${5} -TimeoutMinutes {6} | ConvertTo-Json -Compress",
+                ". '{0}'; Get-TestRunVerdict -TrxFileCount {1} -Total {2} -Passed {3} -Failed {4} -ExitCode {5} " +
+                "-TimedOut ${6} -TimeoutMinutes {7} | ConvertTo-Json -Compress",
                 script.Replace("'", "''", StringComparison.Ordinal),
                 trxFileCount,
                 total,
+                passed,
                 failed,
                 exitCode,
                 timedOut ? "true" : "false",

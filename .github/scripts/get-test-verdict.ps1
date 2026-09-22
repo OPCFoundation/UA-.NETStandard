@@ -12,10 +12,11 @@
 
     The emitted TRX decides the verdict, not the 'dotnet test' exit code. A
     non-zero exit is tolerated when - and only when - the results record at least
-    one test and no failure of any kind, which means the host died during process
-    exit after the last test and every teardown had already run. This matches the
-    Azure gate in .azurepipelines/test.yml. A host that dies mid-run leaves a
-    non-zero failed/aborted/passedButRunAborted counter and is rejected.
+    one *passing* test and no failure of any kind, which means the host died
+    during process exit after the last test and every teardown had already run.
+    This matches the Azure gate in .azurepipelines/test.yml. A host that dies
+    mid-run leaves a non-zero failed/aborted/passedButRunAborted counter and is
+    rejected, and a suite whose tests were all skipped is rejected as well.
 #>
 
 <#
@@ -27,6 +28,10 @@
 
  .PARAMETER Total
     Total number of tests recorded across those files.
+
+ .PARAMETER Passed
+    Recorded tests that actually ran and passed. A run whose tests were all
+    skipped reports Total > 0 with Passed = 0 and must not be treated as green.
 
  .PARAMETER Failed
     Recorded tests that failed, errored, timed out, aborted, or passed in a run
@@ -52,6 +57,7 @@ function Get-TestRunVerdict
     param(
         [Parameter(Mandatory = $true)] [int] $TrxFileCount,
         [Parameter(Mandatory = $true)] [int] $Total,
+        [Parameter(Mandatory = $true)] [int] $Passed,
         [Parameter(Mandatory = $true)] [int] $Failed,
         [Parameter(Mandatory = $true)] [int] $ExitCode,
         [Parameter(Mandatory = $true)] [bool] $TimedOut,
@@ -98,11 +104,25 @@ function Get-TestRunVerdict
         }
     }
 
+    # Total counts every recorded test including skipped ones, so a suite that
+    # was entirely skipped still reports Total > 0 with nothing verified. The
+    # executor's contract is that an applicable project executes at least one
+    # test, so require a passing test rather than merely a recorded one.
+    if ($Passed -le 0) {
+        return [pscustomobject]@{
+            Passed    = $false
+            Tolerated = $false
+            Reason    = ("None of the $Total recorded test(s) passed - every one was skipped or not executed. " +
+                'The project is applicable to this profile, so it must run at least one test.')
+        }
+    }
+
     if ($ExitCode -ne 0) {
         return [pscustomobject]@{
             Passed    = $true
             Tolerated = $true
-            Reason    = "Tolerated: all $Total test(s) passed but the host exited with code $ExitCode (at-exit stall)."
+            Reason    = ("Tolerated: $Passed of $Total test(s) passed with no failure, but the host exited " +
+                "with code $ExitCode (at-exit stall).")
         }
     }
 
