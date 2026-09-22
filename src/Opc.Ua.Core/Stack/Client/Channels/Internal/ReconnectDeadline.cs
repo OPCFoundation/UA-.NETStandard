@@ -38,6 +38,9 @@ namespace Opc.Ua
     /// </summary>
     internal sealed class ReconnectDeadline : IAsyncDisposable
     {
+        /// <summary>
+        /// Starts an unbounded recovery window linked to manager shutdown.
+        /// </summary>
         public ReconnectDeadline(TimeProvider timeProvider, CancellationToken shutdown)
         {
             m_timeProvider = timeProvider;
@@ -46,10 +49,19 @@ namespace Opc.Ua
             Token = m_source.Token;
         }
 
+        /// <summary>
+        /// Cancellation shared by the cycle's recovery operations.
+        /// </summary>
         public CancellationToken Token { get; }
 
+        /// <summary>
+        /// Monotonic time elapsed since this recovery cycle started.
+        /// </summary>
         public TimeSpan Elapsed => m_timeProvider.GetElapsedTime(m_startedAt);
 
+        /// <summary>
+        /// Whether the recovery deadline expired, rather than being cancelled by closing or shutdown.
+        /// </summary>
         public bool Expired
         {
             get
@@ -61,6 +73,9 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// The tightest attached recovery duration, or <see cref="TimeSpan.MaxValue"/> when unbounded.
+        /// </summary>
         public TimeSpan Duration
         {
             get
@@ -72,6 +87,9 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Rejects work after expiry or cancellation, including before asynchronous token cancellation finishes.
+        /// </summary>
         public void ThrowIfCancellationRequested()
         {
             lock (m_lock)
@@ -84,6 +102,9 @@ namespace Opc.Ua
             Token.ThrowIfCancellationRequested();
         }
 
+        /// <summary>
+        /// Attaches a caller's remaining budget only when it shortens the existing deadline.
+        /// </summary>
         public void Tighten(IRetryBudget? budget)
         {
             if (budget == null)
@@ -114,7 +135,7 @@ namespace Opc.Ua
                     return;
                 }
                 m_duration = duration;
-                ArmTimerLocked();
+                ArmTimerUnderLock();
             }
         }
 
@@ -127,7 +148,7 @@ namespace Opc.Ua
             {
                 if (!m_expired && !m_completed && Elapsed >= m_duration)
                 {
-                    ExpireLocked();
+                    ExpireUnderLock();
                 }
                 if (m_expired || m_cancelled || Token.IsCancellationRequested)
                 {
@@ -139,6 +160,9 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Stops active recovery without classifying the cancellation as deadline expiry.
+        /// </summary>
         public void Cancel()
         {
             lock (m_lock)
@@ -153,6 +177,9 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Retires the deadline timer and awaits any scheduled cancellation callbacks.
+        /// </summary>
         public async ValueTask DisposeAsync()
         {
             Task cancellation;
@@ -182,19 +209,19 @@ namespace Opc.Ua
                 }
                 if (Elapsed < m_duration)
                 {
-                    ArmTimerLocked();
+                    ArmTimerUnderLock();
                     return;
                 }
-                ExpireLocked();
+                ExpireUnderLock();
             }
         }
 
-        private void ArmTimerLocked()
+        private void ArmTimerUnderLock()
         {
             TimeSpan remaining = m_duration - Elapsed;
             if (remaining <= TimeSpan.Zero)
             {
-                ExpireLocked();
+                ExpireUnderLock();
                 return;
             }
             TimeSpan dueTime = remaining < s_maxTimerDuration ? remaining : s_maxTimerDuration;
@@ -212,7 +239,7 @@ namespace Opc.Ua
             }
         }
 
-        private void ExpireLocked()
+        private void ExpireUnderLock()
         {
             m_expired = true;
             // Never run user cancellation callbacks under the deadline lock or on a fake clock's Advance stack.

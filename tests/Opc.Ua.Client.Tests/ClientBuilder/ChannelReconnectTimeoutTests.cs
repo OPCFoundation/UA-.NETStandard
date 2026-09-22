@@ -40,10 +40,16 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.Tests.ClientBuilder
 {
+    /// <summary>
+    /// Covers recovery-timeout resolution, construction paths, and per-cycle session budgets.
+    /// </summary>
     [TestFixture]
     [Parallelizable]
     public sealed class ChannelReconnectTimeoutTests
     {
+        /// <summary>
+        /// Automatic recovery uses the largest usable setting and clamps arithmetic overflow.
+        /// </summary>
         [TestCase(1000, 60000, 10000, 60000)]
         [TestCase(30000, 60000, 10000, 90000)]
         [TestCase(1000, 60000, 90000, 90000)]
@@ -64,6 +70,9 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Assert.That(timeout, Is.EqualTo(TimeSpan.FromMilliseconds(expectedMilliseconds)));
         }
 
+        /// <summary>
+        /// Finite and infinite overrides take precedence and remain configurable through the builder.
+        /// </summary>
         [TestCase(1L)]
         [TestCase(10000L)]
         [TestCase(42949672940000L)]
@@ -81,6 +90,9 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Assert.That(builder.WithChannelReconnectTimeout(null).Build().ChannelReconnectTimeout, Is.Null);
         }
 
+        /// <summary>
+        /// Invalid timeout values fail consistently before fluent, direct, or DI construction connects.
+        /// </summary>
         [TestCase(0L)]
         [TestCase(-1L)]
         [TestCase(-10001L)]
@@ -115,6 +127,9 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                     .Some.Contains("ChannelReconnectTimeout"));
         }
 
+        /// <summary>
+        /// DI passes automatic, infinite, and finite timeout settings to the connection builder.
+        /// </summary>
         [TestCase(null)]
         [TestCase(-1)]
         [TestCase(1000)]
@@ -157,6 +172,9 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Assert.That(configuredTimeout, Is.EqualTo(timeout));
         }
 
+        /// <summary>
+        /// Raw sessions impose no budget, and configured sessions sample changed settings only for a new cycle.
+        /// </summary>
         [Test]
         public async Task SessionBudgetsPreserveRawDefaultsAndResampleOnlyOnTheNextCycleAsync()
         {
@@ -164,7 +182,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             await using var session = SessionMock.Create();
             session.Channel.SetupGet(channel => channel.OperationTimeout).Returns(1000);
             session.KeepAliveInterval = 500;
-            var participant = (IReconnectBudgetParticipant)session;
+            var participant = (IReconnectParticipant)session;
             Assert.That(participant.CreateReconnectBudget(time), Is.Null);
 
             session.ConfigureChannelReconnectTimeout(null, requestedSessionTimeout: 5000);

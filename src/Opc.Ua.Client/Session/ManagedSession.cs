@@ -231,11 +231,32 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             return CreateCoreAsync(
-                configuration, endpoint, sessionFactory, identity, reconnectPolicy, redundancyHandler,
-                telemetry, sessionName, sessionTimeout, preferredLocales, checkDomain, engineFactory,
-                transferSubscriptionsOnRecreate, poolNotifications, enableTokenReuseFailover, identityProvider,
-                timeProvider, channelManager, networkRedundancy, serverRedundancy, reverseConnectManager,
-                connectGate, connection, updateBeforeConnect, channelReconnectTimeout: null, ct);
+                configuration,
+                endpoint,
+                sessionFactory,
+                identity,
+                reconnectPolicy,
+                redundancyHandler,
+                telemetry,
+                sessionName,
+                sessionTimeout,
+                preferredLocales,
+                checkDomain,
+                engineFactory,
+                transferSubscriptionsOnRecreate,
+                poolNotifications,
+                enableTokenReuseFailover,
+                identityProvider,
+                timeProvider,
+                channelManager,
+                networkRedundancy,
+                serverRedundancy,
+                reverseConnectManager,
+                connectGate,
+                connection,
+                updateBeforeConnect,
+                channelReconnectTimeout: null,
+                ct);
         }
 
         /// <summary>
@@ -300,14 +321,32 @@ namespace Opc.Ua.Client
                     options.ServerRedundancy);
             }
             ManagedSession session = await CreateCoreAsync(
-                configuration, endpoint, sessionFactory, identity,
-                reconnectPolicy ?? new ReconnectPolicy(options.ReconnectPolicy), redundancyHandler, telemetry,
-                options.SessionName, (uint)options.SessionTimeout.TotalMilliseconds, locales,
-                options.CheckDomain, options.SubscriptionEngineFactory, options.TransferSubscriptionsOnRecreate,
-                options.PoolNotifications, options.EnableTokenReuseFailover, options.IdentityProvider,
-                options.TimeProvider, channelManager, options.NetworkRedundancy, options.ServerRedundancy,
-                reverseConnectManager, options.ConnectGate, connection, updateBeforeConnect,
-                options.ChannelReconnectTimeout, ct).ConfigureAwait(false);
+                configuration,
+                endpoint,
+                sessionFactory,
+                identity,
+                reconnectPolicy ?? new ReconnectPolicy(options.ReconnectPolicy),
+                redundancyHandler,
+                telemetry,
+                options.SessionName,
+                (uint)options.SessionTimeout.TotalMilliseconds,
+                locales,
+                options.CheckDomain,
+                options.SubscriptionEngineFactory,
+                options.TransferSubscriptionsOnRecreate,
+                options.PoolNotifications,
+                options.EnableTokenReuseFailover,
+                options.IdentityProvider,
+                options.TimeProvider,
+                channelManager,
+                options.NetworkRedundancy,
+                options.ServerRedundancy,
+                reverseConnectManager,
+                options.ConnectGate,
+                connection,
+                updateBeforeConnect,
+                options.ChannelReconnectTimeout,
+                ct).ConfigureAwait(false);
             try
             {
                 if (options.ModelChangeTracking)

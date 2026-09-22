@@ -39,6 +39,9 @@ using ChannelCloseReason = Opc.Ua.ClientChannelManager.ChannelCloseReason;
 
 namespace Opc.Ua
 {
+    /// <summary>
+    /// Owns a shared transport, its participant leases, and one coalesced recovery cycle.
+    /// </summary>
     internal sealed class ChannelEntry : IAsyncDisposable
     {
         public ChannelEntry(
@@ -520,6 +523,7 @@ namespace Opc.Ua
             return RequestReconnectAsync(null, budget, ct);
         }
 
+        /// <inheritdoc cref="RequestReconnectAsync(CancellationToken)"/>
         public Task<bool> RequestReconnectAsync(
             ITransportWaitingConnection? reverseConnection,
             IRetryBudget? budget,
@@ -611,7 +615,7 @@ namespace Opc.Ua
             await DisposeReconnectDeadlineAsync().ConfigureAwait(false);
             lock (m_lock)
             {
-                ReleaseReconnectOwnershipLocked();
+                ReleaseReconnectOwnershipUnderLock();
             }
             completion.TrySetException(error);
         }
@@ -752,6 +756,9 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Cancels recovery, detaches participant leases, and tears down the entry for the supplied reason.
+        /// </summary>
         internal async ValueTask DisposeAsync(ChannelCloseReason reason)
         {
             List<ManagedTransportChannelLease> leases;
@@ -939,13 +946,13 @@ namespace Opc.Ua
 
             try
             {
-                IReconnectBudgetParticipant[] budgetParticipants;
+                IReconnectParticipant[] budgetParticipants;
                 lock (m_lock)
                 {
                     budgetParticipants = [.. m_leases.Where(lease => lease.IsActive)
-                        .Select(lease => lease.Participant).OfType<IReconnectBudgetParticipant>()];
+                        .Select(lease => lease.Participant)];
                 }
-                foreach (IReconnectBudgetParticipant participant in budgetParticipants)
+                foreach (IReconnectParticipant participant in budgetParticipants)
                 {
                     IRetryBudget? participantBudget = participant.CreateReconnectBudget(OwnerManager.TimeProvider);
                     deadline.Tighten(participantBudget);
@@ -1053,7 +1060,7 @@ namespace Opc.Ua
                     catch (Exception ex)
                     {
                         ServiceResult error = new(ex);
-                        OwnerManager.Logger?.ChannelEntryLog2(ex, attempt);
+                        OwnerManager.Logger?.ChannelTransportReconnectAttemptFailed(ex, attempt);
                         OwnerManager.OnEntryReconnectFailed(this, attempt, kReconnectOutcomeTransientFailure, error);
                         attempt++;
                         continue;
@@ -1078,7 +1085,7 @@ namespace Opc.Ua
                     catch (Exception ex)
                     {
                         ServiceResult error = new(ex);
-                        OwnerManager.Logger?.ChannelEntryLog3(ex, attempt);
+                        OwnerManager.Logger?.ChannelParticipantNotificationFailed(ex, attempt);
                         OwnerManager.OnEntryReconnectFailed(this, attempt, kReconnectOutcomeTransientFailure, error);
                         attempt++;
                         continue;
@@ -1138,7 +1145,7 @@ namespace Opc.Ua
                     catch (Exception ex)
                     {
                         ResetReadyGate();
-                        OwnerManager.Logger?.ChannelEntryLog3(ex, attempt);
+                        OwnerManager.Logger?.ChannelParticipantNotificationFailed(ex, attempt);
                         OwnerManager.OnEntryReconnectFailed(
                             this, attempt, kReconnectOutcomeTransientFailure, new ServiceResult(ex));
                         attempt++;
@@ -1187,7 +1194,7 @@ namespace Opc.Ua
                 {
                     lock (m_lock)
                     {
-                        ReleaseReconnectOwnershipLocked();
+                        ReleaseReconnectOwnershipUnderLock();
                     }
                 }
                 OwnerManager.CompleteReconnectActivity(activity, this, attemptsStarted, finalOutcome, finalError);
@@ -1215,7 +1222,7 @@ namespace Opc.Ua
             }
         }
 
-        private void ReleaseReconnectOwnershipLocked()
+        private void ReleaseReconnectOwnershipUnderLock()
         {
             m_reconnectCoalescer = null;
             m_reconnectDeadline = null;
@@ -1266,7 +1273,7 @@ namespace Opc.Ua
                     }
                     catch (Exception ex)
                     {
-                        OwnerManager.Logger?.ChannelEntryLog4(ex);
+                        OwnerManager.Logger?.ChannelTransportReconnectFailed(ex);
                     }
                 }
 
@@ -1317,7 +1324,7 @@ namespace Opc.Ua
             }
             catch (Exception ex)
             {
-                OwnerManager.Logger?.ChannelEntryLog0(ex);
+                OwnerManager.Logger?.ChannelUnderlyingCloseFailed(ex);
             }
             try
             {
@@ -1325,7 +1332,7 @@ namespace Opc.Ua
             }
             catch (Exception ex)
             {
-                OwnerManager.Logger?.ChannelEntryLog1(ex);
+                OwnerManager.Logger?.ChannelCloseFailed(ex);
             }
         }
 
@@ -1492,7 +1499,7 @@ namespace Opc.Ua
                     catch (TimeoutException)
                     {
                         OwnerManager.Logger?
-                            .ChannelEntryLog5(
+                            .ChannelParticipantReconnectTimedOut(
                                 lease.Participant.Id,
                                 participantTimeout);
                         OwnerManager.RecordParticipantTimeout(this, lease.Participant.Id);
@@ -1505,7 +1512,7 @@ namespace Opc.Ua
                     catch (Exception ex)
                     {
                         OwnerManager.Logger?
-                            .ChannelEntryLog6(
+                            .ChannelParticipantReconnectFailed(
                                 ex,
                                 lease.Participant.Id);
                         return ParticipantReconnectResult.TransientFailure;
@@ -1587,13 +1594,13 @@ namespace Opc.Ua
             catch (TimeoutException ex)
             {
                 OwnerManager.RecordParticipantTimeout(this, participant.Id);
-                OwnerManager.Logger?.ChannelEntryLog7(ex, participant.Id);
+                OwnerManager.Logger?.ChannelParticipantRecreateFailed(ex, participant.Id);
                 OwnerManager.RecordParticipantRecreate(this, participant.Id, success: false);
                 return false;
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                OwnerManager.Logger?.ChannelEntryLog7(ex, participant.Id);
+                OwnerManager.Logger?.ChannelParticipantRecreateFailed(ex, participant.Id);
                 OwnerManager.RecordParticipantRecreate(this, participant.Id, success: false);
                 return false;
             }
@@ -1655,9 +1662,9 @@ namespace Opc.Ua
                 OwnerManager.Logger?.ChannelReconnectCancellationFailed(ex);
             }
 
-            // Budget-aware participants promise to unwind local state before another owner can recover it.
-            // Legacy callbacks may ignore cancellation; their expired send views remain quarantined instead.
-            if (participant is IReconnectBudgetParticipant && work != null)
+            // Scoped recovery participants must finish local cleanup before another owner can recover their state.
+            // Other callbacks cannot retain their expired send views, even if they ignore cancellation.
+            if (participant is IChannelRecoveryParticipant && work != null)
             {
                 try
                 {
@@ -1668,7 +1675,7 @@ namespace Opc.Ua
                 }
                 catch (Exception ex)
                 {
-                    OwnerManager.Logger?.ChannelEntryLog6(ex, participant.Id);
+                    OwnerManager.Logger?.ChannelParticipantReconnectFailed(ex, participant.Id);
                 }
             }
         }
@@ -1710,6 +1717,9 @@ namespace Opc.Ua
 #endif
         }
 
+        /// <summary>
+        /// Observes faults from a task that may outlive its recovery wait.
+        /// </summary>
         internal static void ObserveRecoveryTask(Task task)
         {
             _ = task.ContinueWith(
@@ -1741,7 +1751,7 @@ namespace Opc.Ua
                 CancellationToken callbackToken = callback.Token;
                 try
                 {
-                    Task work = lease.Participant is IReconnectBudgetParticipant
+                    Task work = lease.Participant is IChannelRecoveryParticipant
                         ? lease.Participant.OnReconnectAsync(lease, -1, callbackToken).AsTask()
                         : Task.Run(() => lease.Participant.OnReconnectAsync(lease, -1, callbackToken).AsTask());
                     await AwaitParticipantWorkAsync(work, timeout, ct).ConfigureAwait(false);
@@ -1751,7 +1761,7 @@ namespace Opc.Ua
                 }
                 catch (Exception ex)
                 {
-                    OwnerManager.Logger?.ChannelEntryLog6(ex, lease.Participant.Id);
+                    OwnerManager.Logger?.ChannelParticipantReconnectFailed(ex, lease.Participant.Id);
                 }
                 finally
                 {
@@ -1774,7 +1784,7 @@ namespace Opc.Ua
             {
                 if (releaseReconnectOwnership)
                 {
-                    ReleaseReconnectOwnershipLocked();
+                    ReleaseReconnectOwnershipUnderLock();
                 }
                 previous = m_state;
                 if (previous == next ||
@@ -1913,54 +1923,89 @@ namespace Opc.Ua
     /// </summary>
     internal static partial class ChannelEntryLog
     {
+        /// <summary>
+        /// Reports a failure while asynchronously closing the underlying transport.
+        /// </summary>
         [LoggerMessage(EventId = CoreEventIds.ChannelEntry + 0, Level = LogLevel.Debug,
+            EventName = "ChannelEntryLog0",
             Message = "ClientChannelManager: underlying CloseAsync failed.")]
-        public static partial void ChannelEntryLog0(this ILogger logger, Exception? exception);
+        public static partial void ChannelUnderlyingCloseFailed(this ILogger logger, Exception? exception);
 
+        /// <summary>
+        /// Reports a failure while closing the underlying channel.
+        /// </summary>
         [LoggerMessage(EventId = CoreEventIds.ChannelEntry + 1, Level = LogLevel.Debug,
+            EventName = "ChannelEntryLog1",
             Message = "ClientChannelManager: CloseChannel failed.")]
-        public static partial void ChannelEntryLog1(this ILogger logger, Exception? exception);
+        public static partial void ChannelCloseFailed(this ILogger logger, Exception? exception);
 
+        /// <summary>
+        /// Reports a failed transport reconnect attempt.
+        /// </summary>
         [LoggerMessage(EventId = CoreEventIds.ChannelEntry + 2, Level = LogLevel.Warning,
+            EventName = "ChannelEntryLog2",
             Message = "ClientChannelManager: transport reconnect attempt {Attempt} failed.")]
-        public static partial void ChannelEntryLog2(
+        public static partial void ChannelTransportReconnectAttemptFailed(
             this ILogger logger,
             Exception? exception,
             int attempt);
 
+        /// <summary>
+        /// Reports a failed participant recovery notification attempt.
+        /// </summary>
         [LoggerMessage(EventId = CoreEventIds.ChannelEntry + 3, Level = LogLevel.Warning,
+            EventName = "ChannelEntryLog3",
             Message = "ClientChannelManager: participant notification attempt {Attempt} failed.")]
-        public static partial void ChannelEntryLog3(
+        public static partial void ChannelParticipantNotificationFailed(
             this ILogger logger,
             Exception? exception,
             int attempt);
 
+        /// <summary>
+        /// Reports a failed transport reconnect before replacing the transport.
+        /// </summary>
         [LoggerMessage(EventId = CoreEventIds.ChannelEntry + 4, Level = LogLevel.Debug,
+            EventName = "ChannelEntryLog4",
             Message = "ClientChannelManager: channel.ReconnectAsync failed; recreating.")]
-        public static partial void ChannelEntryLog4(this ILogger logger, Exception? exception);
+        public static partial void ChannelTransportReconnectFailed(this ILogger logger, Exception? exception);
 
+        /// <summary>
+        /// Reports a participant callback timeout that will be treated as a transient failure.
+        /// </summary>
         [LoggerMessage(EventId = CoreEventIds.ChannelEntry + 5, Level = LogLevel.Warning,
+            EventName = "ChannelEntryLog5",
             Message = "ClientChannelManager: participant {Participant} OnReconnect timed out after " +
                 "{Timeout}; treating as TransientFailure.")]
-        public static partial void ChannelEntryLog5(
+        public static partial void ChannelParticipantReconnectTimedOut(
             this ILogger logger,
             string participant,
             TimeSpan timeout);
 
+        /// <summary>
+        /// Reports a failed participant reconnect callback.
+        /// </summary>
         [LoggerMessage(EventId = CoreEventIds.ChannelEntry + 6, Level = LogLevel.Warning,
+            EventName = "ChannelEntryLog6",
             Message = "ClientChannelManager: participant {Participant} OnReconnect failed.")]
-        public static partial void ChannelEntryLog6(
+        public static partial void ChannelParticipantReconnectFailed(
             this ILogger logger,
             Exception? exception,
             string participant);
 
+        /// <summary>
+        /// Reports a failed participant session-recreation callback.
+        /// </summary>
         [LoggerMessage(EventId = CoreEventIds.ChannelEntry + 7, Level = LogLevel.Warning,
+            EventName = "ChannelEntryLog7",
             Message = "ClientChannelManager: participant {Participant} RecreateAsync failed.")]
-        public static partial void ChannelEntryLog7(
+        public static partial void ChannelParticipantRecreateFailed(
             this ILogger logger,
             Exception? exception,
             string participant);
 
+        /// <summary>
+        /// Reports deadline expiry and the recovery phase being handed to the session owner.
+        /// </summary>
         [LoggerMessage(EventId = CoreEventIds.ChannelEntry + 8, Level = LogLevel.Warning,
             Message = "ClientChannelManager: recovery deadline {Duration} expired after {Elapsed} in {State}; " +
                 "handing recovery to the session owner.")]
@@ -1970,6 +2015,9 @@ namespace Opc.Ua
             TimeSpan elapsed,
             ChannelState state);
 
+        /// <summary>
+        /// Reports an exception raised while cancelling a recovery callback.
+        /// </summary>
         [LoggerMessage(EventId = CoreEventIds.ChannelEntry + 9, Level = LogLevel.Warning,
             Message = "ClientChannelManager: a recovery cancellation callback failed.")]
         public static partial void ChannelReconnectCancellationFailed(this ILogger logger, Exception exception);

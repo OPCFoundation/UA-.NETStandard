@@ -38,8 +38,23 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
 {
+    /// <summary>
+    /// Supplies real sessions and a real channel manager backed by scripted transport channels instead of a server.
+    /// </summary>
     internal sealed class SessionChannelHarness : IAsyncDisposable
     {
+        /// <summary>
+        /// Creates the channel manager and client configuration with optional clock, recovery policy,
+        /// and per-channel script configuration.
+        /// </summary>
+        /// <param name="telemetry">The telemetry context, or null to use the NUnit telemetry context.</param>
+        /// <param name="timeProvider">The clock for sessions and channels, or null to use the system clock.</param>
+        /// <param name="reconnectPolicy">
+        /// The channel recovery policy, or null for one zero-delay attempt with no participant timeout.
+        /// </param>
+        /// <param name="configureChannel">
+        /// The script configuration applied to each managed channel, but not to standalone channels.
+        /// </param>
         public SessionChannelHarness(
             ITelemetryContext? telemetry = null,
             TimeProvider? timeProvider = null,
@@ -67,21 +82,45 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                 TimeProvider);
         }
 
+        /// <summary>
+        /// Gets the client configuration shared by the real sessions and channel manager.
+        /// </summary>
         public ApplicationConfiguration Configuration { get; }
 
+        /// <summary>
+        /// Gets the real channel manager whose transport bindings create scripted channels.
+        /// </summary>
         public ClientChannelManager Manager { get; }
 
+        /// <summary>
+        /// Gets the telemetry context used by the client configuration and channel manager.
+        /// </summary>
         public ITelemetryContext Telemetry { get; }
 
+        /// <summary>
+        /// Gets the clock supplied to the channel manager, sessions, and scripted response headers.
+        /// </summary>
         public TimeProvider TimeProvider { get; }
 
+        /// <summary>
+        /// Gets the managed-channel scripts in creation order; standalone channels are not included.
+        /// </summary>
         public List<ScriptedChannel> CreatedChannels { get; } = [];
 
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Delegates asynchronous cleanup to the real channel manager.
+        /// </remarks>
         public async ValueTask DisposeAsync()
         {
             await Manager.DisposeAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Creates and opens a real anonymous session through the channel manager with endpoint refresh
+        /// and domain checks disabled.
+        /// </summary>
+        /// <param name="endpoint">The endpoint whose settings are used by the scripted transport.</param>
         public Task<Session> CreateSessionAsync(ConfiguredEndpoint endpoint)
         {
             return Session.CreateAsync(
@@ -97,6 +136,11 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                 ct: default);
         }
 
+        /// <summary>
+        /// Creates a scripted channel with its endpoint already assigned, bypassing the manager,
+        /// the per-channel configurator, and the open handler.
+        /// </summary>
+        /// <param name="endpoint">The endpoint settings assigned directly to the standalone channel.</param>
         public ScriptedChannel CreateOpenedStandaloneChannel(ConfiguredEndpoint endpoint)
         {
             var channel = new ScriptedChannel(Configuration.CreateMessageContext(), TimeProvider);
@@ -104,6 +148,11 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
             return channel;
         }
 
+        /// <summary>
+        /// Creates an unsecured anonymous UA-TCP endpoint with a six-second operation timeout
+        /// and automatic endpoint refresh disabled.
+        /// </summary>
+        /// <param name="endpointUrl">The URL used for both the endpoint and its server application URI.</param>
         public static ConfiguredEndpoint CreateEndpoint(string endpointUrl = "opc.tcp://localhost:4840")
         {
             var endpointConfiguration = new EndpointConfiguration

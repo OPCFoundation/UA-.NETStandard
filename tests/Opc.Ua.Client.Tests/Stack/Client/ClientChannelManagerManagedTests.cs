@@ -1834,6 +1834,12 @@ namespace Opc.Ua.Client.Tests.Stack.Client
             public ConfiguredEndpoint Endpoint { get; }
             public int NotificationCount => Volatile.Read(ref m_notificationCount);
 
+            /// <inheritdoc/>
+            public IRetryBudget? CreateReconnectBudget(TimeProvider timeProvider)
+            {
+                return null;
+            }
+
             public ValueTask<ParticipantReconnectResult> OnReconnectAsync(
                 IManagedTransportChannel channel,
                 int reconnectAttempt,

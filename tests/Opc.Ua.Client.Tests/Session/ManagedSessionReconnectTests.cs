@@ -44,11 +44,22 @@ using static Opc.Ua.Client.Tests.Stack.Client.Fakes.ObservingSubscriptionEngineF
 
 namespace Opc.Ua.Client.Tests.ManagedSession
 {
+    /// <summary>
+    /// Exercises bounded managed-session channel recovery with the real session and V2 publish pipeline,
+    /// using gated transport scripts and fake time to observe cancellation and generation boundaries.
+    /// </summary>
     [TestFixture]
     [Category("Client")]
     [NonParallelizable]
     public sealed class ManagedSessionReconnectTests
     {
+        /// <summary>
+        /// Verifies that session recreation cancels and drains a publish parked at channel readiness,
+        /// drops old-generation acknowledgements, and resumes the original subscription and publish worker.
+        /// </summary>
+        /// <param name="transferSubscriptionsOnRecreate">
+        /// Whether to attempt a scripted failing subscription transfer before recreating the subscription.
+        /// </param>
         [TestCase(false, TestName = "RecreateDrainsParkedPublishWithoutTransferAsync")]
         [TestCase(true, TestName = "RecreateDrainsParkedPublishWithTransferFallbackAsync")]
         public async Task RecreateDrainsParkedPublishAsync(bool transferSubscriptionsOnRecreate)
@@ -184,6 +195,14 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(harness.Channels.CreatedChannels[0].ReconnectCount, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that the channel deadline cancels and unwinds the stalled inner phase before outer recovery,
+        /// without waiting for another keepalive, and restores subscriptions with the original publish worker.
+        /// </summary>
+        /// <param name="stallActivation">
+        /// Whether to stall activation and exercise endpoint failover after a replacement open fails,
+        /// rather than stall transport reconnect.
+        /// </param>
         [TestCase(false, TestName = "TransportDeadlineStartsOuterRecoveryAfterUnwindAsync")]
         [TestCase(true, TestName = "ActivationDeadlineStartsOuterRecoveryAfterUnwindAsync")]
         public async Task DeadlineStartsOuterRecoveryAfterUnwindAsync(bool stallActivation)
@@ -249,6 +268,13 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             AssertOriginalWorker(harness, live);
         }
 
+        /// <summary>
+        /// Verifies that recovery just below the deadline retains the session, subscription, and worker
+        /// and continues publishing beyond the original deadline without invoking the outer policy.
+        /// </summary>
+        /// <param name="stallActivation">
+        /// Whether activation, rather than transport reconnect, is held until just before the deadline.
+        /// </param>
         [TestCase(false, TestName = "SlowTransportRecoveryBelowDeadlineAvoidsOuterPolicyAsync")]
         [TestCase(true, TestName = "SlowActivationRecoveryBelowDeadlineAvoidsOuterPolicyAsync")]
         public async Task SlowRecoveryBelowDeadlineAvoidsOuterPolicyAsync(bool stallActivation)
@@ -309,6 +335,10 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             AssertOriginalWorker(harness, live);
         }
 
+        /// <summary>
+        /// Verifies that a late, cancellation-ignoring create-session response cannot overwrite the recovered
+        /// session generation or cause stale subscription restoration.
+        /// </summary>
         [Test]
         public async Task LateCreateSessionResponseCannotReplaceRecoveredGenerationAsync()
         {
@@ -373,6 +403,13 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             AssertOriginalWorker(harness, live);
         }
 
+        /// <summary>
+        /// Verifies that keepalive failures are suppressed during bounded subscription restoration
+        /// and deadline expiry hands off to outer recovery without allowing a late response to revive stale state.
+        /// </summary>
+        /// <param name="lateResponse">
+        /// Whether the old subscription-creation script ignores cancellation and returns after the successor recovers.
+        /// </param>
         [TestCase(false, TestName = "RestorationDeadlineSuppressesKeepAliveUntilOuterHandoffAsync")]
         [TestCase(true, TestName = "LateSubscriptionResponseCannotResurrectRecoveredGenerationAsync")]
         public async Task RestorationDeadlineSuppressesKeepAliveUntilOuterHandoffAsync(bool lateResponse)
@@ -721,6 +758,17 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             return await phase.ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Retains the original subscription objects and client handle for identity checks across recovery generations.
+        /// </summary>
+        /// <param name="Subscription">The real subscription whose identity must survive recovery.</param>
+        /// <param name="MonitoredItem">
+        /// The original monitored item used to verify notification dispatch identity.
+        /// </param>
+        /// <param name="ClientHandle">
+        /// The client handle expected in initial and recreated monitored-item requests.
+        /// </param>
+        /// <param name="Engine">The real engine whose instance and publish worker must be retained.</param>
         private sealed record LiveSubscription(
             ISubscription Subscription,
             IMonitoredItem MonitoredItem,

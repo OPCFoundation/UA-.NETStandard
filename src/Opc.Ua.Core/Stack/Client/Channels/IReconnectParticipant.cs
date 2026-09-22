@@ -66,6 +66,19 @@ namespace Opc.Ua
         ConfiguredEndpoint Endpoint { get; }
 
         /// <summary>
+        /// Creates a fresh budget for one shared channel recovery cycle.
+        /// Return null to impose no participant-specific deadline.
+        /// </summary>
+        /// <remarks>
+        /// The manager samples active participants outside its entry lock and
+        /// keeps the earliest participant or caller deadline. This method must
+        /// return promptly and must not start recovery itself.
+        /// </remarks>
+        /// <param name="timeProvider">The channel manager's monotonic clock.</param>
+        /// <returns>The cycle budget, or null to leave the limit to other participants and callers.</returns>
+        IRetryBudget? CreateReconnectBudget(TimeProvider timeProvider);
+
+        /// <summary>
         /// Invoked by the manager when the underlying channel has been
         /// (re)opened and the participant should re-establish its
         /// session-level state (e.g. ActivateSession). May be called
@@ -111,27 +124,6 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// Optionally supplies a deadline for a new shared channel recovery cycle.
-    /// </summary>
-    /// <remarks>
-    /// The manager combines participant and caller budgets, keeping the earliest deadline.
-    /// This callback must return promptly and must not start recovery itself.
-    /// Implementations must observe recovery cancellation and finish their local cleanup.
-    /// The manager joins their cancelled recovery callbacks before handing the channel to another owner.
-    /// Final shutdown notifications must release session state before their first asynchronous wait;
-    /// their remaining best-effort cleanup does not postpone a deadline-triggered handoff.
-    /// </remarks>
-    public interface IReconnectBudgetParticipant : IReconnectParticipant
-    {
-        /// <summary>
-        /// Creates a fresh budget for one recovery cycle, or returns null for no participant-imposed limit.
-        /// </summary>
-        /// <param name="timeProvider">The channel manager's monotonic clock.</param>
-        /// <returns>The cycle budget, or null to leave the deadline to other participants and callers.</returns>
-        IRetryBudget? CreateReconnectBudget(TimeProvider timeProvider);
-    }
-
-    /// <summary>
     /// Optional interface for reconnect participants that provide a recreate callback on TFMs
     /// without default interface method support.
     /// </summary>
@@ -165,6 +157,11 @@ namespace Opc.Ua
     /// Recovery channels expire when their callback completes, times out, or is cancelled.
     /// Do not retain them or pass them to application callbacks or background workers.
     /// Ordinary requests continue to use the owning lease and wait until the entry is ready.
+    /// Implementations must observe cancellation and finish local recovery cleanup.
+    /// The manager awaits their cancelled recovery callbacks before another owner can recover the session.
+    /// A final notification through <see cref="IReconnectParticipant.OnReconnectAsync"/>
+    /// must release local recovery state before its first asynchronous wait.
+    /// The manager can stop waiting for the rest of that notification without delaying outer recovery.
     /// </remarks>
     public interface IChannelRecoveryParticipant : IReconnectParticipant
     {

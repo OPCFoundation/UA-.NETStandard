@@ -124,18 +124,20 @@ V2 session recreation pauses publishing and drains active Publish attempts
 before replacing the session. The drain cancels each attempt, including an
 attempt parked at the shared channel's ready gate, without terminating its
 worker. A cancelled attempt rolls its acknowledgements back before releasing its
-active count. Recreation must await this complete unwind; a timeout that skips
+active count. Recreation must await this complete unwind because a timeout that skips
 the drain could acknowledge notifications from the old subscription generation
 against a reused subscription identifier.
 
 Once the session and subscriptions are restored, publishing resumes through the
 same subscription-facing interface. Temporarily clearing server-side subscription
-identifiers does not replace existing workers; pool limits and actual subscription
+identifiers does not replace existing workers. Pool limits and actual subscription
 removal still apply. With transfer-on-recreate enabled, an invalid old subscription
 falls back to recreation. A
 [managed-session channel deadline](Sessions.md#shared-retry-budget-with-managedsession)
-cancels recovery and hands control to the outer reconnect policy, but never
-weakens the publishing-drain invariant.
+cancels recovery and hands control to the outer reconnect policy. After expiry,
+any replacement attempt still waits for cancelled Publish attempts to roll back
+their acknowledgements and release their active counts before replacing session
+and subscription state.
 
 ## Triggering (SetTriggering)
 

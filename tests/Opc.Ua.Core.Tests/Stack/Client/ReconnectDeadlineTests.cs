@@ -35,10 +35,16 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Core.Tests.Stack.Client
 {
+    /// <summary>
+    /// Exercises monotonic reconnect deadlines, cancellation, and completion races with a fake clock.
+    /// </summary>
     [TestFixture]
     [Parallelizable]
     public sealed class ReconnectDeadlineTests
     {
+        /// <summary>
+        /// The deadline stays live immediately before its bound and expires at the exact bound.
+        /// </summary>
         [Test]
         public async Task DeadlineExpiresAtTheExactBoundAsync()
         {
@@ -56,6 +62,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             await WaitForCancellationAsync(deadline.Token).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Successful recovery cannot be expired by a later timer tick or tighter budget.
+        /// </summary>
         [Test]
         public async Task SuccessfulCompletionRetiresTheDeadlineAsync()
         {
@@ -72,6 +81,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Assert.That(deadline.Token.IsCancellationRequested, Is.False);
         }
 
+        /// <summary>
+        /// A later budget can shorten, but never extend, the original recovery window.
+        /// </summary>
         [Test]
         public async Task LaterJoinersCanOnlyShortenTheExistingWindowAsync()
         {
@@ -88,6 +100,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Assert.That(deadline.Elapsed, Is.EqualTo(TimeSpan.FromSeconds(5)));
         }
 
+        /// <summary>
+        /// Attaching a partly consumed budget preserves its original expiry time.
+        /// </summary>
         [Test]
         public async Task PreviouslyConsumedCallerBudgetKeepsItsOriginalDeadlineAsync()
         {
@@ -103,6 +118,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Assert.That(deadline.Expired, Is.True);
         }
 
+        /// <summary>
+        /// Resetting a caller's budget does not renew a deadline that has already sampled it.
+        /// </summary>
         [Test]
         public async Task ResettingACallerBudgetCannotExtendAnAttachedDeadlineAsync()
         {
@@ -119,6 +137,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Assert.That(deadline.Expired, Is.True);
         }
 
+        /// <summary>
+        /// Null and infinite budgets impose no deadline on the recovery cycle.
+        /// </summary>
         [Test]
         public async Task UnlimitedBudgetLeavesRecoveryUnboundedAsync()
         {
@@ -133,6 +154,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Assert.That(deadline.TryComplete(), Is.True);
         }
 
+        /// <summary>
+        /// Durations beyond one timer's range rearm until the full recovery budget has elapsed.
+        /// </summary>
         [Test]
         public async Task LongExplicitBudgetRearmsWithoutExceedingTheTimerRangeAsync()
         {
@@ -149,6 +173,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Assert.That(deadline.Duration, Is.EqualTo(duration));
         }
 
+        /// <summary>
+        /// Explicit closing cancels recovery and retires the timer without reporting expiry.
+        /// </summary>
         [Test]
         public async Task ClosingRecoveryCancelsWithoutReportingExpiryAsync()
         {
@@ -164,6 +191,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Assert.That(deadline.TryComplete(), Is.False);
         }
 
+        /// <summary>
+        /// Manager shutdown cancels the linked token without producing a deadline-expired outcome.
+        /// </summary>
         [Test]
         public async Task ShutdownIsNotReportedAsDeadlineExpiryAsync()
         {
@@ -178,6 +208,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Assert.That(deadline.TryComplete(), Is.False);
         }
 
+        /// <summary>
+        /// Simultaneous completion and expiry produce exactly one successful or expired outcome.
+        /// </summary>
         [Test]
         [Repeat(20)]
         public async Task CompletionRacingWithExpiryHasOneVerdictAsync()

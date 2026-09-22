@@ -95,15 +95,18 @@ namespace Opc.Ua.Client
         public ReconnectPolicyOptions ReconnectPolicy { get; init; } = new();
 
         /// <summary>
-        /// Maximum channel-manager recovery time before the outer reconnect policy takes over.
-        /// Null selects the maximum of three keep-alive intervals, the revised session timeout,
-        /// and the operation timeout, sampled at the beginning of each cycle.
-        /// Use <see cref="Timeout.InfiniteTimeSpan"/> to retain unbounded channel recovery.
-        /// A finite override must be positive and at most <c>uint.MaxValue - 1</c> milliseconds.
+        /// Maximum channel-manager recovery time before the outer
+        /// reconnect policy takes over. Null selects the maximum of
+        /// three keep-alive intervals, the revised session timeout,
+        /// and the operation timeout, sampled at the start of each cycle.
+        /// Use <see cref="Timeout.InfiniteTimeSpan"/> to retain unbounded
+        /// channel recovery. A finite override must be positive and at
+        /// most <c>uint.MaxValue - 1</c> milliseconds.
         /// </summary>
         /// <remarks>
-        /// Applies to the built-in channel manager. When sessions share a channel, the earliest
-        /// participant or caller deadline wins. Raw sessions have no implicit deadline.
+        /// Applies to the built-in channel manager. When sessions share
+        /// a channel, the earliest participant or caller deadline wins.
+        /// Raw sessions have no implicit deadline.
         /// </remarks>
         public TimeSpan? ChannelReconnectTimeout { get; init; }
 
@@ -243,6 +246,10 @@ namespace Opc.Ua.Client
         /// </summary>
         public bool LoadComplexTypes { get; init; }
 
+        /// <summary>
+        /// Checks whether a timeout selects automatic recovery, opts out,
+        /// or specifies a positive duration within the supported timer range.
+        /// </summary>
         internal static bool IsValidChannelReconnectTimeout(TimeSpan? timeout)
         {
             return timeout == null ||
@@ -250,6 +257,10 @@ namespace Opc.Ua.Client
                 (timeout > TimeSpan.Zero && timeout <= s_maxChannelReconnectTimeout);
         }
 
+        /// <summary>
+        /// Resolves an explicit timeout or computes a finite recovery
+        /// duration from the live session settings without overflow.
+        /// </summary>
         internal static TimeSpan ResolveChannelReconnectTimeout(
             TimeSpan? timeout,
             int keepAliveInterval,

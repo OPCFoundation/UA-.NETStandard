@@ -46,6 +46,9 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.Subscriptions
 {
+    /// <summary>
+    /// Covers subscription management, Publish workers, and acknowledgement handling.
+    /// </summary>
     [TestFixture]
     [Category("Client")]
     [Category("SubscriptionManager")]
@@ -359,6 +362,10 @@ namespace Opc.Ua.Client.Subscriptions
             Assert.That(m_subscriptionManager.ReturnDiagnostics, Is.EqualTo(DiagnosticsMasks.All));
         }
 
+        /// <summary>
+        /// Temporary server-identifier loss retains workers without bypassing pool limits or actual removals.
+        /// Initial uncreated subscriptions do not start workers.
+        /// </summary>
         [Test]
         public async Task PublishWorkersSurviveUncreatedSubscriptionsAndStillHonorPoolLimitsAsync()
         {

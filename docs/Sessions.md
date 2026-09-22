@@ -556,20 +556,44 @@ scoped view. Callback-dependent subscription restoration runs through
 `CompleteRecoveryAsync` after the channel admits ordinary requests, and the
 reconnect caller still awaits that restoration.
 
-`IReconnectBudgetParticipant` optionally supplies a budget for each new shared
-recovery cycle. The manager samples active participants outside its entry lock;
-the earliest participant or caller deadline wins. `Session` supplies this budget
-only when configured by its `ManagedSession` owner. Raw sessions and discovery
-clients impose no automatic limit, although a managed session sharing their
-channel can constrain the shared cycle.
+`IReconnectParticipant.CreateReconnectBudget` supplies a budget for each new
+shared recovery cycle, or returns null to impose no participant-specific limit.
+The manager samples active participants outside its entry lock. The earliest
+participant or caller deadline wins. `Session` supplies a budget only when
+configured by its `ManagedSession` owner. Raw sessions and discovery clients
+impose no automatic limit, although a managed session sharing their channel can
+constrain the shared cycle.
 
-Budget-aware participants must return promptly from the budget callback and
-cooperatively unwind recovery when cancelled. Their cancelled recovery work is
-joined before another owner can recover the session. Final shutdown notifications
-release local state before their first asynchronous wait; best-effort notification
-cleanup cannot hold up deadline handoff. Legacy callbacks that outlive cancellation
-lose their recovery send capability, and late faults are observed. A recovery send
-also stops waiting when its scope expires even if the transport ignores cancellation.
+The budget callback must return promptly without starting recovery.
+`IChannelRecoveryParticipant` implementations, including `Session`, must finish
+their local recovery cleanup when cancelled. The manager waits for these
+callbacks to finish before allowing the outer policy to recover the session.
+Other callbacks that continue after cancellation lose their recovery send
+capability. Their eventual faults are observed, and a recovery send stops
+waiting when its scope expires even if the transport ignores cancellation.
+
+Once the cancelled recovery callbacks have finished, the manager sends a final
+`OnReconnectAsync` notification with `reconnectAttempt = -1`. The session clears
+its recovery-in-progress flag before awaiting further cleanup. The manager can
+then stop waiting for that notification without leaving the session marked as
+recovering. It releases the channel recovery cycle and publishes `Faulted`,
+allowing the outer policy to run:
+
+```mermaid
+sequenceDiagram
+    participant Manager as Channel manager
+    participant Session as Inner Session
+    participant Owner as ManagedSession
+    Manager->>Session: Cancel recovery callbacks
+    Session-->>Manager: Recovery callbacks finish local cleanup
+    Manager->>Session: OnReconnectAsync with attempt -1
+    Note right of Session: Clear recovery state before awaiting cleanup
+    Session-->>Manager: Return final-notification task
+    Note over Manager,Session: Remaining notification cleanup has a bounded wait
+    Manager->>Manager: Release recovery-cycle ownership
+    Manager-->>Owner: StateChanged(Faulted)
+    Owner->>Owner: Run outer reconnect or failover policy
+```
 
 ### Retry policy — `IChannelReconnectPolicy`
 
@@ -744,11 +768,14 @@ share a single `IRetryBudget` for each outer reconnect cycle:
    `OnReconnectAsync`. This initial channel-owned cycle has its own finite
    `ManagedSessionOptions.ChannelReconnectTimeout`.
 2. **Outer state stays `Connected` while the manager handles it.**
-   `ManagedSession` subscribes to `IManagedTransportChannel.StateChanged`;
-   while the manager is in `TransportReconnecting` /
-   `TransportConnectedSessionReactivating`, `ManagedSession` suppresses
-   the keep-alive-driven outer state-machine churn. Suppression is logged at
-   Information level with elapsed recovery time; it does not restart the deadline.
+   `ManagedSession` observes `IManagedTransportChannel.StateChanged`.
+   While the manager reconnects the transport, reactivates the session, or
+   restores subscriptions through provisional `Ready`, a failed keep-alive
+   does not start a second reconnect through the outer state machine.
+   Instead, `ManagedSession` leaves its outer state at `Connected` and logs
+   the failure at Information level with the elapsed channel recovery time.
+   This is keep-alive failure suppression. It does not stop keep-alive probes
+   or restart the channel recovery deadline.
 3. **Outer retry shares its deadline with channel retry.** When the
    channel transitions to `Faulted`, `ManagedSession.StateChanged`
    raises `ConnectionState.Reconnecting`. The outer `IReconnectPolicy`
@@ -760,49 +787,46 @@ share a single `IRetryBudget` for each outer reconnect cycle:
 
 `ChannelReconnectTimeout` defaults to `null`, selecting
 `max(3 * KeepAliveInterval, revised SessionTimeout, OperationTimeout)` in
-milliseconds. Only positive finite settings contribute; the requested session
+milliseconds. Only positive finite settings contribute. The requested session
 timeout is used until a usable revised timeout is available. Automatic values are
 clamped to the supported timer range. Changing keep-alive settings affects the
 next cycle, not the active one. An explicit override must be positive and no
 larger than `uint.MaxValue - 1` milliseconds. `Timeout.InfiniteTimeSpan` is the
-explicit opt-out; zero and other negative values are rejected.
+explicit opt-out. Zero and other negative values are rejected.
 
-The deadline uses the manager's injected `TimeProvider`, including on .NET
-Framework. Partial progress, per-callback timeout retries and certificate changes
-do not renew the window. A tighter coalesced caller shortens an in-flight
-operation; a looser caller cannot extend it. Provisional `Ready`, which admits
+The deadline uses the manager's injected `TimeProvider`. Partial progress,
+per-callback timeout retries and certificate changes do not renew the window.
+A tighter coalesced caller shortens an in-flight operation. A looser caller
+cannot extend it. Provisional `Ready`, which admits
 subscription-restoration requests, does not finish the cycle.
 
 On expiry the manager cancels recovery scopes, waits for built-in session
 cleanup, retires cycle ownership, and publishes `Faulted`. A Warning records
 the effective duration, elapsed time and phase. The existing outer state machine
 can then retry, fail over or close without another keep-alive tick. Late
-transport results cannot restore the old entry to `Ready`; late-opened transports
+transport results cannot restore the old entry to `Ready`. Late-opened transports
 are closed. Session recreation still drains cancelled Publish attempts completely
 before replacing session/subscription state. The deadline never bypasses that drain.
 
-Custom `IClientChannelManager` implementations must implement the optional
-participant budgets, in-flight cancellation and ownership ordering to provide
-the same guarantee. Setting the managed-session option alone cannot impose
-those semantics on a custom manager.
-
 `ReconnectPolicyOptions.MaxTotalReconnectTime` defaults to five
 minutes. Set it to the end-to-end reconnect window your application
-expects; channel-manager delays are automatically shrunk to fit inside
+expects. Channel-manager delays are automatically shrunk to fit inside
 that window instead of receiving a fresh budget on every outer attempt. This
-outer window starts when the outer state machine takes recovery ownership;
-it is separate from the initial channel-only window described above.
+outer window starts when the outer state machine takes recovery ownership.
+It is separate from the initial channel-only window described above.
 
 For example, with `MaxTotalReconnectTime = TimeSpan.FromSeconds(30)`,
-a channel-manager reconnect within an active outer cycle that spends 27 seconds reopening transport
-and reactivating participants leaves about three seconds for any outer
-`ManagedSession` retry / failover decision. The channel manager clamps
-its next scheduled delay to the remaining time and transitions to
-`Faulted` once the shared budget is exhausted; the outer state machine
-then fails over or closes instead of starting another 30-second channel
-retry window. In-flight channel recovery is cancelled at the deadline rather
-than being granted an additional unbounded attempt; only cooperative local
-cleanup precedes the handoff.
+the outer recovery cycle receives one 30-second budget. If a channel reconnect
+uses 27 seconds reopening the transport and reactivating sessions, only three
+seconds remain for the rest of that outer cycle. Retrying or changing recovery
+phases does not grant another 30 seconds.
+
+When the 30 seconds expire, the manager cancels any in-flight channel recovery
+and waits for the session's local recovery cleanup to finish. It then publishes
+`Faulted`. The outer policy evaluates failover or closing with the same exhausted
+budget, rather than starting a new channel retry window. Local cleanup can finish
+after the deadline, but it does not permit another recovery attempt under that
+expired budget.
 
 ```csharp
 ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
@@ -821,7 +845,7 @@ construction with `ManagedSession.CreateAsync(options, configuration, sessionFac
 channelManager: channelManager, ct: ct)`, where `options` is a
 `ManagedSessionOptions` snapshot. Existing factory overloads select the automatic
 bound. Use `.WithChannelReconnectTimeout(Timeout.InfiniteTimeSpan)` to opt out of
-the participant-imposed bound; explicit caller budgets still apply.
+the participant-imposed bound. Explicit caller budgets still apply.
 
 For migration notes on the budget-aware APIs, see
 [the migration guide](MigrationGuide.md#shared-reconnect-budget-for-managedsession-and-the-channel-manager).

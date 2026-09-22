@@ -797,6 +797,12 @@ namespace Opc.Ua.Core.Tests.Stack.Client
 
             public int NotificationCount => Volatile.Read(ref m_notificationCount);
 
+            /// <inheritdoc/>
+            public IRetryBudget? CreateReconnectBudget(TimeProvider timeProvider)
+            {
+                return null;
+            }
+
             public ValueTask<ParticipantReconnectResult> OnReconnectAsync(
                 IManagedTransportChannel channel,
                 int reconnectAttempt,
@@ -826,6 +832,12 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
             public int RecreateCount => Volatile.Read(ref m_recreateCount);
+
+            /// <inheritdoc/>
+            public IRetryBudget? CreateReconnectBudget(TimeProvider timeProvider)
+            {
+                return null;
+            }
 
             public ValueTask<ParticipantReconnectResult> OnReconnectAsync(
                 IManagedTransportChannel channel,
@@ -876,6 +888,12 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             public int RecreateCount => Volatile.Read(ref m_recreateCount);
 
             public int[] ReconnectAttempts => [.. m_reconnectAttempts];
+
+            /// <inheritdoc/>
+            public IRetryBudget? CreateReconnectBudget(TimeProvider timeProvider)
+            {
+                return null;
+            }
 
             public ValueTask<ParticipantReconnectResult> OnReconnectAsync(
                 IManagedTransportChannel channel,
@@ -932,6 +950,12 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             public TaskCompletionSource<bool> RecreateCanceled { get; } =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
+            /// <inheritdoc/>
+            public IRetryBudget? CreateReconnectBudget(TimeProvider timeProvider)
+            {
+                return null;
+            }
+
             public ValueTask<ParticipantReconnectResult> OnReconnectAsync(
                 IManagedTransportChannel channel,
                 int reconnectAttempt,
@@ -974,6 +998,12 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             public string Id { get; }
 
             public ConfiguredEndpoint Endpoint { get; }
+
+            /// <inheritdoc/>
+            public IRetryBudget? CreateReconnectBudget(TimeProvider timeProvider)
+            {
+                return null;
+            }
 
             public ValueTask<ParticipantReconnectResult> OnReconnectAsync(
                 IManagedTransportChannel channel,

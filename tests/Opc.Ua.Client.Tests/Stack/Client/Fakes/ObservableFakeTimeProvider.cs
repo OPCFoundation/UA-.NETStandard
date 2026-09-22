@@ -36,8 +36,19 @@ using Microsoft.Extensions.Time.Testing;
 
 namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
 {
+    /// <summary>
+    /// Exposes fake-time timer creation and successful schedule changes so tests can wait for timer registration
+    /// before advancing the clock.
+    /// </summary>
+    /// <remarks>
+    /// Observations are not retained. Register each wait before starting the operation whose timer should satisfy it.
+    /// </remarks>
     internal sealed class ObservableFakeTimeProvider : FakeTimeProvider
     {
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Reports the new timer's schedule and wraps it to report subsequent successful schedule changes.
+        /// </remarks>
         public override ITimer CreateTimer(
             TimerCallback callback,
             object? state,
@@ -50,18 +61,31 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         }
 
         /// <summary>
-        /// Arm before starting the operation so an earlier, unrelated timer cannot satisfy the wait.
+        /// Waits for a subsequently created timer with the specified due time, regardless of its period.
         /// </summary>
+        /// <param name="dueTime">The exact due time that must be supplied when creating the timer.</param>
         public Task WaitForTimerCreatedAsync(TimeSpan dueTime)
         {
             return WaitForTimerAsync(false, dueTime, dueTime, null);
         }
 
+        /// <summary>
+        /// Waits for a subsequently created timer with an infinite period and a due time in the inclusive range.
+        /// Returns the due time supplied when that timer was created.
+        /// </summary>
+        /// <param name="minimumDueTime">The inclusive lower bound for the timer's due time.</param>
+        /// <param name="maximumDueTime">The inclusive upper bound for the timer's due time.</param>
+        /// <exception cref="ArgumentOutOfRangeException">The maximum due time is less than the minimum.</exception>
         public Task<TimeSpan> WaitForTimerCreatedAsync(TimeSpan minimumDueTime, TimeSpan maximumDueTime)
         {
             return WaitForTimerAsync(false, minimumDueTime, maximumDueTime, Timeout.InfiniteTimeSpan);
         }
 
+        /// <summary>
+        /// Waits for a subsequent successful timer schedule change matching both the due time and period.
+        /// </summary>
+        /// <param name="dueTime">The exact due time supplied to the timer's change operation.</param>
+        /// <param name="period">The exact period supplied to the timer's change operation.</param>
         public Task WaitForTimerChangedAsync(TimeSpan dueTime, TimeSpan period)
         {
             return WaitForTimerAsync(true, dueTime, dueTime, period);
@@ -104,8 +128,14 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
             }
         }
 
+        /// <summary>
+        /// Forwards timer operations and reports successful schedule changes to the observing clock.
+        /// </summary>
+        /// <param name="owner">The clock whose pending waits receive schedule-change observations.</param>
+        /// <param name="timer">The underlying fake-time timer.</param>
         private sealed class ObservedTimer(ObservableFakeTimeProvider owner, ITimer timer) : ITimer
         {
+            /// <inheritdoc/>
             public bool Change(TimeSpan dueTime, TimeSpan period)
             {
                 bool changed = timer.Change(dueTime, period);
@@ -116,11 +146,13 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                 return changed;
             }
 
+            /// <inheritdoc/>
             public void Dispose()
             {
                 timer.Dispose();
             }
 
+            /// <inheritdoc/>
             public ValueTask DisposeAsync()
             {
                 return timer.DisposeAsync();

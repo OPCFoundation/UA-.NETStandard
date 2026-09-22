@@ -907,6 +907,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             }
         }
 
+        /// <summary>
+        /// Fatal participant verdicts fault the channel without starting another cycle for a bounded caller.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task FatalForChannelTransitionsToFaultedStateAsync(bool boundedCaller)
@@ -1388,6 +1391,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             }
         }
 
+        /// <summary>
+        /// Exhausting the shared retry budget stops further reconnect attempts and faults the channel.
+        /// </summary>
         [Test]
         [NonParallelizable]
         public async Task ReconnectAsyncWithBudgetStopsWhenExhaustedAsync()
@@ -1762,6 +1768,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             }
         }
 
+        /// <summary>
+        /// Recovery views cancel pending sends and reject reuse after their recovery generation changes.
+        /// </summary>
         [TestCase(false, false)]
         [TestCase(false, true)]
         [TestCase(true, false)]
@@ -1921,6 +1930,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             }
         }
 
+        /// <summary>
+        /// The injected clock bounds recreation and invalidates both scoped and legacy recovery views.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task RecreateParticipantTimeoutUsesInjectedClockAsync(bool scoped)
@@ -1976,7 +1988,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                             capturedView = view;
                             callbackToken = ct;
                             recreateStarted.TrySetResult(true);
-                            return new ValueTask(completion.Task);
+                            return new ValueTask(completion.Task.WaitAsync(ct));
                         });
                 }
                 using IManagedTransportChannel lease = await manager.GetAsync(participant.Object)
@@ -2022,6 +2034,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             }
         }
 
+        /// <summary>
+        /// Budget expiry interrupts transport or participant work at the exact recovery deadline.
+        /// </summary>
         [TestCase(true)]
         [TestCase(false)]
         public async Task ReconnectBudgetExpiresDuringInFlightWorkAsync(bool transport)
@@ -2117,6 +2132,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             }
         }
 
+        /// <summary>
+        /// A coalesced caller's tighter budget cancels work that is already in flight.
+        /// </summary>
         [Test]
         public async Task ReconnectBudgetTighteningCancelsAlreadyRunningWorkAsync()
         {
@@ -2182,6 +2200,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             }
         }
 
+        /// <summary>
+        /// The base participant contract supplies the earliest shared deadline without a caller override.
+        /// </summary>
         [Test]
         public async Task ParticipantBudgetsBoundSharedRecoveryWithoutACallerOverrideAsync()
         {
@@ -2198,9 +2219,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 CreateMockedSut(reconnectPolicy: policy, timeProvider: time);
             try
             {
-                Mock<IReconnectBudgetParticipant> shortParticipant =
+                Mock<IReconnectParticipant> shortParticipant =
                     CreateParticipant("short", TimeSpan.FromSeconds(1));
-                Mock<IReconnectBudgetParticipant> longParticipant =
+                Mock<IReconnectParticipant> longParticipant =
                     CreateParticipant("long", TimeSpan.FromSeconds(10));
                 transport.SetupGet(value => value.SupportedFeatures).Returns(TransportChannelFeatures.Reconnect);
                 transport.Setup(value => value.ReconnectAsync(
@@ -2237,9 +2258,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 certificate.Dispose();
             }
 
-            Mock<IReconnectBudgetParticipant> CreateParticipant(string id, TimeSpan duration)
+            Mock<IReconnectParticipant> CreateParticipant(string id, TimeSpan duration)
             {
-                var participant = new Mock<IReconnectBudgetParticipant>();
+                var participant = new Mock<IReconnectParticipant>();
                 participant.SetupGet(value => value.Id).Returns(id);
                 participant.SetupGet(value => value.Endpoint).Returns(GetTestEndpoint(certificate));
                 participant.Setup(value => value.CreateReconnectBudget(time))
@@ -2248,6 +2269,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             }
         }
 
+        /// <summary>
+        /// Provisional Ready does not complete recovery before restoration succeeds or fully unwinds on expiry.
+        /// </summary>
         [TestCase(false, false)]
         [TestCase(false, true)]
         [TestCase(true, false)]
@@ -2282,7 +2306,6 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                         return new CreateSubscriptionResponse();
                     });
                 var participant = new Mock<IChannelRecoveryParticipant>();
-                participant.As<IReconnectBudgetParticipant>();
                 participant.SetupGet(value => value.Id).Returns("restoring");
                 participant.SetupGet(value => value.Endpoint).Returns(GetTestEndpoint(certificate));
                 participant.Setup(value => value.OnReconnectAsync(
@@ -2357,6 +2380,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             }
         }
 
+        /// <summary>
+        /// Per-callback timeouts and retries consume the same overall recovery window.
+        /// </summary>
         [Test]
         public async Task ParticipantTimeoutRetriesConsumeOneRecoveryWindowAsync()
         {
@@ -2411,6 +2437,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             }
         }
 
+        /// <summary>
+        /// Cancelling one caller neither starts an unwanted cycle nor cancels another caller's shared recovery.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task CallerCancellationDoesNotStartOrCancelSharedRecoveryAsync(bool alreadyCancelled)
@@ -2472,6 +2501,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             }
         }
 
+        /// <summary>
+        /// A throwing custom budget releases recovery ownership so a later valid request can proceed.
+        /// </summary>
         [Test]
         public async Task InvalidCustomBudgetDoesNotRetainRecoveryOwnershipAsync()
         {
@@ -2503,6 +2535,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             }
         }
 
+        /// <summary>
+        /// Releasing the final lease cancels an otherwise unlimited recovery cycle.
+        /// </summary>
         [Test]
         public async Task ReleasingTheLastLeaseCancelsAnUnboundedRecoveryAsync()
         {
@@ -2547,6 +2582,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             }
         }
 
+        /// <summary>
+        /// A stalled final notification cannot retain the recovery owner after a terminal outcome.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task TerminalNotificationsCannotHoldTheRecoveryOwnerAsync(bool expiredBudget)
@@ -2603,6 +2641,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             }
         }
 
+        /// <summary>
+        /// A transport that returns after cancellation is closed instead of reviving the expired channel.
+        /// </summary>
         [Test]
         public async Task CancellationIgnoringTransportIsClosedAfterLateReconnectAsync()
         {
@@ -3084,6 +3125,12 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             public ConfiguredEndpoint Endpoint { get; }
             public int NotificationCount => Volatile.Read(ref m_notificationCount);
 
+            /// <inheritdoc/>
+            public IRetryBudget? CreateReconnectBudget(TimeProvider timeProvider)
+            {
+                return null;
+            }
+
             public ValueTask<ParticipantReconnectResult> OnReconnectAsync(
                 IManagedTransportChannel channel,
                 int reconnectAttempt,
@@ -3113,6 +3160,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         /// </remarks>
         private sealed class ObservableFakeTimeProvider : FakeTimeProvider
         {
+            /// <inheritdoc/>
             public override ITimer CreateTimer(
                 TimerCallback callback,
                 object? state,

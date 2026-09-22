@@ -1641,6 +1641,9 @@ namespace Microsoft.Extensions.DependencyInjection
                     m_hasApplicationOptions || m_hasConfigurationProvider);
             }
 
+            /// <summary>
+            /// Validates client configuration, session settings, and supplied configuration providers.
+            /// </summary>
             public static ValidateOptionsResult Validate(
                 OpcUaClientOptions options,
                 bool hasConfigurationProvider = false)

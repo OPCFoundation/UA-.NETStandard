@@ -33,6 +33,9 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
+    /// <summary>
+    /// Keeps a participant attached to a shared channel and routes its requests through the ready gate.
+    /// </summary>
     internal sealed class ManagedTransportChannelLease : IManagedTransportChannel
     {
         internal ManagedTransportChannelLease(
@@ -241,6 +244,7 @@ namespace Opc.Ua
             }
         }
 
+        /// <inheritdoc/>
         /// <inheritdoc/>
         public async ValueTask<IServiceResponse> SendRequestAsync(
             IServiceRequest request, CancellationToken ct = default)
@@ -454,6 +458,7 @@ namespace Opc.Ua
                     StatusCodes.BadInvalidState, "A recovery send channel cannot start another reconnect.");
             }
 
+            /// <inheritdoc/>
             public async ValueTask<IServiceResponse> SendRequestAsync(
                 IServiceRequest request,
                 CancellationToken ct = default)

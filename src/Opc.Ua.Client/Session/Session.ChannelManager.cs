@@ -35,11 +35,13 @@ using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
 {
+    /// <summary>
+    /// Integrates client-session recovery with shared channel management.
+    /// </summary>
     public partial class Session :
         IReconnectParticipant,
         IRecreateAwareReconnectParticipant,
-        IChannelRecoveryParticipant,
-        IReconnectBudgetParticipant
+        IChannelRecoveryParticipant
     {
         /// <summary>
         /// Stable participant identifier used by
@@ -65,7 +67,7 @@ namespace Opc.Ua.Client
         ConfiguredEndpoint IReconnectParticipant.Endpoint => ConfiguredEndpoint;
 
         /// <inheritdoc/>
-        IRetryBudget? IReconnectBudgetParticipant.CreateReconnectBudget(TimeProvider timeProvider)
+        IRetryBudget? IReconnectParticipant.CreateReconnectBudget(TimeProvider timeProvider)
         {
             if (!Volatile.Read(ref m_boundChannelReconnect))
             {
@@ -85,6 +87,9 @@ namespace Opc.Ua.Client
                 timeProvider);
         }
 
+        /// <summary>
+        /// Enables the managed-session recovery bound and its requested-timeout fallback.
+        /// </summary>
         internal void ConfigureChannelReconnectTimeout(TimeSpan? timeout, uint requestedSessionTimeout)
         {
             if (!ManagedSessionOptions.IsValidChannelReconnectTimeout(timeout))
@@ -110,6 +115,9 @@ namespace Opc.Ua.Client
         /// </summary>
         public IClientChannelManager? ChannelManager => m_channelManager;
 
+        /// <summary>
+        /// Whether scoped channel recovery or its subscription restoration is still active.
+        /// </summary>
         internal bool ChannelRecoveryInProgress => Volatile.Read(ref m_channelRecoveryInProgress) != 0;
 
         /// <summary>
