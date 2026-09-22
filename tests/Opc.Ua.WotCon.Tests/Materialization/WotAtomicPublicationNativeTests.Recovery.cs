@@ -61,6 +61,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [TestCase("missing-input")]
         [TestCase("invalid-graph")]
         [TestCase("foreign-server")]
+        [TestCase("absent-graph")]
+        [TestCase("empty-graph")]
         public async Task StartupRejectsUnverifiableCommittedEvidenceWithoutNewPublication(string invalid)
         {
             using var views = new LifecycleWotViewProjectionHost(m_server.NodeManagerLifecycle);
@@ -78,6 +80,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     group.Resources.SetItem(source.ResourceId, active.WithCommittedVersion(null)), group.Epoch),
                     before.Generation + 1);
             }
+            else if (invalid is "absent-graph" or "empty-graph")
+            {
+                damaged = new WotRegistrySnapshot(before.Generation + 1, before.Groups, before.Labels,
+                    invalid == "absent-graph" ? default : ByteString.Empty, before.RefreshGeneration);
+            }
             else
             {
                 JsonNode graph = invalid == "invalid-graph"
@@ -93,6 +100,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             await m_store.CommitAsync(damaged).ConfigureAwait(false);
             await using PreparedWotTestRuntime restarted = await PreparedWotTestRuntime.StartAsync()
                 .ConfigureAwait(false);
+            restarted.Namespaces.GetIndexOrAppend(kStockViewNamespace);
             using var store = new FileWotRegistryStore(Path.Combine(m_root, "registry"));
             using var registry = new WotRegistryService(store);
             using var restoredViews = new LifecycleWotViewProjectionHost(restarted.Lifecycle);

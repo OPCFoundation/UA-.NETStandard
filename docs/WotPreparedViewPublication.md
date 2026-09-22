@@ -261,6 +261,10 @@ owners. The View planner validates the recorded logical server, roles, Node fact
 membership and token history against the recovered source image. Resource root
 NodeIds are rebased to the current namespace table only in the runtime snapshot;
 durable identities, store/refresh generations and graph bytes do not change.
+An active projection Resource requires its recorded canonical graph even on a
+fresh host with no runtime View handles. Null or empty graph bytes are not
+evidence of an ordinary source-only or empty publication when committed
+projection inputs remain.
 
 `IWotRegistryRecoveryStore` validates an owner-issued generation and retains its
 authority through the runtime switch. The registry's

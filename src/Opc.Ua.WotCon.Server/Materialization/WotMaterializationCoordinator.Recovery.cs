@@ -188,6 +188,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     capture.Closures.Clear();
                     capture.Namespaces.Clear();
                 }
+                if (graph is null && capture.ViewUpdates.Count != 0)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidState,
+                        "Committed projection Resources require their complete recorded canonical graph.");
+                }
                 IWotPreparedViewPublication? views = null;
                 try
                 {
