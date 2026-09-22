@@ -63,6 +63,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [TestCase("foreign-server")]
         [TestCase("absent-graph")]
         [TestCase("empty-graph")]
+        [TestCase("count-zero")]
+        [TestCase("count-extra")]
+        [TestCase("wrong-root")]
         public async Task StartupRejectsUnverifiableCommittedEvidenceWithoutNewPublication(string invalid)
         {
             using var views = new LifecycleWotViewProjectionHost(m_server.NodeManagerLifecycle);
@@ -79,6 +82,16 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 damaged = before.WithGroup(group.WithResources(
                     group.Resources.SetItem(source.ResourceId, active.WithCommittedVersion(null)), group.Epoch),
                     before.Generation + 1);
+            }
+            else if (invalid is "count-zero" or "count-extra" or "wrong-root")
+            {
+                WotResource projection = before.FindResource(WotRegistryGroups.ThingDescriptions, "child")!;
+                WotResourceGroup group = before.FindGroup(projection.GroupId)!;
+                WotResource changed = invalid == "wrong-root"
+                    ? projection.With(rootNodeId: new NodeId("WrongView", projection.RootNodeId.NamespaceIndex))
+                    : projection.With(materializedNodeCount: invalid == "count-zero" ? 0 : 99);
+                damaged = before.WithGroup(group.WithResources(
+                    group.Resources.SetItem(projection.ResourceId, changed), group.Epoch), before.Generation + 1);
             }
             else if (invalid is "absent-graph" or "empty-graph")
             {

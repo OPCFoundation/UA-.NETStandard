@@ -252,6 +252,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         throw new ServiceResultException(
                             StatusCodes.BadInvalidState, "Recovery changed the decided canonical graph.");
                     }
+                    ValidateRecoveredViewMetadata(snapshot, graph, recoveredViews);
                     WotRegistrySnapshot runtime = RebaseRecoveredRoots(snapshot, capture, recoveredViews);
                     foreach (ClosureState closure in capture.Closures.Values)
                     {
@@ -336,6 +337,37 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         .Select(resource => (resource.Xid, resource.ActiveVersionId,
                             resource.ActiveVersion?.Epoch ?? 0, resource.ActiveVersion?.DigestHex ?? string.Empty))
                         .OrderBy(value => value.Xid, StringComparer.Ordinal));
+        }
+
+        private void ValidateRecoveredViewMetadata(
+            WotRegistrySnapshot snapshot,
+            WotCanonicalViewState? graph,
+            ArrayOf<WotViewProjectionHandle> views)
+        {
+            var active = graph?.Views.ToList().Where(view => view.Active)
+                .ToDictionary(view => view.ResourceXid, StringComparer.Ordinal)
+                ?? new Dictionary<string, WotCanonicalViewPublication>(StringComparer.Ordinal);
+            if (active.Count != views.Count)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidState, "Recovery has an incomplete canonical View image.");
+            }
+            var bound = new HashSet<string>(StringComparer.Ordinal);
+            foreach (WotViewProjectionHandle view in views)
+            {
+                WotResource? resource = snapshot.FindResourceByXid(view.ResourceXid);
+                if (!bound.Add(view.ResourceXid) || !active.TryGetValue(view.ResourceXid, out var recorded) ||
+                    resource is null || resource.ActiveVersionId is null || resource.CommittedVersion is null ||
+                    resource.MaterializedNodeCount != recorded.MaterializedNodeCount ||
+                    view.MaterializedNodeCount != recorded.MaterializedNodeCount ||
+                    resource.RootNodeId.IsNull || view.ViewNodeId.IsNull ||
+                    resource.RootNodeId.WithNamespaceIndex(0) != view.ViewNodeId.WithNamespaceIndex(0) ||
+                    ResolveRootNodeId(recorded.ViewNodeId) != view.ViewNodeId)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidState, "Committed Resource metadata disagrees with its canonical View.");
+                }
+            }
         }
 
         private static WotRegistrySnapshot RebaseRecoveredRoots(

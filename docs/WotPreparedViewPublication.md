@@ -265,6 +265,10 @@ An active projection Resource requires its recorded canonical graph even on a
 fresh host with no runtime View handles. Null or empty graph bytes are not
 evidence of an ordinary source-only or empty publication when committed
 projection inputs remain.
+Before publication, the complete recovered View handle set must match the
+active graph entries and their committed logical Resources. Missing/duplicate
+owners, different root identities or inconsistent materialized-node counts
+fail recovery; the runtime does not preserve or repair a contradictory count.
 
 `IWotRegistryRecoveryStore` validates an owner-issued generation and retains its
 authority through the runtime switch. The registry's
