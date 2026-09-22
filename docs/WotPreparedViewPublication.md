@@ -144,6 +144,26 @@ polling does not reconstruct the graph. This index does not retain retired
 snapshots, and a malformed or unsupported carrier remains an error rather than
 a previously cached digest.
 
+Native Resource reads also use the captured routing image for `ActiveVersionId`,
+`RefreshGeneration`, `MaterializedNodeCount`, `RootNodeId`, `LoadState` and
+`LastRefreshTime`. The stock registry registers an
+`IWotRegistryReadImageProjection`, which prepares immutable field values for its
+exact NodeManager. Prepared registry publications expose those values as
+`ReadImages`; the source publication binds them before the store decision.
+Core retains each `INodeManagerReadImage` with its routing snapshot, and
+`INodeManagerReadImageSource` selects the state captured by the current request.
+An older Read therefore retains its previous values even after the stable
+registry Nodes have been reconciled to a newer generation.
+
+The same mechanism applies to source-only and removal-only units. Retirement
+clears the active Version, root and count in the decided metadata while removing
+the source routes. A metadata-only observation uses `PrepareReadImagesAsync` on
+the existing invocation owner: it changes the captured metadata without
+replacing source/View registrations or advancing the materialization generation.
+Images contain only the projection fields, not retained document bytes or a
+second registry store. A custom source provider must bind supplied read images
+or reject the unit before its durable decision.
+
 The direct constructor accepts a `WotProjectionRetirementPolicy`; its default
 is graceful. DI takes that policy from `WotRegistryServerOptions`, like the
 coordinator. The complete remaining request closure governs canonical retirement,
@@ -312,6 +332,12 @@ projection dispatcher before lifting the fence. Recovery therefore updates nativ
 ActiveVersionId, RefreshGeneration, root and count Properties even when the next
 Refresh fails its expected-generation check. It does not emit another Changed
 transition or replay native event intent.
+
+Recovered read images switch with source/View routing before projection
+acknowledgment. A delayed or failed earlier projection callback cannot expose
+new source values with old active-Resource metadata. Notification-silent
+reconciliation still completes the stable NodeState update and remains required
+before mutation resumes; it is not the authority for captured Read values.
 
 Projection callbacks run without the registry mutation semaphore held, so a
 conflicting callback cannot deadlock admission. The recovery fence rejects such

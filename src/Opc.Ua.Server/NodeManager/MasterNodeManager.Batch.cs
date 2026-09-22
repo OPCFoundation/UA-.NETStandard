@@ -35,8 +35,15 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
 {
-    public partial class MasterNodeManager : IDynamicNodeManagerBatchHost
+    public partial class MasterNodeManager : IDynamicNodeManagerBatchHost, INodeManagerReadImageSource
     {
+        /// <inheritdoc/>
+        public INodeManagerReadImage? GetReadImage(IAsyncNodeManager owner)
+        {
+            _ = owner ?? throw new ArgumentNullException(nameof(owner));
+            return m_nodeManagers.GetReadImage(owner);
+        }
+
         NodeManagerRoutingTable.RoutingSnapshot IDynamicNodeManagerBatchHost.RoutingRevision
             => m_nodeManagers.Revision;
 
@@ -82,6 +89,7 @@ namespace Opc.Ua.Server
             EncodeableFactory factory,
             EncodeableFactory originalFactory,
             long factoryRevision,
+            ArrayOf<INodeManagerReadImage> readImages,
             Func<CancellationToken, ValueTask> decideAsync,
             Action published,
             Func<ValueTask> reconcileBindingsAsync,
@@ -145,7 +153,7 @@ namespace Opc.Ua.Server
                         using NodeManagerRoutingTable.PreparedRoutes routes =
                             m_nodeManagers.PrepareBatch(
                                 candidates, removed, routingRevision, ResolveNamespaceIndexes,
-                                typeTree, factory, referenceImages);
+                                typeTree, factory, referenceImages, readImages);
                         routes.Reserve();
                         using TypeTable.Publication types = Server.TypeTree.BeginPublication(originalTypes, typeRevision);
                         using EncodeableFactory.Publication registrations =

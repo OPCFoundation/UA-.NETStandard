@@ -49,13 +49,15 @@ namespace Opc.Ua.Server
         private async ValueTask<IPreparedNodeManagerBatch> PrepareBatchAsync(
             ArrayOf<NodeManagerBatchChange> changes,
             PublicationInvocation? publication,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            ArrayOf<INodeManagerReadImage> readImages = default)
         {
-            if (changes.IsNull || changes.Count == 0)
+            if (changes.IsNull || (changes.Count == 0 && readImages.Count == 0))
             {
                 throw new ArgumentException("A publication unit must contain at least one change.", nameof(changes));
             }
             changes = [.. changes];
+            readImages = [.. readImages];
             var identities = new HashSet<Guid>();
             bool allowRequestCallback = true;
             foreach (NodeManagerBatchChange change in changes)
@@ -169,6 +171,10 @@ namespace Opc.Ua.Server
                         this, server, host, entries, operation, namespaceCount, allowRequestCallback,
                         batchHost.RoutingRevision, preparedTypes, originalTypes, typeRevision,
                         preparedFactory, originalFactory, factoryRevision, resolver);
+                    if (readImages.Count != 0)
+                    {
+                        prepared.BindReadImages(readImages);
+                    }
                     operation = null;
                     return prepared;
                 }
@@ -248,7 +254,8 @@ namespace Opc.Ua.Server
                     retired.Where(generation => generation.DetachActiveMonitoredItems)
                         .Select(generation => generation.NodeManager).ToArrayOf(),
                     batch.RoutingRevision, batch.TypeTree, batch.OriginalTypes,
-                    batch.TypeRevision, batch.Factory, batch.OriginalFactory, batch.FactoryRevision, decideAsync,
+                    batch.TypeRevision, batch.Factory, batch.OriginalFactory, batch.FactoryRevision,
+                    batch.ReadImages, decideAsync,
                     () =>
                     {
                         batch.IsCommitted = true;
@@ -522,6 +529,26 @@ namespace Opc.Ua.Server
             public EncodeableFactory OriginalFactory { get; }
             public long FactoryRevision { get; }
             public IDataTypeDefinitionResolver? Resolver { get; }
+            public ArrayOf<INodeManagerReadImage> ReadImages { get; private set; }
+
+            public void BindReadImages(ArrayOf<INodeManagerReadImage> images)
+            {
+                if (images.IsNull)
+                {
+                    throw new ArgumentNullException(nameof(images));
+                }
+                ArrayOf<INodeManagerReadImage> captured = [.. images];
+                lock (m_stateGate)
+                {
+                    if (m_state != 0 || m_readImagesBound)
+                    {
+                        throw new InvalidOperationException(
+                            "Read images must be bound once before consuming the batch.");
+                    }
+                    ReadImages = captured;
+                    m_readImagesBound = true;
+                }
+            }
 
             public ValueTask<NodeManagerBatchResult> CommitAsync(
                 Func<CancellationToken, ValueTask> decideAsync,
@@ -543,7 +570,11 @@ namespace Opc.Ua.Server
 
             public async ValueTask DisposeAsync()
             {
-                int state = Interlocked.CompareExchange(ref m_state, 2, 0);
+                int state;
+                lock (m_stateGate)
+                {
+                    state = Interlocked.CompareExchange(ref m_state, 2, 0);
+                }
                 if (state == 1)
                 {
                     await m_finished.Task.ConfigureAwait(false);
@@ -590,9 +621,12 @@ namespace Opc.Ua.Server
                 {
                     throw new ArgumentNullException(nameof(decideAsync));
                 }
-                if (Interlocked.CompareExchange(ref m_state, 1, 0) != 0)
+                lock (m_stateGate)
                 {
-                    throw new InvalidOperationException("The prepared batch has already been consumed.");
+                    if (Interlocked.CompareExchange(ref m_state, 1, 0) != 0)
+                    {
+                        throw new InvalidOperationException("The prepared batch has already been consumed.");
+                    }
                 }
                 try
                 {
@@ -611,10 +645,12 @@ namespace Opc.Ua.Server
             }
 
             private readonly NodeManagerLifecycle m_owner;
+            private readonly Lock m_stateGate = new();
             private readonly TaskCompletionSource<bool> m_finished =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
             private OperationLifetime? m_operation;
             private int m_state;
+            private bool m_readImagesBound;
         }
     }
 }

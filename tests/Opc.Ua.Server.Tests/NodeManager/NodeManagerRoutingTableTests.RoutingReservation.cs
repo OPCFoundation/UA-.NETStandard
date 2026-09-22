@@ -76,6 +76,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             IAsyncNodeManager unrelatedHidden = CreateManager();
             table.Add(original, InitialNamespaceIndexes);
             table.RegisterNamespace(8, unrelatedHidden, visible: false);
+            var readImage = new TestReadImage(firstPermanent, 1);
+            PublishReadImage(table, readImage);
             NodeManagerRoutingTable.RoutingSnapshot previous = table.Revision;
             var initializedTypes = new TypeTable(new NamespaceTable());
             var initializedFactory = (EncodeableFactory)EncodeableFactory.Create();
@@ -155,8 +157,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             Assert.That(table.NamespaceManagers.ContainsKey(8), Is.False,
                 "Neither publication nor a later write may reveal an unrelated hidden owner.");
+            Assert.That(table.GetReadImage(firstPermanent),
+                mutation == "Clear" ? Is.Null : Is.SameAs(readImage));
             using (table.Capture(previous))
             {
+                Assert.That(table.GetReadImage(firstPermanent), Is.SameAs(readImage));
                 Assert.That(table.ToArray(), Is.EqualTo(new[] { firstPermanent, secondPermanent, original }));
                 AssertSingleManagerRoute(table.NamespaceManagers, 2, original);
                 AssertSingleManagerRoute(table.NamespaceManagers, 3, original);

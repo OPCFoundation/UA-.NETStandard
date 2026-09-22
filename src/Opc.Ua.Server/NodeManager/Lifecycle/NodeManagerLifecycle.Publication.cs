@@ -143,8 +143,26 @@ namespace Opc.Ua.Server
             public PublicationCapture Capture { get; } = capture;
             public Task Finished => m_finished.Task;
 
-            public async ValueTask<IPreparedNodeManagerBatch> PrepareAsync(
+            public ValueTask<IPreparedNodeManagerBatch> PrepareAsync(
                 ArrayOf<NodeManagerBatchChange> changes, CancellationToken cancellationToken = default)
+            {
+                return PrepareCoreAsync(changes, default, cancellationToken);
+            }
+
+            public ValueTask<IPreparedNodeManagerBatch> PrepareReadImagesAsync(
+                ArrayOf<INodeManagerReadImage> images, CancellationToken cancellationToken = default)
+            {
+                if (images.Count == 0)
+                {
+                    throw new ArgumentException("A read publication must contain at least one image.", nameof(images));
+                }
+                return PrepareCoreAsync([], images, cancellationToken);
+            }
+
+            private async ValueTask<IPreparedNodeManagerBatch> PrepareCoreAsync(
+                ArrayOf<NodeManagerBatchChange> changes,
+                ArrayOf<INodeManagerReadImage> images,
+                CancellationToken cancellationToken)
             {
                 lock (owner.m_operationLifetimeLock)
                 {
@@ -161,8 +179,8 @@ namespace Opc.Ua.Server
                 }
                 try
                 {
-                    IPreparedNodeManagerBatch batch = await owner.PrepareBatchAsync(changes, this, cancellationToken)
-                        .ConfigureAwait(false);
+                    IPreparedNodeManagerBatch batch = await owner.PrepareBatchAsync(
+                        changes, this, cancellationToken, images).ConfigureAwait(false);
                     lock (owner.m_operationLifetimeLock)
                     {
                         m_batches.Add(batch);

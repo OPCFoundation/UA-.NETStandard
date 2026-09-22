@@ -30,6 +30,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Server;
 
 namespace Opc.Ua.WotCon.Server.Materialization
 {
@@ -116,6 +117,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             ArrayOf<WotProjectionChange> changes,
             IWotPreparedViewPublication? views = null,
             CancellationToken cancellationToken = default);
+
     }
 
     /// <summary>
@@ -162,6 +164,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
             ArrayOf<WotProjectionChange> changes,
             IWotPreparedViewPublication? views = null,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Prepares a read-metadata-only unit without replacing source or View owners.
+        /// </summary>
+        ValueTask<IWotPreparedProjectionPublication> PrepareReadImagesAsync(
+            ArrayOf<INodeManagerReadImage> images,
+            CancellationToken cancellationToken = default);
     }
 
     /// <summary>
@@ -188,6 +197,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Gets a post-publication readiness/retirement reconciliation failure.
         /// </summary>
         Exception? CleanupFailure { get; }
+
+        /// <summary>
+        /// Binds native metadata to the same captured routing image before the publication decision.
+        /// Providers unable to retain these images must reject them before commit.
+        /// </summary>
+        void BindReadImages(ArrayOf<INodeManagerReadImage> images);
 
         /// <summary>
         /// Executes the coordinator's durable decision, publishes one routing image and its prepared

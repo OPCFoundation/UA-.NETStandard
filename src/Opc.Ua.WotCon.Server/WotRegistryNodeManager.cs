@@ -51,7 +51,7 @@ namespace Opc.Ua.WotCon.Server
     /// coordinator's events are re-emitted as the generated registry event types.
     /// </summary>
     public sealed class WotRegistryNodeManager : AsyncCustomNodeManager, INodeManagerReadinessParticipant,
-        IWotRegistryRecoveryProjection
+        IWotRegistryReadImageProjection
     {
         /// <summary>
         /// Initializes a new registry NodeManager.
@@ -227,6 +227,13 @@ namespace Opc.Ua.WotCon.Server
                     StatusCodes.BadInvalidState, "The recovered registry image is no longer current.");
             }
             return m_projection.ReconcileProjectionAsync(cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        INodeManagerReadImage IWotRegistryReadImageProjection.PrepareReadImage(
+            WotRegistrySnapshot previousSnapshot, WotRegistrySnapshot intendedSnapshot)
+        {
+            return m_projection.PrepareReadImage(previousSnapshot, intendedSnapshot);
         }
 
         /// <inheritdoc/>

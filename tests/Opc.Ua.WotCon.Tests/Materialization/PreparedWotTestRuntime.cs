@@ -181,6 +181,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             {
                 return inner.DisposeAsync();
             }
+
+            public async ValueTask<IWotPreparedProjectionPublication> PrepareReadImagesAsync(
+                ArrayOf<INodeManagerReadImage> images, CancellationToken cancellationToken = default)
+            {
+                IWotPreparedProjectionPublication unit = await inner.PrepareReadImagesAsync(images, cancellationToken)
+                    .ConfigureAwait(false);
+                return new ObservedUnit(unit, [], published);
+            }
         }
 
         private sealed class ObservedUnit(
@@ -192,6 +200,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             public WotPreparedViewGraphState? ViewGraph => inner.ViewGraph;
             public bool IsCommitted => inner.IsCommitted;
             public Exception? CleanupFailure => inner.CleanupFailure;
+
+            public void BindReadImages(ArrayOf<INodeManagerReadImage> images)
+            {
+                inner.BindReadImages(images);
+            }
 
             public ValueTask CommitAsync(
                 Func<CancellationToken, ValueTask> decideAsync, Action publishCommittedState,

@@ -33,6 +33,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Server;
 
 namespace Opc.Ua.WotCon.Server.Registry
 {
@@ -111,6 +112,25 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
         }
 
+        private ArrayOf<INodeManagerReadImage> PrepareReadImages(
+            WotRegistrySnapshot previous, WotRegistrySnapshot intended)
+        {
+            RecoveryProjectionRegistration[] projections;
+            lock (m_recoveryProjectionGate)
+            {
+                projections = [.. m_recoveryProjections];
+            }
+            var images = new List<INodeManagerReadImage>();
+            foreach (RecoveryProjectionRegistration projection in projections)
+            {
+                if (projection.PrepareReadImage(previous, intended) is { } image)
+                {
+                    images.Add(image);
+                }
+            }
+            return [.. images];
+        }
+
         /// <inheritdoc/>
         public async ValueTask<IWotRegistryPublication> BeginPublicationAsync(
             CancellationToken cancellationToken = default)
@@ -186,7 +206,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             try
             {
                 var publication = new PreparedRegistryPublication(
-                    expectedSnapshot, next, changed, decision,
+                    expectedSnapshot, next, PrepareReadImages(expectedSnapshot, next), changed, decision,
                     DecidePublicationAsync, PublishPublication, ReleasePublication, invocation);
                 decision = null;
                 return publication;
@@ -281,7 +301,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             try
             {
                 FileWotRegistryStore.ValidateRecoveryMetadata(captured.Snapshot, expectedSnapshot);
-                return new PreparedRegistryRecovery(this, invocation, store, captured, expectedSnapshot, runtimeSnapshot);
+                return new PreparedRegistryRecovery(
+                    this, invocation, store, captured, expectedSnapshot, runtimeSnapshot,
+                    PrepareReadImages(expectedSnapshot, runtimeSnapshot));
             }
             catch
             {
@@ -380,6 +402,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         private sealed class PreparedRegistryPublication(
             WotRegistrySnapshot previous,
             WotRegistrySnapshot intended,
+            ArrayOf<INodeManagerReadImage> readImages,
             ArrayOf<string> changed,
             IWotRegistryPreparedCommit decision,
             Func<PreparedRegistryPublication, CancellationToken, ValueTask> decide,
@@ -389,6 +412,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         {
             public WotRegistrySnapshot PreviousSnapshot { get; } = previous;
             public WotRegistrySnapshot IntendedSnapshot { get; } = intended;
+            public ArrayOf<INodeManagerReadImage> ReadImages { get; } = readImages;
             public ArrayOf<string> Changed { get; } = changed;
             public IWotRegistryPreparedCommit Decision { get; } = decision;
             public RegistryPublicationInvocation? Invocation { get; } = invocation;
@@ -462,9 +486,11 @@ namespace Opc.Ua.WotCon.Server.Registry
             IWotRegistryRecoveryStore store,
             IWotRegistryValidatedGeneration captured,
             WotRegistrySnapshot expected,
-            WotRegistrySnapshot runtime) : IWotPreparedRegistryRecovery
+            WotRegistrySnapshot runtime,
+            ArrayOf<INodeManagerReadImage> readImages) : IWotPreparedRegistryRecovery
         {
             public WotRegistrySnapshot RuntimeSnapshot => runtime;
+            public ArrayOf<INodeManagerReadImage> ReadImages => readImages;
 
             public async ValueTask ValidateAsync(CancellationToken cancellationToken = default)
             {
@@ -612,6 +638,14 @@ namespace Opc.Ua.WotCon.Server.Registry
         private sealed class RecoveryProjectionRegistration(
             WotRegistryService owner, IWotRegistryRecoveryProjection projection) : IDisposable
         {
+            public INodeManagerReadImage? PrepareReadImage(
+                WotRegistrySnapshot previous, WotRegistrySnapshot intended)
+            {
+                return Volatile.Read(ref m_projection) is IWotRegistryReadImageProjection current
+                    ? current.PrepareReadImage(previous, intended)
+                    : null;
+            }
+
             public ValueTask SynchronizeAsync(WotRegistrySnapshot snapshot)
             {
                 IWotRegistryRecoveryProjection? current = Volatile.Read(ref m_projection);

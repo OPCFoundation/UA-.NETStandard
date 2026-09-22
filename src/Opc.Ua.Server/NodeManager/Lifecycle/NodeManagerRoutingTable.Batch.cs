@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 
 namespace Opc.Ua.Server
@@ -45,6 +46,11 @@ namespace Opc.Ua.Server
         internal EncodeableFactory? Factory => m_preparedFactory.Value ?? ReadSnapshot.Factory;
 
         private RoutingSnapshot ReadSnapshot => m_readSnapshot.Value ?? Volatile.Read(ref m_snapshot);
+
+        internal INodeManagerReadImage? GetReadImage(IAsyncNodeManager owner)
+        {
+            return ReadSnapshot.ReadImages.TryGetValue(owner, out INodeManagerReadImage? image) ? image : null;
+        }
 
         internal ReadScope Capture(RoutingSnapshot? snapshot = null)
         {
@@ -76,7 +82,8 @@ namespace Opc.Ua.Server
             Func<IAsyncNodeManager, IEnumerable<int>> resolveNamespaces,
             TypeTable typeTree,
             EncodeableFactory factory,
-            IReadOnlyDictionary<NodeState, NodeState.ReferenceSnapshot>? references = null)
+            IReadOnlyDictionary<NodeState, NodeState.ReferenceSnapshot>? references = null,
+            ArrayOf<INodeManagerReadImage> readImages = default)
         {
             lock (m_lock)
             {
@@ -157,6 +164,22 @@ namespace Opc.Ua.Server
                 {
                     routes[index] = [.. routes[index].OrderBy(manager => managers.IndexOf(manager))];
                 }
+                Dictionary<IAsyncNodeManager, INodeManagerReadImage> images =
+                    current.ReadImages.ToDictionary(
+                        entry => entry.Key, entry => entry.Value, ReadImageOwnerComparer.Instance);
+                var imageOwners = new HashSet<IAsyncNodeManager>(ReadImageOwnerComparer.Instance);
+                foreach (INodeManagerReadImage image in readImages)
+                {
+                    if (image?.Owner is not { } owner || !managers.Any(manager => ReferenceEquals(manager, owner)))
+                    {
+                        throw new InvalidOperationException("A read image has no owner in the prepared routing image.");
+                    }
+                    if (!imageOwners.Add(owner))
+                    {
+                        throw new InvalidOperationException("A publication contains more than one image for an owner.");
+                    }
+                    images[owner] = image;
+                }
                 var next = new RoutingSnapshot(
                     [.. managers],
                     routes,
@@ -167,7 +190,8 @@ namespace Opc.Ua.Server
                     ],
                     typeTree,
                     factory,
-                    references ?? current.References);
+                    references ?? current.References,
+                    images);
                 return new PreparedRoutes(this, current, next);
             }
         }
@@ -221,7 +245,7 @@ namespace Opc.Ua.Server
                 {
                     m_snapshot = new RoutingSnapshot(
                         m_snapshot.NodeManagers, m_snapshot.NamespaceManagers, m_snapshot.HiddenNodeManagers,
-                        m_snapshot.TypeTree, m_snapshot.Factory, references);
+                        m_snapshot.TypeTree, m_snapshot.Factory, references, m_snapshot.ReadImages);
                 }
             }
         }
@@ -245,6 +269,21 @@ namespace Opc.Ua.Server
         private readonly AsyncLocal<EncodeableFactory?> m_preparedFactory = new();
         private readonly Dictionary<NodeState, IAsyncNodeManager> m_referenceOwners = [];
         private PreparedRoutes? m_reservedRoutes;
+
+        private sealed class ReadImageOwnerComparer : IEqualityComparer<IAsyncNodeManager>
+        {
+            public static ReadImageOwnerComparer Instance { get; } = new();
+
+            public bool Equals(IAsyncNodeManager? left, IAsyncNodeManager? right)
+            {
+                return ReferenceEquals(left, right);
+            }
+
+            public int GetHashCode(IAsyncNodeManager owner)
+            {
+                return RuntimeHelpers.GetHashCode(owner);
+            }
+        }
 
         private sealed class TypeScope(
             NodeManagerRoutingTable owner,

@@ -268,6 +268,7 @@ namespace Opc.Ua.Server
             EncodeableFactory factory,
             EncodeableFactory originalFactory,
             long factoryRevision,
+            ArrayOf<INodeManagerReadImage> readImages,
             Func<CancellationToken, ValueTask> decideAsync,
             Action published,
             Func<ValueTask> reconcileBindingsAsync,

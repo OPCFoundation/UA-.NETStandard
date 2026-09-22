@@ -405,6 +405,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                             snapshot, [projection], generation, graph.CanonicalViewGraphState).ConfigureAwait(false);
                         await using (metadata.ConfigureAwait(false))
                         {
+                            prepared.BindReadImages(metadata.ReadImages);
                             var committed = new WotCommittedPublicationState(metadata.IntendedSnapshot, graph.Views);
                             await prepared.CommitAsync(metadata.DecideAsync, () =>
                             {
@@ -1417,6 +1418,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                             .ConfigureAwait(false);
                         await using (metadata.ConfigureAwait(false))
                         {
+                            prepared.BindReadImages(metadata.ReadImages);
                             var committed = new WotCommittedPublicationState(metadata.IntendedSnapshot, graph.Views);
                             await prepared.CommitAsync(metadata.DecideAsync, () =>
                             {
@@ -1714,7 +1716,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
         }
 
-        private sealed class BlockingSourceFactory : IAsyncNodeManagerFactory
+        internal sealed class BlockingSourceFactory : IAsyncNodeManagerFactory
         {
             public ArrayOf<string> NamespacesUris => ["urn:c2:blocked-source"];
             public BlockingSource Created { get; private set; } = null!;
@@ -1728,7 +1730,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
         }
 
-        private sealed class BlockingSource : AsyncCustomNodeManager
+        internal sealed class BlockingSource : AsyncCustomNodeManager
         {
             public BlockingSource(IServerInternal server, ApplicationConfiguration configuration)
                 : base(server, configuration, server.Telemetry.CreateLogger<BlockingSource>(), "urn:c2:blocked-source")

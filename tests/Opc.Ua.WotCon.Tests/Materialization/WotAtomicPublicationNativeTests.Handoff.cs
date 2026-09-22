@@ -578,6 +578,15 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 publication.SetupGet(value => value.ViewGraph).Returns(prepared.ViewGraph);
                 publication.SetupGet(value => value.IsCommitted).Returns(() => prepared.IsCommitted);
                 publication.SetupGet(value => value.CleanupFailure).Returns(() => prepared.CleanupFailure);
+                publication.Setup(value => value.BindReadImages(It.IsAny<ArrayOf<INodeManagerReadImage>>()))
+                    .Callback((ArrayOf<INodeManagerReadImage> images) =>
+                    {
+                        if (probe.RejectReadImages)
+                        {
+                            throw new NotSupportedException("The custom source provider cannot retain read images.");
+                        }
+                        prepared.BindReadImages(images);
+                    });
                 publication.Setup(value => value.CommitAsync(
                     It.IsAny<Func<CancellationToken, ValueTask>>(), It.IsAny<Action>(),
                     It.IsAny<CancellationToken>())).Returns(async (
@@ -641,6 +650,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                                 ArrayOf<WotProjectionChange> changes, IWotPreparedViewPublication? views,
                                 CancellationToken ct) =>
                             Track(await admitted.PrepareAsync(changes, views, ct).ConfigureAwait(false), changes));
+                        invocation.Setup(value => value.PrepareReadImagesAsync(
+                            It.IsAny<ArrayOf<INodeManagerReadImage>>(), It.IsAny<CancellationToken>()))
+                            .Returns((ArrayOf<INodeManagerReadImage> images, CancellationToken ct) =>
+                                admitted.PrepareReadImagesAsync(images, ct));
                         invocation.Setup(value => value.DisposeAsync()).Returns(() => admitted.DisposeAsync());
                         return invocation.Object;
                     });
@@ -661,6 +674,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             public Func<CancellationToken, ValueTask>? BeforeDecisionAsync { get; set; }
             public Func<CancellationToken, ValueTask>? AfterDecisionAsync { get; set; }
             public Exception? PublicationFailure { get; set; }
+            public bool RejectReadImages { get; set; }
             public List<ArrayOf<WotProjectionChange>> Changes { get; } = [];
             public List<IWotPreparedProjectionPublication> Publications { get; } = [];
             public int DecisionCount { get; set; }

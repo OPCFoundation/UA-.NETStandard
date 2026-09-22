@@ -44,6 +44,76 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     public sealed partial class WotAtomicPublicationNativeTests
     {
         [Test]
+        public async Task NativeReadKeepsOneRecoveredGenerationWhileProjectionAcknowledgmentIsPending()
+        {
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var resume = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            bool block = false;
+            var projection = new Mock<IWotRegistryRecoveryProjection>(MockBehavior.Strict);
+            projection.Setup(value => value.SynchronizeAsync(
+                It.IsAny<WotRegistrySnapshot>(), It.IsAny<CancellationToken>()))
+                .Returns(async (WotRegistrySnapshot _, CancellationToken _) =>
+                {
+                    if (block)
+                    {
+                        entered.TrySetResult(true);
+                        await resume.Task.ConfigureAwait(false);
+                    }
+                });
+            using IDisposable registration = m_registry.RegisterRecoveryProjection(projection.Object);
+            using var views = new LifecycleWotViewProjectionHost(m_server.NodeManagerLifecycle);
+            await ConfigureStockViewsAsync(views).ConfigureAwait(false);
+            WotResource resource = await UpsertStockSourceAsync(false).ConfigureAwait(false);
+            await AddStockViewAsync("child", false).ConfigureAwait(false);
+            await m_coordinator.RefreshAsync(HandoffRequest("coherent-read-initial")).ConfigureAwait(false);
+            await UpsertStockSourceAsync(true).ConfigureAwait(false);
+            await AwaitStockRegistryProjectionAsync().ConfigureAwait(false);
+            var properties = (await BrowseStockAsync(ResourceId(resource), Ua.ReferenceTypeIds.HasProperty)
+                .ConfigureAwait(false)).ToDictionary(reference => reference.BrowseName.Name ??
+                    throw new InvalidOperationException("A Resource Property has no BrowseName."),
+                    reference => ExpandedNodeId.ToNodeId(reference.NodeId, m_server.CurrentInstance.NamespaceUris));
+            m_indeterminateDecision = true;
+            await Assert.ThatAsync(async () => await m_coordinator.RefreshAsync(
+                HandoffRequest("coherent-read-unknown", 1)).ConfigureAwait(false),
+                Throws.TypeOf<WotRegistryCommitIndeterminateException>()).ConfigureAwait(false);
+            string directory = Path.Combine(m_root, "registry");
+            File.Move(Directory.GetFiles(directory, "manifest.json.tmp-*").Single(),
+                Path.Combine(directory, "manifest.json"));
+            m_indeterminateDecision = false;
+            block = true;
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            Task<bool> recovering = m_coordinator.RecoverAsync(timeout.Token).AsTask();
+            try
+            {
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(recovering.IsCompleted, Is.False);
+                ReadResponse read = await m_session.ReadAsync(null, 0, TimestampsToReturn.Neither,
+                    [
+                        new ReadValueId { NodeId = StockNode("Source/Reading"), AttributeId = Attributes.Value },
+                        new ReadValueId { NodeId = properties["ActiveVersionId"], AttributeId = Attributes.Value },
+                        new ReadValueId { NodeId = properties["RefreshGeneration"], AttributeId = Attributes.Value },
+                        new ReadValueId { NodeId = properties["MaterializedNodeCount"], AttributeId = Attributes.Value }
+                    ], timeout.Token).ConfigureAwait(false);
+                Assert.That(read.Results.ToList().All(value => value.StatusCode == StatusCodes.Good), Is.True);
+                Assert.That(read.Results[0].WrappedValue.TryGetValue(out int value), Is.True);
+                Assert.That(value, Is.EqualTo(84));
+                Assert.That(read.Results[1].WrappedValue.TryGetValue(out string? activeVersion), Is.True);
+                Assert.That(activeVersion, Is.EqualTo("v2"),
+                    "A single Read must not mix the recovered source with pre-recovery Resource metadata.");
+                Assert.That(read.Results[2].WrappedValue.TryGetValue(out uint generation), Is.True);
+                Assert.That(generation, Is.EqualTo(2u));
+                Assert.That(read.Results[3].WrappedValue.TryGetValue(out uint count), Is.True);
+                Assert.That(count, Is.EqualTo((uint)m_registry.Current
+                    .FindResourceByXid(resource.Xid)!.MaterializedNodeCount));
+            }
+            finally
+            {
+                resume.TrySetResult(true);
+            }
+            Assert.That(await recovering.ConfigureAwait(false), Is.True);
+        }
+
+        [Test]
         public async Task NativeStaleRefreshStillCompletesRecoveredMetadataHandoff()
         {
             using var views = new LifecycleWotViewProjectionHost(m_server.NodeManagerLifecycle);

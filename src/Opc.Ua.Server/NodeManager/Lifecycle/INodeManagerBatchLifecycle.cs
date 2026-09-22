@@ -92,6 +92,36 @@ namespace Opc.Ua.Server
         /// </summary>
         ValueTask<IPreparedNodeManagerBatch> PrepareAsync(
             ArrayOf<NodeManagerBatchChange> changes, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Prepares immutable read state without replacing any NodeManager.
+        /// At least one image is required; publication uses the same decision and routing switch as other units.
+        /// </summary>
+        ValueTask<IPreparedNodeManagerBatch> PrepareReadImagesAsync(
+            ArrayOf<INodeManagerReadImage> images, CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// Immutable application state retained with the exact NodeManager routing image of a request.
+    /// Implementations must remain readable after their owner is retired.
+    /// </summary>
+    public interface INodeManagerReadImage
+    {
+        /// <summary>
+        /// Gets the exact NodeManager that owns this state.
+        /// </summary>
+        IAsyncNodeManager Owner { get; }
+    }
+
+    /// <summary>
+    /// Provides application state from the request's captured routing image, or the live image outside a request.
+    /// </summary>
+    public interface INodeManagerReadImageSource
+    {
+        /// <summary>
+        /// Gets the image for an exact owner, or null when no state has been published for that owner.
+        /// </summary>
+        INodeManagerReadImage? GetReadImage(IAsyncNodeManager owner);
     }
 
     /// <summary>
@@ -109,6 +139,12 @@ namespace Opc.Ua.Server
         /// Gets whether this unit has crossed its irreversible publication decision.
         /// </summary>
         bool IsCommitted { get; }
+
+        /// <summary>
+        /// Binds immutable application state before commit. The sequence is copied and may be bound only once.
+        /// Each image must belong to a distinct NodeManager in the resulting routing image.
+        /// </summary>
+        void BindReadImages(ArrayOf<INodeManagerReadImage> images);
 
         /// <summary>
         /// Rechecks ownership and the captured routing revision, invokes the durable decision once,

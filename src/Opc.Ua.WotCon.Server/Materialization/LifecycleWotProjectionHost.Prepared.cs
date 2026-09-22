@@ -196,6 +196,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 return owner.PrepareCoreAsync(changes, views, publication, cancellationToken);
             }
 
+            public async ValueTask<IWotPreparedProjectionPublication> PrepareReadImagesAsync(
+                ArrayOf<INodeManagerReadImage> images,
+                CancellationToken cancellationToken = default)
+            {
+                IPreparedNodeManagerBatch batch = await publication.PrepareReadImagesAsync(images, cancellationToken)
+                    .ConfigureAwait(false);
+                return new PreparedPublication(batch, [], null, []);
+            }
+
             public ValueTask DisposeAsync()
             {
                 return publication.DisposeAsync();
@@ -212,6 +221,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
             public WotPreparedViewGraphState? ViewGraph { get; } = graph;
             public bool IsCommitted => batch.IsCommitted;
             public Exception? CleanupFailure { get; private set; }
+
+            public void BindReadImages(ArrayOf<INodeManagerReadImage> images)
+            {
+                batch.BindReadImages(images);
+            }
 
             public async ValueTask CommitAsync(
                 Func<CancellationToken, ValueTask> decideAsync,

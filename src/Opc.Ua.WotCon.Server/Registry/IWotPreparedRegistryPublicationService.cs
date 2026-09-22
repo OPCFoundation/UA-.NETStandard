@@ -30,6 +30,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Server;
 
 namespace Opc.Ua.WotCon.Server.Registry
 {
@@ -69,6 +70,19 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// Implementations use the supplied metadata and must not reload or mutate its deciding store.
         /// </summary>
         ValueTask SynchronizeAsync(WotRegistrySnapshot snapshot, CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// Prepares hosted native metadata for the source publication's captured routing image.
+    /// </summary>
+    public interface IWotRegistryReadImageProjection : IWotRegistryRecoveryProjection
+    {
+        /// <summary>
+        /// Retains immutable previous and intended metadata without publishing the intended image.
+        /// The returned image is owned by the existing native NodeManager, not another deciding store.
+        /// </summary>
+        INodeManagerReadImage PrepareReadImage(
+            WotRegistrySnapshot previousSnapshot, WotRegistrySnapshot intendedSnapshot);
     }
 
     /// <summary>
@@ -151,6 +165,11 @@ namespace Opc.Ua.WotCon.Server.Registry
         WotRegistrySnapshot RuntimeSnapshot { get; }
 
         /// <summary>
+        /// Gets native metadata that must switch with the recovered source routing image.
+        /// </summary>
+        ArrayOf<INodeManagerReadImage> ReadImages { get; }
+
+        /// <summary>
         /// Revalidates the existing deciding record and retains its authority through the runtime switch.
         /// </summary>
         ValueTask ValidateAsync(CancellationToken cancellationToken = default);
@@ -182,6 +201,11 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// Gets the complete intended metadata and graph image.
         /// </summary>
         WotRegistrySnapshot IntendedSnapshot { get; }
+
+        /// <summary>
+        /// Gets native metadata that must switch with the intended source routing image.
+        /// </summary>
+        ArrayOf<INodeManagerReadImage> ReadImages { get; }
 
         /// <summary>
         /// Gets whether the store conclusively committed the intended generation.

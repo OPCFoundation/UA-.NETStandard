@@ -262,6 +262,7 @@ namespace Opc.Ua.WotCon.Server
                 (context, _, ct) => ReadDependencyObservationAsync(context, groupId, resourceId, versionId, false, ct);
             document.LastDependencyAttempt!.OnSimpleReadValueAsync =
                 (context, _, ct) => ReadDependencyObservationAsync(context, groupId, resourceId, versionId, true, ct);
+            BindPublishedResourceProperties(document, resource);
 
             // The versioned strategy supplies a Version adapter for the logical Resource too.
             if (!concreteVersion || document.Versions is not null)
