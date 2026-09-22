@@ -2,7 +2,7 @@
 
 [![Release](https://img.shields.io/github/v/release/OPCFoundation/UA-.NETStandard?style=flat)](https://github.com/OPCFoundation/UA-.NETStandard/releases)
 [![NuGet Downloads](https://img.shields.io/nuget/dt/OPCFoundation.NetStandard.Opc.Ua)](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/)
-[![Build and Test](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/buildandtest.yml/badge.svg?branch=master)](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/buildandtest.yml?query=branch%3Amaster)
+[![CI](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/buildandtest.yml/badge.svg?branch=master)](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/buildandtest.yml?query=branch%3Amaster)
 [![CodeQL](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/codeql-analysis.yml/badge.svg?branch=master)](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/codeql-analysis.yml?query=branch%3Amaster)
 [![Coverage](https://codecov.io/gh/OPCFoundation/UA-.NETStandard/branch/master/graph/badge.svg)](https://codecov.io/gh/OPCFoundation/UA-.NETStandard)
 
