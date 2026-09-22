@@ -426,6 +426,10 @@ jobs:
           try
           {
             & sudo prlimit --pid $PID --core=unlimited
+            if ($LASTEXITCODE -ne 0)
+            {
+              throw "prlimit exited with code $LASTEXITCODE."
+            }
           }
           catch
           {
