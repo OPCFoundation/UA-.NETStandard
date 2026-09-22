@@ -43,6 +43,38 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 {
     public sealed partial class WotAtomicPublicationNativeTests
     {
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task NativeReadImagePreparationRejectsNullSnapshotsBeforeAndAfterInitialization(bool initialized)
+        {
+            using var views = new LifecycleWotViewProjectionHost(m_server.NodeManagerLifecycle);
+            await ConfigureStockViewsAsync(views).ConfigureAwait(false);
+            WotRegistryNodeManager owner = NativeRegistry();
+            var projection = (IWotRegistryReadImageProjection)owner;
+            WotRegistrySnapshot snapshot = m_registry.Current;
+            ArrayOf<NodeManagerRegistration> registrations = m_server.NodeManagerLifecycle.Registrations;
+            var images = (INodeManagerReadImageSource)m_server.CurrentInstance.NodeManager;
+            if (initialized)
+            {
+                Assert.That(projection.PrepareReadImage(snapshot, snapshot).Owner, Is.SameAs(owner));
+            }
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(() => projection.PrepareReadImage(null!, snapshot),
+                    Throws.TypeOf<ArgumentNullException>()
+                        .With.Property(nameof(ArgumentNullException.ParamName)).EqualTo("previousSnapshot"));
+                Assert.That(() => projection.PrepareReadImage(snapshot, null!),
+                    Throws.TypeOf<ArgumentNullException>()
+                        .With.Property(nameof(ArgumentNullException.ParamName)).EqualTo("intendedSnapshot"));
+            }
+
+            Assert.That(m_registry.Current, Is.SameAs(snapshot));
+            Assert.That(m_server.NodeManagerLifecycle.Registrations, Is.EqualTo(registrations));
+            Assert.That(images.GetReadImage(owner), Is.Null);
+            Assert.That(projection.PrepareReadImage(snapshot, snapshot).Owner, Is.SameAs(owner));
+        }
+
         [TestCase(false, false)]
         [TestCase(true, false)]
         [TestCase(false, true)]

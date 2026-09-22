@@ -233,6 +233,8 @@ namespace Opc.Ua.WotCon.Server
         INodeManagerReadImage IWotRegistryReadImageProjection.PrepareReadImage(
             WotRegistrySnapshot previousSnapshot, WotRegistrySnapshot intendedSnapshot)
         {
+            _ = previousSnapshot ?? throw new ArgumentNullException(nameof(previousSnapshot));
+            _ = intendedSnapshot ?? throw new ArgumentNullException(nameof(intendedSnapshot));
             return m_projection.PrepareReadImage(previousSnapshot, intendedSnapshot);
         }
 
