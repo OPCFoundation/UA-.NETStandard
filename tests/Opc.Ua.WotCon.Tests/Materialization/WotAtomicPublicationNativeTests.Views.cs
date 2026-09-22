@@ -539,11 +539,22 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(probe.RuntimeDisposedCount, Is.EqualTo(1));
         }
 
-        private async Task<HandoffProbe> ConfigureStockViewsAsync(LifecycleWotViewProjectionHost views)
+        private async Task<HandoffProbe> ConfigureStockViewsAsync(
+            LifecycleWotViewProjectionHost views, bool allowNativeRefresh = false)
         {
             HandoffProbe probe = ObserveHandoff(views, new StockViewSourceConverter());
+            var options = new WotRegistryServerOptions { AutoRefresh = false };
+            if (allowNativeRefresh)
+            {
+                options.ManagementAccess = new WotManagementAccessPolicy
+                {
+                    MinimumSecurityMode = MessageSecurityMode.None,
+                    AllowAnonymous = true,
+                    RequiredRoleId = Ua.ObjectIds.WellKnownRole_Anonymous
+                };
+            }
             await m_server.NodeManagerLifecycle.AddAsync(new WotRegistryNodeManagerFactory(
-                new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator), callerContext: null)
+                options, m_registry, m_coordinator), callerContext: null)
                 .ConfigureAwait(false);
             m_server.CurrentInstance.NamespaceUris.GetIndexOrAppend(kStockViewNamespace);
             return probe;

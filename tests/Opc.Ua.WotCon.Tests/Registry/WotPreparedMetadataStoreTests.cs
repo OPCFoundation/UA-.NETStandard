@@ -33,6 +33,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.WotCon.Server.Registry;
 using Opc.Ua.XRegistry.Server;
@@ -58,6 +59,133 @@ namespace Opc.Ua.WotCon.Tests.Registry
             {
                 Directory.Delete(m_root, recursive: true);
             }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RecoveryProjectionCompletionKeepsAdmissionFencedWithoutDeadlocking(bool fail)
+        {
+            using var content = new RecordingLeasedResourceStore();
+            using var store = new FileWotRegistryStore(m_root, content);
+            using var registry = new WotRegistryService(store);
+            await registry.InitializeAsync().ConfigureAwait(false);
+            WotResource resource = await AddAsync(registry, "projection-completion").ConfigureAwait(false);
+            WotRegistrySnapshot snapshot = registry.Current;
+            ByteString manifest = await ReadManifestAsync().ConfigureAwait(false);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var resume = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var projection = new Mock<IWotRegistryRecoveryProjection>(MockBehavior.Strict);
+            projection.Setup(value => value.SynchronizeAsync(snapshot, It.IsAny<CancellationToken>()))
+                .Returns(async (WotRegistrySnapshot current, CancellationToken token) =>
+                {
+                    Assert.That(current, Is.SameAs(snapshot));
+                    Assert.That(token.CanBeCanceled, Is.False);
+                    entered.TrySetResult(true);
+                    await resume.Task.ConfigureAwait(false);
+                    if (fail)
+                    {
+                        throw new IOException("Recovered native projection synchronization failed.");
+                    }
+                });
+            using IDisposable registration = registry.RegisterRecoveryProjection(projection.Object);
+            int notifications = 0;
+            registry.Changed += (_, _) => notifications++;
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            IWotRegistryRecoveryPublication invocation = await registry.BeginRecoveryPublicationAsync(deadline.Token)
+                .ConfigureAwait(false);
+            await using (invocation.ConfigureAwait(false))
+            {
+                IWotPreparedRegistryRecovery recovery = await invocation.PrepareRecoveryAsync(snapshot, snapshot)
+                    .ConfigureAwait(false);
+                await recovery.ValidateAsync().ConfigureAwait(false);
+                recovery.Publish();
+                Task completion = recovery.CompleteAsync().AsTask();
+                Task? disposal = null;
+                try
+                {
+                    await entered.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
+                    await Assert.ThatAsync(async () => await registry.SetEnabledAsync(
+                        resource.GroupId, resource.ResourceId, false, cancellationToken: deadline.Token)
+                        .ConfigureAwait(false), Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
+                    await Assert.ThatAsync(async () => await registry.BeginRecoveryPublicationAsync(deadline.Token)
+                        .ConfigureAwait(false), Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
+                    await Assert.ThatAsync(async () => await registry.InitializeAsync(deadline.Token)
+                        .ConfigureAwait(false), Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
+                    disposal = recovery.DisposeAsync().AsTask();
+                    Assert.That(disposal.IsCompleted, Is.False);
+                    Assert.That(completion.IsCompleted, Is.False);
+                    Assert.That(notifications, Is.Zero);
+                }
+                finally
+                {
+                    resume.TrySetResult(true);
+                }
+                if (fail)
+                {
+                    await Assert.ThatAsync(() => completion,
+                        Throws.TypeOf<WotRegistryCommitDurabilityUncertainException>()).ConfigureAwait(false);
+                }
+                else
+                {
+                    await completion.ConfigureAwait(false);
+                }
+                if (disposal is not null)
+                {
+                    await disposal.ConfigureAwait(false);
+                }
+            }
+            registration.Dispose();
+            projection.Verify(value => value.SynchronizeAsync(snapshot, It.IsAny<CancellationToken>()), Times.Once);
+            if (fail)
+            {
+                await Assert.ThatAsync(async () => await registry.SetEnabledAsync(
+                    resource.GroupId, resource.ResourceId, false).ConfigureAwait(false),
+                    Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
+                IWotRegistryRecoveryPublication retry = await registry.BeginRecoveryPublicationAsync()
+                    .ConfigureAwait(false);
+                await using (retry.ConfigureAwait(false))
+                {
+                    IWotPreparedRegistryRecovery recovery = await retry.PrepareRecoveryAsync(snapshot, snapshot)
+                        .ConfigureAwait(false);
+                    await using (recovery.ConfigureAwait(false))
+                    {
+                        await recovery.ValidateAsync().ConfigureAwait(false);
+                        recovery.Publish();
+                        await recovery.CompleteAsync().ConfigureAwait(false);
+                    }
+                }
+            }
+            Assert.That(await registry.ResolveRecoveryAsync().ConfigureAwait(false), Is.False);
+            Assert.That(notifications, Is.Zero);
+            Assert.That(await ReadManifestAsync().ConfigureAwait(false), Is.EqualTo(manifest));
+            await registry.SetEnabledAsync(resource.GroupId, resource.ResourceId, false).ConfigureAwait(false);
+            Assert.That(registry.Current.FindResource(resource.GroupId, resource.ResourceId)!.Enabled, Is.False);
+        }
+
+        [Test]
+        public async Task DisposingUnacknowledgedRecoveredProjectionKeepsTheFenceAndReportsFailure()
+        {
+            using var content = new RecordingLeasedResourceStore();
+            using var store = new FileWotRegistryStore(m_root, content);
+            using var registry = new WotRegistryService(store);
+            await registry.InitializeAsync().ConfigureAwait(false);
+            WotResource resource = await AddAsync(registry, "unfinished-recovery").ConfigureAwait(false);
+            IWotRegistryRecoveryPublication invocation = await registry.BeginRecoveryPublicationAsync()
+                .ConfigureAwait(false);
+            await using (invocation.ConfigureAwait(false))
+            {
+                IWotPreparedRegistryRecovery recovery = await invocation.PrepareRecoveryAsync(
+                    registry.Current, registry.Current).ConfigureAwait(false);
+                await recovery.ValidateAsync().ConfigureAwait(false);
+                recovery.Publish();
+
+                await Assert.ThatAsync(async () => await recovery.DisposeAsync().ConfigureAwait(false),
+                    Throws.TypeOf<WotRegistryCommitDurabilityUncertainException>()).ConfigureAwait(false);
+                await Assert.ThatAsync(async () => await recovery.CompleteAsync().ConfigureAwait(false),
+                    Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
+            }
+            await Assert.ThatAsync(async () => await registry.SetEnabledAsync(resource.GroupId, resource.ResourceId, false)
+                .ConfigureAwait(false), Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
         }
 
         [Test]
@@ -92,6 +220,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 {
                     await recovery.ValidateAsync().ConfigureAwait(false);
                     recovery.Publish();
+                    await recovery.CompleteAsync().ConfigureAwait(false);
                 }
             }
             Assert.That(registry.Current, Is.SameAs(snapshot));
@@ -246,6 +375,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     {
                         recovery.Publish();
                         Assert.That(() => recovery.Publish(), Throws.TypeOf<InvalidOperationException>());
+                        await recovery.CompleteAsync().ConfigureAwait(false);
                     }
                 }
                 await Assert.ThatAsync(async () => await recovery.ValidateAsync().ConfigureAwait(false),

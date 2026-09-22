@@ -44,6 +44,81 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     public sealed partial class WotAtomicPublicationNativeTests
     {
         [Test]
+        public async Task NativeStaleRefreshStillCompletesRecoveredMetadataHandoff()
+        {
+            using var views = new LifecycleWotViewProjectionHost(m_server.NodeManagerLifecycle);
+            await ConfigureStockViewsAsync(views, allowNativeRefresh: true).ConfigureAwait(false);
+            WotResource resource = await UpsertStockSourceAsync(false).ConfigureAwait(false);
+            WotResource child = await AddStockViewAsync("child", false).ConfigureAwait(false);
+            await m_coordinator.RefreshAsync(HandoffRequest("native-handoff-initial")).ConfigureAwait(false);
+            await UpsertStockSourceAsync(true).ConfigureAwait(false);
+            await AwaitStockRegistryProjectionAsync().ConfigureAwait(false);
+            m_indeterminateDecision = true;
+            await Assert.ThatAsync(async () => await m_coordinator.RefreshAsync(
+                HandoffRequest("native-handoff-unknown", 1)).ConfigureAwait(false),
+                Throws.TypeOf<WotRegistryCommitIndeterminateException>()).ConfigureAwait(false);
+            string directory = Path.Combine(m_root, "registry");
+            File.Move(Directory.GetFiles(directory, "manifest.json.tmp-*").Single(),
+                Path.Combine(directory, "manifest.json"));
+            m_indeterminateDecision = false;
+            using var observer = new FileWotRegistryStore(directory);
+            WotRegistrySnapshot decided = await observer.LoadAsync().ConfigureAwait(false);
+            Assert.That(decided.RefreshGeneration, Is.EqualTo(2u));
+            m_events.Clear();
+            await m_session.FetchNamespaceTablesAsync().ConfigureAwait(false);
+            NamespaceTable namespaces = m_server.CurrentInstance.NamespaceUris;
+            NodeId registryId = ExpandedNodeId.ToNodeId(ObjectIds.WoTRegistry, namespaces);
+            Assert.That(registryId.IsNull, Is.False);
+            NodeId refreshId = ExpandedNodeId.ToNodeId((await BrowseStockAsync(
+                registryId, Ua.ReferenceTypeIds.HasComponent).ConfigureAwait(false))
+                .Single(reference => reference.BrowseName.Name == "Refresh").NodeId, namespaces);
+
+            CallResponse response = await m_session.CallAsync(null,
+                [new CallMethodRequest
+                {
+                    ObjectId = registryId,
+                    MethodId = refreshId,
+                    InputArguments =
+                    [
+                        new Variant(ArrayOf<ExtensionObject>.Empty),
+                        Variant.FromStructure(new WoTRefreshOptionsDataType { Atomicity = WoTAtomicityEnum.PerRegistry }),
+                        new Variant(1u),
+                        new Variant("native-stale-after-recovery")
+                    ]
+                }], CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(m_coordinator.Generation, Is.EqualTo(2u));
+            Assert.That(await ReadStockValueAsync("Reading").ConfigureAwait(false), Is.EqualTo(84));
+            foreach (WotResource current in new[] { resource, child })
+            {
+                WotResource expected = decided.FindResourceByXid(current.Xid)!;
+                var properties = (await BrowseStockAsync(ResourceId(current), Ua.ReferenceTypeIds.HasProperty)
+                    .ConfigureAwait(false)).ToDictionary(reference => reference.BrowseName.Name ??
+                        throw new InvalidOperationException("A Resource Property has no BrowseName."),
+                        reference => ExpandedNodeId.ToNodeId(reference.NodeId, namespaces));
+                ReadResponse metadata = await m_session.ReadAsync(null, 0, TimestampsToReturn.Neither,
+                    [
+                        new ReadValueId { NodeId = properties["ActiveVersionId"], AttributeId = Attributes.Value },
+                        new ReadValueId { NodeId = properties["RefreshGeneration"], AttributeId = Attributes.Value },
+                        new ReadValueId { NodeId = properties["MaterializedNodeCount"], AttributeId = Attributes.Value },
+                        new ReadValueId { NodeId = properties["RootNodeId"], AttributeId = Attributes.Value }
+                    ], CancellationToken.None).ConfigureAwait(false);
+                Assert.That(metadata.Results.ToList().All(value => value.StatusCode == StatusCodes.Good), Is.True);
+                Assert.That(metadata.Results[0].WrappedValue.TryGetValue(out string? activeVersion), Is.True);
+                Assert.That(activeVersion, Is.EqualTo(expected.ActiveVersionId));
+                Assert.That(metadata.Results[1].WrappedValue.TryGetValue(out uint generation), Is.True);
+                Assert.That(generation, Is.EqualTo(expected.RefreshGeneration));
+                Assert.That(metadata.Results[2].WrappedValue.TryGetValue(out uint count), Is.True);
+                Assert.That(count, Is.EqualTo((uint)expected.MaterializedNodeCount));
+                Assert.That(metadata.Results[3].WrappedValue.TryGetValue(out NodeId root), Is.True);
+                Assert.That(root, Is.EqualTo(m_registry.Current.FindResourceByXid(current.Xid)!.RootNodeId));
+            }
+            Assert.That(m_events, Is.Empty);
+            Assert.That((await observer.LoadAsync().ConfigureAwait(false)).Generation, Is.EqualTo(decided.Generation));
+        }
+
+        [Test]
         public async Task UnchangedRefreshRecoversItsCommittedEvidenceWarningBeforeRetry()
         {
             bool arm = false;
@@ -162,6 +237,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return VerifyWarmRecoveryAsync(true, false, cancelAfterValidation: true);
         }
 
+        [Test]
+        public Task FailedProjectionCompletionRetainsRecoveredOwnersAndCanRetry()
+        {
+            return VerifyWarmRecoveryAsync(true, false, failProjectionCompletion: true);
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public async Task WarmRecoveryResolvesTheFirstPublicationWithoutInventingAPriorImage(bool committed)
@@ -242,7 +323,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         private async Task VerifyWarmRecoveryAsync(
-            bool committed, bool resolveSeparately, bool retryRefresh = false, bool cancelAfterValidation = false)
+            bool committed, bool resolveSeparately, bool retryRefresh = false, bool cancelAfterValidation = false,
+            bool failProjectionCompletion = false)
         {
             using var views = new LifecycleWotViewProjectionHost(m_server.NodeManagerLifecycle);
             HandoffProbe probe = await ConfigureStockViewsAsync(views).ConfigureAwait(false);
@@ -324,6 +406,25 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
 
             using var recoveryCancellation = new CancellationTokenSource();
+            ArrayOf<NodeManagerRegistration> ownersAfterFailedCompletion = default;
+            var projection = new Mock<IWotRegistryRecoveryProjection>(MockBehavior.Strict);
+            projection.Setup(value => value.SynchronizeAsync(
+                It.IsAny<WotRegistrySnapshot>(), It.IsAny<CancellationToken>()))
+                .Returns(() => throw new IOException("Recovery projection completion failed."));
+            using IDisposable? projectionFailure = failProjectionCompletion
+                ? m_registry.RegisterRecoveryProjection(projection.Object) : null;
+            if (projectionFailure is not null)
+            {
+                await Assert.ThatAsync(async () => await m_coordinator.RecoverAsync().ConfigureAwait(false),
+                    Throws.TypeOf<WotRegistryCommitDurabilityUncertainException>()).ConfigureAwait(false);
+                ownersAfterFailedCompletion = m_server.NodeManagerLifecycle.Registrations;
+                Assert.That(m_registry.Current.RefreshGeneration, Is.EqualTo(expectedGeneration));
+                Assert.That(await ReadStockValueAsync("Reading").ConfigureAwait(false), Is.EqualTo(84));
+                await Assert.ThatAsync(async () => await m_registry.SetEnabledAsync(
+                    source.GroupId, source.ResourceId, false).ConfigureAwait(false),
+                    Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
+                projectionFailure.Dispose();
+            }
             if (cancelAfterValidation)
             {
                 probe.AfterDecisionAsync = _ =>
@@ -335,6 +436,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(await m_coordinator.RecoverAsync(recoveryCancellation.Token).ConfigureAwait(false), Is.True);
             Assert.That(recoveryCancellation.IsCancellationRequested, Is.EqualTo(cancelAfterValidation));
             probe.AfterDecisionAsync = null;
+            if (!ownersAfterFailedCompletion.IsNull)
+            {
+                Assert.That(m_server.NodeManagerLifecycle.Registrations, Is.EqualTo(ownersAfterFailedCompletion));
+                projection.Verify(value => value.SynchronizeAsync(
+                    It.IsAny<WotRegistrySnapshot>(), It.IsAny<CancellationToken>()), Times.Once);
+            }
 
             Assert.That(m_registry.Current.RefreshGeneration, Is.EqualTo(expectedGeneration));
             Assert.That(m_coordinator.Generation, Is.EqualTo(expectedGeneration));

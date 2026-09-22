@@ -260,8 +260,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             m_generation = snapshot.RefreshGeneration;
                             m_runtimeInitialized = true;
                             Volatile.Write(ref m_committedPublication, new WotCommittedPublicationState(snapshot));
+                            m_recoveryMetadataPending = true;
                             empty.Publish();
-                            m_recoveryMetadataPending = false;
+                            await CompleteRecoveredMetadataAsync(empty).ConfigureAwait(false);
                         }
                         return true;
                     }
@@ -337,8 +338,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         }
                         finally
                         {
+                            m_recoveryMetadataPending = true;
                             metadata.Publish();
-                            m_recoveryMetadataPending = false;
                         }
                     }, cancellationToken).ConfigureAwait(false);
                     foreach (BindingAction action in capture.Bindings)
@@ -353,6 +354,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                                 .ConfigureAwait(false);
                         }
                     }
+                    await CompleteRecoveredMetadataAsync(metadata).ConfigureAwait(false);
                     if (prepared.CleanupFailure is { } failure)
                     {
                         throw new WotRegistryCommitDurabilityUncertainException(runtime, failure);
@@ -407,9 +409,17 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 await metadata.ValidateAsync(cancellationToken).ConfigureAwait(false);
                 Volatile.Write(ref m_committedPublication,
                     new WotCommittedPublicationState(runtime, previous.Views, previous.ActiveBindingPlans));
+                m_recoveryMetadataPending = true;
                 metadata.Publish();
+                await CompleteRecoveredMetadataAsync(metadata).ConfigureAwait(false);
             }
             return true;
+        }
+
+        private async ValueTask CompleteRecoveredMetadataAsync(IWotPreparedRegistryRecovery metadata)
+        {
+            await metadata.CompleteAsync().ConfigureAwait(false);
+            m_recoveryMetadataPending = false;
         }
 
         private bool RuntimeMatches(WotRegistrySnapshot snapshot)

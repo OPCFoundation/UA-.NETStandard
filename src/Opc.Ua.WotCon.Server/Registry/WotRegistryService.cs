@@ -2551,6 +2551,10 @@ namespace Opc.Ua.WotCon.Server.Registry
 
         private async ValueTask InitializeCoreAsync(CancellationToken cancellationToken)
         {
+            if (m_recoverySynchronizationActive)
+            {
+                throw new InvalidOperationException("A recovered projection must finish before the registry is reloaded.");
+            }
             m_reloadRequired = true;
             Interlocked.Exchange(ref m_validatedStoreGeneration, null)?.Dispose();
             WotRegistrySnapshot loaded = await m_store.LoadAsync(cancellationToken).ConfigureAwait(false);

@@ -51,6 +51,24 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// </summary>
         ValueTask<IWotRegistryRecoveryPublication> BeginRecoveryPublicationAsync(
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Registers a hosted projection that must acknowledge recovered metadata before mutation resumes.
+        /// Disposing the registration detaches that projection from subsequent recovery completions.
+        /// </summary>
+        IDisposable RegisterRecoveryProjection(IWotRegistryRecoveryProjection projection);
+    }
+
+    /// <summary>
+    /// Reconciles an existing browseable registry projection without repeating committed event intent.
+    /// </summary>
+    public interface IWotRegistryRecoveryProjection
+    {
+        /// <summary>
+        /// Applies the exact recovered snapshot while conflicting registry mutation remains blocked.
+        /// Implementations use the supplied metadata and must not reload or mutate its deciding store.
+        /// </summary>
+        ValueTask SynchronizeAsync(WotRegistrySnapshot snapshot, CancellationToken cancellationToken = default);
     }
 
     /// <summary>
@@ -139,8 +157,15 @@ namespace Opc.Ua.WotCon.Server.Registry
 
         /// <summary>
         /// Publishes the validated local representation without a store write, generation change or repeated event.
+        /// Mutation remains blocked until <see cref="CompleteAsync"/> acknowledges its hosted projections.
         /// </summary>
         void Publish();
+
+        /// <summary>
+        /// Completes notification-silent hosted projection reconciliation before mutation resumes.
+        /// Post-publication completion cannot be cancelled; failures retain the recovery requirement.
+        /// </summary>
+        ValueTask CompleteAsync();
     }
 
     /// <summary>

@@ -50,7 +50,8 @@ namespace Opc.Ua.WotCon.Server
     /// The generated <c>Refresh</c> Method is wired to the coordinator; the
     /// coordinator's events are re-emitted as the generated registry event types.
     /// </summary>
-    public sealed class WotRegistryNodeManager : AsyncCustomNodeManager, INodeManagerReadinessParticipant
+    public sealed class WotRegistryNodeManager : AsyncCustomNodeManager, INodeManagerReadinessParticipant,
+        IWotRegistryRecoveryProjection
     {
         /// <summary>
         /// Initializes a new registry NodeManager.
@@ -209,7 +210,23 @@ namespace Opc.Ua.WotCon.Server
             {
                 await m_projection.AttachAsync(m_registryNode, cancellationToken)
                     .ConfigureAwait(false);
+                if (Registry is IWotRegistryRecoveryResolver recovery)
+                {
+                    m_recoveryProjectionRegistration = recovery.RegisterRecoveryProjection(this);
+                }
             }
+        }
+
+        /// <inheritdoc/>
+        ValueTask IWotRegistryRecoveryProjection.SynchronizeAsync(
+            WotRegistrySnapshot snapshot, CancellationToken cancellationToken)
+        {
+            if (!ReferenceEquals(Registry.Current, snapshot))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidState, "The recovered registry image is no longer current.");
+            }
+            return m_projection.ReconcileProjectionAsync(cancellationToken);
         }
 
         /// <inheritdoc/>
@@ -265,6 +282,7 @@ namespace Opc.Ua.WotCon.Server
         {
             Registry.Changed -= OnRegistryChanged;
             Coordinator.Event -= OnCoordinatorEvent;
+            m_recoveryProjectionRegistration?.Dispose();
             await m_reconcileQueue.CompleteAsync(cancellationToken).ConfigureAwait(false);
             await Coordinator.RemoveAllAsync(cancellationToken).ConfigureAwait(false);
             m_projection.Dispose();
@@ -276,6 +294,7 @@ namespace Opc.Ua.WotCon.Server
         {
             if (disposing)
             {
+                m_recoveryProjectionRegistration?.Dispose();
                 m_reconcileQueue.Dispose();
                 m_projection.Dispose();
                 m_refreshGate.Dispose();
@@ -766,6 +785,7 @@ namespace Opc.Ua.WotCon.Server
         private readonly WotRegistryReconcileQueue m_reconcileQueue;
         private readonly SemaphoreSlim m_refreshGate = new(1, 1);
         private BaseObjectState? m_registryNode;
+        private IDisposable? m_recoveryProjectionRegistration;
     }
 
     internal sealed class WotRegistryReconcileQueue : IDisposable

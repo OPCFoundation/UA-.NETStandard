@@ -73,12 +73,41 @@ namespace Opc.Ua.WotCon.Server.Registry
             try
             {
                 EnsureReadableGeneration();
+                if (m_recoverySynchronizationActive)
+                {
+                    throw new InvalidOperationException("A recovered projection is still being synchronized.");
+                }
                 return new RegistryPublicationInvocation(this, recoveryOnly: true);
             }
             catch
             {
                 m_mutex.Release();
                 throw;
+            }
+        }
+
+        /// <inheritdoc/>
+        public IDisposable RegisterRecoveryProjection(IWotRegistryRecoveryProjection projection)
+        {
+            _ = projection ?? throw new ArgumentNullException(nameof(projection));
+            var registration = new RecoveryProjectionRegistration(this, projection);
+            lock (m_recoveryProjectionGate)
+            {
+                m_recoveryProjections.Add(registration);
+            }
+            return registration;
+        }
+
+        private async ValueTask SynchronizeRecoveredProjectionsAsync(WotRegistrySnapshot snapshot)
+        {
+            RecoveryProjectionRegistration[] projections;
+            lock (m_recoveryProjectionGate)
+            {
+                projections = [.. m_recoveryProjections];
+            }
+            foreach (RecoveryProjectionRegistration projection in projections)
+            {
+                await projection.SynchronizeAsync(snapshot).ConfigureAwait(false);
             }
         }
 
@@ -464,20 +493,54 @@ namespace Opc.Ua.WotCon.Server.Registry
             public void Publish()
             {
                 invocation.RequireActive(this);
-                if (Volatile.Read(ref m_state) != 2 || m_validation is null || m_published)
+                lock (m_completionGate)
                 {
-                    throw new InvalidOperationException("The recovery has no unpublished validated image.");
+                    if (Volatile.Read(ref m_state) != 2 || m_validation is null || m_published || m_disposed != 0)
+                    {
+                        throw new InvalidOperationException("The recovery has no unpublished validated image.");
+                    }
+                    Volatile.Write(ref owner.m_snapshot, runtime);
+                    owner.m_runtimeRecoveryRequired = true;
+                    m_published = true;
                 }
-                Volatile.Write(ref owner.m_snapshot, runtime);
-                owner.m_runtimeRecoveryRequired = false;
-                m_published = true;
+            }
+
+            public async ValueTask CompleteAsync()
+            {
+                invocation.RequireActive(this);
+                lock (m_completionGate)
+                {
+                    if (!m_published || m_validation is null || m_completionStarted != 0 || m_disposed != 0)
+                    {
+                        throw new InvalidOperationException("The recovery has no pending published image to complete.");
+                    }
+                    m_completionStarted = 1;
+                }
                 try
                 {
+                    await invocation.SynchronizeRecoveryAsync(this, runtime).ConfigureAwait(false);
+                    if (!ReferenceEquals(owner.Current, runtime))
+                    {
+                        throw new InvalidOperationException("The registry image changed during recovered synchronization.");
+                    }
                     Interlocked.Exchange(ref m_validation, null)?.Dispose();
+                    owner.m_runtimeRecoveryRequired = false;
+                }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    throw new WotRegistryCommitDurabilityUncertainException(runtime, failure);
                 }
                 finally
                 {
-                    invocation.ReleaseUnit(this);
+                    try
+                    {
+                        Interlocked.Exchange(ref m_validation, null)?.Dispose();
+                    }
+                    finally
+                    {
+                        invocation.ReleaseUnit(this);
+                        m_completed.TrySetResult(true);
+                    }
                 }
             }
 
@@ -487,8 +550,30 @@ namespace Opc.Ua.WotCon.Server.Registry
                 {
                     await m_finished.Task.ConfigureAwait(false);
                 }
-                if (Interlocked.Exchange(ref m_disposed, 1) == 0)
+                Task? completing = null;
+                bool incomplete = false;
+                bool ownsDisposal;
+                lock (m_completionGate)
                 {
+                    ownsDisposal = m_disposed == 0;
+                    if (ownsDisposal)
+                    {
+                        m_disposed = 1;
+                        completing = m_completionStarted != 0 ? m_completed.Task : null;
+                        incomplete = m_published && completing is null;
+                    }
+                }
+                if (!ownsDisposal)
+                {
+                    await m_disposeCompleted.Task.ConfigureAwait(false);
+                    return;
+                }
+                try
+                {
+                    if (completing is not null)
+                    {
+                        await completing.ConfigureAwait(false);
+                    }
                     try
                     {
                         Interlocked.Exchange(ref m_validation, null)?.Dispose();
@@ -498,15 +583,53 @@ namespace Opc.Ua.WotCon.Server.Registry
                         captured.Dispose();
                         invocation.ReleaseUnit(this);
                     }
+                    if (incomplete)
+                    {
+                        throw new WotRegistryCommitDurabilityUncertainException(runtime,
+                            new InvalidOperationException("Recovered metadata was disposed before projection completion."));
+                    }
+                }
+                finally
+                {
+                    m_disposeCompleted.TrySetResult(true);
                 }
             }
 
+            private readonly Lock m_completionGate = new();
             private readonly TaskCompletionSource<bool> m_finished =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private readonly TaskCompletionSource<bool> m_completed =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private readonly TaskCompletionSource<bool> m_disposeCompleted =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
             private IWotRegistryPublicationValidation? m_validation;
             private int m_state;
             private int m_disposed;
+            private int m_completionStarted;
             private bool m_published;
+        }
+
+        private sealed class RecoveryProjectionRegistration(
+            WotRegistryService owner, IWotRegistryRecoveryProjection projection) : IDisposable
+        {
+            public ValueTask SynchronizeAsync(WotRegistrySnapshot snapshot)
+            {
+                IWotRegistryRecoveryProjection? current = Volatile.Read(ref m_projection);
+                return current is null ? default : current.SynchronizeAsync(snapshot, CancellationToken.None);
+            }
+
+            public void Dispose()
+            {
+                if (Interlocked.Exchange(ref m_projection, null) is not null)
+                {
+                    lock (owner.m_recoveryProjectionGate)
+                    {
+                        owner.m_recoveryProjections.Remove(this);
+                    }
+                }
+            }
+
+            private IWotRegistryRecoveryProjection? m_projection = projection;
         }
 
         private sealed class RegistryPublicationInvocation(WotRegistryService owner, bool recoveryOnly = false)
@@ -578,6 +701,23 @@ namespace Opc.Ua.WotCon.Server.Registry
                     {
                         m_unit = null;
                     }
+                }
+            }
+
+            public async ValueTask SynchronizeRecoveryAsync(
+                PreparedRegistryRecovery publication, WotRegistrySnapshot snapshot)
+            {
+                RequireActive(publication);
+                owner.m_recoverySynchronizationActive = true;
+                owner.m_mutex.Release();
+                try
+                {
+                    await owner.SynchronizeRecoveredProjectionsAsync(snapshot).ConfigureAwait(false);
+                }
+                finally
+                {
+                    await owner.m_mutex.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                    owner.m_recoverySynchronizationActive = false;
                 }
             }
 
@@ -667,5 +807,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             private bool m_preparing;
             private bool m_closing;
         }
+
+        private readonly Lock m_recoveryProjectionGate = new();
+        private readonly List<RecoveryProjectionRegistration> m_recoveryProjections = [];
+        private bool m_recoverySynchronizationActive;
     }
 }

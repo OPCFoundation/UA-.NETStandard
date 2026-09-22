@@ -299,10 +299,27 @@ neither the coordinator nor the resolver chooses a candidate from equal bytes.
 The store or its operator must first establish an authoritative primary.
 
 After storage resolves, conflicting mutation remains fenced until the matching
-runtime image is published. Read-only exact-Version capture and recovery-only
-invocation admission remain available. A recovery invocation cannot decide a new
+runtime image and its hosted registry projections are synchronized. Read-only
+exact-Version capture and recovery-only invocation admission remain available.
+A recovery invocation cannot decide a new
 publication. Cancellation before publication keeps the fence; cancellation after
 authoritative validation does not abandon a committed runtime switch.
+
+Hosted registry NodeManagers register an `IWotRegistryRecoveryProjection` with
+the actual recovery owner and detach it during shutdown. `Publish` installs the
+local snapshot, and `CompleteAsync` awaits the existing notification-silent
+projection dispatcher before lifting the fence. Recovery therefore updates native
+ActiveVersionId, RefreshGeneration, root and count Properties even when the next
+Refresh fails its expected-generation check. It does not emit another Changed
+transition or replay native event intent.
+
+Projection callbacks run without the registry mutation semaphore held, so a
+conflicting callback cannot deadlock admission. The recovery fence rejects such
+mutation or a nested reload/recovery attempt; the deciding-store validation
+remains owned until synchronization completes. Callback failure or disposal
+before acknowledgment reports a committed warning and retains the fence.
+A subsequent recovery retries synchronization without replacing healthy native
+owners. Completion ignores caller cancellation after publication.
 
 `RecoverAsync` follows the actual deciding record. If it retained the old
 publication, existing native owners remain in place and only local registry
