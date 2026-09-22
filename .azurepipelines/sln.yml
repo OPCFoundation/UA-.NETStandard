@@ -14,7 +14,7 @@
 #              - Comma-separated list of build configurations to fan out
 #                across. Defaults to 'Debug,Release'. Callers that only need
 #                to prove a solution compiles - such as the Linux all-TFM leg
-#                that replaced the GitHub Actions build-all-tfm-linux job -
+#                that duplicates the GitHub Actions build-solutions Linux jobs -
 #                pass 'Release' to halve the number of matrix jobs.
 #
 # Matrix entries supply these variables:

@@ -11,27 +11,29 @@ parameters:
   - mixed
   - managed
   - hosted
-# Which CI system owns the all-TFM solution build, the cross-platform test
-# matrix and the Native AoT run.  This is one half of a single conceptual
-# switch - the other half is CI_BUILD_BACKEND in
-# .github/workflows/buildandtest.yml.  BOTH MUST BE FLIPPED TOGETHER.
+# How much of the build/test workload this pipeline runs during the migration to
+# GitHub Actions.
 #
-#   ado     - Azure Pipelines owns the work: the Linux all-TFM build leg, the
-#             Linux test leg and Native AoT all run on pull requests, and the
-#             equivalent GitHub Actions jobs stand down.
-#   actions - (default) the work is split across both CI systems: GitHub Actions
-#             runs the all-TFM builds, the ubuntu test matrix and AoT, and the
-#             stages below fall back to their Schedule/Manual-only cadence.
+# GitHub Actions now owns pull-request validation outright:
+# .github/workflows/buildandtest.yml runs the complete build and test workload
+# unconditionally and has no switch that hands any of it back. This parameter is
+# therefore no longer one half of a coupled pair - it only decides how much of
+# that workload this pipeline *duplicates* while both systems run in parallel.
+#
+#   ado     - duplicate the full workload here: the Linux all-TFM build leg, the
+#             Linux test leg and Native AoT also run on pull requests.
+#   actions - (default) run the narrow PR gate here and leave the rest to the
+#             stages' Schedule/Manual-only cadence.
 #
 # Either way the per-(framework, configuration) coverage gate stays here, in the
-# always-on 'Fast PR test' stage, because it is the required status check.
+# always-on 'Fast PR test' stage, until the required status check is moved.
 #
 # Note on scope: Azure Pipelines evaluates the YAML from the PR's merge ref, so
 # a PR targeting master378 or a release branch runs *that* branch's copy of this
 # file.  In practice every PR that evaluates this file targets master, which is
 # why the conditions below only need the parameter and not a target-branch test.
 - name: ciBuildBackend
-  displayName: 'CI build backend: actions splits the all-TFM build, cross-platform tests and AoT with GitHub Actions; ado runs all of it here'
+  displayName: 'CI build backend: actions runs the narrow PR gate here; ado additionally duplicates the all-TFM build, cross-platform tests and AoT'
   type: string
   default: actions
   values:
@@ -110,10 +112,9 @@ schedules:
 variables:
   FullBuild: ${{ ne(variables['Build.Reason'], 'PullRequest') }}
   ScheduledBuild: ${{ in(variables['Build.Reason'], 'Schedule', 'Manual') }}
-  # 'True' when Azure Pipelines owns the build/test matrix that GitHub Actions
-  # otherwise runs (see the ciBuildBackend parameter).  Native AoT, normally
-  # Schedule/Manual-only here, additionally runs on pull requests while this is
-  # True, because it is then the only place that work happens.
+  # 'True' when Azure Pipelines additionally duplicates the build/test matrix
+  # GitHub Actions already runs (see the ciBuildBackend parameter).  Native AoT,
+  # normally Schedule/Manual-only here, then also runs on pull requests.
   AdoOwnsMatrix: ${{ eq(parameters.ciBuildBackend, 'ado') }}
   # GitHub Actions owns macOS validation. Keep the Azure definitions available
   # for emergency/manual use, but do not schedule them unless explicitly enabled.
@@ -170,20 +171,20 @@ stages:
       ${{ if ne(variables.FullBuild, 'False') }}:
         tfms: 'net472,net48,netstandard2.0,netstandard2.1,net8.0,net9.0,net10.0'
       ${{ elseif eq(parameters.ciBuildBackend, 'ado') }}:
-        # ADO owns the all-TFM PR build that GitHub Actions normally runs, so a
-        # PR has to cover all seven TFMs.  Windows takes the .NET Framework
-        # targets and the Linux leg below takes the modern ones - the same split
-        # the build-all-tfm-windows / build-all-tfm-linux jobs use - which keeps
-        # full coverage without fanning every TFM across both pools.
+        # Duplicate the all-TFM PR build GitHub Actions runs, so a PR covers all
+        # seven TFMs here too.  Windows takes the .NET Framework targets and the
+        # Linux leg below takes the modern ones, which keeps full coverage
+        # without fanning every TFM across both pools.
         tfms: 'net472,net48,netstandard2.0'
       ${{ else }}:
-        # GitHub Actions owns the all-TFM build; this PR gate only needs the two
+        # GitHub Actions runs the all-TFM build; this PR gate only needs the two
         # TFMs the contribution guide requires.
         tfms: 'net10.0,net48'
   - ${{ if eq(parameters.ciBuildBackend, 'ado') }}:
-    # Replaces the GitHub Actions build-all-tfm-linux job: proves UA.slnx still
-    # compiles on Linux for every Linux-capable TFM.  Release only, because this
-    # leg exists to catch TFM/platform breaks rather than to exercise Debug.
+    # Duplicates the GitHub Actions build-solutions Linux legs: proves UA.slnx
+    # still compiles on Linux for every Linux-capable TFM.  Release only,
+    # because this leg exists to catch TFM/platform breaks rather than to
+    # exercise Debug.
     - template: .azurepipelines/sln.yml
       parameters:
         poolImage: ${{ variables.mgdLinuxImage }}
@@ -210,8 +211,7 @@ stages:
       framework: net10.0
       # With the default ciBuildBackend=actions this leg stays Windows-only
       # because the GitHub Actions build-and-test job provides the Linux
-      # coverage.  When ADO owns the matrix it also covers Linux, replacing
-      # that job.
+      # coverage.  Setting it to ado duplicates that Linux leg here.
       ${{ if eq(parameters.ciBuildBackend, 'ado') }}:
         agents: '@{ windows = "${{ variables.mgdWindowsImage }}"; linux = "${{ variables.mgdLinuxImage }}" }'
       ${{ else }}:
