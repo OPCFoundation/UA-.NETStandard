@@ -103,9 +103,14 @@ namespace Opc.Ua.Server.Tests.Fluent
             h.Builder.Node(h.Source.NodeId)
                 .CreateLimitAlarm(new QualifiedName("OverTempAlarm", h.NamespaceIndex));
 
-            // The inverse edge is written directly onto the event source.
             Assert.That(
-                h.Source.ReferenceExists(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server),
+                h.Source.ReferenceExists(ReferenceTypeIds.HasNotifier, true, h.Root.NodeId),
+                Is.True);
+            Assert.That(
+                h.Root.ReferenceExists(ReferenceTypeIds.HasNotifier, false, h.Source.NodeId),
+                Is.True);
+            Assert.That(
+                h.Root.ReferenceExists(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server),
                 Is.True);
 
             // The forward edge is published through the node manager that owns
@@ -114,8 +119,49 @@ namespace Opc.Ua.Server.Tests.Fluent
                 .ConfigureAwait(false);
 
             Assert.That(
-                h.ServerObject.ReferenceExists(ReferenceTypeIds.HasNotifier, false, h.Source.NodeId),
+                h.ServerObject.ReferenceExists(ReferenceTypeIds.HasNotifier, false, h.Root.NodeId),
                 Is.True);
+            Assert.That(h.Manager.IsRootNotifier(h.Source.NodeId), Is.False);
+            Assert.That(h.Manager.IsRootNotifier(h.Root.NodeId), Is.True);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SharedAlarmNotifierRegistrationLivesUntilLastReleaseAsync(bool preexisting)
+        {
+            using Harness h = CreateHarness();
+            if (preexisting)
+            {
+                h.Root.EventNotifier = EventNotifiers.SubscribeToEvents;
+                h.Manager.AddRootNotifier(h.Root);
+            }
+            AlarmEventSourceRegistration first =
+                FluentNodeRegistration.RegisterAlarmEventSource(h.Builder, h.Source);
+            AlarmEventSourceRegistration second =
+                FluentNodeRegistration.RegisterAlarmEventSource(h.Builder, h.Source);
+            var firstRelease = new AlarmRelease(
+                new ConditionState(null), h.Manager.SystemContext, first, enabledByUs: false);
+            var secondRelease = new AlarmRelease(
+                new ConditionState(null), h.Manager.SystemContext, second, enabledByUs: false);
+
+            await firstRelease.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(h.Manager.IsRootNotifier(h.Root.NodeId), Is.True);
+            Assert.That(h.Root.EventNotifier & EventNotifiers.SubscribeToEvents, Is.Not.Zero);
+            Assert.That(h.Source.EventNotifier & EventNotifiers.SubscribeToEvents, Is.Not.Zero);
+            Assert.That(h.Root.ReferenceExists(
+                ReferenceTypeIds.HasNotifier, false, h.Source.NodeId), Is.True);
+
+            await secondRelease.DisposeAsync().ConfigureAwait(false);
+            await firstRelease.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(h.Manager.IsRootNotifier(h.Root.NodeId), Is.EqualTo(preexisting));
+            Assert.That((h.Root.EventNotifier & EventNotifiers.SubscribeToEvents) != 0, Is.EqualTo(preexisting));
+            Assert.That(h.Source.EventNotifier & EventNotifiers.SubscribeToEvents, Is.Zero);
+            Assert.That(h.Root.ReferenceExists(
+                ReferenceTypeIds.HasNotifier, false, h.Source.NodeId), Is.False);
+            Assert.That(h.Source.ReferenceExists(
+                ReferenceTypeIds.HasNotifier, true, h.Root.NodeId), Is.False);
         }
 
         [Test]
@@ -395,7 +441,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             };
             root.AddChild(source);
 
-            BaseDataVariableState<bool> flag = BaseDataVariableState<bool>.With<VariantBuilder>(source);
+            var flag = BaseDataVariableState<bool>.With<VariantBuilder>(source);
             flag.NodeId = new NodeId("Root_Events_Flag", ns);
             flag.BrowseName = new QualifiedName("Flag", ns);
             flag.DisplayName = new LocalizedText("Flag");

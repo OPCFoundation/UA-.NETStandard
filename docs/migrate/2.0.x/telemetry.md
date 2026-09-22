@@ -223,6 +223,12 @@ Marked `[Obsolete]` and slated for removal:
 Replace each with the equivalent `ILogger.LogXxx` call on a logger
 obtained from `ITelemetryContext.CreateLogger<T>()`.
 
+While migrating explicit-mask calls, their original masks remain available to
+legacy `Tracing.TraceEventHandler` subscribers, including combined categories.
+Do not copy a numeric trace mask into an ordinary source-generated `EventId`:
+event identifiers are classified by log level unless an explicitly named legacy
+category is selected. See [Diagnostics](../../Diagnostics.md#overview).
+
 ---
 
 ## ETW `EventSource` provider removal

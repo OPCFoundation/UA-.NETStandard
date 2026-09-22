@@ -32,7 +32,6 @@
 using System;
 using System.Buffers;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -83,10 +82,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             temporary.Attach(2, transport.Object);
             temporary.CurrentState = TcpChannelState.Opening;
             listener.Setup(value => value.ReconnectToExistingChannel(
-                    transport.Object, 77, 5, 1, It.IsAny<Certificate>(),
+                    temporary, transport.Object, 77, 5, 1, It.IsAny<Certificate>(),
                     It.IsAny<ChannelToken>(), It.IsAny<OpenSecureChannelRequest>()))
-                .Callback<IUaSCByteTransport, uint, uint, uint, Certificate, ChannelToken, OpenSecureChannelRequest>(
-                    (adopted, requestId, sequence, _, certificate, token, request) =>
+                .Callback<TcpListenerChannel, IUaSCByteTransport, uint, uint, uint, Certificate, ChannelToken, OpenSecureChannelRequest>(
+                    (_, adopted, requestId, sequence, _, certificate, token, request) =>
                         target.Reconnect(adopted, requestId, sequence, certificate, token, request))
                 .Returns(true);
             listener.Setup(value => value.ChannelClosed(2)).Callback(temporary.Dispose);
@@ -112,7 +111,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     Assert.That(opened.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
                     Assert.That(opened.SecurityToken.ChannelId, Is.EqualTo(1));
                 }
-                target.SendResponse(78, new ReadResponse { Results = [] });
+                Assert.That(
+                    target.SendResponse(78, new ReadResponse { Results = [] }),
+                    Is.False,
+                    "A response sent immediately must not be retained for reconnect.");
                 Assert.That(await sentSignal.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false), Is.True);
                 Assert.That(sent.TryDequeue(out byte[]? service), Is.True);
                 Assert.That(BitConverter.ToUInt32(service!, 0), Is.EqualTo(TcpMessageType.Message | TcpMessageType.Final));
@@ -136,9 +138,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             var buffers = new BufferManager("reconnect-loops", 65536, telemetry, pool);
             using var channel = new ReceiveChannel(buffers, new ChannelQuotas(
                 ServiceMessageContext.Create(telemetry)), telemetry);
-            var oldEntered = Signal();
+            TaskCompletionSource<bool> oldEntered = Signal();
             var oldRelease = new TaskCompletionSource<ArraySegment<byte>>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var newEntered = Signal();
+            TaskCompletionSource<bool> newEntered = Signal();
             var newChunk = new TaskCompletionSource<ArraySegment<byte>>(TaskCreationOptions.RunContinuationsAsynchronously);
             int newReceives = 0;
             var oldTransport = new Mock<IUaSCByteTransport>();

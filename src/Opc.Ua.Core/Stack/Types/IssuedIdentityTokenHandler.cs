@@ -30,7 +30,6 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
@@ -87,6 +86,15 @@ namespace Opc.Ua
             m_token = token ?? throw new ArgumentNullException(nameof(token));
             IssuedTokenTypeProfileUri = m_token.PolicyId ??= Profiles.JwtUserToken;
             m_securityPolicies = securityPolicies ?? SecurityPolicies.Default;
+        }
+
+        internal IssuedIdentityTokenHandler(
+            IssuedIdentityToken token,
+            ISecurityPolicyRegistry? securityPolicies,
+            Func<SecurityPolicyInfo, Nonce> nonceFactory)
+            : this(token, securityPolicies)
+        {
+            m_nonceFactory = nonceFactory ?? throw new ArgumentNullException(nameof(nonceFactory));
         }
 
         /// <summary>
@@ -187,7 +195,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ValueTask EncryptAsync(
+        public async ValueTask EncryptAsync(
             Certificate receiverCertificate,
             byte[] receiverNonce,
             string securityPolicyUri,
@@ -198,28 +206,69 @@ namespace Opc.Ua
             bool doNotEncodeSenderCertificate = false,
             CancellationToken ct = default)
         {
+            await Task.CompletedTask.ConfigureAwait(false);
+
             // handle no encryption.
             if (string.IsNullOrEmpty(securityPolicyUri) ||
                 securityPolicyUri == SecurityPolicies.None)
             {
                 m_token.TokenData = m_decryptedTokenData.ToByteString();
                 m_token.EncryptionAlgorithm = string.Empty;
-                return default;
+                return;
             }
 
-            byte[] dataToEncrypt = Utils.Append(m_decryptedTokenData, receiverNonce);
+            SecurityPolicyInfo securityPolicy = m_securityPolicies.GetInfo(securityPolicyUri)
+                ?? throw new ServiceResultException(
+                    StatusCodes.BadSecurityPolicyRejected,
+                    "Unknown security policy: " + securityPolicyUri);
 
-            ILogger logger = context.Telemetry.CreateLogger<IssuedIdentityTokenHandler>();
-            EncryptedData encryptedData = m_securityPolicies.Encrypt(
-                receiverCertificate,
-                securityPolicyUri,
-                dataToEncrypt);
+            if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
+            {
+                byte[] dataToEncrypt = Utils.Append(m_decryptedTokenData, receiverNonce);
+                EncryptedData encryptedData = m_securityPolicies.Encrypt(
+                    receiverCertificate,
+                    securityPolicyUri,
+                    dataToEncrypt);
 
-            Array.Clear(dataToEncrypt, 0, dataToEncrypt.Length);
+                Array.Clear(dataToEncrypt, 0, dataToEncrypt.Length);
 
-            m_token.TokenData = encryptedData.Data.ToByteString();
-            m_token.EncryptionAlgorithm = encryptedData.Algorithm;
-            return default;
+                m_token.TokenData = encryptedData.Data.ToByteString();
+                m_token.EncryptionAlgorithm = encryptedData.Algorithm;
+                return;
+            }
+
+            using CertificateCollection? issuers = senderIssuerCertificates != null &&
+                senderIssuerCertificates.Count > 0 &&
+                senderIssuerCertificates[0].Thumbprint == senderCertificate?.Thumbprint
+                ? new CertificateCollection()
+                : null;
+            if (issuers != null)
+            {
+                for (int ii = 1; ii < senderIssuerCertificates!.Count; ii++)
+                {
+                    issuers.Add(senderIssuerCertificates[ii]);
+                }
+
+                senderIssuerCertificates = issuers;
+            }
+
+            using Nonce senderNonce = m_nonceFactory(securityPolicy);
+            using var secret = EncryptedSecret.CreateForEcc(
+                context: context,
+                securityPolicyUri: securityPolicyUri,
+                senderIssuerCertificates: senderIssuerCertificates!,
+                receiverCertificate: receiverCertificate,
+                receiverNonce: receiverEphemeralKey!,
+                senderCertificate: senderCertificate!,
+                senderNonce: senderNonce,
+                doNotEncodeSenderCertificate: doNotEncodeSenderCertificate);
+
+            byte[] tokenData = m_decryptedTokenData ??
+                throw new ServiceResultException(
+                    StatusCodes.BadIdentityTokenInvalid,
+                    "IssuedIdentityToken does not contain token data.");
+            m_token.TokenData = secret.Encrypt(tokenData, receiverNonce).ToByteString();
+            m_token.EncryptionAlgorithm = null;
         }
 
         /// <inheritdoc/>
@@ -248,31 +297,62 @@ namespace Opc.Ua
                 Algorithm = m_token.EncryptionAlgorithm
             };
 
-            ILogger logger = context.Telemetry.CreateLogger<IssuedIdentityTokenHandler>();
-            byte[]? decryptedTokenData = await m_securityPolicies
-                .DecryptAsync(certificate, securityPolicyUri, encryptedData, ct)
-                .ConfigureAwait(false);
+            SecurityPolicyInfo securityPolicy = m_securityPolicies.GetInfo(securityPolicyUri)
+                ?? throw new ServiceResultException(
+                    StatusCodes.BadSecurityPolicyRejected,
+                    "Unknown security policy: " + securityPolicyUri);
 
-            // verify the sender's nonce.
-            int startOfNonce = decryptedTokenData!.Length;
-
-            if (receiverNonce != null)
+            if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
-                startOfNonce -= receiverNonce.Data!.Length;
+                byte[]? decryptedTokenData = await m_securityPolicies
+                    .DecryptAsync(certificate, securityPolicyUri, encryptedData, ct)
+                    .ConfigureAwait(false);
 
-                for (int ii = 0; ii < receiverNonce.Data.Length; ii++)
+                // verify the sender's nonce.
+                int startOfNonce = decryptedTokenData!.Length;
+
+                if (receiverNonce != null)
                 {
-                    if (receiverNonce.Data[ii] != decryptedTokenData[ii + startOfNonce])
+                    startOfNonce -= receiverNonce.Data!.Length;
+
+                    for (int ii = 0; ii < receiverNonce.Data.Length; ii++)
                     {
-                        throw new ServiceResultException(StatusCodes.BadIdentityTokenRejected);
+                        if (receiverNonce.Data[ii] != decryptedTokenData[ii + startOfNonce])
+                        {
+                            throw new ServiceResultException(StatusCodes.BadIdentityTokenRejected);
+                        }
                     }
                 }
+
+                // copy results.
+                m_decryptedTokenData = new byte[startOfNonce];
+                Array.Copy(decryptedTokenData, m_decryptedTokenData, startOfNonce);
+                Array.Clear(decryptedTokenData, 0, decryptedTokenData.Length);
+                return;
             }
 
-            // copy results.
-            m_decryptedTokenData = new byte[startOfNonce];
-            Array.Copy(decryptedTokenData, m_decryptedTokenData, startOfNonce);
-            Array.Clear(decryptedTokenData, 0, decryptedTokenData.Length);
+            using var secret = EncryptedSecret.CreateForEcc(
+                context: context,
+                securityPolicyUri: securityPolicyUri,
+                senderIssuerCertificates: senderIssuerCertificates!,
+                receiverCertificate: certificate,
+                receiverNonce: ephemeralKey!,
+                senderCertificate: senderCertificate!,
+                senderNonce: null!,
+                validator: validator);
+
+            (bool ok, byte[]? decryptedSecret) = await secret.TryDecryptAsync(
+                m_token.TokenData.ToArray(),
+                receiverNonce?.Data,
+                ct).ConfigureAwait(false);
+            if (!ok)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadIdentityTokenInvalid,
+                    "Failed to decrypt IssuedIdentityToken token data using ECC encrypted secret.");
+            }
+
+            m_decryptedTokenData = decryptedSecret;
         }
 
         /// <inheritdoc/>
@@ -297,7 +377,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public object Clone()
         {
-            return new IssuedIdentityTokenHandler(m_token)
+            return new IssuedIdentityTokenHandler(CoreUtils.Clone(m_token)!, m_securityPolicies)
             {
                 IssuedTokenTypeProfileUri = IssuedTokenTypeProfileUri,
                 DecryptedTokenData = m_decryptedTokenData
@@ -322,5 +402,6 @@ namespace Opc.Ua
         private byte[]? m_decryptedTokenData;
         private readonly IssuedIdentityToken m_token;
         private readonly ISecurityPolicyRegistry m_securityPolicies;
+        private readonly Func<SecurityPolicyInfo, Nonce> m_nonceFactory = Nonce.CreateNonce;
     }
 }

@@ -67,7 +67,7 @@ This release ships the following Part 11 capabilities:
 | Read modified history                  | ✅ Shipped — `HistoryClient.ReadModifiedAsync` returns each `DataValue` with its `ModificationInfo`. |
 | Read processed (aggregates)            | ✅ Shipped — the server rejects aggregate identifiers not registered with `AggregateManager` before provider execution, then uses native provider push-down or the streaming calculator fallback. All 37 Part 13 v1.05.07 functions; see the [Aggregates (Part 13)](Aggregates.md) guide. |
 | Read at-time                           | ✅ Shipped via interpolation fallback or provider push-down |
-| Insert / Replace / Update raw values   | ✅ Shipped — per-value best-effort by default, atomic via `IHistorianTransactionalProvider` |
+| Insert / Replace / Update raw values   | ✅ Shipped — providers without `IHistorianTransactionalProvider` use per-value best-effort; providers that implement it use atomic batches by default |
 | Delete raw / Delete at-time            | ✅ Shipped |
 | Annotations (read / write / delete)    | ✅ Shipped — server dispatcher routes the `Annotations` Property to the parent variable's `IHistorianAnnotationProvider`. Fluent `Historize(...)` auto-creates the Annotations property and sets its access-level bits when the provider advertises `InsertAnnotation`. Client supports single and batched writes/removes through `WriteAnnotationAsync`, `WriteAnnotationsAsync`, and `UpdateStructureDataAsync`. |
 | `HistoryServerCapabilities` population | ✅ Shipped (union of registered providers). `AggregateFunctions` folder populated by `AggregateManager.RegisterFactoryAsync` → `DiagnosticsNodeManager.AddAggregateFunctionAsync`. |
@@ -129,9 +129,36 @@ var unbounded = new InMemoryHistorianProvider(new InMemoryHistorianOptions
 });
 ```
 
-When both limits are set, the provider enforces both and the stricter limit wins. The retention window is measured from
-the newest source timestamp observed for that node, so deterministic replay and backfill do not depend on server wall
-clock time.
+When both limits are set, the provider enforces both. **Raw retention uses UTC wall-clock time**, not the newest
+stored timestamp. A future-dated sample cannot move the retention horizon or erase current history. The cutoff is
+inclusive: a sample exactly one retention period old is retained; an older insert or inserting update returns
+`BadOutOfRange` without creating an INSERT modification. A full sample-count archive likewise rejects an entry
+whose composite key would cause it to be evicted immediately. Expired raw values are also removed on reads, except
+for the newest stored value at or before the cutoff: it remains the retained window's start bound, including when
+a value has not changed during the entire window. A value exactly at the cutoff supersedes any older start bound.
+The hard sample cap still applies to this bound. Raw reads and the at-time/processed fallbacks share this retained
+archive, so reading raw history does not erase a bound needed by subsequent interpolation or aggregation.
+
+For deterministic replay, inject a `TimeProvider` into
+`new InMemoryHistorianProvider(options, timeProvider)`, or explicitly set `RawDataRetentionPeriod = TimeSpan.Zero`.
+The fluent builder uses the server's injected clock automatically. Deleting a newer value does not rewind time or
+make expired backfill valid again.
+The once-seeded ReferenceServer and TestData sample histories explicitly use unbounded raw retention.
+
+Modified history has a separate finite default of **10,000 entries per node**, controlled by
+`MaxModifiedEntriesPerNode`; set it to zero only when unbounded modified history is intentional. Its FIFO log and
+composite-key prior-value index keep eviction and raw `ExtraData` lookup independent of total historical traffic.
+Explicit HistoryUpdate inserts remain visible as INSERT modifications, but do not set `ExtraData` by themselves.
+Retained prior versions or associated annotations set that bit consistently on raw, exact-time, and bounding values.
+The bulk auto-capture path does not create INSERT modification copies.
+
+The one-hour raw retention period and 10,000-entry modified-history capacity are in-memory provider policies,
+not OPC UA defaults. Rejection of a timestamp outside the archive's supported range follows
+[Part 11, 6.9.2.2](https://reference.opcfoundation.org/specs/OPC-10000-11/6.9.2.2).
+INSERT modification records follow
+[Part 11, 6.5.3.3](https://reference.opcfoundation.org/specs/OPC-10000-11/6.5.3.3);
+the separate `ExtraData` conditions are defined in
+[Part 11, 6.5.3.2](https://reference.opcfoundation.org/specs/OPC-10000-11/6.5.3.2).
 
 ### Fluent builder (`server.UseHistorian()…`)
 
@@ -328,7 +355,30 @@ Startup fails if this consistency initialization fails.
 
 ### Annotations
 
-The historian framework natively understands the OPC UA convention that annotations live on the `Annotations` property of a historizing variable (`HasProperty` reference, `BrowseName = "Annotations"`, `DataType = Annotation`, `ValueRank = OneDimension`). Clients address the property NodeId, the framework translates property → parent variable NodeId before calling `IHistorianAnnotationProvider`, so providers only ever see the variable NodeId.
+Annotations live on a historizing variable's `Annotations` property (`HasProperty`, `DataType = Annotation`,
+`ValueRank = OneDimension`). Clients address that property; the dispatcher translates it to the parent variable
+NodeId before invoking the provider.
+
+The dispatcher prefers `IHistorianTimestampedAnnotationProvider` when available. Its `HistorianAnnotation` payload
+preserves the source timestamp of the annotated value separately from `Annotation.AnnotationTime`. The in-memory
+archive identifies an annotation by **(SourceTimestamp, AnnotationTime)**: equal annotation times on different
+values do not collide, and replacement cannot move an annotation to a different value.
+
+Timestamped reads filter and order by source time, then annotation time. Both directions support exclusive composite
+resume tokens, bounded pages, and open-ended quotas. Exact-time reads return every annotation at that source time.
+The `IHistorianAnnotationProvider` interface remains available for backends that key annotations by annotation
+time alone: writes map source time to annotation time, and reads order/filter by annotation time. Use the
+timestamped API to update annotations whose two timestamps differ.
+
+The standard-history access path is defined in
+[Part 11, 5.1.2](https://reference.opcfoundation.org/specs/OPC-10000-11/5.1.2);
+[6.6.6](https://reference.opcfoundation.org/specs/OPC-10000-11/6.6.6) distinguishes annotation creation time from
+the annotated value's source timestamp. The composite identity and tie-break ordering above are the provider's
+documented storage contract, not a claim that OPC UA mandates that exact database key.
+
+Annotation updates preserve one result for every input `DataValue`, including `BadInvalidArgument` placeholders
+for null or undecodable values. A provider response with the wrong result count becomes `BadUnexpectedError` for
+each requested item rather than shifting subsequent statuses.
 
 The fluent builder auto-creates the property when the supplied capabilities advertise `InsertAnnotation = true`:
 
@@ -483,13 +533,14 @@ public sealed class MyTsdbProvider :
 | --- | --- | --- |
 | `IHistorianProvider` | Every provider | Umbrella — `IsHistorizingAsync`, `GetCapabilitiesAsync`. |
 | `IHistorianDataProvider` | Raw read + Insert / Replace / Update / DeleteRaw / DeleteAtTime | Core read+write surface. |
-| `IHistorianModifiedProvider` | Read modified history (Part 11 §5.2.5) | Stores prior versions of replaced/deleted values plus `ModificationInfo`. |
+| `IHistorianModifiedProvider` | Modified history | INSERT records and retained prior versions with modification metadata. |
 | `IHistorianAtTimeProvider` | Native at-time reads | Optional. Framework falls back to interpolation over raw reads if absent. |
 | `IHistorianProcessedProvider` | Native aggregate push-down | Optional. Framework falls back to streaming through `AggregateManager` if absent. |
-| `IHistorianAnnotationProvider` | Annotations | Read / Insert / Replace / Update / Delete annotations keyed by `AnnotationTime`. |
+| `IHistorianAnnotationProvider` | Annotations keyed by annotation time | Maps source time to `AnnotationTime` on writes. |
+| `IHistorianTimestampedAnnotationProvider` | Timestamped annotations | Keys and pages by both timestamps. |
 | `IHistorianEventProvider` | Event history | Read / Insert / Replace / Update / Delete events keyed by `EventId`. |
 | `IHistorianStructuredDataProvider` | StructuredHistoryData (Part 11 §6.8.3) | Update-only. Entries are keyed by the composite `HistoricalValueKey`; reads go through the raw / modified / at-time interfaces. |
-| `IHistorianTransactionalProvider` | Atomic batch updates | Optional. Per-value best-effort is the default. |
+| `IHistorianTransactionalProvider` | Atomic batch updates | Optional. The dispatcher selects the atomic operation by default when the provider implements this interface; otherwise it uses per-value best-effort. |
 
 Implement only what your backend supports. The dispatcher returns `BadHistoryOperationUnsupported` for operations the resolved provider doesn't implement.
 
@@ -512,6 +563,20 @@ public sealed class HistorianOperationContext
 `Node` may be `null` — historians that hold data for nodes no longer in the address space (deleted variables, archived devices) must still service read requests for them, so don't deref `Node` unconditionally.
 
 ### Read pagination — `HistorianResumeToken` and `HistorianPage<T>`
+
+For raw and timestamped annotation reads, `MaxValues` is the client's `NumValuesPerNode`; `PageLimit` is the server's
+per-page limit. The in-memory provider uses the minimum nonzero limit, additionally capped at 1,000 items.
+For a bounded time window the client limit applies to each page, with a continuation for remaining data.
+For an open-ended request it limits the total across all pages, so the cursor carries the remaining quota.
+Bounds count toward the raw-read quota. Portable annotation continuations retain both limits in codec version 5;
+the codec still reads earlier envelope versions.
+
+This distinction follows [Part 11, 6.5.3.1](https://reference.opcfoundation.org/specs/OPC-10000-11/6.5.3.1)
+and [6.5.3.2](https://reference.opcfoundation.org/specs/OPC-10000-11/6.5.3.2): with both endpoints and a count,
+additional values in the specified time domain require a continuation; with only one endpoint, the count defines
+the extent of that domain. [6.3](https://reference.opcfoundation.org/specs/OPC-10000-11/6.3) permits smaller server
+responses but never a response above the client maximum. The 1,000-item cap is a provider resource limit, not a
+replacement for the client's count or an OPC UA fixed page size.
 
 Read methods return `ValueTask<HistorianPage<T>>`. A page is:
 
@@ -595,16 +660,28 @@ for per-value failures**. Validate inputs and surface the per-value outcome:
 | Annotation variants | Same patterns, keyed by `AnnotationTime`. | Same status codes. |
 | Event variants | Same patterns, keyed by `EventId`. | `BadNoEntryExists` / `BadEntryExists`. |
 
-**`SourceTimestamp` uniqueness rule**: a historizing variable has at most one live value per source timestamp. Replace logs the prior value in modified history; subsequent replaces overwrite the live value but each Replace adds another modification entry.
+**`SourceTimestamp` uniqueness rule**: a historizing variable has at most one live value per source timestamp. Explicit
+`HistoryUpdate` Insert operations log the inserted value as an `INSERT` modified-history entry, and Update operations
+that create a new entry do the same. Replace logs the prior value in modified history; subsequent replaces overwrite the
+live value but each Replace adds another modification entry. Automatic live-value capture uses the bulk insert path and
+does not create modified-history entries.
 
 **`DeleteRaw` interval semantics**: the framework supplies a half-open interval `[startTime, endTime)`. Providers must delete every value whose `SourceTimestamp` falls in that interval. The `isDeleteModified` flag selects whether the modified-history log is cleared instead of the live values.
 
 ### Atomic batch updates (`IHistorianTransactionalProvider`)
 
-The default contract is per-value best-effort. If your backend supports atomic batch commits, additionally implement `IHistorianTransactionalProvider`. The dispatcher automatically calls the atomic Insert, Replace, or Update method when the resolved provider implements both interfaces. The atomic contract:
+Providers that do not implement `IHistorianTransactionalProvider` use per-value best-effort updates. When the resolved
+provider implements both interfaces, the dispatcher automatically calls the atomic Insert, Replace, or Update method;
+there is no separate client option or request flag for selecting the per-value path. The atomic contract:
 
 - If every input value is applicable, return one success status per value and commit.
 - If any value cannot be applied, return the per-value failure code(s) and roll back the entire batch — the archive is left in its pre-call state.
+
+The in-memory provider projects only the current batch's changes. Uncapped stores do not copy or sort existing
+archive keys. With a sample cap, preflight merges batch-added keys with an ordered cursor over the archive prefix
+that would be evicted, keeping projection work proportional to the batch rather than total archive size. It tracks
+retention-bound replacement and quota eviction in input order, preserving duplicate/replacement decisions and
+per-operation rollback statuses before committing.
 
 ### Modified history
 
@@ -614,7 +691,10 @@ Implement `IHistorianModifiedProvider` if your backend retains prior versions of
 public readonly record struct ModifiedDataValue(DataValue Value, ModificationInfo Info);
 ```
 
-`Info.UpdateType` distinguishes replaced (`Replace`) values from deleted (`Delete`) entries; `Info.UserName` and `Info.ModificationTime` come from the original update's `HistorianOperationContext.DefaultModificationInfo`.
+`Info.UpdateType` distinguishes inserted (`Insert`), replaced (`Replace`) and deleted (`Delete`) entries. Explicit
+HistoryUpdate inserts, including Update operations that insert a missing value, carry the inserted value. Automatic
+live-value capture is not a HistoryUpdate and does not populate modified history. `Info.UserName` and
+`Info.ModificationTime` come from the original update's `HistorianOperationContext.DefaultModificationInfo`.
 
 Modified history is ordered by
 `(SourceTimestamp, ModificationTime, Sequence)`. The in-memory provider's
@@ -733,6 +813,11 @@ public sealed record HistorianEventRecord(
 `QualifiedFields` preserves the select clause's type definition, attribute,
 browse path, and index range. `Fields` is a compatibility view keyed by the
 slash-separated browse path.
+
+The empty browse path with `AttributeId = NodeId` denotes a stored node identity, such as `ConditionId` when the
+operand is rooted at `ConditionType`; it is not an alias for `EventType`. Selection and filtering first resolve the
+exact qualified field, then an unambiguous compatible-type field using the server type tree. An absent identity
+returns a null Variant. The context-free projection helper resolves stored identities without inventing a type.
 
 `HistorianNodeCapabilities.EventFields` lists additional fields the historian
 can retain, while `MandatoryEventFields` lists additional fields that an
@@ -1079,7 +1164,7 @@ if (cfg.HasConfiguration)
        • flush:
             provider is IHistorianBulkInsertProvider  → InsertBatchAsync
             else                                      → per-node InsertAsync
-       • failed provider outcomes fault the consumer and surface on disposal
+       • provider exceptions count lost samples and leave the consumer running
 ```
 
 The capture path is **best-effort under overload**. When the queue is full,
@@ -1089,6 +1174,19 @@ callback is never blocked on asynchronous storage. Applications that cannot
 drop samples must use the explicit `HistoryUpdate` Insert path or an
 application-owned durable queue, which provides awaited persistence and full
 per-value status feedback.
+
+A non-shutdown provider exception drops the failed call's samples, increments `DroppedSampleCount`, and leaves the
+consumer available for later batches. In the per-node fallback, successful nodes are not counted as dropped and a
+failed node does not prevent the remaining nodes from being flushed. Provider bad-status results instead increment
+`RejectedSampleCount`. Failure warnings are limited to one per 30 seconds per sink; counters are never rate-limited.
+Unexpected consumer termination remains an explicit error, and later discarded samples are still counted.
+
+Each capture pump owns one consumer task and a bounded channel; it does not spawn work per sample. Disposal closes
+the writer and drains the consumer for up to five seconds. A timeout cancels the pump and surfaces an error without
+starting further provider calls. An already-running provider must cooperate with cancellation; the framework cannot
+forcibly terminate it. Its token resources remain valid until it actually completes. A one-shot, static completion
+callback observes any late task failure and releases only the token source, without capturing the disposed pump,
+server, or request context. Normal graceful draining is preserved.
 
 ### What triggers a capture
 

@@ -38,6 +38,7 @@ using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
@@ -108,6 +109,27 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         {
             // Act & Assert
             Assert.Throws<ArgumentNullException>(() => new TestableClientBase(null!, m_telemetry!));
+        }
+
+        [Test]
+        public async Task RequestCompletedAfterChannelCloseWithMetricsDoesNotThrowAsync()
+        {
+            using var sut = new TestableClientBase(m_transportChannelMock!.Object, m_telemetry!);
+            sut.ActivityTraceFlags = ClientTraceFlags.Metrics;
+
+            var request = new ReadRequest { RequestHeader = new RequestHeader() };
+            var response = new ReadResponse
+            {
+                ResponseHeader = new ResponseHeader
+                {
+                    RequestHandle = request.RequestHeader.RequestHandle,
+                    ServiceResult = StatusCodes.Good
+                }
+            };
+
+            await sut.TestCloseChannelAsync().ConfigureAwait(false);
+
+            Assert.DoesNotThrow(() => sut.TestRequestCompleted(request, response, "Read"));
         }
 
         [Test]
@@ -501,6 +523,11 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             public void TestRequestCompleted(IServiceRequest request, IServiceResponse response, string serviceName)
             {
                 RequestCompleted(request, response, serviceName);
+            }
+
+            public Task TestCloseChannelAsync()
+            {
+                return CloseChannelAsync(CancellationToken.None);
             }
 
             public static void TestValidateResponse(ResponseHeader header)

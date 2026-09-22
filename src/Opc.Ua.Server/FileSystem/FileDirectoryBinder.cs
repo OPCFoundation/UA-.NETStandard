@@ -85,6 +85,8 @@ namespace Opc.Ua.Server.FileSystem
         /// <summary>
         /// Re-reads the provider and reconciles materialised child nodes.
         /// </summary>
+        /// <param name="cancellationToken">The token used to cancel reconciliation.</param>
+        /// <returns>A task that completes when reconciliation finishes, or reports the refresh failure.</returns>
         ValueTask RefreshAsync(CancellationToken cancellationToken = default);
     }
 
@@ -96,12 +98,21 @@ namespace Opc.Ua.Server.FileSystem
         /// <summary>
         /// Binds a FileDirectoryType node to a provider and materialises its current contents.
         /// </summary>
+        /// <param name="directory">The existing directory node to bind.</param>
+        /// <param name="provider">The file-system provider that backs the directory.</param>
+        /// <param name="context">The system context used to create and register child nodes.</param>
+        /// <param name="options">The binding options, or null to use the defaults.</param>
+        /// <param name="registerNode">The callback that registers a materialised node with its node manager.</param>
+        /// <param name="deregisterNode">The callback that removes a materialised node from its node manager.</param>
+        /// <param name="cancellationToken">The token used to cancel initial materialisation.</param>
+        /// <returns>The initialized binding, which the caller must dispose asynchronously.</returns>
         ValueTask<IFileDirectoryBinding> BindAsync(
             FileDirectoryState directory,
             IFileSystemProvider provider,
             ISystemContext context,
             FileDirectoryBindingOptions? options = null,
             Func<NodeState, CancellationToken, ValueTask>? registerNode = null,
+            Func<NodeState, CancellationToken, ValueTask>? deregisterNode = null,
             CancellationToken cancellationToken = default);
     }
 
@@ -117,6 +128,7 @@ namespace Opc.Ua.Server.FileSystem
             ISystemContext context,
             FileDirectoryBindingOptions? options = null,
             Func<NodeState, CancellationToken, ValueTask>? registerNode = null,
+            Func<NodeState, CancellationToken, ValueTask>? deregisterNode = null,
             CancellationToken cancellationToken = default)
         {
             if (directory == null)
@@ -132,8 +144,13 @@ namespace Opc.Ua.Server.FileSystem
                 throw new ArgumentNullException(nameof(context));
             }
 
-            var binding = new FileDirectoryBinding(directory, provider, context,
-                options ?? new FileDirectoryBindingOptions(), registerNode);
+            var binding = new FileDirectoryBinding(
+                directory,
+                provider,
+                context,
+                options ?? new FileDirectoryBindingOptions(),
+                registerNode,
+                deregisterNode);
             bool initialized = false;
             try
             {
@@ -163,7 +180,8 @@ namespace Opc.Ua.Server.FileSystem
                 IFileSystemProvider provider,
                 ISystemContext context,
                 FileDirectoryBindingOptions options,
-                Func<NodeState, CancellationToken, ValueTask>? registerNode)
+                Func<NodeState, CancellationToken, ValueTask>? registerNode,
+                Func<NodeState, CancellationToken, ValueTask>? deregisterNode)
             {
                 Directory = directory;
                 Provider = provider;
@@ -171,6 +189,7 @@ namespace Opc.Ua.Server.FileSystem
                 m_logger = context.Telemetry.CreateLogger<FileDirectoryBinder>();
                 m_options = ValidateOptions(options);
                 m_registerNode = registerNode;
+                m_deregisterNode = deregisterNode;
                 m_nodeIdPrefix = "FileDirectoryBinding:" + directory.NodeId;
             }
 
@@ -259,12 +278,7 @@ namespace Opc.Ua.Server.FileSystem
                     {
                         handle.Dispose();
                     }
-                    foreach (MaterializedNode entry in m_nodesByPath.Values)
-                    {
-                        entry.Node.Parent?.RemoveChild(entry.Node);
-                    }
-                    m_nodesByPath.Clear();
-                    m_nodesById.Clear();
+                    await RemoveStaleNodesAsync([], CancellationToken.None).ConfigureAwait(false);
                 }
                 finally
                 {
@@ -311,20 +325,50 @@ namespace Opc.Ua.Server.FileSystem
             /// <inheritdoc/>
             public FileHandle? GetOrCreateHandle(NodeId nodeId, string providerPath)
             {
+                if (nodeId.NamespaceIndex != Directory.NodeId.NamespaceIndex)
+                {
+                    return null;
+                }
+                string identity = FileSystemDirectoryOperations.GetPathIdentity(Provider, providerPath);
                 lock (m_lock)
                 {
                     if (m_disposed)
                     {
                         return null;
                     }
-                    if (m_handles.TryGetValue(nodeId, out FileHandle? handle))
+                    if (m_handles.TryGetValue(identity, out FileHandle? handle))
                     {
                         return handle;
                     }
 
                     handle = new FileHandle(Provider, providerPath);
-                    m_handles.Add(nodeId, handle);
+                    m_handles.Add(identity, handle);
                     return handle;
+                }
+            }
+
+            /// <inheritdoc/>
+            public FileHandle? FindHandle(string providerPath)
+            {
+                string identity = FileSystemDirectoryOperations.GetPathIdentity(Provider, providerPath);
+                lock (m_lock)
+                {
+                    return !m_disposed && m_handles.TryGetValue(identity, out FileHandle? handle) ? handle : null;
+                }
+            }
+
+            /// <inheritdoc/>
+            public void ReleaseHandle(FileHandle handle)
+            {
+                string identity = FileSystemDirectoryOperations.GetPathIdentity(Provider, handle.ProviderPath);
+                lock (m_lock)
+                {
+                    if (m_handles.TryGetValue(identity, out FileHandle? current) &&
+                        ReferenceEquals(current, handle) &&
+                        handle.TryRetire())
+                    {
+                        m_handles.Remove(identity);
+                    }
                 }
             }
 
@@ -334,10 +378,13 @@ namespace Opc.Ua.Server.FileSystem
                 FileHandle? retired = null;
                 lock (m_lock)
                 {
-                    if (m_handles.TryGetValue(nodeId, out FileHandle? handle))
+                    if (m_lookupById.TryGetValue(nodeId, out MaterializedNode? entry))
                     {
-                        m_handles.Remove(nodeId);
-                        retired = handle;
+                        string identity = FileSystemDirectoryOperations.GetPathIdentity(Provider, entry.ProviderPath);
+                        if (m_handles.TryGetValue(identity, out retired))
+                        {
+                            m_handles.Remove(identity);
+                        }
                     }
                 }
                 retired?.Dispose();
@@ -520,7 +567,15 @@ namespace Opc.Ua.Server.FileSystem
                 var seen = new HashSet<string>(StringComparer.Ordinal);
                 await ReconcileDirectoryAsync(Directory, string.Empty, 0, seen, cancellationToken)
                     .ConfigureAwait(false);
-                RemoveStaleNodes(seen);
+                await RemoveStaleNodesAsync(seen, cancellationToken).ConfigureAwait(false);
+                if (m_initializing)
+                {
+                    m_initializing = false;
+                    foreach (MaterializedNode entry in m_nodesByPath.Values)
+                    {
+                        await RegisterNodeAsync(entry, cancellationToken).ConfigureAwait(false);
+                    }
+                }
                 lock (m_lock)
                 {
                     m_lookupById = new Dictionary<NodeId, MaterializedNode>(m_nodesById);
@@ -591,7 +646,7 @@ namespace Opc.Ua.Server.FileSystem
                         await RegisterNodeAsync(existing, cancellationToken).ConfigureAwait(false);
                         return directory;
                     }
-                    RemoveNode(existing);
+                    await RemoveNodeAsync(existing, cancellationToken).ConfigureAwait(false);
                 }
 
                 var node = new DirectoryObjectState(
@@ -619,7 +674,7 @@ namespace Opc.Ua.Server.FileSystem
                         await RegisterNodeAsync(existing, cancellationToken).ConfigureAwait(false);
                         return file;
                     }
-                    RemoveNode(existing);
+                    await RemoveNodeAsync(existing, cancellationToken).ConfigureAwait(false);
                 }
 
                 var node = new FileObjectState(m_context, BuildFileNodeId(entry.Path), entry.Path, entry.Name, this);
@@ -635,14 +690,23 @@ namespace Opc.Ua.Server.FileSystem
                 {
                     return;
                 }
-                if (!m_initializing && m_registerNode != null)
+                if (m_registerNode == null)
                 {
-                    await m_registerNode(entry.Node, cancellationToken).ConfigureAwait(false);
+                    entry.Registered = true;
+                    return;
                 }
+                if (m_initializing)
+                {
+                    return;
+                }
+
+                await m_registerNode(entry.Node, cancellationToken).ConfigureAwait(false);
                 entry.Registered = true;
             }
 
-            private void RemoveStaleNodes(HashSet<string> seen)
+            private async ValueTask RemoveStaleNodesAsync(
+                HashSet<string> seen,
+                CancellationToken cancellationToken)
             {
                 List<MaterializedNode> stale = [];
                 foreach (MaterializedNode entry in m_nodesByPath.Values)
@@ -655,11 +719,13 @@ namespace Opc.Ua.Server.FileSystem
                 stale.Sort(static (left, right) => right.ProviderPath.Length.CompareTo(left.ProviderPath.Length));
                 foreach (MaterializedNode entry in stale)
                 {
-                    RemoveNode(entry);
+                    await RemoveNodeAsync(entry, cancellationToken).ConfigureAwait(false);
                 }
             }
 
-            private void RemoveNode(MaterializedNode entry)
+            private async ValueTask RemoveNodeAsync(
+                MaterializedNode entry,
+                CancellationToken cancellationToken)
             {
                 List<MaterializedNode> descendants = [];
                 string prefix = entry.ProviderPath + "/";
@@ -673,13 +739,19 @@ namespace Opc.Ua.Server.FileSystem
                 descendants.Sort(static (left, right) => right.ProviderPath.Length.CompareTo(left.ProviderPath.Length));
                 foreach (MaterializedNode descendant in descendants)
                 {
-                    RemoveSingleNode(descendant);
+                    await RemoveSingleNodeAsync(descendant, cancellationToken).ConfigureAwait(false);
                 }
-                RemoveSingleNode(entry);
+                await RemoveSingleNodeAsync(entry, cancellationToken).ConfigureAwait(false);
             }
 
-            private void RemoveSingleNode(MaterializedNode entry)
+            private async ValueTask RemoveSingleNodeAsync(
+                MaterializedNode entry,
+                CancellationToken cancellationToken)
             {
+                if (entry.Registered && m_deregisterNode != null)
+                {
+                    await m_deregisterNode(entry.Node, cancellationToken).ConfigureAwait(false);
+                }
                 DetachCallbacks(entry.Node);
                 ForgetHandle(entry.Node.NodeId);
                 entry.Node.Parent?.RemoveChild(entry.Node);
@@ -719,22 +791,10 @@ namespace Opc.Ua.Server.FileSystem
 
             private void DetachDirectoryCallbacks(FileDirectoryState directory)
             {
-                if (directory.DeleteFileSystemObject != null)
-                {
-                    directory.DeleteFileSystemObject.OnCallAsync = null;
-                }
-                if (directory.CreateFile != null)
-                {
-                    directory.CreateFile.OnCallAsync = null;
-                }
-                if (directory.CreateDirectory != null)
-                {
-                    directory.CreateDirectory.OnCallAsync = null;
-                }
-                if (directory.MoveOrCopy != null)
-                {
-                    directory.MoveOrCopy.OnCallAsync = null;
-                }
+                directory.DeleteFileSystemObject?.OnCallAsync = null;
+                directory.CreateFile?.OnCallAsync = null;
+                directory.CreateDirectory?.OnCallAsync = null;
+                directory.MoveOrCopy?.OnCallAsync = null;
             }
 
             private void EnsureDirectoryMethods(FileDirectoryState directory)
@@ -815,13 +875,14 @@ namespace Opc.Ua.Server.FileSystem
             }
 
             private readonly SemaphoreSlim m_gate = new(1, 1);
-            private readonly Dictionary<NodeId, FileHandle> m_handles = [];
+            private readonly Dictionary<string, FileHandle> m_handles = new(StringComparer.Ordinal);
             private readonly Dictionary<NodeId, MaterializedNode> m_nodesById = [];
             private readonly Dictionary<string, MaterializedNode> m_nodesByPath = new(StringComparer.Ordinal);
             private readonly ISystemContext m_context;
             private readonly ILogger m_logger;
             private readonly FileDirectoryBindingOptions m_options;
             private readonly Func<NodeState, CancellationToken, ValueTask>? m_registerNode;
+            private readonly Func<NodeState, CancellationToken, ValueTask>? m_deregisterNode;
             private readonly Lock m_lock = new();
             private readonly string m_nodeIdPrefix;
             private Dictionary<NodeId, MaterializedNode> m_lookupById = [];

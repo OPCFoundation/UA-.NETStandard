@@ -117,14 +117,16 @@ namespace Opc.Ua.Redundancy.Server
                 throw new ArgumentException("A partition identifier is required.", nameof(partitionId));
             }
 
+            string key = PartitionPrefix + Uri.EscapeDataString(partitionId);
             (bool found, ByteString stored) = await m_store
-                .TryGetAsync(PartitionPrefix + Uri.EscapeDataString(partitionId), ct)
+                .TryGetAsync(key, ct)
                 .ConfigureAwait(false);
             if (!found)
             {
                 return false;
             }
-            if (!m_protector.TryUnprotect(stored, out ByteString marker) ||
+            if (!m_protector.TryUnprotect(
+                    RecordProtectionContext.Create("node-state-marker", key), stored, out ByteString marker) ||
                 marker.Length != 1 ||
                 marker.Span[0] != 1)
             {
@@ -147,9 +149,11 @@ namespace Opc.Ua.Redundancy.Server
 
             ct.ThrowIfCancellationRequested();
             ValidateCoordinator(m_store);
+            string key = PartitionPrefix + Uri.EscapeDataString(partitionId);
             return m_store.SetAsync(
-                PartitionPrefix + Uri.EscapeDataString(partitionId),
-                m_protector.Protect(new ByteString(new byte[] { 1 })),
+                key,
+                m_protector.Protect(
+                    RecordProtectionContext.Create("node-state-marker", key), new ByteString(new byte[] { 1 })),
                 ct);
         }
 
@@ -173,7 +177,7 @@ namespace Opc.Ua.Redundancy.Server
                 if (TryParseNodeId(entry.Key, NodePrefix, out NodeId nodeId) &&
                     ownsNode(nodeId))
                 {
-                    if (!TryReadRecord(entry.Value, out _, out _))
+                    if (!TryReadRecord(entry.Key, entry.Value, out _, out _))
                     {
                         throw new ServiceResultException(
                             StatusCodes.BadDecodingError,
@@ -255,11 +259,12 @@ namespace Opc.Ua.Redundancy.Server
         /// <inheritdoc/>
         public async ValueTask<IStoredNode?> TryGetNodeAsync(NodeId nodeId, CancellationToken ct = default)
         {
+            string key = NodePrefix + nodeId;
             (bool found, ByteString value) = await m_store
-                .TryGetAsync(NodePrefix + nodeId, ct)
+                .TryGetAsync(key, ct)
                 .ConfigureAwait(false);
             if (found &&
-                TryReadRecord(value, out _, out ByteString payload) &&
+                TryReadRecord(key, value, out _, out ByteString payload) &&
                 !payload.IsEmpty)
             {
                 return new StoredNode(nodeId, payload);
@@ -342,10 +347,11 @@ namespace Opc.Ua.Redundancy.Server
             NodeId nodeId,
             CancellationToken ct = default)
         {
+            string key = ValuePrefix + nodeId;
             (bool found, ByteString value) = await m_store
-                .TryGetAsync(ValuePrefix + nodeId, ct)
+                .TryGetAsync(key, ct)
                 .ConfigureAwait(false);
-            if (found && TryReadRecord(value, out _, out ByteString payload))
+            if (found && TryReadRecord(key, value, out _, out ByteString payload))
             {
                 return (true, DecodeValue(payload));
             }
@@ -431,10 +437,12 @@ namespace Opc.Ua.Redundancy.Server
                             StatusCodes.BadEncodingLimitsExceeded,
                             "The distributed address-space snapshot has too many chunks.");
                     }
+                    string key = SnapshotChunkKey(generation, chunkIndex);
                     await m_store
                         .SetAsync(
-                            SnapshotChunkKey(generation, chunkIndex),
-                            m_protector.Protect(new ByteString(plaintext)),
+                            key,
+                            m_protector.Protect(
+                                RecordProtectionContext.Create("node-state-chunk", key), new ByteString(plaintext)),
                             ct)
                         .ConfigureAwait(false);
                     chunkIndex++;
@@ -515,6 +523,7 @@ namespace Opc.Ua.Redundancy.Server
                 }
 
                 ByteString manifest = m_protector.Protect(
+                    RecordProtectionContext.Create("node-state-manifest", ManifestKey),
                     EncodeManifest(generation, chunkIndex, sequence, predecessor));
                 ct.ThrowIfCancellationRequested();
                 publicationUncertain = true;
@@ -590,21 +599,21 @@ namespace Opc.Ua.Redundancy.Server
             ulong fromSequenceExclusive,
             [EnumeratorCancellation] CancellationToken ct = default)
         {
-            var pending = new List<(ulong Sequence, ByteString Frame)>();
+            var pending = new List<(string Key, ulong Sequence, ByteString Frame)>();
             await foreach (KeyValuePair<string, ByteString> entry in m_store
                 .ScanAsync(DeltaPrefix, ct)
                 .ConfigureAwait(false))
             {
                 if (TryParseSequence(entry.Key, out ulong seq) && seq > fromSequenceExclusive)
                 {
-                    pending.Add((seq, entry.Value));
+                    pending.Add((entry.Key, seq, entry.Value));
                 }
             }
             pending.Sort(static (left, right) => left.Sequence.CompareTo(right.Sequence));
-            foreach ((ulong seq, ByteString frame) in pending)
+            foreach ((string key, ulong seq, ByteString frame) in pending)
             {
                 ct.ThrowIfCancellationRequested();
-                NodeStateChange change = DecodeDelta(seq, frame);
+                NodeStateChange change = DecodeDelta(key, seq, frame);
                 ObserveSequence(seq);
                 yield return change;
             }
@@ -715,7 +724,7 @@ namespace Opc.Ua.Redundancy.Server
                     if ((!deltas.TryGetValue(entry.Key, out ByteString previous) || !previous.Equals(entry.Value)) &&
                         TryParseSequence(entry.Key, out ulong sequence))
                     {
-                        changes.Add(DecodeDelta(sequence, entry.Value));
+                        changes.Add(DecodeDelta(entry.Key, sequence, entry.Value));
                     }
                 }
                 changes.Sort(static (left, right) => left.Sequence.CompareTo(right.Sequence));
@@ -876,7 +885,7 @@ namespace Opc.Ua.Redundancy.Server
                 change.Key.StartsWith(DeltaPrefix, StringComparison.Ordinal) &&
                 TryParseSequence(change.Key, out ulong deltaSequence))
             {
-                _ = DecodeDelta(deltaSequence, change.Value);
+                _ = DecodeDelta(change.Key, deltaSequence, change.Value);
             }
             return null;
         }
@@ -925,9 +934,11 @@ namespace Opc.Ua.Redundancy.Server
             ByteString payload,
             CancellationToken ct)
         {
+            string key = DeltaPrefix + FormatSequence(sequence);
             return m_store.SetAsync(
-                DeltaPrefix + FormatSequence(sequence),
-                m_protector.Protect(EncodeDelta(kind, nodeId, payload)),
+                key,
+                m_protector.Protect(
+                    RecordProtectionContext.Create("node-state-delta", key), EncodeDelta(kind, nodeId, payload)),
                 ct);
         }
 
@@ -941,9 +952,11 @@ namespace Opc.Ua.Redundancy.Server
             return buffer is null ? ByteString.Empty : new ByteString(buffer);
         }
 
-        private NodeStateChange DecodeDelta(ulong sequence, ByteString frame)
+        private NodeStateChange DecodeDelta(string key, ulong sequence, ByteString frame)
         {
-            if (!m_protector.TryUnprotect(frame, out ByteString plaintext) || plaintext.IsNull)
+            if (!m_protector.TryUnprotect(
+                    RecordProtectionContext.Create("node-state-delta", key), frame, out ByteString plaintext) ||
+                plaintext.IsNull)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadDecodingError,
@@ -996,10 +1009,14 @@ namespace Opc.Ua.Redundancy.Server
         {
             for (int i = 0; i < manifest.ChunkCount; i++)
             {
+                string key = SnapshotChunkKey(manifest.Generation, i);
                 (bool found, ByteString chunk) = await m_store
-                    .TryGetAsync(SnapshotChunkKey(manifest.Generation, i), ct)
+                    .TryGetAsync(key, ct)
                     .ConfigureAwait(false);
-                if (!found || !m_protector.TryUnprotect(chunk, out ByteString plaintext) || plaintext.IsNull)
+                if (!found ||
+                    !m_protector.TryUnprotect(
+                        RecordProtectionContext.Create("node-state-chunk", key), chunk, out ByteString plaintext) ||
+                    plaintext.IsNull)
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadDecodingError,
@@ -1115,7 +1132,10 @@ namespace Opc.Ua.Redundancy.Server
         private bool TryDecodeManifest(ByteString stored, out SnapshotManifest manifest)
         {
             manifest = default;
-            if (!m_protector.TryUnprotect(stored, out ByteString plaintext) || plaintext.IsNull)
+            if (!m_protector.TryUnprotect(
+                    RecordProtectionContext.Create("node-state-manifest", ManifestKey),
+                    stored, out ByteString plaintext) ||
+                plaintext.IsNull)
             {
                 return false;
             }
@@ -1249,7 +1269,9 @@ namespace Opc.Ua.Redundancy.Server
             {
                 return (default, 0, []);
             }
-            if (!m_protector.TryUnprotect(stored, out ByteString payload) ||
+            if (!m_protector.TryUnprotect(
+                    RecordProtectionContext.Create("node-state-sequence", SequenceKey),
+                    stored, out ByteString payload) ||
                 payload.Length < sizeof(ulong) ||
                 payload.Length % sizeof(ulong) != 0)
             {
@@ -1285,7 +1307,8 @@ namespace Opc.Ua.Redundancy.Server
             {
                 BinaryPrimitives.WriteUInt64BigEndian(buffer.AsSpan((i + 1) * sizeof(ulong)), pending[i]);
             }
-            return m_protector.Protect(new ByteString(buffer));
+            return m_protector.Protect(
+                RecordProtectionContext.Create("node-state-sequence", SequenceKey), new ByteString(buffer));
         }
 
         private async ValueTask CompleteSequenceAsync(ulong sequence, CancellationToken ct)
@@ -1318,7 +1341,9 @@ namespace Opc.Ua.Redundancy.Server
             ByteString payload,
             CancellationToken ct)
         {
-            ByteString replacement = m_protector.Protect(WithSequence(sequence, payload));
+            ByteString replacement = m_protector.Protect(
+                RecordProtectionContext.Create("node-state-record", key),
+                WithSequence(sequence, payload));
             bool linearizable = IsLinearizableKey(key);
             while (true)
             {
@@ -1356,7 +1381,7 @@ namespace Opc.Ua.Redundancy.Server
 
         private (ulong Sequence, ByteString Payload) ReadRecord(string key, ByteString stored)
         {
-            if (!TryReadRecord(stored, out ulong sequence, out ByteString payload))
+            if (!TryReadRecord(key, stored, out ulong sequence, out ByteString payload))
             {
                 throw new ServiceResultException(
                     StatusCodes.BadDecodingError,
@@ -1365,11 +1390,12 @@ namespace Opc.Ua.Redundancy.Server
             return (sequence, payload);
         }
 
-        private bool TryReadRecord(ByteString stored, out ulong sequence, out ByteString payload)
+        private bool TryReadRecord(string key, ByteString stored, out ulong sequence, out ByteString payload)
         {
             sequence = 0;
             payload = ByteString.Empty;
-            return m_protector.TryUnprotect(stored, out ByteString wrapped) &&
+            return m_protector.TryUnprotect(
+                    RecordProtectionContext.Create("node-state-record", key), stored, out ByteString wrapped) &&
                 TrySplitSequence(wrapped, out sequence, out payload);
         }
 

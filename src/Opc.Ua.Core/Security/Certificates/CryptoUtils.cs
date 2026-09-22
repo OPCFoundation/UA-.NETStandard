@@ -340,7 +340,9 @@ namespace Opc.Ua
                     "No public key for certificate.");
             }
 
-            if (signingCertificate.GetRSAPublicKey() != null)
+            using RSA? rsa = signingCertificate.GetRSAPublicKey();
+
+            if (rsa != null)
             {
                 return RsaUtils.GetSignatureLength(signingCertificate);
             }

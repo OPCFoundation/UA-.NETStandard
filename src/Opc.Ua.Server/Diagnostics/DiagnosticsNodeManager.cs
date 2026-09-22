@@ -172,6 +172,10 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         protected override async ValueTask DisposeAsyncCore()
         {
+            if (m_aliasRefresh != null)
+            {
+                await m_aliasRefresh.DisposeAsync().ConfigureAwait(false);
+            }
             await m_diagnosticsTransitionSemaphore.WaitAsync().ConfigureAwait(false);
             try
             {
@@ -265,8 +269,8 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadSubscriptionIdInvalid;
             }
 
-            if (context is ISessionSystemContext session &&
-                subscription.SessionId != null! &&
+            if (context is not ISessionSystemContext session ||
+                subscription.SessionId.IsNull ||
                 !subscription.SessionId.Equals(session.SessionId))
             {
                 // user tries to access subscription of different session
@@ -1033,7 +1037,7 @@ namespace Opc.Ua.Server
             {
                 tempSessionNode = new SessionDiagnosticsObjectState(null);
                 SessionDiagnosticsObjectState sessionNode = tempSessionNode;
-                QualifiedName browseName = QualifiedName.From(diagnostics.SessionName!);
+                var browseName = QualifiedName.From(diagnostics.SessionName!);
 
                 if (DiagnosticsEnabled)
                 {
@@ -1108,9 +1112,6 @@ namespace Opc.Ua.Server
             SessionSecurityDiagnosticsDataType securityDiagnostics,
             NodeValueSimpleEventHandler updateSecurityCallback)
         {
-            // Hook the OnReadUserRolePermissions callback to control which user roles can access the services on this node
-            sessionNode.OnReadUserRolePermissions = OnReadUserRolePermissions;
-
             // initialize diagnostics node.
             var diagnosticsNode =
                 sessionNode.CreateChild(SystemContext, QualifiedName.From(BrowseNames.SessionDiagnostics)) as
@@ -1128,7 +1129,6 @@ namespace Opc.Ua.Server
                 CopyPolicy = VariableCopyPolicy.Never,
                 OnBeforeRead = OnBeforeReadDiagnostics
             };
-
             // initialize security diagnostics node.
             var securityDiagnosticsNode =
                 sessionNode.CreateChild(
@@ -1148,6 +1148,7 @@ namespace Opc.Ua.Server
                 CopyPolicy = VariableCopyPolicy.Never,
                 OnBeforeRead = OnBeforeReadDiagnostics
             };
+            SetDiagnosticsPermissions(sessionNode, diagnostics.SessionId);
 
             return new SessionDiagnosticsData(
                 sessionNode,
@@ -1324,8 +1325,23 @@ namespace Opc.Ua.Server
                 Value = null!,
                 Error = StatusCodes.BadWaitingForInitialData
             };
+            SetDiagnosticsPermissions(diagnosticsNode, diagnostics.SessionId);
 
             return new SubscriptionDiagnosticsData(diagnosticsValue, updateCallback, diagnostics);
+        }
+
+        private void SetDiagnosticsPermissions(NodeState node, NodeId ownerSessionId)
+        {
+            node.OnReadUserRolePermissions =
+                (context, currentNode, ref value) =>
+                    OnReadUserRolePermissions(context, currentNode, ownerSessionId, ref value);
+
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(SystemContext, children);
+            foreach (BaseInstanceState child in children)
+            {
+                SetDiagnosticsPermissions(child, ownerSessionId);
+            }
         }
 
         /// <summary>
@@ -1351,29 +1367,64 @@ namespace Opc.Ua.Server
             if (!diagnostics.SessionId.IsNull)
             {
                 // add reference to session subscription array.
-                diagnosticsNode.AddReference(
+                SessionDiagnosticsObjectState? sessionNode = FindPredefinedNode<SessionDiagnosticsObjectState>(
+                    diagnostics.SessionId);
+                SubscriptionDiagnosticsArrayState? sessionArray = GetSessionSubscriptionDiagnosticsArray(sessionNode);
+                if (sessionArray != null)
+                {
+                    sessionArray.AddReference(ReferenceTypeIds.HasComponent, false, diagnosticsNode.NodeId);
+                    diagnosticsNode.AddReference(
+                        ReferenceTypeIds.HasComponent,
+                        true,
+                        sessionArray.NodeId);
+                }
+            }
+        }
+
+        private SubscriptionDiagnosticsArrayState? GetSessionSubscriptionDiagnosticsArray(
+            SessionDiagnosticsObjectState? sessionNode)
+        {
+            return sessionNode == null
+                ? null
+                : (SubscriptionDiagnosticsArrayState?)sessionNode.CreateChild(
+                    SystemContext,
+                    QualifiedName.From(BrowseNames.SubscriptionDiagnosticsArray))!;
+        }
+
+        internal void RelinkSubscriptionDiagnostics(
+            NodeId diagnosticsNodeId,
+            NodeId oldSessionId,
+            NodeId newSessionId)
+        {
+            SubscriptionDiagnosticsState? diagnosticsNode =
+                FindPredefinedNode<SubscriptionDiagnosticsState>(diagnosticsNodeId);
+            if (diagnosticsNode == null)
+            {
+                return;
+            }
+
+            SessionDiagnosticsObjectState? oldSession =
+                FindPredefinedNode<SessionDiagnosticsObjectState>(oldSessionId);
+            SubscriptionDiagnosticsArrayState? oldArray = GetSessionSubscriptionDiagnosticsArray(oldSession);
+            if (oldArray != null)
+            {
+                oldArray.RemoveReference(ReferenceTypeIds.HasComponent, false, diagnosticsNodeId);
+                diagnosticsNode.RemoveReference(
                     ReferenceTypeIds.HasComponent,
                     true,
-                    diagnostics.SessionId);
+                    oldArray.NodeId);
             }
 
-            // add reference from session subscription array.
-            SessionDiagnosticsObjectState sessionNode = FindPredefinedNode<SessionDiagnosticsObjectState>(
-                diagnostics.SessionId);
-
-            if (sessionNode != null)
+            SessionDiagnosticsObjectState? newSession =
+                FindPredefinedNode<SessionDiagnosticsObjectState>(newSessionId);
+            SubscriptionDiagnosticsArrayState? newArray = GetSessionSubscriptionDiagnosticsArray(newSession);
+            newArray?.AddReference(ReferenceTypeIds.HasComponent, false, diagnosticsNodeId);
+            if (newArray != null)
             {
-                // add reference from subscription array.
-                array = (SubscriptionDiagnosticsArrayState?)
-                    sessionNode.CreateChild(
-                        SystemContext,
-                        QualifiedName.From(BrowseNames.SubscriptionDiagnosticsArray))!;
-
-                array?.AddReference(
-                    ReferenceTypeIds.HasComponent,
-                    false,
-                    diagnosticsNode.NodeId);
+                diagnosticsNode.AddReference(ReferenceTypeIds.HasComponent, true, newArray.NodeId);
             }
+
+            SetDiagnosticsPermissions(diagnosticsNode, newSessionId);
         }
 
         /// <summary>
@@ -1989,6 +2040,15 @@ namespace Opc.Ua.Server
             NodeState node,
             ref ArrayOf<RolePermissionType> value)
         {
+            return OnReadUserRolePermissions(context, node, node.NodeId, ref value);
+        }
+
+        private ServiceResult OnReadUserRolePermissions(
+            ISystemContext context,
+            NodeState node,
+            NodeId ownerSessionId,
+            ref ArrayOf<RolePermissionType> value)
+        {
             bool adminUser;
 
             if ((node.NodeId == VariableIds.Server_ServerDiagnostics_ServerDiagnosticsSummary) ||
@@ -2000,7 +2060,9 @@ namespace Opc.Ua.Server
             {
                 // allow Session to see own session diagnostics
                 NodeId curSession = (context as ISessionSystemContext)?.SessionId ?? default;
-                adminUser = node.NodeId == curSession || HasApplicationSecureAdminAccess(context);
+                adminUser = (!ownerSessionId.IsNull && ownerSessionId == curSession) ||
+                    (!curSession.IsNull && node.NodeId == curSession) ||
+                    HasApplicationSecureAdminAccess(context);
             }
 
             if (adminUser)
@@ -2013,7 +2075,8 @@ namespace Opc.Ua.Server
                         Permissions = (uint)(
                             PermissionType.Browse |
                             PermissionType.Read |
-                            PermissionType.ReadRolePermissions)
+                            PermissionType.ReadRolePermissions |
+                            PermissionType.ReceiveEvents)
                     };
 
                 value = [.. rolePermissionTypes];

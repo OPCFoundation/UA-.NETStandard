@@ -118,7 +118,7 @@ require both a role and a group simultaneously, implement a custom
 
 ### Typed-proxy address-space binding
 
-`RoleStateBinding.Bind(diagnosticsNodeManager, roleManager, auditServer)` uses the source-generated typed proxies (`RoleSetState`, `RoleState`, `AddIdentityMethodState`, `AddRoleMethodState`, ...). Each typed `OnCallAsync` delegate:
+`RoleStateBinding.BindAsync(diagnosticsNodeManager, roleManager, auditServer)` uses the source-generated typed proxies (`RoleSetState`, `RoleState`, `AddIdentityMethodState`, `AddRoleMethodState`, ...). Each typed `OnCallAsync` delegate:
 
 1. Enforces `RoleAuthorizationGate.CheckAdmin` (SecurityAdmin role over a `SignAndEncrypt` channel) - returns `Bad_SecurityModeInsufficient` or `Bad_UserAccessDenied` otherwise (Part 18 4.2 / 4.4).
 2. Delegates to `IRoleManager`.
@@ -126,6 +126,12 @@ require both a role and a group simultaneously, implement a custom
 4. Keeps the typed `Identities`, `Applications`, `Endpoints`, `ApplicationsExclude`, `EndpointsExclude` and `CustomConfiguration` property values in sync with the manager via the `RoleConfigurationChanged` event.
 
 `DiagnosticsNodeManager.AddBehaviourToPredefinedNodeAsync` upgrades passive `BaseObjectState` instances of `RoleSetType` and `RoleType` to the typed `RoleSetState` and `RoleState` proxies at predefined-node load time.
+
+Queued removal retains the exact binding generation and node reference it owns.
+Re-adding a role advances that generation, even when the same well-known NodeId
+and RoleState are reused. Cleanup rechecks the role manager and conditionally
+claims the removed generation before deleting the node. A failed AddRole that
+never acquired a binding cannot delete the foreign node that caused its collision.
 
 ### Default impersonation flow
 
@@ -150,8 +156,9 @@ The Part 18 §5 `UserManagementType` is bound to the standard
 Integrators inject an `IUserManagement` instance via
 `IServerInternal.SetUserManagement` before the configuration node manager
 binds the address space; the default `UserManagement` implementation wraps
-an existing `IUserDatabase` for credential persistence and stores the
-per-user `UserConfigurationMask` and description in memory:
+an existing `IUserDatabase` for credential persistence. Built-in
+`LinqUserDatabase` and `JsonUserDatabase` also persist the per-user
+`UserConfigurationMask` and description:
 
 ```csharp
 using Opc.Ua.Server.UserDatabase;
@@ -170,6 +177,12 @@ var userManagement = new UserManagement(
 
 serverInternal.SetUserManagement(userManagement);
 ```
+
+`IUserDatabase` commits credentials and metadata together, so disabled and
+`MustChangePassword` decisions survive a restart. A custom database implements
+`CreateUser`, `ResetPassword` and `UpdateUserMetadata` alongside the credential
+members; each mutation must be one transaction, and a rejected or failed write
+must leave the live and persisted records unchanged.
 
 `UserManagementBinding.Bind` (called automatically by
 `ConfigurationNodeManager.CreateServerConfiguration` when an
@@ -210,6 +223,21 @@ through atomic file replacement. Failed writes leave the previous file
 intact, and saves are serialized per database instance. Missing files
 initialize an empty database; malformed or inaccessible files are logged
 and reported as errors instead of silently becoming empty databases.
+Authentication reads committed credential and role records without waiting
+for snapshot I/O; the pending replacement is visible only to snapshot
+persistence until the write succeeds. A failed write never publishes its
+candidate credentials.
+
+Self-service password changes verify the captured credential and derive the
+replacement outside the credential-store and metadata-reader locks, retaining
+100,000-iteration PBKDF2-SHA512. The store commits only if the user's identity
+and captured verifier still match, so a concurrent password reset or change
+cannot be overwritten by stale verification. The password and cleared
+`MustChangePassword` flag remain one atomic persisted update, preserving the
+latest other metadata. Management mutations remain serialized separately from
+authentication reads; self-service hashing and snapshot I/O do not hold the
+metadata write lock. Administrative mutations retain their existing metadata
+publication semantics.
 
 Password verification uses the shared fixed-time comparison with the
 expected derived-key width and clears working key/password buffers on

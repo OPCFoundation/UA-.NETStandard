@@ -1399,6 +1399,7 @@ namespace Opc.Ua.Sessions.Tests
                 // a try/catch — assert against the returned code.
                 StatusCode result = await aux.CloseAsync(5000, true, CancellationToken.None).ConfigureAwait(false);
                 Assert.That(result, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
+                Assert.That(MockController.HasPendingOneShotExpectations, Is.False);
             }
             finally
             {

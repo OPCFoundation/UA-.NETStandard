@@ -29,6 +29,7 @@
 
 using System;
 using System.IO;
+using System.Net.Security;
 using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
@@ -332,7 +333,8 @@ namespace Opc.Ua.Bindings
                     (sender, cert, chain, errors) => ValidateRemoteCertificate(
                         validator,
                         cert as System.Security.Cryptography.X509Certificates.X509Certificate2,
-                        chain);
+                        chain,
+                        errors);
             }
 
             Certificate? clientCert = m_settings?.ClientCertificate;
@@ -351,7 +353,8 @@ namespace Opc.Ua.Bindings
         private bool ValidateRemoteCertificate(
             ICertificateValidatorEx validator,
             System.Security.Cryptography.X509Certificates.X509Certificate2? cert,
-            System.Security.Cryptography.X509Certificates.X509Chain? chain)
+            System.Security.Cryptography.X509Certificates.X509Chain? chain,
+            SslPolicyErrors sslPolicyErrors)
         {
             if (cert == null)
             {
@@ -359,6 +362,12 @@ namespace Opc.Ua.Bindings
             }
             try
             {
+                if ((sslPolicyErrors & SslPolicyErrors.RemoteCertificateNameMismatch) != 0)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadCertificateHostNameInvalid,
+                        "The TLS certificate host name does not match the endpoint.");
+                }
                 using CertificateCollection validation = CertificateValidationHelpers
                     .BuildValidationCertificateCollection(cert, chain);
 #pragma warning disable CA2025

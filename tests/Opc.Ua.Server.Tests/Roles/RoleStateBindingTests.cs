@@ -30,10 +30,13 @@
 #nullable enable
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using NUnit.Framework;
@@ -65,6 +68,8 @@ namespace Opc.Ua.Server.Tests.Roles
         private RoleManager m_roleManager = null!;
         private Mock<IAuditEventServer> m_auditServer = null!;
         private RoleStateBinding? m_binding;
+        private ObservedLogger? m_observedLogger;
+        private static readonly TimeSpan s_workerTimeout = TimeSpan.FromSeconds(10);
 
         [SetUp]
         public async Task SetUp()
@@ -183,16 +188,17 @@ namespace Opc.Ua.Server.Tests.Roles
         }
 
         [TearDown]
-        public void TearDown()
+        public async Task TearDown()
         {
-            m_binding?.Dispose();
+            if (m_binding != null)
+            {
+                await m_binding.DisposeAsync().ConfigureAwait(false);
+            }
+            m_observedLogger?.Dispose();
+            m_observedLogger = null;
             m_roleManager.Dispose();
             m_nodeManager.Dispose();
         }
-
-        // ----------------------------------------------------------------
-        // Auth gate enforcement (Part 18 §4.4)
-        // ----------------------------------------------------------------
 
         [Test]
         public async Task AddIdentityHandler_AnonymousCaller_ReturnsBadUserAccessDenied()
@@ -290,10 +296,6 @@ namespace Opc.Ua.Server.Tests.Roles
                 Times.Once);
         }
 
-        // ----------------------------------------------------------------
-        // Audit-event firing (Part 18 §4.5)
-        // ----------------------------------------------------------------
-
         [Test]
         public async Task AddIdentityHandler_OnSuccess_FiresRoleMappingRuleChangedAuditEvent()
         {
@@ -332,10 +334,6 @@ namespace Opc.Ua.Server.Tests.Roles
                 "Failed mutator attempt should still raise the audit event.");
         }
 
-        // ----------------------------------------------------------------
-        // Exclude-flag write path
-        // ----------------------------------------------------------------
-
         [Test]
         public void ApplicationsExcludeWrite_AnonymousCaller_ReturnsBadUserAccessDenied()
         {
@@ -366,10 +364,6 @@ namespace Opc.Ua.Server.Tests.Roles
                 Is.EqualTo(StatusCodes.BadTypeMismatch));
         }
 
-        // ----------------------------------------------------------------
-        // RoleConfigurationChanged → property sync
-        // ----------------------------------------------------------------
-
         [Test]
         public void RoleConfigurationChanged_SyncsApplicationsExcludeOnRoleState()
         {
@@ -393,10 +387,6 @@ namespace Opc.Ua.Server.Tests.Roles
                 "RoleConfigurationChanged subscription should sync the role-state property.");
         }
 
-        // ----------------------------------------------------------------
-        // Gap 12: RoleConfigurationChanged syncs every typed property
-        // ----------------------------------------------------------------
-
         [Test]
         public void RoleConfigurationChanged_SyncsIdentitiesOnRoleState()
         {
@@ -414,7 +404,7 @@ namespace Opc.Ua.Server.Tests.Roles
             foreach (IdentityMappingRuleType rule in synced)
             {
                 if (rule.CriteriaType == IdentityCriteriaType.UserName &&
-                    string.Equals(rule.Criteria, "alice", System.StringComparison.Ordinal))
+                    string.Equals(rule.Criteria, "alice", StringComparison.Ordinal))
                 {
                     hasAlice = true;
                     break;
@@ -435,7 +425,7 @@ namespace Opc.Ua.Server.Tests.Roles
             bool found = false;
             foreach (string app in apps)
             {
-                if (string.Equals(app, "urn:test:app", System.StringComparison.Ordinal))
+                if (string.Equals(app, "urn:test:app", StringComparison.Ordinal))
                 {
                     found = true;
                     break;
@@ -457,7 +447,7 @@ namespace Opc.Ua.Server.Tests.Roles
             bool found = false;
             foreach (EndpointType ep in endpoints)
             {
-                if (string.Equals(ep.EndpointUrl, "opc.tcp://srv:4840", System.StringComparison.Ordinal))
+                if (string.Equals(ep.EndpointUrl, "opc.tcp://srv:4840", StringComparison.Ordinal))
                 {
                     found = true;
                     break;
@@ -759,6 +749,126 @@ namespace Opc.Ua.Server.Tests.Roles
         }
 
         [Test]
+        public async Task ReaddedWellKnownRoleSurvivesItsEarlierRemovalAsync()
+        {
+            await m_binding!.DisposeAsync().ConfigureAwait(false);
+            NodeId readdedId = NodeId.Null;
+            ServiceResult? readded = null;
+            void ReaddBeforeRemovalIsDispatched(object? sender, RoleConfigurationChangedEventArgs change)
+            {
+                if (change.Kind == RoleConfigurationChangeKind.RoleRemoved &&
+                    change.RoleId == ObjectIds.WellKnownRole_Engineer)
+                {
+                    readded = m_roleManager.AddRole(
+                        BrowseNames.WellKnownRole_Engineer, "http://opcfoundation.org/UA/", m_namespaceTable,
+                        m_nodeManager.NamespaceIndex, out readdedId);
+                }
+            }
+            m_roleManager.RoleConfigurationChanged += ReaddBeforeRemovalIsDispatched;
+            try
+            {
+                RoleState engineer = m_serverSystemContext.CreateInstanceOfRoleType(
+                    m_roleSet, new QualifiedName(BrowseNames.WellKnownRole_Engineer));
+                engineer.NodeId = ObjectIds.WellKnownRole_Engineer;
+                engineer.AddIdentity = m_serverSystemContext.CreateInstanceOfAddIdentityMethodType(engineer);
+                m_roleSet.AddChild(engineer);
+                m_nodeManager.PredefinedNodes[engineer.NodeId] = engineer;
+                m_binding = await RoleStateBinding.BindAsync(m_nodeManager, m_roleManager, m_auditServer.Object)
+                    .ConfigureAwait(false);
+                ISystemContext context = BuildAdminContext(MessageSecurityMode.SignAndEncrypt);
+
+                ServiceResult removed = await InvokeRemoveRoleAsync(context, engineer.NodeId).ConfigureAwait(false);
+
+                Assert.That(ServiceResult.IsGood(removed), Is.True);
+                Assert.That(readded, Is.Not.Null);
+                Assert.That(ServiceResult.IsGood(readded), Is.True);
+                Assert.That(readdedId, Is.EqualTo(ObjectIds.WellKnownRole_Engineer));
+                Assert.That(m_roleManager.GetRole(readdedId), Is.Not.Null);
+                Assert.That(m_nodeManager.FindPredefinedNode<RoleState>(readdedId), Is.SameAs(engineer));
+                AddIdentityMethodState method = engineer.AddIdentity!;
+                AddIdentityMethodStateResult identity = await method.OnCallAsync!(
+                    context, method, engineer.NodeId,
+                    new IdentityMappingRuleType
+                    {
+                        CriteriaType = IdentityCriteriaType.UserName,
+                        Criteria = "replacement-engineer"
+                    }, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(identity.ServiceResult), Is.True);
+                Assert.That(m_roleManager.GetRole(readdedId)!.Identities,
+                    Has.Some.Matches<IdentityMappingRuleType>(rule => rule.Criteria == "replacement-engineer"));
+            }
+            finally
+            {
+                m_roleManager.RoleConfigurationChanged -= ReaddBeforeRemovalIsDispatched;
+            }
+        }
+
+        [Test]
+        public async Task RemovedRoleCannotDeleteADifferentNodeReusingItsIdAsync()
+        {
+            ISystemContext context = BuildAdminContext(MessageSecurityMode.SignAndEncrypt);
+            AddRoleMethodStateResult added = await InvokeAddRoleAsync(
+                context, "ReplacedRole", "http://test.org/role-binding/").ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(added.ServiceResult), Is.True);
+            var foreign = new BaseObjectState(null)
+            {
+                NodeId = added.RoleNodeId,
+                BrowseName = new QualifiedName("ForeignReplacement", m_nodeManager.NamespaceIndex)
+            };
+            void ReplaceRemovedRole(object? sender, RoleConfigurationChangedEventArgs change)
+            {
+                if (change.Kind == RoleConfigurationChangeKind.RoleRemoved && change.RoleId == added.RoleNodeId)
+                {
+                    m_nodeManager.PredefinedNodes[change.RoleId] = foreign;
+                }
+            }
+            await m_binding!.DisposeAsync().ConfigureAwait(false);
+            m_roleManager.RoleConfigurationChanged += ReplaceRemovedRole;
+            try
+            {
+                m_binding = await RoleStateBinding.BindAsync(m_nodeManager, m_roleManager, m_auditServer.Object)
+                    .ConfigureAwait(false);
+                ServiceResult removed = await InvokeRemoveRoleAsync(context, added.RoleNodeId).ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(removed), Is.True);
+                Assert.That(m_nodeManager.FindPredefinedNode<NodeState>(added.RoleNodeId), Is.SameAs(foreign));
+            }
+            finally
+            {
+                m_roleManager.RoleConfigurationChanged -= ReplaceRemovedRole;
+            }
+        }
+
+        [Test]
+        public async Task RemovalOfAnUnmaterializedRoleCannotDeleteAForeignNodeAsync()
+        {
+            var occupied = new NodeId(4243u, m_nodeManager.NamespaceIndex);
+            var foreign = new BaseObjectState(null)
+            {
+                NodeId = occupied,
+                BrowseName = new QualifiedName("ForeignMachine", m_nodeManager.NamespaceIndex)
+            };
+            m_nodeManager.PredefinedNodes[occupied] = foreign;
+            using var manager = new FixedNodeIdRoleManager(occupied);
+            await using RoleStateBinding? binding = await RoleStateBinding.BindAsync(
+                m_nodeManager, manager, m_auditServer.Object).ConfigureAwait(false);
+            Assert.That(binding, Is.Not.Null);
+            ISystemContext context = BuildAdminContext(MessageSecurityMode.SignAndEncrypt);
+
+            AddRoleMethodStateResult failed = await InvokeAddRoleAsync(context, "Collision", string.Empty)
+                .ConfigureAwait(false);
+            Assert.That(failed.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdExists));
+            Assert.That(manager.Roles, Is.Empty);
+            Assert.That(ServiceResult.IsGood(manager.AddRole(
+                "Unmaterialized", string.Empty, m_namespaceTable, m_nodeManager.NamespaceIndex, out NodeId roleId)),
+                Is.True);
+            ServiceResult removed = await InvokeRemoveRoleAsync(context, roleId).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(removed), Is.True);
+            Assert.That(manager.Roles, Is.Empty);
+            Assert.That(m_nodeManager.FindPredefinedNode<NodeState>(occupied), Is.SameAs(foreign));
+        }
+
+        [Test]
         public async Task RemoveRoleHandler_AnonymousCaller_ReturnsBadUserAccessDenied_AndKeepsRole()
         {
             ISystemContext adminCtx = BuildAdminContext(MessageSecurityMode.SignAndEncrypt);
@@ -808,10 +918,6 @@ namespace Opc.Ua.Server.Tests.Roles
             Assert.That(entry.Identities[0].Criteria, Is.EqualTo("carol"));
         }
 
-        // ----------------------------------------------------------------
-        // Issue #4361 (1): AddRole must not allocate a NodeId that is in use
-        // ----------------------------------------------------------------
-
         [Test]
         public async Task AddRoleHandler_ForeignNamespaceUri_DoesNotReplaceAnExistingNode()
         {
@@ -860,7 +966,7 @@ namespace Opc.Ua.Server.Tests.Roles
             };
 
             using var stub = new FixedNodeIdRoleManager(occupied);
-            using var binding = await RoleStateBinding
+            await using RoleStateBinding? binding = await RoleStateBinding
                 .BindAsync(m_nodeManager, stub, m_auditServer.Object)
                 .ConfigureAwait(false);
             Assume.That(binding, Is.Not.Null);
@@ -880,10 +986,6 @@ namespace Opc.Ua.Server.Tests.Roles
                 "A role the client cannot browse must be rolled back out of the manager.");
         }
 
-        // ----------------------------------------------------------------
-        // Issue #4361 (2): roles configured before start-up need a node
-        // ----------------------------------------------------------------
-
         [Test]
         public async Task Bind_MaterializesRolesConfiguredBeforeTheAddressSpaceExisted()
         {
@@ -896,7 +998,7 @@ namespace Opc.Ua.Server.Tests.Roles
                 m_nodeManager.NamespaceIndex, out NodeId configuredRoleId)), Is.True);
             Assume.That(m_nodeManager.PredefinedNodes.ContainsKey(configuredRoleId), Is.False);
 
-            using RoleStateBinding? binding = await RoleStateBinding
+            await using RoleStateBinding? binding = await RoleStateBinding
                 .BindAsync(m_nodeManager, roleManager, m_auditServer.Object)
                 .ConfigureAwait(false);
             Assume.That(binding, Is.Not.Null);
@@ -942,7 +1044,7 @@ namespace Opc.Ua.Server.Tests.Roles
                 id => roleManager.GetRole(id)?.BrowseName == "Maintenance"), Is.False,
                 "Configured roles are staged, not applied, before the address space exists.");
 
-            using RoleStateBinding? binding = await RoleStateBinding
+            await using RoleStateBinding? binding = await RoleStateBinding
                 .BindAsync(m_nodeManager, roleManager, m_auditServer.Object)
                 .ConfigureAwait(false);
             Assume.That(binding, Is.Not.Null);
@@ -976,10 +1078,6 @@ namespace Opc.Ua.Server.Tests.Roles
                 "A role added directly on the manager must appear under the RoleSet.");
         }
 
-        // ----------------------------------------------------------------
-        // Teardown and failure handling
-        // ----------------------------------------------------------------
-
         [Test]
         public async Task Bind_MaterializationThrows_StillCompletesTheBindingAsync()
         {
@@ -992,7 +1090,7 @@ namespace Opc.Ua.Server.Tests.Roles
 
             m_nodeManager.SystemContext.NodeIdFactory = new ThrowingNodeIdFactory();
 
-            using RoleStateBinding? binding = await RoleStateBinding
+            await using RoleStateBinding? binding = await RoleStateBinding
                 .BindAsync(m_nodeManager, roleManager, m_auditServer.Object)
                 .ConfigureAwait(false);
 
@@ -1020,7 +1118,7 @@ namespace Opc.Ua.Server.Tests.Roles
             Assert.That(
                 m_roleManager.RoleIds.Any(id =>
                     string.Equals(m_roleManager.GetRole(id)?.BrowseName, "AfterShutdown",
-                        System.StringComparison.Ordinal)),
+                        StringComparison.Ordinal)),
                 Is.False,
                 "A role that could not be materialized must not linger in the manager.");
         }
@@ -1033,6 +1131,410 @@ namespace Opc.Ua.Server.Tests.Roles
                 m_binding!.Dispose();
                 m_binding.Dispose();
             });
+        }
+
+        [Test]
+        public async Task RoleEventStormUsesOneWorkerAndOnePendingSignalAsync()
+        {
+            ObservedLogger logger = await RebindWithLoggerAsync().ConfigureAwait(false);
+            (TaskCompletionSource<bool> release, _) = await BlockRoleRemovalAsync().ConfigureAwait(false);
+            try
+            {
+                BackgroundTaskScope scope = GetBindingField<BackgroundTaskScope>("m_backgroundWork");
+                SemaphoreSlim signal = GetBindingField<SemaphoreSlim>("m_reconcileSignal");
+                Task worker = GetBindingField<Task>("m_reconcileTask");
+                Task materialized = ObserveRoleLog(logger, ServerEventIds.RoleStateBinding + 2);
+                int materializations = 0;
+                m_nodeManager.AddBehaviourCallback = node =>
+                {
+                    if (node is RoleState)
+                    {
+                        Interlocked.Increment(ref materializations);
+                    }
+                    return node;
+                };
+
+                var removedIds = new List<NodeId>();
+                for (int ii = 0; ii < 512; ii++)
+                {
+                    Assert.That(ServiceResult.IsGood(m_roleManager.AddRole(
+                        "StormRole", "http://test.org/role-binding/", m_namespaceTable,
+                        m_nodeManager.NamespaceIndex, out NodeId roleId)), Is.True);
+                    removedIds.Add(roleId);
+                    Assert.That(ServiceResult.IsGood(m_roleManager.RemoveRole(roleId)), Is.True);
+                }
+                Assert.That(ServiceResult.IsGood(m_roleManager.AddRole(
+                    "StormRole", "http://test.org/role-binding/", m_namespaceTable,
+                    m_nodeManager.NamespaceIndex, out NodeId latestId)), Is.True);
+
+                Assert.That(scope.PendingCount, Is.EqualTo(1), "Events must not schedule more scope operations.");
+                Assert.That(signal.CurrentCount, Is.EqualTo(1), "Only one follow-up pass may be pending.");
+                Assert.That(GetBindingField<Task>("m_reconcileTask"), Is.SameAs(worker));
+                Assert.That(materializations, Is.Zero);
+
+                release.TrySetResult(true);
+                await materialized.WaitAsync(s_workerTimeout).ConfigureAwait(false);
+
+                Assert.That(materializations, Is.EqualTo(1), "Only the desired final role should be materialized.");
+                Assert.That(removedIds.All(id => m_nodeManager.FindPredefinedNode<NodeState>(id) == null), Is.True);
+                RoleState? latest = m_nodeManager.FindPredefinedNode<RoleState>(latestId);
+                Assert.That(latest, Is.Not.Null);
+                Assert.That(latest!.BrowseName.Name, Is.EqualTo("StormRole"));
+                var children = new List<BaseInstanceState>();
+                m_roleSet.GetChildren(m_nodeManager.SystemContext, children);
+                Assert.That(children.Where(child => child.BrowseName.Name == "StormRole"),
+                    Is.EqualTo([latest]));
+                Assert.That(scope.PendingCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+        }
+
+        [Test]
+        public async Task AddRemoveReaddKeepsLatestRoleNodeAndPermissionsAsync()
+        {
+            await m_binding!.DisposeAsync().ConfigureAwait(false);
+            RoleState engineer = m_serverSystemContext.CreateInstanceOfRoleType(
+                m_roleSet, new QualifiedName(BrowseNames.WellKnownRole_Engineer));
+            engineer.NodeId = ObjectIds.WellKnownRole_Engineer;
+            engineer.AddIdentity = m_serverSystemContext.CreateInstanceOfAddIdentityMethodType(engineer);
+            engineer.AddApplicationsExclude(m_serverSystemContext);
+            m_roleSet.AddChild(engineer);
+            m_nodeManager.PredefinedNodes[engineer.NodeId] = engineer;
+            ObservedLogger logger = await RebindWithLoggerAsync().ConfigureAwait(false);
+            (TaskCompletionSource<bool> release, _) = await BlockRoleRemovalAsync().ConfigureAwait(false);
+            try
+            {
+                for (int ii = 0; ii < 2; ii++)
+                {
+                    Assert.That(ServiceResult.IsGood(m_roleManager.RemoveRole(engineer.NodeId)), Is.True);
+                    Assert.That(ServiceResult.IsGood(m_roleManager.AddRole(
+                        BrowseNames.WellKnownRole_Engineer, "http://opcfoundation.org/UA/", m_namespaceTable,
+                        m_nodeManager.NamespaceIndex, out NodeId roleId)), Is.True);
+                    Assert.That(roleId, Is.EqualTo(engineer.NodeId));
+                    Assert.That(ServiceResult.IsGood(m_roleManager.AddIdentity(
+                        roleId, new IdentityMappingRuleType
+                        {
+                            CriteriaType = IdentityCriteriaType.UserName,
+                            Criteria = ii == 0 ? "stale-engineer" : "latest-engineer"
+                        })), Is.True);
+                }
+                Assert.That(ServiceResult.IsGood(
+                    m_roleManager.SetApplicationsExclude(engineer.NodeId, true)), Is.True);
+                Task reconciled = ObserveRoleLog(logger, ServerEventIds.RoleStateBinding + 2);
+                Assert.That(ServiceResult.IsGood(m_roleManager.AddRole(
+                    "ReconciliationFence", "http://test.org/role-binding/", m_namespaceTable,
+                    m_nodeManager.NamespaceIndex, out NodeId fenceId)), Is.True);
+
+                release.TrySetResult(true);
+                await reconciled.WaitAsync(s_workerTimeout).ConfigureAwait(false);
+
+                Assert.That(m_nodeManager.FindPredefinedNode<RoleState>(fenceId), Is.Not.Null);
+                Assert.That(m_nodeManager.FindPredefinedNode<RoleState>(engineer.NodeId), Is.SameAs(engineer));
+                Assert.That(engineer.Identities!.Value, Has.Count.EqualTo(1));
+                Assert.That(engineer.Identities.Value[0].Criteria, Is.EqualTo("latest-engineer"));
+                Assert.That(engineer.ApplicationsExclude!.Value, Is.True);
+                AssertGeneratedRoleProperty(engineer.ApplicationsExclude);
+                Assert.That(m_roleManager.ResolveGrantedRoles(
+                    CreateUserNameIdentity("latest-engineer"), null, null), Does.Contain(engineer.NodeId));
+                Assert.That(m_roleManager.ResolveGrantedRoles(
+                    CreateUserNameIdentity("stale-engineer"), null, null), Does.Not.Contain(engineer.NodeId));
+
+                AddIdentityMethodState method = engineer.AddIdentity!;
+                var rule = new IdentityMappingRuleType
+                {
+                    CriteriaType = IdentityCriteriaType.UserName,
+                    Criteria = "after-readd"
+                };
+                AddIdentityMethodStateResult denied = await method.OnCallAsync!(
+                    BuildContext(MessageSecurityMode.SignAndEncrypt, anonymous: true),
+                    method, engineer.NodeId, rule, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(denied.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                Assert.That(m_roleManager.GetRole(engineer.NodeId)!.Identities, Has.Count.EqualTo(1));
+                AddIdentityMethodStateResult allowed = await method.OnCallAsync!(
+                    BuildAdminContext(MessageSecurityMode.SignAndEncrypt),
+                    method, engineer.NodeId, rule, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(allowed.ServiceResult), Is.True);
+                Assert.That(engineer.Identities.Value, Has.Count.EqualTo(2));
+                Assert.That(engineer.Identities.Value[0].Criteria, Is.EqualTo("latest-engineer"));
+                Assert.That(engineer.Identities.Value[1].Criteria, Is.EqualTo("after-readd"));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+        }
+
+        [Test]
+        public async Task MaterializationFailureIsLoggedAndLaterChangesAreReconciledAsync()
+        {
+            ObservedLogger logger = await RebindWithLoggerAsync().ConfigureAwait(false);
+            INodeIdFactory? originalFactory = m_nodeManager.SystemContext.NodeIdFactory;
+            m_nodeManager.SystemContext.NodeIdFactory = new ThrowingNodeIdFactory();
+            Task failed = ObserveRoleLog(
+                logger, ServerEventIds.RoleStateBinding + 5,
+                failure: exception => exception is InvalidOperationException);
+            try
+            {
+                Assert.That(ServiceResult.IsGood(m_roleManager.AddRole(
+                    "FailedRole", "http://test.org/role-binding/", m_namespaceTable,
+                    m_nodeManager.NamespaceIndex, out NodeId failedId)), Is.True);
+                await failed.WaitAsync(s_workerTimeout).ConfigureAwait(false);
+                Assert.That(m_nodeManager.FindPredefinedNode<NodeState>(failedId), Is.Null);
+                RecordedLogRecord failure = logger.Records.ToList().Single(
+                    record => record.EventId.Id == ServerEventIds.RoleStateBinding + 5 &&
+                        record.Properties["RoleId"] is NodeId roleId &&
+                        roleId == failedId);
+                Assert.That(failure.LogLevel, Is.EqualTo(LogLevel.Warning));
+                Assert.That(failure.Exception, Is.TypeOf<InvalidOperationException>());
+                Assert.That(failure.Exception!.Message, Is.EqualTo("NodeId allocation failed."));
+                Assert.That(failure.Properties["RoleId"], Is.EqualTo(failedId));
+
+                m_nodeManager.SystemContext.NodeIdFactory = originalFactory;
+                Task recovered = ObserveRoleLog(logger, ServerEventIds.RoleStateBinding + 2, count: 2);
+                Assert.That(ServiceResult.IsGood(m_roleManager.AddRole(
+                    "LaterRole", "http://test.org/role-binding/", m_namespaceTable,
+                    m_nodeManager.NamespaceIndex, out NodeId laterId)), Is.True);
+                await recovered.WaitAsync(s_workerTimeout).ConfigureAwait(false);
+
+                Assert.That(m_nodeManager.FindPredefinedNode<RoleState>(failedId)!.AddIdentity!.OnCallAsync,
+                    Is.Not.Null);
+                Assert.That(m_nodeManager.FindPredefinedNode<RoleState>(laterId)!.AddIdentity!.OnCallAsync,
+                    Is.Not.Null);
+                Assert.That(GetBindingField<BackgroundTaskScope>("m_backgroundWork").PendingCount, Is.EqualTo(1));
+                Assert.That(GetBindingField<Task>("m_reconcileTask").IsCompleted, Is.False);
+            }
+            finally
+            {
+                m_nodeManager.SystemContext.NodeIdFactory = originalFactory;
+            }
+        }
+
+        [Test]
+        public async Task DisposeDuringInFlightMutationRetainsGatesUntilAsyncDrainAsync()
+        {
+            ObservedLogger logger = await RebindWithLoggerAsync().ConfigureAwait(false);
+            (TaskCompletionSource<bool> release, CancellationToken mutationToken) =
+                await BlockRoleRemovalAsync().ConfigureAwait(false);
+            var added = new TaskCompletionSource<NodeId>(TaskCreationOptions.RunContinuationsAsynchronously);
+            void OnRoleAdded(object? sender, RoleConfigurationChangedEventArgs change)
+            {
+                if (change.Kind == RoleConfigurationChangeKind.RoleAdded)
+                {
+                    added.TrySetResult(change.RoleId);
+                }
+            }
+            m_roleManager.RoleConfigurationChanged += OnRoleAdded;
+            Task<AddRoleMethodStateResult>? queuedAdd = null;
+            try
+            {
+                SemaphoreSlim gate = GetBindingField<SemaphoreSlim>("m_roleSetLock");
+                SemaphoreSlim signal = GetBindingField<SemaphoreSlim>("m_reconcileSignal");
+                BackgroundTaskScope scope = GetBindingField<BackgroundTaskScope>("m_backgroundWork");
+                Task worker = GetBindingField<Task>("m_reconcileTask");
+                queuedAdd = InvokeAddRoleAsync(
+                    BuildAdminContext(MessageSecurityMode.SignAndEncrypt),
+                    "QueuedDuringShutdown", "http://test.org/role-binding/").AsTask();
+                NodeId queuedId = await added.Task.WaitAsync(s_workerTimeout).ConfigureAwait(false);
+
+                m_binding!.Dispose();
+                Assert.That(mutationToken.IsCancellationRequested, Is.True);
+                Task drain = m_binding.DisposeAsync().AsTask();
+                Assert.That(drain.IsCompleted, Is.False, "Async disposal must join the mutation still in flight.");
+                Assert.That(worker.IsCompleted, Is.False);
+                Assert.That(scope.PendingCount, Is.EqualTo(1));
+                Assert.That(await gate.WaitAsync(0).ConfigureAwait(false), Is.False,
+                    "The held gate must remain usable, not disposed by synchronous shutdown.");
+
+                AddRoleMethodStateResult cancelled = await queuedAdd.WaitAsync(s_workerTimeout).ConfigureAwait(false);
+                Assert.That(cancelled.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(m_roleManager.GetRole(queuedId), Is.Null);
+                Assert.That(m_nodeManager.FindPredefinedNode<NodeState>(queuedId), Is.Null);
+                Assert.That(ServiceResult.IsGood(m_roleManager.AddRole(
+                    "AfterDisposal", "http://test.org/role-binding/", m_namespaceTable,
+                    m_nodeManager.NamespaceIndex, out NodeId afterDisposalId)), Is.True);
+
+                release.TrySetResult(true);
+                await drain.WaitAsync(s_workerTimeout).ConfigureAwait(false);
+
+                Assert.That(worker.Status, Is.EqualTo(TaskStatus.RanToCompletion));
+                Assert.That(scope.PendingCount, Is.Zero);
+                Assert.That(m_nodeManager.FindPredefinedNode<NodeState>(afterDisposalId), Is.Null);
+                Assert.Throws<ObjectDisposedException>(() => gate.Release());
+                Assert.Throws<ObjectDisposedException>(() => signal.Release());
+                Assert.That(logger.Records.ToList().Exists(record => record.Exception is ObjectDisposedException),
+                    Is.False);
+                await m_binding.DisposeAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                m_roleManager.RoleConfigurationChanged -= OnRoleAdded;
+                if (queuedAdd != null)
+                {
+                    await queuedAdd.WaitAsync(s_workerTimeout).ConfigureAwait(false);
+                }
+            }
+        }
+
+        [Test]
+        public async Task ScopeDrainTimeoutDoesNotReleaseInFlightRoleGateAsync()
+        {
+            ObservedLogger logger = await RebindWithLoggerAsync().ConfigureAwait(false);
+            (TaskCompletionSource<bool> release, _) = await BlockRoleRemovalAsync().ConfigureAwait(false);
+            try
+            {
+                BackgroundTaskScope scope = GetBindingField<BackgroundTaskScope>("m_backgroundWork");
+                SemaphoreSlim gate = GetBindingField<SemaphoreSlim>("m_roleSetLock");
+                Task worker = GetBindingField<Task>("m_reconcileTask");
+                m_binding!.Dispose();
+
+                await scope.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(45)).ConfigureAwait(false);
+
+                RecordedLogRecord timeout = logger.Records.ToList().Single(
+                    record => record.EventId.Name == "BackgroundTaskDrainTimedOut");
+                Assert.That(timeout.LogLevel, Is.EqualTo(LogLevel.Warning));
+                Assert.That(timeout.Properties["Pending"], Is.EqualTo(1));
+                Assert.That(scope.PendingCount, Is.EqualTo(1));
+                Assert.That(worker.IsCompleted, Is.False);
+                Assert.That(await gate.WaitAsync(0).ConfigureAwait(false), Is.False);
+                Task drain = m_binding.DisposeAsync().AsTask();
+                Assert.That(drain.IsCompleted, Is.False);
+
+                release.TrySetResult(true);
+                await drain.WaitAsync(s_workerTimeout).ConfigureAwait(false);
+
+                Assert.That(worker.Status, Is.EqualTo(TaskStatus.RanToCompletion));
+                Assert.That(scope.PendingCount, Is.Zero);
+                Assert.Throws<ObjectDisposedException>(() => gate.Release());
+                Assert.That(logger.Records.ToList().Exists(record => record.Exception is ObjectDisposedException),
+                    Is.False);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+        }
+
+        [Test]
+        public async Task ServerDisposalDrainsRoleWorkerBeforeDisposingNodeManagerAsync()
+        {
+            await RebindWithLoggerAsync().ConfigureAwait(false);
+            m_configuration.ApplicationUri = "urn:opcfoundation:tests:role-binding";
+            await using var server = new ServerInternalData(
+                new ServerProperties(), m_configuration, ServiceMessageContext.Create(m_telemetry));
+            var nodeManager = new Mock<IMasterNodeManager>();
+            Mock<IAsyncDisposable> lifetime = nodeManager.As<IAsyncDisposable>();
+            lifetime.Setup(value => value.DisposeAsync()).Returns(default(ValueTask));
+            server.SetNodeManager(nodeManager.Object);
+            FieldInfo? bindingField = typeof(ServerInternalData).GetField(
+                "m_roleStateBinding", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(bindingField, Is.Not.Null);
+            bindingField!.SetValue(server, m_binding);
+            (TaskCompletionSource<bool> release, _) = await BlockRoleRemovalAsync().ConfigureAwait(false);
+            try
+            {
+                Task disposal = server.DisposeAsync().AsTask();
+                Assert.That(disposal.IsCompleted, Is.False);
+                lifetime.Verify(value => value.DisposeAsync(), Times.Never);
+
+                release.TrySetResult(true);
+                await disposal.WaitAsync(s_workerTimeout).ConfigureAwait(false);
+
+                lifetime.Verify(value => value.DisposeAsync(), Times.Once);
+                Assert.That(GetBindingField<Task>("m_reconcileTask").Status, Is.EqualTo(TaskStatus.RanToCompletion));
+                Assert.That(bindingField.GetValue(server), Is.Null);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+        }
+
+        private async Task<ObservedLogger> RebindWithLoggerAsync()
+        {
+            await m_binding!.DisposeAsync().ConfigureAwait(false);
+            m_observedLogger?.Dispose();
+            m_observedLogger = new ObservedLogger();
+            var factory = new Mock<ILoggerFactory>();
+            factory.Setup(value => value.CreateLogger(It.IsAny<string>())).Returns(m_observedLogger);
+            var telemetry = new Mock<ITelemetryContext>();
+            telemetry.SetupGet(value => value.LoggerFactory).Returns(factory.Object);
+            m_mockServer.Setup(server => server.Telemetry).Returns(telemetry.Object);
+            m_binding = await RoleStateBinding.BindAsync(m_nodeManager, m_roleManager, m_auditServer.Object)
+                .ConfigureAwait(false);
+            Assert.That(m_binding, Is.Not.Null);
+            return m_observedLogger;
+        }
+
+        private async Task<(TaskCompletionSource<bool> Release, CancellationToken CancellationToken)>
+            BlockRoleRemovalAsync()
+        {
+            AddRoleMethodStateResult blocker = await InvokeAddRoleAsync(
+                BuildAdminContext(MessageSecurityMode.SignAndEncrypt),
+                "BlockedRemoval", "http://test.org/role-binding/").ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(blocker.ServiceResult), Is.True);
+            var entered = new TaskCompletionSource<CancellationToken>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            m_nodeManager.NodeRemovedCallback = async (node, cancellationToken) =>
+            {
+                if (node.NodeId == blocker.RoleNodeId)
+                {
+                    entered.TrySetResult(cancellationToken);
+                    await release.Task.ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
+            };
+            try
+            {
+                Assert.That(ServiceResult.IsGood(m_roleManager.RemoveRole(blocker.RoleNodeId)), Is.True);
+                CancellationToken token = await entered.Task.WaitAsync(s_workerTimeout).ConfigureAwait(false);
+                return (release, token);
+            }
+            catch
+            {
+                release.TrySetResult(true);
+                throw;
+            }
+        }
+
+        private T GetBindingField<T>(string name)
+            where T : class
+        {
+            FieldInfo? field = typeof(RoleStateBinding).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null);
+            Assert.That(field!.GetValue(m_binding), Is.InstanceOf<T>());
+            return (T)field.GetValue(m_binding)!;
+        }
+
+        private static Task<bool> ObserveRoleLog(
+            ObservedLogger logger,
+            int eventId,
+            int count = 1,
+            Predicate<Exception?>? failure = null)
+        {
+            var observed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int remaining = count;
+            logger.OnLog = (id, exception) =>
+            {
+                if (id.Id == eventId &&
+                    (failure == null || failure(exception)) &&
+                    Interlocked.Decrement(ref remaining) == 0)
+                {
+                    observed.TrySetResult(true);
+                }
+            };
+            return observed.Task;
+        }
+
+        private static IUserIdentity CreateUserNameIdentity(string userName)
+        {
+            var identity = new Mock<IUserIdentity>();
+            identity.Setup(value => value.TokenType).Returns(UserTokenType.UserName);
+            identity.Setup(value => value.DisplayName).Returns(userName);
+            return identity.Object;
         }
 
         private async Task WaitForNodeAsync(NodeId nodeId)
@@ -1186,6 +1688,48 @@ namespace Opc.Ua.Server.Tests.Roles
                 ref working, ref statusCode, ref timestamp);
         }
 
+        private sealed class ObservedLogger : ILogger, IDisposable
+        {
+            public ObservedLogger()
+            {
+                m_logger = m_provider.CreateLogger(nameof(RoleStateBinding));
+            }
+
+            public Action<EventId, Exception?>? OnLog { get; set; }
+
+            public ArrayOf<RecordedLogRecord> Records => ArrayOf.Wrapped(m_provider.Records.ToArray());
+
+            public IDisposable? BeginScope<TState>(TState state)
+                where TState : notnull
+            {
+                return m_logger.BeginScope(state);
+            }
+
+            public bool IsEnabled(LogLevel logLevel)
+            {
+                return m_logger.IsEnabled(logLevel);
+            }
+
+            public void Log<TState>(
+                LogLevel logLevel,
+                EventId eventId,
+                TState state,
+                Exception? exception,
+                Func<TState, Exception?, string> formatter)
+            {
+                m_logger.Log(logLevel, eventId, state, exception, formatter);
+                OnLog?.Invoke(eventId, exception);
+            }
+
+            public void Dispose()
+            {
+                m_provider.Dispose();
+            }
+
+            private readonly RecordingLoggerProvider m_provider = new();
+            private readonly ILogger m_logger;
+        }
+
         /// <summary>
         /// Minimal <see cref="IRoleManager"/> whose <c>AddRole</c> always hands
         /// back the same NodeId — the shape of a manager that does not check
@@ -1228,7 +1772,7 @@ namespace Opc.Ua.Server.Tests.Roles
 
             public ServiceResult RemoveRole(NodeId roleId)
             {
-                if (!m_roles.Remove(roleId))
+                if (!m_roles.TryRemove(roleId, out _))
                 {
                     return new ServiceResult(StatusCodes.BadNodeIdUnknown);
                 }
@@ -1285,7 +1829,7 @@ namespace Opc.Ua.Server.Tests.Roles
 
             public IList<NodeId> ResolveGrantedRoles(
                 IUserIdentity identity,
-                Opc.Ua.Security.Certificates.Certificate? clientCertificate,
+                Security.Certificates.Certificate? clientCertificate,
                 EndpointDescription? endpoint)
             {
                 return [];
@@ -1297,7 +1841,7 @@ namespace Opc.Ua.Server.Tests.Roles
             }
 
             private readonly NodeId m_fixedNodeId;
-            private readonly Dictionary<NodeId, RoleEntry> m_roles = [];
+            private readonly ConcurrentDictionary<NodeId, RoleEntry> m_roles = new();
         }
 
         /// <summary>
@@ -1348,7 +1892,7 @@ namespace Opc.Ua.Server.Tests.Roles
                     AllocationCount++;
                     return new NodeId(
                         $"provided:{instance.Parent.NodeId.IdentifierAsString}:" +
-                            instance.SymbolicName,
+                        instance.SymbolicName,
                         instance.Parent.NodeId.NamespaceIndex);
                 }
 

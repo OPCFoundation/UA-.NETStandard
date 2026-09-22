@@ -318,6 +318,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         /// <summary>
         /// Verifies that recoverable pre-refresh failures do not replace the error returned by a corrective deletion.
         /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         [TestCase("io")]
         [TestCase("access")]
         [TestCase("unsupported")]
@@ -371,10 +372,13 @@ namespace Opc.Ua.Server.Tests.FileSystem
             await harness.Physical.CreateFileAsync("old", CancellationToken.None).ConfigureAwait(false);
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            await using IFileDirectoryBinding binding = await harness.BindAsync(2, async (_, ct) =>
+            await using IFileDirectoryBinding binding = await harness.BindAsync(2, async (node, ct) =>
             {
-                entered.TrySetResult(true);
-                await release.Task.WaitAsync(ct).ConfigureAwait(false);
+                if (node.BrowseName.Name == "new")
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(ct).ConfigureAwait(false);
+                }
             }).ConfigureAwait(false);
             var host = (IFileSystemHost)binding;
             await harness.Physical.CreateFileAsync("new", CancellationToken.None).ConfigureAwait(false);
@@ -677,6 +681,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             /// <summary>
             /// Finds a materialized child directory and fails the test if it is absent.
             /// </summary>
+            /// <exception cref="AssertionException"></exception>
             public FileDirectoryState FindDirectory(string name)
             {
                 return (FileDirectoryState)(Root.FindChild(Context, new QualifiedName(name, 1)) ??
@@ -686,6 +691,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             /// <summary>
             /// Finds a materialized child file and fails the test if it is absent.
             /// </summary>
+            /// <exception cref="AssertionException"></exception>
             public FileState FindFile(string name)
             {
                 return (FileState)(Root.FindChild(Context, new QualifiedName(name, 1)) ??

@@ -45,8 +45,6 @@ namespace Opc.Ua.Server.FileSystem
     /// </summary>
     internal sealed class FileObjectState : FileState
     {
-        public string ProviderPath { get; }
-
         public FileObjectState(
             ISystemContext context,
             NodeId nodeId,
@@ -89,7 +87,7 @@ namespace Opc.Ua.Server.FileSystem
                 new LocalizedText(BrowseNames.OpenCount), true);
 
             Writable = PropertyState<bool>.With<VariantBuilder>(this);
-            Writable.OnReadValue += OnWritable;
+            Writable.OnReadValueAsync += OnReadMetadataAsync;
             Writable.AccessLevel = AccessLevels.CurrentRead;
             Writable.UserAccessLevel = AccessLevels.CurrentRead;
             Writable.Create(context, VariableIds.FileType_Writable,
@@ -97,7 +95,7 @@ namespace Opc.Ua.Server.FileSystem
                 new LocalizedText(BrowseNames.Writable), true);
 
             UserWritable = PropertyState<bool>.With<VariantBuilder>(this);
-            UserWritable.OnReadValue += OnWritable;
+            UserWritable.OnReadValueAsync += OnReadMetadataAsync;
             UserWritable.AccessLevel = AccessLevels.CurrentRead;
             UserWritable.UserAccessLevel = AccessLevels.CurrentRead;
             UserWritable.Create(context, VariableIds.FileType_UserWritable,
@@ -105,7 +103,7 @@ namespace Opc.Ua.Server.FileSystem
                 new LocalizedText(BrowseNames.UserWritable), true);
 
             Size = PropertyState<ulong>.With<VariantBuilder>(this);
-            Size.OnReadValue += OnSize;
+            Size.OnReadValueAsync += OnReadMetadataAsync;
             Size.AccessLevel = AccessLevels.CurrentRead;
             Size.UserAccessLevel = AccessLevels.CurrentRead;
             Size.Create(context, VariableIds.FileType_Size,
@@ -113,7 +111,7 @@ namespace Opc.Ua.Server.FileSystem
                 new LocalizedText(BrowseNames.Size), true);
 
             MimeType = PropertyState<string>.With<VariantBuilder>(this);
-            MimeType.OnReadValue += OnMimeType;
+            MimeType.OnReadValueAsync += OnReadMetadataAsync;
             MimeType.AccessLevel = AccessLevels.CurrentRead;
             MimeType.UserAccessLevel = AccessLevels.CurrentRead;
             MimeType.Create(context, VariableIds.FileType_MimeType,
@@ -121,7 +119,7 @@ namespace Opc.Ua.Server.FileSystem
                 new LocalizedText(BrowseNames.MimeType), true);
 
             LastModifiedTime = PropertyState<DateTimeUtc>.With<VariantBuilder>(this);
-            LastModifiedTime.OnReadValue += OnLastModifiedTime;
+            LastModifiedTime.OnReadValueAsync += OnReadMetadataAsync;
             LastModifiedTime.AccessLevel = AccessLevels.CurrentRead;
             LastModifiedTime.UserAccessLevel = AccessLevels.CurrentRead;
             LastModifiedTime.Create(context, VariableIds.FileType_LastModifiedTime,
@@ -205,71 +203,52 @@ namespace Opc.Ua.Server.FileSystem
             SetPosition.MethodDeclarationId = MethodIds.FileType_SetPosition;
         }
 
-        private ServiceResult OnMimeType(ISystemContext context, NodeState node,
-            NumericRange indexRange, QualifiedName dataEncoding, ref Variant value,
-            ref StatusCode statusCode, ref DateTimeUtc timestamp)
-        {
-            if (!TryGetHandle(context, out FileHandle? handle, out ServiceResult result))
-            {
-                return result;
-            }
-            value = new Variant(handle.MimeType);
-            timestamp = DateTimeUtc.Now;
-            statusCode = StatusCodes.Uncertain;
-            return ServiceResult.Good;
-        }
+        public string ProviderPath { get; }
 
-        private ServiceResult OnLastModifiedTime(ISystemContext context, NodeState node,
-            NumericRange indexRange, QualifiedName dataEncoding, ref Variant value,
-            ref StatusCode statusCode, ref DateTimeUtc timestamp)
+        private async ValueTask<AttributeReadResult> OnReadMetadataAsync(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            CancellationToken cancellationToken)
         {
-            if (!TryGetHandle(context, out FileHandle? handle, out ServiceResult result))
+            IFileSystemHost? host = ResolveHost(context);
+            if (host == null)
             {
-                return result;
+                return new AttributeReadResult(
+                    StatusCodes.BadInvalidState, Variant.Null, StatusCodes.BadInvalidState, DateTimeUtc.Now);
             }
-            value = new Variant((DateTimeUtc)handle.LastModifiedTime);
-            timestamp = DateTimeUtc.Now;
-            statusCode = StatusCodes.Good;
-            return ServiceResult.Good;
-        }
+            FileSystemEntry? entry = await host.Provider.GetEntryAsync(ProviderPath, cancellationToken)
+                .ConfigureAwait(false);
+            if (!entry.HasValue || entry.Value.IsDirectory)
+            {
+                return new AttributeReadResult(
+                    StatusCodes.BadNodeIdUnknown, Variant.Null, StatusCodes.BadNodeIdUnknown, DateTimeUtc.Now);
+            }
 
-        private ServiceResult OnWritable(ISystemContext context, NodeState node,
-            NumericRange indexRange, QualifiedName dataEncoding, ref Variant value,
-            ref StatusCode statusCode, ref DateTimeUtc timestamp)
-        {
-            if (!TryGetHandle(context, out FileHandle? handle, out ServiceResult result))
+            Variant value = node.BrowseName.Name switch
             {
-                return result;
-            }
-            value = new Variant(handle.IsWriteable);
-            timestamp = DateTimeUtc.Now;
-            statusCode = StatusCodes.Good;
-            return ServiceResult.Good;
-        }
-
-        private ServiceResult OnSize(ISystemContext context, NodeState node,
-            NumericRange indexRange, QualifiedName dataEncoding, ref Variant value,
-            ref StatusCode statusCode, ref DateTimeUtc timestamp)
-        {
-            if (!TryGetHandle(context, out FileHandle? handle, out ServiceResult result))
-            {
-                return result;
-            }
-            value = new Variant((ulong)handle.Length);
-            timestamp = DateTimeUtc.Now;
-            statusCode = StatusCodes.Good;
-            return ServiceResult.Good;
+                BrowseNames.Size => new Variant((ulong)entry.Value.Length),
+                BrowseNames.LastModifiedTime => new Variant((DateTimeUtc)entry.Value.LastModifiedUtc),
+                BrowseNames.MimeType => new Variant(entry.Value.MimeType),
+                BrowseNames.Writable or BrowseNames.UserWritable =>
+                    new Variant(host.Provider.IsWritable && entry.Value.IsWritable),
+                _ => throw new ServiceResultException(StatusCodes.BadAttributeIdInvalid)
+            };
+            return new AttributeReadResult(ServiceResult.Good, value,
+                node == MimeType ? StatusCodes.Uncertain : StatusCodes.Good, DateTimeUtc.Now);
         }
 
         private ServiceResult OnOpenCount(ISystemContext context, NodeState node,
             NumericRange indexRange, QualifiedName dataEncoding, ref Variant value,
             ref StatusCode statusCode, ref DateTimeUtc timestamp)
         {
-            if (!TryGetHandle(context, out FileHandle? handle, out ServiceResult result))
+            IFileSystemHost? host = ResolveHost(context);
+            if (host == null)
             {
-                return result;
+                return ServiceResult.Create(StatusCodes.BadInvalidState, "Node manager unavailable.");
             }
-            value = new Variant(handle.OpenCount);
+            value = new Variant(host.FindHandle(ProviderPath)?.OpenCount ?? 0);
             timestamp = DateTimeUtc.Now;
             statusCode = StatusCodes.Good;
             return ServiceResult.Good;
@@ -278,38 +257,58 @@ namespace Opc.Ua.Server.FileSystem
         private ServiceResult OnOpen(ISystemContext context, MethodState method,
             NodeId objectId, byte mode, ref uint fileHandle)
         {
-            if (!TryGetHandle(context, out FileHandle? handle, out ServiceResult result))
+            IFileSystemHost? host = ResolveHost(context);
+            if (host == null)
             {
-                return result;
+                return ServiceResult.Create(StatusCodes.BadInvalidState, "Node manager unavailable.");
             }
             if (!FileSystemNodeManager.TryGetSessionId(
                     context,
                     out NodeId sessionId,
-                    out result))
+                    out ServiceResult result))
             {
                 return result;
             }
-            return handle.Open(sessionId, mode, out fileHandle);
+            while (TryGetHandle(context, out FileHandle? handle, out result, create: true))
+            {
+                try
+                {
+                    result = handle.Open(sessionId, mode, out fileHandle);
+                    if (result.StatusCode != StatusCodes.BadShutdown)
+                    {
+                        return result;
+                    }
+                }
+                finally
+                {
+                    host.ReleaseHandle(handle);
+                }
+            }
+            return result;
         }
 
         private ServiceResult OnClose(ISystemContext context, MethodState method,
             NodeId objectId, uint fileHandle)
         {
-            if (!TryGetHandle(context, out FileHandle? handle, out ServiceResult result))
-            {
-                return result;
-            }
             if (!FileSystemNodeManager.TryGetSessionId(
                     context,
                     out NodeId sessionId,
-                    out result))
+                    out ServiceResult result) ||
+                !TryGetHandle(context, out FileHandle? handle, out result))
             {
                 return result;
             }
-            return handle.Close(sessionId, fileHandle)
-                ? ServiceResult.Good
-                : ServiceResult.Create(StatusCodes.BadInvalidState,
-                    "File handle is invalid, belongs to another Session, or is already closed.");
+            try
+            {
+                return handle.Close(sessionId, fileHandle)
+                    ? ServiceResult.Good
+                    : ServiceResult.Create(StatusCodes.BadInvalidState,
+                        "File handle is invalid, belongs to another Session, or is already closed.");
+            }
+            finally
+            {
+                ResolveHost(context)!.ReleaseHandle(handle);
+            }
         }
 
         /// <summary>
@@ -322,13 +321,18 @@ namespace Opc.Ua.Server.FileSystem
             byte mode,
             CancellationToken cancellationToken)
         {
-            if (!TryGetHandle(context, out FileHandle? handle, out ServiceResult result) ||
-                !FileSystemNodeManager.TryGetSessionId(context, out NodeId sessionId, out result))
+            IFileSystemHost? host = ResolveHost(context);
+            if (host == null)
+            {
+                return new OpenMethodStateResult { ServiceResult = StatusCodes.BadInvalidState };
+            }
+            if (!FileSystemNodeManager.TryGetSessionId(
+                context, out NodeId sessionId, out ServiceResult result))
             {
                 return new OpenMethodStateResult { ServiceResult = result };
             }
-            (ServiceResult error, uint fileHandle) = await handle.OpenAsync(sessionId, mode, cancellationToken)
-                .ConfigureAwait(false);
+            (ServiceResult error, uint fileHandle) = await FileSystemDirectoryOperations.OpenFileAsync(
+                host, NodeId, ProviderPath, sessionId, mode, cancellationToken).ConfigureAwait(false);
             return new OpenMethodStateResult { ServiceResult = error, FileHandle = fileHandle };
         }
 
@@ -468,7 +472,7 @@ namespace Opc.Ua.Server.FileSystem
             uint fileLimit = MaxByteStringLength?.Value ?? 0;
             if (fileLimit > 0)
             {
-                limit = (int)Math.Min(limit, (long)fileLimit);
+                limit = (int)Math.Min(limit, fileLimit);
             }
             if (limit <= 0)
             {
@@ -553,7 +557,8 @@ namespace Opc.Ua.Server.FileSystem
         private bool TryGetHandle(
             ISystemContext context,
             [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out FileHandle? handle,
-            out ServiceResult result)
+            out ServiceResult result,
+            bool create = false)
         {
             IFileSystemHost? host = ResolveHost(context);
             if (host == null)
@@ -565,7 +570,7 @@ namespace Opc.Ua.Server.FileSystem
                 return false;
             }
 
-            handle = host.GetOrCreateHandle(NodeId, ProviderPath);
+            handle = create ? host.GetOrCreateHandle(NodeId, ProviderPath) : host.FindHandle(ProviderPath);
             if (handle == null)
             {
                 result = ServiceResult.Create(
@@ -582,56 +587,26 @@ namespace Opc.Ua.Server.FileSystem
         /// </summary>
         internal void DetachCallbacks()
         {
-            if (OpenCount != null)
-            {
-                OpenCount.OnReadValue -= OnOpenCount;
-            }
-            if (Writable != null)
-            {
-                Writable.OnReadValue -= OnWritable;
-            }
-            if (UserWritable != null)
-            {
-                UserWritable.OnReadValue -= OnWritable;
-            }
-            if (Size != null)
-            {
-                Size.OnReadValue -= OnSize;
-            }
-            if (MimeType != null)
-            {
-                MimeType.OnReadValue -= OnMimeType;
-            }
-            if (LastModifiedTime != null)
-            {
-                LastModifiedTime.OnReadValue -= OnLastModifiedTime;
-            }
+            OpenCount?.OnReadValue -= OnOpenCount;
+            Writable?.OnReadValueAsync -= OnReadMetadataAsync;
+            UserWritable?.OnReadValueAsync -= OnReadMetadataAsync;
+            Size?.OnReadValueAsync -= OnReadMetadataAsync;
+            MimeType?.OnReadValueAsync -= OnReadMetadataAsync;
+            LastModifiedTime?.OnReadValueAsync -= OnReadMetadataAsync;
             if (Open != null)
             {
                 Open.OnCall = null;
                 Open.OnCallAsync = null;
             }
-            if (Write != null)
-            {
-                Write.OnCall = null;
-            }
+            Write?.OnCall = null;
             if (Read != null)
             {
                 Read.OnCall = null;
                 Read.OnCallAsync = null;
             }
-            if (Close != null)
-            {
-                Close.OnCall = null;
-            }
-            if (GetPosition != null)
-            {
-                GetPosition.OnCall = null;
-            }
-            if (SetPosition != null)
-            {
-                SetPosition.OnCall = null;
-            }
+            Close?.OnCall = null;
+            GetPosition?.OnCall = null;
+            SetPosition?.OnCall = null;
         }
 
         private IFileSystemHost? ResolveHost(ISystemContext context)

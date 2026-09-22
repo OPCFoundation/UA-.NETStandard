@@ -131,6 +131,8 @@ namespace Opc.Ua.Redundancy.Server
         /// <summary>
         /// Sets the envelope serialization context, rejecting a different context after initialization.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="messageContext"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException"></exception>
         internal void Initialize(IServiceMessageContext messageContext)
         {
             if (messageContext == null)
@@ -180,7 +182,9 @@ namespace Opc.Ua.Redundancy.Server
                     StatusCodes.BadEncodingLimitsExceeded,
                     "History continuation payload exceeds the configured limit.");
             }
-            ByteString protectedPayload = m_protector.Protect(payload);
+            string key = KeyFor(envelope.OwnerSessionId, envelope.Id);
+            ByteString protectedPayload = m_protector.Protect(
+                RecordProtectionContext.Create("history-continuation", key), payload);
             if (protectedPayload.IsEmpty ||
                 protectedPayload.Length > m_maxPayloadBytes)
             {
@@ -188,7 +192,6 @@ namespace Opc.Ua.Redundancy.Server
                     StatusCodes.BadEncodingLimitsExceeded,
                     "Protected history continuation payload is invalid or too large.");
             }
-            string key = KeyFor(envelope.OwnerSessionId, envelope.Id);
             for (int attempt = 0; attempt < kMaxStoreAttempts; attempt++)
             {
                 if (await CompareAndSwapResolvedAsync(
@@ -247,7 +250,7 @@ namespace Opc.Ua.Redundancy.Server
             {
                 return false;
             }
-            if (!m_protector.TryUnprotect(value, out ByteString payload) ||
+            if (!TryUnprotectContinuation(key, value, out ByteString payload) ||
                 payload.IsEmpty ||
                 payload.Length > m_maxPayloadBytes)
             {
@@ -274,7 +277,7 @@ namespace Opc.Ua.Redundancy.Server
                 return false;
             }
             RememberIncarnation(key, value);
-            ByteString claimMarker = CreateMarker(MarkerKind.Claim);
+            ByteString claimMarker = CreateMarker(key, MarkerKind.Claim);
             bool claimed = await CompareAndSwapClaimResolvedAsync(
                     key,
                     value,
@@ -336,7 +339,7 @@ namespace Opc.Ua.Redundancy.Server
                 .ConfigureAwait(false))
             {
                 if (pair.Value.IsEmpty ||
-                    !m_protector.TryUnprotect(pair.Value, out ByteString payload) ||
+                    !TryUnprotectContinuation(pair.Key, pair.Value, out ByteString payload) ||
                     payload.Length > m_maxPayloadBytes)
                 {
                     ForgetIncarnation(pair.Key, pair.Value);
@@ -595,7 +598,8 @@ namespace Opc.Ua.Redundancy.Server
             {
                 return true;
             }
-            if (!m_protector.TryUnprotect(value, out ByteString payload))
+            string key = KeyFor(ownerSessionId, id);
+            if (!TryUnprotectContinuation(key, value, out ByteString payload))
             {
                 return false;
             }
@@ -611,6 +615,15 @@ namespace Opc.Ua.Redundancy.Server
             return envelope == null ||
                 envelope.Id != id ||
                 envelope.OwnerSessionId != ownerSessionId;
+        }
+
+        private bool TryUnprotectContinuation(
+            string key,
+            ByteString value,
+            out ByteString payload)
+        {
+            return m_protector.TryUnprotect(
+                RecordProtectionContext.Create("history-continuation", key), value, out payload);
         }
 
         private void RememberIncarnation(string key, ByteString value)
@@ -733,7 +746,7 @@ namespace Opc.Ua.Redundancy.Server
             }
         }
 
-        private ByteString CreateMarker(MarkerKind markerKind)
+        private ByteString CreateMarker(string key, MarkerKind markerKind)
         {
             byte[] marker = new byte[kMarkerLength];
             marker[0] = (byte)'H';
@@ -742,7 +755,9 @@ namespace Opc.Ua.Redundancy.Server
             marker[3] = kMarkerVersion;
             marker[4] = (byte)markerKind;
             Guid.NewGuid().ToByteArray().CopyTo(marker, kMarkerHeaderLength);
-            return m_protector.Protect(ByteString.From(marker));
+            return m_protector.Protect(
+                RecordProtectionContext.Create("history-continuation", key),
+                ByteString.From(marker));
         }
 
         private static bool TryGetMarkerKind(

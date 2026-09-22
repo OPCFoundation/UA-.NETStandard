@@ -200,6 +200,25 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(manager.CombineProviderPath("folder/", "b"), Is.EqualTo("folder/b"));
         }
 
+        [TestCase("run-2024-05-01T10:00:00.csv")]
+        [TestCase("12:00/part.txt")]
+        [TestCase(@"folder\name.txt")]
+        [TestCase(@"\")]
+        public void UnixColonAndBackslashNamesRemainAddressable(string path)
+        {
+            Assert.That(FileSystemNodeManager.TryNormalizeProviderPath(path, windowsPaths: false, out string actual),
+                Is.True);
+            Assert.That(actual, Is.EqualTo(path));
+        }
+
+        [TestCase("run-2024-05-01T10:00:00.csv")]
+        [TestCase("12:00/part.txt")]
+        [TestCase(@"folder\name.txt")]
+        public void WindowsPathSyntaxCannotBecomeAProviderName(string path)
+        {
+            Assert.That(FileSystemNodeManager.TryNormalizeProviderPath(path, windowsPaths: true, out _), Is.False);
+        }
+
         [Test]
         public void GetOrCreateHandleReturnsSameHandleForSameNodeId()
         {
@@ -348,7 +367,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 manager,
                 FileSystemNodeId.BuildFile("missing.txt", manager.NamespaceIndex))
                 .ConfigureAwait(false);
-            NodeId missingComponentId = new FileSystemNodeId(
+            var missingComponentId = new FileSystemNodeId(
                 FileSystemNodeId.File,
                 "file.txt",
                 manager.NamespaceIndex,

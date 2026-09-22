@@ -211,6 +211,22 @@ namespace Opc.Ua.Server
             }
         }
 
+        private static bool HasHistoryWritePermission(
+            ServerSystemContext context,
+            BaseVariableState variable)
+        {
+            BaseVariableState accessNode = variable;
+
+            if (HistorianDispatcher.IsAnnotationsProperty(variable))
+            {
+                accessNode = HistorianDispatcher.GetAnnotationsParent(variable) ?? variable;
+            }
+
+            byte userAccessLevel = accessNode.UserAccessLevel;
+            accessNode.OnReadUserAccessLevel?.Invoke(context, accessNode, ref userAccessLevel);
+            return (userAccessLevel & AccessLevels.HistoryWrite) != 0;
+        }
+
         /// <summary>
         /// Creates the NodeId for the specified node.
         /// </summary>
@@ -2607,6 +2623,7 @@ namespace Opc.Ua.Server
             ServerSystemContext systemContext = SystemContext.Copy(context);
             IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
             var nodesToValidate = new List<NodeHandle>();
+            var nodesToNotify = new List<NodeState>();
 
             lock (Lock)
             {
@@ -2749,16 +2766,21 @@ namespace Opc.Ua.Server
                     //not needed for sampling groups
                     if (m_monitoredItemManager is MonitoredNodeMonitoredItemManager)
                     {
-                        // updates to source finished - report changes to monitored items.
-                        handle.Node.ClearChangeMasks(systemContext, true);
+                        nodesToNotify.Add(handle.Node);
                     }
                 }
+            }
 
-                // check for nothing to do.
-                if (nodesToValidate.Count == 0)
-                {
-                    return;
-                }
+            foreach (NodeState node in nodesToNotify)
+            {
+                // Publish notifications after releasing the node-manager lock.
+                node.ClearChangeMasks(systemContext, true);
+            }
+
+            // check for nothing to do.
+            if (nodesToValidate.Count == 0)
+            {
+                return;
             }
 
             // validates the nodes and writes the value to the underlying system.
@@ -3150,6 +3172,7 @@ namespace Opc.Ua.Server
             for (int ii = 0; ii < nodesToValidate.Count; ii++)
             {
                 NodeHandle handle = nodesToValidate[ii];
+                NodeState? sourceToNotify = null;
 
                 lock (Lock)
                 {
@@ -3170,9 +3193,11 @@ namespace Opc.Ua.Server
                         nodeToWrite.ParsedIndexRange,
                         nodeToWrite.Value);
 
-                    // updates to source finished - report changes to monitored items.
-                    source.ClearChangeMasks(context, false);
+                    sourceToNotify = source;
                 }
+
+                // Publish notifications after releasing the node-manager lock.
+                sourceToNotify?.ClearChangeMasks(context, false);
             }
         }
 
@@ -3755,6 +3780,12 @@ namespace Opc.Ua.Server
                     if (handle.Node is BaseVariableState variable &&
                         (variable.AccessLevel & AccessLevels.HistoryWrite) != 0)
                     {
+                        if (!HasHistoryWritePermission(systemContext, variable))
+                        {
+                            errors[ii] = StatusCodes.BadUserAccessDenied;
+                            continue;
+                        }
+
                         handle.Index = ii;
                         nodesToProcess.Add(handle);
                         continue;
@@ -5012,8 +5043,7 @@ namespace Opc.Ua.Server
             }
 
             bool componentCacheReferenceAdded =
-                m_monitoredItemManager is MonitoredNodeMonitoredItemManager &&
-                !m_monitoredItemManager.MonitoredNodes.ContainsKey(handle.NodeId);
+                m_monitoredItemManager is MonitoredNodeMonitoredItemManager;
             ISampledDataChangeMonitoredItem dataChangeMonitoredItem =
                 m_monitoredItemManager.CreateMonitoredItem(
                     Server,
@@ -5270,9 +5300,9 @@ namespace Opc.Ua.Server
 
                 var aggregateFilterResult = new AggregateFilterResult
                 {
-                    RevisedProcessingInterval = aggregateFilter.ProcessingInterval,
-                    RevisedStartTime = aggregateFilter.StartTime,
-                    RevisedAggregateConfiguration = aggregateFilter.AggregateConfiguration
+                    RevisedProcessingInterval = revisedFilter.ProcessingInterval,
+                    RevisedStartTime = revisedFilter.StartTime,
+                    RevisedAggregateConfiguration = revisedFilter.AggregateConfiguration
                 };
 
                 filterToUse = revisedFilter;

@@ -90,6 +90,21 @@ namespace Opc.Ua.Server.Tests
             Assert.That(roles, Has.No.Member(ObjectIds.WellKnownRole_Engineer));
         }
 
+        [Test]
+        public void ResolveGrantedRoles_GroupCriteriaBehindRoleWrapper_GrantsRole()
+        {
+            AssertMessageContextCanBeCreated();
+            using RoleManager manager = CreateManagerWithGroupRule("engineering-leads");
+            IUserIdentity identity = new RoleBasedIdentity(
+                new ClaimsTestIdentity(groups: s_engineeringLeadGroups),
+                [Role.TrustedApplication],
+                new NamespaceTable());
+
+            IList<NodeId> roles = manager.ResolveGrantedRoles(identity, null, null);
+
+            Assert.That(roles, Has.Member(ObjectIds.WellKnownRole_Engineer));
+        }
+
         private static RoleManager CreateManagerWithGroupRule(string groupId)
         {
             var manager = new RoleManager();

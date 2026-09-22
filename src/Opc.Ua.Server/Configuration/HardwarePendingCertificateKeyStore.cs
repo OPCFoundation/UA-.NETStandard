@@ -63,7 +63,7 @@ namespace Opc.Ua.Server
     /// claiming a persistence it does not provide.
     /// </para>
     /// </remarks>
-    public sealed class HardwarePendingCertificateKeyStore : IMatchingPendingCertificateKeyStore
+    public sealed class HardwarePendingCertificateKeyStore : IPeekablePendingCertificateKeyStore
     {
         /// <summary>
         /// Initializes a store that opens the group's configured store.
@@ -107,6 +107,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Replaces the staged public certificate that identifies a durable, device-held private key.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         private async ValueTask<bool> SaveCoreAsync(
             PendingCertificateKeyContext context,
             Certificate certificateWithPrivateKey,
@@ -137,11 +139,8 @@ namespace Opc.Ua.Server
                 }
             }
 
-            using ICertificateStore? staging = OpenStagingStore(context);
-            if (staging == null)
-            {
+            using ICertificateStore? staging = OpenStagingStore(context) ??
                 throw new ServiceResultException(StatusCodes.BadNotSupported, "The pending-key scope cannot be restored.");
-            }
 
             // Replace whatever was staged for this scope before, per the
             // contract's one-entry-per-scope rule.
@@ -154,7 +153,7 @@ namespace Opc.Ua.Server
 
             // Only the public certificate is written. The key stays where it was
             // generated, and the device can find it again by thumbprint.
-            using (Certificate publicOnly = Certificate.FromRawData(certificateWithPrivateKey.RawData))
+            using (var publicOnly = Certificate.FromRawData(certificateWithPrivateKey.RawData))
             {
                 await staging.AddAsync(publicOnly, null, cancellationToken).ConfigureAwait(false);
             }
@@ -192,6 +191,20 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        public ValueTask<Certificate?> TryPeekMatchingAsync(
+            PendingCertificateKeyContext context,
+            Certificate certificate,
+            CancellationToken cancellationToken = default)
+        {
+            if (certificate == null)
+            {
+                throw new ArgumentNullException(nameof(certificate));
+            }
+            return PendingCertificateKeyStoreOperations.RunAsync(
+                context, ct => TryTakeCoreAsync(context, certificate, ct, consume: false), cancellationToken);
+        }
+
+        /// <inheritdoc/>
         public ValueTask<bool> TryRestoreAsync(
             PendingCertificateKeyContext context,
             Certificate certificateWithPrivateKey,
@@ -204,6 +217,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Restores a consumed device-key association without replacing a newer staged certificate.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="certificate"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         private async ValueTask<bool> RestoreCoreAsync(
             PendingCertificateKeyContext context,
             Certificate certificate,
@@ -233,12 +248,14 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Loads the device key and consumes its staged association only after any requested key match succeeds.
+        /// Loads the device key, optionally consuming its staged association after a requested key match succeeds.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         private async ValueTask<Certificate?> TryTakeCoreAsync(
             PendingCertificateKeyContext context,
             Certificate? matchingCertificate,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool consume = true)
         {
             if (context is null)
             {
@@ -298,7 +315,7 @@ namespace Opc.Ua.Server
                 {
                     return null;
                 }
-                if (!await staging.DeleteAsync(thumbprint, cancellationToken).ConfigureAwait(false))
+                if (consume && !await staging.DeleteAsync(thumbprint, cancellationToken).ConfigureAwait(false))
                 {
                     return null;
                 }
@@ -334,6 +351,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Removes the staged certificate association while leaving the private key on its device.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         private async ValueTask RemoveCoreAsync(
             PendingCertificateKeyContext context,
             CancellationToken cancellationToken)

@@ -51,6 +51,13 @@ namespace Opc.Ua.Server.Tests
         [TestCase("cancellation")]
         public void ImportedEccScalarIsClearedOnEveryExit(string outcome)
         {
+            if (!AdditionalEntropyCertificateKeyGenerator.IsEccKeyRegenerationSupported)
+            {
+                Assert.Ignore(
+                    "ECC key regeneration with additional entropy requires .NET 5 or later; " +
+                    "the Opc.Ua.Server assembly under test was compiled without it.");
+            }
+
             using var cancellation = new CancellationTokenSource();
             byte[] captured = null;
             ECDsa Import(ECParameters parameters)

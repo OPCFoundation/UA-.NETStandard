@@ -307,12 +307,33 @@ namespace Opc.Ua.Server
         public IUserIdentity EffectiveIdentity { get; private set; } = null!;
 
         /// <inheritdoc/>
-        public bool IsIdentityStale => Volatile.Read(ref m_identityStale) != 0;
+        public bool IsIdentityStale
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_identityRefreshGeneration != m_identityGeneration;
+                }
+            }
+        }
+
+        /// <inheritdoc/>
+        public IdentityRefreshSnapshot CaptureIdentityRefreshSnapshot()
+        {
+            lock (m_lock)
+            {
+                return new IdentityRefreshSnapshot(Identity, m_identityGeneration);
+            }
+        }
 
         /// <inheritdoc/>
         public void MarkIdentityStale()
         {
-            Volatile.Write(ref m_identityStale, 1);
+            lock (m_lock)
+            {
+                m_identityGeneration++;
+            }
         }
 
         /// <inheritdoc/>
@@ -326,10 +347,37 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 EffectiveIdentity = effectiveIdentity;
-                // Clearing the stale flag while holding the session lock
-                // ensures any subsequent IsIdentityStale read observes a
-                // consistent (refreshed identity, cleared flag) pair.
-                Volatile.Write(ref m_identityStale, 0);
+                m_identityRefreshGeneration = m_identityGeneration;
+            }
+        }
+
+        /// <inheritdoc/>
+        public bool TryRefreshEffectiveIdentity(
+            IUserIdentity expectedIdentity,
+            long expectedGeneration,
+            IUserIdentity effectiveIdentity)
+        {
+            if (expectedIdentity == null)
+            {
+                throw new ArgumentNullException(nameof(expectedIdentity));
+            }
+            if (effectiveIdentity == null)
+            {
+                throw new ArgumentNullException(nameof(effectiveIdentity));
+            }
+
+            lock (m_lock)
+            {
+                if (!ReferenceEquals(Identity, expectedIdentity) ||
+                    m_identityGeneration != expectedGeneration ||
+                    m_identityRefreshGeneration == m_identityGeneration)
+                {
+                    return false;
+                }
+
+                EffectiveIdentity = effectiveIdentity;
+                m_identityRefreshGeneration = m_identityGeneration;
+                return true;
             }
         }
 
@@ -503,6 +551,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Set the ECC security policy URI
         /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
         public virtual void SetUserTokenSecurityPolicy(string securityPolicyUri)
         {
             Nonce? retired;
@@ -522,6 +571,7 @@ namespace Opc.Ua.Server
         /// Create new ECC ephemeral key
         /// </summary>
         /// <returns>A new ephemeral key</returns>
+        /// <exception cref="ObjectDisposedException"></exception>
         public virtual EphemeralKeyType? GetNewEphemeralKey()
         {
             Nonce? retired;
@@ -536,7 +586,7 @@ namespace Opc.Ua.Server
                 {
                     return null;
                 }
-                Nonce nonce = Nonce.CreateNonce(m_userTokenSecurityPolicyUri);
+                var nonce = Nonce.CreateNonce(m_userTokenSecurityPolicyUri);
                 bool retained = false;
                 try
                 {
@@ -954,6 +1004,7 @@ namespace Opc.Ua.Server
         /// Resolves the endpoint's user-token policy and verifies the identity token
         /// while retaining its decryption nonce.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private async ValueTask<(
             IUserIdentityTokenHandler IdentityToken,
             UserTokenPolicy? UserTokenPolicy)> ValidateUserIdentityTokenAsync(
@@ -1206,6 +1257,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Borrows the current user-token nonce so replacement cannot dispose it during token validation.
         /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
         private Nonce? AcquireUserTokenNonce()
         {
             lock (m_lock)
@@ -1298,6 +1350,8 @@ namespace Opc.Ua.Server
                 // always save the new identity since it may have additional information that does not affect equality.
                 IdentityToken = identityToken;
                 Identity = identity;
+                m_identityGeneration++;
+                m_identityRefreshGeneration = m_identityGeneration;
                 EffectiveIdentity = effectiveIdentity!;
 
                 // update diagnostics.
@@ -1308,8 +1362,22 @@ namespace Opc.Ua.Server
                         identity);
                     m_securityDiagnostics.ClientUserIdOfSession = clientUserId;
                     m_securityDiagnostics.AuthenticationMechanism = identity.TokenType.ToString();
-                    m_securityDiagnostics.ClientUserIdHistory =
-                        m_securityDiagnostics.ClientUserIdHistory.AddItem(clientUserId!);
+                    ArrayOf<string> history = m_securityDiagnostics.ClientUserIdHistory;
+                    if (history.Count == 0 ||
+                        !string.Equals(
+                            history[^1],
+                            clientUserId,
+                            StringComparison.Ordinal))
+                    {
+                        int retainedCount = Math.Min(history.Count, kMaxClientUserIdHistory - 1);
+                        string[] updatedHistory = new string[retainedCount + 1];
+                        if (retainedCount > 0)
+                        {
+                            history.Span[^retainedCount..].CopyTo(updatedHistory);
+                        }
+                        updatedHistory[retainedCount] = clientUserId!;
+                        m_securityDiagnostics.ClientUserIdHistory = updatedHistory.ToArrayOf();
+                    }
                 }
 
                 return changed;
@@ -1471,6 +1539,7 @@ namespace Opc.Ua.Server
         /// <see cref="UpdateDiagnostics"/> and <see cref="ReadDiagnostics{TResult}"/>.
         /// </summary>
         private readonly Lock m_diagnosticsLock = new();
+        private const int kMaxClientUserIdHistory = 100;
         private int m_closing;
         private readonly ILogger m_eventLogger;
         private readonly IServerInternal m_server;
@@ -1499,7 +1568,8 @@ namespace Opc.Ua.Server
         private readonly SessionContinuationPoints m_continuationPoints;
         private readonly SessionSecurityDiagnosticsDataType m_securityDiagnostics;
         private long m_lastContactTickCount;
-        private int m_identityStale;
+        private long m_identityGeneration;
+        private long m_identityRefreshGeneration;
     }
 
     /// <summary>

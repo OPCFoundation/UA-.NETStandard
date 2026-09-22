@@ -65,6 +65,11 @@ namespace Opc.Ua.Server.Tests
             return new DataValue(new Variant(value), status, timestamp, timestamp);
         }
 
+        private static DataValue UnsignedValue(uint value, DateTimeUtc timestamp)
+        {
+            return new DataValue(new Variant(value), StatusCodes.Good, timestamp, timestamp);
+        }
+
         private DataValue RunFirst(IAggregateCalculator calculator, IEnumerable<DataValue> values)
         {
             foreach (DataValue value in values)
@@ -154,6 +159,44 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_DeltaBounds, values, startTime, endTime, 6000);
 
             Assert.That(StatusCode.IsBad(result.StatusCode), Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that a decreasing unsigned counter produces a bad interval
+        /// and that the calculator advances to a later valid interval.
+        /// </summary>
+        [TestCase("Delta")]
+        [TestCase("DeltaBounds")]
+        public void UnsignedDecreaseReturnsBadIntervalAndLaterTypedProgress(
+            string aggregateName)
+        {
+            var startTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
+            DateTimeUtc endTime = startTime.AddMilliseconds(2000);
+            NodeId aggregateId = aggregateName == "Delta"
+                ? ObjectIds.AggregateFunction_Delta
+                : ObjectIds.AggregateFunction_DeltaBounds;
+            var values = new List<DataValue>
+            {
+                UnsignedValue(10, startTime),
+                UnsignedValue(5, startTime.AddMilliseconds(900)),
+                UnsignedValue(5, startTime.AddMilliseconds(1000)),
+                UnsignedValue(15, startTime.AddMilliseconds(1900)),
+                UnsignedValue(15, endTime)
+            };
+
+            List<DataValue> results = RunAllStandard(
+                aggregateId,
+                values,
+                startTime,
+                endTime,
+                1000);
+
+            Assert.That(results, Has.Count.GreaterThanOrEqualTo(2));
+            Assert.That(results[0].StatusCode.CodeBits, Is.EqualTo(StatusCodes.BadTypeMismatch.CodeBits));
+            Assert.That(results[0].WrappedValue.IsNull, Is.True);
+            Assert.That(StatusCode.IsGood(results[1].StatusCode), Is.True);
+            Assert.That(results[1].WrappedValue.TryGetValue(out uint laterValue), Is.True);
+            Assert.That(laterValue, Is.EqualTo(10U));
         }
 
         [Test]

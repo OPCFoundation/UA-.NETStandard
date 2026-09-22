@@ -27,8 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
+// CA2000: test code manages disposable ownership explicitly in the harness.
+#pragma warning disable CA2000
 using System;
 using System.Linq;
 using System.Security.Cryptography;
@@ -52,30 +52,43 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// </summary>
         [Test]
         public async Task DecryptClearsOwnedPayloadAndKeysWithoutErasingHeadersOrReturnedSecretAsync(
-            [Values(false, true)] bool p384,
+            [Values] bool p384,
             [Values(0, 17)] int offset,
-            [Values("success", "nonce", "padding", "cipher")] string outcome)
+            [Values("success", "nonce", "padding", "padding-byte", "cipher")] string outcome)
         {
             ECCurve curve = p384 ? ECCurve.NamedCurves.nistP384 : ECCurve.NamedCurves.nistP256;
             string policy = p384 ? SecurityPolicies.ECC_nistP384 : SecurityPolicies.ECC_nistP256;
+            if (!SecurityPolicies.SupportsRawEccSecretAgreement())
+            {
+                Assert.That(SecurityPolicies.Default.GetInfo(policy), Is.Null);
+                Assert.That(() => Nonce.CreateNonce(policy),
+                    Throws.ArgumentNullException.With.Property("ParamName").EqualTo("securityPolicy"));
+                SecurityPolicyInfo unsupported = p384
+                    ? SecurityPolicyInfo.ECC_nistP384 : SecurityPolicyInfo.ECC_nistP256;
+                using var local = Nonce.CreateNonce(unsupported);
+                using var remote = Nonce.CreateNonce(unsupported);
+                Assert.That(() => local.GenerateSecret(remote, null), Throws.TypeOf<NotSupportedException>());
+                return;
+            }
+            Assert.That(SecurityPolicies.Default.GetInfo(policy), Is.Not.Null);
             using Certificate sender = CertificateBuilder.Create("CN=Buffer Sender").SetECCurve(curve).CreateForECDsa();
             using Certificate receiver = CertificateBuilder.Create("CN=Buffer Receiver").SetECCurve(curve).CreateForECDsa();
-            using Nonce senderNonce = Nonce.CreateNonce(policy);
-            using Nonce receiverNonce = Nonce.CreateNonce(policy);
+            using var senderNonce = Nonce.CreateNonce(policy);
+            using var receiverNonce = Nonce.CreateNonce(policy);
             using var issuers = new CertificateCollection();
-            ServiceMessageContext context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
-            EncryptedSecret encryptor = EncryptedSecret.CreateForEcc(
+            var context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
+            using var encryptor = EncryptedSecret.CreateForEcc(
                 context, policy, issuers, receiver, receiverNonce, sender, senderNonce,
                 doNotEncodeSenderCertificate: true);
             byte[] encoded = encryptor.Encrypt(s_secret, s_nonce);
-            byte[] buffer = Enumerable.Repeat((byte)0x7A, offset + encoded.Length + 13).ToArray();
+            byte[] buffer = [.. Enumerable.Repeat((byte)0x7A, offset + encoded.Length + 13)];
             encoded.CopyTo(buffer, offset);
-            byte[]? key = null;
-            byte[]? iv = null;
-            byte[]? prefix = null;
-            byte[]? suffix = null;
+            byte[] key = null;
+            byte[] iv = null;
+            byte[] prefix = null;
+            byte[] suffix = null;
             ArraySegment<byte> working = default;
-            var decryptor = new EncryptedSecret(
+            using var decryptor = new EncryptedSecret(
                 context, policy, issuers, receiver, receiverNonce, sender, null, null, false,
                 (data, security, encryptionKey, initializationVector) =>
                 {
@@ -88,11 +101,17 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     {
                         throw new CryptographicException("controlled cipher failure");
                     }
-                    ArraySegment<byte> plaintext = CryptoUtils.SymmetricDecryptAndVerify(
+                    ArraySegment<byte> plaintext = EncryptedSecret.DecryptSymmetricPayload(
                         data, security, encryptionKey, initializationVector);
                     if (outcome == "padding")
                     {
                         plaintext.Array![plaintext.Offset + plaintext.Count - 1] = 1;
+                    }
+                    else if (outcome == "padding-byte")
+                    {
+                        int paddingOffset = plaintext.Offset + plaintext.Count - 2;
+                        Assert.That(plaintext.Array![paddingOffset], Is.GreaterThan(0));
+                        plaintext.Array[paddingOffset] = 0;
                     }
                     return plaintext;
                 });
@@ -134,7 +153,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
             finally
             {
-                decryptor.SenderNonce?.Dispose();
                 CryptoUtils.ZeroMemory(buffer);
                 if (key != null)
                 {

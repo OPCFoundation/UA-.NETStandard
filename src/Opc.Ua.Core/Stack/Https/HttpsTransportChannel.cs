@@ -332,7 +332,7 @@ namespace Opc.Ua.Bindings
             }
             catch (OperationCanceledException e)
             {
-                if (cts.IsCancellationRequested)
+                if (cts.IsCancellationRequested || !ct.IsCancellationRequested)
                 {
                     m_logger.HttpsChannelLog3(e, OperationTimeout);
                     throw ServiceResultException.Create(
@@ -640,10 +640,17 @@ namespace Opc.Ua.Bindings
 
                 try
                 {
-                    serverCertificateCustomValidationCallback = (_, cert, chain, _) =>
+                    serverCertificateCustomValidationCallback = (_, cert, chain, sslPolicyErrors) =>
                     {
                         try
                         {
+                            if ((sslPolicyErrors & SslPolicyErrors.RemoteCertificateNameMismatch) != 0)
+                            {
+                                throw new ServiceResultException(
+                                    StatusCodes.BadCertificateHostNameInvalid,
+                                    "The HTTPS certificate host name does not match the endpoint.");
+                            }
+
                             if (chain != null && chain.ChainElements != null)
                             {
                                 int i = 0;
@@ -730,7 +737,10 @@ namespace Opc.Ua.Bindings
                 // of the stack, so TLS-layer revocation on the HttpClient handler is
                 // intentionally left disabled to avoid duplicate / inconsistent checks.
 #pragma warning disable CA5400 // HttpClient is created without enabling CheckCertificateRevocationList
-                var client = new HttpClient(handler);
+                var client = new HttpClient(handler)
+                {
+                    Timeout = Timeout.InfiniteTimeSpan
+                };
 #pragma warning restore CA5400 // HttpClient is created without enabling CheckCertificateRevocationList
                 handler = null; // ownership transferred to HttpClient
 
@@ -904,39 +914,39 @@ namespace Opc.Ua.Bindings
         public static partial void HttpsChannelLog0(
             this ILogger logger,
             string? channelType,
-            global::System.Uri? url);
+            Uri? url);
 
         [LoggerMessage(EventId = CoreEventIds.HttpsTransportChannel + 1, Level = LogLevel.Error,
             Message = "Exception sending HTTPS request.")]
         public static partial void HttpsChannelLog1(
             this ILogger logger,
-            global::System.Exception? exception);
+            Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.HttpsTransportChannel + 2, Level = LogLevel.Error,
             Message = "Exception sending HTTPS request.")]
         public static partial void HttpsChannelLog2(
             this ILogger logger,
-            global::System.Exception? exception);
+            Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.HttpsTransportChannel + 3, Level = LogLevel.Error,
             Message = "Send request timed out after {OperationTimeout}ms.")]
         public static partial void HttpsChannelLog3(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             int operationTimeout);
 
         [LoggerMessage(EventId = CoreEventIds.HttpsTransportChannel + 4, Level = LogLevel.Error,
             Message = "Exception sending HTTPS request.")]
         public static partial void HttpsChannelLog4(
             this ILogger logger,
-            global::System.Exception? exception);
+            Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.HttpsTransportChannel + 5, Level = LogLevel.Information,
             Message = "{ChannelType} Open {Url}.")]
         public static partial void HttpsChannelLog5(
             this ILogger logger,
             string? channelType,
-            global::System.Uri? url);
+            Uri? url);
 
         [LoggerMessage(EventId = CoreEventIds.HttpsTransportChannel + 6, Level = LogLevel.Warning,
             Message = "{ChannelType}: Bypassing IOpcUaHttpClientFactory because an OPC UA " +
@@ -950,13 +960,13 @@ namespace Opc.Ua.Bindings
             Message = "Exception creating HTTPS Client.")]
         public static partial void HttpsChannelLog7(
             this ILogger logger,
-            global::System.Exception? exception);
+            Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.HttpsTransportChannel + 8, Level = LogLevel.Error,
             Message = "Copy of the private key for https was denied")]
         public static partial void HttpsChannelLog8(
             this ILogger logger,
-            global::System.Exception? exception);
+            Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.HttpsTransportChannel + 9, Level = LogLevel.Information,
             Message = "{ChannelType} Validate server chain:")]
@@ -980,12 +990,11 @@ namespace Opc.Ua.Bindings
             Message = "{ChannelType} Failed to validate certificate.")]
         public static partial void HttpsChannelLog12(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string? channelType);
 
         [LoggerMessage(EventId = CoreEventIds.HttpsTransportChannel + 13, Level = LogLevel.Information,
             Message = "{ChannelType} ServerCertificate callback enabled.")]
         public static partial void HttpsChannelLog13(this ILogger logger, string? channelType);
     }
-
 }

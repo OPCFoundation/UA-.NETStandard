@@ -408,6 +408,7 @@ namespace Opc.Ua.Server
         /// <remarks>
         /// It will call the external source to change the monitoring if an external source was provided originally.
         /// The changes will not take affect until the ApplyChanges() method is called.
+        /// An item removed by StopMonitoring is not registered again by a concurrent modification.
         /// </remarks>
         public virtual void ModifyMonitoring(
             OperationContext context,
@@ -415,18 +416,18 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                // find existing sampling group.
-
-                if (m_sampledItems.TryGetValue(monitoredItem, out SamplingGroup? samplingGroup))
+                if (!m_sampledItems.TryGetValue(monitoredItem, out SamplingGroup? samplingGroup))
                 {
-                    if (samplingGroup != null &&
-                        samplingGroup.ModifyMonitoring(context, monitoredItem))
-                    {
-                        return;
-                    }
-
-                    m_sampledItems.Remove(monitoredItem);
+                    return;
                 }
+
+                if (samplingGroup != null &&
+                    samplingGroup.ModifyMonitoring(context, monitoredItem))
+                {
+                    return;
+                }
+
+                m_sampledItems.Remove(monitoredItem);
 
                 // assign to a new sampling group.
                 StartMonitoring(context, monitoredItem);

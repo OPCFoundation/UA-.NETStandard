@@ -563,7 +563,8 @@ namespace Opc.Ua.Server.Historian
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="systemContext"/> is <c>null</c>.</exception>
         [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
-            Justification = "HistorianContinuationState ownership is transferred to the session via ContinuationPoints.SaveHistory or disposed inline by EmitProcessedPage.")]
+            Justification = "HistorianContinuationState ownership is transferred to the session via " +
+                "ContinuationPoints.SaveHistory or disposed inline by EmitProcessedPage.")]
         public static async ValueTask<ServiceResult> DispatchProcessedReadAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -663,6 +664,7 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Validates aggregate inputs and pages processed history through the provider or a local aggregate calculator.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private static async ValueTask<ServiceResult>
             DispatchProcessedReadCoreAsync(
             ServerSystemContext systemContext,
@@ -1047,7 +1049,8 @@ namespace Opc.Ua.Server.Historian
         /// unsupported for the node.
         /// </summary>
         [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
-            Justification = "HistorianContinuationState ownership is transferred to the session via ContinuationPoints.SaveHistory or disposed inline by EmitProcessedPage.")]
+            Justification = "HistorianContinuationState ownership is transferred to the session via " +
+                "ContinuationPoints.SaveHistory or disposed inline by EmitProcessedPage.")]
         private static async ValueTask<ServiceResult> ComputeAnnotationCountAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -1085,6 +1088,22 @@ namespace Opc.Ua.Server.Historian
             HistorianResumeToken token = default;
             while (true)
             {
+                HistorianPage<HistorianAnnotation> timestampedPage;
+                if (annotationProvider is IHistorianTimestampedAnnotationProvider timestamped)
+                {
+                    timestampedPage = await timestamped.ReadAnnotationsWithTimestampsAsync(
+                        opContext, request, token, cancellationToken).ConfigureAwait(false);
+                    foreach (HistorianAnnotation annotation in timestampedPage.Values)
+                    {
+                        annotationTimes.Add(annotation.SourceTimestamp);
+                    }
+                    if (timestampedPage.IsFinal)
+                    {
+                        break;
+                    }
+                    token = timestampedPage.NextToken;
+                    continue;
+                }
                 HistorianPage<Annotation> page = await annotationProvider.ReadAnnotationsAsync(
                     opContext, request, token, cancellationToken).ConfigureAwait(false);
 
@@ -1281,7 +1300,7 @@ namespace Opc.Ua.Server.Historian
                 cancellationToken)
                 .ConfigureAwait(false);
 
-            ArrayOf<DataValue> orderedSamples = samples.ToArrayOf();
+            var orderedSamples = samples.ToArrayOf();
             var produced = new List<DataValue>(reqTimes.Count);
             foreach (DateTimeUtc requestedTime in reqTimes)
             {
@@ -1314,7 +1333,8 @@ namespace Opc.Ua.Server.Historian
         [SuppressMessage(
             "Reliability",
             "CA2000:Dispose objects before losing scope",
-            Justification = "SaveSuccessorOrCompleteAsync takes ownership of the initial continuation state on invocation and either saves it to the session or disposes it.")]
+            Justification = "SaveSuccessorOrCompleteAsync takes ownership of the initial continuation state " +
+                "on invocation and either saves it to the session or disposes it.")]
         public static async ValueTask<ServiceResult> DispatchAnnotationReadAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -1408,9 +1428,10 @@ namespace Opc.Ua.Server.Historian
                         NodeId = parentVariable.NodeId,
                         StartTime = start,
                         EndTime = end,
-                        MaxValues = ApplyHistorianLimit(
-                            details.NumValuesPerNode,
-                            capabilities.MaxReturnDataValues),
+                        MaxValues = annotations is IHistorianTimestampedAnnotationProvider
+                            ? details.NumValuesPerNode
+                            : ApplyHistorianLimit(details.NumValuesPerNode, capabilities.MaxReturnDataValues),
+                        PageLimit = capabilities.MaxReturnDataValues,
                         IsForward = isForward
                     };
                     resumeToken = default;
@@ -1422,11 +1443,47 @@ namespace Opc.Ua.Server.Historian
                     parentVariable,
                     HistoryUpdateType.Insert);
 
+                if (annotations is IHistorianTimestampedAnnotationProvider timestamped)
+                {
+                    HistorianPage<HistorianAnnotation> timestampedPage =
+                        await timestamped.ReadAnnotationsWithTimestampsAsync(
+                            opContext,
+                            request,
+                            resumeToken,
+                            cancellationToken).ConfigureAwait(false);
+                    var timestampedDataValues = new List<DataValue>(timestampedPage.Values.Count);
+                    foreach (HistorianAnnotation a in timestampedPage.Values)
+                    {
+                        timestampedDataValues.Add(new DataValue(
+                            new Variant(new ExtensionObject(a.Annotation)),
+                            StatusCodes.Good,
+                            sourceTimestamp: a.SourceTimestamp,
+                            serverTimestamp: DateTimeUtc.MinValue));
+                    }
+                    FillHistoryData(systemContext, result, timestampedDataValues, nodeToRead, timestampsToReturn);
+                    HistorianContinuationState? timestampedInitialState = null;
+                    if (claim == null && !timestampedPage.NextToken.IsEmpty)
+                    {
+                        timestampedInitialState = new HistorianContinuationState
+                        {
+                            Id = Guid.NewGuid(),
+                            Provider = provider,
+                            NodeId = nodeToRead.NodeId,
+                            Kind = HistorianReadKind.Annotations,
+                            ResumeToken = timestampedPage.NextToken,
+                            AnnotationRequest = request,
+                            TimestampsToReturn = timestampsToReturn,
+                            IndexRange = nodeToRead.ParsedIndexRange,
+                            DataEncoding = nodeToRead.DataEncoding
+                        };
+                    }
+                    await SaveSuccessorOrCompleteAsync(
+                        systemContext, result, claim, !timestampedPage.NextToken.IsEmpty, timestampedPage.NextToken,
+                        timestampedInitialState, null, cancellationToken).ConfigureAwait(false);
+                    return ServiceResult.Good;
+                }
                 HistorianPage<Annotation> page = await annotations.ReadAnnotationsAsync(
-                    opContext,
-                    request,
-                    resumeToken,
-                    cancellationToken).ConfigureAwait(false);
+                    opContext, request, resumeToken, cancellationToken).ConfigureAwait(false);
 
                 var dataValues = new List<DataValue>(page.Values.Count);
                 foreach (Annotation a in page.Values)
@@ -1560,6 +1617,7 @@ namespace Opc.Ua.Server.Historian
             ArrayOf<DataValue> updateValues = details.UpdateValues;
             var annotationList = new List<Annotation>(updateValues.Count);
             var times = new List<DateTimeUtc>(updateValues.Count);
+            var timestampedList = new List<HistorianAnnotation>(updateValues.Count);
             for (int i = 0; i < updateValues.Count; i++)
             {
                 DataValue dv = updateValues[i];
@@ -1567,12 +1625,69 @@ namespace Opc.Ua.Server.Historian
                 {
                     annotationList.Add(null!);
                     times.Add(DateTimeUtc.MinValue);
+                    timestampedList.Add(default);
                     continue;
                 }
 
                 Annotation? annotation = DecodeAnnotation(dv);
                 annotationList.Add(annotation!);
                 times.Add(annotation != null ? annotation.AnnotationTime : dv.SourceTimestamp);
+                timestampedList.Add(new HistorianAnnotation(dv.SourceTimestamp, annotation!));
+            }
+
+            if (annotations is IHistorianTimestampedAnnotationProvider timestampedProvider)
+            {
+                HistorianUpdateOutcome<HistorianAnnotation> timestampedOutcome =
+                    details.PerformInsertReplace switch
+                    {
+                        PerformUpdateType.Insert => await timestampedProvider.InsertAnnotationsWithTimestampsAsync(
+                            opContext,
+                            parentVariable.NodeId,
+                            timestampedList.ToArrayOf(),
+                            cancellationToken).ConfigureAwait(false),
+                        PerformUpdateType.Replace => await timestampedProvider.ReplaceAnnotationsWithTimestampsAsync(
+                            opContext,
+                            parentVariable.NodeId,
+                            timestampedList.ToArrayOf(),
+                            cancellationToken).ConfigureAwait(false),
+                        PerformUpdateType.Update => await timestampedProvider.UpdateAnnotationsWithTimestampsAsync(
+                            opContext,
+                            parentVariable.NodeId,
+                            timestampedList.ToArrayOf(),
+                            cancellationToken).ConfigureAwait(false),
+                        PerformUpdateType.Remove => await timestampedProvider.DeleteAnnotationsWithTimestampsAsync(
+                            opContext,
+                            parentVariable.NodeId,
+                            timestampedList.ToArrayOf(),
+                            cancellationToken).ConfigureAwait(false),
+                        _ => new HistorianUpdateOutcome<HistorianAnnotation>(
+                            RepeatStatus(StatusCodes.BadInvalidArgument, annotationList.Count).ToArrayOf())
+                    };
+                if (timestampedOutcome.OperationResults.Count != updateValues.Count)
+                {
+                    timestampedOutcome = CreateFailureOutcome<HistorianAnnotation>(
+                        StatusCodes.BadUnexpectedError, updateValues.Count);
+                }
+                var timestampedOldValues = new Annotation[timestampedOutcome.OldValues.Count];
+                for (int i = 0; i < timestampedOldValues.Length; i++)
+                {
+                    timestampedOldValues[i] = timestampedOutcome.OldValues[i].Annotation;
+                }
+                var adaptedOutcome = new HistorianUpdateOutcome<Annotation>(
+                    timestampedOutcome.OperationResults,
+                    timestampedOldValues.ToArrayOf(),
+                    timestampedOutcome.DiagnosticInfos,
+                    timestampedOutcome.TransactionRolledBack);
+                result.OperationResults = adaptedOutcome.OperationResults;
+                result.DiagnosticInfos = adaptedOutcome.DiagnosticInfos;
+                ServiceResult adaptedResult = GetOperationResult(adaptedOutcome);
+                ReportAuditAnnotationUpdate(
+                    systemContext,
+                    details,
+                    parentVariable,
+                    adaptedOutcome,
+                    adaptedResult.StatusCode);
+                return adaptedResult;
             }
 
             HistorianUpdateOutcome<Annotation> outcome = details.PerformInsertReplace switch
@@ -1766,7 +1881,8 @@ namespace Opc.Ua.Server.Historian
         [SuppressMessage(
             "Reliability",
             "CA2000:Dispose objects before losing scope",
-            Justification = "SaveSuccessorOrCompleteAsync takes ownership of the initial continuation state on invocation and either saves it to the session or disposes it.")]
+            Justification = "SaveSuccessorOrCompleteAsync takes ownership of the initial continuation state " +
+                "on invocation and either saves it to the session or disposes it.")]
         public static async ValueTask<ServiceResult> DispatchEventReadAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -1942,6 +2058,10 @@ namespace Opc.Ua.Server.Historian
                     initialState,
                     bufferedProcessedOffset: null,
                     cancellationToken).ConfigureAwait(false);
+                if (filtered.Count == 0 && page.NextToken.IsEmpty)
+                {
+                    result.StatusCode = StatusCodes.GoodNoData;
+                }
                 return ServiceResult.Good;
             }
             finally
@@ -2280,14 +2400,6 @@ namespace Opc.Ua.Server.Historian
             HistorianEventRecord record,
             SimpleAttributeOperand op)
         {
-            if (op.BrowsePath.Count == 0)
-            {
-                if (op.AttributeId == Attributes.NodeId)
-                {
-                    return new Variant(record.EventType);
-                }
-                return default;
-            }
             if (!record.TryGetQualifiedField(
                     HistorianEventFieldKey.FromOperand(op),
                     out Variant value) &&
@@ -2428,7 +2540,8 @@ namespace Opc.Ua.Server.Historian
         [SuppressMessage(
             "Reliability",
             "CA2000:Dispose objects before losing scope",
-            Justification = "SaveSuccessorOrCompleteAsync takes ownership of the initial continuation state on invocation and either saves it to the session or disposes it.")]
+            Justification = "SaveSuccessorOrCompleteAsync takes ownership of the initial continuation state " +
+                "on invocation and either saves it to the session or disposes it.")]
         private static async ValueTask<ServiceResult> ReadRawPageAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -2483,9 +2596,8 @@ namespace Opc.Ua.Server.Historian
                     NodeId = node.NodeId,
                     StartTime = start,
                     EndTime = end,
-                    MaxValues = ApplyHistorianLimit(
-                        details.NumValuesPerNode,
-                        capabilities.MaxReturnDataValues),
+                    MaxValues = details.NumValuesPerNode,
+                    PageLimit = capabilities.MaxReturnDataValues,
                     IsForward = isForward,
                     ReturnBounds = details.ReturnBounds
                 };
@@ -2547,7 +2659,8 @@ namespace Opc.Ua.Server.Historian
         [SuppressMessage(
             "Reliability",
             "CA2000:Dispose objects before losing scope",
-            Justification = "SaveSuccessorOrCompleteAsync takes ownership of the initial continuation state on invocation and either saves it to the session or disposes it.")]
+            Justification = "SaveSuccessorOrCompleteAsync takes ownership of the initial continuation state " +
+                "on invocation and either saves it to the session or disposes it.")]
         private static async ValueTask<ServiceResult> ReadModifiedPageAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -2714,11 +2827,11 @@ namespace Opc.Ua.Server.Historian
                 if (!ReferenceEquals(claimedState.Provider, provider) &&
                     (claimedState.Provider is not
                             IHistorianProviderIdentity savedIdentity ||
-                            provider is not IHistorianProviderIdentity currentIdentity ||
-                            !string.Equals(
-                                savedIdentity.ProviderId,
-                                currentIdentity.ProviderId,
-                                StringComparison.Ordinal)))
+                        provider is not IHistorianProviderIdentity currentIdentity ||
+                        !string.Equals(
+                            savedIdentity.ProviderId,
+                            currentIdentity.ProviderId,
+                            StringComparison.Ordinal)))
                 {
                     claim.Retire();
                     return null;
@@ -2922,7 +3035,7 @@ namespace Opc.Ua.Server.Historian
 
         private static DataValue ApplyIndexRange(DataValue value, NumericRange indexRange)
         {
-            if (indexRange.IsNull || !StatusCode.IsGood(value.StatusCode))
+            if (indexRange.IsNull || value.WrappedValue.IsNull)
             {
                 return value;
             }

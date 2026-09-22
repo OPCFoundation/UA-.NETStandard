@@ -56,12 +56,50 @@ namespace Opc.Ua.History.Tests
         public async Task RegisterHistoryNodesAsync()
         {
             await ReferenceServer.NodeManagerLifecycle.AddAsync(
-                new HistoryRegressionNodeManagerFactory(m_streamingProvider),
+                new HistoryRegressionNodeManagerFactory(m_streamingProvider, m_retentionClock),
                 callerContext: null).ConfigureAwait(false);
             await Session.FetchNamespaceTablesAsync().ConfigureAwait(false);
             int namespaceIndex = Session.NamespaceUris.GetIndex(kNamespaceUri);
             Assert.That(namespaceIndex, Is.GreaterThanOrEqualTo(0));
             m_namespaceIndex = (ushort)namespaceIndex;
+        }
+
+        /// <summary>
+        /// Verifies that raw, at-time, and processed reads share the retained start bound in every read order.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        public async Task RetentionStartBoundIsConsistentAcrossReadModesAsync(int firstMode)
+        {
+            var client = new HistoryClient(Session);
+            var nodeId = new NodeId("Retention", m_namespaceIndex);
+            DateTime seededAt = m_retentionClock.GetUtcNow().UtcDateTime;
+            StatusCode deleted = await client.DeleteRawAsync(
+                nodeId, seededAt.AddDays(-1), seededAt.AddDays(1)).ConfigureAwait(false);
+            Assert.That(StatusCode.IsGood(deleted), Is.True);
+            ArrayOf<StatusCode> inserted = await client.InsertAsync(
+                nodeId,
+                [
+                    new DataValue(1.0, StatusCodes.Good, seededAt.AddMinutes(-50)),
+                    new DataValue(2.0, StatusCodes.Good, seededAt.AddMinutes(-30)),
+                    new DataValue(8.0, StatusCodes.Good, seededAt)
+                ]).ConfigureAwait(false);
+            Assert.That(inserted, Has.Count.EqualTo(3));
+            Assert.That(inserted.ToArray(), Has.All.EqualTo(StatusCodes.GoodEntryInserted));
+            m_retentionClock.Advance(TimeSpan.FromMinutes(31));
+
+            for (int i = 0; i < 3; i++)
+            {
+                await AssertRetentionReadAsync(client, nodeId, seededAt, (firstMode + i) % 3).ConfigureAwait(false);
+            }
+            ArrayOf<StatusCode> backfill = await client.InsertAsync(
+                nodeId,
+                [new DataValue(99.0, StatusCodes.Good, seededAt.AddMinutes(-29).AddTicks(-1))])
+                .ConfigureAwait(false);
+            Assert.That(backfill, Has.Count.EqualTo(1));
+            Assert.That(backfill[0], Is.EqualTo(StatusCodes.BadOutOfRange));
+            await AssertRetentionReadAsync(client, nodeId, seededAt, 1).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -78,7 +116,7 @@ namespace Opc.Ua.History.Tests
         {
             var nodeId = new NodeId(identifier, m_namespaceIndex);
             var client = new HistoryClient(Session);
-            DateTime start = new(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            DateTime start = s_timeProvider.GetUtcNow().UtcDateTime.AddMinutes(-5);
             if (reverse)
             {
                 start = start.AddMinutes(1);
@@ -128,7 +166,7 @@ namespace Opc.Ua.History.Tests
         {
             var nodeId = new NodeId(identifier, m_namespaceIndex);
             var client = new HistoryClient(Session);
-            DateTime start = new(2025, 1, 2, 0, 0, 0, DateTimeKind.Utc);
+            DateTime start = s_timeProvider.GetUtcNow().UtcDateTime.AddMinutes(-5);
             ArrayOf<StatusCode> statuses = await client.InsertAsync(
                 nodeId,
                 [
@@ -208,7 +246,7 @@ namespace Opc.Ua.History.Tests
             filter.AddSelectClause(ObjectTypeIds.BaseEventType, BrowseNames.EventId, Attributes.Value);
             filter.AddSelectClause(ObjectTypeIds.BaseEventType, BrowseNames.EventType, Attributes.Value);
             filter.AddSelectClause(ObjectTypeIds.BaseEventType, BrowseNames.Time, Attributes.Value);
-            DateTime lower = new(2025, 1, 3, 0, 0, 0, DateTimeKind.Utc);
+            DateTime lower = s_timeProvider.GetUtcNow().UtcDateTime.AddMinutes(-5);
             DateTime upper = lower.AddSeconds(10);
             ArrayOf<StatusCode> statuses = await client.InsertEventsAsync(
                 nodeId,
@@ -324,8 +362,8 @@ namespace Opc.Ua.History.Tests
         {
             var client = new HistoryClient(Session);
             var nodeId = new NodeId("Extrema", m_namespaceIndex);
-            DateTime start = new DateTime(2025, 1, 5, 0, 0, 0, DateTimeKind.Utc)
-                .AddSeconds(aggregateTypeId * 20);
+            DateTime start = s_timeProvider.GetUtcNow().UtcDateTime.AddMinutes(-5)
+                .AddSeconds((aggregateTypeId - Objects.AggregateFunction_Minimum) * 20);
             ArrayOf<StatusCode> statuses = await client.InsertAsync(
                 nodeId,
                 [
@@ -367,11 +405,68 @@ namespace Opc.Ua.History.Tests
             });
         }
 
+        private static async Task AssertRetentionReadAsync(
+            HistoryClient client,
+            NodeId nodeId,
+            DateTime seededAt,
+            int mode)
+        {
+            var values = new List<DataValue>();
+            DateTime requestedTime = seededAt.AddMinutes(-15);
+            switch (mode)
+            {
+                case 0:
+                    await foreach (DataValue value in client.ReadRawAsync(
+                        nodeId, seededAt.AddMinutes(-29), seededAt.AddMinutes(1), returnBounds: true)
+                        .ConfigureAwait(false))
+                    {
+                        values.Add(value);
+                    }
+                    Assert.That(values, Has.Count.EqualTo(3));
+                    Assert.That(values[0].SourceTimestamp, Is.EqualTo((DateTimeUtc)seededAt.AddMinutes(-30)));
+                    Assert.That(values[0].WrappedValue.TryGetValue(out double bound), Is.True);
+                    Assert.That(bound, Is.EqualTo(2.0));
+                    Assert.That(values[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(values[1].SourceTimestamp, Is.EqualTo((DateTimeUtc)seededAt));
+                    Assert.That(values[1].WrappedValue.TryGetValue(out double current), Is.True);
+                    Assert.That(current, Is.EqualTo(8.0));
+                    Assert.That(values[1].StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(values[2].SourceTimestamp, Is.EqualTo((DateTimeUtc)seededAt.AddMinutes(1)));
+                    Assert.That(values[2].StatusCode, Is.EqualTo(StatusCodes.BadBoundNotFound));
+                    return;
+                case 1:
+                    await foreach (DataValue value in client.ReadAtTimeAsync(nodeId, [requestedTime])
+                        .ConfigureAwait(false))
+                    {
+                        values.Add(value);
+                    }
+                    break;
+                case 2:
+                    await foreach (DataValue value in client.ReadProcessedAsync(
+                        nodeId, ObjectIds.AggregateFunction_Interpolative,
+                        requestedTime, requestedTime.AddSeconds(1), 1_000).ConfigureAwait(false))
+                    {
+                        values.Add(value);
+                    }
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(mode));
+            }
+            Assert.That(values, Has.Count.EqualTo(1));
+            Assert.That(values[0].SourceTimestamp, Is.EqualTo((DateTimeUtc)requestedTime));
+            Assert.That(values[0].WrappedValue.TryGetValue(out double interpolated), Is.True);
+            Assert.That(interpolated, Is.EqualTo(5.0));
+            Assert.That(values[0].StatusCode,
+                Is.EqualTo(StatusCodes.Good.WithAggregateBits(AggregateBits.Interpolated)));
+        }
+
         /// <summary>
         /// Identifies the address space containing the live historian regression nodes.
         /// </summary>
         private const string kNamespaceUri =
             "urn:opcfoundation:history-tests:server-core-regressions";
+
+        private static readonly TimeProvider s_timeProvider = new HistoryTimeProvider();
 
         /// <summary>
         /// Resolves regression NodeIds using the server's assigned namespace index.
@@ -384,6 +479,30 @@ namespace Opc.Ua.History.Tests
         private readonly StreamingPageProvider m_streamingProvider = new();
 
         /// <summary>
+        /// Advances only the retention regression archive's clock.
+        /// </summary>
+        private readonly HistoryTimeProvider m_retentionClock = new();
+
+        /// <summary>
+        /// Supplies a controlled clock for historical samples and raw-history retention.
+        /// </summary>
+        private sealed class HistoryTimeProvider : TimeProvider
+        {
+            /// <inheritdoc/>
+            public override DateTimeOffset GetUtcNow()
+            {
+                return new DateTimeOffset(Interlocked.Read(ref m_utcTicks), TimeSpan.Zero);
+            }
+
+            public void Advance(TimeSpan duration)
+            {
+                Interlocked.Add(ref m_utcTicks, duration.Ticks);
+            }
+
+            private long m_utcTicks = new DateTime(2025, 1, 5, 0, 0, 0, DateTimeKind.Utc).Ticks;
+        }
+
+        /// <summary>
         /// Creates the regression address space with the shared raw-page provider.
         /// </summary>
         private sealed class HistoryRegressionNodeManagerFactory : IAsyncNodeManagerFactory
@@ -391,9 +510,12 @@ namespace Opc.Ua.History.Tests
             /// <summary>
             /// Captures the provider whose read count is observed by output-limit tests.
             /// </summary>
-            public HistoryRegressionNodeManagerFactory(StreamingPageProvider streamingProvider)
+            public HistoryRegressionNodeManagerFactory(
+                StreamingPageProvider streamingProvider,
+                TimeProvider retentionClock)
             {
                 m_streamingProvider = streamingProvider;
+                m_retentionClock = retentionClock;
             }
 
             /// <inheritdoc/>
@@ -406,13 +528,14 @@ namespace Opc.Ua.History.Tests
                 CancellationToken cancellationToken = default)
             {
                 return new ValueTask<IAsyncNodeManager>(
-                    new HistoryRegressionNodeManager(server, configuration, m_streamingProvider));
+                    new HistoryRegressionNodeManager(server, configuration, m_streamingProvider, m_retentionClock));
             }
 
             /// <summary>
             /// Retains the controlled provider passed into the created node manager.
             /// </summary>
             private readonly StreamingPageProvider m_streamingProvider;
+            private readonly TimeProvider m_retentionClock;
         }
 
         /// <summary>
@@ -426,10 +549,12 @@ namespace Opc.Ua.History.Tests
             public HistoryRegressionNodeManager(
                 IServerInternal server,
                 ApplicationConfiguration configuration,
-                StreamingPageProvider streamingProvider)
+                StreamingPageProvider streamingProvider,
+                TimeProvider retentionClock)
                 : base(server, configuration, kNamespaceUri)
             {
                 m_streamingProvider = streamingProvider;
+                m_retentionProvider = new InMemoryHistorianProvider(new InMemoryHistorianOptions(), retentionClock);
             }
 
             /// <summary>
@@ -473,6 +598,11 @@ namespace Opc.Ua.History.Tests
                     "Extrema",
                     HistorianNodeCapabilities.DataReadWrite,
                     cancellationToken).ConfigureAwait(false);
+                await AddVariableAsync(
+                    "Retention",
+                    HistorianNodeCapabilities.DataReadWrite,
+                    cancellationToken,
+                    m_retentionProvider).ConfigureAwait(false);
             }
 
             /// <summary>
@@ -480,6 +610,10 @@ namespace Opc.Ua.History.Tests
             /// </summary>
             protected override IHistorianProvider? GetHistorianProvider(NodeState node)
             {
+                if (node.NodeId == new NodeId("Retention", NamespaceIndex))
+                {
+                    return m_retentionProvider;
+                }
                 return node.NodeId == new NodeId("OutputLimit", NamespaceIndex)
                     ? m_streamingProvider
                     : m_provider;
@@ -493,6 +627,7 @@ namespace Opc.Ua.History.Tests
                 if (disposing)
                 {
                     m_provider.Dispose();
+                    m_retentionProvider.Dispose();
                 }
                 base.Dispose(disposing);
             }
@@ -503,8 +638,10 @@ namespace Opc.Ua.History.Tests
             private async ValueTask AddVariableAsync(
                 string identifier,
                 HistorianNodeCapabilities capabilities,
-                CancellationToken cancellationToken)
+                CancellationToken cancellationToken,
+                InMemoryHistorianProvider? provider = null)
             {
+                provider ??= m_provider;
                 var variable = new BaseDataVariableState(null);
                 variable.CreateAsPredefinedNode(SystemContext, cancellationToken);
                 variable.NodeId = new NodeId(identifier, NamespaceIndex);
@@ -519,14 +656,14 @@ namespace Opc.Ua.History.Tests
 
                 await using (var builder = new HistorianBuilder(Server))
                 {
-                    builder.UseProvider(m_provider).Historize(
+                    builder.UseProvider(provider).Historize(
                         variable,
                         systemContext: SystemContext,
                         capabilities: capabilities,
                         autoCapture: false);
                 }
                 await HistoricalDataConfigurationInstaller.EnsureInstalledAsync(
-                    SystemContext, variable, m_provider, cancellationToken).ConfigureAwait(false);
+                    SystemContext, variable, provider, cancellationToken).ConfigureAwait(false);
                 await AddPredefinedNodeAsync(
                     SystemContext, variable, cancellationToken).ConfigureAwait(false);
             }
@@ -556,7 +693,10 @@ namespace Opc.Ua.History.Tests
             /// <summary>
             /// Stores data and events for the ordinary regression nodes.
             /// </summary>
-            private readonly InMemoryHistorianProvider m_provider = new();
+            private readonly InMemoryHistorianProvider m_provider =
+                new(new InMemoryHistorianOptions(), s_timeProvider);
+
+            private readonly InMemoryHistorianProvider m_retentionProvider;
 
             /// <summary>
             /// Supplies the specially spaced raw values for output-limit testing.
@@ -608,6 +748,7 @@ namespace Opc.Ua.History.Tests
             /// <summary>
             /// Rejects insertion because the controlled raw points are immutable.
             /// </summary>
+            /// <exception cref="NotSupportedException"></exception>
             public ValueTask<HistorianUpdateOutcome<DataValue>> InsertAsync(
                 HistorianOperationContext context,
                 NodeId nodeId,
@@ -620,6 +761,7 @@ namespace Opc.Ua.History.Tests
             /// <summary>
             /// Rejects replacement of the controlled raw points.
             /// </summary>
+            /// <exception cref="NotSupportedException"></exception>
             public ValueTask<HistorianUpdateOutcome<DataValue>> ReplaceAsync(
                 HistorianOperationContext context,
                 NodeId nodeId,
@@ -632,6 +774,7 @@ namespace Opc.Ua.History.Tests
             /// <summary>
             /// Rejects updates to the fixed output-limit scenario.
             /// </summary>
+            /// <exception cref="NotSupportedException"></exception>
             public ValueTask<HistorianUpdateOutcome<DataValue>> UpdateAsync(
                 HistorianOperationContext context,
                 NodeId nodeId,
@@ -644,6 +787,7 @@ namespace Opc.Ua.History.Tests
             /// <summary>
             /// Rejects deletion of the controlled raw-history range.
             /// </summary>
+            /// <exception cref="NotSupportedException"></exception>
             public ValueTask<HistorianUpdateOutcome<DataValue>> DeleteRawAsync(
                 HistorianOperationContext context,
                 NodeId nodeId,
@@ -658,6 +802,7 @@ namespace Opc.Ua.History.Tests
             /// <summary>
             /// Rejects timestamp-based deletion from the fixed raw-history scenario.
             /// </summary>
+            /// <exception cref="NotSupportedException"></exception>
             public ValueTask<HistorianUpdateOutcome<DataValue>> DeleteAtTimeAsync(
                 HistorianOperationContext context,
                 NodeId nodeId,

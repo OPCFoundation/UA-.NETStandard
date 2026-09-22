@@ -47,7 +47,7 @@ namespace Opc.Ua.Client
     /// <c>urn:opcfoundation:netstandard:profile:authentication:keycredential</c> and is intended only for
     /// closed deployments that have enabled the matching server-side bridge authenticator.
     /// </remarks>
-    public sealed class GdsKeyCredentialAccessTokenProvider : IAccessTokenProvider, IDisposable
+    public sealed class GdsKeyCredentialAccessTokenProvider : IEndpointAccessTokenProvider, IDisposable
     {
         /// <summary>
         /// Vendor profile URI used by the KeyCredential bridge token.
@@ -112,12 +112,61 @@ namespace Opc.Ua.Client
         public TimeSpan CacheLifetime { get; }
 
         /// <inheritdoc/>
-        public async ValueTask<AccessToken> AcquireAsync(
+        public ValueTask<AccessToken> AcquireAsync(
             AuthorizationServerMetadata metadata,
             CancellationToken ct = default)
         {
+            return AcquireCoreAsync(metadata, null, ct);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<AccessToken> AcquireAsync(
+            AuthorizationServerMetadata metadata,
+            EndpointDescription endpoint,
+            CancellationToken ct = default)
+        {
+            if (endpoint == null)
+            {
+                throw new ArgumentNullException(nameof(endpoint));
+            }
+            return AcquireCoreAsync(metadata, endpoint.Server?.ApplicationUri, ct);
+        }
+
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            if (m_disposed)
+            {
+                return;
+            }
+
+            m_disposed = true;
+            m_lock.Dispose();
+            m_cachedCredential?.Dispose();
+        }
+
+        private async ValueTask<AccessToken> AcquireCoreAsync(
+            AuthorizationServerMetadata metadata,
+            string? targetApplicationUri,
+            CancellationToken ct)
+        {
             ThrowIfDisposed();
-            GdsIssuedKeyCredential credential = await GetCredentialAsync(ct).ConfigureAwait(false);
+            if (metadata == null)
+            {
+                throw new ArgumentNullException(nameof(metadata));
+            }
+            string? audience = !string.IsNullOrWhiteSpace(metadata.Audience)
+                ? metadata.Audience
+                : !string.IsNullOrWhiteSpace(metadata.ResourceUri)
+                    ? metadata.ResourceUri
+                    : targetApplicationUri;
+            if (string.IsNullOrWhiteSpace(audience))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadIdentityTokenInvalid,
+                    "A KeyCredential proof requires the target server ApplicationUri or an explicit audience.");
+            }
+            using GdsIssuedKeyCredential credential = await GetCredentialAsync(ct).ConfigureAwait(false);
             string nonce = CreateNonce();
             DateTime issuedAt = m_timeProvider.GetUtcNow().UtcDateTime;
             long issuedAtSeconds = new DateTimeOffset(issuedAt).ToUnixTimeSeconds();
@@ -125,9 +174,12 @@ namespace Opc.Ua.Client
                 credential.CredentialSecret,
                 credential.CredentialId,
                 nonce,
-                issuedAtSeconds);
+                issuedAtSeconds,
+                audience);
             byte[] tokenData = Encoding.UTF8.GetBytes(
-                "{\"credentialId\":\"" +
+                "{\"version\":2,\"aud\":\"" +
+                EscapeJson(audience) +
+                "\",\"credentialId\":\"" +
                 EscapeJson(credential.CredentialId) +
                 "\",\"nonce\":\"" +
                 nonce +
@@ -145,19 +197,6 @@ namespace Opc.Ua.Client
                 credential.CredentialId,
                 credential.GrantedScopes);
 #pragma warning restore CA2000
-        }
-
-        /// <inheritdoc/>
-        public void Dispose()
-        {
-            if (m_disposed)
-            {
-                return;
-            }
-
-            m_disposed = true;
-            m_lock.Dispose();
-            m_cachedCredential?.Dispose();
         }
 
         private async ValueTask<GdsIssuedKeyCredential> GetCredentialAsync(CancellationToken ct)
@@ -197,13 +236,20 @@ namespace Opc.Ua.Client
             return Base64UrlEncode(nonce);
         }
 
-        private static string CreateProof(byte[] secret, string credentialId, string nonce, long issuedAt)
+        private static string CreateProof(
+            byte[] secret,
+            string credentialId,
+            string nonce,
+            long issuedAt,
+            string audience)
         {
             string input = credentialId +
                 "\n" +
                 nonce +
                 "\n" +
-                issuedAt.ToString(CultureInfo.InvariantCulture);
+                issuedAt.ToString(CultureInfo.InvariantCulture) +
+                "\n" +
+                audience;
             using var hmac = new HMACSHA256(secret);
             return Base64UrlEncode(hmac.ComputeHash(Encoding.UTF8.GetBytes(input)));
         }

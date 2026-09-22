@@ -56,6 +56,8 @@ namespace Opc.Ua.Server
     /// </summary>
     internal sealed class NodeManagerServiceDispatcher
     {
+        private const int MaxRelativePathElements = 4096;
+
         /// <summary>
         /// Initializes the dispatcher over the owning master node manager's routing table.
         /// </summary>
@@ -175,6 +177,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Translates browse paths to target node identifiers and collects per-path results and diagnostics.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         internal async ValueTask<(ArrayOf<BrowsePathResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)>
             TranslateBrowsePathsToNodeIdsAsync(
             OperationContext context,
@@ -319,6 +322,11 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadNothingToDo;
             }
 
+            if (relativePath.Elements.Count > MaxRelativePathElements)
+            {
+                return StatusCodes.BadQueryTooComplex;
+            }
+
             for (int ii = 0; ii < relativePath.Elements.Count; ii++)
             {
                 RelativePathElement element = relativePath.Elements[ii];
@@ -365,7 +373,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Recursively processes the elements in the RelativePath starting at the specified index.
+        /// Processes the relative path depth first without growing the execution stack.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         private async ValueTask TranslateBrowsePathAsync(
@@ -382,172 +390,114 @@ namespace Opc.Ua.Server
             Debug.Assert(relativePath != null);
             Debug.Assert(targets != null);
 
-            // check for end of list.
-            if (index < 0 || index >= relativePath!.Elements.Count)
+            var pending = new Stack<(IAsyncNodeManager? Manager, object? Handle, ExpandedNodeId Target, int Index)>();
+            pending.Push((nodeManager, sourceHandle, default, index));
+            while (pending.Count != 0)
             {
-                return;
-            }
-
-            // follow the next hop.
-            RelativePathElement element = relativePath.Elements[index];
-
-            // check for valid reference type.
-            if (!element.IncludeSubtypes && element.ReferenceTypeId.IsNull)
-            {
-                return;
-            }
-
-            // check for valid target name.
-            if (element.TargetName.IsNull)
-            {
-                throw new ServiceResultException(StatusCodes.BadBrowseNameInvalid);
-            }
-
-            var targetIds = new List<ExpandedNodeId>();
-            var externalTargetIds = new List<NodeId>();
-
-            try
-            {
-                await nodeManager!.TranslateBrowsePathAsync(
-                    context,
-                    sourceHandle!,
-                    element,
-                    targetIds,
-                    externalTargetIds,
-                    cancellationToken)
-                .ConfigureAwait(false);
-            }
-            catch (Exception e)
-            {
-                m_logger.UnexpectedErrorTranslatingBrowsePath(e);
-                return;
-            }
-
-            // must check the browse name on all external targets.
-            for (int ii = 0; ii < externalTargetIds.Count; ii++)
-            {
-                // get the browse name from another node manager.
-                var description = new ReferenceDescription();
-
-                await UpdateReferenceDescriptionAsync(
-                        context,
-                        externalTargetIds[ii],
-                        NodeClass.Unspecified,
-                        BrowseResultMask.BrowseName,
-                        description,
-                        cancellationToken)
-                    .ConfigureAwait(false);
-
-                // add to list if target name matches.
-                if (description.BrowseName == element.TargetName)
+                cancellationToken.ThrowIfCancellationRequested();
+                (IAsyncNodeManager? manager, object? handle, ExpandedNodeId nextTarget, int nextIndex) = pending.Pop();
+                if (nextTarget.IsAbsolute)
                 {
-                    bool found = false;
-
-                    for (int jj = 0; jj < targetIds.Count; jj++)
+                    targets.Add(new BrowsePathTarget
                     {
-                        if (targetIds[jj] == externalTargetIds[ii])
-                        {
-                            found = true;
-                            break;
-                        }
-                    }
+                        TargetId = nextTarget,
+                        RemainingPathIndex = (uint)nextIndex
+                    });
+                    continue;
+                }
+                if (handle == null)
+                {
+                    (handle, manager) = await m_owner.GetManagerHandleAsync(
+                        ExpandedNodeId.ToNodeId(nextTarget, Server.NamespaceUris), cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                if (handle == null ||
+                    manager == null ||
+                    nextIndex < 0 ||
+                    nextIndex >= relativePath.Elements.Count)
+                {
+                    continue;
+                }
 
-                    if (!found)
+                RelativePathElement element = relativePath.Elements[nextIndex];
+                if (!element.IncludeSubtypes && element.ReferenceTypeId.IsNull)
+                {
+                    continue;
+                }
+                if (element.TargetName.IsNull)
+                {
+                    throw new ServiceResultException(StatusCodes.BadBrowseNameInvalid);
+                }
+
+                var targetIds = new List<ExpandedNodeId>();
+                var externalTargetIds = new List<NodeId>();
+                try
+                {
+                    await manager.TranslateBrowsePathAsync(
+                        context, handle, element, targetIds, externalTargetIds, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception e) when (
+                    e is not OperationCanceledException and not OutOfMemoryException and
+                        not StackOverflowException and not AccessViolationException)
+                {
+                    m_logger.UnexpectedErrorTranslatingBrowsePath(e);
+                    continue;
+                }
+                foreach (NodeId externalTarget in externalTargetIds)
+                {
+                    var description = new ReferenceDescription();
+                    await UpdateReferenceDescriptionAsync(
+                            context, externalTarget, NodeClass.Unspecified, BrowseResultMask.BrowseName,
+                            description, cancellationToken)
+                        .ConfigureAwait(false);
+                    if (description.BrowseName == element.TargetName && !targetIds.Contains(externalTarget))
                     {
-                        targetIds.Add(externalTargetIds[ii]);
+                        targetIds.Add(externalTarget);
                     }
                 }
-            }
-
-            // check if done after a final hop.
-            if (index == relativePath.Elements.Count - 1)
-            {
-                for (int ii = 0; ii < targetIds.Count; ii++)
+                if (nextIndex != relativePath.Elements.Count - 1)
                 {
-                    // Check the role permissions for target nodes
-                    (object? targetHandle, IAsyncNodeManager? targetNodeManager) =
-                        await m_owner.GetManagerHandleAsync(
-                            ExpandedNodeId.ToNodeId(targetIds[ii], Server.NamespaceUris),
+                    // Reverse pushes preserve the recursive walk's target ordering,
+                    // including partial paths that lead to another server.
+                    for (int ii = targetIds.Count - 1; ii >= 0; ii--)
+                    {
+                        pending.Push((null, null, targetIds[ii], nextIndex + 1));
+                    }
+                    continue;
+                }
+                foreach (ExpandedNodeId targetId in targetIds)
+                {
+                    (object? targetHandle, IAsyncNodeManager? targetNodeManager) = await m_owner.GetManagerHandleAsync(
+                            ExpandedNodeId.ToNodeId(targetId, Server.NamespaceUris),
                             cancellationToken)
                         .ConfigureAwait(false);
-
                     if (targetHandle != null && targetNodeManager != null)
                     {
                         NodeMetadata nodeMetadata = await targetNodeManager.GetNodeMetadataAsync(
-                            context,
-                            targetHandle,
-                            BrowseResultMask.All,
-                            cancellationToken)
+                            context, targetHandle, BrowseResultMask.All, cancellationToken)
                             .ConfigureAwait(false);
-
                         ServiceResult serviceResult = MasterNodeManager.ValidateRolePermissions(
-                            context,
-                            nodeMetadata,
-                            PermissionType.Browse,
-                            m_logger);
-
+                            context, nodeMetadata, PermissionType.Browse, m_logger);
                         if (ServiceResult.IsBad(serviceResult))
                         {
-                            // Remove target node without role permissions.
                             continue;
                         }
                     }
-
-                    var target = new BrowsePathTarget
-                    {
-                        TargetId = targetIds[ii],
-                        RemainingPathIndex = uint.MaxValue
-                    };
-
-                    targets!.Add(target);
-                }
-
-                return;
-            }
-
-            // process next hops.
-            for (int ii = 0; ii < targetIds.Count; ii++)
-            {
-                ExpandedNodeId targetId = targetIds[ii];
-
-                // check for external reference.
-                if (targetId.IsAbsolute)
-                {
-                    var target = new BrowsePathTarget
+                    targets.Add(new BrowsePathTarget
                     {
                         TargetId = targetId,
-                        RemainingPathIndex = (uint)(index + 1)
-                    };
-
-                    targets!.Add(target);
-                    continue;
+                        RemainingPathIndex = uint.MaxValue
+                    });
                 }
-
-                // check for valid start node.
-                (sourceHandle, nodeManager) = await m_owner.GetManagerHandleAsync((NodeId)targetId, cancellationToken)
-                    .ConfigureAwait(false);
-
-                if (sourceHandle == null)
-                {
-                    continue;
-                }
-
-                // recursively follow hops.
-                await TranslateBrowsePathAsync(
-                    context,
-                    nodeManager,
-                    sourceHandle,
-                    relativePath,
-                    targets!,
-                    index + 1,
-                    cancellationToken)
-                .ConfigureAwait(false);
             }
         }
 
         /// <summary>
         /// Browses the requested nodes, applying view validation and collecting results and continuation points.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         internal async ValueTask<(ArrayOf<BrowseResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)> BrowseAsync(
             OperationContext context,
             ViewDescription view,
@@ -644,6 +594,7 @@ namespace Opc.Ua.Server
                         context,
                         view,
                         maxReferencesPerNode,
+                        m_owner.MaxContinuationPointsPerBrowse == 0 ||
                         continuationPointsAssigned < m_owner.MaxContinuationPointsPerBrowse,
                         nodeToBrowse,
                         result,
@@ -745,6 +696,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Resumes or releases browse continuation points and returns per-point results and diagnostics.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         internal async ValueTask<(ArrayOf<BrowseResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)>
             BrowseNextAsync(
                 OperationContext context,
@@ -814,6 +767,7 @@ namespace Opc.Ua.Server
                                 ArrayOf<ReferenceDescription> references = result.References;
                                 (error, cp, references) = await FetchReferencesAsync(
                                     context,
+                                    m_owner.MaxContinuationPointsPerBrowse == 0 ||
                                     continuationPointsAssigned < m_owner.MaxContinuationPointsPerBrowse,
                                     pointToFetch,
                                     references,
@@ -1124,6 +1078,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validates and dispatches attribute reads, applying timestamp selection and collecting diagnostics.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         internal async ValueTask<(ArrayOf<DataValue> values, ArrayOf<DiagnosticInfo> diagnosticInfos)> ReadAsync(
             OperationContext context,
             double maxAge,
@@ -1261,6 +1216,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validates history read requests and dispatches reads or continuation releases to the node managers.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         internal async ValueTask<(ArrayOf<HistoryReadResult> values, ArrayOf<DiagnosticInfo> diagnosticInfos)> HistoryReadAsync(
             OperationContext context,
             ExtensionObject historyReadDetails,
@@ -1391,6 +1347,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validates and dispatches attribute writes, collecting operation status codes and diagnostics.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         internal async ValueTask<(ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos)> WriteAsync(
             OperationContext context,
             ArrayOf<WriteValue> nodesToWrite,
@@ -1659,6 +1616,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validates method call requests and dispatches them to node managers, collecting results and diagnostics.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         internal async ValueTask<(ArrayOf<CallMethodResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)>
             CallAsync(
                 OperationContext context,
@@ -2057,49 +2015,94 @@ namespace Opc.Ua.Server
                         filter,
                         createDurable);
 
-                    // subscribe to all node managers.
-                    if (itemToCreate.ItemToMonitor.NodeId == Objects.Server)
+                    bool allEvents = itemToCreate.ItemToMonitor.NodeId == Objects.Server;
+                    bool accepted = false;
+                    var attemptedOwners = new List<IAsyncNodeManager>();
+                    try
                     {
-                        foreach (IAsyncNodeManager manager in m_nodeManagers)
+                        ServiceResult subscriptionResult = ServiceResult.Good;
+                        if (allEvents)
                         {
-                            try
+                            foreach (IAsyncNodeManager manager in m_nodeManagers)
                             {
-                                await manager.SubscribeToAllEventsAsync(
+                                attemptedOwners.Add(manager);
+                                subscriptionResult = await manager.SubscribeToAllEventsAsync(
                                     context,
                                     subscriptionId,
                                     monitoredItem,
                                     false,
-                                    cancellationToken)
-                                    .ConfigureAwait(false);
-                            }
-                            catch (Exception e)
-                            {
-                                m_logger.NodeManagerThrewAnExceptionSubscribingToAll(e, manager.GetType().Name);
+                                    cancellationToken).ConfigureAwait(false) ??
+                                    ServiceResult.Good;
+                                if (subscriptionResult.StatusCode == StatusCodes.BadNotSupported)
+                                {
+                                    subscriptionResult = ServiceResult.Good;
+                                    continue;
+                                }
+                                if (ServiceResult.IsBad(subscriptionResult))
+                                {
+                                    break;
+                                }
                             }
                         }
-                    }
-                    // only subscribe to the node manager that owns the node.
-                    else
-                    {
-                        ServiceResult error = await nodeManager.SubscribeToEventsAsync(
+                        else
+                        {
+                            attemptedOwners.Add(nodeManager);
+                            subscriptionResult = await nodeManager.SubscribeToEventsAsync(
                                 context,
                                 handle,
                                 subscriptionId,
                                 monitoredItem,
                                 false,
-                                cancellationToken)
-                            .ConfigureAwait(false);
+                                cancellationToken).ConfigureAwait(false);
+                        }
 
-                        if (ServiceResult.IsBad(error))
+                        if (ServiceResult.IsBad(subscriptionResult))
                         {
-                            Server.EventManager.DeleteMonitoredItem(monitoredItem.Id);
-                            errors[ii] = error;
+                            errors[ii] = subscriptionResult;
                             continue;
                         }
-                    }
 
-                    monitoredItems[ii] = monitoredItem;
-                    errors[ii] = StatusCodes.Good;
+                        monitoredItems[ii] = monitoredItem;
+                        errors[ii] = StatusCodes.Good;
+                        accepted = true;
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch (Exception error) when (error is not OutOfMemoryException)
+                    {
+                        m_logger.NodeManagerThrewAnExceptionSubscribingToAll(error, nodeManager.GetType().Name);
+                        errors[ii] = error is ServiceResultException serviceFailure
+                            ? new ServiceResult(serviceFailure)
+                            : ServiceResult.Create(error, StatusCodes.BadUnexpectedError,
+                                "The event source could not complete subscription startup.");
+                    }
+                    finally
+                    {
+                        if (!accepted)
+                        {
+                            try
+                            {
+                                foreach (IAsyncNodeManager owner in attemptedOwners)
+                                {
+                                    await UnsubscribeEventsAsync(
+                                        owner,
+                                        () => allEvents
+                                            ? owner.SubscribeToAllEventsAsync(
+                                                context, subscriptionId, monitoredItem, true, CancellationToken.None)
+                                            : owner.SubscribeToEventsAsync(
+                                                context, handle, subscriptionId, monitoredItem, true, CancellationToken.None),
+                                        allEvents,
+                                        CancellationToken.None).ConfigureAwait(false);
+                                }
+                            }
+                            finally
+                            {
+                                Server.EventManager.DeleteMonitoredItem(monitoredItem.Id);
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -2107,6 +2110,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Restores persisted monitored items and their queues during server startup.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="itemsToRestore"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException"></exception>
         internal async ValueTask RestoreMonitoredItemsAsync(
             IList<IStoredMonitoredItem> itemsToRestore,
             IList<IMonitoredItem> monitoredItems,
@@ -2304,6 +2309,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validates monitored-item modifications and dispatches them to the items' owning node managers.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         internal async ValueTask ModifyMonitoredItemsAsync(
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
@@ -2523,6 +2530,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Prepares monitored-item transfers and commits any requested initial-value delivery.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         internal async ValueTask TransferMonitoredItemsAsync(
             OperationContext context,
             bool sendInitialValues,
@@ -2558,6 +2566,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Prepares owner-specific transfers while deferring requested initial-value delivery until commit.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="destinationContext"/> is <c>null</c>.</exception>
         internal async ValueTask<IMonitoredItemTransferTransaction>
             PrepareMonitoredItemsTransferAsync(
                 OperationContext destinationContext,
@@ -2723,6 +2732,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Deletes monitored items through their owning node managers and handles detached items locally.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         internal async ValueTask DeleteMonitoredItemsAsync(
             OperationContext context,
             uint subscriptionId,
@@ -2852,6 +2862,7 @@ namespace Opc.Ua.Server
                                     monitoredItem,
                                     true,
                                     cancellationToken),
+                                allEvents: true,
                                 cancellationToken)
                                 .ConfigureAwait(false);
                             if (ServiceResult.IsBad(unsubscribe) && ServiceResult.IsGood(result))
@@ -2880,6 +2891,7 @@ namespace Opc.Ua.Server
                         () => owningNodeManager.SubscribeToEventsAsync(
                             context, monitoredItem.ManagerHandle, subscriptionId, monitoredItem, true,
                             cancellationToken),
+                        allEvents: false,
                         cancellationToken).ConfigureAwait(false);
                 }
 
@@ -2899,6 +2911,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Updates monitoring modes through the items' owning node managers or detached-item handlers.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         internal async ValueTask SetMonitoringModeAsync(
             OperationContext context,
             MonitoringMode monitoringMode,
@@ -3484,7 +3497,7 @@ namespace Opc.Ua.Server
             bool permissionsOnly = false,
             CancellationToken cancellationToken = default)
         {
-            if (context.Session != null)
+            if (context.Session != null || context.UserIdentity != null || context.ChannelContext != null)
             {
                 (object? nodeHandle, IAsyncNodeManager? nodeManager) = await m_owner.GetManagerHandleAsync(nodeId, cancellationToken)
                     .ConfigureAwait(false);
@@ -3542,7 +3555,10 @@ namespace Opc.Ua.Server
         {
             if (nodeManager == null ||
                 nodeHandle == null ||
-                (context.Session == null && !metadataRequired))
+                (context.Session == null &&
+                    context.UserIdentity == null &&
+                    context.ChannelContext == null &&
+                    !metadataRequired))
             {
                 return (StatusCodes.Good, null);
             }
@@ -3573,7 +3589,7 @@ namespace Opc.Ua.Server
                 nodeMetadata = fullMetadata ?? nodeMetadata;
             }
 
-            if (nodeMetadata == null || context.Session == null)
+            if (nodeMetadata == null)
             {
                 return (StatusCodes.Good, nodeMetadata);
             }
@@ -3650,12 +3666,17 @@ namespace Opc.Ua.Server
         private async ValueTask<ServiceResult> UnsubscribeEventsAsync(
             IAsyncNodeManager owner,
             Func<ValueTask<ServiceResult>> unsubscribe,
+            bool allEvents,
             CancellationToken cancellationToken)
         {
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                ServiceResult result = await unsubscribe().ConfigureAwait(false);
+                ServiceResult result = await unsubscribe().ConfigureAwait(false) ?? ServiceResult.Good;
+                if (allEvents && result.StatusCode == StatusCodes.BadNotSupported)
+                {
+                    return ServiceResult.Good;
+                }
                 if (ServiceResult.IsBad(result))
                 {
                     m_logger.MonitoredItemOwnerDispatchFailed(result.GetServiceResultException(), owner.GetType().Name);

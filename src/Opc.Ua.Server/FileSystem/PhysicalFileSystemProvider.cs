@@ -57,7 +57,7 @@ namespace Opc.Ua.Server.FileSystem
     /// calling thread for I/O.
     /// </para>
     /// </remarks>
-    public sealed class PhysicalFileSystemProvider : IFileSystemProvider
+    public sealed class PhysicalFileSystemProvider : IFileSystemProvider, IFileSystemPathIdentityProvider
     {
         /// <summary>
         /// Mounts a single physical directory as the root of an
@@ -118,6 +118,17 @@ namespace Opc.Ua.Server.FileSystem
 
         /// <inheritdoc/>
         public bool IsWritable { get; }
+
+        /// <inheritdoc/>
+        public string GetPathIdentity(string path)
+        {
+            if (path == null)
+            {
+                throw new ArgumentNullException(nameof(path));
+            }
+            string full = ResolveAbsolute(path);
+            return Path.DirectorySeparatorChar == '\\' ? full.ToUpperInvariant() : full;
+        }
 
         /// <inheritdoc/>
         public ValueTask<FileSystemEntry?> GetEntryAsync(
@@ -327,6 +338,7 @@ namespace Opc.Ua.Server.FileSystem
         /// <summary>
         /// Rejects destructive or copy operations that target the mounted root directory itself.
         /// </summary>
+        /// <exception cref="UnauthorizedAccessException"></exception>
         private void EnsureNotRoot(string fullPath)
         {
             StringComparison comparison = Path.DirectorySeparatorChar == '\\'
@@ -373,13 +385,27 @@ namespace Opc.Ua.Server.FileSystem
         /// to a host-relative path with native separators. Strips a
         /// leading slash and the empty root.
         /// </summary>
-        private static string NormaliseRelative(string path)
+        private string NormaliseRelative(string path)
         {
             if (string.IsNullOrEmpty(path) || path == "/")
             {
                 return string.Empty;
             }
-            return path.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
+            string relative = path.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
+            if (Path.DirectorySeparatorChar == '\\' &&
+                !m_rootDirectory.StartsWith(@"\\?\", StringComparison.Ordinal))
+            {
+                string[] segments = relative.Split('\\');
+                for (int ii = 0; ii < segments.Length; ii++)
+                {
+                    if (segments[ii] is not "." and not "..")
+                    {
+                        segments[ii] = segments[ii].TrimEnd(' ', '.');
+                    }
+                }
+                relative = string.Join("\\", segments);
+            }
+            return relative;
         }
 
         private static string JoinProviderPath(string basePath, string name)

@@ -60,7 +60,14 @@ Rotation that supersedes successful work does not consume the failed-attempt
 retry allowance. Reconnect time budgets and shutdown cancellation still apply.
 
 UA-TCP reconnect hands the new connection to the retained channel without
-closing it when the temporary handshake channel is retired. Receive loops
+closing it when the temporary handshake channel is retired. ECC and RSA-DH
+handoffs move the owned ephemeral nonce objects, including the private key;
+public nonce bytes cannot reconstruct them. The retained token's secret is
+used when deriving the replacement keys. Continued sequence numbers are
+checked against the retained channel, not treated as a new secure channel.
+A rejected or failed handoff closes the new connection and releases its
+unadopted token rather than restarting an orphaned receive loop. The peer
+certificate remains available through failure auditing. Receive loops
 have separate cancellation lifetimes; a retiring connection cannot stop its
 replacement. Connection admission reserves capacity before invoking channel
 callbacks, retires idle channels outside the listener lock, and closes rejected
@@ -159,6 +166,17 @@ The JSON sub-profiles (`https-uajson` and the WSS `opcua+uajson`
 sub-protocol) only accept `SecurityMode.None` regardless of the
 configured security policies — see Part 6 §7.4.5 / §7.5.2 for the
 spec rationale.
+
+All HTTPS and WSS client bindings, including WebApi, require the TLS certificate
+to match the endpoint hostname before invoking a configured OPC UA certificate
+validator. Trusting a certificate or its issuer does not bypass hostname
+verification. This also applies to TLS-only JSON bindings.
+
+All HTTP, WebSocket and WebApi dispatch paths forward the observed remote IP
+address for authentication lockout accounting. Unsecured clients cannot reset
+that bucket by opening a new connection or changing their ApplicationUri.
+When a transport cannot supply a peer address, the fallback bucket is
+session-local, never shared by every client of a listener.
 
 ## Client-side usage
 

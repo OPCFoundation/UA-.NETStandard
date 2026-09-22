@@ -178,6 +178,32 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void EnqueueWithZeroCapacityStillReturnsNotification()
+        {
+            var queue = new SentMessageQueue(
+                () => 14,
+                maxMessageCount: 0,
+                retransmissionStore: null,
+                Mock.Of<ILogger>());
+            var availableSequenceNumbers = new List<uint>();
+
+            NotificationMessage published = queue.Enqueue(
+                [CreateMessage(1)],
+                availableSequenceNumbers,
+                out bool moreNotifications,
+                out uint newlyUnacknowledgedCount);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(published.SequenceNumber, Is.EqualTo(1u));
+                Assert.That(queue.SentCount, Is.EqualTo(1));
+                Assert.That(moreNotifications, Is.False);
+                Assert.That(newlyUnacknowledgedCount, Is.Zero);
+                Assert.That(availableSequenceNumbers, Has.Count.EqualTo(1));
+            });
+        }
+
+        [Test]
         public void TryAcknowledgeRemovesMessageAndMirrorsAcknowledgement()
         {
             var store = new Mock<ISubscriptionRetransmissionStore>();

@@ -246,14 +246,14 @@ namespace Opc.Ua.Server.Fluent
         /// The fluent builder that the manager's <c>Configure</c>
         /// partial(s) will receive.
         /// </param>
-        /// <exception cref="System.ArgumentNullException">
+        /// <exception cref="ArgumentNullException">
         /// Raised when <paramref name="builder"/> is <c>null</c>.
         /// </exception>
         public void AttachToBuilder(NodeManagerBuilder builder)
         {
             if (builder == null)
             {
-                throw new System.ArgumentNullException(nameof(builder));
+                throw new ArgumentNullException(nameof(builder));
             }
 
             lock (m_attachedBuildersLock)
@@ -279,13 +279,15 @@ namespace Opc.Ua.Server.Fluent
         /// Resolves the concrete builder attached to the manager exposed by
         /// an arbitrary <see cref="INodeManagerBuilder"/> facade.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         internal static NodeManagerBuilder ResolveAttachedBuilder(
             INodeManagerBuilder builder,
             string feature)
         {
             if (builder == null)
             {
-                throw new System.ArgumentNullException(nameof(builder));
+                throw new ArgumentNullException(nameof(builder));
             }
 
             NodeManagerBuilder? resolved = TryResolveAttachedBuilder(builder);
@@ -641,6 +643,7 @@ namespace Opc.Ua.Server.Fluent
         /// Rewrites a type definition into the namespace-stable form the behavior
         /// registry matches on.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private ExpandedNodeId ToNamespaceStableTypeId(NodeId typeDefinitionId)
         {
             if (typeDefinitionId.NamespaceIndex == 0)
@@ -774,7 +777,7 @@ namespace Opc.Ua.Server.Fluent
         /// </remarks>
         /// <param name="builder">The builder whose staged nodes to register.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
-        /// <exception cref="System.ArgumentNullException">
+        /// <exception cref="ArgumentNullException">
         /// <paramref name="builder"/> is <c>null</c>.
         /// </exception>
         protected ValueTask RegisterAuthoredNodesAsync(
@@ -783,7 +786,7 @@ namespace Opc.Ua.Server.Fluent
         {
             if (builder == null)
             {
-                throw new System.ArgumentNullException(nameof(builder));
+                throw new ArgumentNullException(nameof(builder));
             }
 
             return builder.RegisterAuthoredNodesAsync(
@@ -809,7 +812,7 @@ namespace Opc.Ua.Server.Fluent
         /// </remarks>
         /// <param name="builder">The builder the Configure pass used.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
-        /// <exception cref="System.ArgumentNullException">
+        /// <exception cref="ArgumentNullException">
         /// <paramref name="builder"/> is <c>null</c>.
         /// </exception>
         protected ValueTask SealConfigurationAsync(
@@ -818,7 +821,7 @@ namespace Opc.Ua.Server.Fluent
         {
             if (builder == null)
             {
-                throw new System.ArgumentNullException(nameof(builder));
+                throw new ArgumentNullException(nameof(builder));
             }
 
             builder.SealGraphAuthoring();
@@ -891,10 +894,7 @@ namespace Opc.Ua.Server.Fluent
                 cancellationToken).ConfigureAwait(false);
             if (resolved == null)
             {
-                if (cache != null)
-                {
-                    cache[handle.NodeId] = null!;
-                }
+                cache?[handle.NodeId] = null!;
                 return null!;
             }
 
@@ -997,15 +997,23 @@ namespace Opc.Ua.Server.Fluent
             bool unsubscribe,
             CancellationToken cancellationToken = default)
         {
+            if (monitoredNode is null)
+            {
+                return;
+            }
+
+            MonitoredNode2 nonNullMonitoredNode = monitoredNode;
+
             if (unsubscribe)
             {
                 EventSources.SignalReconcile();
             }
-            else
+            else if (nonNullMonitoredNode.Node != null)
             {
-                await EventSources.WaitUntilReadyAsync(monitoredNode.Node, cancellationToken).ConfigureAwait(false);
+                await EventSources.WaitUntilReadyAsync(nonNullMonitoredNode.Node, cancellationToken)
+                    .ConfigureAwait(false);
             }
-            await base.OnSubscribeToEventsAsync(context, monitoredNode, unsubscribe, cancellationToken)
+            await base.OnSubscribeToEventsAsync(context, nonNullMonitoredNode, unsubscribe, cancellationToken)
                 .ConfigureAwait(false);
         }
 
@@ -1097,7 +1105,6 @@ namespace Opc.Ua.Server.Fluent
                     break;
                 }
             }
-
         }
 
         /// <inheritdoc/>
@@ -1131,7 +1138,6 @@ namespace Opc.Ua.Server.Fluent
                     break;
                 }
             }
-
         }
 
         /// <inheritdoc/>
@@ -1171,7 +1177,6 @@ namespace Opc.Ua.Server.Fluent
                     break;
                 }
             }
-
         }
 
         /// <inheritdoc/>

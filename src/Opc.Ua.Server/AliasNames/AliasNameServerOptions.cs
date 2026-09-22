@@ -41,9 +41,17 @@ namespace Opc.Ua.Server.AliasNames
         /// </summary>
         /// <remarks>
         /// Stores and aliases must be registered before address-space creation. Materialized
-        /// nodes are a startup snapshot; later store mutations update query results but do
-        /// not add or remove browsable nodes.
+        /// nodes are a startup snapshot; unless <see cref="RefreshAliasNodesOnChange"/> is
+        /// also enabled, later store mutations update queries but not browsable nodes.
         /// </remarks>
         public bool MaterializeAliasNodes { get; set; }
+
+        /// <summary>
+        /// Whether an opted-in materialized address space follows later store changes.
+        /// Defaults to false, preserving the startup snapshot. Has no effect when
+        /// <see cref="MaterializeAliasNodes"/> is false. Refreshes are coalesced and
+        /// store query failures are logged without deleting the previous browse snapshot.
+        /// </summary>
+        public bool RefreshAliasNodesOnChange { get; set; }
     }
 }

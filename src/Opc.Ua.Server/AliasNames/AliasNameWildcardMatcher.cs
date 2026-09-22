@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics;
 
 namespace Opc.Ua.Server.AliasNames
 {
@@ -69,7 +70,8 @@ namespace Opc.Ua.Server.AliasNames
         /// invalid pattern return <c>false</c>.</returns>
         public static bool IsMatch(string? target, string? pattern)
         {
-            if (target == null || string.IsNullOrEmpty(pattern) ||
+            if (target == null ||
+                string.IsNullOrEmpty(pattern) ||
                 !LikePattern.TryParse(pattern, out LikePattern? parsed))
             {
                 return false;
@@ -95,6 +97,7 @@ namespace Opc.Ua.Server.AliasNames
         /// <summary>
         /// Parses a reusable OPC UA Like pattern or reports invalid syntax as a service error.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         internal static LikePattern CreatePattern(string pattern)
         {
             if (!LikePattern.TryParse(pattern, out LikePattern? parsed))
@@ -110,9 +113,37 @@ namespace Opc.Ua.Server.AliasNames
         /// </summary>
         internal static bool Matches(string target, LikePattern pattern)
         {
+            return Matches(target, pattern, CreateDeadline());
+        }
+
+        /// <summary>
+        /// Creates the deadline shared by all alias matches in one request.
+        /// </summary>
+        internal static long CreateDeadline()
+        {
+            return Stopwatch.GetTimestamp() + (long)(Stopwatch.Frequency * s_matchTimeout.TotalSeconds);
+        }
+
+        /// <summary>
+        /// Tests an alias name before the shared search deadline expires.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="TimeoutException"></exception>
+        internal static bool Matches(string target, LikePattern pattern, long deadline)
+        {
             try
             {
-                return pattern.IsMatch(target, s_matchTimeout);
+                long remaining = deadline - Stopwatch.GetTimestamp();
+                if (remaining <= 0)
+                {
+                    throw new TimeoutException();
+                }
+
+                // FromSeconds rounds a sub-millisecond remainder to zero on .NET Framework.
+                return pattern.IsMatch(
+                    target,
+                    TimeSpan.FromTicks(Math.Max(
+                        1, remaining * TimeSpan.TicksPerSecond / Stopwatch.Frequency)));
             }
             catch (TimeoutException ex)
             {
@@ -122,7 +153,7 @@ namespace Opc.Ua.Server.AliasNames
         }
 
         /// <summary>
-        /// Limits the time spent evaluating one alias-name match.
+        /// Limits the total pattern-matching time of one alias search.
         /// </summary>
         private static readonly TimeSpan s_matchTimeout = TimeSpan.FromMilliseconds(100);
     }

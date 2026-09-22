@@ -30,6 +30,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Historian;
@@ -246,7 +247,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task InsertCollisionRollsBackEntireDispatchedBatchAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(s_baseTime));
             var nodeId = new NodeId("transactional-dispatch", 1);
             provider.Register(nodeId);
 

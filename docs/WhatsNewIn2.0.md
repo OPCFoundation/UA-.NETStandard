@@ -57,6 +57,14 @@ hierarchy, the removal of Newtonsoft.Json from `Opc.Ua.Core`, the
 companion [2.0 Migration Analyzer](#tooling) handling most of the mechanical
 edits automatically.
 
+**ECC security policies now require .NET 8 or later stack assets.**
+The .NET Framework and .NET Standard 2.1 builds no longer advertise or accept
+ECC SecureChannel or user-token policies: their ECDH API hashes the shared
+secret instead of exposing the raw secret required by OPC UA Part 6 HKDF.
+Upgrade to the .NET 8+ build, or configure a supported RSA policy on both peers.
+Running the .NET Standard build on a newer runtime does not enable ECC policies.
+See [ECC platform requirements](EccProfiles.md#known-limitations).
+
 ## Cross-cutting themes
 
 ### Type system and immutability

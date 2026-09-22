@@ -55,6 +55,15 @@ from the caller's perspective:
   inherits the previous session's identity, subscriptions, and node cache,
   swapping in a new channel.
 
+In-place recreation refreshes an existing discovery snapshot over the installed
+channel, including a reverse connection or a scoped channel-manager recovery
+view. It does not open an outbound discovery connection or consume a reverse
+connection again. Expected discovery availability failures are logged and fall
+back to the stored snapshot. The `CreateSession` endpoint list, selected user-token
+policy, server certificate and signature still undergo normal validation;
+cancellation and discovery security failures are not treated as availability
+failures.
+
 `Session` does **not** run a background reconnect state machine. If the
 keep-alive callback raises a bad status, the caller decides whether to
 reconnect, recreate, or abandon the session.
@@ -186,6 +195,19 @@ an `ISession` facade that wraps a raw `Session` and adds:
 - A **server-redundancy handler** (`IServerRedundancyHandler`,
   default: `DefaultServerRedundancyHandler`) that reads the server's
   `ServerRedundancy` object and can fail over to a backup endpoint.
+  Refresh is best effort and bounded at connect, reconnect, and failover by
+  `ManagedSessionOptions.ServerRedundancy` (`ServerRedundancyOptions`), which
+  bounds the metadata read (`RefreshTimeout`) and each peer endpoint lookup
+  (`PeerDiscoveryTimeout`) at two seconds each by default. Raise them on a
+  high-latency link, or set `Timeout.InfiniteTimeSpan` when the caller already
+  bounds the operation. A failed or unresponsive refresh retains the previous
+  snapshot, so an unavailable primary cannot prevent selecting a cached
+  backup. A provider that ignores cancellation is still observed, and no
+  overlapping refresh is started while it remains in flight.
+  The default handler can resolve cached peer URIs even when the primary is
+  unavailable, and invalidates a peer's cached endpoint after failed failover.
+  Certificate-validation reconnect failures refresh endpoint discovery before
+  recreating the session; normal certificate trust validation still applies.
 - A **service gate** (`m_serviceLock`) that pauses caller-issued service
   calls (Read/Write/Browse/Call/...) for the duration of a reconnect or
   failover, so consumers see one transparent retry rather than a torn
@@ -228,6 +250,29 @@ session.
 Callers that want to give up sooner than the policy does should cap the policy
 (`MaxRetries`, `MaxTotalReconnectTime`) or pass a cancellation token, which
 surfaces as an `OperationCanceledException`.
+
+### Recovery after an established connection is exhausted
+
+An established session keeps its identity and subscriptions when a reconnect
+cycle and failover are exhausted. It reports `Disconnected` and the last error,
+then starts a fresh bounded cycle after the policy's maximum backoff (at least
+one second). Closing or disposing the session cancels this recovery timer.
+This does not restart failed initial connections: `CreateAsync` still fails as
+described above.
+
+`ReconnectAsync` explicitly re-arms the state machine instead of waiting at the
+ordinary service gate. An explicitly supplied channel or reverse connection is
+used by the next attempt; concurrent ordinary reconnect requests join the active
+cycle. Certificate reload and identity/locale updates also use the exclusive
+control path, so callers can repair credentials before requesting recovery:
+
+```csharp
+await session.ReloadInstanceCertificateAsync(ct);
+await session.ReconnectAsync(connection: null, channel: null, ct);
+```
+
+Cancellation stops a caller's wait; the managed state machine still owns ongoing
+automatic recovery until the session is closed.
 
 ### `ManagedSessionFactory`
 
@@ -396,8 +441,9 @@ could not support:
    `IManagedTransportChannel` block until the channel is `Ready` (gate
    released after both transport open AND participant reactivation
    complete). Internal reactivation traffic (e.g. `ActivateSession`
-   issued by a participant inside `OnReconnectAsync`) bypasses the
-   gate via an `AsyncLocal` scope managed by the manager.
+   issued by a participant inside `OnReconnectAsync`) uses a non-owning,
+   generation-bound recovery view. There is no ambient bypass: ordinary
+   calls through the owning lease still wait for `Ready`.
 
 ### Session factory choices
 
@@ -483,23 +529,34 @@ The session runs the `ActivateSession` slice and returns one of:
 | Result | Meaning |
 |---|---|
 | `Reactivated` | Session is alive on the reconnected channel. |
-| `RequiresSessionRecreate` | Channel is OK; this participant's server-side session was lost (e.g. `BadSessionIdInvalid`) — the manager dispatches participant recreation out of band. |
+| `RequiresSessionRecreate` | Channel is OK; this participant's server-side session was lost (e.g. `BadSessionIdInvalid`) — the manager awaits participant recreation before admitting ordinary requests. |
 | `TransientFailure` | Transient channel-level failure; manager retries per policy. |
 | `FatalForParticipant` | Authentication / cert problem specific to this participant — detach only this participant. |
 | `FatalForChannel` | Fatal channel error; transition to `Faulted`. |
 
 When a participant returns `RequiresSessionRecreate`, the manager invokes
-`IReconnectParticipant.RecreateAsync(ct)` fire-and-forget and does not block the channel's
-transition to `Ready` on that work. `Session` implements the callback by recreating its
-server-side session in place. On target frameworks without default interface method support,
-participants opt in with `IRecreateAwareReconnectParticipant`.
+`IReconnectParticipant.RecreateAsync(ct)` and awaits it before transitioning to
+`Ready`. On target frameworks without default interface method support,
+participants opt in with `IRecreateAwareReconnectParticipant`. The non-owning
+managed-channel view passed to the legacy `OnReconnectAsync` remains usable for
+that immediately following recreation callback. It expires when this recovery
+finishes, times out or is cancelled; a later generation cannot reuse it.
+Participants must keep the original owning lease for ordinary requests rather
+than retaining the recovery view for application callbacks or background work.
+Closing or disposing a recovery view never releases that lease.
+
+`Session` implements `IChannelRecoveryParticipant`, which receives the unchanged
+owning lease and a separate recovery send channel. Each callback has its own
+scoped view. Callback-dependent subscription restoration runs through
+`CompleteRecoveryAsync` after the channel admits ordinary requests, and the
+reconnect caller still awaits that restoration.
 
 ### Retry policy — `IChannelReconnectPolicy`
 
 The default `ExponentialBackoffChannelReconnectPolicy` mirrors the
 historical `SessionReconnectHandler` backoff defaults:
 `500 ms → 30 s` with unlimited attempts. It also sets `ParticipantTimeout`
-to 30 seconds, bounding each participant's `OnReconnectAsync` callback. A
+to 30 seconds, bounding each participant's reactivation and recreation callbacks. A
 participant timeout is treated as `TransientFailure`; retry exhaustion still
 transitions the channel to `Faulted`. The `IChannelReconnectPolicy` default
 interface member remains `Timeout.InfiniteTimeSpan` for custom-policy
@@ -710,7 +767,7 @@ For migration notes on the budget-aware APIs, see
 
 ### Diagnostics surface contract — what tags and structured log fields carry
 
-The channel manager emits diagnostics through three independent channels: `System.Diagnostics.Activity` tags (distributed tracing), structured `ILogger` logs under the `Opc.Ua.ChannelManager` category, and `System.Diagnostics.Metrics` instruments. The channel manager previously emitted its own `Opc.Ua.ChannelManager` `EventSource` (ETW / `dotnet-trace`); that provider is removed. The structured logs are the replacement — same category name, same event identities — routed through `Microsoft.Extensions.Logging` / OpenTelemetry logging instead of ETW.
+The channel manager emits diagnostics through three independent channels: `System.Diagnostics.Activity` tags (distributed tracing), structured `ILogger` logs under the `Opc.Ua.ChannelManager` category, and `System.Diagnostics.Metrics` instruments. There is no `EventSource` (ETW / `dotnet-trace`) provider; the structured logs carry the same category name and event identities, routed through `Microsoft.Extensions.Logging` / OpenTelemetry logging.
 
 Each event kept its original `EventId` and `EventName` on the `[LoggerMessage]` replacement, so tooling matching on the numeric id or name keeps working:
 

@@ -538,6 +538,71 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         }
 
         [Test]
+        [CancelAfter(30_000)]
+        public async Task WaitForReadyAsyncObservesCancellationOnEntryAndWhileParkedAsync(
+            CancellationToken testCt)
+        {
+            // Regression for #4508: the drain unblocks a parked publish worker by
+            // cancelling its per-attempt token. That only works while this gate
+            // honours the token, so a refactor must not be able to make the wait
+            // token-blind without failing here.
+            (ClientChannelManager sut, Certificate serverCert, Mock<IChannel> chMock) = CreateMockedSut();
+            try
+            {
+                ConfiguredEndpoint endpoint = GetTestEndpoint(serverCert);
+                using IManagedTransportChannel channel = await sut.GetAsync(
+                    new TestParticipant("parked", endpoint), testCt).ConfigureAwait(false);
+                object entry = GetLeaseEntry(channel);
+                MethodInfo waitForReady = entry.GetType()
+                    .GetMethod("WaitForReadyAsync", [typeof(CancellationToken)])!;
+
+                // The channel is not ready, so the gate parks instead of
+                // completing. Nothing in the test ever makes it ready.
+                SetPrivateField(entry, "m_state", ChannelState.TransportReconnecting);
+                entry.GetType()
+                    .GetMethod("ResetReadyGate", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .Invoke(entry, null);
+                Assert.That(GetEntryState(entry), Is.EqualTo(ChannelState.TransportReconnecting));
+
+                using var parkedSource = new CancellationTokenSource();
+                var parked = (Task)waitForReady.Invoke(entry, [parkedSource.Token])!;
+                await Task.Delay(50, testCt).ConfigureAwait(false);
+                Assert.That(parked.IsCompleted, Is.False,
+                    "the gate must park while the channel is not ready.");
+
+                parkedSource.Cancel();
+
+                // Bounded so a token-blind refactor fails here quickly instead
+                // of hanging the suite on a wait that can never complete.
+                Assert.That(
+                    async () => await parked.WaitAsync(TimeSpan.FromSeconds(10), testCt)
+                        .ConfigureAwait(false),
+                    Throws.InstanceOf<OperationCanceledException>()
+                        .And.Not.InstanceOf<TimeoutException>(),
+                    "a parked caller must observe cancellation.");
+
+                // A token already cancelled on entry must be observed too, so the
+                // abort cannot be lost in the window before the wait begins.
+                using var enteredSource = new CancellationTokenSource();
+                enteredSource.Cancel();
+                var onEntry = (Task)waitForReady.Invoke(entry, [enteredSource.Token])!;
+                Assert.That(
+                    async () => await onEntry.WaitAsync(TimeSpan.FromSeconds(10), testCt)
+                        .ConfigureAwait(false),
+                    Throws.InstanceOf<OperationCanceledException>()
+                        .And.Not.InstanceOf<TimeoutException>(),
+                    "a caller entering with a cancelled token must observe cancellation.");
+
+                SetPrivateField(entry, "m_state", ChannelState.Ready);
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
+                serverCert.Dispose();
+            }
+        }
+
+        [Test]
         public async Task GetAsyncReplacesEntryWhoseTeardownIsReservedAsync()
         {
             (ClientChannelManager sut, Certificate serverCert, Mock<IChannel> chMock) = CreateMockedSut();
@@ -797,7 +862,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             ConfiguredEndpoint endpoint = GetNoneSecurityEndpoint(
                 new EndpointConfiguration { OperationTimeout = 6000 });
             var entry = new ChannelEntry(
-                (IChannelEntryHost)manager,
+                manager,
                 ManagedChannelKey.FromEndpoint(endpoint),
                 endpoint,
                 reverseConnection: null);
@@ -1245,13 +1310,14 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                             record.EventId.Name == "ChannelClosed"),
                     "ParticipantDetached + ChannelClosed events").ConfigureAwait(false);
 
-                RecordedLogRecord[] records = loggerProvider.Records
-                    .Where(record => record.CategoryName == "Opc.Ua.ChannelManager")
-                    .ToArray();
+                RecordedLogRecord[] records =
+                [
+                    .. loggerProvider.Records.Where(record => record.CategoryName == "Opc.Ua.ChannelManager")
+                ];
                 string formatted = string.Join(
                     Environment.NewLine,
                     records.Select(record => $"{record.EventId.Name} {record.Message}"));
-                string?[] eventNames = records.Select(record => record.EventId.Name).ToArray();
+                string?[] eventNames = [.. records.Select(record => record.EventId.Name)];
                 Assert.That(eventNames, Does.Contain("StateChanged"), formatted);
                 Assert.That(eventNames, Does.Contain("ReconnectStarted"), formatted);
                 Assert.That(eventNames, Does.Contain("ReconnectCompleted"), formatted);
@@ -1508,13 +1574,14 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         }
 
         /// <summary>
-        /// Verifies the injected clock expires a stalled reactivation at its timeout and issues one final notification.
+        /// Verifies the injected clock expires a stalled reactivation at its timeout
+        /// and issues one final notification.
         /// </summary>
         [Test]
         public async Task ReconnectParticipantTimeoutUsesInjectedClockAsync()
         {
             var timeProvider = new ObservableFakeTimeProvider();
-            TimeSpan participantTimeout = TimeSpan.FromMilliseconds(200);
+            var participantTimeout = TimeSpan.FromMilliseconds(200);
             var reconnectPolicy = new ExponentialBackoffChannelReconnectPolicy
             {
                 MinDelay = TimeSpan.Zero,
@@ -1573,6 +1640,358 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 participantCompletion.TrySetResult(ParticipantReconnectResult.Reactivated);
                 await sut.DisposeAsync().ConfigureAwait(false);
                 serverCert.Dispose();
+            }
+        }
+
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task LegacyParticipantCanSendDuringReactivationAndRecreationAsync(
+            bool recreate,
+            bool infiniteTimeout)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var policy = new ExponentialBackoffChannelReconnectPolicy
+            {
+                MinDelay = TimeSpan.Zero,
+                MaxDelay = TimeSpan.Zero,
+                MaxAttempts = 1,
+                ParticipantTimeout = infiniteTimeout ? Timeout.InfiniteTimeSpan : TimeSpan.FromSeconds(5)
+            };
+            (ClientChannelManager manager, Certificate server, Mock<IChannel> transport) =
+                CreateMockedSut(reconnectPolicy: policy);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            IManagedTransportChannel? captured = null;
+            var response = new ActivateSessionResponse();
+            transport.Setup(value => value.SendRequestAsync(
+                    It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IServiceResponse>(response));
+            var participant = new Mock<IReconnectParticipant>();
+            participant.SetupGet(value => value.Id).Returns("legacy-recovery");
+            participant.SetupGet(value => value.Endpoint).Returns(GetTestEndpoint(server));
+            participant.Setup(value => value.OnReconnectAsync(
+                    It.IsAny<IManagedTransportChannel>(), 0, It.IsAny<CancellationToken>()))
+                .Returns(async (IManagedTransportChannel channel, int _, CancellationToken ct) =>
+                {
+                    captured = channel;
+                    IServiceResponse result = await channel.SendRequestAsync(new ActivateSessionRequest(), ct)
+                        .ConfigureAwait(false);
+                    Assert.That(result, Is.SameAs(response));
+                    if (recreate)
+                    {
+                        return ParticipantReconnectResult.RequiresSessionRecreate;
+                    }
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(ct).ConfigureAwait(false);
+                    return ParticipantReconnectResult.Reactivated;
+                });
+            if (recreate)
+            {
+                participant.As<IRecreateAwareReconnectParticipant>()
+                    .Setup(value => value.RecreateAsync(It.IsAny<CancellationToken>()))
+                    .Returns(async (CancellationToken ct) =>
+                    {
+                        IServiceResponse result = await captured!.SendRequestAsync(new CreateSessionRequest(), ct)
+                            .ConfigureAwait(false);
+                        Assert.That(result, Is.SameAs(response));
+                        entered.TrySetResult(true);
+                        await release.Task.WaitAsync(ct).ConfigureAwait(false);
+                    });
+            }
+            try
+            {
+                using IManagedTransportChannel lease = await manager.GetAsync(participant.Object, timeout.Token)
+                    .ConfigureAwait(false);
+                Task reconnect = manager.ReconnectAsync(lease, timeout.Token).AsTask();
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(captured, Is.Not.SameAs(lease));
+                Assert.That(captured!.Key, Is.EqualTo(lease.Key));
+                Assert.That(captured.Manager, Is.SameAs(manager));
+                Assert.That(captured.State, Is.EqualTo(ChannelState.TransportConnectedSessionReactivating));
+
+                Task<IServiceResponse> ordinary = lease.SendRequestAsync(new ReadRequest(), timeout.Token).AsTask();
+                Assert.That(ordinary.IsCompleted, Is.False);
+                Assert.That(manager.GetChannelDiagnostics().Single().Refcount, Is.EqualTo(1));
+                release.TrySetResult(true);
+                await reconnect.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(await ordinary.ConfigureAwait(false), Is.SameAs(response));
+                Assert.That(lease.State, Is.EqualTo(ChannelState.Ready));
+
+                ServiceResultException expired = await AssertThrowsAsync<ServiceResultException>(
+                    captured.SendRequestAsync(new CreateSessionRequest(), timeout.Token).AsTask(),
+                    s_completionTimeout).ConfigureAwait(false);
+                Assert.That(expired.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                await captured.CloseAsync(timeout.Token).ConfigureAwait(false);
+                captured.Dispose();
+                Assert.That(manager.GetChannelDiagnostics().Single().Refcount, Is.EqualTo(1));
+                transport.Verify(value => value.SendRequestAsync(
+                    It.IsAny<ActivateSessionRequest>(), It.IsAny<CancellationToken>()), Times.Once);
+                transport.Verify(value => value.SendRequestAsync(
+                    It.IsAny<CreateSessionRequest>(), It.IsAny<CancellationToken>()),
+                    recreate ? Times.Once() : Times.Never());
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await manager.DisposeAsync().ConfigureAwait(false);
+                server.Dispose();
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RecoveryViewsCancelInFlightSendsAndRejectPreviousGenerationsAsync(bool legacy)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var policy = new ExponentialBackoffChannelReconnectPolicy
+            {
+                MinDelay = TimeSpan.Zero,
+                MaxDelay = TimeSpan.Zero,
+                MaxAttempts = 1,
+                ParticipantTimeout = Timeout.InfiniteTimeSpan
+            };
+            (ClientChannelManager manager, Certificate server, Mock<IChannel> transport) =
+                CreateMockedSut(reconnectPolicy: policy);
+            var blocked = new TaskCompletionSource<IServiceResponse>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            CancellationToken wireToken = default;
+            transport.Setup(channel => channel.SendRequestAsync(
+                    It.IsAny<ActivateSessionRequest>(), It.IsAny<CancellationToken>()))
+                .Returns((IServiceRequest _, CancellationToken ct) =>
+                {
+                    wireToken = ct;
+                    return new ValueTask<IServiceResponse>(blocked.Task.WaitAsync(ct));
+                });
+            ITransportChannel? previous = null;
+            var participant = new Mock<IReconnectParticipant>();
+            participant.SetupGet(value => value.Id).Returns("cancelled-recovery-send");
+            participant.SetupGet(value => value.Endpoint).Returns(GetTestEndpoint(server));
+            if (legacy)
+            {
+                participant.Setup(value => value.OnReconnectAsync(
+                        It.IsAny<IManagedTransportChannel>(), 0, It.IsAny<CancellationToken>()))
+                    .Returns((IManagedTransportChannel view, int _, CancellationToken _) => RecoverAsync(view));
+            }
+            else
+            {
+                participant.As<IChannelRecoveryParticipant>().Setup(value => value.OnReconnectAsync(
+                        It.IsAny<IManagedTransportChannel>(), It.IsAny<ITransportChannel>(),
+                        0, It.IsAny<CancellationToken>()))
+                    .Returns((IManagedTransportChannel _, ITransportChannel view, int _, CancellationToken _) =>
+                        RecoverAsync(view));
+            }
+            try
+            {
+                using IManagedTransportChannel lease = await manager.GetAsync(participant.Object, timeout.Token)
+                    .ConfigureAwait(false);
+                await manager.ReconnectAsync(lease, timeout.Token).ConfigureAwait(false);
+                await manager.ReconnectAsync(lease, timeout.Token).ConfigureAwait(false);
+
+                Assert.That(lease.State, Is.EqualTo(ChannelState.Ready));
+                Assert.That(manager.GetChannelDiagnostics().Single().Refcount, Is.EqualTo(1));
+                transport.Verify(channel => channel.SendRequestAsync(
+                    It.IsAny<ActivateSessionRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+            }
+            finally
+            {
+                blocked.TrySetCanceled();
+                await manager.DisposeAsync().ConfigureAwait(false);
+                server.Dispose();
+            }
+
+            async ValueTask<ParticipantReconnectResult> RecoverAsync(ITransportChannel view)
+            {
+                if (previous != null)
+                {
+                    ServiceResultException stale = await AssertThrowsAsync<ServiceResultException>(
+                        previous.SendRequestAsync(new ActivateSessionRequest(), timeout.Token).AsTask(),
+                        s_completionTimeout).ConfigureAwait(false);
+                    Assert.That(stale.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                }
+                previous = view;
+                using var cancellation = new CancellationTokenSource();
+                Task<IServiceResponse> send = view.SendRequestAsync(
+                    new ActivateSessionRequest(), cancellation.Token).AsTask();
+                Assert.That(send.IsCompleted, Is.False);
+                cancellation.Cancel();
+                await Assert.ThatAsync(() => send, Throws.InstanceOf<OperationCanceledException>())
+                    .ConfigureAwait(false);
+                Assert.That(wireToken.IsCancellationRequested, Is.True);
+                await Assert.ThatAsync(
+                    async () => await view.ReconnectAsync(ct: timeout.Token).ConfigureAwait(false),
+                    Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                        .EqualTo(StatusCodes.BadInvalidState)).ConfigureAwait(false);
+                return ParticipantReconnectResult.Reactivated;
+            }
+        }
+
+        [Test]
+        public async Task RecoverySendViewExpiresWithoutReleasingLeaseOrAdmittingOrdinaryCallsAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            (ClientChannelManager manager, Certificate server, Mock<IChannel> transport) = CreateMockedSut();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var ordinaryStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            ITransportChannel? captured = null;
+            Task<IServiceResponse>? ordinary = null;
+            var response = new ReadResponse();
+            transport.Setup(value => value.SendRequestAsync(
+                    It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IServiceResponse>(response));
+            var participant = new Mock<IChannelRecoveryParticipant>();
+            participant.SetupGet(value => value.Id).Returns("scoped-recovery");
+            participant.SetupGet(value => value.Endpoint).Returns(GetTestEndpoint(server));
+            participant.Setup(value => value.OnReconnectAsync(
+                    It.IsAny<IManagedTransportChannel>(), It.IsAny<ITransportChannel>(),
+                    It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                .Returns(async (IManagedTransportChannel lease, ITransportChannel view, int _, CancellationToken ct) =>
+                {
+                    captured = view;
+                    IServiceResponse result = await view.SendRequestAsync(new ReadRequest(), ct).ConfigureAwait(false);
+                    Assert.That(result, Is.SameAs(response));
+                    ordinary = Task.Run(() =>
+                    {
+                        Task<IServiceResponse> request = lease.SendRequestAsync(
+                            new ReadRequest(), timeout.Token).AsTask();
+                        ordinaryStarted.TrySetResult(true);
+                        return request;
+                    });
+                    await ordinaryStarted.Task.WaitAsync(ct).ConfigureAwait(false);
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(ct).ConfigureAwait(false);
+                    return ParticipantReconnectResult.Reactivated;
+                });
+            try
+            {
+                using IManagedTransportChannel lease = await manager.GetAsync(participant.Object, timeout.Token)
+                    .ConfigureAwait(false);
+                Task reconnect = manager.ReconnectAsync(lease, timeout.Token).AsTask();
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(ordinary!.IsCompleted, Is.False);
+                Assert.That(manager.GetChannelDiagnostics().Single().Refcount, Is.EqualTo(1));
+                release.TrySetResult(true);
+                await reconnect.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(await ordinary.ConfigureAwait(false), Is.SameAs(response));
+
+                ServiceResultException expired = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await captured!.SendRequestAsync(new ReadRequest(), timeout.Token).ConfigureAwait(false))!;
+                Assert.That(expired.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                await captured!.CloseAsync(timeout.Token).ConfigureAwait(false);
+                captured.Dispose();
+                Assert.That(manager.GetChannelDiagnostics().Single().Refcount, Is.EqualTo(1));
+                Assert.That(await lease.SendRequestAsync(new ReadRequest(), timeout.Token).ConfigureAwait(false),
+                    Is.SameAs(response));
+                participant.Verify(value => value.CompleteRecoveryAsync(It.IsAny<CancellationToken>()), Times.Once);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await manager.DisposeAsync().ConfigureAwait(false);
+                server.Dispose();
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RecreateParticipantTimeoutUsesInjectedClockAsync(bool scoped)
+        {
+            var timeProvider = new ObservableFakeTimeProvider();
+            var participantTimeout = TimeSpan.FromMilliseconds(200);
+            var policy = new ExponentialBackoffChannelReconnectPolicy
+            {
+                MinDelay = TimeSpan.Zero,
+                MaxDelay = TimeSpan.Zero,
+                MaxAttempts = 1,
+                ParticipantTimeout = participantTimeout
+            };
+            var recreateStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            ITransportChannel? capturedView = null;
+            CancellationToken callbackToken = default;
+            (ClientChannelManager manager, Certificate server, _) =
+                CreateMockedSut(reconnectPolicy: policy, timeProvider: timeProvider);
+            try
+            {
+                var participant = new Mock<IRecreateAwareReconnectParticipant>();
+                participant.SetupGet(value => value.Id).Returns("bounded-recreate");
+                participant.SetupGet(value => value.Endpoint).Returns(GetTestEndpoint(server));
+                participant.Setup(value => value.OnReconnectAsync(
+                        It.IsAny<IManagedTransportChannel>(), 0, It.IsAny<CancellationToken>()))
+                    .Returns((IManagedTransportChannel channel, int _, CancellationToken _) =>
+                    {
+                        capturedView = channel;
+                        return new ValueTask<ParticipantReconnectResult>(
+                            ParticipantReconnectResult.RequiresSessionRecreate);
+                    });
+                participant.Setup(value => value.RecreateAsync(It.IsAny<CancellationToken>()))
+                    .Returns((CancellationToken ct) =>
+                    {
+                        callbackToken = ct;
+                        recreateStarted.TrySetResult(true);
+                        return new ValueTask(completion.Task);
+                    });
+                if (scoped)
+                {
+                    Mock<IChannelRecoveryParticipant> recovery = participant.As<IChannelRecoveryParticipant>();
+                    recovery.Setup(value => value.OnReconnectAsync(
+                            It.IsAny<IManagedTransportChannel>(), It.IsAny<ITransportChannel>(),
+                            0, It.IsAny<CancellationToken>()))
+                        .Returns(new ValueTask<ParticipantReconnectResult>(
+                            ParticipantReconnectResult.RequiresSessionRecreate));
+                    recovery.Setup(value => value.RecreateAsync(
+                            It.IsAny<IManagedTransportChannel>(), It.IsAny<ITransportChannel>(),
+                            It.IsAny<CancellationToken>()))
+                        .Returns((IManagedTransportChannel _, ITransportChannel view, CancellationToken ct) =>
+                        {
+                            capturedView = view;
+                            callbackToken = ct;
+                            recreateStarted.TrySetResult(true);
+                            return new ValueTask(completion.Task);
+                        });
+                }
+                using IManagedTransportChannel lease = await manager.GetAsync(participant.Object)
+                    .ConfigureAwait(false);
+                Task<bool> timerCreated = timeProvider.WaitForTimersCreatedAsync();
+                Task reconnect = manager.ReconnectAsync(
+                    lease, new RetryBudget(TimeSpan.FromSeconds(5), timeProvider), default).AsTask();
+                await recreateStarted.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                await timerCreated.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                timeProvider.Advance(participantTimeout - TimeSpan.FromTicks(1));
+                Assert.That(reconnect.IsCompleted, Is.False);
+                Assert.That(lease.State, Is.EqualTo(ChannelState.TransportConnectedSessionReactivating));
+
+                timeProvider.Advance(TimeSpan.FromTicks(1));
+                ServiceResultException exception = await AssertThrowsAsync<ServiceResultException>(
+                    reconnect, s_completionTimeout).ConfigureAwait(false);
+                Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
+                Assert.That(lease.State, Is.EqualTo(ChannelState.Faulted));
+                Assert.That(completion.Task.IsCompleted, Is.False);
+                Assert.That(callbackToken.IsCancellationRequested, Is.True);
+                ServiceResultException expired = await AssertThrowsAsync<ServiceResultException>(
+                    capturedView!.SendRequestAsync(new ReadRequest()).AsTask(),
+                    s_completionTimeout).ConfigureAwait(false);
+                Assert.That(expired.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                capturedView.Dispose();
+                Assert.That(manager.GetChannelDiagnostics().Single().Refcount, Is.EqualTo(1));
+                if (scoped)
+                {
+                    participant.As<IChannelRecoveryParticipant>().Verify(value => value.RecreateAsync(
+                        It.IsAny<IManagedTransportChannel>(), It.IsAny<ITransportChannel>(),
+                        It.IsAny<CancellationToken>()), Times.Once);
+                }
+                else
+                {
+                    participant.Verify(value => value.RecreateAsync(It.IsAny<CancellationToken>()), Times.Once);
+                }
+            }
+            finally
+            {
+                completion.TrySetResult(true);
+                await manager.DisposeAsync().ConfigureAwait(false);
+                server.Dispose();
             }
         }
 
@@ -1638,6 +2057,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         /// blocked, NUnit's runner thread never returns, and the whole test host
         /// hangs until the blame collector kills it.
         /// </remarks>
+        /// <exception cref="InvalidOperationException"></exception>
         private static async Task<TException> AssertThrowsAsync<TException>(
             Task task,
             TimeSpan timeout)
@@ -1850,6 +2270,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             }
 
             private readonly ActivityListener m_listener;
+
             private readonly TaskCompletionSource<Activity> m_stoppedActivity = new(
                 TaskCreationOptions.RunContinuationsAsynchronously);
         }
@@ -1977,6 +2398,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         {
             private readonly Func<IManagedTransportChannel, int, CancellationToken,
                 ParticipantReconnectResult>? m_onReconnect;
+
             private int m_notificationCount;
 
             public TestParticipant(
@@ -2064,6 +2486,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             /// further timers have been created, counted from this call. Arm it
             /// <b>before</b> starting the operation whose timers are awaited.
             /// </summary>
+            /// <exception cref="ArgumentOutOfRangeException"></exception>
             public Task<bool> WaitForTimersCreatedAsync(int count = 1)
             {
                 if (count < 1)
@@ -2080,7 +2503,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 return completion.Task;
             }
 
-            private readonly System.Threading.Lock m_lock = new();
+            private readonly Lock m_lock = new();
             private readonly List<(int Target, TaskCompletionSource<bool> Completion)> m_waiters = [];
             private int m_timerCount;
         }
