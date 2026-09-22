@@ -95,6 +95,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     throw new ServiceResultException(
                         StatusCodes.BadInvalidState, "The deciding record has lost the current canonical graph history.");
                 }
+                var recordedViews = graph?.Views.ToList()
+                    .ToDictionary(view => view.ResourceXid, StringComparer.Ordinal)
+                    ?? new Dictionary<string, WotCanonicalViewPublication>(StringComparer.Ordinal);
                 var selected = new List<WoTResourceSelectorDataType>();
                 foreach (WotResource resource in snapshot.AllResources())
                 {
@@ -108,8 +111,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             StatusCodes.BadInvalidState,
                             "An active publication has no exact committed input record; recovery cannot infer its bytes.");
                     }
-                    WotCanonicalViewPublication? view = graph?.Views.ToList()
-                        .SingleOrDefault(candidate => candidate.ResourceXid == resource.Xid);
+                    recordedViews.TryGetValue(resource.Xid, out WotCanonicalViewPublication? view);
+                    if (WotProjectionAdmission.UsesProjectionFormat(
+                        resource.CommittedVersion.Format, resource.CommittedVersion.ContentType) &&
+                        view is not { Active: true })
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadInvalidState,
+                            "A committed projection Resource is missing from the active canonical publication.");
+                    }
                     if (view is { Requested: false })
                     {
                         continue;
@@ -188,11 +198,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     capture.Closures.Clear();
                     capture.Namespaces.Clear();
                 }
-                if (graph is null && capture.ViewUpdates.Count != 0)
+                if (capture.ViewUpdates.Any(update =>
+                    !recordedViews.TryGetValue(update.ResourceXid, out WotCanonicalViewPublication? view) || !view.Active))
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadInvalidState,
-                        "Committed projection Resources require their complete recorded canonical graph.");
+                        "Committed projection Resources require their complete active canonical graph entries.");
                 }
                 IWotPreparedViewPublication? views = null;
                 try

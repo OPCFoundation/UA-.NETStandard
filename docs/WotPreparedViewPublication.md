@@ -269,6 +269,9 @@ Before publication, the complete recovered View handle set must match the
 active graph entries and their committed logical Resources. Missing/duplicate
 owners, different root identities or inconsistent materialized-node counts
 fail recovery; the runtime does not preserve or repair a contradictory count.
+Completeness is checked against the committed projection inputs as well as the
+graph itself. A valid serialized empty graph, or an inactive-history entry,
+cannot stand in for an active Resource's canonical View.
 
 `IWotRegistryRecoveryStore` validates an owner-issued generation and retains its
 authority through the runtime switch. The registry's

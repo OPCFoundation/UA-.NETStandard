@@ -66,6 +66,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [TestCase("count-zero")]
         [TestCase("count-extra")]
         [TestCase("wrong-root")]
+        [TestCase("empty-view-map")]
+        [TestCase("inactive-view-map")]
         public async Task StartupRejectsUnverifiableCommittedEvidenceWithoutNewPublication(string invalid)
         {
             using var views = new LifecycleWotViewProjectionHost(m_server.NodeManagerLifecycle);
@@ -82,6 +84,22 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 damaged = before.WithGroup(group.WithResources(
                     group.Resources.SetItem(source.ResourceId, active.WithCommittedVersion(null)), group.Epoch),
                     before.Generation + 1);
+            }
+            else if (invalid is "empty-view-map" or "inactive-view-map")
+            {
+                var context = new WotCanonicalViewGraphContext(
+                    m_server.CurrentInstance.ServerUris.GetString(0)!, Namespaces.WotCon,
+                    m_server.CurrentInstance.NamespaceUris, [new(StockNode("Source/Reading"), NodeClass.Variable)]);
+                WotCanonicalViewState? prior = invalid == "inactive-view-map"
+                    ? RestoreStockGraph(before.CanonicalViewGraphState, false) : null;
+                ArrayOf<string> removals = prior is null ? [] : prior.Views.ConvertAll(view => view.ResourceXid);
+                WotCanonicalViewState empty = WotProjectionViewBuilder.PrepareCanonicalGraph(
+                    context, prior, [], removals).State;
+                Assert.That(empty.Views.ToList().Any(view => view.Active), Is.False);
+                Assert.That(WotCanonicalViewState.Parse(empty.ToByteString()).ToByteString(),
+                    Is.EqualTo(empty.ToByteString()));
+                damaged = before.WithPublicationState(
+                    before.Generation + 1, before.RefreshGeneration, empty.ToByteString());
             }
             else if (invalid is "count-zero" or "count-extra" or "wrong-root")
             {
@@ -163,20 +181,37 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(m_registry.Current.FindResourceByXid(resource.Xid), Is.SameAs(disabled));
         }
 
-        [Test]
-        public async Task StartupRecoversAnOrdinarySourceWithoutACanonicalGraph()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task StartupRecoversAnOrdinarySourceWithoutActiveCanonicalViews(bool emptyMap)
         {
             WotResource resource = await AddAsync("ordinary-recovery").ConfigureAwait(false);
             await m_coordinator.RefreshAsync(HandoffRequest("ordinary-before-restart")).ConfigureAwait(false);
+            if (emptyMap)
+            {
+                var context = new WotCanonicalViewGraphContext(
+                    m_server.CurrentInstance.ServerUris.GetString(0)!, Namespaces.WotCon,
+                    m_server.CurrentInstance.NamespaceUris, []);
+                WotCanonicalViewState empty = WotProjectionViewBuilder.PrepareCanonicalGraph(
+                    context, null, [], []).State;
+                IWotPreparedRegistryPublication metadata = await m_registry.PreparePublicationAsync(
+                    m_registry.Current, [], 1, empty.ToByteString()).ConfigureAwait(false);
+                await using (metadata.ConfigureAwait(false))
+                {
+                    await metadata.DecideAsync(CancellationToken.None).ConfigureAwait(false);
+                    metadata.Publish();
+                }
+            }
             WotRegistrySnapshot expected = m_registry.Current;
-            Assert.That(expected.CanonicalViewGraphState.IsNull, Is.True);
+            Assert.That(expected.CanonicalViewGraphState.IsNull, Is.EqualTo(!emptyMap));
             await using PreparedWotTestRuntime restarted = await PreparedWotTestRuntime.StartAsync()
                 .ConfigureAwait(false);
             restarted.Namespaces.GetIndexOrAppend("urn:c1:ordinary-padding");
             using var store = new FileWotRegistryStore(Path.Combine(m_root, "registry"));
             using var registry = new WotRegistryService(store);
+            using var recoveredViews = new LifecycleWotViewProjectionHost(restarted.Lifecycle);
             using var coordinator = new WotMaterializationCoordinator(
-                registry, restarted.Host, documentConverter: m_converter);
+                registry, restarted.Host, documentConverter: m_converter, viewProjectionHost: recoveredViews);
             var events = new List<WotMaterializationEventArgs>();
             coordinator.Event += (_, change) => events.Add(change);
 
@@ -186,7 +221,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             Assert.That(coordinator.Generation, Is.EqualTo(1u));
             Assert.That(registry.Current.Generation, Is.EqualTo(expected.Generation));
-            Assert.That(registry.Current.CanonicalViewGraphState.IsNull, Is.True);
+            Assert.That(registry.Current.CanonicalViewGraphState, Is.EqualTo(expected.CanonicalViewGraphState));
             Assert.That(coordinator.CommittedPublication.Views.IsEmpty, Is.True);
             Assert.That(events, Is.Empty);
             NodeId root = ExpandedNodeId.ToNodeId(
