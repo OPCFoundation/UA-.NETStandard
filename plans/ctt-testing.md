@@ -517,6 +517,23 @@ runs of 2026-09-13/14, except
   SecureChannels after 30 s of silence while the CTT needed 41 s for the step (C50); they pass since the
   inactivity cleanup keeps open channels with a valid token (see ctt-issues.md, open server findings).
 
+Repeated on 2026-09-22 against origin/master (#4503 and later merged) plus the inactivity-cleanup fix. Every part
+matches the run above at test-case level, except
+
+- Aggregates: 4,562 error messages (was 4,498). Aggregate – DeltaBounds now also differs on the Double and Float
+  nodes because #4503 computes the difference for Uncertain bounds (U4).
+- Monitored Item Services: Monitor Value Change V2 `020.js` passes (it was skipped while the sample ByteString
+  array still had elements shorter than four bytes, C33).
+- A & C Confirm `Test_001.js` passed this time; it depends on the alarm phase (C10).
+- Security None `007.js` and Security Basic256Sha256 `005.js` pass with the default 30 s `ChannelLifetime`.
+- Node Management Delete Node `Err-002.js` warned about 200 ms AddNodes/DeleteNodes responses (the batches took
+  400–800 ms before the BrowseName index of #4486 and 141–172 ms after it), so the 100 ms tolerance is tight
+  rather than the old behavior being back.
+
+A project copy that the CTT has re-saved can lose the `cleanup.js`/`manual.js` of manual CUs (104 files in the
+copies used here), which shows up as *"Could not open file …"* errors in the affected CUs. Refresh a copy from
+`<ProjectDir>` (adding only missing files) before a comparison run.
+
 ## Pitfalls
 
 - Omitting `--result` silently overwrites `<Project>.results.xml`. Back it up first if

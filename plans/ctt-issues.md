@@ -1110,6 +1110,27 @@ returns Good and the oracle Uncertain, with equal values. §5.4.3.22 does not sa
 bound colors the region before it. The oracle is inconsistent: TimeAverage2 and Total2 over the
 same interval match the server.
 
+### U4. DeltaBounds: which bounds count as Bad and which as Uncertain
+
+§5.4.3.30: *"If one or both values are Bad the return status will be Bad_NoData. If one or both values are
+Uncertain the status will be Uncertain_DataSubNormal."* #4503 changed `StartEndAggregateCalculator` to return
+`BadNoData` only for Bad bounds (it used to do so for every non-Good bound), so the server now computes the
+difference for Uncertain bounds. In the run of 2026-09-22 that raised the Aggregates group from 4,498 to 4,562
+error messages, all in Aggregate – DeltaBounds `003-01.js`…`008-01.js` on the Double and Float nodes.
+
+A logged run (AGGDIAG project copy) classifies all 200 differing readings; the timestamps always agree:
+
+| Readings | Server | Oracle |
+| --- | --- | --- |
+| 80 | value 24, Good | value 23, Good |
+| 72 | `BadNoData` | value, `UncertainDataSubNormal` |
+| 48 | value, `UncertainDataSubNormal` | `BadNoData` |
+
+The first group is the known Int32 rounding difference (see *Known aggregate oracle differences*). The other two
+are the same question in both directions: the two sides disagree about whether a given interval bound is Bad or
+Uncertain, so one computes a value while the other reports no data. Needs a decision on how a bound derived from
+a Bad raw value is classified (§5.4.2.3 simple bounding) before either side changes.
+
 ## Open server observations
 
 Items in the reference server's aggregate calculators (`src/Opc.Ua.Server/Aggregates`) that the CTT
@@ -1119,12 +1140,10 @@ does not currently exercise:
   §5.4.3.20 table specifies BadNoData before/after the end of data; it is ambiguous whether "data"
   means Annotations or the raw archive.
 - **Value-based status ignores TreatUncertainAsBad=false** (`AggregateCalculator.GetValueBasedStatusCode`).
-- **DeltaBounds Uncertain-bound check is unreachable** (`StartEndAggregateCalculator`). An earlier
-  `!IsGood` return means an Uncertain bound with TreatUncertainAsBad=false gives BadNoData instead of
-  `UncertainDataSubNormal` (§5.4.3.30).
 
 The last two only show once the CTT sends explicit aggregate configurations (C1). The Uncertain-value rule of
-Minimum/Maximum is implemented since #4477 and shows as C48.
+Minimum/Maximum is implemented since #4477 and shows as C48; the DeltaBounds Uncertain-bound rule is implemented
+since [#4503](https://github.com/OPCFoundation/UA-.NETStandard/pull/4503) and shows as U4.
 
 ### Open server findings to investigate
 
