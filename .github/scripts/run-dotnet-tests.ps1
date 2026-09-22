@@ -17,9 +17,18 @@
 
     A project that is applicable must produce a TRX recording at least one
     executed test. A run that emits nothing, or emits a TRX with no results, is a
-    broken discovery rather than a pass, and fails here. Unlike the Azure
-    template this script does not tolerate a non-zero test-host exit after an
-    otherwise green run: on GitHub-hosted runners that exit is a failure.
+    broken discovery rather than a pass, and fails here.
+
+    The recorded results decide the verdict, not the 'dotnet test' exit code. A
+    non-zero exit is tolerated when - and only when - the TRX records at least
+    one test and no failure, error, timeout, abort or passedButRunAborted: that
+    combination means the host died during process exit, after the last test and
+    every teardown had already run. This matches the Azure gate in
+    .azurepipelines/test.yml. It was originally assumed to be a macOS-only
+    quirk, but Windows hosts do it too (observed on run 35714133848, job
+    'test-windows-net48 (5/30)', where Opc.Ua.Client.Tests reported 256 passed
+    and 0 failed and the host still exited 1). A host that dies mid-run is not
+    tolerated - that leaves a non-zero counter, which fails above.
 
  .PARAMETER Projects
     Semicolon-separated, repository-relative project paths to run in order.
@@ -86,6 +95,10 @@ Param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# The verdict rule lives in its own file so it can be tested without building or
+# running anything - see tests/Opc.Ua.Tools.Tests/CiTestVerdictTests.cs.
+. (Join-Path $PSScriptRoot 'get-test-verdict.ps1')
 
 $projectList = @($Projects -split ';' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 if ($projectList.Count -eq 0) {
@@ -352,17 +365,22 @@ foreach ($project in $projectList) {
             throw ('No TRX was produced. Every mainline test project runs on VSTest and must emit one; ' +
                 'a Microsoft.Testing.Platform project belongs in a dedicated job instead of this matrix.')
         }
-        if ($test.TimedOut) {
-            throw "The test run exceeded the $PerProjectTimeoutMinutes-minute per-project ceiling."
+
+        $verdict = Get-TestRunVerdict `
+            -TrxFileCount $results.Files `
+            -Total $results.Total `
+            -Failed $results.Failed `
+            -ExitCode $test.ExitCode `
+            -TimedOut $test.TimedOut `
+            -TimeoutMinutes $PerProjectTimeoutMinutes
+        if (-not $verdict.Passed) {
+            throw $verdict.Reason
         }
-        if ($test.ExitCode -ne 0) {
-            throw "'dotnet test' exited with code $($test.ExitCode)."
-        }
-        if ($results.Failed -gt 0) {
-            throw "$($results.Failed) test(s) failed, errored, timed out or aborted."
-        }
-        if ($results.Total -le 0) {
-            throw 'No tests were recorded. The project is applicable to this profile, so discovery is broken.'
+        if ($verdict.Tolerated) {
+            # Surfaced as a warning annotation so a host that keeps dying at exit
+            # stays visible instead of being silently swallowed.
+            $record.reason = $verdict.Reason
+            Write-Host "::warning title=$stem ($CustomTestTarget/$Configuration)::$($verdict.Reason)"
         }
 
         $record.outcome = 'passed'
