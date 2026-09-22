@@ -402,6 +402,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     publicationWarning ?? metadata.DurabilityWarning;
                 if (durabilityWarning is not null)
                 {
+                    m_publicationRecoveryRequired = true;
                     AddCommittedWarning(staged,
                         "Committed durability warning: " + durabilityWarning.Message + " " +
                         DescribeCommittedFailure(durabilityWarning.PersistenceFailure));

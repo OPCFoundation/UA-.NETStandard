@@ -164,6 +164,20 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 try
                 {
                     DateTime start = DateTime.UtcNow;
+                    if (m_publicationRecoveryRequired)
+                    {
+                        try
+                        {
+                            await RecoverCommittedImageAsync(cancellationToken).ConfigureAwait(false);
+                            m_publicationRecoveryRequired = false;
+                        }
+                        catch (Exception failure) when (failure is IOException or InvalidDataException)
+                        {
+                            throw new InvalidOperationException(
+                                "The publication requires an authoritative recovery reload before a refresh can proceed.",
+                                failure);
+                        }
+                    }
                     if (m_sourceHost is IWotInvocationProjectionHost invocationHost &&
                         m_registry is IWotInvocationRegistryPublicationService { SupportsPreparedPublication: true }
                             invocationRegistry)
@@ -207,6 +221,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     }
                     throw new ServiceResultException(
                         StatusCodes.BadNotSupported, "The configured owners cannot isolate the requested publication.");
+                }
+                catch (WotRegistryCommitIndeterminateException)
+                {
+                    m_publicationRecoveryRequired = true;
+                    throw;
                 }
                 finally
                 {

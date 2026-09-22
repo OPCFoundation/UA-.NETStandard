@@ -51,7 +51,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                EnsureMutationAllowed();
+                EnsureReadableGeneration();
                 WotResource? resource = m_snapshot.FindResource(groupId, resourceId);
                 WotResourceVersion? current = resource?.FindVersion(version.VersionId);
                 if ((current is null || current.IncarnationId != version.IncarnationId || current.Epoch != version.Epoch ||

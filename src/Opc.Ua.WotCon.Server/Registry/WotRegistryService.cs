@@ -141,42 +141,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                m_reloadRequired = true;
-                Interlocked.Exchange(ref m_validatedStoreGeneration, null)?.Dispose();
-                WotRegistrySnapshot loaded = await m_store
-                    .LoadAsync(cancellationToken).ConfigureAwait(false);
-                WotRegistryIdentity.ValidateSnapshot(loaded);
-                loaded = RestoreVersionIncarnations(
-                    loaded,
-                    m_recoverySnapshot?.Generation == loaded.Generation ? m_recoverySnapshot : m_snapshot);
-                WotRegistrySnapshot hydrated =
-                    await HydrateDependencyMetadataAsync(loaded, cancellationToken).ConfigureAwait(false);
-                await RefreshValidatedStoreGenerationAsync(cancellationToken).ConfigureAwait(false);
-                bool migrate = !ReferenceEquals(hydrated, loaded) &&
-                    m_store is IWotRegistryPreparedStore { SupportsPreparedCommits: true };
-                Volatile.Write(ref m_snapshot, migrate ? loaded : hydrated);
-                m_recoverySnapshot = null;
-                m_reloadRequired = false;
-                if (migrate)
-                {
-                    WotRegistrySnapshot migrated = hydrated.WithPublicationState(
-                        checked(loaded.Generation + 1), hydrated.RefreshGeneration);
-                    try
-                    {
-                        await CommitAndPublishAsync(
-                            loaded, migrated, [], projectionOnly: true, cancellationToken,
-                            WotRegistryCommitScope.Full).ConfigureAwait(false);
-                    }
-                    catch (WotRegistryCommitDurabilityUncertainException)
-                    {
-                        throw;
-                    }
-                    catch
-                    {
-                        m_reloadRequired = true;
-                        throw;
-                    }
-                }
+                await InitializeCoreAsync(cancellationToken).ConfigureAwait(false);
             }
             finally
             {
@@ -2584,7 +2549,56 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
         }
 
+        private async ValueTask InitializeCoreAsync(CancellationToken cancellationToken)
+        {
+            m_reloadRequired = true;
+            Interlocked.Exchange(ref m_validatedStoreGeneration, null)?.Dispose();
+            WotRegistrySnapshot loaded = await m_store.LoadAsync(cancellationToken).ConfigureAwait(false);
+            WotRegistryIdentity.ValidateSnapshot(loaded);
+            loaded = RestoreVersionIncarnations(
+                loaded,
+                m_recoverySnapshot?.Generation == loaded.Generation ? m_recoverySnapshot : m_snapshot);
+            WotRegistrySnapshot hydrated = await HydrateDependencyMetadataAsync(loaded, cancellationToken)
+                .ConfigureAwait(false);
+            await RefreshValidatedStoreGenerationAsync(cancellationToken).ConfigureAwait(false);
+            bool migrate = !ReferenceEquals(hydrated, loaded) &&
+                m_store is IWotRegistryPreparedStore { SupportsPreparedCommits: true };
+            Volatile.Write(ref m_snapshot, migrate ? loaded : hydrated);
+            m_recoverySnapshot = null;
+            m_reloadRequired = false;
+            if (migrate)
+            {
+                WotRegistrySnapshot migrated = hydrated.WithPublicationState(
+                    checked(loaded.Generation + 1), hydrated.RefreshGeneration);
+                try
+                {
+                    await CommitAndPublishAsync(
+                        loaded, migrated, [], projectionOnly: true, cancellationToken,
+                        WotRegistryCommitScope.Full).ConfigureAwait(false);
+                }
+                catch (WotRegistryCommitDurabilityUncertainException)
+                {
+                    throw;
+                }
+                catch
+                {
+                    m_reloadRequired = true;
+                    throw;
+                }
+            }
+        }
+
         private void EnsureMutationAllowed()
+        {
+            EnsureReadableGeneration();
+            if (m_runtimeRecoveryRequired)
+            {
+                throw new InvalidOperationException(
+                    "The WoT registry requires runtime publication recovery before further mutation.");
+            }
+        }
+
+        private void EnsureReadableGeneration()
         {
             if (m_reloadRequired)
             {
@@ -2948,5 +2962,6 @@ namespace Opc.Ua.WotCon.Server.Registry
         private WotRegistrySnapshot? m_recoverySnapshot;
         private IWotRegistryValidatedGeneration? m_validatedStoreGeneration;
         private bool m_reloadRequired;
+        private bool m_runtimeRecoveryRequired;
     }
 }

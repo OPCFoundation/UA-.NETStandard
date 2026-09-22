@@ -55,7 +55,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
                 try
                 {
-                    return await RecoverCommittedImageAsync(cancellationToken).ConfigureAwait(false);
+                    bool recovered = await RecoverCommittedImageAsync(cancellationToken).ConfigureAwait(false);
+                    m_publicationRecoveryRequired = false;
+                    return recovered;
                 }
                 finally
                 {
@@ -70,20 +72,50 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         private async ValueTask<bool> RecoverCommittedImageAsync(CancellationToken cancellationToken)
         {
+            if (m_registry is not IWotRegistryRecoveryResolver resolver)
+            {
+                if (m_registry.Current.RefreshGeneration == 0)
+                {
+                    return false;
+                }
+                throw new NotSupportedException("The registry owner cannot resolve authoritative recovery state.");
+            }
+            m_recoveryMetadataPending |= await resolver.ResolveRecoveryAsync(cancellationToken).ConfigureAwait(false);
             while (true)
             {
                 WotRegistrySnapshot snapshot = m_registry.Current;
                 if (snapshot.RefreshGeneration == 0)
                 {
+                    if (m_recoveryMetadataPending)
+                    {
+                        if (CommittedPublication.RefreshGeneration != 0)
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadInvalidState, "The deciding record precedes the known live publication.");
+                        }
+                        if (!await ReconcileResolvedMetadataAsync(snapshot, cancellationToken).ConfigureAwait(false))
+                        {
+                            continue;
+                        }
+                        m_recoveryMetadataPending = false;
+                    }
                     return false;
                 }
                 if (RuntimeMatches(snapshot))
                 {
+                    if (m_recoveryMetadataPending)
+                    {
+                        if (!await ReconcileResolvedMetadataAsync(snapshot, cancellationToken).ConfigureAwait(false))
+                        {
+                            continue;
+                        }
+                        m_recoveryMetadataPending = false;
+                    }
                     return true;
                 }
                 if (m_sourceHost is not IWotInvocationProjectionHost host ||
                     m_registry is not IWotInvocationRegistryPublicationService
-                        { SupportsPreparedPublication: true } registry)
+                        { SupportsPreparedPublication: true })
                 {
                     throw new NotSupportedException("The configured owners cannot recover an authoritative publication.");
                 }
@@ -143,7 +175,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     WotCapturedRefreshRequest.Capture(request), cancellationToken, snapshot.RefreshGeneration,
                     committedInputs: true)
                     .ConfigureAwait(false);
-                IWotRegistryPublication registryPublication = await registry.BeginPublicationAsync(cancellationToken)
+                IWotRegistryPublication registryPublication = await resolver.BeginRecoveryPublicationAsync(cancellationToken)
                     .ConfigureAwait(false);
                 await using var registryLifetime = registryPublication.ConfigureAwait(false);
                 if (registryPublication is not IWotRegistryRecoveryPublication recoveryRegistry)
@@ -229,6 +261,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             m_runtimeInitialized = true;
                             Volatile.Write(ref m_committedPublication, new WotCommittedPublicationState(snapshot));
                             empty.Publish();
+                            m_recoveryMetadataPending = false;
                         }
                         return true;
                     }
@@ -305,6 +338,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         finally
                         {
                             metadata.Publish();
+                            m_recoveryMetadataPending = false;
                         }
                     }, cancellationToken).ConfigureAwait(false);
                     foreach (BindingAction action in capture.Bindings)
@@ -333,6 +367,49 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     }
                 }
             }
+        }
+
+        private async ValueTask<bool> ReconcileResolvedMetadataAsync(
+            WotRegistrySnapshot snapshot, CancellationToken cancellationToken)
+        {
+            if (m_sourceHost is not IWotInvocationProjectionHost host ||
+                m_registry is not IWotRegistryRecoveryResolver resolver)
+            {
+                throw new NotSupportedException("The configured owners cannot reconcile a recovered publication.");
+            }
+            IWotProjectionPublicationCapture capture = host.CapturePublication();
+            IWotRegistryPublication registryPublication = await resolver.BeginRecoveryPublicationAsync(cancellationToken)
+                .ConfigureAwait(false);
+            await using var registryLifetime = registryPublication.ConfigureAwait(false);
+            if (registryPublication is not IWotRegistryRecoveryPublication recovery)
+            {
+                throw new NotSupportedException("The registry invocation cannot reconcile recovered metadata.");
+            }
+            IWotProjectionPublication source = await capture.BeginAsync(cancellationToken).ConfigureAwait(false);
+            await using var sourceLifetime = source.ConfigureAwait(false);
+            if (!ReferenceEquals(snapshot, registryPublication.Current) || !source.IsCurrent)
+            {
+                return false;
+            }
+            WotCommittedPublicationState previous = CommittedPublication;
+            WotCanonicalViewState? graph = snapshot.CanonicalViewGraphState.IsNull ||
+                snapshot.CanonicalViewGraphState.Length == 0
+                ? null : WotCanonicalViewState.Parse(snapshot.CanonicalViewGraphState);
+            ValidateRecoveredViewMetadata(snapshot, graph, previous.Views);
+            var roots = previous.RegistrySnapshot.AllResources()
+                .Where(resource => resource.ActiveVersionId is not null && !resource.RootNodeId.IsNull)
+                .ToDictionary(resource => resource.Xid, resource => resource.RootNodeId, StringComparer.Ordinal);
+            WotRegistrySnapshot runtime = RebaseRecoveredRootMap(snapshot, roots);
+            IWotPreparedRegistryRecovery metadata = await recovery.PrepareRecoveryAsync(
+                snapshot, runtime, cancellationToken).ConfigureAwait(false);
+            await using (metadata.ConfigureAwait(false))
+            {
+                await metadata.ValidateAsync(cancellationToken).ConfigureAwait(false);
+                Volatile.Write(ref m_committedPublication,
+                    new WotCommittedPublicationState(runtime, previous.Views, previous.ActiveBindingPlans));
+                metadata.Publish();
+            }
+            return true;
         }
 
         private bool RuntimeMatches(WotRegistrySnapshot snapshot)
@@ -397,6 +474,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 roots[view.ResourceXid] = view.ViewNodeId;
             }
+            return RebaseRecoveredRootMap(snapshot, roots);
+        }
+
+        private static WotRegistrySnapshot RebaseRecoveredRootMap(
+            WotRegistrySnapshot snapshot, Dictionary<string, NodeId> roots)
+        {
             ImmutableDictionary<string, WotResourceGroup> groups = snapshot.Groups;
             foreach (WotResourceGroup group in snapshot.Groups.Values)
             {
@@ -415,5 +498,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         private bool m_runtimeInitialized;
+        private bool m_recoveryMetadataPending;
+        private bool m_publicationRecoveryRequired;
     }
 }

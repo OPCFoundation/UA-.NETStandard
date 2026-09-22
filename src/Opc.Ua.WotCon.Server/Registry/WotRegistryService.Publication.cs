@@ -36,11 +36,51 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.WotCon.Server.Registry
 {
-    public sealed partial class WotRegistryService
+    public sealed partial class WotRegistryService : IWotRegistryRecoveryResolver
     {
         /// <inheritdoc/>
         public bool SupportsPreparedPublication =>
             m_store is IWotRegistryPreparedStore { SupportsPreparedCommits: true };
+
+        /// <inheritdoc/>
+        public async ValueTask<bool> ResolveRecoveryAsync(CancellationToken cancellationToken = default)
+        {
+            await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                if (!m_reloadRequired)
+                {
+                    return m_runtimeRecoveryRequired;
+                }
+                await InitializeCoreAsync(cancellationToken).ConfigureAwait(false);
+                return true;
+            }
+            finally
+            {
+                m_mutex.Release();
+            }
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<IWotRegistryRecoveryPublication> BeginRecoveryPublicationAsync(
+            CancellationToken cancellationToken = default)
+        {
+            if (!SupportsPreparedPublication)
+            {
+                throw new NotSupportedException("The registry store cannot isolate recovery.");
+            }
+            await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                EnsureReadableGeneration();
+                return new RegistryPublicationInvocation(this, recoveryOnly: true);
+            }
+            catch
+            {
+                m_mutex.Release();
+                throw;
+            }
+        }
 
         /// <inheritdoc/>
         public async ValueTask<IWotRegistryPublication> BeginPublicationAsync(
@@ -197,7 +237,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         {
             _ = expectedSnapshot ?? throw new ArgumentNullException(nameof(expectedSnapshot));
             _ = runtimeSnapshot ?? throw new ArgumentNullException(nameof(runtimeSnapshot));
-            EnsureMutationAllowed();
+            EnsureReadableGeneration();
             if (!ReferenceEquals(m_snapshot, expectedSnapshot))
             {
                 throw new ServiceResultException(StatusCodes.BadInvalidState, "The recovery image changed.");
@@ -256,6 +296,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 {
                     m_recoverySnapshot = publication.IntendedSnapshot;
                     m_reloadRequired = true;
+                    m_runtimeRecoveryRequired = true;
                     throw;
                 }
                 try
@@ -267,6 +308,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 catch (WotRegistryCommitDurabilityUncertainException warning) when (publication.IsCommitted)
                 {
                     publication.DurabilityWarning = warning;
+                    m_runtimeRecoveryRequired |= m_reloadRequired;
                 }
             }
             finally
@@ -404,7 +446,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 try
                 {
                     invocation.RequireActive(this);
-                    owner.EnsureMutationAllowed();
+                    owner.EnsureReadableGeneration();
                     if (!ReferenceEquals(owner.Current, expected))
                     {
                         throw new ServiceResultException(StatusCodes.BadInvalidState, "The recovery image changed.");
@@ -427,6 +469,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     throw new InvalidOperationException("The recovery has no unpublished validated image.");
                 }
                 Volatile.Write(ref owner.m_snapshot, runtime);
+                owner.m_runtimeRecoveryRequired = false;
                 m_published = true;
                 try
                 {
@@ -466,7 +509,8 @@ namespace Opc.Ua.WotCon.Server.Registry
             private bool m_published;
         }
 
-        private sealed class RegistryPublicationInvocation(WotRegistryService owner) : IWotRegistryRecoveryPublication
+        private sealed class RegistryPublicationInvocation(WotRegistryService owner, bool recoveryOnly = false)
+            : IWotRegistryRecoveryPublication
         {
             public WotRegistrySnapshot Current => owner.Current;
 
@@ -477,6 +521,10 @@ namespace Opc.Ua.WotCon.Server.Registry
                 ByteString canonicalViewGraphState = default,
                 CancellationToken cancellationToken = default)
             {
+                if (recoveryOnly)
+                {
+                    throw new InvalidOperationException("A recovery invocation cannot decide a new publication.");
+                }
                 BeginPreparation();
                 try
                 {

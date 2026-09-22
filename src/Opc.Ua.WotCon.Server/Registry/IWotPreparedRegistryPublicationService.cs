@@ -34,6 +34,26 @@ using System.Threading.Tasks;
 namespace Opc.Ua.WotCon.Server.Registry
 {
     /// <summary>
+    /// Resolves an explicit registry recovery requirement through the existing deciding store owner.
+    /// </summary>
+    public interface IWotRegistryRecoveryResolver : IWotRegistryService
+    {
+        /// <summary>
+        /// Reloads authoritative evidence only when recovery is required.
+        /// Returns whether evidence was reloaded or still awaits runtime publication.
+        /// Unresolved evidence remains an error and keeps mutation blocked.
+        /// </summary>
+        ValueTask<bool> ResolveRecoveryAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Admits recovery of resolved evidence while conflicting mutations remain excluded.
+        /// The returned owner cannot prepare a new durable decision.
+        /// </summary>
+        ValueTask<IWotRegistryRecoveryPublication> BeginRecoveryPublicationAsync(
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
     /// Optional preparation of registry projection metadata on the actual registry owner.
     /// </summary>
     public interface IWotPreparedRegistryPublicationService : IWotRegistryService

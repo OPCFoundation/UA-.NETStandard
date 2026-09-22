@@ -55,6 +55,40 @@ namespace Opc.Ua.WotCon.Tests.Hosting
     [TestFixture]
     public sealed class OpcUaWotRegistryServerBuilderExtensionsTests
     {
+        [Test]
+        public async Task RecoveryResolverUsesTheRegisteredOwnerWithoutReloadingHealthyState()
+        {
+            var services = new ServiceCollection();
+            services.AddOpcUa().AddWotRegistryServer();
+            ServiceProvider provider = services.BuildServiceProvider();
+            await using (provider.ConfigureAwait(false))
+            {
+                IWotRegistryService registry = provider.GetRequiredService<IWotRegistryService>();
+                IWotRegistryRecoveryResolver resolver = provider.GetRequiredService<IWotRegistryRecoveryResolver>();
+                await registry.InitializeAsync().ConfigureAwait(false);
+                WotRegistrySnapshot snapshot = registry.Current;
+
+                Assert.That(resolver, Is.SameAs(registry));
+                Assert.That(await resolver.ResolveRecoveryAsync().ConfigureAwait(false), Is.False);
+                Assert.That(registry.Current, Is.SameAs(snapshot));
+            }
+        }
+
+        [Test]
+        public void OlderRegistryIsNotAdvertisedAsResolvingRecoveryEvidence()
+        {
+            IWotRegistryService older = new Mock<IWotRegistryService>().Object;
+            var services = new ServiceCollection();
+            services.AddSingleton(older);
+            services.AddOpcUa().AddWotRegistryServer();
+            using ServiceProvider provider = services.BuildServiceProvider();
+
+            Assert.That(provider.GetRequiredService<IWotRegistryService>(), Is.SameAs(older));
+            Assert.That(() => provider.GetRequiredService<IWotRegistryRecoveryResolver>(),
+                Throws.TypeOf<InvalidOperationException>()
+                    .With.Message.EqualTo("The registered registry cannot resolve recovery evidence."));
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public async Task ExplicitProjectionCompatibilityReachesRegistryAndViewMaterialization(bool configuration)

@@ -178,6 +178,10 @@ namespace Microsoft.Extensions.DependencyInjection
                 sp.GetRequiredService<IWotRegistryService>() as IWotRegistryDependencySnapshotProvider ??
                 throw new InvalidOperationException("The registered registry does not support dependency snapshots."));
 
+            services.TryAddSingleton(sp =>
+                sp.GetRequiredService<IWotRegistryService>() as IWotRegistryRecoveryResolver ??
+                throw new InvalidOperationException("The registered registry cannot resolve recovery evidence."));
+
             services.TryAddSingleton<IWotProjectionHost>(sp =>
                 new LifecycleWotProjectionHost(
                     sp.GetRequiredService<INodeManagerLifecycle>(),

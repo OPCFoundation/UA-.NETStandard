@@ -61,6 +61,44 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
+        public async Task HealthyRecoveryKeepsEvidenceAndCannotDecideANewPublication()
+        {
+            using var content = new RecordingLeasedResourceStore();
+            using var store = new FileWotRegistryStore(m_root, content);
+            using var registry = new WotRegistryService(store);
+            await registry.InitializeAsync().ConfigureAwait(false);
+            WotResource resource = await AddAsync(registry, "healthy-recovery").ConfigureAwait(false);
+            WotRegistrySnapshot snapshot = registry.Current;
+            using IWotRegistryValidatedGeneration captured = await store.CaptureValidatedGenerationAsync()
+                .ConfigureAwait(false);
+
+            Assert.That(await registry.ResolveRecoveryAsync().ConfigureAwait(false), Is.False);
+            Assert.That(registry.Current, Is.SameAs(snapshot));
+            using (IWotRegistryPublicationValidation validation = await store.ValidatePublicationAsync(captured)
+                .ConfigureAwait(false))
+            {
+                Assert.That(validation.Snapshot.Generation, Is.EqualTo(snapshot.Generation));
+            }
+            IWotRegistryRecoveryPublication invocation = await registry.BeginRecoveryPublicationAsync()
+                .ConfigureAwait(false);
+            await using (invocation.ConfigureAwait(false))
+            {
+                await Assert.ThatAsync(async () => await invocation.PrepareAsync(
+                    snapshot, [Projection(resource, 1)], 1).ConfigureAwait(false),
+                    Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
+                IWotPreparedRegistryRecovery recovery = await invocation.PrepareRecoveryAsync(snapshot, snapshot)
+                    .ConfigureAwait(false);
+                await using (recovery.ConfigureAwait(false))
+                {
+                    await recovery.ValidateAsync().ConfigureAwait(false);
+                    recovery.Publish();
+                }
+            }
+            Assert.That(registry.Current, Is.SameAs(snapshot));
+            Assert.That((await store.LoadAsync().ConfigureAwait(false)).Generation, Is.EqualTo(snapshot.Generation));
+        }
+
+        [Test]
         public async Task RecoveryValidationRetainsAuthorityWithoutWritingAManifest()
         {
             using var content = new RecordingLeasedResourceStore();

@@ -284,9 +284,40 @@ refresh can subsequently activate pending desired inputs.
 
 Direct-constructor hosts call `RecoverAsync` after initializing the registry;
 ordinary `RefreshAsync` does not reinterpret every newly constructed coordinator
-as a cold server. Warm indeterminate-decision resolution and recovery of retained
-resolution-only dependency inputs remain separate acceptance work; these cold
-startup contracts do not establish Full-profile or HA conformance.
+as a cold server. Recovery of retained resolution-only dependency inputs remains
+separate acceptance work; these contracts do not establish Full-profile or
+HA conformance.
+
+## Resolving an interrupted warm publication
+
+`IWotRegistryRecoveryResolver` is an optional capability of the injected registry
+owner, with a DI alias to that same instance. A healthy owner returns without
+reloading or invalidating its validated evidence. When its deciding outcome is
+unresolved, the owner reloads through the existing store recovery rules.
+An absent primary with staged or backup artifacts remains an explicit error;
+neither the coordinator nor the resolver chooses a candidate from equal bytes.
+The store or its operator must first establish an authoritative primary.
+
+After storage resolves, conflicting mutation remains fenced until the matching
+runtime image is published. Read-only exact-Version capture and recovery-only
+invocation admission remain available. A recovery invocation cannot decide a new
+publication. Cancellation before publication keeps the fence; cancellation after
+authoritative validation does not abandon a committed runtime switch.
+
+`RecoverAsync` follows the actual deciding record. If it retained the old
+publication, existing native owners remain in place and only local registry
+metadata is reconciled. If it committed the candidate, the same prepared source
+and View owners restore that exact generation. A confirmed first-publication
+noncommit releases recovery admission without inventing an earlier runtime image.
+No recovery path advances store/refresh generation or replays materialization
+notifications. The next explicit refresh may persist its own dependency-attempt
+observation without creating another materialization generation.
+
+A coordinator that observed its own indeterminate outcome or committed store
+warning attempts this recovery before admitting a later refresh. An unresolved
+automatic attempt preserves the original recovery exception as the inner cause
+of the mutation-blocking error. Unrelated newly constructed coordinators do not
+acquire this retry behavior solely because the shared registry has a generation.
 
 ## Ordered live reconciliation
 
@@ -467,15 +498,16 @@ An indeterminate decision is not converted into a committed result. The registry
 continues to block conflicting mutation until its existing recovery path establishes
 the deciding store state. Failure to reacquire validated store evidence likewise
 retains the existing reload requirement; a committed image is not rolled back.
-This handoff does not implement automatic store recovery.
+Recovery does not infer an authoritative outcome from those artifacts; it uses
+the same deciding store rules described above.
 The captured selected input image remains distinct from the complete authoritative
 registry snapshot, including unselected Resources. Null, empty and retained-history
 graph carriers keep their existing meanings.
 
 The stock participant now joins the existing four-mode publication owner rather
 than falling back to immediate View mutation. Full-profile conformance does not
-follow from these carrier types or this participant. Warm indeterminate recovery,
-retained resolution-only input recovery, coordinated programmatic mutations,
+follow from these carrier types or this participant. Retained resolution-only
+input recovery, coordinated programmatic mutations,
 the independent R35 correlation residual and JSON Schema validation remain
 separate work.
 
