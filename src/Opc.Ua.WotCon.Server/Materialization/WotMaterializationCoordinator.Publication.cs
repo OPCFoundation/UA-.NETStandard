@@ -488,6 +488,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
             if (warning is not null)
             {
+                m_publicationRecoveryRequired = true;
                 string message = "Completed-attempt metadata committed with a warning: " +
                     DescribeCommittedFailure(warning.PersistenceFailure);
                 foreach (WoTResourceLoadResultDataType row in result.Results)

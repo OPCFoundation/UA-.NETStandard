@@ -314,8 +314,10 @@ notifications. The next explicit refresh may persist its own dependency-attempt
 observation without creating another materialization generation.
 
 A coordinator that observed its own indeterminate outcome or committed store
-warning attempts this recovery before admitting a later refresh. An unresolved
-automatic attempt preserves the original recovery exception as the inner cause
+warning attempts this recovery before admitting a later refresh. This includes
+warnings from metadata-only dependency-attempt commits, not only changed
+materialization publications. An unresolved automatic attempt preserves the
+original recovery exception as the inner cause
 of the mutation-blocking error. Unrelated newly constructed coordinators do not
 acquire this retry behavior solely because the shared registry has a generation.
 

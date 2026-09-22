@@ -32,15 +32,109 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
+using Opc.Ua.XRegistry.Server;
 
 namespace Opc.Ua.WotCon.Tests.Materialization
 {
     public sealed partial class WotAtomicPublicationNativeTests
     {
+        [Test]
+        public async Task UnchangedRefreshRecoversItsCommittedEvidenceWarningBeforeRetry()
+        {
+            bool arm = false;
+            bool failCapture = false;
+            int failedCaptures = 0;
+            var store = new Mock<IWotRegistryRecoveryStore>(MockBehavior.Strict);
+            store.SetupGet(owner => owner.SupportsPreparedCommits).Returns(() => m_store.SupportsPreparedCommits);
+            store.Setup(owner => owner.LoadAsync(It.IsAny<CancellationToken>()))
+                .Returns((CancellationToken token) => m_store.LoadAsync(token));
+            store.Setup(owner => owner.CommitAsync(It.IsAny<WotRegistrySnapshot>(), It.IsAny<CancellationToken>()))
+                .Returns((WotRegistrySnapshot snapshot, CancellationToken token) => m_store.CommitAsync(snapshot, token));
+            store.Setup(owner => owner.CaptureValidatedGenerationAsync(It.IsAny<CancellationToken>()))
+                .Returns((CancellationToken token) =>
+                {
+                    if (failCapture)
+                    {
+                        failCapture = false;
+                        failedCaptures++;
+                        throw new IOException("Transient post-commit evidence acquisition failure.");
+                    }
+                    return m_store.CaptureValidatedGenerationAsync(token);
+                });
+            store.Setup(owner => owner.ValidatePublicationAsync(
+                It.IsAny<IWotRegistryValidatedGeneration>(), It.IsAny<CancellationToken>()))
+                .Returns((IWotRegistryValidatedGeneration generation, CancellationToken token) =>
+                    m_store.ValidatePublicationAsync(generation, token));
+            store.Setup(owner => owner.PrepareCommitAsync(
+                It.IsAny<WotRegistrySnapshot>(), It.IsAny<IWotRegistryValidatedGeneration>(),
+                It.IsAny<WotRegistryCommitScope>(), It.IsAny<CancellationToken>()))
+                .Returns(async (WotRegistrySnapshot snapshot, IWotRegistryValidatedGeneration generation,
+                    WotRegistryCommitScope scope, CancellationToken token) =>
+                {
+                    IWotRegistryPreparedCommit prepared = await m_store.PrepareCommitAsync(
+                        snapshot, generation, scope, token).ConfigureAwait(false);
+                    var tracked = new Mock<IWotRegistryPreparedCommit>(MockBehavior.Strict);
+                    tracked.SetupGet(value => value.IntendedSnapshot).Returns(prepared.IntendedSnapshot);
+                    tracked.Setup(value => value.CommitAsync(It.IsAny<CancellationToken>()))
+                        .Returns(async (CancellationToken commitToken) =>
+                        {
+                            await prepared.CommitAsync(commitToken).ConfigureAwait(false);
+                            if (arm)
+                            {
+                                arm = false;
+                                failCapture = true;
+                            }
+                        });
+                    tracked.Setup(value => value.DisposeAsync()).Returns(prepared.DisposeAsync);
+                    return tracked.Object;
+                });
+            m_coordinator.Dispose();
+            m_registry.Dispose();
+            m_registry = new WotRegistryService(new EvidenceStoreAdapter(store.Object, m_store.ResourceStore));
+            await m_registry.InitializeAsync().ConfigureAwait(false);
+            using var views = new LifecycleWotViewProjectionHost(m_server.NodeManagerLifecycle);
+            HandoffProbe probe = await ConfigureStockViewsAsync(views).ConfigureAwait(false);
+            WotResource resource = await UpsertStockSourceAsync(false).ConfigureAwait(false);
+            await AddStockViewAsync("child", false).ConfigureAwait(false);
+            await m_coordinator.RefreshAsync(HandoffRequest("metadata-initial")).ConfigureAwait(false);
+            ArrayOf<NodeManagerRegistration> owners = m_server.NodeManagerLifecycle.Registrations;
+            long before = m_registry.Current.Generation;
+            m_events.Clear();
+            arm = true;
+
+            WotRefreshResult warning = await m_coordinator.RefreshAsync(HandoffRequest("metadata-warning", 1))
+                .ConfigureAwait(false);
+
+            Assert.That(warning.NewGeneration, Is.EqualTo(1u));
+            Assert.That(warning.Summary.Outcome, Is.EqualTo(WoTOutcomeEnum.Warning));
+            Assert.That(failedCaptures, Is.EqualTo(1));
+            Assert.That(m_registry.Current.Generation, Is.EqualTo(before + 1));
+            Assert.That(m_registry.Current.FindResourceByXid(resource.Xid)!.FindVersion("v1")!
+                .LastDependencyAttempt!.RequestId, Is.EqualTo("metadata-warning"));
+            await Assert.ThatAsync(async () => await m_registry.BeginPublicationAsync().ConfigureAwait(false),
+                Throws.TypeOf<InvalidOperationException>().With.Message.Contains("reload")).ConfigureAwait(false);
+
+            WotRefreshResult retry = await m_coordinator.RefreshAsync(HandoffRequest("metadata-retry", 1))
+                .ConfigureAwait(false);
+
+            Assert.That(retry.Summary.Outcome, Is.EqualTo(WoTOutcomeEnum.Unchanged));
+            Assert.That(retry.NewGeneration, Is.EqualTo(1u));
+            Assert.That(m_registry.Current.Generation, Is.EqualTo(before + 2));
+            Assert.That(m_server.NodeManagerLifecycle.Registrations, Is.EqualTo(owners));
+            Assert.That(probe.PublicationCount, Is.EqualTo(1));
+            Assert.That(m_events.Any(change => change.Kind == WotMaterializationEventKind.Resource), Is.False);
+            WotResourceVersion version = m_registry.Current.FindResourceByXid(resource.Xid)!.FindVersion("v1")!;
+            Assert.That(version.LastDependencyAttempt!.RequestId, Is.EqualTo("metadata-retry"));
+            Assert.That(version.DependencySnapshot!.RequestId, Is.EqualTo("metadata-initial"));
+            Assert.That(await ReadStockValueAsync("Reading").ConfigureAwait(false), Is.EqualTo(42));
+            await AssertStockMembershipAsync("child", 1, ["Reading"]).ConfigureAwait(false);
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public Task WarmRecoveryWaitsForTheDecidingStoreAndRestoresItsActualOutcome(bool committed)
@@ -107,6 +201,44 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(next.NewGeneration, Is.EqualTo(1u));
             Assert.That(await ReadStockValueAsync("Reading").ConfigureAwait(false), Is.EqualTo(42));
             await AssertStockMembershipAsync("child", 1, ["Reading"]).ConfigureAwait(false);
+        }
+
+        private sealed class EvidenceStoreAdapter(
+            IWotRegistryRecoveryStore inner, IXRegistryResourceStore resourceStore)
+            : IWotRegistryRecoveryStore, IWotRegistryResourceStoreProvider
+        {
+            public IXRegistryResourceStore ResourceStore => resourceStore;
+            public bool SupportsPreparedCommits => inner.SupportsPreparedCommits;
+
+            public ValueTask<WotRegistrySnapshot> LoadAsync(CancellationToken cancellationToken = default)
+            {
+                return inner.LoadAsync(cancellationToken);
+            }
+
+            public ValueTask CommitAsync(
+                WotRegistrySnapshot snapshot, CancellationToken cancellationToken = default)
+            {
+                return inner.CommitAsync(snapshot, cancellationToken);
+            }
+
+            public ValueTask<IWotRegistryValidatedGeneration> CaptureValidatedGenerationAsync(
+                CancellationToken cancellationToken = default)
+            {
+                return inner.CaptureValidatedGenerationAsync(cancellationToken);
+            }
+
+            public ValueTask<IWotRegistryPreparedCommit> PrepareCommitAsync(
+                WotRegistrySnapshot intendedSnapshot, IWotRegistryValidatedGeneration expectedGeneration,
+                WotRegistryCommitScope scope, CancellationToken cancellationToken = default)
+            {
+                return inner.PrepareCommitAsync(intendedSnapshot, expectedGeneration, scope, cancellationToken);
+            }
+
+            public ValueTask<IWotRegistryPublicationValidation> ValidatePublicationAsync(
+                IWotRegistryValidatedGeneration expectedGeneration, CancellationToken cancellationToken = default)
+            {
+                return inner.ValidatePublicationAsync(expectedGeneration, cancellationToken);
+            }
         }
 
         private async Task VerifyWarmRecoveryAsync(
