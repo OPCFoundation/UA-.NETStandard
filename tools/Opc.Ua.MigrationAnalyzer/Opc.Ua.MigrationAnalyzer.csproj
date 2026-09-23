@@ -36,6 +36,20 @@
          after Nerdbank.GitVersioning has populated $(PackageVersion). Setting it
          here in a static PropertyGroup would capture empty version. -->
   </PropertyGroup>
+  <!--
+    Every packable library in this repository also ships a "<id>.Debug"
+    package built from the Debug configuration (see version.targets). This
+    package is neither: its identity and its six OPC UA dependency IDs are
+    fixed in Opc.Ua.MigrationAnalyzer.nuspec, so $(PackageId) does not name
+    the produced package at all, and a Debug build of a Roslyn analyzer has
+    no consumer value - the analyzer runs inside the compiler rather than
+    shipping in an application. Opt out of the Debug pack leg explicitly;
+    nuget-publish.yml fails closed on any packable project that neither
+    renames nor opts out.
+  -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
   <ItemGroup>
     <!-- The build props is referenced in the nuspec; surface it in the IDE too. -->
     <None Include="OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer.props" Visible="false" Pack="false" />
