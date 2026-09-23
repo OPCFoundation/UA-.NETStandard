@@ -513,6 +513,32 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task DryRunLaterUnitFailureDoesNotRelabelAnEarlierValidatedRetirement()
         {
+            await AssertDryRunUnitFailureRetirementAsync(rejectEveryUnit: false).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task DryRunRepeatedUnitRejectionsReportEachRetirementResourceOnce()
+        {
+            await AssertDryRunUnitFailureRetirementAsync(rejectEveryUnit: true).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task DryRunLaterAcceptedRetirementReplacesItsEarlierFailedPrediction()
+        {
+            await AssertDryRunUnitFailureRetirementAsync(rejectEveryUnit: false, rejectFirstUnitOnly: true)
+                .ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task DryRunRepeatedRetirementResultsRetainTheExactSelectedVersionXid()
+        {
+            await AssertDryRunUnitFailureRetirementAsync(rejectEveryUnit: true, exactRetiredVersion: true)
+                .ConfigureAwait(false);
+        }
+
+        private async Task AssertDryRunUnitFailureRetirementAsync(
+            bool rejectEveryUnit, bool rejectFirstUnitOnly = false, bool exactRetiredVersion = false)
+        {
             HandoffProbe probe = ObserveHandoff();
             await m_server.NodeManagerLifecycle.AddAsync(new WotRegistryNodeManagerFactory(
                 new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator),
@@ -524,9 +550,16 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             await m_registry.SetEnabledAsync(retired.GroupId, retired.ResourceId, false).ConfigureAwait(false);
             await AwaitStockRegistryProjectionAsync().ConfigureAwait(false);
             WotRegistrySnapshot before = m_registry.Current;
+            string retiredXid = exactRetiredVersion
+                ? WotDependencyGraph.VersionXid(retired, retired.DefaultVersion!)
+                : retired.Xid;
             probe.OnRuntimeCreated = () =>
             {
-                if (probe.RuntimeCreatedCount > 2)
+                if (rejectFirstUnitOnly)
+                {
+                    probe.RejectReadImages = probe.RuntimeCreatedCount == 2;
+                }
+                else if (rejectEveryUnit || probe.RuntimeCreatedCount > 2)
                 {
                     probe.RejectReadImages = true;
                 }
@@ -536,19 +569,28 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest
             {
                 ExpectedGeneration = 1,
-                Selection = [new WoTResourceSelectorDataType { Kind = WoTDocumentKindEnum.All }],
+                Selection = exactRetiredVersion
+                    ? [new WoTResourceSelectorDataType { Kind = retired.Kind, Xid = retiredXid },
+                        UnitSelector(first), UnitSelector(second)]
+                    : [new WoTResourceSelectorDataType { Kind = WoTDocumentKindEnum.All }],
                 Options = new WoTRefreshOptionsDataType { Atomicity = WoTAtomicityEnum.PerResource, DryRun = true }
             }).ConfigureAwait(false);
 
             Assert.That(result.Summary.Atomicity, Is.EqualTo(WoTAtomicityEnum.PerResource));
             Assert.That(result.Summary.Total, Is.EqualTo(3u));
-            Assert.That(result.Summary.Succeeded, Is.EqualTo(1u));
-            Assert.That(result.Summary.Failed, Is.EqualTo(1u));
-            Assert.That(result.Summary.Skipped, Is.EqualTo(1u));
-            Assert.That(result.Results.Single(row => row.Xid == retired.Xid).Outcome,
-                Is.EqualTo(WoTOutcomeEnum.Skipped));
-            Assert.That(result.Results.Single(row => row.Xid == first.Xid).Outcome, Is.EqualTo(WoTOutcomeEnum.Warning));
-            WoTResourceLoadResultDataType failed = result.Results.Single(row => row.Xid == second.Xid);
+            Assert.That(result.Results.Select(row => row.Xid), Is.EquivalentTo(
+                new[] { retiredXid, first.Xid, second.Xid }));
+            Assert.That(result.Summary.Succeeded, Is.EqualTo(rejectEveryUnit ? 0u : 1u));
+            Assert.That(result.Summary.Failed, Is.EqualTo(rejectEveryUnit ? 3u : 1u));
+            Assert.That(result.Summary.Skipped, Is.EqualTo(rejectEveryUnit ? 0u : 1u));
+            Assert.That(result.Results.Single(row => row.Xid == retiredXid).Outcome,
+                Is.EqualTo(rejectEveryUnit ? WoTOutcomeEnum.Failed : WoTOutcomeEnum.Skipped));
+            Assert.That(result.Results.Single(row => row.Xid == first.Xid).Outcome,
+                Is.EqualTo(rejectEveryUnit || rejectFirstUnitOnly ? WoTOutcomeEnum.Failed : WoTOutcomeEnum.Warning));
+            Assert.That(result.Results.Single(row => row.Xid == second.Xid).Outcome,
+                Is.EqualTo(rejectFirstUnitOnly ? WoTOutcomeEnum.Warning : WoTOutcomeEnum.Failed));
+            WoTResourceLoadResultDataType failed = result.Results.Single(row =>
+                row.Xid == (rejectFirstUnitOnly ? first.Xid : second.Xid));
             Assert.That(failed.Outcome, Is.EqualTo(WoTOutcomeEnum.Failed));
             Assert.That(failed.Message, Does.Contain("cannot retain read images"));
             Assert.That(result.NewGeneration, Is.EqualTo(1u));

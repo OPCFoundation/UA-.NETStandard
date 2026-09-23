@@ -162,6 +162,32 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 rows.AddRange(empty.Results);
                 retired = empty.Summary.Retired;
             }
+            if (preview is not null)
+            {
+                WoTResourceLoadResultDataType[] unique =
+                [
+                    .. rows.GroupBy(row => (row.GroupId, row.ResourceId)).Select(group =>
+                    {
+                        WoTResourceLoadResultDataType latest = group.Last();
+                        latest.Xid = group.First().Xid;
+                        return latest;
+                    })
+                ];
+                rows.Clear();
+                foreach (WoTResourceLoadResultDataType row in unique)
+                {
+                    if (row.Outcome == WoTOutcomeEnum.Failed && preview.Projections.Any(projection =>
+                        projection.GroupId == row.GroupId && projection.ResourceId == row.ResourceId &&
+                        projection.LoadState == WoTLoadStateEnum.Unloaded && projection.ActiveVersionId is null &&
+                        !projection.RetainPreviousActiveVersion))
+                    {
+                        row.Outcome = WoTOutcomeEnum.Skipped;
+                        row.Phase = WoTPhaseEnum.Activation;
+                        row.Message = "Dry run; the retirement candidate was validated without publication.";
+                    }
+                    rows.Add(row);
+                }
+            }
             uint succeeded = (uint)rows.Count(row => row.Outcome is WoTOutcomeEnum.Success or WoTOutcomeEnum.Warning);
             uint failed = (uint)rows.Count(row => row.Outcome == WoTOutcomeEnum.Failed);
             foreach (WoTResourceLoadResultDataType row in rows)
