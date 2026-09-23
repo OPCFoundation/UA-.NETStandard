@@ -286,7 +286,10 @@ Version eviction or an edit to the same VersionId.
 
 Recovery pins those inputs privately without applying a later default Version
 or pending Enabled change. The registry's desired/default metadata remains
-unchanged. Missing records, conflicting input identity or role, and disagreement
+unchanged. A compatible, previously committed active owner remains active with
+its own committed Version, root and generation; using its input for resolution
+does not activate it again or replace that ownership. Missing records,
+conflicting input identity or Version, and disagreement
 with a committed dependency observation fail before child publication.
 Retiring or replacing the owning publication releases its former input records
 through the same retention rules as other committed content.

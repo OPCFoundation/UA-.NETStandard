@@ -257,12 +257,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             // Reloaded records have independent process-local incarnation IDs.
                             if (previous.Kind != input.Kind || previous.SourceId != input.SourceId ||
                                 previous.MetaCreatedAt != input.MetaCreatedAt ||
-                                retained.VersionId != candidate.VersionId ||
-                                retained.CreatedAt != candidate.CreatedAt || retained.Epoch != candidate.Epoch ||
-                                retained.ContentLength != candidate.ContentLength ||
-                                retained.Format != candidate.Format ||
-                                retained.ContentType != candidate.ContentType ||
-                                !WotContentDigest.Equal(retained.Digest, candidate.Digest))
+                                !SameCommittedInputVersion(retained, candidate))
                             {
                                 throw new ServiceResultException(
                                     StatusCodes.BadInvalidState,
@@ -299,11 +294,20 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     WotResource? current = original.FindResource(input.GroupId, input.ResourceId);
                     if (current is null || current.Kind != input.Kind || current.SourceId != input.SourceId ||
-                        current.MetaCreatedAt != input.MetaCreatedAt ||
-                        current.ActiveVersionId is not null)
+                        current.MetaCreatedAt != input.MetaCreatedAt)
                     {
                         throw new ServiceResultException(
-                            StatusCodes.BadInvalidState, "A committed resolution input has lost its identity or role.");
+                            StatusCodes.BadInvalidState, "A committed resolution input has lost its identity.");
+                    }
+                    if (current.ActiveVersionId is not null)
+                    {
+                        if (current.CommittedVersion is not { } active ||
+                            !SameCommittedInputVersion(active, input.Versions[0]))
+                        {
+                            throw new ServiceResultException(StatusCodes.BadInvalidState,
+                                "A resolution input conflicts with its existing committed activation.");
+                        }
+                        continue;
                     }
                     WotResourceGroup group = original.FindGroup(input.GroupId)!;
                     original = original.WithGroup(group.WithResources(
@@ -519,6 +523,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
         internal static string VersionXid(WotResource resource, WotResourceVersion version)
         {
             return resource.Xid + "/versions/" + version.VersionId;
+        }
+
+        private static bool SameCommittedInputVersion(WotResourceVersion left, WotResourceVersion right)
+        {
+            return left.VersionId == right.VersionId && left.CreatedAt == right.CreatedAt &&
+                left.Epoch == right.Epoch && left.ContentLength == right.ContentLength &&
+                left.Format == right.Format && left.ContentType == right.ContentType &&
+                WotContentDigest.Equal(left.Digest, right.Digest);
         }
 
         private static WotResource PinVersion(WotResource resource, WotResourceVersion version)

@@ -78,13 +78,28 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return VerifyCommittedResolutionInputAsync(false, sharedInput: true);
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public Task ColdRecoveryPreservesAnAlreadyActiveResolutionInputOwner(bool overwriteVersion)
+        {
+            return VerifyCommittedResolutionInputAsync(overwriteVersion, activeInput: true);
+        }
+
+        [Test]
+        public Task ColdRecoveryRejectsAResolutionInputThatConflictsWithItsActiveOwner()
+        {
+            return VerifyCommittedResolutionInputAsync(
+                false, damage: RetainedInputDamage.ActiveVersionMismatch, activeInput: true);
+        }
+
         private async Task VerifyCommittedResolutionInputAsync(
             bool overwriteVersion,
             bool evictVersion = false,
             bool enableInput = false,
             RetainedInputDamage damage = RetainedInputDamage.None,
             bool nativeOrigin = true,
-            bool sharedInput = false)
+            bool sharedInput = false,
+            bool activeInput = false)
         {
             var consumed = new List<ByteString>();
             var converter = new Mock<IWotDocumentConverter>(MockBehavior.Strict);
@@ -124,6 +139,16 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             WotResource model = await AddUnitModelAsync("retained-input").ConfigureAwait(false);
             WotResource source = await AddAsync("retained-dependent").ConfigureAwait(false);
             await SetUnitDependencyAsync(source, model.ResourceId).ConfigureAwait(false);
+            if (activeInput)
+            {
+                WotRefreshResult activated = await m_coordinator.RefreshAsync(new WotRefreshRequest
+                {
+                    Selection = [UnitSelector(model)],
+                    RequestId = "retained-input-preexisting",
+                    Options = new WoTRefreshOptionsDataType { Atomicity = WoTAtomicityEnum.PerRegistry }
+                }).ConfigureAwait(false);
+                Assert.That(activated.NewGeneration, Is.EqualTo(1u));
+            }
             await m_registry.SetEnabledAsync(model.GroupId, model.ResourceId, false).ConfigureAwait(false);
             ArrayOf<WoTResourceSelectorDataType> selection = [UnitSelector(source)];
             if (sharedInput)
@@ -139,10 +164,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 RequestId = "retained-input-initial",
                 Options = new WoTRefreshOptionsDataType { Atomicity = WoTAtomicityEnum.PerRegistry }
             }).ConfigureAwait(false);
-            Assert.That(initial.NewGeneration, Is.EqualTo(1u));
+            Assert.That(initial.NewGeneration, Is.EqualTo(activeInput ? 2u : 1u));
             Assert.That(consumed, Is.EqualTo(new[] { committedInput }));
             Assert.That((await ReadNodeClassAsync(Root(model)).ConfigureAwait(false)).StatusCode,
-                Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                Is.EqualTo(activeInput ? StatusCodes.Good : StatusCodes.BadNodeIdUnknown));
             WotResource active = m_registry.Current.FindResourceByXid(source.Xid)!;
             WotDependencySnapshot? observation = active.ActiveVersion!.DependencySnapshot;
             if (nativeOrigin)
@@ -155,7 +180,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             {
                 Assert.That(observation, Is.Null);
             }
-            Assert.That(m_registry.Current.FindResourceByXid(model.Xid)!.ActiveVersionId, Is.Null);
+            Assert.That(m_registry.Current.FindResourceByXid(model.Xid)!.ActiveVersionId,
+                activeInput ? Is.EqualTo("v1") : Is.Null);
 
             WotRegistryMutationResult edited = await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
@@ -179,7 +205,17 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 await m_registry.SetEnabledAsync(model.GroupId, model.ResourceId, true).ConfigureAwait(false);
             }
             WotRegistrySnapshot decided = m_registry.Current;
-            if (damage != RetainedInputDamage.None)
+            if (damage == RetainedInputDamage.ActiveVersionMismatch)
+            {
+                WotResource owner = decided.FindResourceByXid(model.Xid)!;
+                WotResourceVersion version = owner.DefaultVersion!;
+                WotResource changed = owner.With(activeVersionId: version.VersionId).WithCommittedVersion(version);
+                WotResourceGroup group = decided.FindGroup(model.GroupId)!;
+                decided = decided.WithGroup(group.WithResources(
+                    group.Resources.SetItem(model.ResourceId, changed), group.Epoch), decided.Generation + 1);
+                await m_store.CommitAsync(decided).ConfigureAwait(false);
+            }
+            else if (damage != RetainedInputDamage.None)
             {
                 WotResource owner = decided.FindResourceByXid(source.Xid)!;
                 ArrayOf<WotResource> retained = [];
@@ -249,14 +285,26 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Assert.That(read.Results[1].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown),
                     "Recovery must not rebuild the committed source using newer resolution-only input bytes.");
                 Assert.That(consumed, Is.EqualTo(new[] { committedInput }));
-                Assert.That(registry.Current.FindResourceByXid(model.Xid)!.ActiveVersionId, Is.Null);
+                Assert.That(registry.Current.FindResourceByXid(model.Xid)!.ActiveVersionId,
+                    activeInput ? Is.EqualTo("v1") : Is.Null);
                 Assert.That(registry.Current.FindResourceByXid(model.Xid)!.Enabled, Is.EqualTo(enableInput));
                 Assert.That(registry.Current.FindResourceByXid(model.Xid)!.DefaultVersionId,
                     Is.EqualTo(overwriteVersion ? "v1" : "v2"));
-                Assert.That(registry.Current.FindResourceByXid(model.Xid)!.RefreshGeneration, Is.Zero);
+                Assert.That(registry.Current.FindResourceByXid(model.Xid)!.RefreshGeneration,
+                    Is.EqualTo(activeInput ? 1u : 0u));
                 Assert.That(registry.Current.Generation, Is.EqualTo(decided.Generation));
-                Assert.That(recovered.Generation, Is.EqualTo(1u));
+                Assert.That(recovered.Generation, Is.EqualTo(activeInput ? 2u : 1u));
                 Assert.That(events, Is.Empty);
+                if (activeInput)
+                {
+                    NodeId root = ExpandedNodeId.ToNodeId(
+                        new ExpandedNodeId(5000u, ModelUri(model)), restarted.Namespaces);
+                    ReadResponse existing = await session.ReadAsync(null, 0, TimestampsToReturn.Neither,
+                        [new ReadValueId { NodeId = root, AttributeId = Attributes.NodeClass }],
+                        CancellationToken.None).ConfigureAwait(false);
+                    Assert.That(existing.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(registry.Current.FindResourceByXid(model.Xid)!.RootNodeId, Is.EqualTo(root));
+                }
                 WotDependencySnapshot? restoredObservation =
                     registry.Current.FindResourceByXid(source.Xid)!.ActiveVersion!.DependencySnapshot;
                 if (observation is null)
@@ -280,7 +328,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         {
             None,
             Missing,
-            Contradictory
+            Contradictory,
+            ActiveVersionMismatch
         }
     }
 }
