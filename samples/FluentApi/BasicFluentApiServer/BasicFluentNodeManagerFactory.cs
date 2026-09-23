@@ -47,8 +47,10 @@ namespace BasicFluentApiServer
             ApplicationConfiguration configuration,
             CancellationToken cancellationToken = default)
         {
+#pragma warning disable CA2000 // Dispose objects before losing scope
             IAsyncNodeManager nodeManager =
                 new BasicFluentNodeManager(server, configuration);
+#pragma warning restore CA2000
 
             return ValueTask.FromResult(nodeManager);
         }
