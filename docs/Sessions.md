@@ -569,6 +569,11 @@ Recreation retains that ownership through cancellation cleanup and the final
 Publish drain. Only the owning recovery can release its publishing pause, and
 the session admits another recovery after that cleanup finishes.
 
+Automatic V2 subscription updates remain paused while subscription restoration
+is pending, including a handoff after deadline expiry. Recovery cancels active
+update passes and restores subscriptions explicitly before admitting their
+automatic retries. See [publishing during session recovery](Subscriptions.md#publishing-during-session-recovery).
+
 `IReconnectParticipant.CreateReconnectBudget` supplies a budget for each new
 shared recovery cycle, or returns null to impose no participant-specific limit.
 The manager samples active participants outside its entry lock. The earliest

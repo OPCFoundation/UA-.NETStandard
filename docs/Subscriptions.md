@@ -128,6 +128,15 @@ active count. Recreation must await this complete unwind because a timeout that 
 the drain could acknowledge notifications from the old subscription generation
 against a reused subscription identifier.
 
+Automatic subscription and monitored-item updates also pause during session
+recreation. Recovery cancels an active update pass; its retry waits until the
+recovery owner completes subscription restoration. If restoration fails, this
+pause remains in effect across the outer-policy handoff. The state worker cannot
+create a competing subscription on a retiring or replacement session. Pending
+option changes resume after restoration, without changing explicit
+`RecreateAsync` or transfer semantics. Cancellation remains client-side and does
+not guarantee that an already-sent request was not processed by the server.
+
 Once the session and subscriptions are restored, publishing resumes through the
 same subscription-facing interface. Temporarily clearing server-side subscription
 identifiers does not replace existing workers. Pool limits and actual subscription

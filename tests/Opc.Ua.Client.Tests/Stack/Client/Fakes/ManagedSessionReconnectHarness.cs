@@ -39,7 +39,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Opc.Ua.Client.Subscriptions;
-using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using Opc.Ua.Tests;
 using UaManagedSession = Opc.Ua.Client.ManagedSession;
 
@@ -298,6 +297,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         /// <summary>
         /// Adds a real publishing subscription with one Value data-change item and a gated notification callback.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         public ISubscription AddSubscription()
         {
             ISubscription subscription = EngineFactory.Engine.SubscriptionManager.Add(
@@ -459,7 +459,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                     }
                     if (Interlocked.Increment(ref m_activationCount) > 1 &&
                         (activate.RequestHeader.AuthenticationToken == new NodeId("token-1", 1) ||
-                        channel.CreateSessionCount == 0))
+                            channel.CreateSessionCount == 0))
                     {
                         if (initialChannel)
                         {
@@ -522,7 +522,8 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                         Results = delete.SubscriptionIds.ToList().Select(id =>
                             m_serverSubscriptions.TryGetValue(
                                 delete.RequestHeader.AuthenticationToken, out uint last) &&
-                            id >= SubscriptionId && id <= last
+                            id >= SubscriptionId &&
+                            id <= last
                                 ? StatusCodes.Good
                                 : StatusCodes.BadSubscriptionIdInvalid).ToArrayOf()
                     };
@@ -559,6 +560,8 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         {
             IManagedTransportChannel lease = m_recoveryLease
                 ?? throw new InvalidOperationException("The outer policy ran before scripted recovery began.");
+            Task automaticUpdate = ((SubscriptionManager)EngineFactory.Engine.SubscriptionManager)
+                .RunWithSessionAvailableAsync(_ => default, ct).AsTask();
             m_outerRecoveryStarted.TrySetResult(new RecoveryBoundary(
                 TransportReconnect.Exited.IsCompleted,
                 RecoveryActivation.Exited.IsCompleted,
@@ -568,7 +571,8 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                 Session.InnerSession.Reconnecting,
                 lease.State,
                 Clock.GetElapsedTime(m_recoveryStartedAt),
-                KeepAliveReadCount));
+                KeepAliveReadCount,
+                automaticUpdate));
             return m_outerPolicy.GetNextDelay(attempt, ct);
         }
 
@@ -586,6 +590,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         /// <param name="ChannelState">The state of the lease on which scripted channel recovery began.</param>
         /// <param name="Elapsed">The fake time elapsed since scripted channel recovery began.</param>
         /// <param name="KeepAliveReads">The number of server-state keepalive reads received at this boundary.</param>
+        /// <param name="AutomaticUpdate">An automatic-update admission probe started at this boundary.</param>
         internal sealed record RecoveryBoundary(
             bool TransportExited,
             bool ActivationExited,
@@ -595,7 +600,8 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
             bool SessionReconnecting,
             ChannelState ChannelState,
             TimeSpan Elapsed,
-            int KeepAliveReads);
+            int KeepAliveReads,
+            Task AutomaticUpdate);
 
         /// <summary>
         /// Associates a data-value change delivered by the real callback with its subscription and sequence number.
@@ -768,9 +774,12 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         private readonly ConcurrentQueue<IServiceRequest> m_requests = new();
         private readonly ConcurrentDictionary<NodeId, uint> m_serverSubscriptions = new();
         private readonly Channel<WirePublish> m_publishes = Channel.CreateUnbounded<WirePublish>();
+
         private readonly Channel<CreateMonitoredItemsRequest> m_monitoredItems =
             Channel.CreateUnbounded<CreateMonitoredItemsRequest>();
+
         private readonly Channel<ReceivedData> m_notifications = Channel.CreateUnbounded<ReceivedData>();
+
         private readonly ReconnectPolicy m_outerPolicy = new(new ReconnectPolicyOptions
         {
             InitialDelay = TimeSpan.Zero,
@@ -778,14 +787,19 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
             MaxRetries = 1,
             JitterFactor = 0
         });
+
         private readonly TaskCompletionSource<RecoveryBoundary> m_outerRecoveryStarted =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
+
         private readonly TaskCompletionSource<bool> m_outerRecoveryCompleted =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
+
         private readonly TaskCompletionSource<bool> m_initialKeepAliveRead =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
+
         private readonly TaskCompletionSource<StatusCode> m_failedKeepAlive =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
+
         private IManagedTransportChannel? m_recoveryLease;
         private long m_recoveryStartedAt;
         private int m_keepAliveReadCount;

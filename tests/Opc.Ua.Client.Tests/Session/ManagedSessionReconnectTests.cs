@@ -568,6 +568,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(boundary.InnerRecoveryInProgress, Is.False);
             Assert.That(boundary.SessionReconnecting, Is.False);
             Assert.That(boundary.SubscriptionCreateExited, Is.EqualTo(!lateResponse));
+            Assert.That(boundary.AutomaticUpdate.IsCompleted, Is.False);
             Assert.That(oldCreate.CancellationToken.IsCancellationRequested, Is.True);
             Assert.That(harness.ReplacementSubscription.IsReleased, Is.False);
             await WaitForPhaseAsync(harness.SuccessorSession.Entered, "replacement after failed restoration")
@@ -579,6 +580,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 .ConfigureAwait(false);
             WirePublish acknowledgement = await AssertRecreatedSubscriptionAsync(
                 harness, live, 3, ackTimer, publishBackoff).ConfigureAwait(false);
+            await WaitForPhaseAsync(boundary.AutomaticUpdate, "automatic update after explicit restoration")
+                .ConfigureAwait(false);
 
             if (lateResponse)
             {

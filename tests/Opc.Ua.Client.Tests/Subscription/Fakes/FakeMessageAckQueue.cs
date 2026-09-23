@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -99,7 +97,7 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         public async Task WaitForQueuedAckAsync(int count, int timeoutMs = 5000)
         {
             const int kPollIntervalMs = 10;
-            TimeSpan timeout = TimeSpan.FromMilliseconds(timeoutMs);
+            var timeout = TimeSpan.FromMilliseconds(timeoutMs);
             long start = TimeProvider.System.GetTimestamp();
             while (true)
             {
@@ -140,6 +138,13 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             CancellationToken ct = default)
         {
             PublishingQuiescenceCalls++;
+            return operation(ct);
+        }
+
+        public ValueTask RunWithSessionAvailableAsync(
+            Func<CancellationToken, ValueTask> operation,
+            CancellationToken ct = default)
+        {
             return operation(ct);
         }
 

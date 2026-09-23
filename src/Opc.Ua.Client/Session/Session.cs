@@ -3558,7 +3558,7 @@ namespace Opc.Ua.Client
                 engine.SubscriptionManager is Subscriptions.SubscriptionManager manager)
             {
                 await manager.DrainAsync(CancellationToken.None).ConfigureAwait(false);
-                manager.SetSessionRecoveryPaused(false);
+                manager.SetSessionRecoveryPaused(m_pendingSubscriptionRecovery != null);
             }
             else
             {

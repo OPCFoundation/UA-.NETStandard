@@ -1032,6 +1032,76 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
+        private async ValueTask<bool> ApplyStateChangesAsync(int consecutiveApplyFailures, CancellationToken ct)
+        {
+            await m_stateLock.WaitAsync(ct).ConfigureAwait(false);
+            SubscriptionOptions options = Options;
+            bool applyFailed = false;
+            bool recreateRequired = false;
+            try
+            {
+                if (Interlocked.Exchange(ref m_recreateRequested, 0) != 0)
+                {
+                    recreateRequired = Created;
+                }
+                else if (options.Disabled)
+                {
+                    await DeleteAsync(ct).ConfigureAwait(false);
+                }
+                else
+                {
+                    if (!Created)
+                    {
+                        await CreateAsync(options, ct).ConfigureAwait(false);
+                        await RunAfterCreateHookAsync(ct).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await ModifyAsync(options, ct).ConfigureAwait(false);
+                    }
+
+                    bool modified = await m_monitoredItems.ApplyChangesAsync(false, false, ct)
+                        .ConfigureAwait(false);
+                    if (modified)
+                    {
+                        OnSubscriptionStateChanged(SubscriptionState.Modified);
+                    }
+                }
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                applyFailed = true;
+                recreateRequired = Created &&
+                    ex is ServiceResultException sre &&
+                    sre.StatusCode == StatusCodes.BadSubscriptionIdInvalid;
+                if (consecutiveApplyFailures == 0)
+                {
+                    Logger.FailedApplySubscriptionChangesWillRetry(ex);
+                }
+                else
+                {
+                    Logger.RetryingSubscriptionChangesFailedAttemptAttempt(ex, consecutiveApplyFailures + 1);
+                }
+            }
+            finally
+            {
+                m_stateLock.Release();
+            }
+
+            if (recreateRequired && !ct.IsCancellationRequested)
+            {
+                await ResetToRecreateAsync(ct).ConfigureAwait(false);
+            }
+            return applyFailed;
+        }
+
         /// <summary>
         /// Controls the state changes of the subscriptions and the contained monitored
         /// items.
@@ -1047,93 +1117,11 @@ namespace Opc.Ua.Client.Subscriptions
                 while (!ct.IsCancellationRequested)
                 {
                     await m_stateControl.WaitAsync(ct).ConfigureAwait(false);
-                    await m_stateLock.WaitAsync(ct).ConfigureAwait(false);
-                    SubscriptionOptions options = Options;
                     bool applyFailed = false;
-                    bool recreateRequired = false;
-                    try
-                    {
-                        while (!ct.IsCancellationRequested)
-                        {
-                            if (Interlocked.Exchange(ref m_recreateRequested, 0) != 0)
-                            {
-                                recreateRequired = Created;
-                                break;
-                            }
-
-                            if (options.Disabled)
-                            {
-                                await DeleteAsync(ct).ConfigureAwait(false);
-                                break; // Wait for changes while disabled
-                            }
-
-                            if (!Created)
-                            {
-                                await CreateAsync(options, ct).ConfigureAwait(false);
-                                // Run the post-create hook exactly
-                                // once per partition lifetime to
-                                // satisfy ordering-sensitive callers
-                                // (e.g. SetSubscriptionDurable, which
-                                // per OPC UA Part 4 §5.13.9 must
-                                // precede any monitored-item
-                                // creation). Modify cycles do not reach
-                                // this branch, while later create passes
-                                // intentionally run the hook again.
-                                await RunAfterCreateHookAsync(ct)
-                                    .ConfigureAwait(false);
-                            }
-                            else
-                            {
-                                await ModifyAsync(options, ct).ConfigureAwait(false);
-                            }
-
-                            bool modified = await m_monitoredItems.ApplyChangesAsync(
-                                false, false, ct).ConfigureAwait(false);
-                            if (modified)
-                            {
-                                OnSubscriptionStateChanged(SubscriptionState.Modified);
-                            }
-                            break;
-                        }
-                    }
-                    catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-                    {
-                    }
-                    catch (Exception ex)
-                    {
-                        applyFailed = true;
-                        // The server no longer knows this subscription, so every
-                        // further Modify / ApplyChanges against the current id
-                        // fails the same way. Recreate it instead of retrying
-                        // the dead id until the process ends.
-                        recreateRequired = Created &&
-                            ex is ServiceResultException sre &&
-                            sre.StatusCode == StatusCodes.BadSubscriptionIdInvalid;
-                        // Rate-limit: log the first failure of a streak at Error
-                        // and the subsequent retries at Debug so a persistently
-                        // failing apply cannot flood the log.
-                        if (consecutiveApplyFailures == 0)
-                        {
-                            Logger.FailedApplySubscriptionChangesWillRetry(ex);
-                        }
-                        else
-                        {
-                            Logger.RetryingSubscriptionChangesFailedAttemptAttempt(
-                                ex,
-                                consecutiveApplyFailures + 1);
-                        }
-                    }
-                    finally
-                    {
-                        m_stateLock.Release();
-                    }
-
-                    if (recreateRequired && !ct.IsCancellationRequested)
-                    {
-                        // Takes the state lock itself, so it has to run after
-                        // the release above.
-                        await ResetToRecreateAsync(ct).ConfigureAwait(false);
-                    }
+                    await AckQueue.RunWithSessionAvailableAsync(
+                        async token => applyFailed = await ApplyStateChangesAsync(consecutiveApplyFailures, token)
+                            .ConfigureAwait(false),
+                        ct).ConfigureAwait(false);
 
                     // A per-item change can fail transiently (e.g. a bad status
                     // in a CreateMonitoredItems response while the server is
@@ -1309,6 +1297,7 @@ namespace Opc.Ua.Client.Subscriptions
                     revisedMaxKeepAliveCount, options.MaxNotificationsPerPublish,
                     options.PublishingEnabled, options.Priority, ct).ConfigureAwait(false);
 
+                ct.ThrowIfCancellationRequested();
                 RememberRequestedSettings(
                     options.PublishingInterval,
                     revisedMaxKeepAliveCount,

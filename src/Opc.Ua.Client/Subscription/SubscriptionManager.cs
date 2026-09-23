@@ -383,6 +383,56 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <inheritdoc/>
+        public async ValueTask RunWithSessionAvailableAsync(
+            Func<CancellationToken, ValueTask> operation,
+            CancellationToken ct)
+        {
+            if (operation == null)
+            {
+                throw new ArgumentNullException(nameof(operation));
+            }
+            while (true)
+            {
+                using var attempt = CancellationTokenSource.CreateLinkedTokenSource(ct, m_disposeToken);
+                CancellationToken token = attempt.Token;
+                while (true)
+                {
+                    await m_sessionAvailable.WaitAsync(token).ConfigureAwait(false);
+                    token.ThrowIfCancellationRequested();
+                    lock (m_publishStateLock)
+                    {
+                        if (m_sessionRecoveryPaused)
+                        {
+                            continue;
+                        }
+                        m_activeSubscriptionUpdates.Add(attempt);
+                        break;
+                    }
+                }
+                try
+                {
+                    token.ThrowIfCancellationRequested();
+                    await operation(token).ConfigureAwait(false);
+                    token.ThrowIfCancellationRequested();
+                    return;
+                }
+                catch (OperationCanceledException) when (attempt.IsCancellationRequested &&
+                    !ct.IsCancellationRequested &&
+                    !m_disposeToken.IsCancellationRequested)
+                {
+                    // The recovery owner restores the subscription before this pass retries.
+                }
+                finally
+                {
+                    lock (m_publishStateLock)
+                    {
+                        m_activeSubscriptionUpdates.Remove(attempt);
+                    }
+                }
+            }
+        }
+
+        /// <inheritdoc/>
         public bool OwnsSubscriptionId(
             IMessageProcessor subscription,
             uint subscriptionId)
@@ -1304,11 +1354,21 @@ namespace Opc.Ua.Client.Subscriptions
         private void SetPublishingQuiesced(bool quiesced, bool sessionRecovery = false)
         {
             bool? paused;
+            CancellationTokenSource[] attempts = [];
             lock (m_publishStateLock)
             {
                 if (sessionRecovery)
                 {
                     m_sessionRecoveryPaused = quiesced;
+                    if (quiesced)
+                    {
+                        m_sessionAvailable.Reset();
+                        attempts = [.. m_activeSubscriptionUpdates];
+                    }
+                    else
+                    {
+                        m_sessionAvailable.Set();
+                    }
                 }
                 else
                 {
@@ -1316,6 +1376,7 @@ namespace Opc.Ua.Client.Subscriptions
                 }
                 paused = UpdatePublishingState();
             }
+            CancelAttempts(attempts);
             if (paused.HasValue)
             {
                 NotifySubscriptionsPaused(paused.Value);
@@ -1402,6 +1463,11 @@ namespace Opc.Ua.Client.Subscriptions
                 }
                 attempts = [.. m_activePublishAttempts];
             }
+            CancelAttempts(attempts);
+        }
+
+        private static void CancelAttempts(CancellationTokenSource[] attempts)
+        {
             foreach (CancellationTokenSource attempt in attempts)
             {
                 try
@@ -2451,9 +2517,11 @@ namespace Opc.Ua.Client.Subscriptions
         private readonly AsyncManualResetEvent m_publishingPaused = new(true);
         private readonly AsyncAutoResetEvent m_publishControl = new();
         private readonly AsyncManualResetEvent m_drainSignal = new(true);
+        private readonly AsyncManualResetEvent m_sessionAvailable = new(true);
         private readonly SemaphoreSlim m_publishQuiescenceGate = new(1, 1);
         private readonly Lock m_publishStateLock = new();
         private readonly HashSet<CancellationTokenSource> m_activePublishAttempts = [];
+        private readonly HashSet<CancellationTokenSource> m_activeSubscriptionUpdates = [];
         private readonly CancellationToken m_disposeToken;
         private int m_activePublishRequests;
         private int m_disposed;
