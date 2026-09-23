@@ -81,11 +81,16 @@ namespace BasicFluentApiServer
                 .AddMethod("Add", devices.NodeId)
                 .OnCall(OnAdd)
                 .AddInputArguments(
-                    new Argument("a", DataTypeIds.Int32, ValueRanks.Scalar, "The first integer to add."),
-                    new Argument("b", DataTypeIds.Int32, ValueRanks.Scalar, "The second integer to add.")
+                    ArgumentBuilder.Create("a", DataTypeIds.Int32, ValueRanks.Scalar, "The first integer to add.").Item,
+                    ArgumentBuilder.Create(new Argument("b", DataTypeIds.Int32, ValueRanks.Scalar, "The second integer to add.")).Item
                 )
                 .AddOutputArguments(
-                    new Argument("sum", DataTypeIds.Int32, ValueRanks.Scalar, "The sum of the two integers.")
+                    ArgumentBuilder.Create()
+                        .WithName("sum")
+                        .WithDataType<int>(SystemContext)
+                        .WithValueRank(ValueRanks.Scalar)
+                        .WithDescription("The sum of the two integers.")
+                        .Item
                 );
         }
 
