@@ -565,6 +565,9 @@ participants finish restoration. A participant that finishes early continues
 to suppress transport keep-alive failures while a sibling is restoring.
 Explicit recreation and certificate reload acquire recovery ownership before
 pausing and draining Publish, so a competing reconnect cannot overlap that work.
+Recreation retains that ownership through cancellation cleanup and the final
+Publish drain. Only the owning recovery can release its publishing pause, and
+the session admits another recovery after that cleanup finishes.
 
 `IReconnectParticipant.CreateReconnectBudget` supplies a budget for each new
 shared recovery cycle, or returns null to impose no participant-specific limit.

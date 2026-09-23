@@ -748,18 +748,16 @@ namespace Opc.Ua.Server
 
             ServerSystemContext context = SystemContext.Copy(new OperationContext(monitoredItem));
             object previousHandle = sampledMonitoredItem.ManagerHandle;
-            ServiceResult result;
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
-            using (await AcquireSemaphoreAsync(m_monitoredItemSemaphore, cancellationToken).ConfigureAwait(false))
-            {
-                result = await DetachMonitoredItemForLifecycleLockedAsync(
-                    context,
-                    sampledMonitoredItem,
-                    lifecycle,
-                    cancellationToken).ConfigureAwait(false);
-            }
+            ServiceResult result = await DetachMonitoredItemForLifecycleAsync(
+                context,
+                sampledMonitoredItem,
+                lifecycle,
+                cancellationToken).ConfigureAwait(false);
 
-            if (ServiceResult.IsGood(result) && previousHandle is NodeHandle handle)
+            if (ServiceResult.IsGood(result) &&
+                previousHandle is NodeHandle handle &&
+                monitoredItem is IDetachableMonitoredItem { IsDetached: true })
             {
                 await OnMonitoredItemDetachedAsync(
                     context,
@@ -794,6 +792,7 @@ namespace Opc.Ua.Server
             IMonitoredItem monitoredItem,
             CancellationToken cancellationToken)
         {
+            using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
             ServiceResult result = await AttachMonitoredItemForLifecycleAsync(
                 monitoredItem,
                 cancellationToken).ConfigureAwait(false);
@@ -898,7 +897,7 @@ namespace Opc.Ua.Server
                 : ServiceResult.Good;
         }
 
-        private async ValueTask<ServiceResult> DetachMonitoredItemForLifecycleLockedAsync(
+        private async ValueTask<ServiceResult> DetachMonitoredItemForLifecycleAsync(
             ServerSystemContext context,
             ISampledDataChangeMonitoredItem monitoredItem,
             IMonitoredItemManagerLifecycle lifecycle,
@@ -906,60 +905,68 @@ namespace Opc.Ua.Server
         {
             MonitoredNode2? monitoredNode = null;
             NodeState? eventSource = null;
+            NodeHandle? handle = null;
+            bool changed = false;
             bool isEvent =
                 (monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) != 0;
-            if (isEvent &&
-                monitoredItem.ManagerHandle is NodeHandle eventHandle)
+            ServiceResult result;
+            try
             {
-                monitoredNode = eventHandle.MonitoredNode;
-                eventSource = eventHandle.Node;
-            }
-
-            (ServiceResult result, bool changed) = lifecycle.DetachMonitoredItem(
-                context,
-                monitoredItem,
-                RemoveNodeFromComponentCache);
-            if (ServiceResult.IsGood(result) &&
-                changed &&
-                isEvent &&
-                monitoredNode is not null &&
-                eventSource is not null)
-            {
-                try
+                using (await AcquireSemaphoreAsync(m_monitoredItemSemaphore, cancellationToken).ConfigureAwait(false))
                 {
-                    eventSource.SetAreEventsMonitored(context, false, true);
-                    await OnSubscribeToEventsAsync(
+                    handle = monitoredItem.ManagerHandle as NodeHandle;
+                    monitoredNode = isEvent ? handle?.MonitoredNode : null;
+                    eventSource = isEvent ? handle?.Node : null;
+                    (result, changed) = lifecycle.DetachMonitoredItem(
                         context,
-                        monitoredNode,
-                        true,
-                        cancellationToken).ConfigureAwait(false);
-                }
-                catch (Exception ex) when (ex is not OutOfMemoryException)
-                {
-                    var compensationFailures = new List<Exception>();
-                    var compensationHandle =
-                        (NodeHandle)monitoredItem.ManagerHandle;
-                    (ServiceResult restoreResult, bool restored) =
-                        lifecycle.AttachMonitoredItem(
-                            context,
-                            compensationHandle,
-                            monitoredItem,
-                            AddNodeToComponentCache,
-                            RemoveNodeFromComponentCache);
-                    if (ServiceResult.IsBad(restoreResult))
+                        monitoredItem,
+                        RemoveNodeFromComponentCache);
+                    if (ServiceResult.IsBad(result) || !changed)
                     {
-                        compensationFailures.Add(new ServiceResultException(restoreResult));
+                        return result;
                     }
-                    else if (restored && compensationHandle.MonitoredNode is not null)
+                    if (monitoredNode == null || eventSource == null)
+                    {
+                        ((IDetachableMonitoredItem)monitoredItem).Detach(Server);
+                        return result;
+                    }
+                    eventSource.SetAreEventsMonitored(context, false, true);
+                }
+
+                await OnSubscribeToEventsAsync(
+                    context,
+                    monitoredNode,
+                    true,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException &&
+                changed && handle != null && monitoredNode != null && eventSource != null)
+            {
+                var compensationFailures = new List<Exception>();
+                MonitoredNode2? restoredNode = null;
+                using (await AcquireMonitoredItemCommitAsync().ConfigureAwait(false))
+                {
+                    if (ReferenceEquals(monitoredItem.ManagerHandle, handle) &&
+                        ReferenceEquals(monitoredItem.NodeManager, this) &&
+                        !MonitoredItems.ContainsKey(monitoredItem.Id))
                     {
                         try
                         {
-                            eventSource.SetAreEventsMonitored(context, true, true);
-                            await OnSubscribeToEventsAsync(
+                            (ServiceResult restoreResult, bool restored) = lifecycle.AttachMonitoredItem(
                                 context,
-                                compensationHandle.MonitoredNode,
-                                false,
-                                CancellationToken.None).ConfigureAwait(false);
+                                handle,
+                                monitoredItem,
+                                AddNodeToComponentCache,
+                                RemoveNodeFromComponentCache);
+                            if (ServiceResult.IsBad(restoreResult))
+                            {
+                                compensationFailures.Add(new ServiceResultException(restoreResult));
+                            }
+                            else if (restored)
+                            {
+                                eventSource.SetAreEventsMonitored(context, true, true);
+                                restoredNode = handle.MonitoredNode;
+                            }
                         }
                         catch (Exception compensationException) when (
                             compensationException is not OutOfMemoryException)
@@ -967,20 +974,39 @@ namespace Opc.Ua.Server
                             compensationFailures.Add(compensationException);
                         }
                     }
-
-                    if (compensationFailures.Count > 0)
-                    {
-                        compensationFailures.Insert(0, ex);
-                        throw new AggregateException(
-                            "Event monitored-item detachment and compensation both failed.",
-                            compensationFailures);
-                    }
-                    throw;
                 }
+                if (restoredNode != null)
+                {
+                    try
+                    {
+                        await OnSubscribeToEventsAsync(
+                            context, restoredNode, false, CancellationToken.None).ConfigureAwait(false);
+                    }
+                    catch (Exception compensationException) when (
+                        compensationException is not OutOfMemoryException)
+                    {
+                        compensationFailures.Add(compensationException);
+                    }
+                }
+
+                if (compensationFailures.Count > 0)
+                {
+                    compensationFailures.Insert(0, ex);
+                    throw new AggregateException(
+                        "Event monitored-item detachment and compensation both failed.",
+                        compensationFailures);
+                }
+                throw;
             }
-            if (ServiceResult.IsGood(result) && changed)
+
+            using (await AcquireMonitoredItemCommitAsync().ConfigureAwait(false))
             {
-                ((IDetachableMonitoredItem)monitoredItem).Detach(Server);
+                if (ReferenceEquals(monitoredItem.ManagerHandle, handle) &&
+                    ReferenceEquals(monitoredItem.NodeManager, this) &&
+                    !MonitoredItems.ContainsKey(monitoredItem.Id))
+                {
+                    ((IDetachableMonitoredItem)monitoredItem).Detach(Server);
+                }
             }
             return result;
         }
@@ -1052,82 +1078,105 @@ namespace Opc.Ua.Server
                 }
             }
 
-            using (await AcquireSemaphoreAsync(m_monitoredItemSemaphore, cancellationToken).ConfigureAwait(false))
+            MonitoredNode2? monitoredNode = null;
+            bool changed = false;
+            ServiceResult result;
+            try
             {
-                (ServiceResult result, bool changed) = lifecycle.AttachMonitoredItem(
-                    context,
-                    handle,
-                    sampledMonitoredItem,
-                    AddNodeToComponentCache,
-                    RemoveNodeFromComponentCache);
-                if (ServiceResult.IsGood(result) && changed && !isEvent)
+                using (await AcquireSemaphoreAsync(m_monitoredItemSemaphore, cancellationToken).ConfigureAwait(false))
                 {
-                    sampledMonitoredItem.QueueValue(initialValue, readResult, true);
-                }
-                else if (ServiceResult.IsGood(result) &&
-                    changed &&
-                    handle.MonitoredNode is not null)
-                {
-                    try
+                    (result, changed) = lifecycle.AttachMonitoredItem(
+                        context,
+                        handle,
+                        sampledMonitoredItem,
+                        AddNodeToComponentCache,
+                        RemoveNodeFromComponentCache);
+                    if (ServiceResult.IsBad(result) || !changed)
                     {
-                        source.SetAreEventsMonitored(context, true, true);
-                        await OnSubscribeToEventsAsync(
-                            context,
-                            handle.MonitoredNode,
-                            false,
-                            cancellationToken).ConfigureAwait(false);
+                        return result;
                     }
-                    catch (Exception ex) when (ex is not OutOfMemoryException)
+                    if (!isEvent)
                     {
-                        var compensationFailures = new List<Exception>();
+                        sampledMonitoredItem.QueueValue(initialValue, readResult, true);
+                        return result;
+                    }
+                    monitoredNode = handle.MonitoredNode;
+                    if (monitoredNode == null)
+                    {
+                        return result;
+                    }
+                    source.SetAreEventsMonitored(context, true, true);
+                }
+
+                await OnSubscribeToEventsAsync(
+                    context, monitoredNode, false, cancellationToken).ConfigureAwait(false);
+                using (await AcquireMonitoredItemCommitAsync().ConfigureAwait(false))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    return ReferenceEquals(sampledMonitoredItem.ManagerHandle, handle) &&
+                        ReferenceEquals(sampledMonitoredItem.NodeManager, this) &&
+                        MonitoredItems.TryGetValue(monitoredItem.Id, out IMonitoredItem? current) &&
+                        ReferenceEquals(current, monitoredItem)
+                        ? result
+                        : new ServiceResult(StatusCodes.BadMonitoredItemIdInvalid);
+                }
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException && changed && monitoredNode != null)
+            {
+                var compensationFailures = new List<Exception>();
+                bool removed = false;
+                using (await AcquireMonitoredItemCommitAsync().ConfigureAwait(false))
+                {
+                    if (ReferenceEquals(sampledMonitoredItem.ManagerHandle, handle) &&
+                        ReferenceEquals(sampledMonitoredItem.NodeManager, this) &&
+                        MonitoredItems.TryGetValue(monitoredItem.Id, out IMonitoredItem? current) &&
+                        ReferenceEquals(current, monitoredItem))
+                    {
                         try
                         {
-                            source.SetAreEventsMonitored(context, false, true);
-                            await OnSubscribeToEventsAsync(
+                            (ServiceResult detachResult, bool detached) = lifecycle.DetachMonitoredItem(
                                 context,
-                                handle.MonitoredNode,
-                                true,
-                                CancellationToken.None).ConfigureAwait(false);
+                                sampledMonitoredItem,
+                                RemoveNodeFromComponentCache);
+                            if (ServiceResult.IsBad(detachResult))
+                            {
+                                compensationFailures.Add(new ServiceResultException(detachResult));
+                            }
+                            else if (detached)
+                            {
+                                removed = true;
+                                source.SetAreEventsMonitored(context, false, true);
+                                ((IDetachableMonitoredItem)monitoredItem).Detach(Server);
+                            }
                         }
                         catch (Exception compensationException) when (
                             compensationException is not OutOfMemoryException)
                         {
                             compensationFailures.Add(compensationException);
                         }
-
-                        (ServiceResult detachResult, _) = lifecycle.DetachMonitoredItem(
-                            context,
-                            sampledMonitoredItem,
-                            RemoveNodeFromComponentCache);
-                        if (ServiceResult.IsBad(detachResult))
-                        {
-                            compensationFailures.Add(new ServiceResultException(detachResult));
-                        }
-                        else
-                        {
-                            try
-                            {
-                                ((IDetachableMonitoredItem)monitoredItem).Detach(Server);
-                            }
-                            catch (Exception compensationException) when (
-                                compensationException is not OutOfMemoryException)
-                            {
-                                compensationFailures.Add(compensationException);
-                            }
-                        }
-
-                        if (compensationFailures.Count > 0)
-                        {
-                            compensationFailures.Insert(0, ex);
-                            throw new AggregateException(
-                                "Event monitored-item attachment and compensation both failed.",
-                                compensationFailures);
-                        }
-                        throw;
                     }
                 }
-
-                return result;
+                if (removed)
+                {
+                    try
+                    {
+                        await OnSubscribeToEventsAsync(
+                            context, monitoredNode, true, CancellationToken.None).ConfigureAwait(false);
+                    }
+                    catch (Exception compensationException) when (
+                        compensationException is not OutOfMemoryException)
+                    {
+                        compensationFailures.Add(compensationException);
+                    }
+                }
+                if (compensationFailures.Count > 0)
+                {
+                    compensationFailures.Insert(0, ex);
+                    throw new AggregateException(
+                        "Event monitored-item attachment and compensation both failed.",
+                        compensationFailures);
+                }
+                throw;
             }
         }
 
@@ -2330,9 +2379,11 @@ namespace Opc.Ua.Server
             var detachedItems = new List<IMonitoredItem>();
             Exception? failure = null;
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
+            IMonitoredItemManagerLifecycle lifecycle;
+            IReadOnlyList<IMonitoredItem> monitoredItems;
             using (await AcquireSemaphoreAsync(m_monitoredItemSemaphore, cancellationToken).ConfigureAwait(false))
             {
-                if (m_monitoredItemManager is not IMonitoredItemManagerLifecycle lifecycle)
+                if (m_monitoredItemManager is not IMonitoredItemManagerLifecycle managerLifecycle)
                 {
                     if (!MonitoredItems.IsEmpty)
                     {
@@ -2341,6 +2392,7 @@ namespace Opc.Ua.Server
                     }
                     return [];
                 }
+                lifecycle = managerLifecycle;
 
                 var nodeIds = new List<NodeId>();
                 var nodes = new List<NodeState> { node };
@@ -2353,40 +2405,38 @@ namespace Opc.Ua.Server
                     nodes.AddRange(children);
                 }
 
-                IReadOnlyList<IMonitoredItem> monitoredItems =
-                    lifecycle.GetMonitoredItemsSnapshot(nodeIds);
-                detachedItems.Capacity = monitoredItems.Count;
-                foreach (IMonitoredItem monitoredItem in monitoredItems)
+                monitoredItems = lifecycle.GetMonitoredItemsSnapshot(nodeIds);
+            }
+            detachedItems.Capacity = monitoredItems.Count;
+            foreach (IMonitoredItem monitoredItem in monitoredItems)
+            {
+                if (monitoredItem is not ISampledDataChangeMonitoredItem sampledItem)
                 {
-                    if (monitoredItem is not ISampledDataChangeMonitoredItem sampledItem)
-                    {
-                        failure = new NotSupportedException(
-                            "The monitored item does not support lifecycle transitions.");
-                        break;
-                    }
+                    failure = new NotSupportedException(
+                        "The monitored item does not support lifecycle transitions.");
+                    break;
+                }
 
-                    try
+                try
+                {
+                    ServerSystemContext itemContext =
+                        SystemContext.Copy(new OperationContext(monitoredItem));
+                    ServiceResult result = await DetachMonitoredItemForLifecycleAsync(
+                        itemContext,
+                        sampledItem,
+                        lifecycle,
+                        cancellationToken).ConfigureAwait(false);
+                    if (ServiceResult.IsBad(result))
                     {
-                        ServerSystemContext itemContext =
-                            SystemContext.Copy(new OperationContext(monitoredItem));
-                        ServiceResult result =
-                            await DetachMonitoredItemForLifecycleLockedAsync(
-                                itemContext,
-                                sampledItem,
-                                lifecycle,
-                                cancellationToken).ConfigureAwait(false);
-                        if (ServiceResult.IsBad(result))
-                        {
-                            failure = new ServiceResultException(result);
-                            break;
-                        }
-                        detachedItems.Add(monitoredItem);
-                    }
-                    catch (Exception ex) when (ex is not OutOfMemoryException)
-                    {
-                        failure = ex;
+                        failure = new ServiceResultException(result);
                         break;
                     }
+                    detachedItems.Add(monitoredItem);
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    failure = ex;
+                    break;
                 }
             }
 
@@ -2701,13 +2751,89 @@ namespace Opc.Ua.Server
                 return new ServiceResult(StatusCodes.BadNodeAttributesInvalid);
             }
             if ((mask & (uint)NodeAttributesMask.Value) != 0 &&
-                TypeInfo.IsInstanceOfDataType(
+                (TypeInfo.IsInstanceOfDataType(
                     variable.Value, variable.DataType, variable.ValueRank,
-                    Server.NamespaceUris, Server.TypeTree).IsUnknown)
+                    Server.NamespaceUris, Server.TypeTree).IsUnknown ||
+                    !AreValueDimensionsValid(variable.Value, variable.ArrayDimensions)))
             {
                 return new ServiceResult(StatusCodes.BadNodeAttributesInvalid);
             }
             return ServiceResult.Good;
+        }
+
+        private static bool AreValueDimensionsValid(Variant value, ArrayOf<uint> maximumDimensions)
+        {
+            if (maximumDimensions.IsEmpty || value.IsNull)
+            {
+                return true;
+            }
+            if (value.TypeInfo.IsScalar)
+            {
+                // A scalar ByteString is also a valid one-dimensional Byte value.
+                return maximumDimensions.Count == 1 &&
+                    value.TryGetValue(out ByteString bytes) &&
+                    (maximumDimensions[0] == 0 || bytes.Length <= maximumDimensions[0]);
+            }
+            return value.TypeInfo.BuiltInType switch
+            {
+                BuiltInType.Boolean => AreValueDimensionsValid<bool>(value, maximumDimensions),
+                BuiltInType.SByte => AreValueDimensionsValid<sbyte>(value, maximumDimensions),
+                BuiltInType.Byte => AreValueDimensionsValid<byte>(value, maximumDimensions),
+                BuiltInType.Int16 => AreValueDimensionsValid<short>(value, maximumDimensions),
+                BuiltInType.UInt16 => AreValueDimensionsValid<ushort>(value, maximumDimensions),
+                BuiltInType.Int32 => AreValueDimensionsValid<int>(value, maximumDimensions),
+                BuiltInType.UInt32 => AreValueDimensionsValid<uint>(value, maximumDimensions),
+                BuiltInType.Int64 => AreValueDimensionsValid<long>(value, maximumDimensions),
+                BuiltInType.UInt64 => AreValueDimensionsValid<ulong>(value, maximumDimensions),
+                BuiltInType.Float => AreValueDimensionsValid<float>(value, maximumDimensions),
+                BuiltInType.Double => AreValueDimensionsValid<double>(value, maximumDimensions),
+                BuiltInType.String => AreValueDimensionsValid<string>(value, maximumDimensions),
+                BuiltInType.DateTime => AreValueDimensionsValid<DateTimeUtc>(value, maximumDimensions),
+                BuiltInType.Guid => AreValueDimensionsValid<Uuid>(value, maximumDimensions),
+                BuiltInType.ByteString => AreValueDimensionsValid<ByteString>(value, maximumDimensions),
+                BuiltInType.XmlElement => AreValueDimensionsValid<XmlElement>(value, maximumDimensions),
+                BuiltInType.NodeId => AreValueDimensionsValid<NodeId>(value, maximumDimensions),
+                BuiltInType.ExpandedNodeId => AreValueDimensionsValid<ExpandedNodeId>(value, maximumDimensions),
+                BuiltInType.StatusCode => AreValueDimensionsValid<StatusCode>(value, maximumDimensions),
+                BuiltInType.QualifiedName => AreValueDimensionsValid<QualifiedName>(value, maximumDimensions),
+                BuiltInType.LocalizedText => AreValueDimensionsValid<LocalizedText>(value, maximumDimensions),
+                BuiltInType.ExtensionObject => AreValueDimensionsValid<ExtensionObject>(value, maximumDimensions),
+                BuiltInType.DataValue => AreValueDimensionsValid<DataValue>(value, maximumDimensions),
+                BuiltInType.Variant => AreValueDimensionsValid<Variant>(value, maximumDimensions),
+                BuiltInType.Enumeration => AreValueDimensionsValid<EnumValue>(value, maximumDimensions),
+                _ => false
+            };
+        }
+
+        private static bool AreValueDimensionsValid<T>(Variant value, ArrayOf<uint> maximumDimensions)
+        {
+            BuiltInType builtInType = value.TypeInfo.BuiltInType;
+            if (value.TryGetArray(out ArrayOf<T> array, builtInType))
+            {
+                return maximumDimensions.Count == 1 &&
+                    (maximumDimensions[0] == 0 || array.Count <= maximumDimensions[0]);
+            }
+            if (!value.TryGetMatrix(out MatrixOf<T> matrix, builtInType))
+            {
+                return false;
+            }
+            if (matrix.IsNull)
+            {
+                return true;
+            }
+            int[] dimensions = matrix.Dimensions;
+            if (dimensions.Length != maximumDimensions.Count)
+            {
+                return false;
+            }
+            for (int ii = 0; ii < dimensions.Length; ii++)
+            {
+                if (maximumDimensions[ii] != 0 && dimensions[ii] > maximumDimensions[ii])
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         private static void ApplyVariableAttributes(

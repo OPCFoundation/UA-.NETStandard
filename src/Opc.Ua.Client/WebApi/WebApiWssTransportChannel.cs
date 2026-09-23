@@ -55,8 +55,11 @@ namespace Opc.Ua.Client.WebApi
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Requests are multiplexed by RequestHandle. A single receive loop
-    /// dispatches responses, so a pending Publish does not block other services.
+    /// Requests are multiplexed using connection-local wire handles, without
+    /// changing caller-owned requests or caller-visible response handles. A single
+    /// receive loop dispatches responses, so a pending Publish does not block other
+    /// services. Terminal requests are retired immediately and late responses cannot
+    /// complete a newer request that reuses the caller's handle.
     /// </para>
     /// <para>
     /// Bearer authentication rides in the sub-protocol name because
@@ -89,8 +92,7 @@ namespace Opc.Ua.Client.WebApi
         /// the <c>opcua+openapi+&lt;accesstoken&gt;</c> variant; other
         /// fields (Basic / HttpMessageHandler) are ignored on this
         /// transport.</param>
-        /// <param name="timeProvider">Optional time provider reserved
-        /// for future use (timeout scheduling).</param>
+        /// <param name="timeProvider">Optional time provider used for request deadlines.</param>
         public WebApiWssTransportChannel(
             ITelemetryContext telemetry,
             WebApiClientOptions? options = null,
@@ -277,10 +279,7 @@ namespace Opc.Ua.Client.WebApi
             }
             try
             {
-                using var opening = CancellationTokenSource.CreateLinkedTokenSource(ct, connection.ShutdownToken);
-                await ws.ConnectAsync(endpointUrl, opening.Token).ConfigureAwait(false);
-                opening.Token.ThrowIfCancellationRequested();
-                connection.Opened.TrySetResult(true);
+                await connection.OpenAsync(endpointUrl, ct).ConfigureAwait(false);
             }
             catch
             {
@@ -454,66 +453,56 @@ namespace Opc.Ua.Client.WebApi
                 connection = m_connection ?? throw BadNotConnected();
             }
             ChannelQuotas quotas = connection.Quotas;
-
-            // Encode the request using the standard {TypeId, Body}
-            // envelope expected by the server's
-            // AcceptWebSocketOpenApiAsync (same envelope as opcua+uajson;
-            // the OpenAPI sub-protocol is distinguished by the
-            // negotiated sub-protocol name and the discovery profile URI).
-            byte[] requestBytes;
-            using (var memory = new MemoryStream())
-            {
-                using (var encoder = new JsonEncoder(memory, quotas.MessageContext, JsonEncoderOptions.Compact))
-                {
-                    encoder.EncodeMessage(request, request.TypeId);
-                }
-                requestBytes = memory.ToArray();
-            }
-
-            uint handle = request.RequestHeader?.RequestHandle ?? 0;
-            TaskCompletionSource<IServiceResponse> response = connection.Register(handle);
-            using CancellationTokenSource timeout = m_timeProvider.CreateCancellationTokenSource(
-                OperationTimeout > 0 ? TimeSpan.FromMilliseconds(OperationTimeout) : Timeout.InfiniteTimeSpan);
-            using var requestCancellation = CancellationTokenSource.CreateLinkedTokenSource(ct, timeout.Token);
-            CancellationToken requestToken = requestCancellation.Token;
-            using CancellationTokenRegistration registration = requestToken.Register(
-                () => response.TrySetCanceled(requestToken));
-            using var sendCancellation = CancellationTokenSource.CreateLinkedTokenSource(
-                requestToken, connection.ShutdownToken);
-            bool sent = false;
+            IServiceRequest wireRequest = CoreUtils.Clone(request) ??
+                throw new ServiceResultException(
+                    StatusCodes.BadEncodingError, "The service request could not be cloned.");
+            PendingRequest pending = connection.Register(wireRequest);
             try
             {
-                await connection.SendAsync(requestBytes, sendCancellation.Token).ConfigureAwait(false);
-                sent = true;
-            }
-            catch (OperationCanceledException) when (requestToken.IsCancellationRequested)
-            {
-                response.TrySetCanceled(requestToken);
-                if (connection.Socket.State == WebSocketState.Aborted)
+                byte[] requestBytes;
+                using (var memory = new MemoryStream())
                 {
-                    connection.Stop(new ServiceResultException(StatusCodes.BadConnectionClosed));
+                    using (var encoder = new JsonEncoder(memory, quotas.MessageContext, JsonEncoderOptions.Compact))
+                    {
+                        encoder.EncodeMessage(wireRequest, wireRequest.TypeId);
+                    }
+                    requestBytes = memory.ToArray();
                 }
-            }
-            catch (Exception exception) when (
-                exception is WebSocketException or IOException or ObjectDisposedException or OperationCanceledException)
-            {
-                connection.Stop(new ServiceResultException(
-                    StatusCodes.BadConnectionClosed, "The WebSocket send failed.", exception));
+
+                using CancellationTokenSource timeout = m_timeProvider.CreateCancellationTokenSource(
+                    OperationTimeout > 0 ? TimeSpan.FromMilliseconds(OperationTimeout) : Timeout.InfiniteTimeSpan);
+                using var requestCancellation = CancellationTokenSource.CreateLinkedTokenSource(ct, timeout.Token);
+                CancellationToken requestToken = requestCancellation.Token;
+                using CancellationTokenRegistration registration = requestToken.Register(
+                    () => pending.Completion.TrySetCanceled(requestToken));
+                try
+                {
+                    await connection.SendAsync(requestBytes, requestToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (requestToken.IsCancellationRequested)
+                {
+                    pending.Completion.TrySetCanceled(requestToken);
+                }
+                catch (Exception exception) when (
+                    exception is ServiceResultException or WebSocketException or IOException or
+                        ObjectDisposedException or OperationCanceledException)
+                {
+                    connection.Stop(new ServiceResultException(
+                        StatusCodes.BadConnectionClosed, "The WebSocket send failed.", exception));
+                }
+                try
+                {
+                    return await pending.Completion.Task.ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (
+                    timeout.IsCancellationRequested && !ct.IsCancellationRequested)
+                {
+                    throw new ServiceResultException(StatusCodes.BadRequestTimeout);
+                }
             }
             finally
             {
-                if (!sent)
-                {
-                    connection.Remove(handle);
-                }
-            }
-            try
-            {
-                return await response.Task.ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) when (timeout.IsCancellationRequested && !ct.IsCancellationRequested)
-            {
-                throw new ServiceResultException(StatusCodes.BadRequestTimeout);
+                connection.Remove(pending);
             }
         }
 
@@ -560,6 +549,14 @@ namespace Opc.Ua.Client.WebApi
             m_settings?.ClientCertificateChain?.Dispose();
         }
 
+        private sealed class PendingRequest(uint callerHandle, uint wireHandle)
+        {
+            public uint CallerHandle { get; } = callerHandle;
+            public uint WireHandle { get; } = wireHandle;
+            public TaskCompletionSource<IServiceResponse> Completion { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
         private sealed class Connection : IDisposable
         {
             public Connection(ClientWebSocket socket, ChannelQuotas quotas, ILogger logger)
@@ -582,7 +579,26 @@ namespace Opc.Ua.Client.WebApi
                 Receiver = ReceiveResponsesAsync();
             }
 
-            public TaskCompletionSource<IServiceResponse> Register(uint handle)
+            public async Task OpenAsync(Uri endpointUrl, CancellationToken ct)
+            {
+                if (!TryBeginOperation())
+                {
+                    throw new ServiceResultException(StatusCodes.BadConnectionClosed);
+                }
+                try
+                {
+                    using var opening = CancellationTokenSource.CreateLinkedTokenSource(ct, ShutdownToken);
+                    await Socket.ConnectAsync(endpointUrl, opening.Token).ConfigureAwait(false);
+                    opening.Token.ThrowIfCancellationRequested();
+                    Opened.TrySetResult(true);
+                }
+                finally
+                {
+                    CompleteOperation();
+                }
+            }
+
+            public PendingRequest Register(IServiceRequest wireRequest)
             {
                 lock (m_lock)
                 {
@@ -590,73 +606,136 @@ namespace Opc.Ua.Client.WebApi
                     {
                         throw new ServiceResultException(StatusCodes.BadConnectionClosed);
                     }
-                    var completion = new TaskCompletionSource<IServiceResponse>(
-                        TaskCreationOptions.RunContinuationsAsynchronously);
-                    if (!m_pending.TryAdd(handle, completion))
+                    wireRequest.RequestHeader ??= new RequestHeader();
+                    uint callerHandle = wireRequest.RequestHeader.RequestHandle;
+                    if (m_callers.ContainsKey(callerHandle))
                     {
                         throw new ServiceResultException(
                             StatusCodes.BadInvalidArgument, "RequestHandle is already in use on this channel.");
                     }
-                    return completion;
+                    if (m_lastRequestHandle < uint.MaxValue)
+                    {
+                        uint wireHandle = ++m_lastRequestHandle;
+                        if (wireRequest is CancelRequest cancel)
+                        {
+                            // Reserve a valid IntegerId that never identifies an outstanding service request.
+                            cancel.RequestHandle = m_callers.TryGetValue(
+                                cancel.RequestHandle, out PendingRequest? target)
+                                ? target.WireHandle
+                                : kUnknownCancelTargetHandle;
+                        }
+                        wireRequest.RequestHeader.RequestHandle = wireHandle;
+                        var pending = new PendingRequest(callerHandle, wireHandle);
+                        m_pending.Add(wireHandle, pending);
+                        m_callers.Add(callerHandle, pending);
+                        return pending;
+                    }
                 }
+
+                var failure = new ServiceResultException(
+                    StatusCodes.BadConnectionClosed, "WebSocket request handles are exhausted; reopen the channel.");
+                Stop(failure);
+                throw failure;
             }
 
             public void Complete(IServiceResponse response)
             {
-                TaskCompletionSource<IServiceResponse>? completion;
+                PendingRequest? pending;
                 lock (m_lock)
                 {
-                    if (!m_pending.TryGetValue(response.ResponseHeader.RequestHandle, out completion))
+                    uint wireHandle = response.ResponseHeader.RequestHandle;
+                    if (!m_pending.TryGetValue(wireHandle, out pending))
                     {
+                        if (wireHandle > kUnknownCancelTargetHandle && wireHandle <= m_lastRequestHandle)
+                        {
+                            return;
+                        }
                         throw new ServiceResultException(StatusCodes.BadUnknownResponse);
                     }
-                    m_pending.Remove(response.ResponseHeader.RequestHandle);
+                    m_pending.Remove(wireHandle);
+                    m_callers.Remove(pending.CallerHandle);
                 }
-                completion.TrySetResult(response);
+                response.ResponseHeader.RequestHandle = pending.CallerHandle;
+                pending.Completion.TrySetResult(response);
             }
 
-            public void Remove(uint handle)
+            public void Remove(PendingRequest pending)
             {
                 lock (m_lock)
                 {
-                    m_pending.Remove(handle);
+                    if (m_pending.Remove(pending.WireHandle))
+                    {
+                        m_callers.Remove(pending.CallerHandle);
+                    }
                 }
             }
 
             public async Task SendAsync(byte[] bytes, CancellationToken ct)
             {
-                await m_sendLock.WaitAsync(ct).ConfigureAwait(false);
+                if (!TryBeginOperation())
+                {
+                    throw new ServiceResultException(StatusCodes.BadConnectionClosed);
+                }
                 try
                 {
-                    await Socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text,
-                        endOfMessage: true, ct).ConfigureAwait(false);
+                    using var sending = CancellationTokenSource.CreateLinkedTokenSource(ct, ShutdownToken);
+                    await m_sendLock.WaitAsync(sending.Token).ConfigureAwait(false);
+                    try
+                    {
+                        await Socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text,
+                            endOfMessage: true, sending.Token).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        m_sendLock.Release();
+                    }
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    if (Socket.State == WebSocketState.Aborted)
+                    {
+                        Stop(new ServiceResultException(StatusCodes.BadConnectionClosed));
+                    }
+                    throw;
                 }
                 finally
                 {
-                    m_sendLock.Release();
+                    CompleteOperation();
                 }
             }
 
             public async Task CloseOutputAsync(CancellationToken ct)
             {
-                await m_sendLock.WaitAsync(ct).ConfigureAwait(false);
+                if (!TryBeginOperation())
+                {
+                    return;
+                }
                 try
                 {
-                    if (Socket.State is WebSocketState.Open or WebSocketState.CloseReceived)
+                    using var closing = CancellationTokenSource.CreateLinkedTokenSource(ct, ShutdownToken);
+                    await m_sendLock.WaitAsync(closing.Token).ConfigureAwait(false);
+                    try
                     {
-                        await Socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, string.Empty, ct)
-                            .ConfigureAwait(false);
+                        if (Socket.State is WebSocketState.Open or WebSocketState.CloseReceived)
+                        {
+                            await Socket.CloseOutputAsync(
+                                WebSocketCloseStatus.NormalClosure, string.Empty, closing.Token).ConfigureAwait(false);
+                        }
+                    }
+                    finally
+                    {
+                        m_sendLock.Release();
                     }
                 }
                 finally
                 {
-                    m_sendLock.Release();
+                    CompleteOperation();
                 }
             }
 
             public void Stop(Exception failure)
             {
-                TaskCompletionSource<IServiceResponse>[] pending;
+                PendingRequest[] pending;
                 lock (m_lock)
                 {
                     if (m_stopped)
@@ -666,13 +745,38 @@ namespace Opc.Ua.Client.WebApi
                     m_stopped = true;
                     pending = [.. m_pending.Values];
                     m_pending.Clear();
+                    m_callers.Clear();
                 }
-                foreach (TaskCompletionSource<IServiceResponse> completion in pending)
+                try
                 {
-                    completion.TrySetException(failure);
+                    foreach (PendingRequest request in pending)
+                    {
+                        request.Completion.TrySetException(failure);
+                    }
+                    try
+                    {
+                        m_shutdown.Cancel();
+                    }
+                    catch (AggregateException exception)
+                    {
+                        m_logger.WssConnectionClosed(exception);
+                    }
+                    finally
+                    {
+                        Socket.Abort();
+                    }
                 }
-                m_shutdown.Cancel();
-                Socket.Abort();
+                finally
+                {
+                    lock (m_lock)
+                    {
+                        m_stopCompleted = true;
+                        if (m_operationCount == 0)
+                        {
+                            m_operationsDrained.TrySetResult(true);
+                        }
+                    }
+                }
             }
 
             public void Dispose()
@@ -681,6 +785,31 @@ namespace Opc.Ua.Client.WebApi
                 if (!m_started)
                 {
                     DisposeResources();
+                }
+            }
+
+            private bool TryBeginOperation()
+            {
+                lock (m_lock)
+                {
+                    if (m_stopped)
+                    {
+                        return false;
+                    }
+                    m_operationCount++;
+                    return true;
+                }
+            }
+
+            private void CompleteOperation()
+            {
+                lock (m_lock)
+                {
+                    m_operationCount--;
+                    if (m_stopCompleted && m_operationCount == 0)
+                    {
+                        m_operationsDrained.TrySetResult(true);
+                    }
                 }
             }
 
@@ -713,7 +842,7 @@ namespace Opc.Ua.Client.WebApi
                 finally
                 {
                     Stop(failure);
-                    await m_sendLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                    await m_operationsDrained.Task.ConfigureAwait(false);
                     DisposeResources();
                 }
             }
@@ -736,12 +865,19 @@ namespace Opc.Ua.Client.WebApi
                 m_shutdown.Dispose();
             }
 
+            private const uint kUnknownCancelTargetHandle = 1;
             private readonly Lock m_lock = new();
             private readonly SemaphoreSlim m_sendLock = new(1, 1);
-            private readonly Dictionary<uint, TaskCompletionSource<IServiceResponse>> m_pending = [];
+            private readonly Dictionary<uint, PendingRequest> m_pending = [];
+            private readonly Dictionary<uint, PendingRequest> m_callers = [];
             private readonly CancellationTokenSource m_shutdown = new();
+            private readonly TaskCompletionSource<bool> m_operationsDrained =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
             private readonly ILogger m_logger;
+            private uint m_lastRequestHandle = kUnknownCancelTargetHandle;
+            private int m_operationCount;
             private bool m_stopped;
+            private bool m_stopCompleted;
             private bool m_started;
             private int m_disposed;
         }

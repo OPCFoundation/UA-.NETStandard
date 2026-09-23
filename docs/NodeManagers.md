@@ -143,6 +143,12 @@ Registration atomically admits the new root without replacing an existing
 node. This add-only rule does not change the explicit runtime
 replacement/re-registration APIs.
 
+Variable admission also checks the supplied value against its datatype, rank
+and array dimensions. Each nonzero `ArrayDimensions` entry is a maximum length:
+shorter values are valid, while exceeding any dimension returns
+`BadNodeAttributesInvalid` without registering the node. Zero denotes an
+unknown maximum; null and empty arrays remain valid for compatible array types.
+
 The master node manager builds a routing table keyed by namespace index. During construction it ensures the configured dynamic namespace URI is present, registers the configuration/diagnostics manager first, registers the core node manager second, and then registers application managers. For a service request, `GetManagerHandleAsync` uses the `NodeId.NamespaceIndex` to find the candidate manager list and asks each candidate for a handle until one claims the node. If no explicit route exists for the namespace, it falls back to the core node manager. This means a namespace route is a candidate list, not a single-owner map.
 
 Multiple managers can serve the same namespace. `RegisterNamespaceManager(string namespaceUri, IAsyncNodeManager nodeManager)` appends a manager to the namespace route instead of replacing the existing route; the routing table also preserves manager order during lifecycle replacement. This is important for namespace 0 and for generated or runtime models that add nodes in namespaces already used by another manager.
@@ -1855,6 +1861,13 @@ must not wait for the first event. Failures are returned to the subscribing
 client, reported through `OnError`, and stop that activation. For reactivatable
 producers, return a new readiness-aware stream from the `Publish` factory on
 each activation.
+
+Lifecycle attachment, recovery and compensating reattachment await the same
+readiness contract without holding admission for unrelated monitored-item
+services. Callback failure compensates only that operation's binding and
+notifier count, preserving a newer binding. Cleanup remains available after
+request cancellation, and compensation errors are reported with the original
+failure.
 
 Failed factories, iterators, and readiness checks are reported to the caller
 and `OnError`. While a source is still wanted, retries use an exponential delay

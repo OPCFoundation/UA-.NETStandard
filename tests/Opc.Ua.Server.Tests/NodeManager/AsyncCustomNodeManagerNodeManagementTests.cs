@@ -31,7 +31,9 @@
 // making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
 #pragma warning disable CA2000
 
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -184,6 +186,81 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(values, Is.EqualTo((ArrayOf<int>)[1, 2]));
             Assert.That(variable.ArrayDimensions, Is.EqualTo((ArrayOf<uint>)[2]));
             Assert.That(variable.MinimumSamplingInterval, Is.EqualTo(minimumSamplingInterval));
+        }
+
+        [TestCase(1, 2u, true)]
+        [TestCase(2, 2u, true)]
+        [TestCase(3, 2u, false)]
+        [TestCase(4, 2u, false)]
+        [TestCase(3, 0u, true)]
+        public Task AddVariableEnforcesDeclaredArrayMaximum(int length, uint maximum, bool valid)
+        {
+            return AssertVariableDimensionAdmissionAsync(
+                new Variant(Enumerable.Range(1, length).ToArrayOf()),
+                DataTypeIds.Int32, ValueRanks.OneDimension, [maximum], valid);
+        }
+
+        [TestCase(false, 2u)]
+        [TestCase(true, 2u)]
+        [TestCase(false, 0u)]
+        [TestCase(true, 0u)]
+        public Task AddVariableAcceptsTypedNullAndEmptyArrayValues(bool nullArray, uint maximum)
+        {
+            ArrayOf<int> values = nullArray ? ArrayOf<int>.Null : ArrayOf<int>.Empty;
+            return AssertVariableDimensionAdmissionAsync(
+                new Variant(values), DataTypeIds.Int32, ValueRanks.OneDimension, [maximum], valid: true);
+        }
+
+        [TestCase(1, 2, 2u, 2u, true)]
+        [TestCase(2, 1, 2u, 2u, true)]
+        [TestCase(2, 2, 2u, 2u, true)]
+        [TestCase(3, 1, 2u, 2u, false)]
+        [TestCase(4, 1, 2u, 2u, false)]
+        [TestCase(1, 3, 2u, 2u, false)]
+        [TestCase(3, 2, 0u, 2u, true)]
+        [TestCase(3, 3, 0u, 2u, false)]
+        [TestCase(2, 3, 2u, 0u, true)]
+        [TestCase(3, 3, 2u, 0u, false)]
+        public Task AddVariableEnforcesDeclaredMatrixMaxima(
+            int rows,
+            int columns,
+            uint rowMaximum,
+            uint columnMaximum,
+            bool valid)
+        {
+            MatrixOf<int> matrix = Enumerable.Range(1, rows * columns).ToArrayOf().ToMatrix(rows, columns);
+            return AssertVariableDimensionAdmissionAsync(
+                new Variant(matrix), DataTypeIds.Int32, 2, [rowMaximum, columnMaximum], valid);
+        }
+
+        [TestCase(1, 2u, true)]
+        [TestCase(2, 2u, true)]
+        [TestCase(3, 2u, false)]
+        [TestCase(4, 2u, false)]
+        [TestCase(3, 0u, true)]
+        public Task AddByteArrayVariableEnforcesMaximumForByteStringValue(int length, uint maximum, bool valid)
+        {
+            ByteString bytes = Enumerable.Range(1, length).Select(value => (byte)value).ToByteString();
+            return AssertVariableDimensionAdmissionAsync(
+                new Variant(bytes), DataTypeIds.Byte, ValueRanks.OneDimension, [maximum], valid);
+        }
+
+        [TestCaseSource(nameof(DimensionValueTypeCases))]
+        public async Task AddVariableEnforcesDimensionMaximaForBuiltInTypes(
+            BuiltInType builtInType,
+            Variant value,
+            NodeId dataType,
+            ArrayOf<uint> dimensions,
+            bool valid)
+        {
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(value.IsNull, Is.False);
+                Assert.That(value.TypeInfo.BuiltInType, Is.EqualTo(builtInType));
+                Assert.That(value.TypeInfo.ValueRank, Is.EqualTo(dimensions.Count));
+            }
+            await AssertVariableDimensionAdmissionAsync(value, dataType, dimensions.Count, dimensions, valid)
+                .ConfigureAwait(false);
         }
 
         [TestCase("subtype", true)]
@@ -1112,6 +1189,140 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 new RequestHeader(), null!, RequestType.AddNodes, RequestLifetime.None, mockSession.Object);
 
             return new Harness(manager, serverSystemContext, opContext, monitoredItemQueueFactory, mockMasterNodeManager);
+        }
+
+        private static IEnumerable<TestCaseData> DimensionValueTypeCases()
+        {
+            IEnumerable<TestCaseData>[] cases =
+            [
+                CreateDimensionTypeCases(true, BuiltInType.Boolean, DataTypeIds.Boolean),
+                CreateDimensionTypeCases((sbyte)-7, BuiltInType.SByte, DataTypeIds.SByte),
+                CreateDimensionTypeCases((byte)7, BuiltInType.Byte, DataTypeIds.Byte),
+                CreateDimensionTypeCases((short)-17, BuiltInType.Int16, DataTypeIds.Int16),
+                CreateDimensionTypeCases((ushort)17, BuiltInType.UInt16, DataTypeIds.UInt16),
+                CreateDimensionTypeCases(17u, BuiltInType.UInt32, DataTypeIds.UInt32),
+                CreateDimensionTypeCases(-17L, BuiltInType.Int64, DataTypeIds.Int64),
+                CreateDimensionTypeCases(17UL, BuiltInType.UInt64, DataTypeIds.UInt64),
+                CreateDimensionTypeCases(1.25f, BuiltInType.Float, DataTypeIds.Float),
+                CreateDimensionTypeCases(1.25, BuiltInType.Double, DataTypeIds.Double),
+                CreateDimensionTypeCases("dimension-value", BuiltInType.String, DataTypeIds.String),
+                CreateDimensionTypeCases(new DateTimeUtc(2024, 1, 2), BuiltInType.DateTime, DataTypeIds.DateTime),
+                CreateDimensionTypeCases(new Uuid(new Guid("01234567-89ab-cdef-0123-456789abcdef")),
+                    BuiltInType.Guid, DataTypeIds.Guid),
+                CreateDimensionTypeCases(ByteString.From(1, 2), BuiltInType.ByteString, DataTypeIds.ByteString),
+                CreateDimensionTypeCases(XmlElement.From("<dimension/>"), BuiltInType.XmlElement,
+                    DataTypeIds.XmlElement),
+                CreateDimensionTypeCases(new NodeId(17), BuiltInType.NodeId, DataTypeIds.NodeId),
+                CreateDimensionTypeCases(new ExpandedNodeId(17), BuiltInType.ExpandedNodeId,
+                    DataTypeIds.ExpandedNodeId),
+                CreateDimensionTypeCases(StatusCodes.BadNoData, BuiltInType.StatusCode, DataTypeIds.StatusCode),
+                CreateDimensionTypeCases(new QualifiedName("dimension"), BuiltInType.QualifiedName,
+                    DataTypeIds.QualifiedName),
+                CreateDimensionTypeCases(new LocalizedText("en", "dimension"), BuiltInType.LocalizedText,
+                    DataTypeIds.LocalizedText),
+                CreateDimensionTypeCases(new ExtensionObject(new Argument { Name = "DimensionValue" }),
+                    BuiltInType.ExtensionObject, DataTypeIds.Structure),
+                CreateDimensionTypeCases(new DataValue(new Variant(17)), BuiltInType.DataValue, DataTypeIds.DataValue),
+                CreateDimensionTypeCases(new Variant(17), BuiltInType.Variant, DataTypeIds.BaseDataType),
+                CreateDimensionTypeCases(new EnumValue(1), BuiltInType.Enumeration, DataTypeIds.Enumeration)
+            ];
+            return cases.SelectMany(value => value);
+        }
+
+        private static IEnumerable<TestCaseData> CreateDimensionTypeCases<T>(
+            T seed,
+            BuiltInType builtInType,
+            NodeId dataType)
+        {
+            ArrayOf<T> values = ArrayOf.Wrapped(seed, seed);
+            if (!VariantHelper.TryCastFrom(values, out Variant array) ||
+                !VariantHelper.TryCastFrom(values.ToMatrix(1, 2), out Variant matrix))
+            {
+                throw new InvalidOperationException($"Unsupported dimension seed type {typeof(T).Name}.");
+            }
+            string test = nameof(AddVariableEnforcesDimensionMaximaForBuiltInTypes);
+            yield return new TestCaseData(builtInType, array, dataType, (ArrayOf<uint>)[2], true)
+                .SetName($"{test}({builtInType},Array,AtMaximum)");
+            yield return new TestCaseData(builtInType, array, dataType, (ArrayOf<uint>)[1], false)
+                .SetName($"{test}({builtInType},Array,Oversize)");
+            yield return new TestCaseData(builtInType, matrix, dataType, (ArrayOf<uint>)[1, 2], true)
+                .SetName($"{test}({builtInType},Matrix,AtMaximum)");
+            yield return new TestCaseData(builtInType, matrix, dataType, (ArrayOf<uint>)[1, 1], false)
+                .SetName($"{test}({builtInType},Matrix,Oversize)");
+        }
+
+        private static async Task AssertVariableDimensionAdmissionAsync(
+            Variant value,
+            NodeId dataType,
+            int valueRank,
+            ArrayOf<uint> dimensions,
+            bool valid)
+        {
+            using Harness h = CreateHarness(allowNodeManagement: true);
+            var types = (TypeTable)h.Context.TypeTable;
+            types.AddSubtype(DataTypeIds.BaseDataType, NodeId.Null);
+            if (dataType == DataTypeIds.Enumeration)
+            {
+                types.AddSubtype(DataTypeIds.Int32, DataTypeIds.BaseDataType);
+                types.AddSubtype(dataType, DataTypeIds.Int32);
+            }
+            else if (dataType != DataTypeIds.BaseDataType)
+            {
+                types.AddSubtype(dataType, DataTypeIds.BaseDataType);
+            }
+            NodeId parentId = await h.AddObjectAsync("Parent").ConfigureAwait(false);
+            ushort ns = h.Manager.NamespaceIndexes[0];
+            var requestedId = new NodeId("DimensionedVariable", ns);
+            var item = new AddNodesItem
+            {
+                ParentNodeId = parentId,
+                ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                RequestedNewNodeId = requestedId,
+                BrowseName = new QualifiedName("DimensionedVariable", ns),
+                NodeClass = NodeClass.Variable,
+                TypeDefinition = VariableTypeIds.BaseVariableType,
+                NodeAttributes = new ExtensionObject(new VariableAttributes
+                {
+                    SpecifiedAttributes = (uint)NodeAttributesMask.DataType |
+                        (uint)NodeAttributesMask.ValueRank |
+                        (uint)NodeAttributesMask.Value |
+                        (uint)NodeAttributesMask.ArrayDimensions,
+                    DataType = dataType,
+                    ValueRank = valueRank,
+                    Value = value,
+                    ArrayDimensions = dimensions
+                })
+            };
+
+            (ServiceResult result, NodeId addedId) = await h.Manager.AddNodeAsync(h.OperationContext, item)
+                .ConfigureAwait(false);
+
+            if (!valid)
+            {
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNodeAttributesInvalid));
+                    Assert.That(addedId.IsNull, Is.True);
+                    Assert.That(h.Manager.PredefinedNodes.ContainsKey(requestedId), Is.False);
+                    Assert.That(h.Manager.PredefinedNodes[parentId].FindChildWithQualifiedName(
+                        h.Context, item.BrowseName), Is.Null);
+                }
+                return;
+            }
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(addedId, Is.EqualTo(requestedId));
+            BaseVariableState variable = h.Manager.FindPredefinedNode<BaseVariableState>(addedId);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(variable.DataType, Is.EqualTo(dataType));
+                Assert.That(variable.ValueRank, Is.EqualTo(valueRank));
+                Assert.That(variable.Value, Is.EqualTo(value));
+                Assert.That(variable.Value.TypeInfo, Is.EqualTo(value.TypeInfo));
+                Assert.That(variable.ArrayDimensions, Is.EqualTo(dimensions));
+                Assert.That(h.Manager.PredefinedNodes[parentId].FindChildWithQualifiedName(
+                    h.Context, item.BrowseName), Is.SameAs(variable));
+            }
         }
 
         private sealed class Harness : System.IDisposable

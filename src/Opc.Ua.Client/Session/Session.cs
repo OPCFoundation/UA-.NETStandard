@@ -851,7 +851,9 @@ namespace Opc.Ua.Client
         /// server side to mirror session state (see the distributed
         /// high-availability feature); the standby still performs the full
         /// <c>ActivateSession</c> signature validation, so the token alone never
-        /// admits a session.
+        /// admits a session. This option controls optional token-reuse failover;
+        /// network recovery and required HotAndMirrored reactivation reuse the
+        /// existing session independently of this setting.
         /// </remarks>
         public bool EnableTokenReuseFailover { get; set; }
 
@@ -3471,18 +3473,23 @@ namespace Opc.Ua.Client
             }
             finally
             {
-                if (resetReconnect)
+                try
                 {
-                    await m_reconnectLock
-                        .WaitAsync(CancellationToken.None)
-                        .ConfigureAwait(false);
-                    Reconnecting = false;
-                    m_reconnectLock.Release();
+                    if (publishingPaused && m_pendingSubscriptionRecovery == null)
+                    {
+                        await ResumePublishingAfterRecoveryAsync().ConfigureAwait(false);
+                    }
                 }
-
-                if (publishingPaused && m_pendingSubscriptionRecovery == null)
+                finally
                 {
-                    await ResumePublishingAfterRecoveryAsync().ConfigureAwait(false);
+                    if (resetReconnect)
+                    {
+                        await m_reconnectLock
+                            .WaitAsync(CancellationToken.None)
+                            .ConfigureAwait(false);
+                        Reconnecting = false;
+                        m_reconnectLock.Release();
+                    }
                 }
             }
         }

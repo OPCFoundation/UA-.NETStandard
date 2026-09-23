@@ -493,6 +493,201 @@ namespace Opc.Ua.Client.Tests
             Assert.That(session.Reconnecting, Is.False);
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CancelledRecreateRetainsAdmissionUntilPublishUnwindAsync(bool pauseDuringCleanup)
+        {
+            await using var harness = new SessionChannelHarness();
+            ConfiguredEndpoint endpoint = SessionChannelHarness.CreateEndpoint();
+            ScriptedChannel channel = harness.CreateOpenedStandaloneChannel(endpoint);
+            var publishUnwind = new AsyncOperationGate { IgnoreCancellation = true };
+            var resumedPublish = new AsyncOperationGate();
+            var create = new AsyncOperationGate();
+            int publishCount = 0;
+            int sessionCount = 0;
+            TaskCompletionSource<bool>? successorPublishEntered = null;
+            channel.RequestHandler = async (request, ct) =>
+            {
+                switch (request)
+                {
+                    case CreateSessionRequest when Interlocked.Increment(ref sessionCount) > 1:
+                        await create.WaitAsync(ct).ConfigureAwait(false);
+                        break;
+                    case CreateSubscriptionRequest subscription:
+                        return new CreateSubscriptionResponse
+                        {
+                            ResponseHeader = channel.CreateGoodHeader(),
+                            SubscriptionId = 1,
+                            RevisedPublishingInterval = subscription.RequestedPublishingInterval,
+                            RevisedLifetimeCount = subscription.RequestedLifetimeCount,
+                            RevisedMaxKeepAliveCount = subscription.RequestedMaxKeepAliveCount
+                        };
+                    case DeleteSubscriptionsRequest delete:
+                        return new DeleteSubscriptionsResponse
+                        {
+                            ResponseHeader = channel.CreateGoodHeader(),
+                            Results = delete.SubscriptionIds.ConvertAll(_ => (StatusCode)StatusCodes.Good)
+                        };
+                    case TransferSubscriptionsRequest transfer:
+                        return new TransferSubscriptionsResponse
+                        {
+                            ResponseHeader = channel.CreateGoodHeader(),
+                            Results = transfer.SubscriptionIds.ConvertAll(_ => new TransferResult
+                            {
+                                StatusCode = StatusCodes.BadSubscriptionIdInvalid
+                            })
+                        };
+                    case PublishRequest:
+                        int attemptNumber = Interlocked.Increment(ref publishCount);
+                        if (attemptNumber > 1)
+                        {
+                            successorPublishEntered?.TrySetResult(true);
+                        }
+                        AsyncOperationGate gate = attemptNumber == 1
+                            ? publishUnwind
+                            : resumedPublish;
+                        await gate.WaitAsync(ct).ConfigureAwait(false);
+                        ct.ThrowIfCancellationRequested();
+                        throw new InvalidOperationException("The publish gate must end through cancellation.");
+                }
+                return channel.CreateResponse(request);
+            };
+            var engineFactory = new ObservingSubscriptionEngineFactory(TimeProvider.System);
+            await using var session = new Session(
+                channel.Channel, harness.Configuration, endpoint, engineFactory: engineFactory);
+            await session.OpenAsync("final-drain", new UserIdentity(), CancellationToken.None).ConfigureAwait(false);
+            var manager = (Subscriptions.SubscriptionManager)engineFactory.Engine.SubscriptionManager;
+            await using Subscriptions.ISubscription subscription = manager.Add(
+                Mock.Of<Subscriptions.ISubscriptionNotificationHandler>(),
+                OptionsFactory.Create(new Subscriptions.SubscriptionOptions
+                {
+                    DisableUnboundedItemMode = true,
+                    PublishingEnabled = true,
+                    PublishingInterval = TimeSpan.FromSeconds(1)
+                }));
+            using var cancellation = new CancellationTokenSource();
+            using var contenderCancellation = new CancellationTokenSource();
+            using var successorCancellation = new CancellationTokenSource();
+            Task? owner = null;
+            Task? contender = null;
+            Task? successor = null;
+            try
+            {
+                await publishUnwind.Entered.WaitAsync(s_timeout).ConfigureAwait(false);
+                ObservingSubscriptionEngineFactory.PublishAttempt attempt = await engineFactory
+                    .NextAttemptAsync(CancellationToken.None).AsTask().WaitAsync(s_timeout).ConfigureAwait(false);
+                var publishing = (AsyncManualResetEvent)typeof(Subscriptions.SubscriptionManager)
+                    .GetField("m_running", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(manager)!;
+
+                // Cancelling inside DrainAsync's abort makes its first wait cancel synchronously.
+                // Recreate can return its task only after entering the real uncancellable final drain.
+                using CancellationTokenRegistration registration = attempt.CancellationToken.Register(
+                    cancellation.Cancel);
+                owner = session.RecreateInPlaceAsync(channel: channel.Channel, ct: cancellation.Token);
+                bool retainedAdmission = session.Reconnecting;
+                if (pauseDuringCleanup)
+                {
+                    engineFactory.Engine.PausePublishing();
+                }
+                contender = session.RecreateInPlaceAsync(
+                    channel: channel.Channel, ct: contenderCancellation.Token);
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(cancellation.IsCancellationRequested, Is.True);
+                    Assert.That(attempt.CancellationToken.IsCancellationRequested, Is.True);
+                    Assert.That(attempt.Operation.IsCompleted, Is.False);
+                    Assert.That(owner.IsCompleted, Is.False);
+                    Assert.That(retainedAdmission, Is.True, "The final drain must retain recovery admission.");
+                    Assert.That(contender.IsCompleted, Is.True, "A contender must reject, not join the old drain.");
+                    Assert.That(publishing.IsSet, Is.False);
+                    Assert.That(Volatile.Read(ref publishCount), Is.EqualTo(1));
+                }
+                ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await contender.WaitAsync(s_timeout).ConfigureAwait(false))!;
+                Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+
+                publishUnwind.Release();
+                Assert.CatchAsync<OperationCanceledException>(
+                    async () => await owner.WaitAsync(s_timeout).ConfigureAwait(false));
+                Assert.That(attempt.Operation.IsCanceled, Is.True);
+                Assert.That(session.Reconnecting, Is.False);
+                Assert.That(publishing.IsSet, Is.EqualTo(!pauseDuringCleanup));
+
+                engineFactory.Engine.PausePublishing();
+                await manager.DrainAsync(CancellationToken.None).WaitAsync(s_timeout).ConfigureAwait(false);
+                int publishesBeforeSuccessor = Volatile.Read(ref publishCount);
+                successorPublishEntered = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+
+                successor = session.RecreateInPlaceAsync(
+                    channel: channel.Channel, ct: successorCancellation.Token);
+                await create.Entered.WaitAsync(s_timeout).ConfigureAwait(false);
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(session.Reconnecting, Is.True);
+                    Assert.That(publishing.IsSet, Is.False, "The old owner cannot resume a successor's pause.");
+                    Assert.That(Volatile.Read(ref publishCount), Is.EqualTo(publishesBeforeSuccessor));
+                    Assert.That(successorPublishEntered.Task.IsCompleted, Is.False);
+                }
+                create.Release();
+                await successor.WaitAsync(s_timeout).ConfigureAwait(false);
+                Assert.That(session.Reconnecting, Is.False);
+                Assert.That(publishing.IsSet, Is.False);
+                engineFactory.Engine.ResumePublishing();
+                await successorPublishEntered.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+                Assert.That(Volatile.Read(ref publishCount), Is.EqualTo(publishesBeforeSuccessor + 1));
+                Assert.That(engineFactory.CreateCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                engineFactory.Engine.PausePublishing();
+                cancellation.Cancel();
+                contenderCancellation.Cancel();
+                successorCancellation.Cancel();
+                publishUnwind.Release();
+                create.Release();
+                foreach (Task recovery in new[] { owner, contender, successor }.OfType<Task>())
+                {
+                    try
+                    {
+                        await ObserveCancelledRecoveryAsync(recovery).ConfigureAwait(false);
+                    }
+                    catch (ServiceResultException exception) when (exception.StatusCode == StatusCodes.BadInvalidState)
+                    {
+                    }
+                }
+                await manager.DrainAsync(CancellationToken.None).WaitAsync(s_timeout).ConfigureAwait(false);
+                resumedPublish.Release();
+            }
+        }
+
+        [Test]
+        public async Task RecreateReleasesAdmissionWhenPublishingCleanupFailsAsync()
+        {
+            await using var harness = new SessionChannelHarness();
+            ConfiguredEndpoint endpoint = SessionChannelHarness.CreateEndpoint();
+            ScriptedChannel channel = harness.CreateOpenedStandaloneChannel(endpoint);
+            var engine = new Mock<ISubscriptionEngine>();
+            var factory = new Mock<ISubscriptionEngineFactory>();
+            factory.Setup(value => value.Create(It.IsAny<ISubscriptionEngineContext>())).Returns(engine.Object);
+            var failure = new InvalidOperationException("Injected publishing cleanup failure.");
+            engine.Setup(value => value.ResumePublishing()).Throws(failure);
+            await using var session = new Session(
+                channel.Channel, harness.Configuration, endpoint, engineFactory: factory.Object);
+
+            InvalidOperationException error = Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await session.RecreateInPlaceAsync(channel: channel.Channel)
+                    .WaitAsync(s_timeout).ConfigureAwait(false))!;
+
+            Assert.That(error, Is.SameAs(failure));
+            Assert.That(session.Reconnecting, Is.False, "A cleanup failure must still release recovery admission.");
+            engine.Setup(value => value.ResumePublishing()).Callback(static () => { });
+            await session.RecreateInPlaceAsync(channel: channel.Channel).WaitAsync(s_timeout).ConfigureAwait(false);
+            Assert.That(session.Reconnecting, Is.False);
+            Assert.That(session.Connected, Is.True);
+            Assert.That(channel.CreateSessionCount, Is.EqualTo(2));
+        }
+
         /// <summary>
         /// Certificate reload cannot replace certificate material while session creation still owns recovery.
         /// </summary>
