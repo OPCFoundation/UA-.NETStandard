@@ -37,13 +37,13 @@ jobs:
   variables:
   - group: codesign
   - name: msbuildversion
-    value: '/p:Version=$(NBGV_Version) /p:AssemblyVersion=$(NBGV_SimpleVersion) /p:FileVersion=$(NBGV_AssemblyFileVersion)'
+    value: '/p:Version=$(NBGV_NuGetPackageVersion) /p:AssemblyVersion=$(NBGV_SimpleVersion) /p:FileVersion=$(NBGV_AssemblyFileVersion)'
   - name: msbuildsign
     value: '/p:AssemblyOriginatorKeyFile=$(strongnamefile.secureFilePath) /p:SignAssembly=true'
   - name: nugetpreviewversion
     value: '$(NBGV_NuGetPackageVersion)'
   - name: nugetpublicversion
-    value: '$(NBGV_Version)$(NBGV_PrereleaseVersion)'
+    value: '$(NBGV_NuGetPackageVersion)'
   - name: signinglist
     value: '.azurepipelines/signlist${{parameters.config}}.txt'
   steps:
@@ -164,9 +164,40 @@ jobs:
       script: |
         NuGetKeyVaultSignTool sign $(Build.ArtifactStagingDirectory)/**/OPCFoundation.*.nupkg --file-digest sha256 --timestamp-rfc3161 http://timestamp.digicert.com --timestamp-digest sha256 --azure-key-vault-url "$(SigningVaultURL)" --azure-key-vault-client-id "$(SigningClientId)" --azure-key-vault-tenant-id "$(SigningTenantId)" --azure-key-vault-client-secret "$(SigningClientSecret)" --azure-key-vault-certificate "$(SigningCertName)"
         NuGetKeyVaultSignTool sign $(Build.ArtifactStagingDirectory)/**/OPCFoundation.*.snupkg --file-digest sha256 --timestamp-rfc3161 http://timestamp.digicert.com --timestamp-digest sha256 --azure-key-vault-url "$(SigningVaultURL)" --azure-key-vault-client-id "$(SigningClientId)" --azure-key-vault-tenant-id "$(SigningTenantId)" --azure-key-vault-client-secret "$(SigningClientSecret)" --azure-key-vault-certificate "$(SigningCertName)"
+  # The manifest records a SHA-256 for every package, and signing rewrites
+  # each .nupkg/.snupkg in place. These two tasks must therefore stay *after*
+  # "Sign Nuget packages" - running them earlier records hashes of the
+  # unsigned bytes, so the published artifact could not be verified against
+  # the manifest that accompanies it. They must equally stay *before* the
+  # upload/publish tasks, which consume the PackageChannel variable set here.
+  - task: PowerShell@2
+    displayName: Validate package version policy
+    name: packageVersionPolicy
+    inputs:
+      targetType: filePath
+      filePath: ./.azurepipelines/validate-nuget-package-set.ps1
+      arguments: '-PackageDirectory "$(Build.ArtifactStagingDirectory)" -ManifestPath "$(Build.ArtifactStagingDirectory)/package-set.json" -ExpectedVersion "$(NBGV_NuGetPackageVersion)"'
+      pwsh: true
+  - task: PowerShell@2
+    displayName: Determine package publication channel
+    inputs:
+      targetType: inline
+      pwsh: true
+      script: |
+        $manifestPath = '$(Build.ArtifactStagingDirectory)/package-set.json'
+        if (-not (Test-Path -LiteralPath $manifestPath)) {
+            throw "Package policy manifest '$manifestPath' was not produced."
+        }
+        $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+        if ($manifest.channel -notin @('preview', 'stable')) {
+            throw "Package policy manifest has an unsupported channel '$($manifest.channel)'."
+        }
+        Write-Host "##vso[task.setvariable variable=PackageChannel]$($manifest.channel)"
+        Write-Host "Package channel is '$($manifest.channel)'."
   - ${{ if eq(parameters.upload, 'True') }}:
     - task: NuGetCommand@2
       displayName: Upload Nuget Preview
+      condition: and(succeeded(), eq(variables['PackageChannel'], 'preview'))
       inputs:
         command: 'push'
         packagesToPush: '$(Build.ArtifactStagingDirectory)/**/OPCFoundation.*.nupkg'

@@ -12,7 +12,7 @@ dedicated, manually triggered CI job (and on a weekly schedule) to validate high
 ## Short-haul tests (pull-request validation)
 
 Short-haul tests are deterministic and complete in seconds. They are discovered and run automatically by the normal
-[Build and Test](../.github/workflows/buildandtest.yml) workflow (and the Azure DevOps test stages), because the project follows the
+[CI](../.github/workflows/buildandtest.yml) workflow (and the Azure DevOps test stages), because the project follows the
 `tests/Opc.Ua.*.Tests` naming convention. They are tagged with the NUnit category `SampleHaShortHaul`:
 
 * **PubSub demo, hot mode** &mdash; runs `RedundantPubSub --role demo --ha-mode hot` and asserts the promoted publisher continues the SequenceNumber

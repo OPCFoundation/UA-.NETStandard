@@ -2,9 +2,9 @@
 
 [![Release](https://img.shields.io/github/v/release/OPCFoundation/UA-.NETStandard?style=flat)](https://github.com/OPCFoundation/UA-.NETStandard/releases)
 [![NuGet Downloads](https://img.shields.io/nuget/dt/OPCFoundation.NetStandard.Opc.Ua)](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/)
-[![Build](https://opcfoundation.visualstudio.com/opcua-netstandard/_apis/build/status/OPCFoundation.UA-.NETStandard?branchName=master)](https://opcfoundation.visualstudio.com/opcua-netstandard/_build/latest?definitionId=14&branchName=master)
-[![Tests](https://img.shields.io/azure-devops/tests/opcfoundation/opcua-netstandard/14/master?style=plastic&label=Tests)](https://opcfoundation.visualstudio.com/opcua-netstandard/_test/analytics?definitionId=14&contextType=build)
-[![Coverage](https://img.shields.io/azure-devops/coverage/opcfoundation/opcua-netstandard/14/master?style=plastic&label=Coverage)](https://opcfoundation.visualstudio.com/opcua-netstandard/_build/latest?definitionId=14&branchName=master)
+[![CI](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/buildandtest.yml/badge.svg?branch=master)](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/buildandtest.yml?query=branch%3Amaster)
+[![CodeQL](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/codeql-analysis.yml/badge.svg?branch=master)](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/codeql-analysis.yml?query=branch%3Amaster)
+[![Coverage](https://codecov.io/gh/OPCFoundation/UA-.NETStandard/branch/master/graph/badge.svg)](https://codecov.io/gh/OPCFoundation/UA-.NETStandard)
 
 > 🆕 **This is version 2.0 of the OPC UA .NET Standard Stack (current `master`).**
 >
@@ -68,10 +68,18 @@ pulls in everything, or reference individual packages directly, e.g.
 `OPCFoundation.NetStandard.Opc.Ua.Client` for clients or
 `OPCFoundation.NetStandard.Opc.Ua.Server` for servers. Preview builds from
 every successful `master` build are available from the
-[GitHub Packages NuGet feed](https://nuget.pkg.github.com/OPCFoundation/index.json).
-Official public 2.0 preview releases are also on nuget.org. Enable prerelease
-packages and use `2.0.0-preview.*` to float to the latest published
-`2.0.0-preview.N` release.
+[GitHub Packages NuGet feed](https://nuget.pkg.github.com/OPCFoundation/index.json),
+which is the only feed they are published to. nuget.org receives a version
+only through a manually approved promotion from a `release/<major>.<minor>`
+branch — that is where the `2.0.0-preview.N` packages already on nuget.org
+came from, via the earlier `release/2.0.0` line. To use those, enable
+prerelease packages and float with `2.0.0-preview.*` until `2.0.0` is
+released. The XRegistry, WoT Connectivity, Vision, Robotics,
+Redundancy, Positioning, OpenUSD, ISA95, AI, and DI package families remain
+preview packages when the root version is promoted to a stable version, and
+keep their own `-preview.N` versions on nuget.org. See
+[docs/ReleaseProcess.md](docs/ReleaseProcess.md) for how and when stable
+versions are released.
 
 ### Samples
 

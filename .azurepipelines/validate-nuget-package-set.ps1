@@ -24,6 +24,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'package-version-policy.ps1')
 
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 
@@ -122,12 +123,38 @@ if ($duplicates.Count -gt 0) {
     throw "Duplicate package ID/version pairs were found: $($duplicateNames -join '; ')."
 }
 
-$versions = @($normalPackages.version | Sort-Object -Unique)
-if ($versions.Count -ne 1) {
-    throw "The package set contains multiple versions: $($versions -join ', ')."
+$basePackage = @($normalPackages | Where-Object {
+    # A Debug-configuration pack produces only ".Debug"-suffixed package IDs
+    # (see version.props/csproj PackageId overrides), so a Debug-only package
+    # set is anchored on "Core.Debug", not plain "Core". A combined set (both
+    # configurations aggregated together, as nuget-publish.yml's "publish"
+    # job does before promotion) legitimately contains both at once; accept
+    # either, or both together provided they agree on the version.
+    $_.id -ieq 'OPCFoundation.NetStandard.Opc.Ua.Core' -or
+    $_.id -ieq 'OPCFoundation.NetStandard.Opc.Ua.Core.Debug'
+})
+if ($basePackage.Count -eq 0) {
+    throw 'Expected at least one OPCFoundation.NetStandard.Opc.Ua.Core (or .Core.Debug) package to anchor the package version, found none.'
 }
-if ($ExpectedVersion -and $versions[0] -cne $ExpectedVersion) {
-    throw "Expected package version '$ExpectedVersion', but found '$($versions[0])'."
+$distinctBaseVersions = @($basePackage.Version | Sort-Object -Unique)
+if ($distinctBaseVersions.Count -ne 1) {
+    throw (
+        'OPCFoundation.NetStandard.Opc.Ua.Core and .Core.Debug disagree on the package version: ' +
+        "$($distinctBaseVersions -join ', ').")
+}
+$baseVersion = $distinctBaseVersions[0]
+if ($ExpectedVersion -and $baseVersion -cne $ExpectedVersion) {
+    throw "Expected base package version '$ExpectedVersion', but found '$baseVersion'."
+}
+
+$invalidVersions = @($normalPackages | Where-Object {
+    $_.Version -cne (Get-ExpectedPackageVersion -PackageId $_.Id -BaseVersion $baseVersion)
+})
+if ($invalidVersions.Count -gt 0) {
+    $details = $invalidVersions | ForEach-Object {
+        "$($_.Id)=$($_.Version) (expected $(Get-ExpectedPackageVersion -PackageId $_.Id -BaseVersion $baseVersion))"
+    }
+    throw "The package set contains versions that do not match the preview policy: $($details -join '; ')."
 }
 
 $normalKeys = [System.Collections.Generic.HashSet[string]]::new(
@@ -159,7 +186,16 @@ if ($manifestDirectory) {
 }
 
 $manifest = [ordered]@{
-    packageVersion = $versions[0]
+    schemaVersion = 2
+    basePackageVersion = $baseVersion
+    # "stable" only for an exact release such as "2.0.0"; "preview" for every
+    # in-development build (a prerelease label and/or build metadata present).
+    # See Test-StablePackageVersion in package-version-policy.ps1 - this is
+    # the single source of truth downstream workflows rely on for whether a
+    # package set is eligible for automatic feed publication (preview) or
+    # requires the separate release.yml manual promotion (stable).
+    channel = if (Test-StablePackageVersion -Version $baseVersion) { 'stable' } else { 'preview' }
+    packageVersions = @($normalPackages.version | Sort-Object -Unique)
     packageCount = $normalPackages.Count
     symbolPackageCount = @($archives | Where-Object type -eq 'symbols').Count
     debugPackageCount = $debugPackages.Count
@@ -171,4 +207,5 @@ $manifest | ConvertTo-Json -Depth 5 |
 Write-Host (
     "Validated $($manifest.packageCount) package(s), " +
     "$($manifest.symbolPackageCount) symbol package(s), and " +
-    "$($manifest.debugPackageCount) Debug package(s) at version $($manifest.packageVersion).")
+    "$($manifest.debugPackageCount) Debug package(s) against base version " +
+    "$($manifest.basePackageVersion) (channel: $($manifest.channel)).")
