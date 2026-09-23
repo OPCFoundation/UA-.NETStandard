@@ -219,8 +219,59 @@ namespace Opc.Ua.WotCon.Server.Materialization
         {
             _ = registry ?? throw new ArgumentNullException(nameof(registry));
             WotRegistrySnapshot original = registry.Current;
+            var retainedInputs = new Dictionary<string, WotResource>(StringComparer.Ordinal);
             if (committedInputs)
             {
+                foreach (WotResource owner in original.AllResources())
+                {
+                    foreach (WotResource input in owner.CommittedInputs)
+                    {
+                        WotResourceVersion version = input.Versions[0];
+                        if (owner.CommittedVersion?.DependencySnapshot is { } observation)
+                        {
+                            bool matched = false;
+                            foreach (WotDependencyTargetPin target in observation.Targets)
+                            {
+                                if (observation.Edges[(int)target.EdgeIndex].TargetXid != input.Xid)
+                                {
+                                    continue;
+                                }
+                                if (target.VersionXid != VersionXid(input, version) ||
+                                    !WotContentDigest.Equal(target.ContentDigest, version.Digest))
+                                {
+                                    throw new ServiceResultException(StatusCodes.BadInvalidState,
+                                        "A retained input contradicts its committed dependency observation.");
+                                }
+                                matched = true;
+                            }
+                            if (!matched)
+                            {
+                                throw new ServiceResultException(
+                                    StatusCodes.BadInvalidState, "A retained input has no committed dependency edge.");
+                            }
+                        }
+                        if (retainedInputs.TryGetValue(input.Xid, out WotResource? previous))
+                        {
+                            WotResourceVersion retained = previous.Versions[0];
+                            WotResourceVersion candidate = input.Versions[0];
+                            // Reloaded records have independent process-local incarnation IDs.
+                            if (previous.Kind != input.Kind || previous.SourceId != input.SourceId ||
+                                previous.MetaCreatedAt != input.MetaCreatedAt ||
+                                retained.VersionId != candidate.VersionId ||
+                                retained.CreatedAt != candidate.CreatedAt || retained.Epoch != candidate.Epoch ||
+                                retained.ContentLength != candidate.ContentLength ||
+                                retained.Format != candidate.Format ||
+                                retained.ContentType != candidate.ContentType ||
+                                !WotContentDigest.Equal(retained.Digest, candidate.Digest))
+                            {
+                                throw new ServiceResultException(
+                                    StatusCodes.BadInvalidState,
+                                    "Committed publications disagree on a resolution input.");
+                            }
+                        }
+                        retainedInputs[input.Xid] = input;
+                    }
+                }
                 foreach (WotResourceGroup group in original.Groups.Values)
                 {
                     ImmutableDictionary<string, WotResource> resources = group.Resources;
@@ -243,6 +294,20 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         resources = resources.SetItem(resource.ResourceId, recoveredResource);
                     }
                     original = original.WithGroup(group.WithResources(resources, group.Epoch), original.Generation);
+                }
+                foreach (WotResource input in retainedInputs.Values)
+                {
+                    WotResource? current = original.FindResource(input.GroupId, input.ResourceId);
+                    if (current is null || current.Kind != input.Kind || current.SourceId != input.SourceId ||
+                        current.MetaCreatedAt != input.MetaCreatedAt ||
+                        current.ActiveVersionId is not null)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadInvalidState, "A committed resolution input has lost its identity or role.");
+                    }
+                    WotResourceGroup group = original.FindGroup(input.GroupId)!;
+                    original = original.WithGroup(group.WithResources(
+                        group.Resources.SetItem(input.ResourceId, input), group.Epoch), original.Generation);
                 }
             }
             ArrayOf<WotSelectedResource> selection = SelectResources(original, selectors, includeDependents);
@@ -270,6 +335,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     WotResource owner = pinned.AllResources().Single(resource =>
                         resource.Versions.Any(candidate => candidate.IncarnationId == version.IncarnationId));
+                    if (committedInputs && owner.ActiveVersionId is null && !retainedInputs.ContainsKey(owner.Xid))
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadInvalidState, "A resolution dependency has no retained committed input.");
+                    }
                     if (registry is IWotRegistryVersionLeaseProvider provider && acquired.Add(version.IncarnationId))
                     {
                         IWotRegistryVersionLease lease = await provider.AcquireVersionLeaseAsync(

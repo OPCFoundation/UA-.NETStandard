@@ -1128,7 +1128,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     version.VersionId,
                     dto.DefaultVersionId ?? dto.DesiredVersionId,
                     StringComparison.Ordinal));
-            return new WotResource(
+            WotResource resource = new WotResource(
                 dto.GroupId,
                 dto.ResourceId,
                 (WoTDocumentKindEnum)dto.Kind,
@@ -1160,6 +1160,33 @@ namespace Opc.Ua.WotCon.Server.Registry
                     ? derivedMetaModifiedAt
                     : ParseDate(dto.MetaModifiedAt)
             }.WithCommittedVersion(committedVersion);
+            if (dto.CommittedInputs is not null)
+            {
+                var inputs = new List<WotResource>(dto.CommittedInputs.Length);
+                foreach (ResourceDto input in dto.CommittedInputs)
+                {
+                    if (input is null || input.CommittedInputs is not null || input.CommittedVersion is not null ||
+                        input.ActiveVersionId is not null || input.Enabled || input.Versions?.Length != 1)
+                    {
+                        throw new InvalidDataException(
+                            "A retained resolution input is not a flat exact-Version record.");
+                    }
+                    ValidateSegment(input.GroupId, "retained input group id");
+                    ValidateSegment(input.ResourceId, "retained input resource id");
+                    inputs.Add(await LoadResourceAsync(
+                        input, loadedBlobs, manifestRole, suppliedBlobs, deferredVerifications, cancellationToken)
+                        .ConfigureAwait(false));
+                }
+                try
+                {
+                    resource = resource.WithCommittedInputs(inputs.ToArrayOf());
+                }
+                catch (ArgumentException failure)
+                {
+                    throw new InvalidDataException("The committed resolution input image is invalid.", failure);
+                }
+            }
+            return resource;
         }
 
         private static IEnumerable<VersionDto> EnumerateVersionDtos(ResourceDto resource)
@@ -1228,6 +1255,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                 DesiredVersionId = resource.DesiredVersionId,
                 ActiveVersionId = resource.ActiveVersionId,
                 CommittedVersion = resource.CommittedVersion is null ? null : ToDto(resource.CommittedVersion),
+                CommittedInputs = resource.CommittedInputs.IsNull
+                    ? null : resource.CommittedInputs.ConvertAll(ToDto).ToArray(),
                 Enabled = resource.Enabled,
                 LoadState = (int)resource.LoadState,
                 Epoch = resource.Epoch,
@@ -3251,6 +3280,12 @@ namespace Opc.Ua.WotCon.Server.Registry
             /// </summary>
             [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
             public VersionDto? CommittedVersion { get; set; }
+
+            /// <summary>
+            /// Gets or sets flat exact-Version inputs retained without activation by this publication.
+            /// </summary>
+            [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+            public ResourceDto[]? CommittedInputs { get; set; }
 
             /// <summary>
             /// Gets or sets whether the resource participates in materialization.

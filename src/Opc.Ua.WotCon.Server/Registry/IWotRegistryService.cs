@@ -419,6 +419,22 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// Gets the completed actual dependency attempt for the exact Version.
         /// </summary>
         public WotDependencySnapshot? LastDependencyAttempt { get; init; }
+
+        internal ArrayOf<WotResource> CommittedInputs { get; init; }
+
+        internal WotResourceProjection WithCommittedInputs(ArrayOf<WotResource> inputs)
+        {
+            return new WotResourceProjection(
+                GroupId, ResourceId, LoadState, ActiveVersionId, RefreshGeneration,
+                MaterializedNodeCount, RootNodeId, Validation, Diagnostics, LastRefreshTime)
+            {
+                RetainPreviousActiveVersion = RetainPreviousActiveVersion,
+                VersionId = VersionId,
+                DependencySnapshot = DependencySnapshot,
+                LastDependencyAttempt = LastDependencyAttempt,
+                CommittedInputs = inputs
+            };
+        }
     }
 
     /// <summary>

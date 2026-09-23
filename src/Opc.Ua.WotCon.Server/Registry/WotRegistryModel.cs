@@ -600,6 +600,8 @@ namespace Opc.Ua.WotCon.Server.Registry
 
         internal WotResourceVersion? CommittedVersion { get; private set; }
 
+        internal ArrayOf<WotResource> CommittedInputs { get; private set; }
+
         internal IEnumerable<WotResourceVersion> RetainedVersions
         {
             get
@@ -611,6 +613,10 @@ namespace Opc.Ua.WotCon.Server.Registry
                 if (CommittedVersion is not null)
                 {
                     yield return CommittedVersion;
+                }
+                for (int i = 0; i < CommittedInputs.Count; i++)
+                {
+                    yield return CommittedInputs[i].Versions[0];
                 }
             }
         }
@@ -693,7 +699,9 @@ namespace Opc.Ua.WotCon.Server.Registry
                 MetaCreatedAt = MetaCreatedAt,
                 MetaModifiedAt = MetaModifiedAt,
                 CommittedVersion = clearActiveVersion ||
-                    (activeVersionId is not null && activeVersionId != ActiveVersionId) ? null : CommittedVersion
+                    (activeVersionId is not null && activeVersionId != ActiveVersionId) ? null : CommittedVersion,
+                CommittedInputs = clearActiveVersion ||
+                    (activeVersionId is not null && activeVersionId != ActiveVersionId) ? default : CommittedInputs
             };
         }
 
@@ -728,7 +736,8 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 MetaCreatedAt = MetaCreatedAt,
                 MetaModifiedAt = modifiedAt ?? MetaModifiedAt,
-                CommittedVersion = updated.CommittedVersion
+                CommittedVersion = updated.CommittedVersion,
+                CommittedInputs = updated.CommittedInputs
             };
         }
 
@@ -761,7 +770,8 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 MetaCreatedAt = MetaCreatedAt,
                 MetaModifiedAt = MetaModifiedAt,
-                CommittedVersion = CommittedVersion
+                CommittedVersion = CommittedVersion,
+                CommittedInputs = CommittedInputs
             };
         }
 
@@ -773,6 +783,34 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
             WotResource updated = With();
             updated.CommittedVersion = version;
+            if (version is null)
+            {
+                updated.CommittedInputs = default;
+            }
+            return updated;
+        }
+
+        internal WotResource WithCommittedInputs(ArrayOf<WotResource> inputs)
+        {
+            if (!inputs.IsNull && (ActiveVersionId is null || CommittedVersion is null))
+            {
+                throw new ArgumentException("Committed inputs require an active publication.", nameof(inputs));
+            }
+            var identities = new HashSet<string>(StringComparer.Ordinal);
+            foreach (WotResource input in inputs)
+            {
+                if (input is null || input.Enabled || input.ActiveVersionId is not null ||
+                    input.CommittedVersion is not null || !input.CommittedInputs.IsNull ||
+                    input.Versions.Length != 1 || input.DefaultVersionId != input.Versions[0].VersionId ||
+                    input.DesiredVersionId != input.DefaultVersionId || !input.Versions[0].HasContent ||
+                    !identities.Add(input.Xid))
+                {
+                    throw new ArgumentException(
+                        "A committed resolution input must retain one exact, non-activating Version.", nameof(inputs));
+                }
+            }
+            WotResource updated = With();
+            updated.CommittedInputs = inputs.IsNull ? default : [.. inputs];
             return updated;
         }
 

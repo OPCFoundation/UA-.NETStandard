@@ -64,6 +64,15 @@ namespace Opc.Ua.WotCon.Server.Registry
                 {
                     current = committed;
                 }
+                if (current is null || current.IncarnationId != version.IncarnationId ||
+                    current.Epoch != version.Epoch || !WotContentDigest.Equal(current.Digest, version.Digest))
+                {
+                    WotResourceVersion? retained = FindCommittedInput(groupId, resourceId, version);
+                    if (retained is not null)
+                    {
+                        current = retained;
+                    }
+                }
                 if (current is null)
                 {
                     throw new ServiceResultException(StatusCodes.BadNodeIdUnknown, "The Version no longer exists.");
@@ -78,6 +87,25 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 m_mutex.Release();
             }
+        }
+
+        private WotResourceVersion? FindCommittedInput(
+            string groupId, string resourceId, WotResourceVersion expected)
+        {
+            foreach (WotResource owner in m_snapshot.AllResources())
+            {
+                foreach (WotResource input in owner.CommittedInputs)
+                {
+                    WotResourceVersion version = input.Versions[0];
+                    if (input.GroupId == groupId && input.ResourceId == resourceId &&
+                        version.VersionId == expected.VersionId && version.IncarnationId == expected.IncarnationId &&
+                        version.Epoch == expected.Epoch && WotContentDigest.Equal(version.Digest, expected.Digest))
+                    {
+                        return version;
+                    }
+                }
+            }
+            return null;
         }
 
         private async ValueTask PrepareVersionLeaseAsync(

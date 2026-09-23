@@ -271,6 +271,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     }
                     newResource.ActiveVersionId = oldResource.ActiveVersionId;
                     newResource.CommittedVersion = oldResource.CommittedVersion;
+                    newResource.CommittedInputs = oldResource.CommittedInputs;
                     newResource.LoadState = oldResource.LoadState;
                     newResource.RefreshGeneration = oldResource.RefreshGeneration;
                     newResource.LastRefreshTime = oldResource.LastRefreshTime;

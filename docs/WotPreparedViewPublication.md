@@ -278,6 +278,19 @@ its immutable content remains owned with the committed image. Older active
 manifests without this evidence fail recovery explicitly rather than guessing
 which bytes were originally published.
 
+The committed image also retains the exact Versions used only for resolution.
+These flat input records belong to the active Resource's publication; they do
+not set an ActiveVersionId or allocate an activation generation for a dependency.
+The existing content owner verifies and retains their blobs even after ordinary
+Version eviction or an edit to the same VersionId.
+
+Recovery pins those inputs privately without applying a later default Version
+or pending Enabled change. The registry's desired/default metadata remains
+unchanged. Missing records, conflicting input identity or role, and disagreement
+with a committed dependency observation fail before child publication.
+Retiring or replacing the owning publication releases its former input records
+through the same retention rules as other committed content.
+
 Source and View candidates are built privately under the existing invocation
 owners. The View planner validates the recorded logical server, roles, Node facts,
 membership and token history against the recovered source image. Resource root
@@ -306,9 +319,7 @@ refresh can subsequently activate pending desired inputs.
 
 Direct-constructor hosts call `RecoverAsync` after initializing the registry;
 ordinary `RefreshAsync` does not reinterpret every newly constructed coordinator
-as a cold server. Recovery of retained resolution-only dependency inputs remains
-separate acceptance work; these contracts do not establish Full-profile or
-HA conformance.
+as a cold server. These contracts do not establish Full-profile or HA conformance.
 
 ## Resolving an interrupted warm publication
 

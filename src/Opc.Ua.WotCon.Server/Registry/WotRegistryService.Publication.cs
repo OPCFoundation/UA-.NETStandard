@@ -269,7 +269,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                 {
                     updated = updated.WithCommittedVersion(updated.FindVersion(activeVersionId)
                         ?? throw new ServiceResultException(
-                            StatusCodes.BadInvalidState, "Publication has no exact active Version."));
+                            StatusCodes.BadInvalidState, "Publication has no exact active Version."))
+                        .WithCommittedInputs(projection.CommittedInputs);
                 }
                 WotResourceGroup group = next.FindGroup(projection.GroupId)!;
                 next = ReplaceResource(next, group, updated, generation, bumpGroupEpoch: false);

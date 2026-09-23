@@ -315,6 +315,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     MergeViewGraphMetadata(capture, graphState, snapshot, unit, staged);
                 }
+                BindCommittedResolutionInputs(capture, refresh, snapshot);
                 foreach (ClosureState closure in capture.Closures.Values)
                 {
                     closure.PublishedMetadata = [.. closure.PublishedMetadata.Select(projection =>
@@ -434,6 +435,39 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     await views.DisposeAsync().ConfigureAwait(false);
                 }
+            }
+        }
+
+        private static void BindCommittedResolutionInputs(
+            PublicationCapture capture, WotRefreshCapture refresh, WotRegistrySnapshot snapshot)
+        {
+            List<WotDependencyClosure> closures = refresh.Inputs.Closures.ToList();
+            for (int index = 0; index < capture.Projections.Count; index++)
+            {
+                WotResourceProjection projection = capture.Projections[index];
+                if (projection.RetainPreviousActiveVersion || projection.ActiveVersionId is null ||
+                    projection.LoadState != WoTLoadStateEnum.Active)
+                {
+                    continue;
+                }
+                WotDependencyClosure? closure = closures.FirstOrDefault(candidate =>
+                    candidate.Members.Any(member =>
+                        member.GroupId == projection.GroupId && member.ResourceId == projection.ResourceId));
+                WotResource? previous = snapshot.FindResource(projection.GroupId, projection.ResourceId);
+                ArrayOf<WotResource> inputs = closure is null
+                    ? previous is null ? default : previous.CommittedInputs
+                    : closure.Members.Where(member => !member.Enabled).Select(member =>
+                    {
+                        WotResourceVersion version = member.DefaultVersion ??
+                            throw new ServiceResultException(
+                                StatusCodes.BadInvalidState, "A committed resolution input has no selected Version.");
+                        return member.With(
+                            versions: [version],
+                            defaultVersionId: version.VersionId, desiredVersionId: version.VersionId,
+                            enabled: false, loadState: WoTLoadStateEnum.Unloaded, refreshGeneration: 0,
+                            materializedNodeCount: 0, clearActiveVersion: true, clearRootNodeId: true);
+                    }).ToArrayOf();
+                capture.Projections[index] = projection.WithCommittedInputs(inputs);
             }
         }
 
