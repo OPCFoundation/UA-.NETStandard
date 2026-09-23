@@ -275,6 +275,8 @@ Two seams make this behaviour injectable and testable:
 
 2. **`IPushConfigurationTrustListEffectHandler`** — the injectable provider that performs the two effects above. `ConfigurationNodeManager` builds a `PushConfigurationTrustListEffectContext` (the committed effects plus the live transport listeners, session manager, certificate validator and a session-close delegate) and dispatches it to the handler after the grace boundary. A default `PushConfigurationTrustListEffectHandler` is created automatically; hosts can register their own through DI (`services.TryAddSingleton<IPushConfigurationTrustListEffectHandler, ...>()`) or pass one to `MainNodeManagerFactory` / `ConfigurationNodeManager` directly.
 
+The default handler's SecureChannel renegotiation summary logs only the aggregate number of affected channels, not their identifiers or certificate contents.
+
 #### Origin-Independent Enforcement of Trust-Material Changes
 
 The effect fan-out above is not limited to changes committed through `ApplyChanges`. Two additional mechanisms guarantee that a trust-material change — most importantly a CRL that revokes a connected client's certificate — takes effect immediately instead of at the client's next security-token renewal (default lifetime: one hour):

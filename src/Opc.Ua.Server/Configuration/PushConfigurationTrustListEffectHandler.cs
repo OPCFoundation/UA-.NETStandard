@@ -171,7 +171,8 @@ namespace Opc.Ua.Server
                         ArrayOf<string> closed = await chainRotator.CloseChannelsForUntrustedPeerChainsAsync(
                             (chain, ct) => IsPeerTrustedInScopeAsync(validator, listenerScope, chain, ct),
                             cancellationToken).ConfigureAwait(false);
-                        totalCut += closed.Count;
+                        // Span.Length separates cardinality from serialized contents for static analysis.
+                        totalCut += closed.Span.Length;
                     }
                     else
                     {

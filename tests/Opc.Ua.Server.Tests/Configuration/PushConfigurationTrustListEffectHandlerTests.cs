@@ -35,6 +35,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
@@ -194,6 +195,78 @@ namespace Opc.Ua.Server.Tests
                 It.Is<CertificateCollection>(value => ReferenceEquals(value, chain)), TrustListIdentifier.Peers,
                 It.Is<Security.Certificates.CertificateValidationOptions>(
                     options => !options.RecordRejectedCertificates), It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [TestCase(0, 0, false)]
+        [TestCase(0, 0, true)]
+        [TestCase(1, 0, false)]
+        [TestCase(0, 2, false)]
+        [TestCase(2, 3, false)]
+        public async Task PeerTrustEffectLogsOnlyAggregateClosedChannelCountAsync(
+            int chainCount,
+            int fallbackCount,
+            bool nullChainResult)
+        {
+            using var provider = new RecordingLoggerProvider();
+            ITelemetryContext telemetry = DefaultTelemetry.Create(builder => builder
+                .SetMinimumLevel(LogLevel.Information)
+                .AddProvider(provider));
+            var handler = new PushConfigurationTrustListEffectHandler(telemetry);
+            ArrayOf<string> chainClosed = nullChainResult
+                ? ArrayOf<string>.Null
+                : Enumerable.Range(0, chainCount).Select(index => $"chain-channel-{index}").ToArrayOf();
+            IReadOnlyList<string> fallbackClosed =
+                [.. Enumerable.Range(0, fallbackCount).Select(index => $"fallback-channel-{index}")];
+            var chainListener = new Mock<ITransportListener>(MockBehavior.Strict);
+            Mock<ITransportListenerPeerCertificateChainRotation> chainRotation =
+                chainListener.As<ITransportListenerPeerCertificateChainRotation>();
+            chainRotation.SetupGet(value => value.PeerCertificateTrustListScope).Returns(TrustListIdentifier.Peers);
+            chainRotation.Setup(value => value.CloseChannelsForUntrustedPeerChainsAsync(
+                It.IsAny<Func<CertificateCollection, CancellationToken, ValueTask<bool>>>(),
+                It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ArrayOf<string>>(chainClosed));
+            var fallbackListener = new Mock<ITransportListener>(MockBehavior.Strict);
+            Mock<ITransportListenerPeerCertificateRotation> fallbackRotation =
+                fallbackListener.As<ITransportListenerPeerCertificateRotation>();
+            fallbackRotation.SetupGet(value => value.PeerCertificateTrustListScope).Returns(TrustListIdentifier.Peers);
+            fallbackRotation.Setup(value => value.CloseChannelsForUntrustedPeersAsync(
+                It.IsAny<Func<Certificate, CancellationToken, ValueTask<bool>>>(),
+                It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IReadOnlyList<string>>(fallbackClosed));
+            var validator = new Mock<ICertificateValidatorEx>(MockBehavior.Strict);
+
+            await handler.ApplyAsync(CreateContext(
+                [SecureChannelEffect(TrustListIdentifier.Peers)],
+                [chainListener.Object, fallbackListener.Object],
+                null,
+                validator.Object)).ConfigureAwait(false);
+
+            RecordedLogRecord record = provider.Records.Single();
+            const string messageTemplate =
+                "TrustList change forced {Count} SecureChannel(s) with untrusted peer certificates to renegotiate.";
+            int expectedCount = chainCount + fallbackCount;
+            Assert.Multiple(() =>
+            {
+                Assert.That(record.CategoryName, Is.EqualTo(typeof(PushConfigurationTrustListEffectHandler).FullName));
+                Assert.That(record.LogLevel, Is.EqualTo(LogLevel.Information));
+                Assert.That(record.EventId.Name, Is.EqualTo("TrustListChangeForcedChannelsToRenegotiate"));
+                Assert.That(record.Properties, Has.Count.EqualTo(2));
+                Assert.That(record.Properties["Count"], Is.TypeOf<int>().And.EqualTo(expectedCount));
+                Assert.That(record.Properties["{OriginalFormat}"], Is.EqualTo(messageTemplate));
+                Assert.That(record.Message, Is.EqualTo(
+                    $"TrustList change forced {expectedCount} SecureChannel(s) " +
+                    "with untrusted peer certificates to renegotiate."));
+                Assert.That(record.Exception, Is.Null);
+            });
+            chainRotation.Verify(value => value.CloseChannelsForUntrustedPeerChainsAsync(
+                It.IsAny<Func<CertificateCollection, CancellationToken, ValueTask<bool>>>(),
+                It.IsAny<CancellationToken>()), Times.Once);
+            chainRotation.Verify(value => value.CloseChannelsForUntrustedPeersAsync(
+                It.IsAny<Func<Certificate, CancellationToken, ValueTask<bool>>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+            fallbackRotation.Verify(value => value.CloseChannelsForUntrustedPeersAsync(
+                It.IsAny<Func<Certificate, CancellationToken, ValueTask<bool>>>(),
+                It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [TestCase(false)]
