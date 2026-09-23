@@ -176,6 +176,37 @@ restore the exact persisted graph through the same prepared source batch.
 An ordinary preparation still rejects a persisted, unbound image; callers do
 not bypass ownership checks by treating it as a fresh publication.
 
+## Dry-run validation
+
+A dry run validates source and View candidates through the same native preparation
+path as publication. `IWotProjectionValidationPublication` uses the existing
+invocation owner; the stock host delegates to `INodeManagerValidationPublication`.
+Core creates private namespace and server-URI mappings, prepares the candidate,
+allows metadata inspection, and checks the complete routing, type and reference
+publication before releasing its reservations. The registry prepares the same
+metadata and read images without deciding or publishing them. Every candidate
+owner is disposed. Serving mappings and their mutation versions remain unchanged.
+
+The coordinator retains successful private inputs while checking later units.
+A dependent unit can therefore use its validated prerequisite without requiring
+that prerequisite to become live. Each unit keeps its planned boundary. An invalid
+View rejects its source peers, but not an earlier independent prediction. The same
+Resource-footprint checks reject a graph that affects unselected Resources.
+Preparation failures identify their phase and message in the existing Results.
+
+No dry run writes registry or dependency diagnostics, changes `LastRefreshPlan`,
+advances the committed generation or View tokens, or releases management or
+model-change events. Cancellation discards candidate state and releases admission.
+An unresolved publication recovery must be completed by `RecoverAsync` or an
+actual refresh; a dry run does not perform that recovery as a side effect.
+
+`WotPreparedViewGraphState.CapturedNamespaceUris` carries the private mapping for
+candidate View NodeIds. Result roots are rebased to serving namespaces without
+allocating them. A root whose namespace is not yet serving is `NodeId.Null`; its
+predicted node count remains available. Custom source providers must implement
+private validation to preview changed units. Unsupported validation is reported
+as a failure, not a successful preview.
+
 ## Captured dependency metadata
 
 `IWotRefreshCaptureProvider` resolves to the registered

@@ -50,7 +50,8 @@ namespace Opc.Ua.Server
             ArrayOf<NodeManagerBatchChange> changes,
             PublicationInvocation? publication,
             CancellationToken cancellationToken,
-            ArrayOf<INodeManagerReadImage> readImages = default)
+            ArrayOf<INodeManagerReadImage> readImages = default,
+            bool validationOnly = false)
         {
             if (changes.IsNull || (changes.Count == 0 && readImages.Count == 0))
             {
@@ -170,7 +171,7 @@ namespace Opc.Ua.Server
                     var prepared = new PreparedBatch(
                         this, server, host, entries, operation, namespaceCount, allowRequestCallback,
                         batchHost.RoutingRevision, preparedTypes, originalTypes, typeRevision,
-                        preparedFactory, originalFactory, factoryRevision, resolver);
+                        preparedFactory, originalFactory, factoryRevision, resolver, validationOnly);
                     if (readImages.Count != 0)
                     {
                         prepared.BindReadImages(readImages);
@@ -202,9 +203,9 @@ namespace Opc.Ua.Server
             }
         }
 
-        private async ValueTask<NodeManagerBatchResult> CommitBatchAsync(
+        private async ValueTask<NodeManagerBatchResult?> CompleteBatchAsync(
             PreparedBatch batch,
-            Func<CancellationToken, ValueTask> decideAsync,
+            Func<CancellationToken, ValueTask>? decideAsync,
             CancellationToken cancellationToken,
             Action? publishCommittedState = null)
         {
@@ -327,6 +328,10 @@ namespace Opc.Ua.Server
                     },
                     failures.Add,
                     cancellationToken).ConfigureAwait(false);
+                if (decideAsync is null)
+                {
+                    return null;
+                }
 
                 foreach (BatchEntry entry in batch.Entries)
                 {
@@ -497,7 +502,8 @@ namespace Opc.Ua.Server
                 EncodeableFactory factory,
                 EncodeableFactory originalFactory,
                 long factoryRevision,
-                IDataTypeDefinitionResolver? resolver)
+                IDataTypeDefinitionResolver? resolver,
+                bool validationOnly)
             {
                 m_owner = owner;
                 Server = server;
@@ -514,12 +520,14 @@ namespace Opc.Ua.Server
                 OriginalFactory = originalFactory;
                 FactoryRevision = factoryRevision;
                 Resolver = resolver;
+                IsValidationOnly = validationOnly;
                 Registrations = entries.Where(entry => entry.Next is not null)
                     .Select(entry => entry.Next!.Registration).ToArrayOf();
             }
 
             public ArrayOf<NodeManagerRegistration> Registrations { get; }
             public bool IsCommitted { get; set; }
+            public bool IsValidationOnly { get; }
             public IServerInternal Server { get; }
             public IDynamicNodeManagerHost Host { get; }
             public List<BatchEntry> Entries { get; }
@@ -570,6 +578,11 @@ namespace Opc.Ua.Server
                     decideAsync,
                     publishCommittedState ?? throw new ArgumentNullException(nameof(publishCommittedState)),
                     cancellationToken);
+            }
+
+            public async ValueTask ValidateAsync(CancellationToken cancellationToken)
+            {
+                _ = await CompleteAsync(null, null, cancellationToken).ConfigureAwait(false);
             }
 
             public async ValueTask DisposeAsync()
@@ -625,6 +638,20 @@ namespace Opc.Ua.Server
                 {
                     throw new ArgumentNullException(nameof(decideAsync));
                 }
+                return await CompleteAsync(decideAsync, publishCommittedState, cancellationToken)
+                    .ConfigureAwait(false) ??
+                    throw new InvalidOperationException("A publication returned no committed result.");
+            }
+
+            private async ValueTask<NodeManagerBatchResult?> CompleteAsync(
+                Func<CancellationToken, ValueTask>? decideAsync,
+                Action? publishCommittedState,
+                CancellationToken cancellationToken)
+            {
+                if (IsValidationOnly != (decideAsync is null))
+                {
+                    throw new InvalidOperationException("A validation candidate cannot be committed.");
+                }
                 lock (m_stateGate)
                 {
                     if (Interlocked.CompareExchange(ref m_state, 1, 0) != 0)
@@ -634,7 +661,7 @@ namespace Opc.Ua.Server
                 }
                 try
                 {
-                    return await m_owner.CommitBatchAsync(
+                    return await m_owner.CompleteBatchAsync(
                         this, decideAsync, cancellationToken, publishCommittedState).ConfigureAwait(false);
                 }
                 finally

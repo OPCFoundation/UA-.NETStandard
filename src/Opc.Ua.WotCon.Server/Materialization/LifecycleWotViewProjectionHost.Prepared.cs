@@ -364,7 +364,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     }
                 }
                 var graph = new WotPreparedViewGraphState(
-                    m_preparation.State.ToByteString(), handles.ToArrayOf(), m_preparation.AffectedResourceXids);
+                    m_preparation.State.ToByteString(), handles.ToArrayOf(), m_preparation.AffectedResourceXids,
+                    m_namespaces.ToArrayOf());
                 m_bound = new CanonicalPublication(m_preparation.State, registrations[0], graph);
                 return graph;
             }

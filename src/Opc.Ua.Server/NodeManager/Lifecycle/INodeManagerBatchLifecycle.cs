@@ -102,6 +102,21 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
+    /// Optional validation of a publication candidate without allocating serving namespace mappings.
+    /// </summary>
+    public interface INodeManagerValidationPublication : INodeManagerPublication
+    {
+        /// <summary>
+        /// Prepares and inspects a private candidate, then disposes it without publishing.
+        /// The candidate is valid only during the inspection callback and cannot be committed.
+        /// </summary>
+        ValueTask ValidateAsync(
+            ArrayOf<NodeManagerBatchChange> changes,
+            Func<IPreparedNodeManagerBatch, CancellationToken, ValueTask> inspectAsync,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
     /// Immutable application state retained with the exact NodeManager routing image of a request.
     /// Implementations must remain readable after their owner is retired.
     /// </summary>

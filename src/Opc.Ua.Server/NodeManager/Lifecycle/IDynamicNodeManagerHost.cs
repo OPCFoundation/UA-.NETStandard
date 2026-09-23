@@ -257,6 +257,10 @@ namespace Opc.Ua.Server
             Func<ValueTask<(ByteString ServerNonce, ServiceResult ActivationStatus)>> activateAsync,
             CancellationToken cancellationToken);
 
+        /// <summary>
+        /// Reserves and checks the complete candidate, then publishes it when a decision is supplied.
+        /// A null decision validates and releases the reservations without changing the serving image.
+        /// </summary>
         ValueTask CommitBatchAsync(
             ArrayOf<PreparedNodeManager> candidates,
             ArrayOf<IAsyncNodeManager> removed,
@@ -269,7 +273,7 @@ namespace Opc.Ua.Server
             EncodeableFactory originalFactory,
             long factoryRevision,
             ArrayOf<INodeManagerReadImage> readImages,
-            Func<CancellationToken, ValueTask> decideAsync,
+            Func<CancellationToken, ValueTask>? decideAsync,
             Action published,
             Func<ValueTask> reconcileBindingsAsync,
             Action<Exception> reportCleanupFailure,

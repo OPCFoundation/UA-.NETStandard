@@ -174,6 +174,23 @@ namespace Opc.Ua.WotCon.Server.Materialization
     }
 
     /// <summary>
+    /// Optional candidate validation on the existing source publication owner.
+    /// </summary>
+    public interface IWotProjectionValidationPublication : IWotProjectionPublication
+    {
+        /// <summary>
+        /// Prepares the complete private candidate, inspects and binds metadata, then validates and releases it.
+        /// The candidate is valid only during the callback and cannot be committed.
+        /// No serving mappings, routing, bindings or notification intent are published.
+        /// </summary>
+        ValueTask ValidateAsync(
+            ArrayOf<WotProjectionChange> changes,
+            Func<IWotPreparedProjectionPublication, CancellationToken, ValueTask> inspectAsync,
+            IWotPreparedViewPublication? views = null,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
     /// The private source/View routing candidate for one coordinator-owned publication decision.
     /// </summary>
     public interface IWotPreparedProjectionPublication : IAsyncDisposable

@@ -565,6 +565,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                         probe.RuntimeDisposedCount++;
                         return default;
                     });
+                    probe.OnRuntimeCreated?.Invoke();
                     return new ValueTask<IAsyncDisposable?>(runtime.Object);
                 });
             var inner = new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle, runtimeFactory.Object);
@@ -654,6 +655,17 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                             It.IsAny<ArrayOf<INodeManagerReadImage>>(), It.IsAny<CancellationToken>()))
                             .Returns((ArrayOf<INodeManagerReadImage> images, CancellationToken ct) =>
                                 admitted.PrepareReadImagesAsync(images, ct));
+                        invocation.As<IWotProjectionValidationPublication>().Setup(value => value.ValidateAsync(
+                            It.IsAny<ArrayOf<WotProjectionChange>>(),
+                            It.IsAny<Func<IWotPreparedProjectionPublication, CancellationToken, ValueTask>>(),
+                            It.IsAny<IWotPreparedViewPublication?>(),
+                            It.IsAny<CancellationToken>())).Returns((
+                                ArrayOf<WotProjectionChange> changes,
+                                Func<IWotPreparedProjectionPublication, CancellationToken, ValueTask> inspect,
+                                IWotPreparedViewPublication? views,
+                                CancellationToken ct) =>
+                            ((IWotProjectionValidationPublication)admitted).ValidateAsync(
+                                changes, (candidate, token) => inspect(Track(candidate, changes), token), views, ct));
                         invocation.Setup(value => value.DisposeAsync()).Returns(() => admitted.DisposeAsync());
                         return invocation.Object;
                     });
@@ -675,6 +687,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             public Func<CancellationToken, ValueTask>? AfterDecisionAsync { get; set; }
             public Exception? PublicationFailure { get; set; }
             public bool RejectReadImages { get; set; }
+            public Action? OnRuntimeCreated { get; set; }
             public List<ArrayOf<WotProjectionChange>> Changes { get; } = [];
             public List<IWotPreparedProjectionPublication> Publications { get; } = [];
             public int DecisionCount { get; set; }

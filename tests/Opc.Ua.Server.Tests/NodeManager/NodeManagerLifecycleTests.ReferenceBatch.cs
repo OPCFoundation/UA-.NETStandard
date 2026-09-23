@@ -322,30 +322,18 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         public async Task PreparedBatchRejectsUnsupportedReferenceOwnersBeforeDecisionOrCallbacksAsync()
         {
-            var manager = new Mock<IAsyncNodeManager>();
-            manager.SetupGet(value => value.NamespaceUris).Returns(new[] { kModelNamespaceUri });
-            var node = new BaseObjectState(null) { NodeId = ObjectIds.ObjectsFolder };
-            manager.Setup(value => value.GetManagerHandleAsync(ObjectIds.ObjectsFolder, It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<object>(new NodeHandle(ObjectIds.ObjectsFolder, node)));
-            manager.Setup(value => value.CreateAddressSpaceAsync(
-                It.IsAny<IDictionary<NodeId, IList<IReference>>>(), It.IsAny<CancellationToken>()))
-                .Callback((IDictionary<NodeId, IList<IReference>> references, CancellationToken _) =>
-                    MasterNodeManager.CreateExternalReference(
-                        references, ObjectIds.ObjectsFolder, ReferenceTypeIds.Organizes, false, new NodeId(8402, 1)));
-            var factory = new Mock<IAsyncNodeManagerFactory>();
-            factory.Setup(value => value.CreateAsync(
-                It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<IAsyncNodeManager>(manager.Object));
+            (Mock<IAsyncNodeManager> manager, BaseObjectState node, IAsyncNodeManagerFactory factory) =
+                CreateUnsupportedReferenceFactory();
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(factory.Object)]).ConfigureAwait(false);
+                [NodeManagerBatchChange.Add(factory)]).ConfigureAwait(false);
             NodeState objects = await GetObjectsReferenceOwnerAsync(CancellationToken.None).ConfigureAwait(false);
             int decisions = 0;
-            Assert.ThrowsAsync<NotSupportedException>(async () => await prepared.CommitAsync(_ =>
+            await Assert.ThatAsync(async () => await prepared.CommitAsync(_ =>
             {
                 decisions++;
                 return default;
-            }).ConfigureAwait(false));
+            }).ConfigureAwait(false), Throws.TypeOf<NotSupportedException>()).ConfigureAwait(false);
             Assert.That(decisions, Is.Zero);
             Assert.That(prepared.IsCommitted, Is.False);
             Assert.That(objects.ReferenceExists(ReferenceTypeIds.Organizes, false, new NodeId(8402, 1)), Is.False);
@@ -480,6 +468,26 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await AssertNativeReferenceAsync(
                 session, parent, root, ReferenceTypeIds.HasComponent, publish, timeout.Token).ConfigureAwait(false);
             await session.CloseAsync(timeout.Token).ConfigureAwait(false);
+        }
+
+        private static (Mock<IAsyncNodeManager> Manager, BaseObjectState Node, IAsyncNodeManagerFactory Factory)
+            CreateUnsupportedReferenceFactory()
+        {
+            var manager = new Mock<IAsyncNodeManager>();
+            manager.SetupGet(value => value.NamespaceUris).Returns(new[] { kModelNamespaceUri });
+            var node = new BaseObjectState(null) { NodeId = ObjectIds.ObjectsFolder };
+            manager.Setup(value => value.GetManagerHandleAsync(ObjectIds.ObjectsFolder, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<object>(new NodeHandle(ObjectIds.ObjectsFolder, node)));
+            manager.Setup(value => value.CreateAddressSpaceAsync(
+                It.IsAny<IDictionary<NodeId, IList<IReference>>>(), It.IsAny<CancellationToken>()))
+                .Callback((IDictionary<NodeId, IList<IReference>> references, CancellationToken _) =>
+                    MasterNodeManager.CreateExternalReference(
+                        references, ObjectIds.ObjectsFolder, ReferenceTypeIds.Organizes, false, new NodeId(8402, 1)));
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory.Setup(value => value.CreateAsync(
+                It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IAsyncNodeManager>(manager.Object));
+            return (manager, node, factory.Object);
         }
 
         private async Task<NodeState> GetObjectsReferenceOwnerAsync(CancellationToken cancellationToken)

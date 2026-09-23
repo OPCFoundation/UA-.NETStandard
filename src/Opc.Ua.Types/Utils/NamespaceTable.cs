@@ -71,7 +71,7 @@ namespace Opc.Ua
         public StringTable(StringTable table)
         {
             m_strings = [];
-            Update(table.m_strings);
+            Update(table.ToArray());
 #if DEBUG
             InstanceId = Interlocked.Increment(ref s_globalInstanceCount);
 #endif
@@ -104,6 +104,10 @@ namespace Opc.Ua
         {
             get
             {
+                if (m_privateView?.Value is { } view)
+                {
+                    return view.Version;
+                }
                 lock (m_syncRoot)
                 {
                     return m_version;
@@ -122,6 +126,11 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(strings));
             }
 
+            if (m_privateView?.Value is { } view)
+            {
+                view.Update(strings);
+                return;
+            }
             lock (m_syncRoot)
             {
                 m_strings = [.. strings];
@@ -153,6 +162,10 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(value));
             }
 
+            if (m_privateView?.Value is { } view)
+            {
+                return view.Append(value);
+            }
 #if DEBUG
             if (m_shared)
             {
@@ -176,6 +189,10 @@ namespace Opc.Ua
         /// </summary>
         public string? GetString(uint index)
         {
+            if (m_privateView?.Value is { } view)
+            {
+                return view.GetString(index);
+            }
             lock (m_syncRoot)
             {
                 if (index < m_strings.Count)
@@ -206,6 +223,10 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(value));
             }
 
+            if (m_privateView?.Value is { } view)
+            {
+                return view.GetIndexOrAppend(value);
+            }
             lock (m_syncRoot)
             {
                 int index = m_strings.IndexOf(value);
@@ -236,6 +257,10 @@ namespace Opc.Ua
         /// </summary>
         public string[] ToArray()
         {
+            if (m_privateView?.Value is { } view)
+            {
+                return view.ToArray();
+            }
             lock (m_syncRoot)
             {
                 return [.. m_strings];
@@ -247,6 +272,10 @@ namespace Opc.Ua
         /// </summary>
         public ArrayOf<string> ToArrayOf()
         {
+            if (m_privateView?.Value is { } view)
+            {
+                return view.ToArrayOf();
+            }
             lock (m_syncRoot)
             {
                 return [.. m_strings];
@@ -258,6 +287,10 @@ namespace Opc.Ua
         /// </summary>
         public ArrayOf<string> GetSnapshot(out long version)
         {
+            if (m_privateView?.Value is { } view)
+            {
+                return view.GetSnapshot(out version);
+            }
             lock (m_syncRoot)
             {
                 version = m_version;
@@ -272,6 +305,10 @@ namespace Opc.Ua
         {
             get
             {
+                if (m_privateView?.Value is { } view)
+                {
+                    return view.Count;
+                }
                 lock (m_syncRoot)
                 {
                     return m_strings.Count;
@@ -328,8 +365,25 @@ namespace Opc.Ua
             return mapping;
         }
 
+        internal IDisposable UsePrivateCopy()
+        {
+            ArrayOf<string> values = GetSnapshot(out long version);
+            var copy = new StringTable(values.ToArray()!)
+            {
+                m_version = version
+            };
+            AsyncLocal<StringTable?> slot = LazyInitializer.EnsureInitialized(ref m_privateView)!;
+            StringTable? previous = slot.Value;
+            slot.Value = copy;
+            return new PrivateScope(slot, previous);
+        }
+
         private int GetIndex(string value, int startIndex)
         {
+            if (m_privateView?.Value is { } view)
+            {
+                return view.GetIndex(value, startIndex);
+            }
             lock (m_syncRoot)
             {
                 if (string.IsNullOrEmpty(value))
@@ -347,6 +401,7 @@ namespace Opc.Ua
         protected List<string> m_strings;
         private readonly Lock m_syncRoot = new();
         private long m_version;
+        private AsyncLocal<StringTable?>? m_privateView;
 
 #if DEBUG
         /// <summary>
@@ -355,6 +410,20 @@ namespace Opc.Ua
         protected bool m_shared;
         private static int s_globalInstanceCount;
 #endif
+
+        private sealed class PrivateScope(AsyncLocal<StringTable?> slot, StringTable? previous) : IDisposable
+        {
+            public void Dispose()
+            {
+                AsyncLocal<StringTable?>? current = Interlocked.Exchange(ref m_slot, null);
+                if (current is not null)
+                {
+                    current.Value = previous;
+                }
+            }
+
+            private AsyncLocal<StringTable?>? m_slot = slot;
+        }
     }
 
     /// <summary>
@@ -415,7 +484,7 @@ namespace Opc.Ua
             base.Update(namespaceUris);
 
             // check that first entry is the UA namespace.
-            if (m_strings[0] != Types.Namespaces.OpcUa)
+            if (GetString(0) != Types.Namespaces.OpcUa)
             {
                 throw new ArgumentException(
                     "The first namespace in the table must be the OPC-UA namespace.");

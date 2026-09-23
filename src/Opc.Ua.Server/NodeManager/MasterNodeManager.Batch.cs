@@ -90,7 +90,7 @@ namespace Opc.Ua.Server
             EncodeableFactory originalFactory,
             long factoryRevision,
             ArrayOf<INodeManagerReadImage> readImages,
-            Func<CancellationToken, ValueTask> decideAsync,
+            Func<CancellationToken, ValueTask>? decideAsync,
             Action published,
             Func<ValueTask> reconcileBindingsAsync,
             Action<Exception> reportCleanupFailure,
@@ -165,6 +165,10 @@ namespace Opc.Ua.Server
                         using PreparedSourceEmissionCutoff emissions =
                             PrepareSourceEmissionCutoff(immediateRetirements);
                         cancellationToken.ThrowIfCancellationRequested();
+                        if (decideAsync is null)
+                        {
+                            return;
+                        }
                         await decideAsync(cancellationToken).ConfigureAwait(false);
 
                         // Lifecycle-waiting callbacks suspend their admission while the committed image is installed.

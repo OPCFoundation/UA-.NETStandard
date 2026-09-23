@@ -166,6 +166,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     DateTime start = DateTime.UtcNow;
                     if (m_publicationRecoveryRequired)
                     {
+                        if (invocation.DryRun)
+                        {
+                            throw new ServiceResultException(StatusCodes.BadInvalidState,
+                                "Authoritative publication recovery is required before a dry run can proceed.");
+                        }
                         try
                         {
                             await RecoverCommittedImageAsync(cancellationToken).ConfigureAwait(false);
@@ -196,11 +201,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             IWotProjectionPublicationCapture sourceCapture = invocationHost.CapturePublication();
                             using WotRefreshCapture capture = await CaptureInputsAsync(invocation, cancellationToken)
                                 .ConfigureAwait(false);
-                            if (invocation.DryRun)
-                            {
-                                return await RefreshPreparedUnitsAsync(
-                                    capture, expectedRegistry, start, null, null, cancellationToken).ConfigureAwait(false);
-                            }
                             IWotRegistryPublication registryPublication = await invocationRegistry
                                 .BeginPublicationAsync(cancellationToken).ConfigureAwait(false);
                             await using var registryLifetime = registryPublication.ConfigureAwait(false);

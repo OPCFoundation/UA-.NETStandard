@@ -315,6 +315,30 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Platform("Win")]
         public async Task PreparedViewCannotWidenItsPublicationUnitToAnUnselectedResource()
         {
+            (WotMaterializationCoordinator coordinator, WotResource source, WotResource unrelated, WotResource view) =
+                await CreateViewFootprintViolationAsync().ConfigureAwait(false);
+            using var lifetime = coordinator;
+            WotRegistrySnapshot before = m_registry.Current;
+
+            await Assert.ThatAsync(async () => await coordinator.RefreshAsync(new WotRefreshRequest
+            {
+                Selection = [UnitSelector(view)],
+                Options = new WoTRefreshOptionsDataType { Atomicity = WoTAtomicityEnum.PerRegistry }
+            }).ConfigureAwait(false), Throws.TypeOf<ServiceResultException>()
+                .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadInvalidState))
+                .ConfigureAwait(false);
+
+            Assert.That(m_registry.Current, Is.SameAs(before));
+            Assert.That(coordinator.Generation, Is.EqualTo(1u));
+            Assert.That((await ReadNodeClassAsync(Root(unrelated)).ConfigureAwait(false)).StatusCode,
+                Is.EqualTo(StatusCodes.Good));
+            Assert.That((await ReadNodeClassAsync(Root(source)).ConfigureAwait(false)).StatusCode,
+                Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+        }
+
+        private async Task<(WotMaterializationCoordinator Coordinator, WotResource Source,
+            WotResource Unrelated, WotResource View)> CreateViewFootprintViolationAsync()
+        {
             WotResource unrelated = await AddAsync("unrelated").ConfigureAwait(false);
             await m_coordinator.RefreshAsync(HandoffRequest("unrelated")).ConfigureAwait(false);
             WotResource source = await AddAsync("first").ConfigureAwait(false);
@@ -338,7 +362,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     """))
             }).ConfigureAwait(false);
             Assert.That(created.Changed, Is.True, created.Message);
-            WotRegistrySnapshot before = m_registry.Current;
             var participant = new Mock<IWotPreparedViewPublication>(MockBehavior.Strict);
             participant.SetupGet(value => value.Changes).Returns(ArrayOf<NodeManagerBatchChange>.Empty);
             participant.Setup(value => value.BindPreparedRegistrations(It.IsAny<ArrayOf<NodeManagerRegistration>>()))
@@ -350,27 +373,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 It.IsAny<ArrayOf<WotViewProjectionRequest>>(), It.IsAny<ArrayOf<WotViewProjectionHandle>>(),
                 It.IsAny<WotCommittedPublicationState>(), It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<IWotPreparedViewPublication>(participant.Object));
-            using var coordinator = new WotMaterializationCoordinator(
+            var coordinator = new WotMaterializationCoordinator(
                 m_registry, new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle),
                 documentConverter: m_converter, viewProjectionHost: viewHost.Object)
             {
                 ServerNamespaceUris = m_server.CurrentInstance.NamespaceUris
             };
 
-            await Assert.ThatAsync(async () => await coordinator.RefreshAsync(new WotRefreshRequest
-            {
-                Selection = [UnitSelector(created.Resource!)],
-                Options = new WoTRefreshOptionsDataType { Atomicity = WoTAtomicityEnum.PerRegistry }
-            }).ConfigureAwait(false), Throws.TypeOf<ServiceResultException>()
-                .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadInvalidState))
-                .ConfigureAwait(false);
-
-            Assert.That(m_registry.Current, Is.SameAs(before));
-            Assert.That(coordinator.Generation, Is.EqualTo(1u));
-            Assert.That((await ReadNodeClassAsync(Root(unrelated)).ConfigureAwait(false)).StatusCode,
-                Is.EqualTo(StatusCodes.Good));
-            Assert.That((await ReadNodeClassAsync(Root(source)).ConfigureAwait(false)).StatusCode,
-                Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            return (coordinator, source, unrelated, created.Resource!);
         }
     }
 }

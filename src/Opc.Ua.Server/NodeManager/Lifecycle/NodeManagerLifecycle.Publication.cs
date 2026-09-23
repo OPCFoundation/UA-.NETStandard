@@ -137,7 +137,7 @@ namespace Opc.Ua.Server
             PublicationCapture capture,
             bool current,
             TaskCompletionSource<bool> finished,
-            OperationLifetime operation) : INodeManagerPublication
+            OperationLifetime operation) : INodeManagerValidationPublication
         {
             public bool IsCurrent { get; } = current;
             public PublicationCapture Capture { get; } = capture;
@@ -159,10 +159,35 @@ namespace Opc.Ua.Server
                 return PrepareCoreAsync([], images, cancellationToken);
             }
 
+            public async ValueTask ValidateAsync(
+                ArrayOf<NodeManagerBatchChange> changes,
+                Func<IPreparedNodeManagerBatch, CancellationToken, ValueTask> inspectAsync,
+                CancellationToken cancellationToken = default)
+            {
+                _ = inspectAsync ?? throw new ArgumentNullException(nameof(inspectAsync));
+                using IDisposable namespaces = Capture.Server.NamespaceUris.UsePrivateCopy();
+                using IDisposable servers = Capture.Server.ServerUris.UsePrivateCopy();
+                IPreparedNodeManagerBatch batch = await PrepareCoreAsync(
+                    changes, default, cancellationToken, validationOnly: true)
+                    .ConfigureAwait(false);
+                await using var lifetime = batch.ConfigureAwait(false);
+                if (batch is not PreparedBatch candidate)
+                {
+                    throw new InvalidOperationException("Validation requires the captured lifecycle batch owner.");
+                }
+                using (((IDynamicNodeManagerBatchHost)candidate.Host).UseTypeImage(
+                    candidate.TypeTree, candidate.Factory))
+                {
+                    await inspectAsync(batch, cancellationToken).ConfigureAwait(false);
+                }
+                await candidate.ValidateAsync(cancellationToken).ConfigureAwait(false);
+            }
+
             private async ValueTask<IPreparedNodeManagerBatch> PrepareCoreAsync(
                 ArrayOf<NodeManagerBatchChange> changes,
                 ArrayOf<INodeManagerReadImage> images,
-                CancellationToken cancellationToken)
+                CancellationToken cancellationToken,
+                bool validationOnly = false)
             {
                 lock (owner.m_operationLifetimeLock)
                 {
@@ -180,7 +205,7 @@ namespace Opc.Ua.Server
                 try
                 {
                     IPreparedNodeManagerBatch batch = await owner.PrepareBatchAsync(
-                        changes, this, cancellationToken, images).ConfigureAwait(false);
+                        changes, this, cancellationToken, images, validationOnly).ConfigureAwait(false);
                     lock (owner.m_operationLifetimeLock)
                     {
                         m_batches.Add(batch);

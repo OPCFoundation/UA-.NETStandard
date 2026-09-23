@@ -194,6 +194,18 @@ namespace Opc.Ua.WotCon.Server.Materialization
             ByteString canonicalViewGraphState,
             ArrayOf<WotViewProjectionHandle> views,
             ArrayOf<string> affectedResourceXids)
+            : this(canonicalViewGraphState, views, affectedResourceXids, default)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a private graph with the namespace mapping used by its local NodeIds.
+        /// </summary>
+        public WotPreparedViewGraphState(
+            ByteString canonicalViewGraphState,
+            ArrayOf<WotViewProjectionHandle> views,
+            ArrayOf<string> affectedResourceXids,
+            ArrayOf<string> capturedNamespaceUris)
         {
             if (canonicalViewGraphState.IsNull)
             {
@@ -211,6 +223,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             CanonicalViewGraphState = ByteString.From(canonicalViewGraphState.Span.ToArray());
             Views = views.IsNull ? ArrayOf<WotViewProjectionHandle>.Empty : [.. views];
             AffectedResourceXids = affectedResourceXids.IsNull ? ArrayOf<string>.Empty : [.. affectedResourceXids];
+            CapturedNamespaceUris = capturedNamespaceUris.IsNull ? ArrayOf<string>.Empty : [.. capturedNamespaceUris];
         }
 
         /// <summary>
@@ -227,5 +240,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Gets every affected Resource, including changed ancestors and retired Views.
         /// </summary>
         public ArrayOf<string> AffectedResourceXids { get; }
+
+        /// <summary>
+        /// Gets the private mapping used by the candidate's local NodeIds.
+        /// These namespaces need not have been allocated in the serving image.
+        /// </summary>
+        public ArrayOf<string> CapturedNamespaceUris { get; }
     }
 }

@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -87,6 +88,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     refresh.CreateRefreshPlan(plan.AppliedAtomicity, (uint)plan.Units.Count));
             }
             var rows = ImmutableArray.CreateBuilder<WoTResourceLoadResultDataType>();
+            PublicationCapture? preview = refresh.Request.DryRun
+                ? new PublicationCapture(m_closures, m_projectionNamespaceUris)
+                : null;
             var satisfied = new HashSet<string>(StringComparer.Ordinal);
             var activation = new HashSet<string>(
                 refresh.Inputs.Closures.ToList().SelectMany(closure => closure.ActivationMembers.ToList())
@@ -119,7 +123,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     result = await RefreshPreparedUnitAsync(
                         unitCapture, snapshot, start, unit, includeSkipped,
-                        publication, registryPublication, cancellationToken).ConfigureAwait(false);
+                        publication, registryPublication, preview, cancellationToken).ConfigureAwait(false);
                 }
                 catch (WotRegistryCommitNotCommittedException failure) when (
                     rows.Any(row => row.Outcome is WoTOutcomeEnum.Success or WoTOutcomeEnum.Warning))
@@ -144,13 +148,16 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     satisfied.UnionWith(unitXids);
                 }
                 retired += result.Summary.Retired;
-                snapshot = m_registry.Current;
+                if (!refresh.Request.DryRun)
+                {
+                    snapshot = m_registry.Current;
+                }
                 includeSkipped = false;
             }
             if (plan.Units.IsEmpty)
             {
                 WotRefreshResult empty = await RefreshPreparedUnitAsync(
-                    refresh, snapshot, start, [], true, publication, registryPublication, cancellationToken)
+                    refresh, snapshot, start, [], true, publication, registryPublication, preview, cancellationToken)
                     .ConfigureAwait(false);
                 rows.AddRange(empty.Results);
                 retired = empty.Summary.Retired;
@@ -184,13 +191,16 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 Retired = retired
             };
             var completed = new WotRefreshResult(summary, rows.ToImmutable(), m_generation);
-            if (succeeded != 0 && !refresh.Request.DryRun)
+            if (!refresh.Request.DryRun)
             {
-                RaiseCommittedEvent(CreateCompletion(completed, refresh.Request.RequestId), completed);
-            }
-            else
-            {
-                RaiseEvent(CreateCompletion(completed, refresh.Request.RequestId));
+                if (succeeded != 0)
+                {
+                    RaiseCommittedEvent(CreateCompletion(completed, refresh.Request.RequestId), completed);
+                }
+                else
+                {
+                    RaiseEvent(CreateCompletion(completed, refresh.Request.RequestId));
+                }
             }
             return completed;
         }
@@ -203,6 +213,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             bool includeSkipped,
             IWotProjectionPublication? publication,
             IWotRegistryPublication? registryPublication,
+            PublicationCapture? preview,
             CancellationToken cancellationToken)
         {
             if (m_sourceHost is not IWotPreparedProjectionHost { SupportsPreparedPublication: true } host ||
@@ -212,7 +223,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     StatusCodes.BadNotSupported, "The configured owners cannot prepare a PerRegistry publication.");
             }
             WotCapturedRefreshRequest request = refresh.Request;
-            var capture = new PublicationCapture(m_closures, m_projectionNamespaceUris);
+            var capture = new PublicationCapture(
+                preview?.Closures ?? m_closures, preview?.Namespaces ?? m_projectionNamespaceUris);
             WotRefreshResult staged;
             m_preparing = capture;
             try
@@ -229,7 +241,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             bool dryRun = request.DryRun;
             bool changed = capture.Changes.Count != 0 ||
                 capture.ViewUpdates.Count != 0 || capture.ViewRemovals.Count != 0;
-            if (failed || dryRun || !changed)
+            if (failed || !changed)
             {
                 if (failed)
                 {
@@ -265,6 +277,24 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
 
             AddRetiredResourceMetadata(capture, snapshot, start);
+            if (preview is not null)
+            {
+                capture.Changes.InsertRange(0, preview.Changes);
+                capture.ViewUpdates.InsertRange(0, preview.ViewUpdates);
+                capture.ViewRemovals.InsertRange(0, preview.ViewRemovals);
+                foreach (WotResourceProjection projection in preview.Projections)
+                {
+                    if (!capture.Projections.Any(current =>
+                        current.GroupId == projection.GroupId && current.ResourceId == projection.ResourceId))
+                    {
+                        capture.Projections.Add(projection);
+                    }
+                }
+                foreach (KeyValuePair<string, ExpandedNodeId> root in preview.SourceRoots)
+                {
+                    capture.SourceRoots.TryAdd(root.Key, root.Value);
+                }
+            }
             IWotPreparedViewPublication? views = null;
             try
             {
@@ -281,6 +311,30 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         new WotCommittedPublicationState(
                             snapshot, CommittedPublication.Views, CommittedPublication.ActiveBindingPlans),
                         cancellationToken).ConfigureAwait(false);
+                }
+
+                if (dryRun)
+                {
+                    if (publication is not IWotProjectionValidationPublication validation)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadNotSupported, "The source owner cannot privately validate a dry run.");
+                    }
+                    capture.PreviewUnits.AddRange(preview!.PreviewUnits);
+                    capture.PreviewUnits.AddRange(unit.ToList());
+                    WotPreparedViewGraphState? candidate = null;
+                    await validation.ValidateAsync(
+                        capture.Changes.Select(change => change.Change).ToArrayOf(), async (prepared, token) =>
+                    {
+                        candidate = prepared.ViewGraph;
+                        IWotPreparedRegistryPublication metadata = await PrepareProjectionMetadataAsync(
+                            capture, staged, snapshot, capture.PreviewUnits.ToArrayOf(), prepared,
+                            registry, registryPublication, token).ConfigureAwait(false);
+                        await using var metadataLifetime = metadata.ConfigureAwait(false);
+                    }, views, cancellationToken).ConfigureAwait(false);
+                    BindDryRunResults(staged, capture, candidate);
+                    preview.AcceptPreview(capture);
+                    return NormalizeUncommitted(staged, snapshot, false, true);
                 }
 
                 IWotPreparedProjectionPublication prepared = publication is null
@@ -307,15 +361,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         }
                     }
                 }
-                BindPreparedSourceRoots(capture, staged, snapshot);
-                ByteString graph = prepared.ViewGraph is { } preparedGraph
-                    ? preparedGraph.CanonicalViewGraphState
-                    : default;
-                if (prepared.ViewGraph is { } graphState)
-                {
-                    MergeViewGraphMetadata(capture, graphState, snapshot, unit, staged);
-                }
-                BindCommittedResolutionInputs(capture, refresh, snapshot);
+                IWotPreparedRegistryPublication metadata = await PrepareProjectionMetadataAsync(
+                    capture, staged, snapshot, unit, prepared, registry, registryPublication, cancellationToken)
+                    .ConfigureAwait(false);
+                await using var metadataLifetime = metadata.ConfigureAwait(false);
                 foreach (ClosureState closure in capture.Closures.Values)
                 {
                     closure.PublishedMetadata = [.. closure.PublishedMetadata.Select(projection =>
@@ -329,18 +378,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     }
                 }
                 uint generation = checked(snapshot.RefreshGeneration + 1);
-                IWotPreparedRegistryPublication metadata = registryPublication is null
-                    ? await registry.PreparePublicationAsync(
-                        snapshot, capture.Projections.ToArrayOf(), generation, graph, cancellationToken)
-                        .ConfigureAwait(false)
-                    : await registryPublication.PrepareAsync(
-                        snapshot, capture.Projections.ToArrayOf(), generation, graph, cancellationToken)
-                        .ConfigureAwait(false);
-                await using var metadataLifetime = metadata.ConfigureAwait(false);
-                if (metadata.ReadImages.Count != 0)
-                {
-                    prepared.BindReadImages(metadata.ReadImages);
-                }
                 ArrayOf<WotViewProjectionHandle> committedViews = prepared.ViewGraph is { } completeGraph
                     ? completeGraph.Views
                     : capture.Closures.Values.SelectMany(closure => closure.ViewHandles).ToArrayOf();
@@ -429,6 +466,27 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 return committed;
             }
+            catch (Exception failure) when (dryRun &&
+                failure is ServiceResultException or ArgumentException or NotSupportedException or IOException)
+            {
+                foreach (WoTResourceLoadResultDataType row in staged.Results)
+                {
+                    if (row.Outcome is not (WoTOutcomeEnum.Success or WoTOutcomeEnum.Warning))
+                    {
+                        continue;
+                    }
+                    WotResource? previous = row.GroupId is { } groupId && row.ResourceId is { } resourceId
+                        ? snapshot.FindResource(groupId, resourceId)
+                        : null;
+                    row.Outcome = WoTOutcomeEnum.Failed;
+                    row.Phase = WoTPhaseEnum.Activation;
+                    row.LoadState = previous?.LoadState ?? WoTLoadStateEnum.Unloaded;
+                    row.RootNodeId = previous is null ? NodeId.Null : previous.RootNodeId;
+                    row.MaterializedNodeCount = (uint)(previous?.MaterializedNodeCount ?? 0);
+                    row.Message = "The private publication candidate could not be prepared: " + failure.Message;
+                }
+                return NormalizeUncommitted(staged, snapshot, true, true);
+            }
             finally
             {
                 if (views is not null)
@@ -438,10 +496,86 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
-        private static void BindCommittedResolutionInputs(
-            PublicationCapture capture, WotRefreshCapture refresh, WotRegistrySnapshot snapshot)
+        private async ValueTask<IWotPreparedRegistryPublication> PrepareProjectionMetadataAsync(
+            PublicationCapture capture,
+            WotRefreshResult result,
+            WotRegistrySnapshot snapshot,
+            ArrayOf<WotDependencyClosure> unit,
+            IWotPreparedProjectionPublication prepared,
+            IWotPreparedRegistryPublicationService registry,
+            IWotRegistryPublication? publication,
+            CancellationToken cancellationToken)
         {
-            List<WotDependencyClosure> closures = refresh.Inputs.Closures.ToList();
+            BindPreparedSourceRoots(capture, result, snapshot);
+            ByteString graph = prepared.ViewGraph is { } preparedGraph
+                ? preparedGraph.CanonicalViewGraphState
+                : default;
+            if (prepared.ViewGraph is { } graphState)
+            {
+                MergeViewGraphMetadata(capture, graphState, snapshot, unit, result);
+            }
+            BindCommittedResolutionInputs(capture, unit, snapshot);
+            uint generation = checked(snapshot.RefreshGeneration + 1);
+            IWotPreparedRegistryPublication? metadata = publication is null
+                ? await registry.PreparePublicationAsync(
+                    snapshot, capture.Projections.ToArrayOf(), generation, graph, cancellationToken)
+                    .ConfigureAwait(false)
+                : await publication.PrepareAsync(
+                    snapshot, capture.Projections.ToArrayOf(), generation, graph, cancellationToken)
+                    .ConfigureAwait(false);
+            try
+            {
+                if (metadata.ReadImages.Count != 0)
+                {
+                    prepared.BindReadImages(metadata.ReadImages);
+                }
+                IWotPreparedRegistryPublication owned = metadata;
+                metadata = null;
+                return owned;
+            }
+            finally
+            {
+                if (metadata is not null)
+                {
+                    await metadata.DisposeAsync().ConfigureAwait(false);
+                }
+            }
+        }
+
+        private void BindDryRunResults(
+            WotRefreshResult result, PublicationCapture capture, WotPreparedViewGraphState? graph)
+        {
+            foreach (WoTResourceLoadResultDataType row in result.Results)
+            {
+                WotViewProjectionHandle? view = graph?.Views.Find(candidate => candidate.ResourceXid == row.Xid);
+                if (view is not null)
+                {
+                    if (graph!.CapturedNamespaceUris.IsEmpty ||
+                        view.ViewNodeId.NamespaceIndex >= graph.CapturedNamespaceUris.Count)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadNodeIdInvalid, "The private View has no captured namespace mapping.");
+                    }
+                    var namespaces = new NamespaceTable(graph.CapturedNamespaceUris.ToArray()!);
+                    row.RootNodeId = ResolveRootNodeId(NodeId.ToExpandedNodeId(view.ViewNodeId, namespaces));
+                    row.MaterializedNodeCount = (uint)view.MaterializedNodeCount;
+                    if (!view.Omissions.IsEmpty)
+                    {
+                        row.Outcome = WoTOutcomeEnum.Warning;
+                        row.Message = view.Message;
+                    }
+                }
+                else if (row.Xid is { } xid && capture.SourceRoots.TryGetValue(xid, out ExpandedNodeId root))
+                {
+                    row.RootNodeId = ResolveRootNodeId(root);
+                }
+            }
+        }
+
+        private static void BindCommittedResolutionInputs(
+            PublicationCapture capture, ArrayOf<WotDependencyClosure> unit, WotRegistrySnapshot snapshot)
+        {
+            List<WotDependencyClosure> closures = unit.ToList();
             for (int index = 0; index < capture.Projections.Count; index++)
             {
                 WotResourceProjection projection = capture.Projections[index];
@@ -715,25 +849,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
             var permitted = new HashSet<string>(
                 unit.ToList().SelectMany(closure => closure.ActivationMembers.ToList()).Select(member => member.Xid),
                 StringComparer.Ordinal);
-            permitted.UnionWith(capture.ViewRemovals.Select(handle => handle.ResourceXid));
+            ArrayOf<WotResource> affected = GetAffectedViewResources(capture, graph, snapshot, permitted);
             var handles = new Dictionary<string, WotViewProjectionHandle>(StringComparer.Ordinal);
             foreach (WotViewProjectionHandle handle in graph.Views)
             {
                 handles.Add(handle.ResourceXid, handle);
             }
-            foreach (string xid in graph.AffectedResourceXids)
+            foreach (WotResource resource in affected)
             {
-                if (!permitted.Contains(xid))
-                {
-                    throw new ServiceResultException(StatusCodes.BadInvalidState,
-                        "The prepared View graph affects a Resource outside its publication unit.");
-                }
-                WotResource? resource = snapshot.FindResourceByXid(xid);
-                if (resource is null)
-                {
-                    throw new ServiceResultException(StatusCodes.BadNodeIdUnknown,
-                        "A prepared View Resource does not belong to the authoritative registry snapshot.");
-                }
+                string xid = resource.Xid;
                 handles.TryGetValue(xid, out WotViewProjectionHandle? handle);
                 WotResourceProjection? previous = capture.Projections.FirstOrDefault(projection =>
                     projection.GroupId == resource.GroupId && projection.ResourceId == resource.ResourceId);
@@ -770,6 +894,29 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     }
                 }
             }
+        }
+
+        private static ArrayOf<WotResource> GetAffectedViewResources(
+            PublicationCapture capture,
+            WotPreparedViewGraphState graph,
+            WotRegistrySnapshot snapshot,
+            HashSet<string> permitted)
+        {
+            var allowed = new HashSet<string>(permitted, StringComparer.Ordinal);
+            allowed.UnionWith(capture.ViewRemovals.Select(handle => handle.ResourceXid));
+            var resources = new List<WotResource>();
+            foreach (string xid in graph.AffectedResourceXids)
+            {
+                if (!allowed.Contains(xid))
+                {
+                    throw new ServiceResultException(StatusCodes.BadInvalidState,
+                        "The prepared View graph affects a Resource outside its publication unit.");
+                }
+                resources.Add(snapshot.FindResourceByXid(xid) ??
+                    throw new ServiceResultException(StatusCodes.BadNodeIdUnknown,
+                        "A prepared View Resource does not belong to the authoritative registry snapshot."));
+            }
+            return resources.ToArrayOf();
         }
 
         private static WotRefreshResult NormalizeUncommitted(
@@ -872,7 +1019,34 @@ namespace Opc.Ua.WotCon.Server.Materialization
             public List<WotMaterializationEventArgs> Events { get; } = [];
             public List<WotResourceProjection> Projections { get; } = [];
             public Dictionary<string, ExpandedNodeId> SourceRoots { get; } = new(StringComparer.Ordinal);
+            public List<WotDependencyClosure> PreviewUnits { get; } = [];
             public uint? RecoveryGeneration { get; init; }
+
+            public void AcceptPreview(PublicationCapture candidate)
+            {
+                Closures.Clear();
+                foreach (KeyValuePair<string, ClosureState> entry in candidate.Closures)
+                {
+                    Closures.Add(entry.Key, entry.Value);
+                }
+                Namespaces.Clear();
+                Namespaces.UnionWith(candidate.Namespaces);
+                Changes.Clear();
+                Changes.AddRange(candidate.Changes);
+                ViewUpdates.Clear();
+                ViewUpdates.AddRange(candidate.ViewUpdates);
+                ViewRemovals.Clear();
+                ViewRemovals.AddRange(candidate.ViewRemovals);
+                Projections.Clear();
+                Projections.AddRange(candidate.Projections);
+                SourceRoots.Clear();
+                foreach (KeyValuePair<string, ExpandedNodeId> root in candidate.SourceRoots)
+                {
+                    SourceRoots.Add(root.Key, root.Value);
+                }
+                PreviewUnits.Clear();
+                PreviewUnits.AddRange(candidate.PreviewUnits);
+            }
         }
 
         private sealed record CapturedProjection(WotProjectionChange Change, WotProjectionHandle? Candidate);
