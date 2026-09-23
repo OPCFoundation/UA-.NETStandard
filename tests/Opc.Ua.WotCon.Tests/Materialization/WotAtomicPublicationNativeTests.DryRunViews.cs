@@ -536,6 +536,77 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 .ConfigureAwait(false);
         }
 
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task DryRunRetirementCollationRetainsTheSelectedNonDefaultVersion(
+            bool exactXid, bool acceptLast)
+        {
+            HandoffProbe probe = ObserveHandoff();
+            await m_server.NodeManagerLifecycle.AddAsync(new WotRegistryNodeManagerFactory(
+                new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator),
+                callerContext: null).ConfigureAwait(false);
+            WotResource retired = await AddAsync("retired").ConfigureAwait(false);
+            await m_coordinator.RefreshAsync(HandoffRequest("before-version-preview")).ConfigureAwait(false);
+            WotRegistryMutationResult versioned = await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
+            {
+                GroupId = retired.GroupId, ResourceId = retired.ResourceId, VersionId = "v2",
+                Kind = retired.Kind, SetAsDefault = false,
+                Content = ByteString.From(TestMaterialization.Td("urn:retired", "2"))
+            }).ConfigureAwait(false);
+            Assert.That(versioned.Changed, Is.True, versioned.Message);
+            WotResourceVersion selected = versioned.Resource!.FindVersion("v2")!;
+            Assert.That(versioned.Resource.DefaultVersionId, Is.EqualTo("v1"));
+            Assert.That(selected.Digest, Is.Not.EqualTo(retired.DefaultVersion!.Digest));
+            WotResource first = await AddAsync("first").ConfigureAwait(false);
+            WotResource second = await AddAsync("second").ConfigureAwait(false);
+            WotResource third = await AddAsync("third").ConfigureAwait(false);
+            await m_registry.SetEnabledAsync(retired.GroupId, retired.ResourceId, false).ConfigureAwait(false);
+            await AwaitStockRegistryProjectionAsync().ConfigureAwait(false);
+            WotRegistrySnapshot before = m_registry.Current;
+            string xid = exactXid ? WotDependencyGraph.VersionXid(retired, selected) : retired.Xid;
+            probe.OnRuntimeCreated = () => probe.RejectReadImages = !acceptLast || probe.RuntimeCreatedCount <= 3;
+            m_events.Clear();
+
+            WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest
+            {
+                ExpectedGeneration = 1,
+                Selection =
+                [
+                    exactXid
+                        ? new WoTResourceSelectorDataType { Kind = retired.Kind, Xid = xid }
+                        : new WoTResourceSelectorDataType
+                        {
+                            Kind = retired.Kind, GroupId = retired.GroupId,
+                            ResourceId = retired.ResourceId, VersionId = selected.VersionId
+                        },
+                    UnitSelector(first), UnitSelector(second), UnitSelector(third)
+                ],
+                Options = new WoTRefreshOptionsDataType { Atomicity = WoTAtomicityEnum.PerResource, DryRun = true }
+            }).ConfigureAwait(false);
+
+            Assert.That(result.Summary.Total, Is.EqualTo(4u));
+            Assert.That(result.Summary.Failed, Is.EqualTo(acceptLast ? 2u : 4u));
+            Assert.That(result.Summary.Skipped, Is.EqualTo(acceptLast ? 1u : 0u));
+            Assert.That(result.Results.Select(row => row.Xid),
+                Is.EquivalentTo(new[] { xid, first.Xid, second.Xid, third.Xid }));
+            WoTResourceLoadResultDataType row = result.Results.Single(candidate => candidate.Xid == xid);
+            Assert.That(row.VersionId, Is.EqualTo(selected.VersionId));
+            Assert.That(row.ContentDigest, Is.EqualTo(selected.Digest));
+            Assert.That(row.Outcome, Is.EqualTo(acceptLast ? WoTOutcomeEnum.Skipped : WoTOutcomeEnum.Failed));
+            Assert.That(row.Phase, Is.EqualTo(WoTPhaseEnum.Activation));
+            Assert.That(row.Generation, Is.EqualTo(1u));
+            Assert.That(result.NewGeneration, Is.EqualTo(1u));
+            Assert.That(m_registry.Current, Is.SameAs(before));
+            Assert.That((await ReadNodeClassAsync(Root(retired)).ConfigureAwait(false)).StatusCode,
+                Is.EqualTo(StatusCodes.Good));
+            Assert.That((await ReadNodeClassAsync(Root(third)).ConfigureAwait(false)).StatusCode,
+                Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            Assert.That(probe.DecisionCount, Is.EqualTo(1));
+            Assert.That(m_events, Is.Empty);
+        }
+
         private async Task AssertDryRunUnitFailureRetirementAsync(
             bool rejectEveryUnit, bool rejectFirstUnitOnly = false, bool exactRetiredVersion = false)
         {

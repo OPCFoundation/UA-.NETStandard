@@ -200,6 +200,8 @@ Results contain one row per Resource even when separate rejected units retry the
 same retirement. If a later unit validates that retirement, its earlier failed
 prediction is replaced by the validated retirement outcome; failures of other
 Resources remain reported.
+Collation retains the selector-resolved Xid, VersionId and content digest together,
+including an explicitly selected non-default Version.
 
 No dry run writes registry or dependency diagnostics, changes `LastRefreshPlan`,
 advances the committed generation or View tokens, or releases management or

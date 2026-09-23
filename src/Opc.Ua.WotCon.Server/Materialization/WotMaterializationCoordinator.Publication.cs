@@ -168,8 +168,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 [
                     .. rows.GroupBy(row => (row.GroupId, row.ResourceId)).Select(group =>
                     {
+                        WoTResourceLoadResultDataType selected = group.First();
                         WoTResourceLoadResultDataType latest = group.Last();
-                        latest.Xid = group.First().Xid;
+                        latest.Xid = selected.Xid;
+                        latest.VersionId = selected.VersionId;
+                        latest.ContentDigest = selected.ContentDigest;
                         return latest;
                     })
                 ];
