@@ -33,6 +33,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Server;
+using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 
@@ -492,6 +493,150 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             await Assert.ThatAsync(async () => await m_coordinator.RefreshAsync(request).ConfigureAwait(false),
                 Throws.TypeOf<NotSupportedException>()).ConfigureAwait(false);
             Assert.That(probe.DecisionCount, Is.EqualTo(1));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DryRunRetirementReportsItsPreparationFailureWithoutFailingUnrelatedSkippedResources(
+            bool withView)
+        {
+            await AssertRejectedDryRunRetirementAsync(withView, explicitSelection: true).ConfigureAwait(false);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DryRunRetirementIncludesFailuresForPreviouslyOmittedResources(bool withView)
+        {
+            await AssertRejectedDryRunRetirementAsync(withView, explicitSelection: false).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task DryRunLaterUnitFailureDoesNotRelabelAnEarlierValidatedRetirement()
+        {
+            HandoffProbe probe = ObserveHandoff();
+            await m_server.NodeManagerLifecycle.AddAsync(new WotRegistryNodeManagerFactory(
+                new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator),
+                callerContext: null).ConfigureAwait(false);
+            WotResource retired = await AddAsync("retired").ConfigureAwait(false);
+            await m_coordinator.RefreshAsync(HandoffRequest("before-split-preview")).ConfigureAwait(false);
+            WotResource first = await AddAsync("first").ConfigureAwait(false);
+            WotResource second = await AddAsync("second").ConfigureAwait(false);
+            await m_registry.SetEnabledAsync(retired.GroupId, retired.ResourceId, false).ConfigureAwait(false);
+            await AwaitStockRegistryProjectionAsync().ConfigureAwait(false);
+            WotRegistrySnapshot before = m_registry.Current;
+            probe.OnRuntimeCreated = () =>
+            {
+                if (probe.RuntimeCreatedCount > 2)
+                {
+                    probe.RejectReadImages = true;
+                }
+            };
+            m_events.Clear();
+
+            WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest
+            {
+                ExpectedGeneration = 1,
+                Selection = [new WoTResourceSelectorDataType { Kind = WoTDocumentKindEnum.All }],
+                Options = new WoTRefreshOptionsDataType { Atomicity = WoTAtomicityEnum.PerResource, DryRun = true }
+            }).ConfigureAwait(false);
+
+            Assert.That(result.Summary.Atomicity, Is.EqualTo(WoTAtomicityEnum.PerResource));
+            Assert.That(result.Summary.Total, Is.EqualTo(3u));
+            Assert.That(result.Summary.Succeeded, Is.EqualTo(1u));
+            Assert.That(result.Summary.Failed, Is.EqualTo(1u));
+            Assert.That(result.Summary.Skipped, Is.EqualTo(1u));
+            Assert.That(result.Results.Single(row => row.Xid == retired.Xid).Outcome,
+                Is.EqualTo(WoTOutcomeEnum.Skipped));
+            Assert.That(result.Results.Single(row => row.Xid == first.Xid).Outcome, Is.EqualTo(WoTOutcomeEnum.Warning));
+            WoTResourceLoadResultDataType failed = result.Results.Single(row => row.Xid == second.Xid);
+            Assert.That(failed.Outcome, Is.EqualTo(WoTOutcomeEnum.Failed));
+            Assert.That(failed.Message, Does.Contain("cannot retain read images"));
+            Assert.That(result.NewGeneration, Is.EqualTo(1u));
+            Assert.That(m_registry.Current, Is.SameAs(before));
+            Assert.That((await ReadNodeClassAsync(Root(retired)).ConfigureAwait(false)).StatusCode,
+                Is.EqualTo(StatusCodes.Good));
+            Assert.That((await ReadNodeClassAsync(Root(first)).ConfigureAwait(false)).StatusCode,
+                Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            Assert.That((await ReadNodeClassAsync(Root(second)).ConfigureAwait(false)).StatusCode,
+                Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            Assert.That(probe.DecisionCount, Is.EqualTo(1));
+            Assert.That(m_events, Is.Empty);
+        }
+
+        private async Task AssertRejectedDryRunRetirementAsync(bool withView, bool explicitSelection)
+        {
+            using var views = new LifecycleWotViewProjectionHost(m_server.NodeManagerLifecycle);
+            HandoffProbe probe = await ConfigureStockViewsAsync(views).ConfigureAwait(false);
+            WotResource source = await UpsertStockSourceAsync(false).ConfigureAwait(false);
+            WotResource? child = withView
+                ? await AddStockViewAsync("child", false).ConfigureAwait(false)
+                : null;
+            await m_coordinator.RefreshAsync(HandoffRequest("before-rejected-retirement")).ConfigureAwait(false);
+            WotResource unrelated = await AddAsync("unrelated-disabled").ConfigureAwait(false);
+            await m_registry.SetEnabledAsync(unrelated.GroupId, unrelated.ResourceId, false).ConfigureAwait(false);
+            await m_registry.SetEnabledAsync(source.GroupId, source.ResourceId, false).ConfigureAwait(false);
+            if (child is not null)
+            {
+                await m_registry.SetEnabledAsync(child.GroupId, child.ResourceId, false).ConfigureAwait(false);
+            }
+            await AwaitStockRegistryProjectionAsync().ConfigureAwait(false);
+            WotRegistrySnapshot before = m_registry.Current;
+            ArrayOf<NodeManagerRegistration> owners = m_server.NodeManagerLifecycle.Registrations;
+            probe.RejectReadImages = true;
+            WotRefreshRequest request = HandoffRequest("rejected-preview-retirement", 1);
+            request.Options.DryRun = true;
+            if (explicitSelection)
+            {
+                request.Selection = [new WoTResourceSelectorDataType { Kind = WoTDocumentKindEnum.All }];
+            }
+            m_events.Clear();
+
+            WotRefreshResult result = await m_coordinator.RefreshAsync(request).ConfigureAwait(false);
+
+            Assert.That(result.Summary.Failed, Is.EqualTo(withView ? 2u : 1u));
+            Assert.That(result.Summary.Skipped, Is.EqualTo(explicitSelection ? 1u : 0u));
+            WoTResourceLoadResultDataType failed = result.Results.Single(row => row.Xid == source.Xid);
+            Assert.That(failed.Outcome, Is.EqualTo(WoTOutcomeEnum.Failed));
+            Assert.That(failed.Phase, Is.EqualTo(WoTPhaseEnum.Activation));
+            Assert.That(failed.Message, Does.Contain("cannot retain read images"));
+            Assert.That(failed.LoadState, Is.EqualTo(WoTLoadStateEnum.Active));
+            Assert.That(failed.Generation, Is.EqualTo(1u));
+            Assert.That(failed.RootNodeId, Is.EqualTo(StockNode("Source")));
+            if (explicitSelection)
+            {
+                Assert.That(result.Results.Single(row => row.Xid == unrelated.Xid).Outcome,
+                    Is.EqualTo(WoTOutcomeEnum.Skipped));
+            }
+            else
+            {
+                Assert.That(result.Results.Any(row => row.Xid == unrelated.Xid), Is.False);
+            }
+            if (child is not null)
+            {
+                WoTResourceLoadResultDataType failedView = result.Results.Single(row => row.Xid == child.Xid);
+                Assert.That(failedView.Outcome, Is.EqualTo(WoTOutcomeEnum.Failed));
+                Assert.That(failedView.Phase, Is.EqualTo(WoTPhaseEnum.Activation));
+                Assert.That(failedView.RootNodeId, Is.EqualTo(StockView("child")));
+                await AssertStockMembershipAsync("child", 1, ["Reading"]).ConfigureAwait(false);
+            }
+            Assert.That(result.NewGeneration, Is.EqualTo(1u));
+            Assert.That(result.Summary.Retired, Is.Zero);
+            Assert.That(m_registry.Current, Is.SameAs(before));
+            Assert.That(m_server.NodeManagerLifecycle.Registrations, Is.EqualTo(owners));
+            Assert.That(await ReadStockValueAsync("Reading").ConfigureAwait(false), Is.EqualTo(42));
+            Assert.That(probe.DecisionCount, Is.EqualTo(1));
+            Assert.That(m_events, Is.Empty);
+            probe.RejectReadImages = false;
+
+            WotRefreshResult accepted = await m_coordinator.RefreshAsync(request).ConfigureAwait(false);
+
+            Assert.That(accepted.Summary.Failed, Is.Zero);
+            Assert.That(accepted.NewGeneration, Is.EqualTo(1u));
+            Assert.That(m_registry.Current, Is.SameAs(before));
+            Assert.That(m_events, Is.Empty);
+            request.Options.DryRun = false;
+            WotRefreshResult retired = await m_coordinator.RefreshAsync(request).ConfigureAwait(false);
+            Assert.That(retired.NewGeneration, Is.EqualTo(2u));
         }
     }
 }

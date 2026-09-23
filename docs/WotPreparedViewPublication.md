@@ -193,6 +193,9 @@ that prerequisite to become live. Each unit keeps its planned boundary. An inval
 View rejects its source peers, but not an earlier independent prediction. The same
 Resource-footprint checks reject a graph that affects unselected Resources.
 Preparation failures identify their phase and message in the existing Results.
+That includes a rejected retirement: its affected Resources report
+`Failed`/`Activation` while retaining their serving state. Unrelated disabled
+Resources remain `Skipped`.
 
 No dry run writes registry or dependency diagnostics, changes `LastRefreshPlan`,
 advances the committed generation or View tokens, or releases management or

@@ -276,7 +276,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 return result;
             }
 
-            AddRetiredResourceMetadata(capture, snapshot, start);
+            AddRetiredResourceMetadata(capture, preview?.Closures ?? m_closures, snapshot, start);
             if (preview is not null)
             {
                 capture.Changes.InsertRange(0, preview.Changes);
@@ -469,9 +469,19 @@ namespace Opc.Ua.WotCon.Server.Materialization
             catch (Exception failure) when (dryRun &&
                 failure is ServiceResultException or ArgumentException or NotSupportedException or IOException)
             {
-                foreach (WoTResourceLoadResultDataType row in staged.Results)
+                var results = staged.Results.ToBuilder();
+                foreach (WotResource retired in capture.RetiredResources)
                 {
-                    if (row.Outcome is not (WoTOutcomeEnum.Success or WoTOutcomeEnum.Warning))
+                    if (!results.Any(row => row.GroupId == retired.GroupId && row.ResourceId == retired.ResourceId))
+                    {
+                        results.Add(FailResult(retired, m_generation, WoTPhaseEnum.Activation, failure.Message));
+                    }
+                }
+                foreach (WoTResourceLoadResultDataType row in results)
+                {
+                    if (row.Outcome is not (WoTOutcomeEnum.Success or WoTOutcomeEnum.Warning) &&
+                        !capture.RetiredResources.Any(retired =>
+                            row.GroupId == retired.GroupId && row.ResourceId == retired.ResourceId))
                     {
                         continue;
                     }
@@ -485,6 +495,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     row.MaterializedNodeCount = (uint)(previous?.MaterializedNodeCount ?? 0);
                     row.Message = "The private publication candidate could not be prepared: " + failure.Message;
                 }
+                staged.Summary.Total = (uint)results.Count;
+                staged = new WotRefreshResult(staged.Summary, results.ToImmutable(), m_generation);
                 return NormalizeUncommitted(staged, snapshot, true, true);
             }
             finally
@@ -605,13 +617,16 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
-        private void AddRetiredResourceMetadata(
-            PublicationCapture capture, WotRegistrySnapshot snapshot, DateTime refreshedAt)
+        private static void AddRetiredResourceMetadata(
+            PublicationCapture capture,
+            Dictionary<string, ClosureState> previous,
+            WotRegistrySnapshot snapshot,
+            DateTime refreshedAt)
         {
             var retained = new HashSet<string>(
                 capture.Closures.Values.SelectMany(closure => closure.Members).Select(member => member.Xid),
                 StringComparer.Ordinal);
-            foreach (ClosureMemberState member in m_closures.Values.SelectMany(closure => closure.Members))
+            foreach (ClosureMemberState member in previous.Values.SelectMany(closure => closure.Members))
             {
                 if (!retained.Add(member.Xid))
                 {
@@ -622,6 +637,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     continue;
                 }
+                capture.RetiredResources.Add(resource);
                 capture.Projections.RemoveAll(projection =>
                     projection.GroupId == resource.GroupId && projection.ResourceId == resource.ResourceId);
                 capture.Projections.Add(new WotResourceProjection(
@@ -1018,6 +1034,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             public List<BindingAction> Bindings { get; } = [];
             public List<WotMaterializationEventArgs> Events { get; } = [];
             public List<WotResourceProjection> Projections { get; } = [];
+            public List<WotResource> RetiredResources { get; } = [];
             public Dictionary<string, ExpandedNodeId> SourceRoots { get; } = new(StringComparer.Ordinal);
             public List<WotDependencyClosure> PreviewUnits { get; } = [];
             public uint? RecoveryGeneration { get; init; }
