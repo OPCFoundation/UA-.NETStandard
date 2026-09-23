@@ -1642,22 +1642,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 m_store = new FileWotRegistryStore(Path.Combine(m_directory, "registry"));
                 m_registry = new WotRegistryService(m_store);
                 await m_registry.InitializeAsync().ConfigureAwait(false);
-                if (withGraphResources)
-                {
-                    foreach (string resource in new[] { "child", "left", "right" })
-                    {
-                        string json = "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\"," +
-                            "\"id\":\"urn:c2:resource:" + resource + "\",\"title\":\"" + resource + "\"}";
-                        WotRegistryMutationResult created = await m_registry.UpsertResourceAsync(
-                            new WotUpsertResourceRequest
-                            {
-                                GroupId = WotRegistryGroups.ThingDescriptions,
-                                ResourceId = resource,
-                                Content = ByteString.From(Encoding.UTF8.GetBytes(json))
-                            }).ConfigureAwait(false);
-                        Assert.That(created.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
-                    }
-                }
                 m_coordinator = new WotMaterializationCoordinator(
                     m_registry, new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle),
                     documentConverter: withGraphResources ? new FakeWotDocumentConverter() : null);
@@ -1674,6 +1658,27 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 RegistryRegistration = await m_server.NodeManagerLifecycle.AddAsync(
                     new WotRegistryNodeManagerFactory(options, m_registry, m_coordinator), callerContext: null)
                     .ConfigureAwait(false);
+                if (withGraphResources)
+                {
+                    foreach (string resource in new[] { "child", "left", "right" })
+                    {
+                        string json = "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                            "\"id\":\"urn:c2:resource:" + resource + "\",\"title\":\"" + resource + "\"}";
+                        WotRegistryMutationResult created = await m_registry.UpsertResourceAsync(
+                            new WotUpsertResourceRequest
+                            {
+                                GroupId = WotRegistryGroups.ThingDescriptions,
+                                ResourceId = resource,
+                                Content = ByteString.From(Encoding.UTF8.GetBytes(json))
+                            }).ConfigureAwait(false);
+                        Assert.That(created.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+                    }
+                    var manager = (WotRegistryNodeManager)RegistryRegistration.NodeManager;
+                    await manager.DispatchProjectionAsync(_ => default, CancellationToken.None).ConfigureAwait(false);
+                    Assert.That(m_registry.Current.RefreshGeneration, Is.Zero);
+                    Assert.That(m_registry.Current.AllResources().All(resource => resource.ActiveVersionId is null),
+                        Is.True, "Graph-only fixtures must not first activate unrelated ordinary source owners.");
+                }
                 Views = new LifecycleWotViewProjectionHost(m_server.NodeManagerLifecycle, retirementPolicy);
                 m_client = new ClientFixture(false, false, NUnitTelemetryContext.Create());
                 await m_client.LoadClientConfigurationAsync(m_directory).ConfigureAwait(false);

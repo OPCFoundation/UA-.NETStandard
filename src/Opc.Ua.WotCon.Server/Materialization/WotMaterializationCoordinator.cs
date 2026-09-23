@@ -1102,9 +1102,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 if (activeXids.Contains(member.Xid))
                 {
-                    if (m_preparing is not null &&
-                        m_sourceViewHost is IWotPreparedViewProjectionHost && WotConNamespaceIndex() != 0 &&
-                        !root.IsNull)
+                    if (m_preparing is not null && WotConNamespaceIndex() != 0 && !root.IsNull)
                     {
                         AddPreparedSourceCorrelation(nodeSet, root, member);
                     }
