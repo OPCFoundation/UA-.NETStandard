@@ -84,6 +84,52 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
+        /// Creates an <see cref="IArgumentBuilder"/>, applies the provided configuration,
+        /// builds a single argument and adds it as input argument.
+        /// </summary>
+        /// <param name="method">
+        /// The method node builder.
+        /// </param>
+        /// <param name="configureArgument">
+        /// The argument configuration action.
+        /// </param>
+        /// <returns>
+        /// The typed method node builder.
+        /// </returns>
+        public static INodeBuilder<MethodState> AddInputArguments(
+            this INodeBuilder method,
+            Action<IArgumentBuilder> configureArgument)
+        {
+            var argumentBuilder = new ArgumentBuilder();
+            configureArgument(argumentBuilder);
+
+            return method.AddInputArguments(argumentBuilder.Item);
+        }
+
+        /// <summary>
+        /// Creates an <see cref="IArgumentListBuilder"/>, applies the provided configuration
+        /// and adds the built input arguments.
+        /// </summary>
+        /// <param name="method">
+        /// The method node builder.
+        /// </param>
+        /// <param name="configureArguments">
+        /// The argument list configuration action.
+        /// </param>
+        /// <returns>
+        /// The typed method node builder.
+        /// </returns>
+        public static INodeBuilder<MethodState> AddInputArguments(
+            this INodeBuilder method,
+            Action<IArgumentListBuilder> configureArguments)
+        {
+            var argumentListBuilder = new ArgumentListBuilder();
+            configureArguments(argumentListBuilder);
+
+            return method.AddInputArguments(argumentListBuilder.Items);
+        }
+
+        /// <summary>
         /// Adds OPC UA output argument metadata to a method node being configured with the fluent node builder.
         /// </summary>
         /// <param name="method">
@@ -127,6 +173,52 @@ namespace Opc.Ua.Server.Fluent
             args.SetArgumentProperties(arguments);
 
             return method;
+        }
+
+        /// <summary>
+        /// Creates an <see cref="IArgumentBuilder"/>, applies the provided configuration,
+        /// builds a single argument and adds it as output argument.
+        /// </summary>
+        /// <param name="method">
+        /// The method node builder.
+        /// </param>
+        /// <param name="configureArgument">
+        /// The argument configuration action.
+        /// </param>
+        /// <returns>
+        /// The typed method node builder.
+        /// </returns>
+        public static INodeBuilder<MethodState> AddOutputArguments(
+            this INodeBuilder method,
+            Action<IArgumentBuilder> configureArgument)
+        {
+            var argumentBuilder = new ArgumentBuilder();
+            configureArgument(argumentBuilder);
+
+            return method.AddOutputArguments(argumentBuilder.Item);
+        }
+
+        /// <summary>
+        /// Creates an <see cref="IArgumentListBuilder"/>, applies the provided configuration
+        /// and adds the built output arguments.
+        /// </summary>
+        /// <param name="method">
+        /// The method node builder.
+        /// </param>
+        /// <param name="configureArguments">
+        /// The argument list configuration action.
+        /// </param>
+        /// <returns>
+        /// The typed method node builder.
+        /// </returns>
+        public static INodeBuilder<MethodState> AddOutputArguments(
+            this INodeBuilder method,
+            Action<IArgumentListBuilder> configureArguments)
+        {
+            var argumentListBuilder = new ArgumentListBuilder();
+            configureArguments(argumentListBuilder);
+
+            return method.AddOutputArguments(argumentListBuilder.Items);
         }
 
         /// <summary>

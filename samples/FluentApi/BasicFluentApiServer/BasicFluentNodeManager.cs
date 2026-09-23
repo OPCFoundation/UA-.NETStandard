@@ -80,27 +80,23 @@ namespace BasicFluentApiServer
             builder
                 .AddMethod("Add", devices.NodeId)
                 .OnCall(OnAdd)
-                .AddInputArguments(
-                    ArgumentListBuilder.Create()
-                        .Add(arg => arg
-                            .WithName("a")
-                            .WithDataType(DataTypeIds.Int32)
-                            .WithValueRank(ValueRanks.Scalar)
-                            .WithDescription("The first integer to add."))
-                        .Add(arg => arg
-                            .WithName("b")
-                            .WithDataType(DataTypeIds.Int32)
-                            .WithValueRank(ValueRanks.Scalar)
-                            .WithDescription("The second integer to add."))
-                        .Items
-                )
-                .AddOutputArguments(
-                    ArgumentBuilder.Create()
-                        .WithName("sum")
-                        .WithDataType<int>(SystemContext)
+                .AddInputArguments(args => args
+                    .Add(arg => arg
+                        .WithName("a")
+                        .WithDataType(DataTypeIds.Int32)
                         .WithValueRank(ValueRanks.Scalar)
-                        .WithDescription("The sum of the two integers.")
-                        .Item
+                        .WithDescription("The first integer to add."))
+                    .Add(arg => arg
+                        .WithName("b")
+                        .WithDataType(DataTypeIds.Int32)
+                        .WithValueRank(ValueRanks.Scalar)
+                        .WithDescription("The second integer to add."))
+                )
+                .AddOutputArguments(arg => arg
+                    .WithName("sum")
+                    .WithDataType<int>(SystemContext)
+                    .WithValueRank(ValueRanks.Scalar)
+                    .WithDescription("The sum of the two integers.")
                 );
         }
 
