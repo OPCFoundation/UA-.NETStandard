@@ -81,8 +81,18 @@ namespace BasicFluentApiServer
                 .AddMethod("Add", devices.NodeId)
                 .OnCall(OnAdd)
                 .AddInputArguments(
-                    ArgumentBuilder.Create("a", DataTypeIds.Int32, ValueRanks.Scalar, "The first integer to add.").Item,
-                    ArgumentBuilder.Create(new Argument("b", DataTypeIds.Int32, ValueRanks.Scalar, "The second integer to add.")).Item
+                    ArgumentListBuilder.Create()
+                        .Add(arg => arg
+                            .WithName("a")
+                            .WithDataType(DataTypeIds.Int32)
+                            .WithValueRank(ValueRanks.Scalar)
+                            .WithDescription("The first integer to add."))
+                        .Add(arg => arg
+                            .WithName("b")
+                            .WithDataType(DataTypeIds.Int32)
+                            .WithValueRank(ValueRanks.Scalar)
+                            .WithDescription("The second integer to add."))
+                        .Items
                 )
                 .AddOutputArguments(
                     ArgumentBuilder.Create()
