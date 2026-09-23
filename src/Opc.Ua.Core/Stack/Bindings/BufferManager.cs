@@ -130,7 +130,7 @@ namespace Opc.Ua.Bindings
         /// <param name="maxBufferSize">Max size of the buffer.</param>
         /// <param name="telemetry">The telemetry context used to create observability instruments.</param>
         public BufferManager(string name, int maxBufferSize, ITelemetryContext telemetry)
-            : this(CreateDefaultBufferManager(name, maxBufferSize, telemetry))
+            : this(DefaultBufferManagerFactory.Instance.Create(name, maxBufferSize, telemetry))
         {
         }
 

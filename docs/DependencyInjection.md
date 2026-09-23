@@ -131,13 +131,20 @@ services.AddOpcUa()
 
 Transport listeners and channels resolve `IBufferManagerFactory` from dependency injection. The default factory selects `FastBufferManager` in Release builds, `CookieBufferManager` in Debug builds, and `TracingBufferManager` when the stack is compiled with `TRACK_MEMORY`.
 
-Register options before `AddOpcUa()` to select an implementation explicitly or apply a process-wide outstanding-buffer budget:
+The default factory enforces a **256 MiB outstanding-buffer budget** shared by
+all managers it creates. A rent that cannot fit fails immediately with
+`BadTcpNotEnoughResources`; it does not block a receive thread waiting for a
+peer to finish an incomplete message. The budget counts actual pooled-array
+lengths, including pool rounding and metadata, not just message payload bytes.
+
+Register options before `AddOpcUa()` to select an implementation or adjust the budget:
 
 ```csharp
 services.AddSingleton(new BufferManagerFactoryOptions
 {
     ImplementationKind = BufferManagerImplementationKind.Fast,
-    MaxOutstandingBytesPerProcess = 256L * 1024 * 1024
+    MaxOutstandingBytesPerProcess = 256L * 1024 * 1024,
+    BlockOnExhaustion = false
 });
 
 services.AddOpcUa()
@@ -145,7 +152,23 @@ services.AddOpcUa()
     .AddHttpsTransport();
 ```
 
-When `MaxOutstandingBytesPerProcess` is positive, the singleton factory wraps every manager it creates with `LimitingBufferManager` and shares one `BufferManagerMemoryLimiter` across them. A synchronous rent blocks without holding a manager lock until another buffer is returned. A single rent whose conservative expected size exceeds the budget fails immediately instead of waiting forever.
+When `MaxOutstandingBytesPerProcess` is positive, the singleton factory wraps every
+manager it creates with `LimitingBufferManager` and shares one
+`BufferManagerMemoryLimiter` across them. Reuse that singleton across listeners
+and channels: independently constructed factories have independent budgets.
+The non-DI transport constructors and `new BufferManager(...)` use
+`DefaultBufferManagerFactory.Instance`, which has the same default protection.
+The budget limits outstanding stack buffers, not the whole process heap or
+arrays already returned to the pool.
+
+Setting the budget to `0` or `null` explicitly disables this protection.
+`BlockOnExhaustion = true` opts into synchronous waiting for returned buffers;
+use it only where buffer returns are guaranteed to progress independently,
+**not for transport receive paths**. Direct construction using the two-argument
+`LimitingBufferManager` constructor retains this blocking behavior; its
+three-argument overload accepts `blockOnExhaustion: false`.
+A single rent whose conservative expected size exceeds the budget always fails
+instead of waiting forever.
 
 Capacity changes notify only currently registered renters; idle buffer returns
 do not accumulate wakeups. Cancellation removes any unclaimed wakeup, and

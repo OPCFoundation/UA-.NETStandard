@@ -310,25 +310,7 @@ namespace Opc.Ua.Bindings
                 transport?.Close();
                 DiscardTokens();
 
-                // A message the peer never finished sending leaves its chunks
-                // queued here. Nothing else returns them, so a client that sends
-                // one intermediate chunk and disconnects would cost the pool a
-                // receive buffer per channel.
-                //
-                // Dispose runs alongside the receive loop, which may be saving a
-                // chunk at this moment, so the collection is detached under the
-                // same lock every partial message operation takes, and closed so
-                // a chunk saved afterwards is not queued into a new collection
-                // nothing would ever release.
-                BufferCollection? partialChunks;
-
-                lock (m_partialMessageLock)
-                {
-                    m_partialMessageClosed = true;
-                    partialChunks = m_partialMessageChunks;
-                    m_partialMessageChunks = null;
-                }
-                partialChunks?.Release(BufferManager, "Dispose");
+                ClosePartialMessage();
 
                 ServerCertificateChain?.Dispose();
                 ServerCertificateChain = null;
@@ -585,15 +567,7 @@ namespace Opc.Ua.Bindings
                     return false;
                 }
 
-                firstChunk = m_partialMessageChunks == null;
-                m_partialMessageChunks ??= [];
-
-                chunkOrSizeLimitsExceeded = MessageLimitsExceeded(
-                    isServerContext,
-                    m_partialMessageChunks.TotalSize,
-                    m_partialMessageChunks.Count);
-
-                if ((m_partialRequestId != requestId) || chunkOrSizeLimitsExceeded)
+                if (m_partialRequestId != requestId && m_partialMessageChunks != null)
                 {
                     if (m_partialMessageChunks.Count > 0)
                     {
@@ -601,10 +575,34 @@ namespace Opc.Ua.Bindings
                     }
 
                     m_partialMessageChunks.Release(BufferManager, "SaveIntermediateChunk");
+                    m_partialMessageChunks = null;
+                }
+
+                firstChunk = m_partialMessageChunks == null;
+                int savedSize = m_partialMessageChunks?.TotalSize ?? 0;
+                int savedCount = m_partialMessageChunks?.Count ?? 0;
+                int incomingCount = chunk.Array != null ? 1 : 0;
+                chunkOrSizeLimitsExceeded =
+                    chunk.Count > int.MaxValue - savedSize ||
+                    incomingCount > int.MaxValue - savedCount ||
+                    MessageLimitsExceeded(
+                        isServerContext,
+                        savedSize + chunk.Count,
+                        savedCount + incomingCount);
+
+                if (chunkOrSizeLimitsExceeded)
+                {
+                    m_partialMessageChunks?.Release(BufferManager, "SaveIntermediateChunk");
+                    m_partialMessageChunks = null;
                 }
 
                 if (!chunkOrSizeLimitsExceeded && requestId != 0 && chunk.Array != null)
                 {
+                    if (m_partialMessageChunks == null)
+                    {
+                        m_partialMessageChunks = [];
+                        m_partialMessageStartedAt = TimeProvider.GetTimestamp();
+                    }
                     m_partialRequestId = requestId;
                     m_partialMessageChunks.Add(chunk);
                 }
@@ -641,6 +639,22 @@ namespace Opc.Ua.Bindings
                 lock (m_partialMessageLock)
                 {
                     return m_partialMessageChunks != null;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Whether an unfinished message has exhausted its fixed assembly lifetime.
+        /// </summary>
+        internal bool HasExpiredPartialMessage
+        {
+            get
+            {
+                lock (m_partialMessageLock)
+                {
+                    return m_partialMessageChunks != null &&
+                        TimeProvider.GetElapsedTime(m_partialMessageStartedAt).TotalMilliseconds >=
+                            Quotas.ChannelLifetime;
                 }
             }
         }
@@ -686,6 +700,21 @@ namespace Opc.Ua.Bindings
                 m_partialMessageChunks = null;
                 return savedChunks;
             }
+        }
+
+        /// <summary>
+        /// Releases an unfinished message and prevents late receive callbacks from retaining more chunks.
+        /// </summary>
+        private protected void ClosePartialMessage()
+        {
+            BufferCollection? chunks;
+            lock (m_partialMessageLock)
+            {
+                m_partialMessageClosed = true;
+                chunks = m_partialMessageChunks;
+                m_partialMessageChunks = null;
+            }
+            chunks?.Release(BufferManager, nameof(ClosePartialMessage));
         }
 
         /// <summary>
@@ -1671,6 +1700,7 @@ namespace Opc.Ua.Bindings
         private bool m_firstReceivedSequenceNumber = true;
         private uint m_partialRequestId;
         private BufferCollection? m_partialMessageChunks;
+        private long m_partialMessageStartedAt;
 
         /// <summary>
         /// Guards <see cref="m_partialMessageChunks"/>,

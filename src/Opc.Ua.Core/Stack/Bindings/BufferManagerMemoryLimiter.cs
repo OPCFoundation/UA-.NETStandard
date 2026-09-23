@@ -102,19 +102,24 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Reserves budget for a predicted buffer length, blocking until capacity is available.
+        /// Reserves budget for a predicted buffer length, optionally waiting for capacity.
         /// </summary>
         /// <param name="expectedBufferLength">The conservative expected buffer length.</param>
         /// <param name="ct">Cancellation token for the capacity wait.</param>
+        /// <param name="blockOnExhaustion">Whether to wait instead of rejecting an exhausted budget.</param>
         /// <returns>A reservation identifier.</returns>
         /// <exception cref="InvalidOperationException">
-        /// Thrown when a single reservation exceeds the configured budget.
+        /// Thrown when a single reservation exceeds the configured budget and blocking is enabled.
+        /// </exception>
+        /// <exception cref="ServiceResultException">
+        /// Thrown when the reservation cannot fit in the available budget and blocking is disabled.
         /// </exception>
         /// <exception cref="ArgumentOutOfRangeException"></exception>
         /// <exception cref="ObjectDisposedException"></exception>
         internal long Reserve(
             int expectedBufferLength,
-            CancellationToken ct)
+            CancellationToken ct,
+            bool blockOnExhaustion = true)
         {
             if (expectedBufferLength < 0)
             {
@@ -123,6 +128,13 @@ namespace Opc.Ua
 
             if (expectedBufferLength > MaxOutstandingBytes)
             {
+                if (!blockOnExhaustion)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadTcpNotEnoughResources,
+                        "The expected buffer length exceeds the configured process budget.");
+                }
+
                 throw new InvalidOperationException(
                     "The expected buffer length exceeds the configured process budget.");
             }
@@ -136,12 +148,19 @@ namespace Opc.Ua
                     {
                         throw new ObjectDisposedException(nameof(BufferManagerMemoryLimiter));
                     }
-                    if (m_outstandingBytes + expectedBufferLength <= MaxOutstandingBytes)
+                    if (expectedBufferLength <= MaxOutstandingBytes - m_outstandingBytes)
                     {
                         long reservationId = ++m_nextReservationId;
                         m_reservations[reservationId] = new Reservation(expectedBufferLength);
                         m_outstandingBytes += expectedBufferLength;
                         return reservationId;
+                    }
+
+                    if (!blockOnExhaustion)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadTcpNotEnoughResources,
+                            "The outstanding buffer budget is exhausted.");
                     }
 
                     if (IsReturningOnCurrentThread())

@@ -74,6 +74,31 @@ callbacks, retires idle channels outside the listener lock, and closes rejected
 sockets. Invalid response sequences fail pending requests promptly with
 `BadSecurityChecksFailed`; diagnostics retain `BadSequenceNumberInvalid`.
 
+### Incomplete-message resource limits
+
+UA Secure Conversation channels enforce message-size and chunk-count limits
+including the incoming chunk, before retaining it. Exceeding a limit releases
+the partial message and closes the channel; no final chunk is required to
+trigger cleanup.
+
+On server channels, `ChannelLifetime` also bounds assembly of an incomplete
+message from its first retained chunk. Further chunks or other activity do not
+restart that deadline. Each channel checks the deadline at half-lifetime
+intervals and releases the buffers when it closes, independently of listener
+inactivity sweeps. Completed or discarded messages clear their assembly state,
+and subsequent messages receive a fresh deadline. This applies before an OPC UA
+session is created and to the UA-TCP, Kestrel TCP, and WebSocket bindings using
+the server-channel pipeline.
+
+Per-channel limits alone do not bound memory across many connections. The
+default buffer factory also enforces a shared **256 MiB outstanding-buffer
+budget** and rejects allocation pressure immediately with
+`BadTcpNotEnoughResources`. Server channels release partial messages on faults
+and close when the budget is exhausted, even when there is no capacity to
+encode an error response. See [buffer-manager configuration](DependencyInjection.md#buffer-managers)
+to size the budget for the deployment. `MaxSessionCount` does not limit
+connections that have not created a session.
+
 ## Assembly layout
 
 * **`Opc.Ua.Core`** (this is what every Server / Client application

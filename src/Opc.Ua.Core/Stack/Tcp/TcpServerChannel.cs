@@ -760,6 +760,13 @@ namespace Opc.Ua.Bindings
                 // dispose the client certificate since it will not be stored
                 clientCertificate?.Dispose();
 
+                if (e is ServiceResultException resourceError &&
+                    resourceError.StatusCode == StatusCodes.BadTcpNotEnoughResources)
+                {
+                    ForceChannelFaultCore(resourceError.Result);
+                    return false;
+                }
+
                 if (TryGetReportableCertificateError(e, out ServiceResultException? reportable))
                 {
                     ForceChannelFaultCore(reportable, reportable.StatusCode, e.Message);
@@ -810,6 +817,10 @@ namespace Opc.Ua.Bindings
                 // get the chunks to process.
                 bodyOwned = false;
                 chunksToProcess = GetSavedChunks(requestId, messageBody, true, gateHeld: true);
+                if (State == TcpChannelState.Closed)
+                {
+                    return false;
+                }
 
                 using var openRequestStream = new ArraySegmentStream(chunksToProcess);
                 request =
@@ -1352,10 +1363,11 @@ namespace Opc.Ua.Bindings
                 // report the audit event for close secure channel
                 ReportAuditCloseSecureChannelEvent?.Invoke(this, e);
 
-                throw ServiceResultException.Create(
-                    StatusCodes.BadSecurityChecksFailed,
+                ForceChannelFaultCore(
                     e,
+                    StatusCodes.BadSecurityChecksFailed,
                     "Could not verify security on CloseSecureChannel request.");
+                return false;
             }
 
             BufferCollection? chunksToProcess = null;
@@ -1588,6 +1600,10 @@ namespace Opc.Ua.Bindings
 
                 // get the chunks to process.
                 chunksToProcess = GetSavedChunks(requestId, messageBody, true, gateHeld: true);
+                if (State == TcpChannelState.Closed)
+                {
+                    return true;
+                }
 
                 // decode the request.
                 using var serviceRequestStream = new ArraySegmentStream(chunksToProcess);

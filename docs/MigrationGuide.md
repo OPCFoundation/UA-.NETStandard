@@ -825,6 +825,21 @@ A subclass that took `DataLock` in order to be mutually exclusive with
 the **channel's** state transitions was already relying on an
 implementation detail, and can no longer do so.
 
+## Transport resource limits
+
+Applications migrating from 1.5.x use a default shared outstanding-buffer budget
+of **256 MiB**. The default buffer factory rejects exhausted capacity with
+`BadTcpNotEnoughResources` instead of allowing further allocations or blocking
+transport receive threads. Configure `BufferManagerFactoryOptions` before
+`AddOpcUa()` if the deployment needs a different budget; see
+[buffer managers](DependencyInjection.md#buffer-managers). Explicit `0` or `null`
+budgets disable this protection and are not recommended for exposed servers.
+
+Server-channel `ChannelLifetime` also bounds an unfinished message from its
+first retained chunk, even if more chunks keep arriving. Size this lifetime
+for legitimate large transfers without relying on continuation chunks to
+extend it indefinitely. See [incomplete-message limits](Transports.md#incomplete-message-resource-limits).
+
 ## Migrating channel subclasses that override HandleIncomingMessage
 
 `UaSCBinaryChannel.HandleIncomingMessage` and `OnChunkReceived` have been
