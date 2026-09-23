@@ -61,7 +61,10 @@ namespace Opc.Ua.Server.Fluent
         /// <param name="valueRank">The value rank of the argument.</param>
         /// <param name="description">The description of the argument.</param>
         public ArgumentBuilder(
-            string name, NodeId dataType, int valueRank = ValueRanks.Any, string? description = null)
+            string name,
+            NodeId dataType,
+            int valueRank = ValueRanks.Any,
+            string? description = null)
         {
             Item = new(name, dataType, valueRank, description ?? string.Empty);
         }
@@ -71,16 +74,25 @@ namespace Opc.Ua.Server.Fluent
 
         /// <inheritdoc cref="ArgumentBuilder()"/>
         public static IArgumentBuilder Create()
-            => new ArgumentBuilder();
+        {
+            return new ArgumentBuilder();
+        }
 
         /// <inheritdoc cref="ArgumentBuilder(Argument)"/>
         public static IArgumentBuilder Create(Argument arg)
-            => new ArgumentBuilder(arg);
+        {
+            return new ArgumentBuilder(arg);
+        }
 
         /// <inheritdoc cref="ArgumentBuilder(string, NodeId, int, string?)"/>
         public static IArgumentBuilder Create(
-            string name, NodeId dataType, int valueRank = ValueRanks.Any, string? description = null)
-            => new ArgumentBuilder(name, dataType, valueRank, description);
+            string name,
+            NodeId dataType,
+            int valueRank = ValueRanks.Any,
+            string? description = null)
+        {
+            return new ArgumentBuilder(name, dataType, valueRank, description);
+        }
 
         /// <inheritdoc/>
         public IArgumentBuilder WithName(string name)

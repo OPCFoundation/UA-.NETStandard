@@ -32,7 +32,6 @@ using BasicFluentApiServer;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-
 using Opc.Ua;
 using Opc.Ua.Server.Hosting;
 
@@ -66,7 +65,7 @@ builder.Services
         o.IncludeEccPolicies = false;
         o.UserTokenPolicies.Add(new OpcUaUserTokenPolicy
         {
-            TokenType = UserTokenType.Anonymous,
+            TokenType = UserTokenType.Anonymous
         });
         o.EndpointUrls.Add($"opc.tcp://localhost:{port}/BasicFluentApiServer");
     })

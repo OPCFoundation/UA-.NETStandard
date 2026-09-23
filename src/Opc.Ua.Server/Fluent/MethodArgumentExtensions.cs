@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using Opc.Ua.Types;
 
 namespace Opc.Ua.Server.Fluent
 {
@@ -50,7 +49,8 @@ namespace Opc.Ua.Server.Fluent
         /// A typed node builder for the <see cref="MethodState"/>.
         /// </returns>
         public static INodeBuilder<MethodState> AddInputArguments(
-            this INodeBuilder method, params Argument[] arguments)
+            this INodeBuilder method,
+            params Argument[] arguments)
         {
             INodeBuilder<MethodState> methodState = method.As<MethodState>();
             methodState.Node.AddInputArguments(method.Builder.Context, arguments);
@@ -71,12 +71,14 @@ namespace Opc.Ua.Server.Fluent
         /// The updated <see cref="MethodState"/>.
         /// </returns>
         public static MethodState AddInputArguments(
-            this MethodState method, ISystemContext context, params Argument[] arguments)
+            this MethodState method,
+            ISystemContext context,
+            params Argument[] arguments)
         {
             PropertyState<ArrayOf<Argument>> args = method.CreateOrReplaceInputArguments(
-                            context,
-                            replacement: null,
-                            assignInstanceNodeIds: true);
+                context,
+                replacement: null,
+                assignInstanceNodeIds: true);
 
             args.SetArgumentProperties(arguments);
 
@@ -165,7 +167,8 @@ namespace Opc.Ua.Server.Fluent
         /// A typed node builder for the <see cref="MethodState"/>.
         /// </returns>
         public static INodeBuilder<MethodState> AddOutputArguments(
-            this INodeBuilder method, params Argument[] arguments)
+            this INodeBuilder method,
+            params Argument[] arguments)
         {
             INodeBuilder<MethodState> methodState = method.As<MethodState>();
             methodState.Node.AddOutputArguments(method.Builder.Context, arguments);
@@ -186,12 +189,14 @@ namespace Opc.Ua.Server.Fluent
         /// The updated <see cref="MethodState"/>.
         /// </returns>
         public static MethodState AddOutputArguments(
-            this MethodState method, ISystemContext context, params Argument[] arguments)
+            this MethodState method,
+            ISystemContext context,
+            params Argument[] arguments)
         {
             PropertyState<ArrayOf<Argument>> args = method.CreateOrReplaceOutputArguments(
-                            context,
-                            replacement: null,
-                            assignInstanceNodeIds: true);
+                context,
+                replacement: null,
+                assignInstanceNodeIds: true);
 
             args.SetArgumentProperties(arguments);
 
@@ -277,7 +282,8 @@ namespace Opc.Ua.Server.Fluent
         /// The argument values to assign.
         /// </param>
         private static void SetArgumentProperties(
-            this PropertyState<ArrayOf<Argument>> args, Argument[] arguments)
+            this PropertyState<ArrayOf<Argument>> args,
+            Argument[] arguments)
         {
             args.ReferenceTypeId = ReferenceTypeIds.HasProperty;
             args.TypeDefinitionId = VariableTypeIds.PropertyType;

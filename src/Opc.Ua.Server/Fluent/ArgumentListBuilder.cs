@@ -45,7 +45,7 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <inheritdoc/>
-        public Argument[] Items => m_items.ToArray();
+        public Argument[] Items => [.. m_items];
 
         /// <summary>
         /// Creates a new argument list builder.
@@ -54,7 +54,9 @@ namespace Opc.Ua.Server.Fluent
         /// A new argument list builder.
         /// </returns>
         public static IArgumentListBuilder Create()
-            => new ArgumentListBuilder();
+        {
+            return new ArgumentListBuilder();
+        }
 
         /// <summary>
         /// Creates a new argument list builder and applies argument configuration callbacks.
@@ -66,7 +68,9 @@ namespace Opc.Ua.Server.Fluent
         /// A new argument list builder.
         /// </returns>
         public static IArgumentListBuilder Create(params Action<IArgumentBuilder>[] configureArguments)
-            => new ArgumentListBuilder().Add(configureArguments);
+        {
+            return new ArgumentListBuilder().Add(configureArguments);
+        }
 
         /// <inheritdoc/>
         public IArgumentListBuilder Add(Argument argument)

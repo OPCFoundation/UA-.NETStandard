@@ -29,10 +29,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-
 using Opc.Ua;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
@@ -53,7 +51,9 @@ namespace BasicFluentApiServer
         }
 
         public override async ValueTask CreateAddressSpaceAsync(
-            IDictionary<NodeId, IList<IReference>> externalReferences, CancellationToken cancellationToken = default)
+            IDictionary<NodeId,
+            IList<IReference>> externalReferences,
+            CancellationToken cancellationToken = default)
         {
             await base.CreateAddressSpaceAsync(externalReferences, cancellationToken)
                 .ConfigureAwait(false);
@@ -184,7 +184,10 @@ namespace BasicFluentApiServer
             return ServiceResult.Good;
         }
 
-        private ServiceResult OnWriteLastResult(ISystemContext context, NodeState node, ref Variant value)
+        private ServiceResult OnWriteLastResult(
+            ISystemContext context,
+            NodeState node,
+            ref Variant value)
         {
             try
             {
