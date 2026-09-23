@@ -505,6 +505,10 @@ Forward and reverse channels to the same server are **never** shared:
 forward keys carry `null` for the reverse identity while reverse keys
 carry the waiting-connection instance.
 
+That identity remains stable after the manager consumes the reverse connection.
+A supplied connection is single-use: concurrent acquisition cannot consume it
+twice, and a recovery attempt cannot reopen an already-consumed socket.
+
 ### State model
 
 `IManagedTransportChannel.State` follows a three-stage gate model:
@@ -555,6 +559,12 @@ owning lease and a separate recovery send channel. Each callback has its own
 scoped view. Callback-dependent subscription restoration runs through
 `CompleteRecoveryAsync` after the channel admits ordinary requests, and the
 reconnect caller still awaits that restoration.
+
+Recovery remains active for every session sharing a channel until all admitted
+participants finish restoration. A participant that finishes early continues
+to suppress transport keep-alive failures while a sibling is restoring.
+Explicit recreation and certificate reload acquire recovery ownership before
+pausing and draining Publish, so a competing reconnect cannot overlap that work.
 
 `IReconnectParticipant.CreateReconnectBudget` supplies a budget for each new
 shared recovery cycle, or returns null to impose no participant-specific limit.
@@ -684,6 +694,11 @@ ManagedSession session = await new ManagedSessionBuilder(config, telemetry)
     })
     .ConnectAsync(ct);
 ```
+
+The returned session owns the private HTTP provider and channel manager created
+by this builder path. Failed construction releases them; session disposal
+releases them after channel use ends. An injected channel manager remains owned
+by its caller.
 
 ### HTTPS factory + OPC UA cert validation: secure-by-default fallback
 
@@ -820,6 +835,10 @@ the outer recovery cycle receives one 30-second budget. If a channel reconnect
 uses 27 seconds reopening the transport and reactivating sessions, only three
 seconds remain for the rest of that outer cycle. Retrying or changing recovery
 phases does not grant another 30 seconds.
+
+The same remaining outer budget covers deferred subscription restoration, even
+after channel-manager reconnect has returned. Expiry cancels that restoration
+and waits for its local unwind before another recovery owner can proceed.
 
 When the 30 seconds expire, the manager cancels any in-flight channel recovery
 and waits for the session's local recovery cleanup to finish. It then publishes
@@ -1214,6 +1233,10 @@ Both families coexist on `INodeCache` because the lifecycle and error
 semantics differ. All async methods return `ValueTask` /
 `ValueTask<T>`; only `void Clear()` is synchronous (pure local-state
 mutation).
+
+Concurrent atomic node, value and reference lookups share one fetch for a cache
+key. Cancelling one caller cancels only that caller's wait; another caller can
+still complete, and the successful result remains cached.
 
 For migration details see
 [2.0 migration guide — Node States and INodeCache](migrate/2.0.x/node-states.md#inodecache-changes).

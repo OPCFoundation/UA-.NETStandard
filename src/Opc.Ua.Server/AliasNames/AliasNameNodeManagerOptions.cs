@@ -71,17 +71,17 @@ namespace Opc.Ua.Server.AliasNames
         /// Part 17 §6.2 clients (the CTT among them) discover aliases by
         /// browsing. Disable to expose only the category tree and serve
         /// aliases through <c>FindAlias</c>/<c>FindAliasVerbose</c>.
-        /// The nodes are a startup snapshot unless <see cref="RefreshAliasNodesOnChange"/>
-        /// is also enabled; queries always reflect later store mutations.
+        /// The nodes follow store changes unless <see cref="RefreshAliasNodesOnChange"/>
+        /// is explicitly disabled; queries always reflect later store mutations.
         /// </summary>
         public bool MaterializeAliasNodes { get; set; } = true;
 
         /// <summary>
         /// Whether materialized aliases follow subsequent store changes through a bounded,
-        /// coalesced refresh. Defaults to false, preserving the startup snapshot, and has
+        /// coalesced refresh. Defaults to true; disable to preserve the startup snapshot. Has
         /// no effect when <see cref="MaterializeAliasNodes"/> is false.
         /// </summary>
-        public bool RefreshAliasNodesOnChange { get; set; }
+        public bool RefreshAliasNodesOnChange { get; set; } = true;
 
         /// <summary>
         /// When <c>true</c> (default), the manager registers its

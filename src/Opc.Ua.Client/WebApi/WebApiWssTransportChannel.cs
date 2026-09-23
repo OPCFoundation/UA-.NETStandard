@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Security;
 using System.Net.WebSockets;
@@ -54,9 +55,8 @@ namespace Opc.Ua.Client.WebApi
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The channel is single-threaded for in-flight requests — WebSockets
-    /// are message-oriented but not multiplexed. Callers that need
-    /// parallel requests should open multiple channels.
+    /// Requests are multiplexed by RequestHandle. A single receive loop
+    /// dispatches responses, so a pending Publish does not block other services.
     /// </para>
     /// <para>
     /// Bearer authentication rides in the sub-protocol name because
@@ -71,8 +71,8 @@ namespace Opc.Ua.Client.WebApi
         private readonly ILogger m_logger;
         private readonly WebApiClientOptions m_userOptions;
         private readonly TimeProvider m_timeProvider;
-        private readonly SemaphoreSlim m_sendLock = new(1, 1);
-        private ClientWebSocket? m_ws;
+        private readonly Lock m_connectionLock = new();
+        private Connection? m_connection;
         private TransportChannelSettings? m_settings;
         private ChannelQuotas? m_quotas;
         private Uri? m_url;
@@ -128,7 +128,7 @@ namespace Opc.Ua.Client.WebApi
         public string UriScheme => Utils.UriSchemeOpcWssOpenApi;
 
         /// <inheritdoc/>
-        public TransportChannelFeatures SupportedFeatures => TransportChannelFeatures.None;
+        public TransportChannelFeatures SupportedFeatures => TransportChannelFeatures.Reconnect;
 
         /// <inheritdoc/>
         public EndpointDescription EndpointDescription
@@ -177,11 +177,13 @@ namespace Opc.Ua.Client.WebApi
 
             ThrowIfDisposed();
 
-            m_url = NormalizeUrl(url);
-            m_settings = settings ?? throw new ArgumentNullException(nameof(settings));
-            OperationTimeout = settings.Configuration?.OperationTimeout ?? 60000;
+            if (settings == null)
+            {
+                throw new ArgumentNullException(nameof(settings));
+            }
+            Uri endpointUrl = NormalizeUrl(url);
 
-            m_quotas = new ChannelQuotas(new ServiceMessageContext(m_telemetry, settings.Factory!)
+            var quotas = new ChannelQuotas(new ServiceMessageContext(m_telemetry, settings.Factory!)
             {
                 MaxArrayLength = settings.Configuration!.MaxArrayLength,
                 MaxByteStringLength = settings.Configuration.MaxByteStringLength,
@@ -212,7 +214,7 @@ namespace Opc.Ua.Client.WebApi
                 // the server to echo the selected sub-protocol). When the
                 // negotiated URL is not wss://, refuse to send the token
                 // in cleartext.
-                if (!IsSecureScheme(m_url))
+                if (!IsSecureScheme(endpointUrl))
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadSecurityChecksFailed,
@@ -253,19 +255,46 @@ namespace Opc.Ua.Client.WebApi
             // OS-level TLS chain check (see also the
             // HttpsTransportListener doc note about legacy-TFM WSS).
 #if NET7_0_OR_GREATER
-            ws.Options.RemoteCertificateValidationCallback = ValidateServerCertificate;
+            ws.Options.RemoteCertificateValidationCallback = (sender, certificate, chain, errors) =>
+                ValidateServerCertificate(sender, certificate, chain, errors, quotas.CertificateValidator);
 #endif
 
+            var connection = new Connection(ws, quotas, m_logger);
+            lock (m_connectionLock)
+            {
+                if (m_disposed || m_connection != null)
+                {
+                    connection.Dispose();
+                    ThrowIfDisposed();
+                    throw new ServiceResultException(StatusCodes.BadInvalidState, "The channel is already open.");
+                }
+                m_url = endpointUrl;
+                m_settings = settings;
+                m_quotas = quotas;
+                OperationTimeout = settings.Configuration.OperationTimeout;
+                connection.Start();
+                m_connection = connection;
+            }
             try
             {
-                await ws.ConnectAsync(m_url, ct).ConfigureAwait(false);
+                using var opening = CancellationTokenSource.CreateLinkedTokenSource(ct, connection.ShutdownToken);
+                await ws.ConnectAsync(endpointUrl, opening.Token).ConfigureAwait(false);
+                opening.Token.ThrowIfCancellationRequested();
+                connection.Opened.TrySetResult(true);
             }
             catch
             {
-                ws.Dispose();
+                lock (m_connectionLock)
+                {
+                    if (ReferenceEquals(m_connection, connection))
+                    {
+                        m_connection = null;
+                    }
+                }
+                connection.Stop(BadNotConnected());
+                await connection.Receiver.ConfigureAwait(false);
                 throw;
             }
-            m_ws = ws;
 
             // Hydrate the EndpointDescription (server cert, app info,
             // user identity policies) from a sessionless GetEndpoints
@@ -280,7 +309,7 @@ namespace Opc.Ua.Client.WebApi
             TransportChannelSettings settings,
             CancellationToken ct)
         {
-            if (settings.Description == null || m_ws == null || m_quotas == null)
+            if (settings.Description == null || m_connection == null || m_quotas == null)
             {
                 return;
             }
@@ -370,46 +399,43 @@ namespace Opc.Ua.Client.WebApi
                 return;
             }
 
-            ClientWebSocket? ws = m_ws;
-            m_ws = null;
-            if (ws == null)
+            Connection? connection;
+            lock (m_connectionLock)
+            {
+                connection = m_connection;
+                m_connection = null;
+            }
+            if (connection == null)
             {
                 return;
             }
 
             try
             {
-                if (ws.State is WebSocketState.Open or WebSocketState.CloseReceived)
-                {
-                    await ws.CloseAsync(
-                        WebSocketCloseStatus.NormalClosure,
-                        string.Empty,
-                        ct).ConfigureAwait(false);
-                }
+                await connection.CloseOutputAsync(ct).ConfigureAwait(false);
             }
-            catch
+            catch (Exception exception) when (
+                exception is WebSocketException or ObjectDisposedException or OperationCanceledException)
             {
-                // Best-effort close.
+                m_logger.WssConnectionClosed(exception);
             }
             finally
             {
-                ws.Dispose();
+                connection.Stop(new ServiceResultException(StatusCodes.BadConnectionClosed));
+                await connection.Receiver.ConfigureAwait(false);
             }
         }
 
         /// <inheritdoc/>
-        public ValueTask ReconnectAsync(
+        public async ValueTask ReconnectAsync(
             ITransportWaitingConnection? connection = null,
             CancellationToken ct = default)
         {
-            // WSS is connection-oriented; reconnect would require
-            // re-opening the channel + re-running CreateSession/Activate.
-            // Defer to the managed session reconnect path; the channel
-            // itself does not attempt silent reconnect.
-            throw ServiceResultException.Create(
-                StatusCodes.BadNotSupported,
-                "{0} does not support implicit reconnect; use the ManagedSession reconnect policy.",
-                nameof(WebApiWssTransportChannel));
+            ThrowIfDisposed();
+            Uri url = connection?.EndpointUrl ?? m_url ?? throw BadNotConnected();
+            TransportChannelSettings settings = m_settings ?? throw BadNotConnected();
+            await CloseAsync(ct).ConfigureAwait(false);
+            await OpenAsync(url, settings, ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -422,8 +448,12 @@ namespace Opc.Ua.Client.WebApi
                 throw new ArgumentNullException(nameof(request));
             }
             ThrowIfDisposed();
-            ClientWebSocket ws = m_ws ?? throw BadNotConnected();
-            ChannelQuotas quotas = m_quotas ?? throw BadNotConnected();
+            Connection connection;
+            lock (m_connectionLock)
+            {
+                connection = m_connection ?? throw BadNotConnected();
+            }
+            ChannelQuotas quotas = connection.Quotas;
 
             // Encode the request using the standard {TypeId, Body}
             // envelope expected by the server's
@@ -440,36 +470,51 @@ namespace Opc.Ua.Client.WebApi
                 requestBytes = memory.ToArray();
             }
 
-            byte[] responseBytes;
-            await m_sendLock.WaitAsync(ct).ConfigureAwait(false);
+            uint handle = request.RequestHeader?.RequestHandle ?? 0;
+            TaskCompletionSource<IServiceResponse> response = connection.Register(handle);
+            using CancellationTokenSource timeout = m_timeProvider.CreateCancellationTokenSource(
+                OperationTimeout > 0 ? TimeSpan.FromMilliseconds(OperationTimeout) : Timeout.InfiniteTimeSpan);
+            using var requestCancellation = CancellationTokenSource.CreateLinkedTokenSource(ct, timeout.Token);
+            CancellationToken requestToken = requestCancellation.Token;
+            using CancellationTokenRegistration registration = requestToken.Register(
+                () => response.TrySetCanceled(requestToken));
+            using var sendCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+                requestToken, connection.ShutdownToken);
+            bool sent = false;
             try
             {
-                await ws.SendAsync(
-                    new ArraySegment<byte>(requestBytes, 0, requestBytes.Length),
-                    WebSocketMessageType.Text,
-                    endOfMessage: true,
-                    ct).ConfigureAwait(false);
-
-                // MaxBufferSize bounds a single transport chunk, not the whole
-                // message; capping the response by it rejects every legitimate
-                // response above 64 KiB. MaxMessageSize <= 0 disables the cap
-                // altogether - the convention the Web API codec already
-                // follows - so falling back to MaxBufferSize there would
-                // reinstate exactly the limit this avoids.
-                int maxResponseSize = quotas.MaxMessageSize > 0
-                    ? quotas.MaxMessageSize
-                    : int.MaxValue;
-                responseBytes = await ReceiveMessageAsync(ws, maxResponseSize, ct)
-                    .ConfigureAwait(false);
+                await connection.SendAsync(requestBytes, sendCancellation.Token).ConfigureAwait(false);
+                sent = true;
+            }
+            catch (OperationCanceledException) when (requestToken.IsCancellationRequested)
+            {
+                response.TrySetCanceled(requestToken);
+                if (connection.Socket.State == WebSocketState.Aborted)
+                {
+                    connection.Stop(new ServiceResultException(StatusCodes.BadConnectionClosed));
+                }
+            }
+            catch (Exception exception) when (
+                exception is WebSocketException or IOException or ObjectDisposedException or OperationCanceledException)
+            {
+                connection.Stop(new ServiceResultException(
+                    StatusCodes.BadConnectionClosed, "The WebSocket send failed.", exception));
             }
             finally
             {
-                m_sendLock.Release();
+                if (!sent)
+                {
+                    connection.Remove(handle);
+                }
             }
-
-            return DecodeServiceResponse(
-                responseBytes,
-                quotas.MessageContext);
+            try
+            {
+                return await response.Task.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (timeout.IsCancellationRequested && !ct.IsCancellationRequested)
+            {
+                throw new ServiceResultException(StatusCodes.BadRequestTimeout);
+            }
         }
 
         /// <summary>
@@ -500,17 +545,205 @@ namespace Opc.Ua.Client.WebApi
         /// <inheritdoc/>
         public void Dispose()
         {
-            if (m_disposed)
+            lock (m_connectionLock)
             {
-                return;
+                if (m_disposed)
+                {
+                    return;
+                }
+                m_disposed = true;
+                m_connection?.Dispose();
+                m_connection = null;
             }
-            m_disposed = true;
-            m_ws?.Dispose();
-            m_ws = null;
-            m_sendLock.Dispose();
             m_settings?.ServerCertificate?.Dispose();
             m_settings?.ClientCertificate?.Dispose();
             m_settings?.ClientCertificateChain?.Dispose();
+        }
+
+        private sealed class Connection : IDisposable
+        {
+            public Connection(ClientWebSocket socket, ChannelQuotas quotas, ILogger logger)
+            {
+                Socket = socket;
+                Quotas = quotas;
+                ShutdownToken = m_shutdown.Token;
+                m_logger = logger;
+            }
+
+            public ClientWebSocket Socket { get; }
+            public ChannelQuotas Quotas { get; }
+            public CancellationToken ShutdownToken { get; }
+            public TaskCompletionSource<bool> Opened { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            public Task Receiver { get; private set; } = Task.CompletedTask;
+
+            public void Start()
+            {
+                m_started = true;
+                Receiver = ReceiveResponsesAsync();
+            }
+
+            public TaskCompletionSource<IServiceResponse> Register(uint handle)
+            {
+                lock (m_lock)
+                {
+                    if (m_stopped || Opened.Task.Status != TaskStatus.RanToCompletion)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadConnectionClosed);
+                    }
+                    var completion = new TaskCompletionSource<IServiceResponse>(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
+                    if (!m_pending.TryAdd(handle, completion))
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadInvalidArgument, "RequestHandle is already in use on this channel.");
+                    }
+                    return completion;
+                }
+            }
+
+            public void Complete(IServiceResponse response)
+            {
+                TaskCompletionSource<IServiceResponse>? completion;
+                lock (m_lock)
+                {
+                    if (!m_pending.TryGetValue(response.ResponseHeader.RequestHandle, out completion))
+                    {
+                        throw new ServiceResultException(StatusCodes.BadUnknownResponse);
+                    }
+                    m_pending.Remove(response.ResponseHeader.RequestHandle);
+                }
+                completion.TrySetResult(response);
+            }
+
+            public void Remove(uint handle)
+            {
+                lock (m_lock)
+                {
+                    m_pending.Remove(handle);
+                }
+            }
+
+            public async Task SendAsync(byte[] bytes, CancellationToken ct)
+            {
+                await m_sendLock.WaitAsync(ct).ConfigureAwait(false);
+                try
+                {
+                    await Socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text,
+                        endOfMessage: true, ct).ConfigureAwait(false);
+                }
+                finally
+                {
+                    m_sendLock.Release();
+                }
+            }
+
+            public async Task CloseOutputAsync(CancellationToken ct)
+            {
+                await m_sendLock.WaitAsync(ct).ConfigureAwait(false);
+                try
+                {
+                    if (Socket.State is WebSocketState.Open or WebSocketState.CloseReceived)
+                    {
+                        await Socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, string.Empty, ct)
+                            .ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    m_sendLock.Release();
+                }
+            }
+
+            public void Stop(Exception failure)
+            {
+                TaskCompletionSource<IServiceResponse>[] pending;
+                lock (m_lock)
+                {
+                    if (m_stopped)
+                    {
+                        return;
+                    }
+                    m_stopped = true;
+                    pending = [.. m_pending.Values];
+                    m_pending.Clear();
+                }
+                foreach (TaskCompletionSource<IServiceResponse> completion in pending)
+                {
+                    completion.TrySetException(failure);
+                }
+                m_shutdown.Cancel();
+                Socket.Abort();
+            }
+
+            public void Dispose()
+            {
+                Stop(new ServiceResultException(StatusCodes.BadConnectionClosed));
+                if (!m_started)
+                {
+                    DisposeResources();
+                }
+            }
+
+            private async Task ReceiveResponsesAsync()
+            {
+                Exception failure = new ServiceResultException(StatusCodes.BadConnectionClosed);
+                try
+                {
+                    await Opened.Task.WaitAsync(ShutdownToken).ConfigureAwait(false);
+                    int maxSize = Quotas.MaxMessageSize > 0 ? Quotas.MaxMessageSize : int.MaxValue;
+                    while (!ShutdownToken.IsCancellationRequested)
+                    {
+                        byte[] bytes = await ReceiveMessageAsync(Socket, maxSize, ShutdownToken).ConfigureAwait(false);
+                        Complete(DecodeServiceResponse(bytes, Quotas.MessageContext));
+                    }
+                }
+                catch (OperationCanceledException) when (ShutdownToken.IsCancellationRequested)
+                {
+                }
+                catch (Exception exception) when (
+                    exception is ServiceResultException or WebSocketException or IOException or FormatException or
+                        ObjectDisposedException or InvalidOperationException or System.Text.Json.JsonException)
+                {
+                    failure = exception is ServiceResultException
+                        ? exception
+                        : new ServiceResultException(
+                            StatusCodes.BadConnectionClosed, "The WebSocket receive failed.", exception);
+                    m_logger.WssConnectionClosed(exception);
+                }
+                finally
+                {
+                    Stop(failure);
+                    await m_sendLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                    DisposeResources();
+                }
+            }
+
+            private void DisposeResources()
+            {
+                if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+                {
+                    return;
+                }
+                if (Socket.Options.ClientCertificates != null)
+                {
+                    foreach (X509Certificate certificate in Socket.Options.ClientCertificates)
+                    {
+                        certificate.Dispose();
+                    }
+                }
+                Socket.Dispose();
+                m_sendLock.Dispose();
+                m_shutdown.Dispose();
+            }
+
+            private readonly Lock m_lock = new();
+            private readonly SemaphoreSlim m_sendLock = new(1, 1);
+            private readonly Dictionary<uint, TaskCompletionSource<IServiceResponse>> m_pending = [];
+            private readonly CancellationTokenSource m_shutdown = new();
+            private readonly ILogger m_logger;
+            private bool m_stopped;
+            private bool m_started;
+            private int m_disposed;
         }
 
         private static async Task<byte[]> ReceiveMessageAsync(
@@ -561,7 +794,8 @@ namespace Opc.Ua.Client.WebApi
             object sender,
             X509Certificate? certificate,
             X509Chain? chain,
-            SslPolicyErrors sslPolicyErrors)
+            SslPolicyErrors sslPolicyErrors,
+            ICertificateValidatorEx? validator)
         {
             try
             {
@@ -573,7 +807,6 @@ namespace Opc.Ua.Client.WebApi
                 }
                 using CertificateCollection validationCollection = CertificateValidationHelpers
                     .BuildValidationCertificateCollection(certificate, chain);
-                ICertificateValidatorEx? validator = m_quotas?.CertificateValidator;
                 if (validator != null)
                 {
                     // CA2025: task awaited via GetAwaiter().GetResult(); the disposable's
@@ -684,5 +917,9 @@ namespace Opc.Ua.Client.WebApi
                 " (browser-compatible). Prefer short-lived tokens (<= 60s) and redact the" +
                 " Sec-WebSocket-Protocol header from proxy / WAF logs.")]
         public static partial void WSSOpcuaOpenapiAccesstokenBearerToken(this ILogger logger);
+
+        [LoggerMessage(EventId = ClientEventIds.WebApiWssTransportChannel + 1, Level = LogLevel.Debug,
+            Message = "The WSS OpenAPI connection closed.")]
+        public static partial void WssConnectionClosed(this ILogger logger, Exception exception);
     }
 }

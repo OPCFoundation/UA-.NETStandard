@@ -42,14 +42,15 @@ namespace Opc.Ua
         public ClientChannelManagerCertRotation(IChannelCertRotationHost host)
         {
             m_host = host;
-            m_pump = new CertificateChangePump<CertificateChangeEvent>(
+            m_pump = new CertificateChangePump<OwnedCertificateChange>(
                 evt => IsApplicationCertificateUpdate(evt) && !m_host.IsDisposed,
                 // Latest-wins debounce: a burst of rotation events collapses
                 // into one reconnect pass over the newest certificate state.
-                (_, evt) => evt,
-                ProcessCertificateChangeAsync,
+                (_, evt) => new OwnedCertificateChange(evt),
+                (state, ct) => ProcessCertificateChangeAsync(state.Event, ct),
                 ex => m_host.Logger?.CertRotationLog0(ex),
-                task => m_host.SetCertificateRotationTask(task));
+                task => m_host.SetCertificateRotationTask(task),
+                state => state.Dispose());
         }
 
         public void UpdateClientCertificate(
@@ -363,7 +364,44 @@ namespace Opc.Ua
             return configuredType == effectiveChangedType;
         }
 
-        private readonly CertificateChangePump<CertificateChangeEvent> m_pump;
+        private sealed class OwnedCertificateChange : IDisposable
+        {
+            public OwnedCertificateChange(CertificateChangeEvent source)
+            {
+                try
+                {
+                    m_old = source.OldCertificate?.AddRef();
+                    m_new = source.NewCertificate?.AddRef();
+                    m_chain = source.IssuerChain?.AddRef();
+                    Event = source with
+                    {
+                        OldCertificate = m_old,
+                        NewCertificate = m_new,
+                        IssuerChain = m_chain
+                    };
+                }
+                catch
+                {
+                    Dispose();
+                    throw;
+                }
+            }
+
+            public CertificateChangeEvent Event { get; }
+
+            public void Dispose()
+            {
+                m_old?.Dispose();
+                m_new?.Dispose();
+                m_chain?.Dispose();
+            }
+
+            private readonly Certificate? m_old;
+            private readonly Certificate? m_new;
+            private readonly CertificateCollection? m_chain;
+        }
+
+        private readonly CertificateChangePump<OwnedCertificateChange> m_pump;
 
         private readonly IChannelCertRotationHost m_host;
     }

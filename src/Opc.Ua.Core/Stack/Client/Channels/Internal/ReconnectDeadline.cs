@@ -60,6 +60,26 @@ namespace Opc.Ua
         public TimeSpan Elapsed => m_timeProvider.GetElapsedTime(m_startedAt);
 
         /// <summary>
+        /// Remaining time for callback-dependent work deferred to an outer recovery owner.
+        /// The absolute bound remains meaningful after the channel handshake retires its timer.
+        /// </summary>
+        internal TimeSpan Remaining
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    if (m_duration == TimeSpan.MaxValue)
+                    {
+                        return TimeSpan.MaxValue;
+                    }
+                    TimeSpan remaining = m_duration - Elapsed;
+                    return m_expired || remaining <= TimeSpan.Zero ? TimeSpan.Zero : remaining;
+                }
+            }
+        }
+
+        /// <summary>
         /// Whether the recovery deadline expired, rather than being cancelled by closing or shutdown.
         /// </summary>
         public bool Expired

@@ -50,6 +50,11 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
     /// <para>
     /// Each call to <c>SubscribeXxxAsync</c> returns an
     /// <see cref="IAsyncEnumerable{T}"/> backed by a bounded channel.
+    /// The default implementation buffers at least one data change per
+    /// monitored item, or ten events when no event queue size is specified.
+    /// Explicit queue sizes are multiplied by the number of monitored items;
+    /// <see cref="MonitoredItems.MonitoredItemOptions.DiscardOldest"/> selects the drop policy.
+    /// <see cref="StreamingSubscription.DroppedNotificationCount"/> reports local buffer overflow.
     /// Disposing the enumerator removes the monitored item.
     /// </para>
     /// <para>

@@ -153,6 +153,7 @@ namespace Opc.Ua.Bindings
             if (disposing)
             {
                 Volatile.Write(ref m_disposed, 1);
+                Volatile.Write(ref m_peerCertificateChain, null);
             }
             base.Dispose(disposing);
         }
@@ -500,6 +501,41 @@ namespace Opc.Ua.Bindings
                 }
 
                 return Certificate.FromRawData(rawData);
+            }
+        }
+
+        /// <summary>
+        /// Returns an owned snapshot of the peer chain for trust revalidation.
+        /// </summary>
+        internal CertificateCollection? SnapshotClientCertificateChainForRevalidation()
+        {
+            using (Gate.Enter())
+            {
+                if (Volatile.Read(ref m_disposed) != 0 ||
+                    State is TcpChannelState.Closed or TcpChannelState.Faulted)
+                {
+                    return null;
+                }
+                byte[]? chain = Volatile.Read(ref m_peerCertificateChain);
+                if (chain is { Length: > 0 })
+                {
+                    return Utils.ParseCertificateChainBlob(chain, Telemetry);
+                }
+                byte[]? leaf = ClientCertificate?.RawData;
+                return leaf == null ? null : Utils.ParseCertificateChainBlob(leaf, Telemetry);
+            }
+        }
+
+        /// <summary>
+        /// Retains immutable public certificate data without borrowing native
+        /// handles from the OPN decoder or the channel's disposal path.
+        /// </summary>
+        internal void RetainPeerCertificateChain(ByteString chain)
+        {
+            Volatile.Write(ref m_peerCertificateChain, chain.ToArray());
+            if (Volatile.Read(ref m_disposed) != 0)
+            {
+                Volatile.Write(ref m_peerCertificateChain, null);
             }
         }
 
@@ -1095,6 +1131,7 @@ namespace Opc.Ua.Bindings
         /// Prevents new transport attachment or admission cleanup after disposal begins.
         /// </summary>
         private int m_disposed;
+        private byte[]? m_peerCertificateChain;
         private volatile TcpChannelRequestEventHandler? m_requestReceived;
         private volatile ReportAuditOpenSecureChannelEventHandler? m_reportAuditOpenSecureChannelEvent;
         private volatile ReportAuditCloseSecureChannelEventHandler? m_reportAuditCloseSecureChannelEvent;

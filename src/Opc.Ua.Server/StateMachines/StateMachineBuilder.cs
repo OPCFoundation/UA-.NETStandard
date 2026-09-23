@@ -881,15 +881,25 @@ namespace Opc.Ua.Server.StateMachines
             SyncChildToParentState(m_context, ExtractCurrentStateId(m_stateMachine));
             m_dispatcher.AddInitialStateSynchronizer(SyncChildToParentState);
 
-            // Wire the lifecycle hooks on the parent.
-            m_dispatcher.AddEnterStateHandler(parentStateId,
-                (ctx, parent) => SyncChildToParentState(ctx, parentStateId));
-            m_dispatcher.AddExitStateHandler(parentStateId,
-                (ctx, parent) =>
+            void ScheduleChildSynchronization(ISystemContext ctx, TState parent)
+            {
+                parent.ScheduleTransitionCompletion(materializedChild.NodeId, () =>
                 {
-                    childBuilder.m_dispatcher.SynchronizeInitialState(ctx, 0);
-                    materializedChild.SetSuspended(ctx, true);
+                    // A child handler can advance the parent while an earlier completion is pending.
+                    if (ExtractCurrentStateId(parent) == parentStateId)
+                    {
+                        SyncChildToParentState(ctx, parentStateId);
+                    }
+                    else
+                    {
+                        childBuilder.m_dispatcher.SynchronizeInitialState(ctx, 0);
+                        materializedChild.SetSuspended(ctx, true);
+                    }
                 });
+            }
+
+            m_dispatcher.AddEnterStateHandler(parentStateId, ScheduleChildSynchronization);
+            m_dispatcher.AddExitStateHandler(parentStateId, ScheduleChildSynchronization);
 
             return this;
         }

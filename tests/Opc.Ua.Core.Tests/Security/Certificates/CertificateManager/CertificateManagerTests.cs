@@ -49,6 +49,28 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     [SetUICulture("en-us")]
     public class CertificateManagerTests
     {
+        /// <summary>
+        /// Verifies rejected-certificate submission cannot recreate a writer after manager disposal.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RejectCertificateAfterDisposalDoesNotRecreateProcessorAsync(bool previouslyUsed)
+        {
+            await using var manager = new CertificateManager(m_telemetry);
+            using Certificate certificate = CertificateBuilder.Create("CN=Disposed Rejection").CreateForRSA();
+            using var chain = new CertificateCollection { certificate };
+            if (previouslyUsed)
+            {
+                await manager.RejectCertificateAsync(chain).ConfigureAwait(false);
+                await manager.FlushRejectedAsync().ConfigureAwait(false);
+            }
+            await manager.DisposeAsync().ConfigureAwait(false);
+            Assert.That(
+                async () => await manager.RejectCertificateAsync(chain).ConfigureAwait(false),
+                Throws.TypeOf<ObjectDisposedException>());
+            Assert.That(certificate.RawData, Is.Not.Empty);
+        }
+
         private ITelemetryContext m_telemetry;
         private readonly List<string> m_tempDirs = [];
 
@@ -942,6 +964,34 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             return Task.CompletedTask;
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RevalidationCanRejectWithoutWritingRejectedStoreAsync(bool recordRejected)
+        {
+            await using var manager = new CertificateManager(m_telemetry);
+            manager.RegisterTrustList(TrustListIdentifier.Peers, CreateTempDir());
+            manager.RegisterTrustList(TrustListIdentifier.Rejected, CreateTempDir());
+            using Certificate certificate = CertificateBuilder.Create("CN=Untrusted Revalidated Peer").CreateForRSA();
+            using var chain = new CertificateCollection { certificate };
+
+            CertificateValidationResult result = await manager.ValidateAsync(
+                chain, TrustListIdentifier.Peers,
+                new Ua.Security.Certificates.CertificateValidationOptions
+                {
+                    RecordRejectedCertificates = recordRejected
+                }).ConfigureAwait(false);
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUntrusted));
+            await manager.FlushRejectedAsync().ConfigureAwait(false);
+            using ICertificateStore rejected = manager.OpenTrustedStore(TrustListIdentifier.Rejected);
+            using CertificateCollection saved = await rejected.EnumerateAsync().ConfigureAwait(false);
+            Assert.That(saved, Has.Count.EqualTo(recordRejected ? 1 : 0));
+            if (recordRejected)
+            {
+                Assert.That(saved[0].Thumbprint, Is.EqualTo(certificate.Thumbprint));
+            }
+        }
+
         /// <summary>
         /// A validation can race manager disposal and enqueue a rejected
         /// chain after the rejected-certificate processor's channel has been
@@ -974,14 +1024,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 }
                 await manager.DisposeAsync().ConfigureAwait(false);
 
-                // The late enqueue is refused; it must neither throw for this
-                // benign teardown race nor keep the references taken for the
-                // refused request.
-                using (var late = new CertificateCollection { cert })
-                {
-                    Assert.DoesNotThrowAsync(async () =>
-                        await manager.RejectCertificateAsync(late).ConfigureAwait(false));
-                }
+                // Disposal closes admission before a late request can retain a chain.
+                using var late = new CertificateCollection { cert };
+                Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+                    await manager.RejectCertificateAsync(late).ConfigureAwait(false));
             }
             finally
             {

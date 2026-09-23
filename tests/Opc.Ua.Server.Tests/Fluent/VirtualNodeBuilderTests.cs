@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -46,6 +47,165 @@ namespace Opc.Ua.Server.Tests.Fluent
     [Category("Fluent")]
     public sealed class VirtualNodeBuilderTests
     {
+        [TestCase("resolver")]
+        [TestCase("id")]
+        [TestCase("type")]
+        [TestCase("ambiguity")]
+        [TestCase("unrelated-cancellation")]
+        public async Task VirtualResolutionFailureDoesNotAbortReadBatchAsync(string failure)
+        {
+            await using var manager = new TestVirtualManager();
+            NodeId good = manager.VirtualId("good");
+            NodeId bad = manager.VirtualId("bad");
+            manager.Builder.ResolveNodes(id => id == good || id == bad, (_, id, _) =>
+                {
+                    if (id == bad)
+                    {
+                        if (failure == "resolver")
+                        {
+                            throw new InvalidOperationException("Backend lookup failed.");
+                        }
+                        if (failure == "unrelated-cancellation")
+                        {
+                            throw new OperationCanceledException("Backend cancelled its own lookup.");
+                        }
+                        if (failure == "type")
+                        {
+                            return new ValueTask<NodeState?>(new BaseObjectState(null) { NodeId = id });
+                        }
+                    }
+                    return new ValueTask<NodeState?>(new BaseDataVariableState(null)
+                    {
+                        NodeId = id == bad && failure == "id" ? manager.VirtualId("wrong") : id,
+                        DataType = DataTypeIds.Int32,
+                        ValueRank = ValueRanks.Scalar,
+                        AccessLevel = AccessLevels.CurrentRead,
+                        UserAccessLevel = AccessLevels.CurrentRead,
+                        Value = 42
+                    });
+                })
+                .OnRead((_, _, ref value) =>
+                {
+                    value = new Variant(42);
+                    return ServiceResult.Good;
+                });
+            if (failure == "ambiguity")
+            {
+                manager.Builder.ResolveNodes(id => id == bad, (_, _, _) => new ValueTask<NodeState?>((NodeState?)null));
+            }
+            await manager.Builder.SealAsync().ConfigureAwait(false);
+            using var context = new OperationContext(
+                new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+            var values = new DataValue[3];
+            ServiceResult[] errors =
+            [
+                StatusCodes.BadNodeIdUnknown,
+                StatusCodes.BadNodeIdUnknown,
+                StatusCodes.BadNodeIdUnknown
+            ];
+            await manager.ReadAsync(context, 0,
+                [
+                    new ReadValueId { NodeId = good, AttributeId = Attributes.Value },
+                    new ReadValueId { NodeId = bad, AttributeId = Attributes.Value },
+                    new ReadValueId { NodeId = good, AttributeId = Attributes.Value }
+                ], values, errors).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(errors[0]), Is.True);
+            Assert.That(errors[1].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            Assert.That(ServiceResult.IsGood(errors[2]), Is.True);
+            Assert.That(values[0].WrappedValue.TryGetValue(out int first), Is.True);
+            Assert.That(first, Is.EqualTo(42));
+            Assert.That(values[2].WrappedValue.TryGetValue(out int last), Is.True);
+            Assert.That(last, Is.EqualTo(42));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task VirtualRetirementRechecksAConcurrentNewSubscriberAsync(bool queuedCreate)
+        {
+            await using var manager = new TestVirtualManager();
+            NodeId id = manager.VirtualId("raced");
+            int acquired = 0;
+            int released = 0;
+            int samples = 0;
+            manager.Builder.ResolveNodes(value => value == id, (_, _, _) =>
+                    new ValueTask<NodeState?>(new BaseDataVariableState(null) { NodeId = id }))
+                .OnFirstSubscriber((_, _, _) =>
+                {
+                    acquired++;
+                    return default;
+                })
+                .OnLastSubscriber((_, _, _) =>
+                {
+                    released++;
+                    return default;
+                })
+                .PollWhileMonitored(TimeSpan.FromHours(1), (_, _, _) =>
+                    new ValueTask<int>(Interlocked.Increment(ref samples)));
+            await manager.Builder.SealAsync().ConfigureAwait(false);
+            (NodeHandle? handle, NodeState? node) = await manager.ResolveAsync(
+                id, new Dictionary<NodeId, NodeState>()).ConfigureAwait(false);
+            Mock<ISampledDataChangeMonitoredItem> first = CreateMonitoredItem(1, id);
+            Mock<ISampledDataChangeMonitoredItem> second = CreateMonitoredItem(2, id);
+            first.SetupGet(value => value.ManagerHandle).Returns(handle!);
+            second.SetupGet(value => value.ManagerHandle).Returns(handle!);
+            await manager.NotifyCreatedAsync(handle!, first.Object).ConfigureAwait(false);
+            object?[] arguments = [id, null];
+            var registration = (MonitoredSourceRegistration)typeof(MonitoredSourceRegistry)
+                .GetMethod("Find", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .Invoke(manager.MonitoredSources, arguments)!;
+            var family = (VirtualNodeRegistration)arguments[1]!;
+            bool empty = await registration.OnDeletedAsync(manager.SystemContext, node!, first.Object)
+                .ConfigureAwait(false);
+            Assert.That(empty, Is.True);
+            MethodInfo method = typeof(MonitoredSourceRegistry)
+                .GetMethod("RemoveVirtualInstanceAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
+#if NET8_0_OR_GREATER
+            Func<VirtualNodeRegistration, NodeId, MonitoredSourceRegistration, ValueTask> retire =
+                method.CreateDelegate<Func<VirtualNodeRegistration, NodeId, MonitoredSourceRegistration, ValueTask>>(
+                    manager.MonitoredSources);
+#else
+            var retire = (Func<VirtualNodeRegistration, NodeId, MonitoredSourceRegistration, ValueTask>)
+                method.CreateDelegate(
+                    typeof(Func<VirtualNodeRegistration, NodeId, MonitoredSourceRegistration, ValueTask>),
+                    manager.MonitoredSources);
+#endif
+            if (queuedCreate)
+            {
+                var gate = (SemaphoreSlim)typeof(MonitoredSourceRegistration)
+                    .GetField("m_updateLock", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(registration)!;
+                await gate.WaitAsync().ConfigureAwait(false);
+                Task creating;
+                Task retiring;
+                try
+                {
+                    creating = manager.MonitoredSources.OnCreatedAsync(manager.SystemContext, node!, second.Object)
+                        .AsTask();
+                    retiring = retire(family, id, registration).AsTask();
+                }
+                finally
+                {
+                    gate.Release();
+                }
+                await Task.WhenAll(creating, retiring).WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            }
+            else
+            {
+                await manager.NotifyCreatedAsync(handle!, second.Object).ConfigureAwait(false);
+                await retire(family, id, registration).ConfigureAwait(false);
+            }
+
+            Assert.That(acquired, Is.EqualTo(2));
+            Assert.That(samples, Is.EqualTo(2));
+            await manager.MonitoredSources.OnModifiedAsync(manager.SystemContext, node!, second.Object)
+                .ConfigureAwait(false);
+            Assert.That(acquired, Is.EqualTo(2));
+            Assert.That(released, Is.EqualTo(1));
+            Assert.That(samples, Is.EqualTo(2));
+            await manager.NotifyDeletedAsync(handle!, second.Object).ConfigureAwait(false);
+            Assert.That(released, Is.EqualTo(acquired));
+        }
+
         [Test]
         public void ConfigurationIsRetainedByFluentManager()
         {
@@ -236,12 +396,8 @@ namespace Opc.Ua.Server.Tests.Fluent
                     new ValueTask<NodeState?>((NodeState?)null));
             await manager.Builder.SealAsync();
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await manager.GetManagerHandleAsync(requestedId).ConfigureAwait(false))!;
-
-            Assert.That(
-                exception.StatusCode,
-                Is.EqualTo((uint)StatusCodes.BadConfigurationError));
+            object handle = await manager.GetManagerHandleAsync(requestedId).ConfigureAwait(false);
+            Assert.That(handle, Is.Null);
         }
 
         [Test]
@@ -260,12 +416,9 @@ namespace Opc.Ua.Server.Tests.Fluent
                         }));
             await manager.Builder.SealAsync();
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await manager
-                    .ResolveAsync(requestedId, new Dictionary<NodeId, NodeState>())
-                    .ConfigureAwait(false))!;
-
-            Assert.That(exception.StatusCode, Is.EqualTo((uint)StatusCodes.BadNodeIdInvalid));
+            (_, NodeState? node) = await manager.ResolveAsync(requestedId, new Dictionary<NodeId, NodeState>())
+                .ConfigureAwait(false);
+            Assert.That(node, Is.Null);
         }
 
         [Test]

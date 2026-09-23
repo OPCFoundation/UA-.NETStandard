@@ -77,6 +77,12 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
             m_notifier = new Notifier(this);
         }
 
+        /// <summary>
+        /// Total notifications discarded because a consumer's buffer was full.
+        /// Counts both data changes and events across this instance's streams.
+        /// </summary>
+        public long DroppedNotificationCount => Interlocked.Read(ref m_droppedNotificationCount);
+
         /// <inheritdoc/>
         public IAsyncEnumerable<DataValueChange> SubscribeDataChangesAsync(
             NodeId nodeId,
@@ -388,22 +394,11 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
             }
         }
 
-        private static Channel<T> CreateChannel<T>(
+        private Channel<T> CreateChannel<T>(
             uint queueSize,
             int itemCount,
             bool discardOldest)
         {
-            if (queueSize == 0)
-            {
-                return Channel.CreateUnbounded<T>(
-                    new UnboundedChannelOptions
-                    {
-                        SingleReader = true,
-                        SingleWriter = false,
-                        AllowSynchronousContinuations = false
-                    });
-            }
-
             ulong capacity = Math.Max(1u, queueSize) *
                 (ulong)Math.Max(1, itemCount);
             int boundedCapacity = (int)Math.Min(int.MaxValue, capacity);
@@ -416,8 +411,10 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
                 FullMode = discardOldest
                     ? BoundedChannelFullMode.DropOldest
                     : BoundedChannelFullMode.DropWrite
-            });
+            }, _ => Interlocked.Increment(ref m_droppedNotificationCount));
         }
+
+        private long m_droppedNotificationCount;
 
         private sealed class Notifier : ISubscriptionNotificationHandler
         {

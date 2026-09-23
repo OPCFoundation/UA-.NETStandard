@@ -120,15 +120,24 @@ namespace Opc.Ua.Client
                 return NodeId.Null;
             }
 
+            NodeId activeSessionId = NodeId.Null;
             foreach (SessionDiagnosticsDataType diagnostics in ReadSessionDiagnostics(value))
             {
-                if (string.Equals(diagnostics.SessionName, sessionName, StringComparison.Ordinal))
+                if (diagnostics.SessionId.IsNull ||
+                    diagnostics.SessionId == session.SessionId ||
+                    !string.Equals(diagnostics.SessionName, sessionName, StringComparison.Ordinal))
                 {
-                    return diagnostics.SessionId;
+                    continue;
                 }
+                if (!activeSessionId.IsNull && activeSessionId != diagnostics.SessionId)
+                {
+                    throw new InvalidOperationException(
+                        "Multiple active sessions have the requested name. Specify ActiveSessionId for takeover.");
+                }
+                activeSessionId = diagnostics.SessionId;
             }
 
-            return NodeId.Null;
+            return activeSessionId;
         }
 
         private static async ValueTask<ArrayOf<uint>> FindSubscriptionIdsAsync(

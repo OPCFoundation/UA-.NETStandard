@@ -49,6 +49,61 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     [SetUICulture("en-us")]
     public class EncryptedSecretTests
     {
+        /// <summary>
+        /// Verifies malformed RSA plaintext framing and padding share a cryptographic failure while valid data works.
+        /// </summary>
+        [TestCase("oversized", false)]
+        [TestCase("negative", false)]
+        [TestCase("short", false)]
+        [TestCase("padding", false)]
+        [TestCase("empty", false)]
+        [TestCase("valid", false)]
+        [TestCase("oversized", true)]
+        [TestCase("negative", true)]
+        [TestCase("short", true)]
+        [TestCase("padding", true)]
+        [TestCase("empty", true)]
+        [TestCase("valid", true)]
+        public async Task RsaMalformedFramingUsesCryptographicFailureAsync(string outcome, bool asynchronous)
+        {
+            byte[] plaintext = outcome switch
+            {
+                "oversized" => [0xFF, 0xFF, 0xFF, 0x7F],
+                "negative" => [0xFF, 0xFF, 0xFF, 0xFF],
+                "short" => [1, 0, 0],
+                _ => [3, 0, 0, 0, 1, 2, 3]
+            };
+            using RSA rsa = m_certificate.GetRSAPublicKey();
+            byte[] ciphertext = outcome switch
+            {
+                "padding" => new byte[rsa.KeySize / 8],
+                "empty" => [],
+                _ => rsa.Encrypt(plaintext, RSAEncryptionPadding.Pkcs1)
+            };
+            var encrypted = new EncryptedData { Algorithm = SecurityAlgorithms.Rsa15, Data = ciphertext };
+            if (outcome == "valid")
+            {
+                byte[] actual = asynchronous
+                    ? await SecurityPolicies.Default.DecryptAsync(
+                        m_certificate, SecurityPolicies.Basic128Rsa15, encrypted).ConfigureAwait(false)
+                    : SecurityPolicies.Default.Decrypt(m_certificate, SecurityPolicies.Basic128Rsa15, encrypted);
+                Assert.That(actual, Is.EqualTo(new byte[] { 1, 2, 3 }));
+            }
+            else if (asynchronous)
+            {
+                Assert.That(
+                    async () => await SecurityPolicies.Default.DecryptAsync(
+                        m_certificate, SecurityPolicies.Basic128Rsa15, encrypted).ConfigureAwait(false),
+                    Throws.InstanceOf<CryptographicException>());
+            }
+            else
+            {
+                Assert.That(
+                    () => SecurityPolicies.Default.Decrypt(m_certificate, SecurityPolicies.Basic128Rsa15, encrypted),
+                    Throws.InstanceOf<CryptographicException>());
+            }
+        }
+
         private IServiceMessageContext m_context;
         private Certificate m_certificate;
 

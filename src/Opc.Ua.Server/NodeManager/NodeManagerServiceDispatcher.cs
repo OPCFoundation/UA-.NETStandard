@@ -2086,7 +2086,7 @@ namespace Opc.Ua.Server
                             {
                                 foreach (IAsyncNodeManager owner in attemptedOwners)
                                 {
-                                    await UnsubscribeEventsAsync(
+                                    await DispatchEventSubscriptionAsync(
                                         owner,
                                         () => allEvents
                                             ? owner.SubscribeToAllEventsAsync(
@@ -2477,15 +2477,24 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                // modify the item.
-                Server.EventManager.ModifyMonitoredItem(
-                    context,
-                    monitoredItem,
-                    timestampsToReturn,
-                    itemToModify,
-                    filter);
+                try
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    Server.EventManager.ModifyMonitoredItem(
+                        context, monitoredItem, timestampsToReturn, itemToModify, filter);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    errors[ii] = GetMonitoredItemDispatchFailure(monitoredItem.NodeManager, failure);
+                    continue;
+                }
 
                 // subscribe to all node managers.
+                ServiceResult subscriptionResult = ServiceResult.Good;
                 if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.AllEvents) != 0)
                 {
                     IAsyncNodeManager[] activeNodeManagers = [.. m_nodeManagers];
@@ -2497,13 +2506,16 @@ namespace Opc.Ua.Server
                     {
                         foreach (NotificationDispatchLease dispatch in dispatches)
                         {
-                            await dispatch.NodeManager.SubscribeToAllEventsAsync(
-                                    context,
-                                    monitoredItem.SubscriptionId,
-                                    monitoredItem,
-                                    false,
-                                    cancellationToken)
-                                .ConfigureAwait(false);
+                            ServiceResult ownerResult = await DispatchEventSubscriptionAsync(
+                                dispatch.NodeManager,
+                                () => dispatch.NodeManager.SubscribeToAllEventsAsync(
+                                    context, monitoredItem.SubscriptionId, monitoredItem, false, cancellationToken),
+                                allEvents: true,
+                                cancellationToken).ConfigureAwait(false);
+                            if (ServiceResult.IsBad(ownerResult) && ServiceResult.IsGood(subscriptionResult))
+                            {
+                                subscriptionResult = ownerResult;
+                            }
                         }
                     }
                     finally
@@ -2514,16 +2526,16 @@ namespace Opc.Ua.Server
                 // only subscribe to the node manager that owns the node.
                 else
                 {
-                    await monitoredItem.NodeManager.SubscribeToEventsAsync(
-                        context,
-                        monitoredItem.ManagerHandle,
-                        monitoredItem.SubscriptionId,
-                        monitoredItem,
-                        false,
+                    subscriptionResult = await DispatchEventSubscriptionAsync(
+                        monitoredItem.NodeManager,
+                        () => monitoredItem.NodeManager.SubscribeToEventsAsync(
+                            context, monitoredItem.ManagerHandle, monitoredItem.SubscriptionId,
+                            monitoredItem, false, cancellationToken),
+                        allEvents: false,
                         cancellationToken).ConfigureAwait(false);
                 }
 
-                errors[ii] = StatusCodes.Good;
+                errors[ii] = subscriptionResult;
             }
         }
 
@@ -2854,7 +2866,7 @@ namespace Opc.Ua.Server
                     {
                         foreach (NotificationDispatchLease dispatch in dispatches)
                         {
-                            ServiceResult unsubscribe = await UnsubscribeEventsAsync(
+                            ServiceResult unsubscribe = await DispatchEventSubscriptionAsync(
                                 dispatch.NodeManager,
                                 () => dispatch.NodeManager.SubscribeToAllEventsAsync(
                                     context,
@@ -2886,7 +2898,7 @@ namespace Opc.Ua.Server
                 // only unsubscribe to the node manager that owns the node.
                 else
                 {
-                    result = await UnsubscribeEventsAsync(
+                    result = await DispatchEventSubscriptionAsync(
                         owningNodeManager,
                         () => owningNodeManager.SubscribeToEventsAsync(
                             context, monitoredItem.ManagerHandle, subscriptionId, monitoredItem, true,
@@ -3219,6 +3231,19 @@ namespace Opc.Ua.Server
                             filterResults,
                             cancellationToken)
                         .ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception exception) when (exception is not OutOfMemoryException)
+                {
+                    ServiceResult failure = GetMonitoredItemDispatchFailure(owner, exception);
+                    foreach (int index in indices)
+                    {
+                        errors[index] ??= failure;
+                        itemsToModify[index].Processed = true;
+                    }
                 }
                 finally
                 {
@@ -3661,18 +3686,18 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Unsubscribes through the owning manager, reporting failures while preserving request cancellation.
+        /// Changes event subscriptions through an owner, reporting failures while preserving request cancellation.
         /// </summary>
-        private async ValueTask<ServiceResult> UnsubscribeEventsAsync(
+        private async ValueTask<ServiceResult> DispatchEventSubscriptionAsync(
             IAsyncNodeManager owner,
-            Func<ValueTask<ServiceResult>> unsubscribe,
+            Func<ValueTask<ServiceResult>> operation,
             bool allEvents,
             CancellationToken cancellationToken)
         {
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                ServiceResult result = await unsubscribe().ConfigureAwait(false) ?? ServiceResult.Good;
+                ServiceResult result = await operation().ConfigureAwait(false) ?? ServiceResult.Good;
                 if (allEvents && result.StatusCode == StatusCodes.BadNotSupported)
                 {
                     return ServiceResult.Good;

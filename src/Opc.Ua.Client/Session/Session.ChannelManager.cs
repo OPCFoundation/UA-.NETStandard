@@ -118,7 +118,9 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Whether scoped channel recovery or its subscription restoration is still active.
         /// </summary>
-        internal bool ChannelRecoveryInProgress => Volatile.Read(ref m_channelRecoveryInProgress) != 0;
+        internal bool ChannelRecoveryInProgress =>
+            Volatile.Read(ref m_channelRecoveryInProgress) != 0 ||
+            (m_managedChannel is ManagedTransportChannelLease lease && lease.Entry.RecoveryInProgress);
 
         /// <summary>
         /// Internal hook used by <see cref="CreateAsync(IClientChannelManager,
@@ -307,6 +309,12 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         async ValueTask IChannelRecoveryParticipant.CompleteRecoveryAsync(CancellationToken ct)
         {
+            if (Volatile.Read(ref m_subscriptionRecoveryDeferrals) != 0 &&
+                m_pendingSubscriptionRecovery != null &&
+                m_managedChannel is ManagedTransportChannelLease lease)
+            {
+                m_deferredRecoveryDeadline = lease.Entry.RecoveryDeadline;
+            }
             await CompleteSessionRecoveryAsync(ct).ConfigureAwait(false);
             Volatile.Write(ref m_channelRecoveryInProgress, 0);
         }
@@ -358,29 +366,54 @@ namespace Opc.Ua.Client
             private int m_disposed;
         }
 
-        private static ValueTask ReconnectManagedChannelAsync(
+        private static async ValueTask ReconnectManagedChannelAsync(
             IClientChannelManager manager,
             IManagedTransportChannel channel,
             IRetryBudget? budget,
-            CancellationToken ct)
+            CancellationToken ct,
+            ITransportWaitingConnection? connection = null)
         {
-            if (budget == null)
+            if (connection != null)
             {
-                return manager.ReconnectAsync(channel, ct);
+                if (channel is ManagedTransportChannelLease lease)
+                {
+                    await lease.ReconnectAsync(connection, budget, ct).ConfigureAwait(false);
+                }
+                else
+                {
+                    await channel.ReconnectAsync(connection, ct).ConfigureAwait(false);
+                }
             }
-
+            else if (budget == null)
+            {
+                await manager.ReconnectAsync(channel, ct).ConfigureAwait(false);
+            }
+            else
+            {
 #if NETSTANDARD2_1 || NET8_0_OR_GREATER
-            return manager.ReconnectAsync(channel, budget, ct);
+                await manager.ReconnectAsync(channel, budget, ct).ConfigureAwait(false);
 #else
-            return manager is ClientChannelManager clientChannelManager
-                ? clientChannelManager.ReconnectAsync(channel, budget, ct)
-                : manager.ReconnectAsync(channel, ct);
+                if (manager is ClientChannelManager clientChannelManager)
+                {
+                    await clientChannelManager.ReconnectAsync(channel, budget, ct).ConfigureAwait(false);
+                }
+                else
+                {
+                    await manager.ReconnectAsync(channel, ct).ConfigureAwait(false);
+                }
 #endif
+            }
+            if (channel.State is ChannelState.Closed or ChannelState.Faulted)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecureChannelClosed, "Channel reconnect did not complete successfully.");
+            }
         }
 
         private IClientChannelManager? m_channelManager;
         private IManagedTransportChannel? m_managedChannel;
         private PendingSubscriptionRecovery? m_pendingSubscriptionRecovery;
+        private ReconnectDeadline? m_deferredRecoveryDeadline;
         private int m_subscriptionRecoveryDeferrals;
         private int m_channelRecoveryInProgress;
         private bool m_boundChannelReconnect;

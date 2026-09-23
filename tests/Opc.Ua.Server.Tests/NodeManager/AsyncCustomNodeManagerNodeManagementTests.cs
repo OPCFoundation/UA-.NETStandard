@@ -52,6 +52,218 @@ namespace Opc.Ua.Server.Tests.NodeManager
     {
         private const string TestNamespaceUri = "http://test.org/UA/NodeManagement/";
 
+        [TestCase("unknownDataType")]
+        [TestCase("nonDataType")]
+        [TestCase("wrongValue")]
+        [TestCase("arrayRank")]
+        [TestCase("invalidRank")]
+        [TestCase("negativeMinimum")]
+        [TestCase("nanMinimum")]
+        [TestCase("infiniteMinimum")]
+        [TestCase("scalarDimensions")]
+        [TestCase("rankDimensions")]
+        public async Task AddVariableRejectsInconsistentAttributes(string invalidAttribute)
+        {
+            using Harness h = CreateHarness(allowNodeManagement: true);
+            var types = (TypeTable)h.Context.TypeTable;
+            types.AddSubtype(DataTypeIds.BaseDataType, NodeId.Null);
+            types.AddSubtype(DataTypeIds.Int32, DataTypeIds.BaseDataType);
+            types.AddSubtype(ObjectTypeIds.BaseObjectType, NodeId.Null);
+            NodeId parentId = await h.AddObjectAsync("Parent").ConfigureAwait(false);
+            ushort ns = h.Manager.NamespaceIndexes[0];
+            var attributes = new VariableAttributes
+            {
+                SpecifiedAttributes = (uint)NodeAttributesMask.DataType |
+                    (uint)NodeAttributesMask.ValueRank |
+                    (uint)NodeAttributesMask.Value |
+                    (uint)NodeAttributesMask.MinimumSamplingInterval |
+                    (uint)NodeAttributesMask.ArrayDimensions,
+                DataType = DataTypeIds.Int32,
+                ValueRank = ValueRanks.Scalar,
+                Value = 42,
+                MinimumSamplingInterval = -1
+            };
+            switch (invalidAttribute)
+            {
+                case "unknownDataType":
+                    attributes.DataType = new NodeId("Unknown", ns);
+                    break;
+                case "nonDataType":
+                    attributes.DataType = ObjectTypeIds.BaseObjectType;
+                    break;
+                case "wrongValue":
+                    attributes.Value = "not an integer";
+                    break;
+                case "arrayRank":
+                    attributes.ValueRank = ValueRanks.OneDimension;
+                    break;
+                case "invalidRank":
+                    attributes.ValueRank = -4;
+                    break;
+                case "negativeMinimum":
+                    attributes.MinimumSamplingInterval = -2;
+                    break;
+                case "nanMinimum":
+                    attributes.MinimumSamplingInterval = double.NaN;
+                    break;
+                case "infiniteMinimum":
+                    attributes.MinimumSamplingInterval = double.PositiveInfinity;
+                    break;
+                case "scalarDimensions":
+                    attributes.ArrayDimensions = [2];
+                    break;
+                case "rankDimensions":
+                    attributes.ValueRank = ValueRanks.OneDimension;
+                    attributes.Value = new Variant([1, 2]);
+                    attributes.ArrayDimensions = [2, 2];
+                    break;
+            }
+            var requestedId = new NodeId("Variable", ns);
+            var item = new AddNodesItem
+            {
+                ParentNodeId = parentId,
+                ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                RequestedNewNodeId = requestedId,
+                BrowseName = new QualifiedName("Variable", ns),
+                NodeClass = NodeClass.Variable,
+                TypeDefinition = VariableTypeIds.BaseVariableType,
+                NodeAttributes = new ExtensionObject(attributes)
+            };
+
+            (ServiceResult result, NodeId addedId) = await h.Manager.AddNodeAsync(h.OperationContext, item)
+                .ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNodeAttributesInvalid));
+            Assert.That(addedId.IsNull, Is.True);
+            Assert.That(h.Manager.PredefinedNodes.ContainsKey(requestedId), Is.False);
+            Assert.That(h.Manager.PredefinedNodes[parentId].FindChildWithQualifiedName(h.Context, item.BrowseName),
+                Is.Null);
+        }
+
+        [TestCase(-1)]
+        [TestCase(0)]
+        [TestCase(100)]
+        public async Task AddVariableAcceptsValidAttributesAndIndeterminateSampling(double minimumSamplingInterval)
+        {
+            using Harness h = CreateHarness(allowNodeManagement: true);
+            var types = (TypeTable)h.Context.TypeTable;
+            types.AddSubtype(DataTypeIds.BaseDataType, NodeId.Null);
+            types.AddSubtype(DataTypeIds.Int32, DataTypeIds.BaseDataType);
+            NodeId parentId = await h.AddObjectAsync("Parent").ConfigureAwait(false);
+            ushort ns = h.Manager.NamespaceIndexes[0];
+            var item = new AddNodesItem
+            {
+                ParentNodeId = parentId,
+                ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                BrowseName = new QualifiedName("Variable", ns),
+                NodeClass = NodeClass.Variable,
+                TypeDefinition = VariableTypeIds.BaseVariableType,
+                NodeAttributes = new ExtensionObject(new VariableAttributes
+                {
+                    SpecifiedAttributes = (uint)NodeAttributesMask.DataType |
+                        (uint)NodeAttributesMask.ValueRank |
+                        (uint)NodeAttributesMask.Value |
+                        (uint)NodeAttributesMask.MinimumSamplingInterval |
+                        (uint)NodeAttributesMask.ArrayDimensions,
+                    DataType = DataTypeIds.Int32,
+                    ValueRank = ValueRanks.OneDimension,
+                    Value = new Variant([1, 2]),
+                    ArrayDimensions = [2],
+                    MinimumSamplingInterval = minimumSamplingInterval
+                })
+            };
+
+            (ServiceResult result, NodeId addedId) = await h.Manager.AddNodeAsync(h.OperationContext, item)
+                .ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            BaseVariableState variable = h.Manager.FindPredefinedNode<BaseVariableState>(addedId);
+            Assert.That(variable.DataType, Is.EqualTo(DataTypeIds.Int32));
+            Assert.That(variable.ValueRank, Is.EqualTo(ValueRanks.OneDimension));
+            Assert.That(variable.Value.TryGetValue(out ArrayOf<int> values), Is.True);
+            Assert.That(values, Is.EqualTo((ArrayOf<int>)[1, 2]));
+            Assert.That(variable.ArrayDimensions, Is.EqualTo((ArrayOf<uint>)[2]));
+            Assert.That(variable.MinimumSamplingInterval, Is.EqualTo(minimumSamplingInterval));
+        }
+
+        [TestCase("subtype", true)]
+        [TestCase("inherited", true)]
+        [TestCase("dataType", false)]
+        [TestCase("valueRank", false)]
+        public async Task AddVariableHonorsTypeDefinitionConstraints(string constraint, bool valid)
+        {
+            using Harness h = CreateHarness(allowNodeManagement: true);
+            var types = (TypeTable)h.Context.TypeTable;
+            types.AddSubtype(DataTypeIds.BaseDataType, NodeId.Null);
+            types.AddSubtype(DataTypeIds.Number, DataTypeIds.BaseDataType);
+            types.AddSubtype(DataTypeIds.Int32, DataTypeIds.Number);
+            types.AddSubtype(DataTypeIds.String, DataTypeIds.BaseDataType);
+            types.AddSubtype(VariableTypeIds.BaseVariableType, NodeId.Null);
+            ushort ns = h.Manager.NamespaceIndexes[0];
+            var variableType = new ConstrainedVariableType
+            {
+                NodeId = new NodeId("NumericType", ns),
+                BrowseName = new QualifiedName("NumericType", ns),
+                SuperTypeId = VariableTypeIds.BaseVariableType,
+                DataType = DataTypeIds.Number,
+                ValueRank = ValueRanks.Scalar
+            };
+            await h.Manager.AddPredefinedNodeAsyncPublic(h.Context, variableType).ConfigureAwait(false);
+            NodeId parentId = await h.AddObjectAsync("Parent").ConfigureAwait(false);
+            var attributes = new VariableAttributes
+            {
+                SpecifiedAttributes = (uint)NodeAttributesMask.DataType |
+                    (uint)NodeAttributesMask.ValueRank |
+                    (uint)NodeAttributesMask.Value,
+                DataType = DataTypeIds.Int32,
+                ValueRank = ValueRanks.Scalar,
+                Value = 42
+            };
+            if (constraint == "inherited")
+            {
+                attributes.SpecifiedAttributes = (uint)NodeAttributesMask.Value;
+            }
+            else if (constraint == "dataType")
+            {
+                attributes.DataType = DataTypeIds.String;
+                attributes.Value = "text";
+            }
+            else if (constraint == "valueRank")
+            {
+                attributes.ValueRank = ValueRanks.OneDimension;
+                attributes.Value = new Variant([42]);
+            }
+            var item = new AddNodesItem
+            {
+                ParentNodeId = parentId,
+                ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                BrowseName = new QualifiedName("Variable", ns),
+                NodeClass = NodeClass.Variable,
+                TypeDefinition = variableType.NodeId,
+                NodeAttributes = new ExtensionObject(attributes)
+            };
+
+            (ServiceResult result, NodeId addedId) = await h.Manager.AddNodeAsync(h.OperationContext, item)
+                .ConfigureAwait(false);
+
+            Assert.That(result.StatusCode,
+                Is.EqualTo(valid ? StatusCodes.Good : StatusCodes.BadNodeAttributesInvalid));
+            if (valid)
+            {
+                BaseVariableState variable = h.Manager.FindPredefinedNode<BaseVariableState>(addedId);
+                Assert.That(variable.DataType,
+                    Is.EqualTo(constraint == "inherited" ? DataTypeIds.Number : DataTypeIds.Int32));
+                Assert.That(variable.ValueRank, Is.EqualTo(ValueRanks.Scalar));
+                Assert.That(variable.Value, Is.EqualTo(new Variant(42)));
+            }
+            else
+            {
+                Assert.That(addedId.IsNull, Is.True);
+                Assert.That(h.Manager.PredefinedNodes[parentId].FindChildWithQualifiedName(h.Context, item.BrowseName),
+                    Is.Null);
+            }
+        }
+
         [Test]
         public void AllowNodeManagement_DefaultsToFalse()
         {
@@ -439,9 +651,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public async Task AddNodeAsync_VariableWithAttributes_AppliesAttributesAsync()
+        public async Task AddNodeVariableWithAttributesAppliesAttributesAsync()
         {
             using Harness h = CreateHarness(allowNodeManagement: true);
+            var types = (TypeTable)h.Context.TypeTable;
+            types.AddSubtype(DataTypeIds.BaseDataType, NodeId.Null);
+            types.AddSubtype(DataTypeIds.Int32, DataTypeIds.BaseDataType);
             ushort ns = h.Manager.NamespaceIndexes[0];
 
             NodeId parentId = await h.AddObjectAsync("Parent").ConfigureAwait(false);
@@ -939,6 +1154,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Manager.Dispose();
             }
         }
+
+        private sealed class ConstrainedVariableType : BaseVariableTypeState;
 
         private class NodeManagementTestNodeManager : AsyncCustomNodeManager
         {

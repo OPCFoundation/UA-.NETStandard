@@ -50,6 +50,33 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
     [NonParallelizable]
     public sealed class TcpReconnectKeyAgreementTests
     {
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task OpenSecureChannelRetainsEntirePeerChainForRevalidationAsync(bool renew)
+        {
+            using var harness = new HandoffHarness(SecurityPolicies.Basic256Sha256, withIssuers: true);
+            await harness.OpenAsync().ConfigureAwait(false);
+            if (renew)
+            {
+                await harness.RenewAsync().ConfigureAwait(false);
+                Assert.That(harness.HandoffError, Is.Null);
+                await harness.Peer.CompleteOpenAsync(
+                    await harness.NewTransport.ReadAsync(harness.CancellationToken).ConfigureAwait(false),
+                    renew: true).ConfigureAwait(false);
+                await harness.AssertEncryptedReadAsync(harness.NewTransport).ConfigureAwait(false);
+            }
+
+            using CertificateCollection? chain = harness.Target.SnapshotClientCertificateChainForRevalidation();
+            Assert.That(chain, Is.Not.Null);
+            Assert.That(chain, Has.Count.EqualTo(3));
+            Assert.That(chain![0].Subject, Is.EqualTo("CN=ReconnectClient"));
+            Assert.That(chain[1].Subject, Is.EqualTo("CN=ReconnectIssuer"));
+            Assert.That(chain[2].Subject, Is.EqualTo("CN=ReconnectRoot"));
+            harness.Target.Dispose();
+            Assert.That(chain[1].RawData, Is.Not.Empty, "the sweep must own its snapshot after the channel closes");
+            Assert.That(harness.Target.SnapshotClientCertificateChainForRevalidation(), Is.Null);
+        }
+
         [TestCase(SecurityPolicies.ECC_nistP256)]
         [TestCase(SecurityPolicies.RSA_DH_AesGcm)]
         public async Task RenewHandoffRetainsPrivateKeyAndChainsPreviousSecretAsync(string policyUri)
@@ -257,7 +284,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
         private sealed class HandoffHarness : IDisposable
         {
-            public HandoffHarness(string policyUri)
+            public HandoffHarness(string policyUri, bool withIssuers = false)
             {
                 ITelemetryContext telemetry = NUnitTelemetryContext.Create();
                 var context = ServiceMessageContext.Create(telemetry);
@@ -277,7 +304,18 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 SecurityPolicyInfo policy = SecurityPolicies.Default.GetInfo(policyUri)
                     ?? throw new AssertionException("The requested key-agreement policy must be supported.");
                 m_serverCertificate = CreateCertificate("CN=ReconnectServer", policy);
-                m_clientCertificate = CreateCertificate("CN=ReconnectClient", policy);
+                if (withIssuers)
+                {
+                    m_rootCertificate = CertificateBuilder.Create("CN=ReconnectRoot").SetCAConstraint().CreateForRSA();
+                    m_issuerCertificate = CertificateBuilder.Create("CN=ReconnectIssuer")
+                        .SetCAConstraint().SetIssuer(m_rootCertificate).CreateForRSA();
+                    m_clientCertificate = CertificateBuilder.Create("CN=ReconnectClient")
+                        .SetIssuer(m_issuerCertificate).CreateForRSA();
+                }
+                else
+                {
+                    m_clientCertificate = CreateCertificate("CN=ReconnectClient", policy);
+                }
                 var registry = new Mock<ICertificateRegistry>();
                 registry.Setup(value => value.AcquireApplicationCertificateBySecurityPolicy(policyUri))
                     .Returns(() => new CertificateEntry(
@@ -294,6 +332,13 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 Target = new HandoffChannel(listener.Object, buffers, quotas, registry.Object, endpoint, telemetry);
                 Temporary = new HandoffChannel(listener.Object, buffers, quotas, registry.Object, endpoint, telemetry);
                 Peer = new WirePeer(buffers, quotas, m_serverCertificate, m_clientCertificate, endpoint, telemetry);
+                if (withIssuers)
+                {
+                    Peer.ClientCertificateChain =
+                    [
+                        m_clientCertificate, m_issuerCertificate!, m_rootCertificate!
+                    ];
+                }
                 Target.Attach(1, OldTransport);
                 Target.CurrentState = TcpChannelState.Opening;
                 Temporary.Attach(2, NewTransport);
@@ -316,17 +361,20 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                         {
                             HandoffCount++;
                             HandedOffToken = token;
-                            (Nonce local, Nonce remote) = token.TakeNonces();
-                            HandedOffLocal = local;
-                            HandedOffRemote = remote;
-                            if (DiscardHandoffNonces)
+                            if (policy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
                             {
-                                local.Dispose();
-                                remote.Dispose();
-                            }
-                            else
-                            {
-                                token.SetNonces(local, remote);
+                                (Nonce local, Nonce remote) = token.TakeNonces();
+                                HandedOffLocal = local;
+                                HandedOffRemote = remote;
+                                if (DiscardHandoffNonces)
+                                {
+                                    local.Dispose();
+                                    remote.Dispose();
+                                }
+                                else
+                                {
+                                    token.SetNonces(local, remote);
+                                }
                             }
                             try
                             {
@@ -408,6 +456,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 Peer.Dispose();
                 m_serverCertificate.Dispose();
                 m_clientCertificate.Dispose();
+                m_issuerCertificate?.Dispose();
+                m_rootCertificate?.Dispose();
                 m_chain.Dispose();
                 m_timeout.Dispose();
             }
@@ -422,6 +472,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             private readonly Certificate m_serverCertificate;
             private readonly Certificate m_clientCertificate;
+            private readonly Certificate? m_issuerCertificate;
+            private readonly Certificate? m_rootCertificate;
             private readonly CertificateCollection m_chain = [];
             private readonly CancellationTokenSource m_timeout = new(TimeSpan.FromSeconds(15));
         }
@@ -507,7 +559,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 };
                 byte[] body = BinaryEncoder.EncodeMessage(request, Quotas.MessageContext);
                 AsymmetricWriteResult written = await WriteAsymmetricMessageAsync(
-                    TcpMessageType.Open, 77, ClientCertificate, null, ServerCertificate,
+                    TcpMessageType.Open, 77, ClientCertificate, ClientCertificateChain, ServerCertificate,
                     new ArraySegment<byte>(body), null, CancellationToken.None).ConfigureAwait(false);
                 m_requestSignature = !renew && SecurityPolicy!.SecureChannelEnhancements ? written.Signature : null;
                 Assert.That(written.Chunks, Has.Count.EqualTo(1));

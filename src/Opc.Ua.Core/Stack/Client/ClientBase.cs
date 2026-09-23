@@ -259,7 +259,12 @@ namespace Opc.Ua
         /// </summary>
         public uint NewRequestHandle()
         {
-            return (uint)Utils.IncrementIdentifier(ref m_nextRequestHandle);
+            return NewSharedRequestHandle();
+        }
+
+        internal static uint NewSharedRequestHandle()
+        {
+            return (uint)Utils.IncrementIdentifier(ref s_nextRequestHandle);
         }
 
         /// <summary>
@@ -353,8 +358,7 @@ namespace Opc.Ua
 
             if (request.RequestHeader.RequestHandle == 0)
             {
-                request.RequestHeader.RequestHandle = (uint)Utils.IncrementIdentifier(
-                    ref m_nextRequestHandle);
+                request.RequestHeader.RequestHandle = NewSharedRequestHandle();
             }
 
             if (request.RequestHeader.AuthenticationToken.IsNull)
@@ -838,7 +842,7 @@ namespace Opc.Ua
         private readonly Meter m_meter;
         private ITransportChannel? m_channel;
         private readonly ConcurrentDictionary<string, Instrument<double>> m_instruments = [];
-        private int m_nextRequestHandle;
+        private static int s_nextRequestHandle;
         private int m_pendingRequestCount;
     }
 

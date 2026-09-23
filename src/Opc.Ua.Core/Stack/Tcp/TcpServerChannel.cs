@@ -707,6 +707,7 @@ namespace Opc.Ua.Bindings
             Certificate? clientCertificate = null;
             uint requestId = 0;
             uint sequenceNumber = 0;
+            ByteString clientChainBlob = default;
 
             ArraySegment<byte> messageBody = default;
 
@@ -727,6 +728,7 @@ namespace Opc.Ua.Bindings
                 messageBody = message.Body;
                 channelId = message.ChannelId;
                 clientCertificate = message.SenderCertificate;
+                clientChainBlob = message.SenderCertificateChain;
                 requestId = message.RequestId;
                 sequenceNumber = message.SequenceNumber;
 
@@ -799,6 +801,7 @@ namespace Opc.Ua.Bindings
                     }
                 }
                 clientCertificate = null;
+                RetainPeerCertificateChain(clientChainBlob);
 
                 // check if it is necessary to wait for more chunks.
                 if (!TcpMessageType.IsFinal(messageType))

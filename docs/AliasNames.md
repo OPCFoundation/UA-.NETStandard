@@ -91,8 +91,8 @@ registries. The opt-in
 `IOpcUaServerBuilder` in `Microsoft.Extensions.DependencyInjection`.
 `AliasNameServerOptions` is in `Opc.Ua.Server.AliasNames`, and its
 `MaterializeAliasNodes` property defaults to `false`.
-`RefreshAliasNodesOnChange` separately defaults to `false`, preserving the
-startup browse snapshot even when materialization is enabled.
+`RefreshAliasNodesOnChange` separately defaults to `true`, keeping the
+browse view current whenever materialization is enabled.
 
 When enabled, the normal `ConfigurationNodeManager` materializes
 registered standard-category aliases and their declared optional
@@ -232,26 +232,24 @@ Mutation calls are gated on a `SecurityAdmin` caller over a
 
 Standard-category materialization is opt-in: servers that only need
 `FindAlias` to answer from their store do not create alias instance
-nodes. The created nodes are a snapshot taken at address-space creation
-— aliases added or removed later through
-`AddAliasesToCategory` / `DeleteAliasesFromCategory` change what
-`FindAlias` returns and advance `LastChange`, but do not add or remove
-`AliasNameType` nodes by default.
+nodes. Once materialized, both standard and application-defined alias
+nodes follow store changes by default. Aliases added or removed through
+`AddAliasesToCategory` / `DeleteAliasesFromCategory` update queries,
+advance `LastChange`, and schedule reconciliation of `AliasNameType`
+nodes and their target references.
 
-To keep an explicitly materialized browse view current, also set
-`RefreshAliasNodesOnChange = true` on `AliasNameServerOptions` or
-`AliasNameNodeManagerOptions`. This setting never overrides
-`MaterializeAliasNodes = false`:
+`RefreshAliasNodesOnChange` defaults to `true` on both `AliasNameServerOptions`
+and `AliasNameNodeManagerOptions`. Set it to `false` explicitly to retain a
+startup-only browse snapshot. It never overrides `MaterializeAliasNodes = false`:
 
 ```csharp
 builder.ConfigureAliasNames(options =>
 {
     options.MaterializeAliasNodes = true;
-    options.RefreshAliasNodesOnChange = true;
 });
 ```
 
-Each opted-in host owns one background worker and at most one pending
+Each live-materialization host owns one background worker and at most one pending
 refresh signal. Category and ancestor notifications coalesce into a pass
 over store roots. A completed query is applied only while its generation
 is current; query failures leave existing nodes and references intact and

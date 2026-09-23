@@ -853,6 +853,7 @@ namespace Opc.Ua
         /// Reattaches a lease to a usable entry after reconnect backoff, opening a replacement with current
         /// certificates.
         /// </summary>
+        /// <exception cref="ServiceResultException">A reverse channel requires a fresh waiting connection.</exception>
         private async ValueTask<ChannelEntry> SwapFaultedEntryAsync(
             ManagedTransportChannelLease lease,
             CancellationToken ct)
@@ -863,6 +864,11 @@ namespace Opc.Ua
             if (!original.IsClosing)
             {
                 return original;
+            }
+            if (original.IsReverse)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecureChannelClosed, "A fresh reverse connection is required.");
             }
 
             TimeSpan delay = GetSwapDelay(lease.SwapCount);

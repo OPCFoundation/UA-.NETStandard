@@ -55,7 +55,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
     /// Verifies wire-shape round-trip, sub-protocol negotiation
     /// (plain <c>opcua+openapi</c> and bearer variant
     /// <c>opcua+openapi+&lt;accesstoken&gt;</c>), URI normalisation,
-    /// the no-multiplex feature flag, and lifecycle (close / dispose /
+    /// the reconnect feature flag, and lifecycle (close / dispose /
     /// reconnect) contract.
     /// </summary>
     /// <remarks>
@@ -217,12 +217,10 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         }
 
         [Test]
-        public void SupportedFeaturesIsNone()
+        public void SupportedFeaturesIncludesReconnect()
         {
             using var channel = new WebApiWssTransportChannel(new TelemetryStub());
-            Assert.That(channel.SupportedFeatures, Is.EqualTo(TransportChannelFeatures.None),
-                "The WSS channel is single-threaded and does not advertise " +
-                "any optional transport features (no multiplexing).");
+            Assert.That(channel.SupportedFeatures, Is.EqualTo(TransportChannelFeatures.Reconnect));
         }
 
         [Test]
@@ -233,19 +231,16 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         }
 
         [Test]
-        public async Task ReconnectAsyncThrowsBadNotSupportedAsync()
+        public async Task ReconnectAsyncReopensChannelForFurtherRequestsAsync()
         {
             using WebApiWssTransportChannel channel = await OpenChannelAsync()
                 .ConfigureAwait(false);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await channel
-                    .ReconnectAsync(connection: null, CancellationToken.None)
-                    .ConfigureAwait(false))!;
-            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported),
-                "Reconnect over WSS requires re-running CreateSession/Activate; " +
-                "the channel surfaces BadNotSupported so ManagedSession's " +
-                "reconnect policy can rebuild the session.");
+            await channel.ReconnectAsync(connection: null, CancellationToken.None).ConfigureAwait(false);
+            IServiceResponse response = await channel.SendRequestAsync(
+                new ReadRequest { RequestHeader = new RequestHeader { RequestHandle = 42 } }).ConfigureAwait(false);
+            Assert.That(response.ResponseHeader.RequestHandle, Is.EqualTo(42));
+            Assert.That(response, Is.TypeOf<ReadResponse>());
         }
 
         [Test]

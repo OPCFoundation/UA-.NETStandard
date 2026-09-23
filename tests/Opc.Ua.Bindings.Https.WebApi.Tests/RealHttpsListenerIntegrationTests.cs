@@ -39,6 +39,7 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
 using Opc.Ua.Bindings.WebApi;
 using Opc.Ua.Client.WebApi;
@@ -55,7 +56,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [NonParallelizable]
-    public class RealHttpsListenerIntegrationTests
+    public sealed class RealHttpsListenerIntegrationTests
     {
         private static readonly MethodInfo s_decodeBodyMethod = typeof(WebApiBodyCodec)
             .GetMethods(BindingFlags.Public | BindingFlags.Static)
@@ -271,6 +272,175 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             Assert.That(stopwatch.Elapsed, Is.LessThan(TimeSpan.FromSeconds(10)));
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task WebSocketReadOvertakesPendingPublishAndSurvivesCancellationAsync(bool cancelPublish)
+        {
+            m_callback!.HoldPublish = true;
+            using WebApiWssTransportChannel channel = await OpenWebSocketChannelAsync().ConfigureAwait(false);
+            using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            Task<IServiceResponse> publish = channel.SendRequestAsync(
+                new PublishRequest { RequestHeader = new RequestHeader { RequestHandle = 101 } },
+                cancellation.Token).AsTask();
+            try
+            {
+                await m_callback.PublishEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                if (cancelPublish)
+                {
+                    cancellation.Cancel();
+                    Assert.CatchAsync<OperationCanceledException>(() => publish);
+                }
+                ServiceResultException duplicate = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await channel.SendRequestAsync(
+                        new ReadRequest { RequestHeader = new RequestHeader { RequestHandle = 101 } })
+                        .ConfigureAwait(false))!;
+                Assert.That(duplicate.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+
+                IServiceResponse read = await channel.SendRequestAsync(
+                    new ReadRequest { RequestHeader = new RequestHeader { RequestHandle = 202 } })
+                    .AsTask().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+                Assert.That(read, Is.TypeOf<ReadResponse>());
+                Assert.That(read.ResponseHeader.RequestHandle, Is.EqualTo(202));
+                Assert.That(m_callback.PublishRelease.Task.IsCompleted, Is.False);
+                m_callback.PublishRelease.TrySetResult(true);
+                if (!cancelPublish)
+                {
+                    IServiceResponse response = await publish.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    Assert.That(response, Is.TypeOf<PublishResponse>());
+                    Assert.That(response.ResponseHeader.RequestHandle, Is.EqualTo(101));
+                }
+                IServiceResponse next = await channel.SendRequestAsync(
+                    new ReadRequest { RequestHeader = new RequestHeader { RequestHandle = 303 } })
+                    .AsTask().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.That(next.ResponseHeader.RequestHandle, Is.EqualTo(303));
+            }
+            finally
+            {
+                m_callback.PublishRelease.TrySetResult(true);
+                cancellation.Cancel();
+                try
+                {
+                    await publish.ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                }
+                await channel.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task WebSocketRequestDeadlineDoesNotAbortOtherRequestsAsync()
+        {
+            var clock = new FakeTimeProvider();
+            m_callback!.HoldPublish = true;
+            using WebApiWssTransportChannel channel = await OpenWebSocketChannelAsync(clock).ConfigureAwait(false);
+            channel.OperationTimeout = 1000;
+            Task<IServiceResponse> publish = channel.SendRequestAsync(
+                new PublishRequest { RequestHeader = new RequestHeader { RequestHandle = 1 } }).AsTask();
+            try
+            {
+                await m_callback.PublishEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                clock.Advance(TimeSpan.FromSeconds(1));
+                ServiceResultException timeout = Assert.ThrowsAsync<ServiceResultException>(() => publish)!;
+                Assert.That(timeout.StatusCode, Is.EqualTo(StatusCodes.BadRequestTimeout));
+                IServiceResponse response = await channel.SendRequestAsync(
+                    new ReadRequest { RequestHeader = new RequestHeader { RequestHandle = 2 } })
+                    .AsTask().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.That(response, Is.TypeOf<ReadResponse>());
+                Assert.That(response.ResponseHeader.RequestHandle, Is.EqualTo(2));
+            }
+            finally
+            {
+                m_callback.PublishRelease.TrySetResult(true);
+                await channel.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task WebSocketReconnectFencesOutstandingResponsesAsync()
+        {
+            m_callback!.HoldPublish = true;
+            using WebApiWssTransportChannel channel = await OpenWebSocketChannelAsync().ConfigureAwait(false);
+            Task<IServiceResponse> publish = channel.SendRequestAsync(
+                new PublishRequest { RequestHeader = new RequestHeader { RequestHandle = 1 } }).AsTask();
+            try
+            {
+                await m_callback.PublishEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                await channel.ReconnectAsync(ct: deadline.Token).ConfigureAwait(false);
+                ServiceResultException closed = Assert.ThrowsAsync<ServiceResultException>(() => publish)!;
+                Assert.That(closed.StatusCode, Is.EqualTo(StatusCodes.BadConnectionClosed));
+                m_callback.PublishRelease.TrySetResult(true);
+                IServiceResponse response = await channel.SendRequestAsync(
+                    new ReadRequest { RequestHeader = new RequestHeader { RequestHandle = 1 } }, deadline.Token)
+                    .ConfigureAwait(false);
+                Assert.That(response, Is.TypeOf<ReadResponse>());
+                Assert.That(response.ResponseHeader.RequestHandle, Is.EqualTo(1));
+            }
+            finally
+            {
+                m_callback.PublishRelease.TrySetResult(true);
+                await channel.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task RejectedSecondWebSocketOpenPreservesActiveSettingsAsync()
+        {
+            using WebApiWssTransportChannel channel = await OpenWebSocketChannelAsync().ConfigureAwait(false);
+            EndpointDescription original = channel.EndpointDescription;
+            var context = ServiceMessageContext.Create(m_telemetry);
+            var settings = new TransportChannelSettings
+            {
+                Description = new EndpointDescription { EndpointUrl = "ws://unused.invalid" },
+                Configuration = EndpointConfiguration.Create(),
+                NamespaceUris = context.NamespaceUris,
+                Factory = context.Factory
+            };
+            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await channel.OpenAsync(
+                    new Uri("ws://unused.invalid"), settings, CancellationToken.None).ConfigureAwait(false))!;
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(ReferenceEquals(channel.EndpointDescription, original), Is.True);
+        }
+
+        private async Task<WebApiWssTransportChannel> OpenWebSocketChannelAsync(TimeProvider? timeProvider = null)
+        {
+            var uri = new UriBuilder(m_listener!.EndpointUrl) { Host = "127.0.0.1", Scheme = "wss" };
+            using CertificateEntry entry = m_certificateRegistry!
+                .AcquireApplicationCertificateBySecurityPolicy(SecurityPolicies.None)!;
+            var context = ServiceMessageContext.Create(m_telemetry);
+            var settings = new TransportChannelSettings
+            {
+                Description = new EndpointDescription
+                {
+                    EndpointUrl = uri.Uri.AbsoluteUri,
+                    SecurityMode = MessageSecurityMode.None,
+                    SecurityPolicyUri = SecurityPolicies.None,
+                    TransportProfileUri = Profiles.WssOpenApiTransport,
+                    ServerCertificate = entry.Certificate.RawData.ToByteString()
+                },
+                Configuration = EndpointConfiguration.Create(),
+                CertificateValidator = new AcceptAllCertificateValidator(),
+                Factory = context.Factory,
+                NamespaceUris = context.NamespaceUris
+            };
+            var channel = new WebApiWssTransportChannel(m_telemetry!, timeProvider: timeProvider);
+            try
+            {
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                await channel.OpenAsync(uri.Uri, settings, timeout.Token).ConfigureAwait(false);
+                return channel;
+            }
+            catch
+            {
+                channel.Dispose();
+                throw;
+            }
+        }
+
         private static Certificate CreateServerCertificate()
         {
             return DefaultCertificateFactory.Instance
@@ -430,6 +600,13 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             public SecureChannelContext? LastChannelContext { get; private set; }
             public uint NextFault { get; set; }
             public TimeSpan Delay { get; set; }
+            public bool HoldPublish { get; set; }
+
+            public TaskCompletionSource<bool> PublishEntered { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public TaskCompletionSource<bool> PublishRelease { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
 
             public async ValueTask<IServiceResponse> ProcessRequestAsync(
                 SecureChannelContext secureChannelContext,
@@ -438,6 +615,12 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             {
                 LastRequest = request;
                 LastChannelContext = secureChannelContext;
+
+                if (HoldPublish && request is PublishRequest)
+                {
+                    PublishEntered.TrySetResult(true);
+                    await PublishRelease.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                }
 
                 if (Delay > TimeSpan.Zero)
                 {

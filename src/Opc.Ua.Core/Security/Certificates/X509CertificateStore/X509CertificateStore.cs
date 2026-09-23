@@ -87,7 +87,7 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         /// <remarks>
-        /// Syntax: StoreLocation\StoreName
+        /// Syntax: [X509Store:]StoreLocation\StoreName
         /// Example:
         ///   CurrentUser\My
         /// </remarks>
@@ -96,6 +96,10 @@ namespace Opc.Ua
             StorePath = location ?? throw new ArgumentNullException(nameof(location));
             NoPrivateKeys = noPrivateKeys;
             location = location.Trim();
+            if (location.StartsWith("X509Store:", StringComparison.OrdinalIgnoreCase))
+            {
+                location = location["X509Store:".Length..];
+            }
 
             if (string.IsNullOrEmpty(location))
             {
@@ -248,6 +252,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public Task<bool> DeleteAsync(string thumbprint, CancellationToken ct = default)
         {
+            bool removed = false;
             using (var store = new X509Store(m_storeName, m_storeLocation))
             {
                 store.Open(OpenFlags.ReadWrite);
@@ -258,11 +263,12 @@ namespace Opc.Ua
                     if (certificate.Thumbprint == thumbprint)
                     {
                         store.Remove(certificate.X509);
+                        removed = true;
                     }
                 }
             }
 
-            return Task.FromResult(true);
+            return Task.FromResult(removed);
         }
 
         /// <inheritdoc/>

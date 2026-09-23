@@ -34,6 +34,7 @@ using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -813,21 +814,89 @@ namespace Opc.Ua
             ICertificateRegistry serverCertificates,
             bool checkRequireEncryption = true)
         {
+            SetServerCertificateInEndpointDescription(
+                description, serverCertificates, checkRequireEncryption, securityPolicies: null);
+        }
+
+        internal static void SetServerCertificateInEndpointDescription(
+            EndpointDescription description,
+            ICertificateRegistry serverCertificates,
+            bool checkRequireEncryption,
+            ISecurityPolicyRegistry? securityPolicies)
+        {
             if (!checkRequireEncryption || RequireEncryption(description))
             {
-                using CertificateEntry? instanceEntry = serverCertificates
-                    .AcquireApplicationCertificateBySecurityPolicy(description.SecurityPolicyUri!);
-                Certificate? serverCertificate = instanceEntry?.Certificate;
+                using CertificateEntry instanceEntry = AcquireEndpointCertificate(
+                    description, serverCertificates, securityPolicies) ??
+                    throw ServiceResultException.ConfigurationError(
+                        "No application certificate is compatible with the endpoint's " +
+                        "security and user token policies.");
                 // check if complete chain should be sent.
                 if (serverCertificates.SendCertificateChain)
                 {
-                    description.ServerCertificate = instanceEntry!.GetEncodedChainBlob().ToByteString();
+                    description.ServerCertificate = instanceEntry.GetEncodedChainBlob().ToByteString();
                 }
                 else
                 {
-                    description.ServerCertificate = serverCertificate!.RawData.ToByteString();
+                    description.ServerCertificate = instanceEntry.Certificate.RawData.ToByteString();
                 }
             }
+        }
+
+        internal static CertificateEntry? AcquireEndpointCertificate(
+            EndpointDescription description,
+            ICertificateRegistry certificates,
+            ISecurityPolicyRegistry? securityPolicies = null)
+        {
+            return description.SecurityMode == MessageSecurityMode.None
+                ? AcquireNoneEndpointTokenCertificate(
+                    description.UserIdentityTokens, certificates, securityPolicies ?? SecurityPolicies.Default)
+                : certificates.AcquireApplicationCertificateBySecurityPolicy(description.SecurityPolicyUri!);
+        }
+
+        private static CertificateEntry? AcquireNoneEndpointTokenCertificate(
+            ArrayOf<UserTokenPolicy> policies,
+            ICertificateRegistry certificates,
+            ISecurityPolicyRegistry securityPolicies)
+        {
+            var constraints = new List<SecurityPolicyInfo>();
+            foreach (UserTokenPolicy policy in policies)
+            {
+                if (policy.TokenType is not (UserTokenType.UserName or UserTokenType.IssuedToken) ||
+                    policy.SecurityPolicyUri == SecurityPolicies.None)
+                {
+                    continue;
+                }
+                SecurityPolicyInfo? info = securityPolicies.GetInfo(
+                    string.IsNullOrEmpty(policy.SecurityPolicyUri)
+                        ? SecurityPolicies.Basic256Sha256
+                        : policy.SecurityPolicyUri);
+                if (info?.CertificateKeyFamily != CertificateKeyFamily.RSA ||
+                    info.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
+                {
+                    return null;
+                }
+                constraints.Add(info);
+            }
+            if (constraints.Count == 0)
+            {
+                return certificates.AcquireApplicationCertificateBySecurityPolicy(SecurityPolicies.None);
+            }
+
+            using CertificateEntryCollection entries = certificates.SnapshotApplicationCertificates();
+            foreach (CertificateEntry entry in entries)
+            {
+                if (constraints.Any(policy => !policy.SupportedCertificateTypes.Contains(entry.CertificateType)))
+                {
+                    continue;
+                }
+                using RSA? key = entry.Certificate.GetRSAPublicKey();
+                if (key != null)
+                {
+                    return entry.AddRef();
+                }
+            }
+            return null;
         }
 
         /// <summary>
@@ -983,7 +1052,9 @@ namespace Opc.Ua
                 {
                     SetServerCertificateInEndpointDescription(
                         endpointDescription,
-                        serverCertificates);
+                        serverCertificates,
+                        checkRequireEncryption: true,
+                        SecurityPolicyRegistry);
                 }
 
                 foreach (ITransportListener listener in TransportListeners)
@@ -1119,6 +1190,23 @@ namespace Opc.Ua
                     {
                         // ensure a security policy is specified for user tokens.
                         clone.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
+                    }
+                }
+
+                if (description.SecurityMode == MessageSecurityMode.None &&
+                    clone.TokenType is UserTokenType.UserName or UserTokenType.IssuedToken &&
+                    clone.SecurityPolicyUri != SecurityPolicies.None)
+                {
+                    ICertificateRegistry? certificates = configuration.CertificateManager ?? CertificateManager;
+                    using CertificateEntry? tokenCertificate = certificates == null
+                        ? null
+                        : AcquireNoneEndpointTokenCertificate(
+                            [.. policies, clone], certificates, SecurityPolicyRegistry ?? SecurityPolicies.Default);
+                    if (tokenCertificate == null)
+                    {
+                        m_logger.IncompatibleNoneEndpointTokenPolicy(
+                            clone.TokenType, clone.SecurityPolicyUri, description.EndpointUrl);
+                        continue;
                     }
                 }
 
@@ -1982,6 +2070,12 @@ namespace Opc.Ua
     /// </summary>
     internal static partial class ServerBaseLog
     {
+        [LoggerMessage(EventId = CoreEventIds.ServerBase + 12, Level = LogLevel.Error,
+            Message = "Omitting {TokenType} token policy {SecurityPolicy} on None endpoint {EndpointUrl}: " +
+                "a compatible RSA application certificate and non-key-agreement token policy are required.")]
+        public static partial void IncompatibleNoneEndpointTokenPolicy(
+            this ILogger logger, UserTokenType tokenType, string? securityPolicy, string? endpointUrl);
+
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 0, Level = LogLevel.Error,
             Message = "Unexpected error disposing transport listener {Name}.")]
         public static partial void ServerBaseLogMessage0(

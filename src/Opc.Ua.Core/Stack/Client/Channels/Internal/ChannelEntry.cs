@@ -79,7 +79,29 @@ namespace Opc.Ua
 
         public string EndpointUrl => Key.EndpointUrl;
 
-        public bool IsReverse => ReverseConnection != null;
+        public bool IsReverse => Key.ReverseConnectionIdentity != null;
+
+        internal bool RecoveryInProgress
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_reconnectCoalescer != null;
+                }
+            }
+        }
+
+        internal ReconnectDeadline? RecoveryDeadline
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_reconnectDeadline;
+                }
+            }
+        }
 
         public int RefCount
         {
@@ -966,6 +988,14 @@ namespace Opc.Ua
                 while (true)
                 {
                     deadline.ThrowIfCancellationRequested();
+                    if (IsReverse && ReverseConnection == null)
+                    {
+                        await StopWithFaultAsync(
+                            ServiceResult.Create(StatusCodes.BadSecureChannelClosed,
+                                "A fresh reverse connection is required for channel recovery."), attempt)
+                            .ConfigureAwait(false);
+                        return false;
+                    }
                     // Re-read the effective budget every iteration so a
                     // late joiner can tighten an in-flight cycle.
                     IRetryBudget? budget = GetEffectiveBudget();
@@ -1258,7 +1288,7 @@ namespace Opc.Ua
                 {
                     try
                     {
-                        await underlying.Channel.ReconnectAsync(ReverseConnection, ct).ConfigureAwait(false);
+                        await underlying.Channel.ReconnectAsync(TakeReverseConnection(), ct).ConfigureAwait(false);
                         if (ct.IsCancellationRequested)
                         {
                             await CloseTransportBestEffortAsync(underlying).ConfigureAwait(false);
@@ -1271,7 +1301,7 @@ namespace Opc.Ua
                     {
                         throw;
                     }
-                    catch (Exception ex)
+                    catch (Exception ex) when (!IsReverse)
                     {
                         OwnerManager.Logger?.ChannelTransportReconnectFailed(ex);
                     }
@@ -1407,7 +1437,7 @@ namespace Opc.Ua
                     MessageContext,
                     certificates.Certificate,
                     certificates.Chain,
-                    ReverseConnection,
+                    TakeReverseConnection(),
                     ct).ConfigureAwait(false);
                 transport = new OwnedTransport(channel, certificates);
                 certificates = null;
@@ -1440,6 +1470,21 @@ namespace Opc.Ua
             lock (m_lock)
             {
                 m_openedAt = OwnerManager.TimeProvider.GetUtcNow();
+            }
+        }
+
+        private ITransportWaitingConnection? TakeReverseConnection()
+        {
+            lock (m_lock)
+            {
+                ITransportWaitingConnection? connection = m_reverseConnection;
+                if (connection == null && IsReverse)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadSecureChannelClosed, "A fresh reverse connection is required.");
+                }
+                m_reverseConnection = null;
+                return connection;
             }
         }
 

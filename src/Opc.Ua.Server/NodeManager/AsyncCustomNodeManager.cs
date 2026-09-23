@@ -1825,6 +1825,7 @@ namespace Opc.Ua.Server
 
             NodeId? deletedTypeDefinition = (node as BaseInstanceState)?.TypeDefinitionId;
             NodeId parentId = (node as BaseInstanceState)?.Parent?.NodeId ?? default;
+            List<NodeState> removedNotifiers = GetSubtreeNotifiers(contextToUse, node);
             IReadOnlyList<IMonitoredItem> detachedItems =
                 await DetachMonitoredItemsForNodeDeletionAsync(
                     contextToUse,
@@ -1836,13 +1837,16 @@ namespace Opc.Ua.Server
             try
             {
                 addressSpaceRemovalStarted = true;
-                await RemovePredefinedNodeAsync(
-                    contextToUse,
-                    node!,
-                    referencesToRemove,
-                    cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    await RemovePredefinedNodeAsync(
+                        contextToUse, node!, referencesToRemove, cancellationToken).ConfigureAwait(false);
+                }
+                finally
+                {
+                    await RemoveDeletedNotifiersAsync(removedNotifiers).ConfigureAwait(false);
+                }
                 addressSpaceRemovalCompleted = true;
-                await RemoveRootNotifierAsync(node!, cancellationToken).ConfigureAwait(false);
 
                 // Refresh the parent's cached component view so a Browse issued
                 // after this runtime delete no longer reflects the removed child.
@@ -1951,6 +1955,16 @@ namespace Opc.Ua.Server
                 return (new ServiceResult(ex), NodeId.Null);
             }
 
+            if (instance is BaseDataVariableState variable)
+            {
+                ServiceResult attributesResult = await ValidateVariableAttributesAsync(
+                    context, item, variable, cancellationToken).ConfigureAwait(false);
+                if (ServiceResult.IsBad(attributesResult))
+                {
+                    return (attributesResult, NodeId.Null);
+                }
+            }
+
             instance.ReferenceTypeId = item.ReferenceTypeId;
             instance.BrowseName = item.BrowseName;
             if (instance.DisplayName.IsNull)
@@ -2029,6 +2043,7 @@ namespace Opc.Ua.Server
             {
                 return (reservation, NodeId.Null);
             }
+            bool committed = false;
             try
             {
                 instance.NodeId = newNodeId;
@@ -2043,47 +2058,24 @@ namespace Opc.Ua.Server
 
                 NodeId previousAddNodeId = m_addNodesNodeId.Value;
                 m_addNodesNodeId.Value = newNodeId;
-                bool registered = false;
                 try
                 {
                     await AddPredefinedNodeAsync(systemContext, instance, cancellationToken).ConfigureAwait(false);
-                    registered = true;
-                }
-                catch (ServiceResultException ex)
-                {
-                    return (new ServiceResult(ex), NodeId.Null);
                 }
                 finally
                 {
                     m_addNodesNodeId.Value = previousAddNodeId;
-                    if (!registered)
-                    {
-                        parentNode?.RemoveChild(instance);
-                    }
                 }
 
                 // Remote parents need an explicit reference added through their owning manager.
                 if (parentNode == null)
                 {
-                    try
+                    var forward = new List<IReference>
                     {
-                        var forward = new List<IReference>
-                        {
-                            new NodeStateReference(item.ReferenceTypeId, false, instance.NodeId)
-                        };
-                        await Server.NodeManager.AddReferencesAsync(
-                            parentNodeId, forward, cancellationToken).ConfigureAwait(false);
-                    }
-                    catch (ServiceResultException ex)
-                    {
-                        // The node is already registered, but its parent never gained the matching
-                        // forward reference. Unregister it so the address space keeps no node whose
-                        // inverse reference points at a parent that cannot browse back to it.
-                        await RemovePredefinedNodeAsync(
-                            systemContext, instance, [], CancellationToken.None).ConfigureAwait(false);
-                        instance.RemoveReference(item.ReferenceTypeId, true, parentNodeId);
-                        return (new ServiceResult(ex), NodeId.Null);
-                    }
+                        new NodeStateReference(item.ReferenceTypeId, false, instance.NodeId)
+                    };
+                    await Server.NodeManager.AddReferencesAsync(
+                        parentNodeId, forward, cancellationToken).ConfigureAwait(false);
                 }
 
                 await RefreshParentComponentCacheAsync(parentNodeId, cancellationToken).ConfigureAwait(false);
@@ -2095,11 +2087,45 @@ namespace Opc.Ua.Server
                     EmitModelChange(systemContext);
                 }
 
+                committed = true;
                 return (ServiceResult.Good, instance.NodeId);
+            }
+            catch (ServiceResultException ex)
+            {
+                return (new ServiceResult(ex), NodeId.Null);
             }
             finally
             {
-                m_addNodesReservations.TryRemove(newNodeId, out _);
+                try
+                {
+                    if (!committed)
+                    {
+                        var referencesToRemove = new List<LocalReference>();
+                        try
+                        {
+                            if (PredefinedNodes.TryGetValue(newNodeId, out NodeState? indexedNode))
+                            {
+                                await RemovePredefinedNodeAsync(
+                                    systemContext, indexedNode, referencesToRemove, CancellationToken.None)
+                                    .ConfigureAwait(false);
+                            }
+                            if (referencesToRemove.Count > 0)
+                            {
+                                await Server.NodeManager.RemoveReferencesAsync(
+                                    referencesToRemove, CancellationToken.None).ConfigureAwait(false);
+                            }
+                        }
+                        finally
+                        {
+                            parentNode?.RemoveChild(instance);
+                            instance.RemoveReference(item.ReferenceTypeId, true, parentNodeId);
+                        }
+                    }
+                }
+                finally
+                {
+                    m_addNodesReservations.TryRemove(newNodeId, out _);
+                }
             }
         }
 
@@ -2179,6 +2205,7 @@ namespace Opc.Ua.Server
 
             NodeId? deletedTypeDefinition = (node as BaseInstanceState)?.TypeDefinitionId;
             NodeId parentId = (node as BaseInstanceState)?.Parent?.NodeId ?? default;
+            List<NodeState> removedNotifiers = GetSubtreeNotifiers(systemContext, node);
             IReadOnlyList<IMonitoredItem> detachedItems =
                 await DetachMonitoredItemsForNodeDeletionAsync(
                     systemContext,
@@ -2191,14 +2218,16 @@ namespace Opc.Ua.Server
             try
             {
                 addressSpaceRemovalStarted = true;
-                await RemovePredefinedNodeAsync(
-                    systemContext,
-                    node!,
-                    referencesToRemove,
-                    cancellationToken)
-                    .ConfigureAwait(false);
+                try
+                {
+                    await RemovePredefinedNodeAsync(
+                        systemContext, node!, referencesToRemove, cancellationToken).ConfigureAwait(false);
+                }
+                finally
+                {
+                    await RemoveDeletedNotifiersAsync(removedNotifiers).ConfigureAwait(false);
+                }
                 addressSpaceRemovalCompleted = true;
-                await RemoveRootNotifierAsync(node!, cancellationToken).ConfigureAwait(false);
 
                 // Refresh the parent's cached component view so a Browse issued
                 // after this runtime delete no longer reflects the removed child.
@@ -2245,6 +2274,47 @@ namespace Opc.Ua.Server
             }
 
             return ServiceResult.Good;
+        }
+
+        private List<NodeState> GetSubtreeNotifiers(ISystemContext context, NodeState node)
+        {
+            var nodes = new List<NodeState> { node };
+            var notifiers = new List<NodeState> { node };
+            for (int index = 0; index < nodes.Count; index++)
+            {
+                NodeState current = nodes[index];
+                if (index != 0 && RootNotifiers.ContainsKey(current.NodeId))
+                {
+                    notifiers.Add(current);
+                }
+                var children = new List<BaseInstanceState>();
+                current.GetChildren(context, children);
+                nodes.AddRange(children);
+            }
+            return notifiers;
+        }
+
+        private async ValueTask RemoveDeletedNotifiersAsync(List<NodeState> notifiers)
+        {
+            List<Exception>? failures = null;
+            foreach (NodeState notifier in notifiers)
+            {
+                if (!PredefinedNodes.ContainsKey(notifier.NodeId))
+                {
+                    try
+                    {
+                        await RemoveRootNotifierAsync(notifier, CancellationToken.None).ConfigureAwait(false);
+                    }
+                    catch (Exception failure) when (failure is not OutOfMemoryException)
+                    {
+                        (failures ??= []).Add(failure);
+                    }
+                }
+            }
+            if (failures != null)
+            {
+                throw new AggregateException("Root notifier cleanup failed.", failures);
+            }
         }
 
         /// <summary>
@@ -2554,6 +2624,92 @@ namespace Opc.Ua.Server
             return ServiceResult.Good;
         }
 
+        private async ValueTask<ServiceResult> ValidateVariableAttributesAsync(
+            OperationContext context,
+            AddNodesItem item,
+            BaseDataVariableState variable,
+            CancellationToken cancellationToken)
+        {
+            NodeId typeDataType = DataTypeIds.BaseDataType;
+            int typeValueRank = ValueRanks.Any;
+            ArrayOf<uint> typeDimensions = default;
+            if (variable.TypeDefinitionId != VariableTypeIds.BaseVariableType &&
+                variable.TypeDefinitionId != VariableTypeIds.BaseDataVariableType)
+            {
+                BaseVariableTypeState? localType = FindPredefinedNode<BaseVariableTypeState>(
+                    variable.TypeDefinitionId);
+                if (localType != null)
+                {
+                    typeDataType = localType.DataType;
+                    typeValueRank = localType.ValueRank;
+                    typeDimensions = localType.ArrayDimensions;
+                }
+                else
+                {
+                    (object? handle, IAsyncNodeManager? owner) = await Server.NodeManager.GetManagerHandleAsync(
+                        variable.TypeDefinitionId, cancellationToken).ConfigureAwait(false);
+                    NodeMetadata? metadata = handle == null || owner == null
+                        ? null
+                        : await owner.GetNodeMetadataAsync(
+                            context, handle, BrowseResultMask.All, cancellationToken).ConfigureAwait(false);
+                    if (metadata == null || metadata.NodeClass != NodeClass.VariableType)
+                    {
+                        return new ServiceResult(StatusCodes.BadTypeDefinitionInvalid);
+                    }
+                    typeDataType = metadata.DataType;
+                    typeValueRank = metadata.ValueRank;
+                    typeDimensions = metadata.ArrayDimensions;
+                }
+            }
+
+            item.NodeAttributes.TryGetValue(out VariableAttributes? attributes);
+            uint mask = attributes?.SpecifiedAttributes ?? 0;
+            if ((mask & (uint)NodeAttributesMask.DataType) == 0)
+            {
+                variable.DataType = typeDataType;
+            }
+            if ((mask & (uint)NodeAttributesMask.ValueRank) == 0)
+            {
+                variable.ValueRank = typeValueRank;
+            }
+            if ((mask & (uint)NodeAttributesMask.ArrayDimensions) == 0)
+            {
+                variable.ArrayDimensions = typeDimensions;
+            }
+
+            if (variable.DataType.IsNull ||
+                (variable.DataType != DataTypeIds.BaseDataType &&
+                    (!Server.TypeTree.IsKnown(variable.DataType) ||
+                        !Server.TypeTree.IsTypeOf(variable.DataType, DataTypeIds.BaseDataType))) ||
+                !Server.TypeTree.IsTypeOf(variable.DataType, typeDataType) ||
+                variable.ValueRank < ValueRanks.ScalarOrOneDimension ||
+                !ValueRanks.IsValid(variable.ValueRank, typeValueRank) ||
+                (!variable.ArrayDimensions.IsEmpty &&
+                    (variable.ValueRank <= 0 || variable.ArrayDimensions.Count != variable.ValueRank)) ||
+                double.IsNaN(variable.MinimumSamplingInterval) ||
+                double.IsInfinity(variable.MinimumSamplingInterval) ||
+                (variable.MinimumSamplingInterval < 0 &&
+                    variable.MinimumSamplingInterval != MinimumSamplingIntervals.Indeterminate))
+            {
+                return new ServiceResult(StatusCodes.BadNodeAttributesInvalid);
+            }
+
+            if (!typeDimensions.IsEmpty &&
+                !ValueRanks.IsValid(
+                    variable.ArrayDimensions.ToArray() ?? [], variable.ValueRank, typeDimensions.ToArray() ?? []))
+            {
+                return new ServiceResult(StatusCodes.BadNodeAttributesInvalid);
+            }
+            if ((mask & (uint)NodeAttributesMask.Value) != 0 &&
+                TypeInfo.IsInstanceOfDataType(
+                    variable.Value, variable.DataType, variable.ValueRank,
+                    Server.NamespaceUris, Server.TypeTree).IsUnknown)
+            {
+                return new ServiceResult(StatusCodes.BadNodeAttributesInvalid);
+            }
+            return ServiceResult.Good;
+        }
+
         private static void ApplyVariableAttributes(
             BaseDataVariableState variable,
             VariableAttributes attributes)
@@ -2567,13 +2723,17 @@ namespace Opc.Ua.Server
             {
                 variable.Description = attributes.Description;
             }
-            if ((mask & (uint)NodeAttributesMask.DataType) != 0 && !attributes.DataType.IsNull)
+            if ((mask & (uint)NodeAttributesMask.DataType) != 0)
             {
                 variable.DataType = attributes.DataType;
             }
             if ((mask & (uint)NodeAttributesMask.ValueRank) != 0)
             {
                 variable.ValueRank = attributes.ValueRank;
+            }
+            if ((mask & (uint)NodeAttributesMask.ArrayDimensions) != 0)
+            {
+                variable.ArrayDimensions = attributes.ArrayDimensions;
             }
             if ((mask & (uint)NodeAttributesMask.AccessLevel) != 0)
             {
@@ -4549,7 +4709,8 @@ namespace Opc.Ua.Server
                     }
 
                     // check if the node is AnalogItem and the values are outside the InstrumentRange.
-                    if (handle.Node is AnalogItemState analogItemState &&
+                    if (nodeToWrite.AttributeId == Attributes.Value &&
+                        handle.Node is AnalogItemState analogItemState &&
                         analogItemState.InstrumentRange != null)
                     {
                         try
@@ -7021,13 +7182,44 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="notifier">The notifier.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
-        protected virtual ValueTask RemoveRootNotifierAsync(
+        /// <exception cref="ServiceResultException">An event subscription cannot be detached.</exception>
+        /// <exception cref="AggregateException">One or more event-source cleanup callbacks fail.</exception>
+        protected virtual async ValueTask RemoveRootNotifierAsync(
             NodeState notifier,
             CancellationToken cancellationToken = default)
         {
             if (RootNotifiers.TryRemove(notifier.NodeId, out notifier!))
             {
-                notifier.OnReportEventAsync = null;
+                var detached = new List<MonitoredNode2>();
+                using (await AcquireMonitoredItemCommitAsync().ConfigureAwait(false))
+                {
+                    if (m_monitoredItemManager.MonitoredNodes.TryGetValue(
+                        notifier.NodeId, out MonitoredNode2? monitored))
+                    {
+                        foreach (IEventMonitoredItem item in monitored.EventMonitoredItems.Values.ToArray())
+                        {
+                            if (!item.MonitoringAllEvents)
+                            {
+                                continue;
+                            }
+                            (MonitoredNode2? removed, ServiceResult result) = m_monitoredItemManager
+                                .SubscribeToEvents(SystemContext, notifier, item, unsubscribe: true);
+                            if (ServiceResult.IsBad(result))
+                            {
+                                throw new ServiceResultException(result);
+                            }
+                            notifier.SetAreEventsMonitored(SystemContext, false, true);
+                            if (removed != null)
+                            {
+                                detached.Add(removed);
+                            }
+                        }
+                    }
+                    if (notifier.OnReportEventAsync == OnReportEventAsync)
+                    {
+                        notifier.OnReportEventAsync = null;
+                    }
+                }
 
                 notifier.RemoveReference(
                     ReferenceTypeIds.HasNotifier,
@@ -7046,8 +7238,24 @@ namespace Opc.Ua.Server
                         false,
                         notifier.NodeId);
                 }
+                List<Exception>? failures = null;
+                foreach (MonitoredNode2 monitored in detached)
+                {
+                    try
+                    {
+                        await OnSubscribeToEventsAsync(
+                            SystemContext, monitored, true, CancellationToken.None).ConfigureAwait(false);
+                    }
+                    catch (Exception failure) when (failure is not OutOfMemoryException)
+                    {
+                        (failures ??= []).Add(failure);
+                    }
+                }
+                if (failures != null)
+                {
+                    throw new AggregateException("Root event subscription cleanup failed.", failures);
+                }
             }
-            return default;
         }
 
         /// <summary>

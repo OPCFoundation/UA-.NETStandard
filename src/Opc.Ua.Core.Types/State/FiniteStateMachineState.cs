@@ -554,9 +554,16 @@ namespace Opc.Ua
             ArrayOf<Variant> inputArguments,
             List<Variant> outputArguments)
         {
-            lock (m_transitionLock)
+            try
             {
-                return DoCauseCore(context, causeMethod, causeId, inputArguments, outputArguments);
+                lock (m_transitionLock)
+                {
+                    return DoCauseCore(context, causeMethod, causeId, inputArguments, outputArguments);
+                }
+            }
+            finally
+            {
+                DispatchTransitionCompletions();
             }
         }
 
@@ -775,9 +782,16 @@ namespace Opc.Ua
             ArrayOf<Variant> inputArguments,
             List<Variant> outputArguments)
         {
-            lock (m_transitionLock)
+            try
             {
-                return DoTransitionCore(context, transitionId, causeId, inputArguments, outputArguments);
+                lock (m_transitionLock)
+                {
+                    return DoTransitionCore(context, transitionId, causeId, inputArguments, outputArguments);
+                }
+            }
+            finally
+            {
+                DispatchTransitionCompletions();
             }
         }
 
@@ -792,15 +806,85 @@ namespace Opc.Ua
             uint causeId,
             Func<bool> isCurrent)
         {
+            try
+            {
+                lock (m_transitionLock)
+                {
+                    if (m_stateRevision != stateRevision || GetCurrentStateId() != fromState || !isCurrent())
+                    {
+                        return StatusCodes.BadInvalidState;
+                    }
+                    return transitionId == 0
+                        ? DoCause(context, null, causeId, default, [])
+                        : DoTransition(context, transitionId, causeId, default, []);
+                }
+            }
+            finally
+            {
+                DispatchTransitionCompletions();
+            }
+        }
+
+        /// <summary>
+        /// Coalesces related-node synchronization until the outer transition invocation completes.
+        /// </summary>
+        internal void ScheduleTransitionCompletion(NodeId nodeId, Action completion)
+        {
             lock (m_transitionLock)
             {
-                if (m_stateRevision != stateRevision || GetCurrentStateId() != fromState || !isCurrent())
+                if (!m_transitionCompletions.ContainsKey(nodeId))
                 {
-                    return StatusCodes.BadInvalidState;
+                    m_transitionCompletionOrder.Enqueue(nodeId);
                 }
-                return transitionId == 0
-                    ? DoCause(context, null, causeId, default, [])
-                    : DoTransition(context, transitionId, causeId, default, []);
+                m_transitionCompletions[nodeId] = completion;
+            }
+        }
+
+        private void DispatchTransitionCompletions()
+        {
+            if (m_transitionLock.IsHeldByCurrentThread)
+            {
+                return;
+            }
+            lock (m_transitionLock)
+            {
+                if (m_dispatchingCompletions || m_transitionCompletionOrder.Count == 0)
+                {
+                    return;
+                }
+                m_dispatchingCompletions = true;
+            }
+
+            bool drained = false;
+            try
+            {
+                while (true)
+                {
+                    Action completion;
+                    lock (m_transitionLock)
+                    {
+                        if (m_transitionCompletionOrder.Count == 0)
+                        {
+                            m_dispatchingCompletions = false;
+                            drained = true;
+                            return;
+                        }
+                        NodeId nodeId = m_transitionCompletionOrder.Dequeue();
+                        completion = m_transitionCompletions[nodeId];
+                        m_transitionCompletions.Remove(nodeId);
+                    }
+                    completion();
+                }
+            }
+            finally
+            {
+                if (!drained)
+                {
+                    lock (m_transitionLock)
+                    {
+                        m_dispatchingCompletions = false;
+                    }
+                }
             }
         }
 
@@ -934,6 +1018,9 @@ namespace Opc.Ua
         /// Serializes state changes and the checks that reject superseded transitions.
         /// </summary>
         private readonly Lock m_transitionLock = new();
+        private readonly Dictionary<NodeId, Action> m_transitionCompletions = [];
+        private readonly Queue<NodeId> m_transitionCompletionOrder = [];
+        private bool m_dispatchingCompletions;
 
         /// <summary>
         /// Advances on every state update so delayed work cannot act on a later entry into the same state.

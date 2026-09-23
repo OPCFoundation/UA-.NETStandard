@@ -736,6 +736,13 @@ the transition value with `LastAsync` / a terminating handler.
 
 ### Lifecycle, cancellation, disposal
 
+Each stream has a bounded local buffer, including the default data-change
+subscription. Its capacity is `max(1, QueueSize) * monitoredItemCount`, capped
+at `int.MaxValue`; event streams default to ten entries per monitored item.
+When full, `DiscardOldest` chooses between evicting the oldest buffered entry
+and discarding the incoming entry. `StreamingSubscription.DroppedNotificationCount`
+reports the cumulative local drops across data-change and event streams.
+
 The streaming subscription guarantees three invariants:
 
 1. **Lazy subscription creation.** No OPC UA `CreateSubscription`
@@ -752,6 +759,10 @@ V2 subscription disposal gives each server-side delete a separate five-second
 cancellation deadline. Local cleanup does not wait indefinitely for an unavailable
 server. A failed or timed-out delete is logged; it does not prove remote deletion,
 and the server may retain the subscription until its configured lifetime expires.
+
+Publish workers survive recovery for subscriptions that the V2 engine actually
+created. A never-created subscription does not inherit worker retention from a
+classic subscription or a V2 subscription that has already been removed.
 
 Cancellation propagates the natural way: pass a `CancellationToken` to
 `SubscribeXxxAsync` *or* the outer `await foreach` (via

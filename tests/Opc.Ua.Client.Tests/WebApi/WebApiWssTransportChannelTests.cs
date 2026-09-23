@@ -62,7 +62,7 @@ namespace Opc.Ua.Client.Tests.WebApi
             channel.OperationTimeout = 4321;
 
             Assert.That(channel.UriScheme, Is.EqualTo(global::Opc.Ua.Utils.UriSchemeOpcWssOpenApi));
-            Assert.That(channel.SupportedFeatures, Is.EqualTo(TransportChannelFeatures.None));
+            Assert.That(channel.SupportedFeatures, Is.EqualTo(TransportChannelFeatures.Reconnect));
             Assert.That(channel.CurrentToken, Is.Not.Null);
             Assert.That(channel.ChannelThumbprint, Is.Empty);
             Assert.That(channel.ClientChannelCertificate, Is.Empty);
@@ -88,7 +88,7 @@ namespace Opc.Ua.Client.Tests.WebApi
 
             ServiceResultException reconnect = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await channel.ReconnectAsync().ConfigureAwait(false));
-            Assert.That(reconnect.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+            Assert.That(reconnect.StatusCode, Is.EqualTo(StatusCodes.BadNotConnected));
             Assert.That(
                 async () => await channel.SendRequestAsync(null!, CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentNullException>());
@@ -165,10 +165,10 @@ namespace Opc.Ua.Client.Tests.WebApi
                 "ValidateServerCertificate",
                 BindingFlags.NonPublic | BindingFlags.Instance)!;
 
-            var accepted = (bool)method.Invoke(channel, [this, null, null, SslPolicyErrors.None])!;
-            var rejected = (bool)method.Invoke(
+            bool accepted = (bool)method.Invoke(channel, [this, null, null, SslPolicyErrors.None, null])!;
+            bool rejected = (bool)method.Invoke(
                 channel,
-                [this, null, null, SslPolicyErrors.RemoteCertificateNameMismatch])!;
+                [this, null, null, SslPolicyErrors.RemoteCertificateNameMismatch, null])!;
 
             Assert.That(accepted, Is.True);
             Assert.That(rejected, Is.False);

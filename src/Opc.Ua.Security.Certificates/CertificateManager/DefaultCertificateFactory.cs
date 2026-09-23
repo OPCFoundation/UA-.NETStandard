@@ -58,28 +58,36 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Accepts at most 16 DER-encoded certificates and releases the parsed prefix on failure.
+        /// </remarks>
         public CertificateCollection ParseChainBlob(ReadOnlyMemory<byte> chainBlob)
         {
-            var collection = new CertificateCollection();
-            int offset = 0;
-
-            while (offset < chainBlob.Length)
+            CertificateCollection? collection = [];
+            try
             {
-                ReadOnlyMemory<byte> remaining = chainBlob[offset..];
-                ReadOnlyMemory<byte> certBlob = AsnUtils.ParseX509Blob(remaining);
-                var cert = Certificate.FromRawData(certBlob.ToArray());
-                try
+                int offset = 0;
+                while (offset < chainBlob.Length)
                 {
+                    if (collection.Count >= 16)
+                    {
+                        throw new CryptographicException("The certificate chain exceeds 16 certificates.");
+                    }
+
+                    ReadOnlyMemory<byte> certBlob = AsnUtils.ParseX509Blob(chainBlob[offset..]);
+                    using var cert = Certificate.FromRawData(certBlob);
                     collection.Add(cert);
                     offset += certBlob.Length;
                 }
-                finally
-                {
-                    cert.Dispose();
-                }
-            }
 
-            return collection;
+                CertificateCollection result = collection;
+                collection = null;
+                return result;
+            }
+            finally
+            {
+                collection?.Dispose();
+            }
         }
 
         /// <inheritdoc/>

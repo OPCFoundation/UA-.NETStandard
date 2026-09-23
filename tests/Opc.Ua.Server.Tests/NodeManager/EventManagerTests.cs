@@ -48,6 +48,33 @@ namespace Opc.Ua.Server.Tests.NodeManager
     [Parallelizable(ParallelScope.All)]
     public class EventManagerTests
     {
+        [Test]
+        public void FailedEventItemConstructionDoesNotPoisonLaterEnumeration()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (var manager = new EventManager(server.Object, 100, 100))
+            using (OperationContext context = NewContext())
+            {
+                var nodeManager = new Mock<IAsyncNodeManager>();
+                var ids = new MonitoredItemIdFactory();
+                MonitoredItemCreateRequest request = NewCreateRequest(1000, 5);
+                ServiceResultException failure = Assert.Throws<ServiceResultException>(() =>
+                    manager.CreateMonitoredItem(
+                        context, nodeManager.Object, null!, 1, ids, TimestampsToReturn.Both,
+                        1000, request, new EventFilter(), createDurable: true));
+                Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadInternalError));
+                Assert.That(manager.GetMonitoredItems(), Is.Empty);
+                Assert.That(manager.GetMonitoredItems().Where(item => item.MonitoringAllEvents), Is.Empty);
+
+                IEventMonitoredItem recovered = manager.CreateMonitoredItem(
+                    context, nodeManager.Object, null!, 1, ids, TimestampsToReturn.Both,
+                    1000, request, new EventFilter(), createDurable: false);
+                Assert.That(manager.GetMonitoredItems(), Has.Count.EqualTo(1));
+                Assert.That(manager.GetMonitoredItems()[0], Is.SameAs(recovered));
+            }
+        }
+
         private static OperationContext NewContext()
         {
             return new OperationContext(

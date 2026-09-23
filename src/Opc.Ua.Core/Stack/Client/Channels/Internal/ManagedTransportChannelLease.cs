@@ -44,7 +44,6 @@ namespace Opc.Ua
             m_entry = entry ?? throw new ArgumentNullException(nameof(entry));
             Key = entry.Key;
             Endpoint = entry.Endpoint;
-            ReverseConnection = entry.ReverseConnection;
             m_participant = participant ?? throw new ArgumentNullException(nameof(participant));
             ParticipantFactory = _ => Participant;
             m_active = 1;
@@ -62,7 +61,6 @@ namespace Opc.Ua
             m_entry = entry ?? throw new ArgumentNullException(nameof(entry));
             Key = entry.Key;
             Endpoint = entry.Endpoint;
-            ReverseConnection = entry.ReverseConnection;
             m_active = 1;
             m_participant = participantFactory(this)
                 ?? throw new InvalidOperationException("Participant factory returned null.");
@@ -73,7 +71,7 @@ namespace Opc.Ua
 
         internal ConfiguredEndpoint Endpoint { get; }
 
-        internal ITransportWaitingConnection? ReverseConnection { get; }
+        internal ITransportWaitingConnection? ReverseConnection => Entry.ReverseConnection;
 
         internal Func<IManagedTransportChannel, IReconnectParticipant> ParticipantFactory { get; }
 
@@ -231,11 +229,19 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public async ValueTask ReconnectAsync(
+        public ValueTask ReconnectAsync(
             ITransportWaitingConnection? connection,
             CancellationToken ct = default)
         {
-            bool reconnected = await Entry.RequestReconnectAsync(connection, budget: null, ct).ConfigureAwait(false);
+            return ReconnectAsync(connection, budget: null, ct);
+        }
+
+        internal async ValueTask ReconnectAsync(
+            ITransportWaitingConnection? connection,
+            IRetryBudget? budget,
+            CancellationToken ct)
+        {
+            bool reconnected = await Entry.RequestReconnectAsync(connection, budget, ct).ConfigureAwait(false);
             if (!reconnected)
             {
                 throw ServiceResultException.Create(

@@ -757,14 +757,14 @@ namespace Opc.Ua.Client
                     opts.ServerRedundancy);
 
             IClientChannelManager? channelManager = m_channelManager;
+            ClientChannelManager? ownedChannelManager = null;
             ServiceProviderHttpClientFactory? ownedHttpClientFactory = null;
             try
             {
-#pragma warning disable CA2000 // Channel manager lifetime follows the managed session; TODO: model owned disposal explicitly.
                 if (channelManager == null && m_httpsResilience != null)
                 {
                     ownedHttpClientFactory = CreateHttpsHttpClientFactory(m_httpsResilience);
-                    channelManager = new ClientChannelManager(
+                    ownedChannelManager = new ClientChannelManager(
                         m_configuration,
                         m_telemetry,
                         BuildChannelBindings(
@@ -775,11 +775,11 @@ namespace Opc.Ua.Client
                         timeProvider: opts.TimeProvider,
                         options: null,
                         securityPolicies: m_securityPolicies);
-                    ownedHttpClientFactory = null;
+                    channelManager = ownedChannelManager;
                 }
                 else if (channelManager == null && IsWebApiEndpoint(opts.Endpoint))
                 {
-                    channelManager = new ClientChannelManager(
+                    ownedChannelManager = new ClientChannelManager(
                         m_configuration,
                         m_telemetry,
                         BuildChannelBindings(DefaultTransportBindingRegistry.WithDefaultTcp()),
@@ -787,24 +787,37 @@ namespace Opc.Ua.Client
                         timeProvider: opts.TimeProvider,
                         options: null,
                         securityPolicies: m_securityPolicies);
+                    channelManager = ownedChannelManager;
                 }
-#pragma warning restore CA2000
-            }
-            finally
-            {
-                ownedHttpClientFactory?.Dispose();
-            }
 
-            return await ManagedSession.CreateAsync(
-                opts with { SubscriptionEngineFactory = engineFactory },
-                m_configuration,
-                sessionFactory,
-                reconnect,
-                redundancy,
-                m_telemetry,
-                channelManager,
-                m_reverseConnectManager,
-                ct: ct).ConfigureAwait(false);
+                ManagedSession session = await ManagedSession.CreateAsync(
+                    opts with { SubscriptionEngineFactory = engineFactory },
+                    m_configuration,
+                    sessionFactory,
+                    reconnect,
+                    redundancy,
+                    m_telemetry,
+                    channelManager,
+                    m_reverseConnectManager,
+                    ct: ct).ConfigureAwait(false);
+                session.OwnTransportResources(ownedChannelManager, ownedHttpClientFactory);
+                return session;
+            }
+            catch
+            {
+                try
+                {
+                    if (ownedChannelManager != null)
+                    {
+                        await ownedChannelManager.DisposeAsync().ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    ownedHttpClientFactory?.Dispose();
+                }
+                throw;
+            }
         }
 
         private void ApplyReverseConnectEndpoint()

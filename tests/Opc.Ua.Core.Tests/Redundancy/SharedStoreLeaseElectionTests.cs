@@ -196,20 +196,31 @@ namespace Opc.Ua.Core.Tests.Redundancy
             Assert.That(election.IsLeader, Is.False);
         }
 
-        [Test]
-        public async Task NewerAttemptSupersedesBlockedCompareAndSwapAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ConcurrentAttemptsConfirmOwnedLeaseAsync(bool blockRead)
         {
             var time = new FakeTimeProvider();
             using var backend = new InMemorySharedKeyValueStore();
-            var firstCompareAndSwapStarted = new TaskCompletionSource<bool>(
+            var firstReplyBlocked = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            var releaseFirstCompareAndSwap = new TaskCompletionSource<bool>(
+            var releaseFirstReply = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
+            int reads = 0;
             int swaps = 0;
             var store = new Mock<ISharedKeyValueStore>();
             store
                 .Setup(s => s.TryGetAsync(LeaseKey, It.IsAny<CancellationToken>()))
-                .Returns((string key, CancellationToken ct) => backend.TryGetAsync(key, ct));
+                .Returns(async (string key, CancellationToken ct) =>
+                {
+                    (bool found, ByteString value) = await backend.TryGetAsync(key, ct).ConfigureAwait(false);
+                    if (blockRead && Interlocked.Increment(ref reads) == 1)
+                    {
+                        firstReplyBlocked.TrySetResult(true);
+                        await releaseFirstReply.Task.WaitAsync(s_timeout, CancellationToken.None).ConfigureAwait(false);
+                    }
+                    return (found, value);
+                });
             store
                 .Setup(s => s.CompareAndSwapAsync(
                     LeaseKey,
@@ -219,11 +230,10 @@ namespace Opc.Ua.Core.Tests.Redundancy
                 .Returns(async (string key, ByteString expected, ByteString value, CancellationToken ct) =>
                 {
                     bool swapped = await backend.CompareAndSwapAsync(key, expected, value, ct).ConfigureAwait(false);
-                    if (Interlocked.Increment(ref swaps) == 1)
+                    if (!blockRead && Interlocked.Increment(ref swaps) == 1)
                     {
-                        firstCompareAndSwapStarted.TrySetResult(true);
-                        await releaseFirstCompareAndSwap.Task.WaitAsync(s_timeout, CancellationToken.None)
-                            .ConfigureAwait(false);
+                        firstReplyBlocked.TrySetResult(true);
+                        await releaseFirstReply.Task.WaitAsync(s_timeout, CancellationToken.None).ConfigureAwait(false);
                     }
                     return swapped;
                 });
@@ -234,19 +244,26 @@ namespace Opc.Ua.Core.Tests.Redundancy
             Task<bool> first = election.TryAcquireOrRenewAsync().AsTask();
             try
             {
-                await firstCompareAndSwapStarted.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+                await firstReplyBlocked.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+                time.Advance(s_renewInterval);
                 Assert.That(
                     await election.TryAcquireOrRenewAsync().AsTask().WaitAsync(s_timeout).ConfigureAwait(false),
                     Is.True);
                 Assert.That(first.IsCompleted, Is.False, "The newer attempt must not wait for the old store reply.");
-                releaseFirstCompareAndSwap.TrySetResult(true);
-                Assert.That(await first.WaitAsync(s_timeout).ConfigureAwait(false), Is.False);
+                releaseFirstReply.TrySetResult(true);
+                Assert.That(await first.WaitAsync(s_timeout).ConfigureAwait(false), Is.True,
+                    "Overlapping calls must both confirm the unexpired lease owned by this replica.");
                 Assert.That(election.IsLeader, Is.True);
                 Assert.That(transitions, Is.EqualTo(s_acquired));
+                time.Advance(s_leaseDuration - TimeSpan.FromTicks(1));
+                Assert.That(election.IsLeader, Is.True, "An older reply must not shorten the confirmed renewal.");
+                time.Advance(TimeSpan.FromTicks(1));
+                Assert.That(election.IsLeader, Is.False);
+                Assert.That(transitions, Is.EqualTo(s_acquireThenLoss));
             }
             finally
             {
-                releaseFirstCompareAndSwap.TrySetResult(true);
+                releaseFirstReply.TrySetResult(true);
                 await first.WaitAsync(s_timeout).ConfigureAwait(false);
             }
         }

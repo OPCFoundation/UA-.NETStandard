@@ -415,6 +415,53 @@ namespace Opc.Ua.Client.Subscriptions
             Assert.That(manager.Count, Is.Zero);
         }
 
+        /// <summary>
+        /// A never-created subscription cannot retain the workers of a different, removed subscription.
+        /// </summary>
+        /// <param name="classic">Whether the established subscription belongs to the classic session API.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PublishWorkersDoNotTreatPendingSubscriptionsAsRecoveredAsync(bool classic)
+        {
+            var session = new FakeSubscriptionManagerContext();
+            OptionsMonitor<SubscriptionOptions> establishedOptions = OptionsFactory.Create<SubscriptionOptions>();
+            OptionsMonitor<SubscriptionOptions> pendingOptions = OptionsFactory.Create<SubscriptionOptions>();
+            var established = new FakeManagedSubscription { Id = 1, Created = true };
+            var pending = new FakeManagedSubscription();
+            session.CreateSubscriptionFactory = (_, options, _) => ReferenceEquals(options, establishedOptions)
+                ? established
+                : pending;
+            await using var manager = new SubscriptionManager(session, m_telemetry.LoggerFactory, DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 0,
+                MaxPublishWorkerCount = 4
+            };
+            if (classic)
+            {
+                session.SessionOwnedSubscriptionIds.Add(1);
+                manager.Update();
+            }
+            else
+            {
+                manager.Add(m_mockNotificationDataHandler.Object, establishedOptions);
+            }
+            await WaitForPublishWorkerCountAsync(manager, 1).ConfigureAwait(false);
+            ISubscription remaining = manager.Add(m_mockNotificationDataHandler.Object, pendingOptions);
+            if (classic)
+            {
+                session.SessionOwnedSubscriptionIds.Clear();
+                manager.Update();
+            }
+            else
+            {
+                await manager.CompleteAsync(established, 1, CancellationToken.None).ConfigureAwait(false);
+            }
+
+            await WaitForPublishWorkerCountAsync(manager, 0).ConfigureAwait(false);
+            Assert.That(manager.CreatedCount, Is.Zero);
+            Assert.That(manager.Items, Is.EquivalentTo([remaining]));
+        }
+
         [Test]
         public void MinPublishWorkerCountSetAndGet()
         {

@@ -344,7 +344,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         {
             await using var harness = new ManagedSessionReconnectHarness(TimeSpan.Zero)
             {
-                ChannelReconnectTimeout = s_recoveryTimeout
+                ChannelReconnectTimeout = s_recoveryTimeout,
+                // The replacement's deadline must not satisfy the acknowledgement-timer observation.
+                SubscriptionPublishingInterval = TimeSpan.FromMilliseconds(500)
             };
             harness.ReplacementSession.IgnoreCancellation = true;
             await harness.ConnectAsync(false).ConfigureAwait(false);
@@ -401,6 +403,100 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(harness.Requests.ToList().OfType<CreateSubscriptionRequest>().Any(
                 request => request.RequestHeader.AuthenticationToken == new NodeId("token-2", 1)), Is.False);
             AssertOriginalWorker(harness, live);
+        }
+
+        /// <summary>
+        /// The public reconnect path retains its deadline while the outer owner restores subscriptions.
+        /// </summary>
+        [Test]
+        public async Task OuterRecoveryDeadlineCancelsDeferredSubscriptionRestorationAsync()
+        {
+            await using var harness = new ManagedSessionReconnectHarness(TimeSpan.Zero)
+            {
+                ChannelReconnectTimeout = s_recoveryTimeout,
+                HoldSubscriptionRestoration = true
+            };
+            await harness.ConnectAsync(false).ConfigureAwait(false);
+            harness.AddSubscription();
+            await WaitForPhaseAsync(harness.NextMonitoredItemsAsync().AsTask(), "initial monitored item")
+                .ConfigureAwait(false);
+            harness.TransportReconnect.Release();
+            harness.RecoveryActivation.Release();
+            harness.ReplacementSession.Release();
+
+            Task recovery = harness.StartOuterRecoveryAsync();
+            await WaitForPhaseAsync(
+                harness.ReplacementSubscription.Entered, "outer-owned deferred subscription restoration")
+                .ConfigureAwait(false);
+            Assert.That(harness.Session.StateMachine.State, Is.EqualTo(ConnectionState.Reconnecting));
+            harness.Clock.Advance(s_recoveryTimeout - s_boundaryStep);
+            Assert.That(harness.ReplacementSubscription.Cancelled.IsCompleted, Is.False);
+            harness.Clock.Advance(s_boundaryStep);
+
+            await WaitForPhaseAsync(
+                harness.ReplacementSubscription.Cancelled, "deadline cancellation of deferred restoration")
+                .ConfigureAwait(false);
+            await WaitForPhaseAsync(
+                harness.ReplacementSubscription.Exited, "cancelled restoration unwind").ConfigureAwait(false);
+            Assert.That(harness.ReplacementSubscription.IsReleased, Is.False);
+            Assert.That(harness.OuterRecoveryCompleted.IsCompleted, Is.False);
+            Assert.That(async () => await recovery.WaitAsync(PhaseTimeout).ConfigureAwait(false),
+                Throws.InstanceOf<ServiceResultException>());
+        }
+
+        /// <summary>
+        /// A completed session cannot take over recovery while another shared-channel participant still restores.
+        /// </summary>
+        [Test]
+        public async Task SharedRecoverySuppressesCompletedParticipantKeepAliveAsync()
+        {
+            await using var harness = new ManagedSessionReconnectHarness(TimeSpan.Zero)
+            {
+                ChannelReconnectTimeout = s_recoveryTimeout,
+                RecoveryActivationStatus = StatusCodes.Good
+            };
+            await harness.ConnectAsync(false).ConfigureAwait(false);
+            var restoration = new AsyncOperationGate();
+            var participant = new Mock<IChannelRecoveryParticipant>();
+            participant.SetupGet(value => value.Id).Returns("shared-restoring-participant");
+            participant.SetupGet(value => value.Endpoint).Returns(harness.Session.ConfiguredEndpoint);
+            participant.Setup(value => value.OnReconnectAsync(
+                    It.IsAny<IManagedTransportChannel>(), It.IsAny<ITransportChannel>(),
+                    It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ParticipantReconnectResult>(ParticipantReconnectResult.Reactivated));
+            participant.Setup(value => value.CompleteRecoveryAsync(It.IsAny<CancellationToken>()))
+                .Returns<CancellationToken>(restoration.WaitAsync);
+            using IManagedTransportChannel sibling = await harness.Channels.Manager.GetAsync(
+                participant.Object, harness.CancellationToken)
+                .ConfigureAwait(false);
+            harness.TransportReconnect.Release();
+            harness.RecoveryActivation.Release();
+            Task recovery = harness.StartRecoveryAsync();
+            try
+            {
+                await WaitForPhaseAsync(restoration.Entered, "sibling restoration after the session completed")
+                    .ConfigureAwait(false);
+                Assert.That(harness.Lease.State, Is.EqualTo(ChannelState.Ready));
+                Assert.That(recovery.IsCompleted, Is.False);
+                var keepAliveInterval = TimeSpan.FromMilliseconds(100);
+                Task keepAliveTimer = harness.Clock.WaitForTimerChangedAsync(keepAliveInterval, keepAliveInterval);
+                harness.KeepAliveStatus = StatusCodes.BadNoCommunication;
+                harness.Session.KeepAliveInterval = (int)keepAliveInterval.TotalMilliseconds;
+                await WaitForPhaseAsync(keepAliveTimer, "short keepalive timer").ConfigureAwait(false);
+                harness.Clock.Advance(keepAliveInterval);
+                Assert.That(
+                    await WaitForPhaseAsync(harness.FailedKeepAlive, "completed participant's failed keepalive")
+                        .ConfigureAwait(false),
+                    Is.EqualTo(StatusCodes.BadNoCommunication));
+                AssertNoOuterRecovery(harness);
+            }
+            finally
+            {
+                harness.KeepAliveStatus = StatusCodes.Good;
+                restoration.Release();
+                await WaitForPhaseAsync(recovery, "shared recovery completion").ConfigureAwait(false);
+            }
+            AssertNoOuterRecovery(harness);
         }
 
         /// <summary>

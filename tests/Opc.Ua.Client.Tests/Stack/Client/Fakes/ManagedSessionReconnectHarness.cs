@@ -139,6 +139,11 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         public TimeSpan ChannelReconnectTimeout { get; init; } = Timeout.InfiniteTimeSpan;
 
         /// <summary>
+        /// Gets the publishing interval used by the scripted subscription.
+        /// </summary>
+        public TimeSpan SubscriptionPublishingInterval { get; init; } = TimeSpan.FromSeconds(1);
+
+        /// <summary>
         /// Gets or sets the error thrown during scripted recovery activation; non-bad values allow activation
         /// to succeed.
         /// </summary>
@@ -300,7 +305,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                 OptionsFactory.Create(new Subscriptions.SubscriptionOptions
                 {
                     PublishingEnabled = true,
-                    PublishingInterval = TimeSpan.FromSeconds(1),
+                    PublishingInterval = SubscriptionPublishingInterval,
                     KeepAliveCount = 10,
                     LifetimeCount = 100
                 }));
@@ -328,6 +333,17 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
             m_recoveryLease = Lease;
             m_recoveryStartedAt = Clock.GetTimestamp();
             Recovery = Channels.Manager.ReconnectAsync(m_recoveryLease, CancellationToken).AsTask();
+            return Recovery;
+        }
+
+        /// <summary>
+        /// Starts recovery through the public managed-session API, including its deferred restoration phase.
+        /// </summary>
+        public Task StartOuterRecoveryAsync()
+        {
+            m_recoveryLease = Lease;
+            m_recoveryStartedAt = Clock.GetTimestamp();
+            Recovery = Session.ReconnectAsync(null, null, CancellationToken);
             return Recovery;
         }
 

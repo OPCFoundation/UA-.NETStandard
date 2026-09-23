@@ -168,10 +168,20 @@ Reads and writes are chunked at `FileSystemClientOptions.ChunkSize`,
 clamped down to `FileType.MaxByteStringLength` when the server advertises
 a smaller maximum. Empty `ByteString` returns are interpreted as EOF;
 zero-length reads/writes never hit the wire.
+Path-based `WriteAllBytesAsync` and `WriteAllTextAsync` refresh metadata
+for existing and newly created files before opening them, so these helpers
+honor the same per-file chunk limit as `OpenWriteAsync`.
 
 `Position` is tracked locally; the server is informed via
 `SetPosition` only when the local cursor diverges from the last
-successfully transmitted position. `Length` is tracked locally too —
+successfully transmitted position.
+After a failed read or write, the server cursor is treated as unknown:
+the next operation sends `SetPosition` to the last locally confirmed
+position before transferring more bytes. This prevents a lost response
+from causing a retry to skip or duplicate a chunk. Successfully completed
+earlier chunks remain reflected in `Position`.
+
+`Length` is tracked locally too —
 opened from `FileType.Size` at construction and bumped whenever a write
 extends past it. Callers that mutate the underlying file through other
 handles (or other clients) should call `UaFileInfo.RefreshAsync()`
@@ -292,6 +302,17 @@ Both lazy `FileSystemNodeManager` nodes and materialized
 `FileDirectoryBinder` nodes protect their mounted root from deletion,
 move, and copy. A NodeId from another namespace, an invalid encoded type,
 or a component identifier cannot alias a file-system object.
+
+Virtual directory browsing retains at most 1,024 provider entries per
+browser, matching the materialized binder's default `MaxEntries`. A larger
+unfiltered directory returns `BadEncodingLimitsExceeded` after observing
+the first excess entry, rather than silently returning a truncated directory.
+Within the limit, Browse/BrowseNext walks the snapshot once in provider order.
+Named-child lookup scans without retaining unrelated entries and stops at
+the match, so it can still resolve a child beyond the snapshot limit.
+The provider enumerator is disposed before results are exposed, including
+on cancellation or a limit failure; exhausting or disposing the browser
+releases its buffered children.
 
 Before Delete or MoveOrCopy reaches an arbitrary provider, the lazy host
 validates the decoded provider path. Separator-only root aliases resolve to

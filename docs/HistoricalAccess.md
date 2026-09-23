@@ -67,7 +67,7 @@ This release ships the following Part 11 capabilities:
 | Read modified history                  | ✅ Shipped — `HistoryClient.ReadModifiedAsync` returns each `DataValue` with its `ModificationInfo`. |
 | Read processed (aggregates)            | ✅ Shipped — the server rejects aggregate identifiers not registered with `AggregateManager` before provider execution, then uses native provider push-down or the streaming calculator fallback. All 37 Part 13 v1.05.07 functions; see the [Aggregates (Part 13)](Aggregates.md) guide. |
 | Read at-time                           | ✅ Shipped via interpolation fallback or provider push-down |
-| Insert / Replace / Update raw values   | ✅ Shipped — providers without `IHistorianTransactionalProvider` use per-value best-effort; providers that implement it use atomic batches by default |
+| Insert / Replace / Update raw values   | ✅ Shipped — HistoryUpdate uses per-value best-effort, including providers with explicit atomic batch APIs |
 | Delete raw / Delete at-time            | ✅ Shipped |
 | Annotations (read / write / delete)    | ✅ Shipped — server dispatcher routes the `Annotations` Property to the parent variable's `IHistorianAnnotationProvider`. Fluent `Historize(...)` auto-creates the Annotations property and sets its access-level bits when the provider advertises `InsertAnnotation`. Client supports single and batched writes/removes through `WriteAnnotationAsync`, `WriteAnnotationsAsync`, and `UpdateStructureDataAsync`. |
 | `HistoryServerCapabilities` population | ✅ Shipped (union of registered providers). `AggregateFunctions` folder populated by `AggregateManager.RegisterFactoryAsync` → `DiagnosticsNodeManager.AddAggregateFunctionAsync`. |
@@ -540,7 +540,7 @@ public sealed class MyTsdbProvider :
 | `IHistorianTimestampedAnnotationProvider` | Timestamped annotations | Keys and pages by both timestamps. |
 | `IHistorianEventProvider` | Event history | Read / Insert / Replace / Update / Delete events keyed by `EventId`. |
 | `IHistorianStructuredDataProvider` | StructuredHistoryData (Part 11 §6.8.3) | Update-only. Entries are keyed by the composite `HistoricalValueKey`; reads go through the raw / modified / at-time interfaces. |
-| `IHistorianTransactionalProvider` | Atomic batch updates | Optional. The dispatcher selects the atomic operation by default when the provider implements this interface; otherwise it uses per-value best-effort. |
+| `IHistorianTransactionalProvider` | Atomic batch updates | Optional. Application callers explicitly select atomic methods; the HistoryUpdate dispatcher always uses per-value methods. |
 
 Implement only what your backend supports. The dispatcher returns `BadHistoryOperationUnsupported` for operations the resolved provider doesn't implement.
 
@@ -670,9 +670,14 @@ does not create modified-history entries.
 
 ### Atomic batch updates (`IHistorianTransactionalProvider`)
 
-Providers that do not implement `IHistorianTransactionalProvider` use per-value best-effort updates. When the resolved
-provider implements both interfaces, the dispatcher automatically calls the atomic Insert, Replace, or Update method;
-there is no separate client option or request flag for selecting the per-value path. The atomic contract:
+The HistoryUpdate service uses per-value best-effort updates even when the provider implements
+`IHistorianTransactionalProvider`. A conflicting or invalid value gets its own failure status while applicable values
+are persisted. This preserves the one-result-per-value contract of Part 4 §5.11.5.2 and the Insert/Replace status
+semantics of Part 11 §6.9.2. OPC UA has no client flag for requesting an atomic HistoryUpdate.
+
+**Behavior change:** implementing the transaction interface no longer implicitly makes service requests atomic.
+Applications that require all-or-nothing updates can call `InsertAtomicAsync`, `ReplaceAtomicAsync`, or
+`UpdateAtomicAsync` explicitly on the provider. Those methods retain their existing contract:
 
 - If every input value is applicable, return one success status per value and commit.
 - If any value cannot be applied, return the per-value failure code(s) and roll back the entire batch — the archive is left in its pre-call state.
@@ -702,6 +707,10 @@ keyset continuation carries the complete tuple, so paging remains lossless
 when a same-timestamp modification is added between pages; it also accepts
 legacy sequence-only tokens issued by earlier builds. The distributed
 provider instead pins an immutable archive generation and pages by offset.
+
+The in-memory provider accepts equal start and end times as an inclusive exact-instant modified read,
+consistent with its raw, event and annotation reads. Only that source timestamp is returned; multiple
+modifications remain ordered and can span continuation pages.
 
 ### Processed (aggregate) reads
 

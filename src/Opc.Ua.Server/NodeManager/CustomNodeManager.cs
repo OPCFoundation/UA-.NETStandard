@@ -200,12 +200,28 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing && !m_disposed)
+            if (!disposing)
             {
+                return;
+            }
+            IMonitoredItemManager? manager;
+            lock (Lock)
+            {
+                if (m_disposed)
+                {
+                    return;
+                }
                 m_disposed = true;
+                manager = m_monitoredItemManager;
+            }
+            try
+            {
+                manager?.Dispose();
+            }
+            finally
+            {
                 lock (Lock)
                 {
-                    m_monitoredItemManager?.Dispose();
                     PredefinedNodes.Clear();
                 }
             }
@@ -2672,7 +2688,8 @@ namespace Opc.Ua.Server
                     }
 
                     // check if the node is AnalogItem and the values are outside the InstrumentRange.
-                    if (handle.Node is AnalogItemState analogItemState &&
+                    if (nodeToWrite.AttributeId == Attributes.Value &&
+                        handle.Node is AnalogItemState analogItemState &&
                         analogItemState.InstrumentRange != null)
                     {
                         try

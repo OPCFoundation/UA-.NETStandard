@@ -131,9 +131,10 @@ namespace Opc.Ua.Server
                     m_diagnosticsDisposed = true;
                     m_diagnosticsScanTimer?.Dispose();
                     m_diagnosticsScanTimer = null;
+                    m_samplingTimer?.Dispose();
+                    m_samplingTimer = null;
+                    m_sampledItems.Clear();
                 }
-                m_samplingTimer?.Dispose();
-                m_samplingTimer = null;
 
                 // OPC UA Part 17 — unsubscribe from the alias-name
                 // registry so the registry does not hold a stale handler
@@ -172,6 +173,12 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         protected override async ValueTask DisposeAsyncCore()
         {
+            lock (m_diagnosticsLock)
+            {
+                m_samplingTimer?.Dispose();
+                m_samplingTimer = null;
+                m_sampledItems.Clear();
+            }
             if (m_aliasRefresh != null)
             {
                 await m_aliasRefresh.DisposeAsync().ConfigureAwait(false);
@@ -2616,13 +2623,19 @@ namespace Opc.Ua.Server
             double samplingInterval,
             ISampledDataChangeMonitoredItem monitoredItem)
         {
-            m_sampledItems.TryAdd(monitoredItem.Id, monitoredItem);
-
-            m_samplingTimer ??= m_timeProvider.CreateTimer(
-                DoSample,
-                null,
-                TimeSpan.FromMilliseconds(m_minimumSamplingInterval),
-                TimeSpan.FromMilliseconds(m_minimumSamplingInterval));
+            lock (m_diagnosticsLock)
+            {
+                if (m_diagnosticsDisposed)
+                {
+                    return;
+                }
+                m_sampledItems.TryAdd(monitoredItem.Id, monitoredItem);
+                m_samplingTimer ??= m_timeProvider.CreateTimer(
+                    DoSample,
+                    null,
+                    TimeSpan.FromMilliseconds(m_minimumSamplingInterval),
+                    TimeSpan.FromMilliseconds(m_minimumSamplingInterval));
+            }
         }
 
         /// <summary>
@@ -2630,12 +2643,14 @@ namespace Opc.Ua.Server
         /// </summary>
         private void DeleteSampledItem(ISampledDataChangeMonitoredItem monitoredItem)
         {
-            m_sampledItems.TryRemove(monitoredItem.Id, out _);
-
-            if (m_sampledItems.IsEmpty && m_samplingTimer != null)
+            lock (m_diagnosticsLock)
             {
-                m_samplingTimer.Dispose();
-                m_samplingTimer = null;
+                m_sampledItems.TryRemove(monitoredItem.Id, out _);
+                if (m_sampledItems.IsEmpty && m_samplingTimer != null)
+                {
+                    m_samplingTimer.Dispose();
+                    m_samplingTimer = null;
+                }
             }
         }
 
@@ -2648,6 +2663,10 @@ namespace Opc.Ua.Server
             {
                 lock (m_diagnosticsLock)
                 {
+                    if (m_diagnosticsDisposed)
+                    {
+                        return;
+                    }
                     foreach (KeyValuePair<uint, ISampledDataChangeMonitoredItem> kvp in m_sampledItems)
                     {
                         ISampledDataChangeMonitoredItem monitoredItem = kvp.Value;

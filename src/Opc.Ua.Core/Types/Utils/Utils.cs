@@ -1848,41 +1848,22 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Creates a X509 certificate collection object from the DER encoded bytes.
+        /// Creates a collection of at most 16 X509 certificates from concatenated DER encoded bytes.
         /// </summary>
         /// <param name="certificateData">The certificate data.</param>
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
-        /// <param name="useAsnParser">Whether the ASN.1 library should be used to decode certificate blobs.</param>
+        /// <param name="useAsnParser">
+        /// Retained for compatibility. DER framing is always validated before loading each certificate.
+        /// </param>
         /// <exception cref="ServiceResultException"></exception>
         public static CertificateCollection ParseCertificateChainBlob(
             ReadOnlyMemory<byte> certificateData,
             ITelemetryContext? telemetry,
             bool useAsnParser = false)
         {
-            CertificateCollection? certificateChain = [];
             try
             {
-                int offset = 0;
-                int length = certificateData.Length;
-                while (offset < length)
-                {
-                    ReadOnlyMemory<byte> certBlob = certificateData[offset..];
-#if !NETFRAMEWORK
-                    // macOS X509Certificate2 constructor throws exception if a certchain is encoded
-                    // use AsnParser on macOS to parse for byteblobs,
-                    if (useAsnParser || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                    {
-                        certBlob = AsnUtils.ParseX509Blob(certBlob);
-                    }
-#endif
-                    using var certificate = Certificate.FromRawData(certBlob);
-                    certificateChain.Add(certificate);
-                    offset += certificate.RawData.Length;
-                }
-
-                CertificateCollection result = certificateChain;
-                certificateChain = null;
-                return result;
+                return DefaultCertificateFactory.Instance.ParseChainBlob(certificateData);
             }
             catch (Exception e)
             {
@@ -1894,10 +1875,6 @@ namespace Opc.Ua
                     StatusCodes.BadCertificateInvalid,
                     "Could not parse DER encoded form of a X509 certificate.",
                     e);
-            }
-            finally
-            {
-                certificateChain?.Dispose();
             }
         }
 

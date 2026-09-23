@@ -851,16 +851,28 @@ namespace Opc.Ua.Server.Fluent
                 return handle!;
             }
 
-            VirtualNodeRegistration? registration =
-                FindVirtualNodeRegistration(nodeId);
-            return registration == null
-                ? null!
-                : new NodeHandle
-                {
-                    NodeId = nodeId,
-                    ParsedNodeId = registration,
-                    Validated = false
-                };
+            try
+            {
+                VirtualNodeRegistration? registration = FindVirtualNodeRegistration(nodeId);
+                return registration == null
+                    ? null!
+                    : new NodeHandle
+                    {
+                        NodeId = nodeId,
+                        ParsedNodeId = registration,
+                        Validated = false
+                    };
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception error) when (
+                error is not OutOfMemoryException and not StackOverflowException and not AccessViolationException)
+            {
+                m_logger.VirtualNodeResolutionFailed(error, nodeId);
+                return null!;
+            }
         }
 
         /// <inheritdoc/>
@@ -888,31 +900,43 @@ namespace Opc.Ua.Server.Fluent
                     : ValidationComplete(context, handle, cached, cache);
             }
 
-            NodeState? resolved = await registration.Resolver(
-                context,
-                handle.NodeId,
-                cancellationToken).ConfigureAwait(false);
-            if (resolved == null)
+            try
             {
+                NodeState? resolved = await registration.Resolver(
+                    context, handle.NodeId, cancellationToken).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                if (resolved == null)
+                {
+                    cache?[handle.NodeId] = null!;
+                    return null!;
+                }
+
+                if (resolved.NodeId.IsNull)
+                {
+                    resolved.NodeId = handle.NodeId;
+                }
+                else if (resolved.NodeId != handle.NodeId)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadNodeIdInvalid,
+                        "Virtual-node resolver returned NodeId '{0}' for requested NodeId '{1}'.",
+                        resolved.NodeId,
+                        handle.NodeId);
+                }
+                registration.Apply(resolved);
+                return ValidationComplete(context, handle, resolved, cache!);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception error) when (
+                error is not OutOfMemoryException and not StackOverflowException and not AccessViolationException)
+            {
+                m_logger.VirtualNodeResolutionFailed(error, handle.NodeId);
                 cache?[handle.NodeId] = null!;
                 return null!;
             }
-
-            if (resolved.NodeId.IsNull)
-            {
-                resolved.NodeId = handle.NodeId;
-            }
-            else if (resolved.NodeId != handle.NodeId)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadNodeIdInvalid,
-                    "Virtual-node resolver returned NodeId '{0}' for requested NodeId '{1}'.",
-                    resolved.NodeId,
-                    handle.NodeId);
-            }
-
-            registration.Apply(resolved);
-            return ValidationComplete(context, handle, resolved, cache!);
         }
 
         /// <inheritdoc/>
@@ -1417,5 +1441,12 @@ namespace Opc.Ua.Server.Fluent
         private readonly List<NodeManagerBuilder> m_attachedBuilders = [];
         private readonly Lock m_behaviorActivationsLock = new();
         private readonly List<NodeBehaviorActivation> m_behaviorActivations = [];
+    }
+
+    internal static partial class FluentNodeManagerBaseLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.FluentNodeManager + 0, Level = LogLevel.Warning,
+            Message = "Virtual node resolution failed for {NodeId}.")]
+        public static partial void VirtualNodeResolutionFailed(this ILogger logger, Exception exception, NodeId nodeId);
     }
 }

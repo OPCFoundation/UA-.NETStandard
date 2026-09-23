@@ -96,6 +96,11 @@ to replace those snapshots and invalidate cached validation results.
 An explicit-only list can validate certificates without a `StorePath`;
 store-management operations still require a configured backing store.
 
+Set `CertificateValidationOptions.RecordRejectedCertificates = false` for
+re-evaluating an existing connection without adding failures to the rejected
+store. This changes only the recording side effect, not the trust decision.
+New-connection validation records rejected certificates by default.
+
 **Inline issuer revocation policy:** when an inline issuer's list has a backing
 store that checks CRLs, `RejectUnknownRevocationStatus = true` rejects
 `BadCertificateRevocationUnknown` (or `BadCertificateIssuerRevocationUnknown`)
@@ -167,6 +172,26 @@ await manager.UpdateApplicationCertificateAsync(
     issuerChain);
 ```
 
+Certificate-change notifications borrow their certificate and issuer-chain
+handles for the synchronous notification. An observer that queues work must
+take independent references before returning and release them after processing.
+The built-in client rotation pump does this for pending, replaced and processed
+notifications.
+
+#### Certificates for SecurityMode None
+
+On `SecurityMode.None` endpoints, encrypted username or issued-token policies
+use an RSA application certificate compatible with every advertised encrypted
+token policy. The selected certificate is also used for `CreateSession`, restored-session certificate
+resolution and certificate-deletion protection. An ECC-first application
+certificate list does not change this selection.
+
+An unspecified encrypted token policy defaults to `Basic256Sha256`. If no
+compatible RSA certificate exists, the server omits that policy and logs a
+configuration error; it never substitutes ECC or RSA_DH on a None endpoint.
+Anonymous, X.509 and explicitly unencrypted token policies retain their existing
+semantics. This follows [OPC 10000-4, 7.41](https://reference.opcfoundation.org/specs/OPC-10000-4/7.41.md).
+
 #### Server-Side Certificate Rotation via Push (OPC UA Part 12 §7.10.9)
 
 When a client rotates a server's application certificate through the standard `ServerConfiguration.UpdateCertificate` + `ServerConfiguration.ApplyChanges` push flow, the server must — once the `ApplyChanges` response has been delivered — force the SecureChannels that were negotiated against the old certificate to renegotiate. The session (and any subscriptions) stay alive so the client's reconnect logic can transfer them onto a fresh channel.
@@ -177,6 +202,10 @@ The stack implements this contract in two pieces:
 2. **`ITransportListenerCertificateRotation`** is an optional capability interface on `ITransportListener`. `TcpTransportListener` implements it by thumbprint-matching the per-channel `ServerCertificate` and force-closing only affected channels (listener socket stays bound). `HttpsTransportListener` implements it by cycling its Kestrel host (`Stop()` + `Start()`).
 
 Tests and hosts that need deterministic timing can await the deferred work via `IConfigurationNodeManager.DrainPendingApplyChangesAsync(CancellationToken)`.
+
+The commit installs the key-bearing certificate in the live registry before
+that deferred reload. Signing and token decryption can use the new key during
+the response-flush grace period, including when the commit fills an empty slot.
 
 Custom transport listeners opt into the renegotiate hook by implementing the capability interface:
 
@@ -206,6 +235,20 @@ Server-base subclasses that want to observe rotation in custom ways can still su
 - **User-token group TrustList** validates X.509 user identity tokens. Every active Session that authenticated with a certificate user identity is re-validated against the updated user TrustList; a Session whose user certificate is no longer trusted is closed together with its Subscriptions (§7.10.9). Anonymous / username / issued-token Sessions are never disturbed.
 
 The effect fan-out runs after the same grace/flush boundary as certificate rotation and is awaitable through `IConfigurationNodeManager.DrainPendingApplyChangesAsync(CancellationToken)`.
+
+Both TCP listeners retain the complete peer chain validated at
+`OpenSecureChannel`, including intermediates supplied only by the client.
+Their `ITransportListenerPeerCertificateChainRotation` capability passes an
+owned chain snapshot to `CloseChannelsForUntrustedPeerChainsAsync`. The default
+effect handler prefers this capability and validates without writing to the
+rejected store. An unrelated trust addition therefore does not misclassify a
+peer whose intermediate is absent from the server's issuer store; removal of
+its trust anchor still closes the affected channel.
+
+Custom transports should implement the chain-aware capability when peers can
+supply intermediates. The leaf-only capability below remains supported as a
+compatibility fallback. A chain snapshot must remain alive until its predicate
+finishes, even if the channel closes concurrently.
 
 Two seams make this behaviour injectable and testable:
 
@@ -362,7 +405,7 @@ times out. Partial TrustList commits use the same policy to restore their
 stores. Rollback failures are reported explicitly and do not replace the
 original commit failure with success.
 
-`DeleteCertificate`'s endpoint-reference safety check (§7.10.7: "Certificates that are referenced by EndpointDescriptions shall not be deleted. This determination happens when ApplyChanges is called.") resolves the exact certificate each active `EndpointDescription` presents **from the active certificate registry** — keyed by the endpoint's `SecurityPolicyUri`, exactly as the channel handshake resolves the presented certificate — and rejects the transaction with `Bad_InvalidState` at `ApplyChanges` if the deleted certificate is still referenced. Resolving from the live registry (rather than the `EndpointDescription.ServerCertificate` blob captured when the endpoints were created) ensures a certificate that was rotated after startup is still protected. A delete that is superseded within the same transaction by a `CreateSelfSignedCertificate`/`UpdateCertificate` for the same slot coalesces to the later operation (§7.10.2 ordered-queue semantics), so replacing a referenced certificate in one transaction remains allowed. A conservative net "last remaining certificate" check still runs at staging time for immediate feedback.
+`DeleteCertificate`'s endpoint-reference safety check (§7.10.7: "Certificates that are referenced by EndpointDescriptions shall not be deleted. This determination happens when ApplyChanges is called.") resolves the exact certificate each active `EndpointDescription` presents **from the active certificate registry**, using its security policy and, on None endpoints, its encrypted user-token policies. It rejects the transaction with `Bad_InvalidState` at `ApplyChanges` if the deleted certificate is still referenced. Resolving from the live registry (rather than the `EndpointDescription.ServerCertificate` blob captured when the endpoints were created) ensures a certificate that was rotated after startup is still protected. A delete that is superseded within the same transaction by a `CreateSelfSignedCertificate`/`UpdateCertificate` for the same slot coalesces to the later operation (§7.10.2 ordered-queue semantics), so replacing a referenced certificate in one transaction remains allowed. A conservative net "last remaining certificate" check still runs at staging time for immediate feedback.
 
 #### Certificate-Expiration and TrustList-Staleness Alarms (OPC UA Part 12 §7.8.3)
 
@@ -454,6 +497,10 @@ owns the standard concerns and only delegates the actual reset to the injected
   credentials may no longer work, waits the grace period, and only then invokes
   the provider. The deferred reset honors the server shutdown token, so a server
   that stops while the reset is pending abandons it cleanly.
+- Coalesces concurrent reset requests. Once an in-place reset finishes, fails,
+  or is cancelled by the provider, the previous status and shutdown fields are
+  restored before the reset completes. A real server shutdown or a subsequent
+  fault state is never replaced by that restoration.
 
 ```csharp
 public sealed class MyResetProvider : IServerConfigurationResetProvider
