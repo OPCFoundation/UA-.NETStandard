@@ -102,9 +102,14 @@ jobs:
         # Path relevance. This replaces the `paths:` filter that used to sit on
         # the pull_request trigger: filtering the whole workflow out would stop
         # `build-and-test summary` from ever reporting, and a required status
-        # check that never reports blocks the pull request forever. Applying the
-        # same allow-list here skips the expensive jobs instead, while the
-        # summary job still reports.
+        # check that never reports blocks the pull request forever. Deciding
+        # relevance here skips the expensive jobs instead, while the summary job
+        # still reports.
+        #
+        # The rule itself lives in .github/scripts/get-path-relevance.ps1 so it
+        # can be tested: getting it wrong in the "irrelevant" direction skips
+        # the build, test and AOT jobs while the required summary still reports
+        # success. See CiPathRelevanceTests.
         $relevantChanges = $true
         if ($env:EVENT_NAME -eq 'pull_request' -and -not [string]::IsNullOrWhiteSpace($env:BASE_SHA)) {
             # Triple-dot: diff from the merge base, not from the current base
@@ -112,42 +117,7 @@ jobs:
             # on the base branch after this one was cut, which would make an
             # unrelated base-branch change look like a build-relevant change here.
             $changed = @(& git diff --name-only "$($env:BASE_SHA)...HEAD")
-            $relevantChanges = $false
-            foreach ($file in $changed) {
-                $name = [System.IO.Path]::GetFileName($file)
-                if ($name -like '*.cs' -or $name -like '*.csproj' -or
-                    # Build/config files affect compilation across TFMs, so the
-                    # all-TFM build jobs must run when they change (targets.props,
-                    # Directory.Packages.props, Directory.Build.props/targets, the
-                    # solution, and this workflow itself).
-                    $name -like '*.props' -or $name -like '*.targets' -or
-                    $name -like '*.slnx' -or $name -like '*.sln' -or
-                    $name -eq 'global.json' -or $name -ieq 'nuget.config' -or
-                    # version.json drives the package version for every
-                    # project (see version.props/version.targets), and the
-                    # release/publish scripts under .azurepipelines/ gate
-                    # which branches may publish which channel - both need
-                    # the same coverage as any other build-relevant change.
-                    # See docs/ReleaseProcess.md.
-                    $name -eq 'version.json' -or
-                    $file -like '.azurepipelines/*.ps1' -or
-                    $file -eq '.github/workflows/nuget-publish.yml' -or
-                    $file -eq '.github/workflows/release.yml' -or
-                    $file -like 'fuzzing/*' -or
-                    $file -eq '.azurepipelines/onefuzz.yml' -or
-                    # The migrated CI itself: the matrix expander, the shared
-                    # executor, the composite action that runs it, and the
-                    # manual full-scope workflow that consumes the same three.
-                    # A change to any of them changes what this workflow runs,
-                    # so it has to be validated like any other build input.
-                    $file -like '.github/scripts/*' -or
-                    $file -like '.github/actions/**' -or
-                    $file -eq '.github/workflows/nightly.yml' -or
-                    $file -eq '.github/workflows/buildandtest.yml') {
-                    $relevantChanges = $true
-                    break
-                }
-            }
+            $relevantChanges = [bool](& ./.github/scripts/get-path-relevance.ps1 -ChangedFile $changed)
             Write-Host "Changed files: $(@($changed).Count); build-relevant: $relevantChanges"
         }
 

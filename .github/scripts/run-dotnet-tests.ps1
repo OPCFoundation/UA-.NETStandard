@@ -54,10 +54,17 @@
     --blame-hang-timeout for a single test.
 
  .PARAMETER PerProjectTimeoutMinutes
-    Wall-clock ceiling for one project's build or test invocation. The blame
-    collector only reacts to inactivity inside the test host and can itself fail
-    to unwind, so this is the backstop that turns a stuck run into a named
-    per-project failure instead of an unexplained job timeout.
+    Wall-clock ceiling for one project, shared by that project's build and test
+    invocations. The blame collector only reacts to inactivity inside the test
+    host and can itself fail to unwind, so this is the backstop that turns a
+    stuck run into a named per-project failure instead of an unexplained job
+    timeout.
+
+    It is a single combined budget on purpose. get-ci-matrix.ps1 derives each
+    job's `timeout-minutes` from it as `20 + projectCount * thisValue`; if the
+    build and the test each got the full value, a batch could burn twice that
+    and GitHub would cancel the job - with no per-project annotation and no
+    results - before the executor ever reached the ceiling it promises here.
 
  .PARAMETER ResultsDirectory
     Directory that receives one subdirectory of results per project, plus the
@@ -111,17 +118,33 @@ $resultsRoot = (Resolve-Path -LiteralPath $ResultsDirectory).Path
 <#
  .SYNOPSIS
     Runs 'dotnet' with the supplied arguments, streaming its output to the log
-    and killing the process tree if it outlives the per-project ceiling.
+    and killing the process tree if the project's remaining budget runs out.
 
  .DESCRIPTION
     System.Diagnostics.Process is used instead of the call operator so the child
     can be killed on timeout, and instead of Start-Process so the arguments -
     which include filter expressions containing '&' and '!' - are passed through
     verbatim rather than re-parsed by a shell.
+
+    The caller passes a running stopwatch covering the whole project rather than
+    a fresh per-invocation timeout, so the build and the test share one ceiling.
+    See the PerProjectTimeoutMinutes help above for why the two must not each
+    get the full value.
 #>
-function Invoke-Dotnet([string[]] $arguments, [int] $timeoutMinutes, [string] $logPath)
+function Invoke-Dotnet(
+    [string[]] $arguments,
+    [System.Diagnostics.Stopwatch] $budget,
+    [int] $budgetMinutes,
+    [string] $logPath)
 {
     Write-Host "dotnet $($arguments -join ' ')"
+
+    $remainingMs = ([long]$budgetMinutes * 60 * 1000) - $budget.ElapsedMilliseconds
+    if ($remainingMs -le 0) {
+        Write-Host ("::error title=CI test runner::The $budgetMinutes-minute per-project ceiling was " +
+            "already spent before 'dotnet $($arguments[0])' could start.")
+        return [pscustomobject]@{ ExitCode = -1; TimedOut = $true }
+    }
 
     $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
     $startInfo.FileName = 'dotnet'
@@ -160,8 +183,9 @@ function Invoke-Dotnet([string[]] $arguments, [int] $timeoutMinutes, [string] $l
             $process.BeginErrorReadLine()
         }
 
-        if (-not $process.WaitForExit($timeoutMinutes * 60 * 1000)) {
-            Write-Host "::error title=CI test runner::'dotnet $($arguments[0])' exceeded the $timeoutMinutes-minute per-project ceiling and was killed."
+        if (-not $process.WaitForExit([int][System.Math]::Min([long][int]::MaxValue, $remainingMs))) {
+            Write-Host ("::error title=CI test runner::'dotnet $($arguments[0])' exhausted the " +
+                "$budgetMinutes-minute per-project ceiling and was killed.")
             $process.Kill($true)
             $null = $process.WaitForExit(60 * 1000)
             return [pscustomobject]@{ ExitCode = -1; TimedOut = $true }
@@ -318,7 +342,18 @@ foreach ($project in $projectList) {
             $buildArguments += '/p:CollectCoverage=true'
         }
 
-        $build = Invoke-Dotnet $buildArguments $PerProjectTimeoutMinutes $logPath
+        # One stopwatch for the build and the test together. Giving each its own
+        # PerProjectTimeoutMinutes would let a project burn twice the amount
+        # get-ci-matrix.ps1 budgeted for it in the job's timeout-minutes, so
+        # GitHub would cancel the whole batch - with no annotation and no
+        # results - instead of this executor failing that one project.
+        $projectBudget = [System.Diagnostics.Stopwatch]::StartNew()
+
+        $build = Invoke-Dotnet $buildArguments $projectBudget $PerProjectTimeoutMinutes $logPath
+        if ($build.TimedOut) {
+            throw ("The build exhausted the $PerProjectTimeoutMinutes-minute per-project ceiling, " +
+                'which the build and the test share.')
+        }
         if ($build.ExitCode -ne 0) {
             throw "The build failed with exit code $($build.ExitCode)."
         }
@@ -354,7 +389,7 @@ foreach ($project in $projectList) {
             $testArguments += @('--filter', $Filter)
         }
 
-        $test = Invoke-Dotnet $testArguments $PerProjectTimeoutMinutes $logPath
+        $test = Invoke-Dotnet $testArguments $projectBudget $PerProjectTimeoutMinutes $logPath
 
         $results = Measure-TestResults $projectResults
         $record.total = $results.Total

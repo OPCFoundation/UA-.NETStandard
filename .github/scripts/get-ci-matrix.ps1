@@ -52,6 +52,13 @@
     AoT, the fuzz contract and replay jobs, coverage and the summary - plus
     headroom.
 
+ .PARAMETER MaxJobTimeoutMinutes
+    Upper bound on a batch job's 'timeout-minutes', below the 360-minute ceiling
+    GitHub enforces on hosted runners. A batch whose per-project budgets add up
+    past this is an error rather than a clamp: clamping would let the executor
+    outlive the job, which is the one case that produces no annotation and no
+    results.
+
  .PARAMETER RepositoryRoot
     Repository root. Defaults to the root two levels above this script.
 
@@ -68,6 +75,7 @@ Param(
     [string] $OnlyProject = '',
     [int]    $MaxEntries = 256,
     [int]    $ReservedEntries = 40,
+    [int]    $MaxJobTimeoutMinutes = 350,
     [string] $RepositoryRoot = '',
     [string] $ManifestPath = ''
 )
@@ -378,6 +386,9 @@ function Expand-TestMatrix([string] $scope, [int] $size, [bool] $includeMacOS)
         if ($testProfile.ContainsKey('coverage')) {
             $coverage = [bool]$testProfile.coverage
         }
+        # One combined ceiling per project, shared by that project's build and
+        # test invocation in run-dotnet-tests.ps1. The job timeout below budgets
+        # it exactly once per project, so the executor must not spend it twice.
         $perProjectTimeout = 45
         if ($tier -eq 'mainline') {
             $perProjectTimeout = 30
@@ -387,6 +398,17 @@ function Expand-TestMatrix([string] $scope, [int] $size, [bool] $includeMacOS)
         for ($index = 0; $index -lt $batches.Count; $index++) {
             $batch = $batches[$index]
             $batchId = "$($testProfile.id)-$(($index + 1).ToString('00'))"
+            # 20 minutes of fixed cost - checkout, SDK install, restore - plus
+            # the combined build-and-test ceiling for every project in the
+            # batch. It has to stay a true upper bound on what the executor can
+            # spend, or GitHub cancels the job before run-dotnet-tests.ps1 can
+            # attribute the overrun to a project.
+            $jobTimeout = 20 + ($batch.Count * $perProjectTimeout)
+            if ($jobTimeout -gt $MaxJobTimeoutMinutes) {
+                throw ("Batch '$batchId' of $($batch.Count) projects needs $jobTimeout minutes, past the " +
+                    "$MaxJobTimeoutMinutes-minute ceiling. Clamping it would let the executor outlive the " +
+                    'job, so lower the per-project ceiling or raise ReservedEntries so smaller batches fit.')
+            }
             $entries += [ordered]@{
                 id                = $batchId
                 name              = "$($testProfile.id) ($($index + 1)/$($batches.Count))"
@@ -403,7 +425,7 @@ function Expand-TestMatrix([string] $scope, [int] $size, [bool] $includeMacOS)
                 coverage          = $coverage
                 projects          = $batch -join ';'
                 perProjectTimeout = $perProjectTimeout
-                timeoutMinutes    = [System.Math]::Min(350, 20 + ($batch.Count * $perProjectTimeout))
+                timeoutMinutes    = $jobTimeout
                 dotnet            = (Get-SdkVersions $testProfile.framework) -join "`n"
             }
 

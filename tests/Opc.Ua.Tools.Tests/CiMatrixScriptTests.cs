@@ -259,6 +259,63 @@ namespace Opc.Ua.Tools.Tests
             Assert.That(result.Output, Does.Contain("would report success without testing anything"));
         }
 
+        /// <summary>
+        /// A batch job is cancelled by GitHub the moment it passes
+        /// timeout-minutes, and a cancelled job produces neither the executor's
+        /// per-project annotation nor its results. The job budget therefore has
+        /// to be an upper bound on everything the executor may spend: fixed
+        /// setup cost plus one per-project ceiling for each project in the
+        /// batch, never a clamped value.
+        /// </summary>
+        [TestCase("pr")]
+        [TestCase("full")]
+        public async Task JobTimeoutBoundsEveryProjectsCombinedBudgetAsync(string scope)
+        {
+            MatrixResult matrix = await RunMatrixAsync(scope).ConfigureAwait(false);
+
+            string[] underBudget = matrix.Tests
+                .Where(entry =>
+                    entry.TimeoutMinutes <
+                        entry.Projects.Split(';', StringSplitOptions.RemoveEmptyEntries).Length *
+                        entry.PerProjectTimeout)
+                .Select(entry => $"{entry.Id} allows {entry.TimeoutMinutes}min for " +
+                    $"{entry.Projects.Split(';', StringSplitOptions.RemoveEmptyEntries).Length} x " +
+                    $"{entry.PerProjectTimeout}min")
+                .ToArray();
+
+            Assert.That(underBudget, Is.Empty);
+            Assert.That(matrix.Tests.All(entry => entry.PerProjectTimeout > 0), Is.True);
+        }
+
+        /// <summary>
+        /// The per-project ceiling the matrix budgets once must also be spent
+        /// once. Handing it separately to the build and to the test would let a
+        /// project burn twice what its job was given, so both invocations share
+        /// a single stopwatch.
+        /// </summary>
+        [Test]
+        public async Task ExecutorSpendsOnePerProjectBudgetAcrossBuildAndTestAsync()
+        {
+            string executor = Path.Combine(FindRepositoryRoot(), ".github", "scripts", "run-dotnet-tests.ps1");
+            string source = await File.ReadAllTextAsync(executor).ConfigureAwait(false);
+
+            string[] invocations = source
+                .Split('\n')
+                .Select(line => line.Trim())
+                .Where(line => line.Contains("= Invoke-Dotnet ", StringComparison.Ordinal))
+                .ToArray();
+
+            Assert.That(invocations, Has.Length.EqualTo(2), "The executor builds once and tests once per project.");
+            Assert.That(
+                invocations.All(line => line.Contains("$projectBudget $PerProjectTimeoutMinutes", StringComparison.Ordinal)),
+                Is.True,
+                $"Both invocations must share the one stopwatch: {string.Join(" | ", invocations)}");
+            Assert.That(
+                source,
+                Does.Contain("$projectBudget = [System.Diagnostics.Stopwatch]::StartNew()"),
+                "The stopwatch has to be restarted for each project rather than spanning the batch.");
+        }
+
         private static async Task<MatrixResult> RunMatrixAsync(
             string scope,
             bool excludeMacOs = false,
@@ -381,7 +438,9 @@ namespace Opc.Ua.Tools.Tests
             string Framework,
             string Filter,
             bool Coverage,
-            string Projects);
+            string Projects,
+            int PerProjectTimeout,
+            int TimeoutMinutes);
 
         /// <summary>
         /// One expanded solution build matrix entry.
