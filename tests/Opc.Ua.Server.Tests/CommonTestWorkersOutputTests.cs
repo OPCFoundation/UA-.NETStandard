@@ -43,6 +43,10 @@ namespace Opc.Ua.Server.Tests
     /// <summary>
     /// Keeps exhaustive browse diagnostics out of NUnit's retained output buffers.
     /// </summary>
+    /// <remarks>
+    /// NUnit copies only output from these isolated results to the runner's result, not attachments.
+    /// Deleting the inspected isolated attachments therefore does not remove runner-collected diagnostics.
+    /// </remarks>
     [TestFixture]
     [Parallelizable(ParallelScope.All)]
     public sealed class CommonTestWorkersOutputTests
