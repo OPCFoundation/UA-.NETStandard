@@ -1,12 +1,11 @@
 name: Nightly full validation
 
-# Manual only. This is the GitHub-hosted equivalent of the full-scope workload
-# Azure Pipelines runs on a schedule, and it deliberately declares no `schedule:`
-# trigger of its own: while both systems are running it would double the nightly
-# cost for no extra signal. Enabling a cron here is a separate, explicit step to
-# be taken once Azure's scheduled definition is retired (see
-# docs/DeveloperGuide.md).
+# GitHub-hosted equivalent of the full-scope workload Azure Pipelines used to
+# run on a schedule.
 on:
+  schedule:
+    # Weekly full-scope run, Sunday 02:00 UTC.
+    - cron: '0 2 * * 0'
   workflow_dispatch:
     inputs:
       include_macos:

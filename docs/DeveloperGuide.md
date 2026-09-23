@@ -293,9 +293,9 @@ the signed release workflow can promote an intentional mixed-version set.
 
 ## Continuous integration
 
-**GitHub Actions owns pull-request validation.** [`.github/workflows/buildandtest.yml`](../.github/workflows/buildandtest.yml) runs the complete build and test workload on GitHub-hosted runners for every triggering branch, and [`.github/workflows/nightly.yml`](../.github/workflows/nightly.yml) runs the full-scope workload on demand. The other workflows in [`.github/workflows/`](../.github/workflows) cover CodeQL, container images and the opt-in stress and stability suites.
+**GitHub Actions owns pull-request validation and the weekly full-scope validation.** [`.github/workflows/buildandtest.yml`](../.github/workflows/buildandtest.yml) runs the complete build and test workload on GitHub-hosted runners for every triggering branch, and [`.github/workflows/nightly.yml`](../.github/workflows/nightly.yml) runs the full-scope workload on the weekly schedule and on demand. The other workflows in [`.github/workflows/`](../.github/workflows) cover CodeQL, container images and the opt-in stress and stability suites.
 
-Azure Pipelines ([`azure-pipelines.yml`](../azure-pipelines.yml) plus the templates in [`.azurepipelines/`](../.azurepipelines)) no longer runs on pull requests: the Azure context was dropped from the master ruleset and the pipeline's PR trigger is now `pr: none`, leaving `build-and-test summary` as the only required check. Azure still runs on pushes to `master` and on its weekly schedule, where it **duplicates** coverage rather than supplying any of it; see [Migration status](#migration-status) for what is left to switch off.
+Azure Pipelines ([`azure-pipelines.yml`](../azure-pipelines.yml) plus the templates in [`.azurepipelines/`](../.azurepipelines)) no longer runs on pull requests or on the weekly full-scope schedule: the Azure context was dropped from the master ruleset, the pipeline's PR trigger is `pr: none`, and the YAML `schedules:` block has been retired. Azure still runs on pushes to `master` and can be queued manually for recovery, where it **duplicates** coverage rather than supplying any of it; see [Migration status](#migration-status) for what remains to switch off.
 
 Pull requests targeting `master378` or a `release/*` line are unaffected — Azure Pipelines evaluates a pull request against the *target* branch's copy of `azure-pipelines.yml`, and those branches keep their own copy and their own required Azure context.
 
@@ -309,7 +309,7 @@ One table describes the entire migrated workload: `$Profiles` and `$BuildProfile
 | Solution builds | every `.slnx` on Windows for net48/net10.0 × Debug/Release, `UA.slnx` for net472/netstandard2.0 and the Linux TFMs | every `.slnx` on Windows for all seven TFMs × Debug/Release, plus the Linux legs |
 | Native AoT | linux-x64, osx-x64, osx-arm64 | the above plus win-x64 |
 | Coverage | project floors and the graduated patch gate | project floors only |
-| Trigger | every push and pull request | `workflow_dispatch` only |
+| Trigger | every push and pull request | weekly schedule and `workflow_dispatch` |
 
 A profile pins its target framework through `CustomTestTarget`, not `--framework`, because that is the mechanism [`targets.props`](../targets.props) uses. Two profiles are not runnable target frameworks at all: `netstandard2.0` hosts its tests on net48 and `netstandard2.1` hosts them on net8.0, so each profile records both what it builds with and what its tests run on.
 
@@ -339,7 +339,7 @@ The pull-request profiles filter out `TestCategory=LongRunning` and `TestCategor
 
 ### Running the full scope
 
-`nightly.yml` is **manual on purpose** — it has no `schedule:` trigger. Start it from the Actions tab (or `gh workflow run nightly.yml`) with:
+`nightly.yml` runs weekly at Sunday 02:00 UTC. You can also start it from the Actions tab (or `gh workflow run nightly.yml`) with:
 
 | Input | Effect |
 | --- | --- |
@@ -507,14 +507,14 @@ What is still outstanding — each needing repository- or organization-administr
 
 1. Run `nightly.yml` on a trusted SHA with the private corpus provisioned and compare its manifest against a full-scope Azure run.
 2. Confirm definition 14's service-side **Pull request validation** setting is off. `pr: none` covers the YAML trigger, but an enabled "Override the YAML PR trigger from here" would still queue builds.
-3. Retire both scheduling sources for the Azure full scope — the YAML `cron` *and* the service-side schedule on definition 14 — and the push trigger, once the manual replacement is proven by step 1.
+3. Confirm definition 14's service-side schedule is off and retire the push trigger once the GitHub replacement has proven stable. The YAML `cron` has already moved to `nightly.yml`.
 4. Retire `azure-pipelines-preview.yml` and definition 16's build-completion trigger. Development packages already publish to GitHub Packages from [`.github/workflows/nuget-publish.yml`](../.github/workflows/nuget-publish.yml), so that publisher is a duplicate. Ensure the stale definition 13 cannot restart it.
 
 > **Before cutting a canonical `release/2.<minor>` branch:** the `Release` ruleset requires `OPCFoundation.UA-.NETStandard` for *every* `refs/heads/release/*`. A new 2.x branch inherits `pr: none` from `master`, so that Azure context would never report and would block every pull request into the new line. Exclude the new ref from that ruleset — or add a 2.x ruleset requiring `build-and-test summary` — as part of creating the branch. The existing 1.x lines and the frozen `release/2.0.0` keep their own copy of `azure-pipelines.yml` and must keep the Azure requirement.
 
 Preserve the Azure definitions, their artifacts, feeds, secure files, pools and service connections — retiring a trigger is not the same as deleting history. The `master378` and 1.x pipelines are out of scope entirely.
 
-Enabling a `schedule:` trigger on `nightly.yml` is a separate, deliberate decision; it stays manual until step 1 is complete.
+The weekly full-scope schedule now lives in `nightly.yml`; keep Azure's service-side schedule disabled so both systems do not run the same nightly workload.
 
 
 ## Contributing and pull requests
