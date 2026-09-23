@@ -21,7 +21,7 @@
     <Project Path="samples/DI/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" />
   </Folder>
   <Folder Name="/samples/FluentApi/">
-    <Project Path="samples/FluentApi/BasicFluentApiServer/BasicFluentApiServer.csproj" Id="da8bd90e-b4b0-45e5-a15a-6c872da3cdc2" />
+    <Project Path="samples/FluentApi/BasicFluentApiServer/BasicFluentApiServer.csproj" />
   </Folder>
   <Folder Name="/samples/Gds/">
     <Project Path="samples/Gds/OnboardingClient/OnboardingClient.csproj" />
