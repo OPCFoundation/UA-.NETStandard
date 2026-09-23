@@ -231,6 +231,8 @@ failure results replace the cache without inventing a new generation. Dry runs,
 stale-generation rejection and interrupted invocations leave it unchanged.
 Before a completion in that coordinator's lifetime, time and summary reads
 return `BadWaitingForInitialData`.
+Attaching a native registry to an already-used coordinator publishes its retained
+completion cache during readiness; it does not require another refresh.
 
 The native projection publishes completed values and value-change notifications
 through its existing reconciliation queue. Clients use `RefreshGeneration`,

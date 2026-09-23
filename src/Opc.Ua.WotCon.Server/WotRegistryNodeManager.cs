@@ -215,6 +215,14 @@ namespace Opc.Ua.WotCon.Server
                 {
                     m_recoveryProjectionRegistration = recovery.RegisterRecoveryProjection(this);
                 }
+                m_reconcileQueue.Enqueue(() =>
+                {
+                    if (Coordinator.LastRefreshSummary is { } completed)
+                    {
+                        UpdateRefreshState(completed);
+                    }
+                    return Task.CompletedTask;
+                });
             }
         }
 
@@ -247,6 +255,7 @@ namespace Opc.Ua.WotCon.Server
             {
                 if (Registry.Current.RefreshGeneration == 0 && !Registry.Current.AllResources().Any())
                 {
+                    await m_reconcileQueue.WhenIdleAsync(cancellationToken).ConfigureAwait(false);
                     return;
                 }
                 bool recovered = await Coordinator.RecoverAsync(cancellationToken).ConfigureAwait(false);

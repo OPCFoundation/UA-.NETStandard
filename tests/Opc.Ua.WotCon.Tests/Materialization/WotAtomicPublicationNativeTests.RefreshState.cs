@@ -35,6 +35,7 @@ using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Tests;
 using Opc.Ua.WotCon.Client;
+using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 
@@ -338,6 +339,28 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 await m_session.DeleteSubscriptionsAsync(null, [subscription.SubscriptionId], CancellationToken.None)
                     .ConfigureAwait(false);
             }
+        }
+
+        [Test]
+        public async Task NativeAttachmentPublishesAnAlreadyCompletedCoordinatorSummary()
+        {
+            WotRefreshResult completed = await m_coordinator.RefreshAsync(
+                HandoffRequest("completed-before-native-attachment")).ConfigureAwait(false);
+            Assert.That(completed.NewGeneration, Is.Zero);
+            Assert.That(m_coordinator.LastRefreshSummary, Is.Not.Null);
+            await m_server.NodeManagerLifecycle.AddAsync(new WotRegistryNodeManagerFactory(
+                new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator),
+                callerContext: null).ConfigureAwait(false);
+            await CreateRefreshStateClientAsync().ConfigureAwait(false);
+
+            await AssertRefreshStateAsync(completed.Summary).ConfigureAwait(false);
+
+            Assert.That(m_coordinator.LastRefreshSummary!.RequestId,
+                Is.EqualTo("completed-before-native-attachment"));
+            Assert.That(m_coordinator.Generation, Is.Zero);
+            WotRefreshResult next = await m_coordinator.RefreshAsync(
+                HandoffRequest("completed-after-native-attachment")).ConfigureAwait(false);
+            await AssertRefreshStateAsync(next.Summary).ConfigureAwait(false);
         }
 
         private async Task<WotRegistryClient> CreateRefreshStateClientAsync()
