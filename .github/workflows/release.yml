@@ -105,7 +105,7 @@ jobs:
           # is the same shape as Test-CanonicalReleaseBranchRef, and
           # PackageVersionPolicyTests pins the two together so they cannot
           # drift apart.
-          if ("refs/heads/$($run.head_branch)" -notmatch '^refs/heads/release/\d+\.\d+$') {
+          if ("refs/heads/$($run.head_branch)" -notmatch '(?-i)^refs/heads/release/(0|[1-9]\d*)\.(0|[1-9]\d*)$') {
               throw (
                   "Run $env:RELEASE_RUN_ID came from '$($run.head_branch)', which is not a " +
                   "canonical release/<major>.<minor> branch (for example release/2.0). Only " +

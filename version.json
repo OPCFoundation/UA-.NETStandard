@@ -6,7 +6,7 @@
     "semVer": 2
   },
   "publicReleaseRefSpec": [
-    "^refs/heads/release/\\d+\\.\\d+$"
+    "(?-i)^refs/heads/release/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$"
   ],
   "cloudBuild": {
     "setVersionVariables": true,

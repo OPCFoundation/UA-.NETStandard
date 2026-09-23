@@ -230,11 +230,17 @@ namespace Opc.Ua.Tools.Tests
         [TestCase("refs/heads/release/2.0", true, Description = "Canonical two-component release line")]
         [TestCase("refs/heads/release/2.1", true, Description = "A later canonical release line")]
         [TestCase("refs/heads/release/10.42", true, Description = "Multi-digit components")]
+        [TestCase("refs/heads/release/0.9", true, Description = "A zero component is canonical")]
         [TestCase("refs/heads/release/2.0.0", false, Description = "Retired three-component naming")]
         [TestCase("refs/heads/master", false, Description = "master is never a canonical release branch")]
         [TestCase("refs/heads/release/2.0-hotfix", false, Description = "Non-canonical suffix")]
         [TestCase("refs/heads/release/2", false, Description = "Missing minor component")]
         [TestCase("refs/tags/2.0.0", false, Description = "A tag is not a branch ref")]
+        [TestCase("refs/heads/Release/2.0", false, Description = "nbgv matches the ref spec case-sensitively")]
+        [TestCase("refs/heads/RELEASE/2.0", false, Description = "Upper-case release segment")]
+        [TestCase("refs/heads/release/02.0", false, Description = "Leading zero in the major component")]
+        [TestCase("refs/heads/release/2.00", false, Description = "Leading zero in the minor component")]
+        [TestCase("refs/heads/release/00.0", false, Description = "Leading zero on a zero component")]
         public async Task TestCanonicalReleaseBranchRefAsync(string ruleRef, bool expectedCanonical)
         {
             JsonElement result = await RunPolicyScriptAsync(
@@ -255,6 +261,9 @@ namespace Opc.Ua.Tools.Tests
         [TestCase("refs/heads/master", "2.0.0", false)]
         [TestCase("refs/heads/release/2.0", "2.0.0.7", false)]
         [TestCase("refs/heads/release/2.0", "2.0.0-preview.6", false)]
+        [TestCase("refs/heads/Release/2.0", "2.0.0", false, Description = "Case-sensitive like nbgv")]
+        [TestCase("refs/heads/release/02.0", "2.0.0", false, Description = "Leading zero is not the 2.0 line")]
+        [TestCase("refs/heads/release/2.00", "2.0.0", false, Description = "Leading zero in the minor")]
         public async Task TestCanonicalReleaseBranchForPackageVersionAsync(
             string ruleRef,
             string version,
@@ -290,7 +299,7 @@ namespace Opc.Ua.Tools.Tests
             "<PreviewPackageBuildNumber[^>]*>(?<value>[^<]+)</PreviewPackageBuildNumber>")]
         private static partial System.Text.RegularExpressions.Regex PreviewPackageBuildNumberRegex();
 
-        [System.Text.RegularExpressions.GeneratedRegex(@"'(\^refs/heads/release/[^']*)'")]
+        [System.Text.RegularExpressions.GeneratedRegex(@"'(\(\?-i\)\^refs/heads/release/[^']*)'")]
         private static partial System.Text.RegularExpressions.Regex
             CanonicalReleaseBranchExpressionRegex();
 
@@ -649,16 +658,69 @@ namespace Opc.Ua.Tools.Tests
         }
 
         [Test]
-        public void ReleaseWorkflowBranchShapeCheckMatchesThePolicyFunction()
+        public void VersionJsonPublicReleaseRefSpecMatchesThePolicyFunction()
         {
-            // release.yml deliberately inlines this check instead of
-            // dot-sourcing Test-CanonicalReleaseBranchRef, because no
-            // repository code may execute before the candidate checkout binds
-            // the workspace to the promoted commit. Pin the two expressions
-            // together so the duplicate cannot silently drift.
+            // Nerdbank.GitVersioning decides NBGV_PublicRelease from
+            // version.json alone, and the Docker workflow gates the stable
+            // version/":latest" aliases directly on that flag. If this ref
+            // spec were looser than Test-CanonicalReleaseBranchRef, a branch
+            // could publish stable-looking images that no package release can
+            // ever match; if it were tighter, nuget-publish.yml would treat a
+            // branch as publishable while nbgv stamped it as a prerelease.
             string policy = File.ReadAllText(PolicyScriptPath);
-            string workflow = File.ReadAllText(ReleaseWorkflowPath);
+            string expression = ExtractCanonicalReleaseBranchExpression(policy);
 
+            using FileStream stream = File.OpenRead(
+                Path.Combine(FindRepositoryRoot(), "version.json"));
+            using JsonDocument document = JsonDocument.Parse(stream);
+
+            string[] refSpecs =
+            [
+                .. document.RootElement
+                    .GetProperty("publicReleaseRefSpec")
+                    .EnumerateArray()
+                    .Select(e => e.GetString() ?? string.Empty)
+            ];
+
+            Assert.That(
+                refSpecs,
+                Is.EqualTo(new[] { expression }),
+                "version.json's publicReleaseRefSpec must be exactly the expression " +
+                "Test-CanonicalReleaseBranchRef applies.");
+        }
+
+        [Test]
+        public void ImageVersionDropsSemVerBuildMetadataBeforeItBecomesADockerTag()
+        {
+            // '+' is not a legal Docker tag character, so a NuGet package
+            // version carrying "+<metadata>" would fail the image push after
+            // the whole image had already been built. version.json currently
+            // asks for SemVer 2 NuGet versions, which fold the commit id into
+            // a prerelease segment instead, so the strip is a no-op today -
+            // it exists so a version.json change cannot break every build.
+            string workflow = File.ReadAllText(
+                Path.Combine(
+                    FindRepositoryRoot(), ".github", "workflows", "docker-image.yml"));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    workflow,
+                    Does.Contain("${NBGV_NuGetPackageVersion%%+*}"),
+                    "docker-image.yml must strip SemVer build metadata from the image version.");
+                Assert.That(
+                    workflow,
+                    Does.Not.Contain("IMAGE_VERSION=${NBGV_NuGetPackageVersion}"),
+                    "The raw NuGet package version must not be used as a Docker tag.");
+            });
+        }
+
+        /// <summary>
+        /// Returns the single canonical release-branch expression declared by
+        /// Test-CanonicalReleaseBranchRef.
+        /// </summary>
+        private static string ExtractCanonicalReleaseBranchExpression(string policy)
+        {
             // Scope to Test-CanonicalReleaseBranchRef: the same file also
             // holds Test-CanonicalReleaseBranchForPackageVersion, whose
             // expression additionally captures the major/minor it compares.
@@ -668,11 +730,33 @@ namespace Opc.Ua.Tools.Tests
             int end = policy.IndexOf("\nfunction ", start + 1, StringComparison.Ordinal);
             string body = end < 0 ? policy[start..] : policy[start..end];
 
-            string[] policyMatches =
+            string[] matches =
             [
                 .. CanonicalReleaseBranchExpressionRegex().Matches(body)
                     .Select(m => m.Groups[1].Value)
             ];
+
+            Assert.That(
+                matches,
+                Has.Length.EqualTo(1),
+                "Test-CanonicalReleaseBranchRef must define exactly one case-sensitive " +
+                "canonical release-branch expression.");
+
+            return matches[0];
+        }
+
+        [Test]
+        public void ReleaseWorkflowBranchShapeCheckMatchesThePolicyFunction()
+        {
+            // release.yml deliberately inlines this check instead of
+            // dot-sourcing Test-CanonicalReleaseBranchRef, because no
+            // repository code may execute before the candidate checkout binds
+            // the workspace to the promoted commit. Pin the two expressions
+            // together so the duplicate cannot silently drift.
+            string policy = File.ReadAllText(PolicyScriptPath);
+            string workflow = File.ReadAllText(ReleaseWorkflowPath);
+            string expression = ExtractCanonicalReleaseBranchExpression(policy);
+
             string[] workflowMatches =
             [
                 .. CanonicalReleaseBranchExpressionRegex().Matches(workflow)
@@ -682,17 +766,12 @@ namespace Opc.Ua.Tools.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(
-                    policyMatches,
-                    Has.Length.EqualTo(1),
-                    "Test-CanonicalReleaseBranchRef must define exactly one canonical " +
-                    "release-branch expression.");
-                Assert.That(
                     workflowMatches,
                     Has.Length.EqualTo(1),
                     "release.yml must inline exactly one canonical release-branch expression.");
                 Assert.That(
                     workflowMatches,
-                    Is.EqualTo(policyMatches),
+                    Is.EqualTo(new[] { expression }),
                     "The inlined bootstrap check in release.yml and " +
                     "Test-CanonicalReleaseBranchRef must accept exactly the same refs.");
             });
@@ -705,11 +784,17 @@ namespace Opc.Ua.Tools.Tests
                 ("refs/heads/release/2.0", true),
                 ("refs/heads/release/2.1", true),
                 ("refs/heads/release/10.42", true),
+                ("refs/heads/release/0.9", true),
                 ("refs/heads/release/2.0.0", false),
                 ("refs/heads/master", false),
                 ("refs/heads/release/2.0-hotfix", false),
                 ("refs/heads/release/2", false),
                 ("refs/tags/2.0.0", false),
+                ("refs/heads/Release/2.0", false),
+                ("refs/heads/RELEASE/2.0", false),
+                ("refs/heads/release/02.0", false),
+                ("refs/heads/release/2.00", false),
+                ("refs/heads/release/00.0", false),
             ];
             Assert.Multiple(() =>
             {

@@ -167,7 +167,22 @@ jobs:
         # Use NBGV's canonical NuGet SemVer rather than NBGV_Version, whose
         # fourth component is a git-height build number. Stable image tags
         # must align with the explicit M.m.p package release version.
-        echo "IMAGE_VERSION=${NBGV_NuGetPackageVersion}" >> "$GITHUB_ENV"
+        #
+        # Strip any "+<metadata>" before the value becomes a tag: '+' is not
+        # a legal Docker tag character, so build-push-action would fail on it.
+        # With version.json's current "nugetPackageVersion.semVer: 2" NBGV
+        # already folds the commit id into a prerelease segment instead
+        # (measured on nbgv 3.7.115: "2.0.0-preview.24.gd602b190a4", no '+'),
+        # so this is a no-op today and exists so a version.json change cannot
+        # silently break every image build.
+        version="${NBGV_NuGetPackageVersion%%+*}"
+        # Fail closed on anything else a tag may not contain, rather than
+        # letting the registry reject the push after the whole image is built.
+        if ! printf '%s' "$version" | grep -Eq '^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$'; then
+          echo "Version '${NBGV_NuGetPackageVersion}' does not yield a usable Docker tag." >&2
+          exit 1
+        fi
+        echo "IMAGE_VERSION=${version}" >> "$GITHUB_ENV"
 
     - name: Prepare Tag Branch info
       # Append a branch-derived suffix to the version/"latest" tags for

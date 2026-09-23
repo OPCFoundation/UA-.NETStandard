@@ -265,10 +265,31 @@ function Test-CanonicalReleaseBranchRef {
         "refs/heads/release/2.0" or "refs/heads/release/2.1". Rejects the
         historical three-component "release/2.0.0" naming, any other
         "release/*" branch, and every non-release ref (including master).
+    .DESCRIPTION
+        The expression must stay byte-identical to version.json's
+        publicReleaseRefSpec (pinned by
+        VersionJsonPublicReleaseRefSpecMatchesThePolicyFunction) and to the
+        copy release.yml inlines before it is allowed to check out repository
+        code. Two properties of that expression are load-bearing:
+
+        - The leading "(?-i)" forces a case-sensitive match. PowerShell's
+          -match is case-insensitive by default while Nerdbank.GitVersioning
+          matches publicReleaseRefSpec case-sensitively (measured: nbgv
+          3.7.115 reports PublicRelease=False on "Release/2.0"). Without it
+          this helper would report "refs/heads/Release/2.0" as canonical and
+          nuget-publish.yml would publish previews from a branch that
+          version.json does not recognize as a release line at all.
+        - Each component is "(0|[1-9]\d*)", not "\d+", so a leading zero is
+          not a second spelling of a release line. "release/02.0" otherwise
+          makes nbgv treat the branch as a public release (measured), which
+          gates the stable Docker version/latest aliases, while
+          Test-CanonicalReleaseBranchForPackageVersion compares the branch
+          components to the version as text and rejects it - a branch that
+          can move stable image aliases but never ship the matching package.
     #>
     param([Parameter(Mandatory)][string]$Ref)
 
-    return $Ref -match '^refs/heads/release/\d+\.\d+$'
+    return $Ref -match '(?-i)^refs/heads/release/(0|[1-9]\d*)\.(0|[1-9]\d*)$'
 }
 
 function Test-CanonicalReleaseBranchForPackageVersion {
@@ -278,6 +299,11 @@ function Test-CanonicalReleaseBranchForPackageVersion {
         major/minor components of an exact stable M.m.p package version.
         This prevents a 2.1.0 candidate being built or promoted from
         release/2.0 (or the inverse).
+    .DESCRIPTION
+        Both sides are restricted to canonical decimal components so the
+        comparison below can stay textual: "release/02.0" is not an alternate
+        spelling of the 2.0 line, it is simply not a release line. See
+        Test-CanonicalReleaseBranchRef for why case and leading zeroes matter.
     #>
     param(
         [Parameter(Mandatory)][string]$Ref,
@@ -288,12 +314,14 @@ function Test-CanonicalReleaseBranchForPackageVersion {
         return $false
     }
 
-    $branchMatch = [regex]::Match($Ref, '^refs/heads/release/(?<major>\d+)\.(?<minor>\d+)$')
+    $branchMatch = [regex]::Match(
+        $Ref, '(?-i)^refs/heads/release/(?<major>0|[1-9]\d*)\.(?<minor>0|[1-9]\d*)$')
     if (-not $branchMatch.Success) {
         return $false
     }
 
-    $versionMatch = [regex]::Match($Version, '^(?<major>\d+)\.(?<minor>\d+)\.\d+$')
+    $versionMatch = [regex]::Match(
+        $Version, '^(?<major>0|[1-9]\d*)\.(?<minor>0|[1-9]\d*)\.(?:0|[1-9]\d*)$')
     return $versionMatch.Success -and
         $branchMatch.Groups['major'].Value -eq $versionMatch.Groups['major'].Value -and
         $branchMatch.Groups['minor'].Value -eq $versionMatch.Groups['minor'].Value

@@ -35,8 +35,12 @@ without any other context.
   `release/<major>.<minor>` (e.g. `release/2.0`, `release/2.1`) - the only
   branch shape `version.json`'s `publicReleaseRefSpec` and
   `Test-CanonicalReleaseBranchRef` recognize as eligible to produce a
-  `stable` channel package set. The historical three-component naming
-  (`release/2.0.0`) is retired and not canonical; see
+  `stable` channel package set. The name is matched **case-sensitively**
+  (`Release/2.0` is not a release line) and each component must be a plain
+  decimal number with no leading zero (`release/02.0` is not a second
+  spelling of `release/2.0`, it is simply not a release line). The
+  historical three-component naming (`release/2.0.0`) is retired and not
+  canonical; see
   [Historical `release/2.0.0` branch](#historical-release200-branch).
 - **Candidate** - a signed, validated package set produced by a
   `nuget-publish.yml` run, retained as its `opcua-packages-<run id>` GitHub
@@ -414,17 +418,30 @@ maintainer can subsequently approve [Approved promotion](#approved-promotion).
    run the exact validation `release.yml` itself performs:
    ```powershell
    . ./.azurepipelines/package-version-policy.ps1
+   $manifest = Get-Content ./candidate/release-manifest.json | ConvertFrom-Json
    ./.azurepipelines/validate-nuget-package-set.ps1 `
      -PackageDirectory ./candidate `
      -ManifestPath ./candidate/current-package-set.json `
-     -ExpectedVersion (Get-Content ./candidate/release-manifest.json | ConvertFrom-Json).basePackageVersion `
+     -ExpectedVersion $manifest.basePackageVersion `
      -RequireDebug `
      -VerifySignatures
-   Test-CanonicalReleaseBranchRef -Ref (Get-Content ./candidate/release-manifest.json | ConvertFrom-Json).ref
+   Test-CanonicalReleaseBranchForPackageVersion `
+     -Ref $manifest.ref -Version $manifest.basePackageVersion
    ```
-   *Completion evidence*: both commands succeed with no thrown error, and the
-   `Test-CanonicalReleaseBranchRef` call prints `True` for a release you
-   intend to promote.
+   *Completion evidence*: the validation script succeeds with no thrown
+   error, and `Test-CanonicalReleaseBranchForPackageVersion` prints `True`
+   for a release you intend to promote.
+
+   Use the version-aware predicate rather than the branch-shape-only
+   `Test-CanonicalReleaseBranchRef`: `release.yml` calls both, and only this
+   one rejects the mismatch that a shape check cannot see - a stable `2.1.0`
+   candidate built from `release/2.0`. A `False` here means either the ref is
+   not a canonical `release/<major>.<minor>` branch, the version is not an
+   exact stable `major.minor.patch`, or the two disagree; print `$manifest.ref`
+   and `$manifest.basePackageVersion` to see which. For a **preview**
+   candidate this predicate returns `False` by design, because a preview
+   version is not a stable release version - check the shape alone with
+   `Test-CanonicalReleaseBranchRef -Ref $manifest.ref` in that case.
 
    For a stable candidate, also prove that the preview-only families in the
    set still sort strictly above everything already published, using the same
