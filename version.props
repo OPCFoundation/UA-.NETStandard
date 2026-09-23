@@ -12,19 +12,26 @@
   </PropertyGroup>
   <!-- NBGV_ variables are only available in cloud build -->
   <PropertyGroup Condition="'$(NBGV_PublicRelease)' == 'True'">
-    <Version>$(NBGV_Version)$(NBGV_PrereleaseVersion)</Version>
+    <!--
+      NBGV_Version is an assembly/build version and may contain a fourth
+      git-height component (for example 2.0.0.7). Packages instead use the
+      canonical SemVer value NBGV_NuGetPackageVersion (2.0.0): patch numbers
+      are explicit release decisions in version.json, never commit counts.
+      See docs/ReleaseProcess.md.
+    -->
+    <Version>$(NBGV_NuGetPackageVersion)</Version>
     <VersionPrefix>$(NBGV_SimpleVersion)</VersionPrefix>
-    <VersionSuffix>$(NBGV_VersionRevision)$(NBGV_PrereleaseVersion)</VersionSuffix>
+    <VersionSuffix>$(NBGV_PrereleaseVersion)</VersionSuffix>
     <AssemblyVersion>$(NBGV_SimpleVersion)</AssemblyVersion>
     <FileVersion>$(NBGV_Version)</FileVersion>
-    <PackageVersion>$(NBGV_Version)$(NBGV_PrereleaseVersion)</PackageVersion>
+    <PackageVersion>$(NBGV_NuGetPackageVersion)</PackageVersion>
   </PropertyGroup>
   <!--
     Do not let Nerdbank.GitVersioning publish cloud build variables from inside
     MSBuild. Its SetCloudBuildVersionVars target runs once per project, and on
     GitHub Actions the provider implements "set a variable" as an append to the
     file named by $GITHUB_ENV. Builds here are deliberately parallel across
-    MSBuild nodes (see the Build step in .github/workflows/buildandtest.yml), so
+    MSBuild nodes (see .github/scripts/run-dotnet-tests.ps1), so
     several nodes append GitAssemblyInformationalVersion / GitBuildVersion /
     GitBuildVersionSimple to that one file concurrently. Interleaved appends tear
     a line, and the runner then rejects the leftover fragment after the compile

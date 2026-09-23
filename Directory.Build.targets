@@ -1,4 +1,6 @@
 <Project>
+  <Import Project="version.targets" />
+
   <!--
     Per-project opt-in for the CI per-TFM build matrix: when a `.csproj`
     sets `<RestrictForLegacyTfm>true</RestrictForLegacyTfm>` in its main
