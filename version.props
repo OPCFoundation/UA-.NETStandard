@@ -12,12 +12,19 @@
   </PropertyGroup>
   <!-- NBGV_ variables are only available in cloud build -->
   <PropertyGroup Condition="'$(NBGV_PublicRelease)' == 'True'">
-    <Version>$(NBGV_Version)$(NBGV_PrereleaseVersion)</Version>
+    <!--
+      NBGV_Version is an assembly/build version and may contain a fourth
+      git-height component (for example 2.0.0.7). Packages instead use the
+      canonical SemVer value NBGV_NuGetPackageVersion (2.0.0): patch numbers
+      are explicit release decisions in version.json, never commit counts.
+      See docs/ReleaseProcess.md.
+    -->
+    <Version>$(NBGV_NuGetPackageVersion)</Version>
     <VersionPrefix>$(NBGV_SimpleVersion)</VersionPrefix>
-    <VersionSuffix>$(NBGV_VersionRevision)$(NBGV_PrereleaseVersion)</VersionSuffix>
+    <VersionSuffix>$(NBGV_PrereleaseVersion)</VersionSuffix>
     <AssemblyVersion>$(NBGV_SimpleVersion)</AssemblyVersion>
     <FileVersion>$(NBGV_Version)</FileVersion>
-    <PackageVersion>$(NBGV_Version)$(NBGV_PrereleaseVersion)</PackageVersion>
+    <PackageVersion>$(NBGV_NuGetPackageVersion)</PackageVersion>
   </PropertyGroup>
   <PropertyGroup>
     <GitVersionBaseDirectory>$(MSBuildThisFileDirectory)</GitVersionBaseDirectory>

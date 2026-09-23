@@ -6,6 +6,12 @@ You must agree to the contributor license agreement before we can accept your ch
 
 ### Continuous integration on your pull request
 
-Builds are not started automatically for pull requests from outside contributors — including those opened by the GitHub Copilot coding agent. A maintainer reviews the change first and then comments `/azp run` to start the Azure Pipelines validation build, and approves the GitHub Actions workflows. If your pull request shows no checks yet, this is expected; please wait for a maintainer rather than pushing empty commits.
+Builds are not started automatically for pull requests from outside contributors — including those opened by the GitHub Copilot coding agent. A maintainer reviews the change first and then approves the GitHub Actions workflows, which run the build and test validation. If your pull request shows no checks yet, this is expected; please wait for a maintainer rather than pushing empty commits.
 
-See [Continuous integration](docs/DeveloperGuide.md#continuous-integration) in the developer guide for what the pipelines run, and for the coverage gates your change has to satisfy.
+The required check is **`build-and-test summary`**. Azure Pipelines no longer builds pull requests; while its definition is still being retired a maintainer may comment `/azp run` to start a comparison build manually.
+
+See [Continuous integration](docs/DeveloperGuide.md#continuous-integration) in the developer guide for what CI runs, how to reproduce a failing leg locally, and the coverage gates your change has to satisfy.
+
+### Releasing
+
+Maintainers cutting a release branch, shipping a patch or minor version, backporting a fix to a release branch, or promoting a stable package to nuget.org must follow [docs/ReleaseProcess.md](docs/ReleaseProcess.md). Releases are only ever produced from a canonical `release/<major>.<minor>` branch, never from `master`.
