@@ -98,6 +98,28 @@ namespace BasicFluentApiServer
                     .WithValueRank(ValueRanks.Scalar)
                     .WithDescription("The sum of the two integers.")
                 );
+
+            builder
+                .AddMethod("Multiply", devices.NodeId)
+                .OnCall(OnMultiply)
+                .AddInputArguments(
+                    arg => arg
+                        .WithName("a")
+                        .WithDataType(DataTypeIds.Int32)
+                        .WithValueRank(ValueRanks.Scalar)
+                        .WithDescription("The first integer to multiply."),
+                    arg => arg
+                        .WithName("b")
+                        .WithDataType(DataTypeIds.Int32)
+                        .WithValueRank(ValueRanks.Scalar)
+                        .WithDescription("The second integer to multiply.")
+                )
+                .AddOutputArguments(arg => arg
+                    .WithName("product")
+                    .WithDataType<int>(SystemContext)
+                    .WithValueRank(ValueRanks.Scalar)
+                    .WithDescription("The product of the two integers.")
+                );
         }
 
         private ServiceResult OnAdd(
@@ -107,22 +129,45 @@ namespace BasicFluentApiServer
             ArrayOf<Variant> inputArguments,
             List<Variant> outputArguments)
         {
-            if (inputArguments.Count < 2)
-            {
-                return StatusCodes.BadInvalidArgument;
-            }
-
-            if (!inputArguments[0].TryGetValue(out int a))
-            {
-                return StatusCodes.BadInvalidArgument;
-            }
-
-            if (!inputArguments[1].TryGetValue(out int b))
+            if (inputArguments.Count < 2 ||
+                !inputArguments[0].TryGetValue(out int a) ||
+                !inputArguments[1].TryGetValue(out int b))
             {
                 return StatusCodes.BadInvalidArgument;
             }
 
             int result = a + b;
+            outputArguments[0] = result;
+
+            if (lastResult is null)
+            {
+                return new(StatusCodes.UncertainNotAllNodesAvailable);
+            }
+
+            lastResult.Value = result;
+            lastResult.Timestamp = DateTime.UtcNow;
+            lastResult.StatusCode = StatusCodes.Good;
+
+            lastResult.ClearChangeMasks(context, false);
+
+            return ServiceResult.Good;
+        }
+
+        private ServiceResult OnMultiply(
+            ISystemContext context,
+            MethodState method,
+            NodeId oid,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            if (inputArguments.Count < 2 ||
+                !inputArguments[0].TryGetValue(out int a) ||
+                !inputArguments[1].TryGetValue(out int b))
+            {
+                return StatusCodes.BadInvalidArgument;
+            }
+
+            int result = a * b;
             outputArguments[0] = result;
 
             if (lastResult is null)

@@ -107,6 +107,29 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
+        /// Creates an <see cref="IArgumentListBuilder"/>, applies the provided configurations,
+        /// builds the arguments and adds them as input arguments.
+        /// </summary>
+        /// <param name="method">
+        /// The method node builder.
+        /// </param>
+        /// <param name="configureArgument">
+        /// The argument configuration actions.
+        /// </param>
+        /// <returns>
+        /// The typed method node builder.
+        /// </returns>
+        public static INodeBuilder<MethodState> AddInputArguments(
+            this INodeBuilder method,
+            params Action<IArgumentBuilder>[] configureArgument)
+        {
+            var argumentListBuilder = new ArgumentListBuilder();
+            argumentListBuilder.Add(configureArgument);
+
+            return method.AddInputArguments(argumentListBuilder.Items);
+        }
+
+        /// <summary>
         /// Creates an <see cref="IArgumentListBuilder"/>, applies the provided configuration
         /// and adds the built input arguments.
         /// </summary>
@@ -196,6 +219,29 @@ namespace Opc.Ua.Server.Fluent
             configureArgument(argumentBuilder);
 
             return method.AddOutputArguments(argumentBuilder.Item);
+        }
+
+        /// <summary>
+        /// Creates an <see cref="IArgumentListBuilder"/>, applies the provided configurations,
+        /// builds the arguments and adds them as output arguments.
+        /// </summary>
+        /// <param name="method">
+        /// The method node builder.
+        /// </param>
+        /// <param name="configureArgument">
+        /// The argument configuration actions.
+        /// </param>
+        /// <returns>
+        /// The typed method node builder.
+        /// </returns>
+        public static INodeBuilder<MethodState> AddOutputArguments(
+            this INodeBuilder method,
+            params Action<IArgumentBuilder>[] configureArgument)
+        {
+            var argumentListBuilder = new ArgumentListBuilder();
+            argumentListBuilder.Add(configureArgument);
+
+            return method.AddOutputArguments(argumentListBuilder.Items);
         }
 
         /// <summary>
