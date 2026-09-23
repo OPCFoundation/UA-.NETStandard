@@ -288,6 +288,28 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
+        /// The ceiling covers the build and test together. The net48 server
+        /// project has a roughly five-minute clean build and a roughly
+        /// twenty-minute test run on hosted Windows, so a 30-minute combined
+        /// ceiling has no useful runner-variance margin and has killed a healthy
+        /// run. Every ordinary project receives the established 45-minute
+        /// combined ceiling.
+        /// </summary>
+        [TestCase("pr")]
+        [TestCase("full")]
+        public async Task MainlineProjectsHaveACombinedFortyFiveMinuteCeilingAsync(string scope)
+        {
+            MatrixResult matrix = await RunMatrixAsync(scope).ConfigureAwait(false);
+
+            string[] undersized = matrix.Tests
+                .Where(entry => entry.Tier == "mainline" && entry.PerProjectTimeout < 45)
+                .Select(entry => $"{entry.Id}: {entry.PerProjectTimeout}min")
+                .ToArray();
+
+            Assert.That(undersized, Is.Empty);
+        }
+
+        /// <summary>
         /// The per-project ceiling the matrix budgets once must also be spent
         /// once. Handing it separately to the build and to the test would let a
         /// project burn twice what its job was given, so both invocations share

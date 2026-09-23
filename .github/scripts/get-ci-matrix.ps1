@@ -389,10 +389,10 @@ function Expand-TestMatrix([string] $scope, [int] $size, [bool] $includeMacOS)
         # One combined ceiling per project, shared by that project's build and
         # test invocation in run-dotnet-tests.ps1. The job timeout below budgets
         # it exactly once per project, so the executor must not spend it twice.
+        # Keep 45 minutes for mainline too: on hosted Windows, the net48
+        # Opc.Ua.Server.Tests build plus its otherwise healthy test run normally
+        # takes about 25 minutes and has exceeded 30 under runner variance.
         $perProjectTimeout = 45
-        if ($tier -eq 'mainline') {
-            $perProjectTimeout = 30
-        }
 
         $batches = Split-IntoBatches $projectsByTier[$tier] $size
         for ($index = 0; $index -lt $batches.Count; $index++) {
