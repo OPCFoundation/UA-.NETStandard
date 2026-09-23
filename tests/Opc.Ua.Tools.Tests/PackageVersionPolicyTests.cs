@@ -856,6 +856,42 @@ namespace Opc.Ua.Tools.Tests
             });
         }
 
+        [Test]
+        public void ReleaseWorkflowVerifiesPublishedBytesAfterBothPushes()
+        {
+            // --skip-duplicate is needed for partial-promotion recovery, but a
+            // preflight alone has a check-then-push race. Pin the second half of
+            // the protocol: after each feed push, every package must be present
+            // and byte-identical to the candidate.
+            string workflow = File.ReadAllText(ReleaseWorkflowPath);
+            string verifier = File.ReadAllText(Path.Combine(
+                FindRepositoryRoot(),
+                ".azurepipelines",
+                "assert-published-packages-match.ps1"));
+
+            int nugetPush = workflow.IndexOf("dotnet nuget push $package.FullName", StringComparison.Ordinal);
+            int nugetPostCheck = workflow.IndexOf("-RequirePresent", nugetPush, StringComparison.Ordinal);
+            int githubPush = workflow.IndexOf(
+                "dotnet nuget push $package.FullName",
+                nugetPush + 1,
+                StringComparison.Ordinal);
+            int githubPostCheck = workflow.IndexOf("-RequirePresent", githubPush, StringComparison.Ordinal);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(nugetPush, Is.GreaterThanOrEqualTo(0));
+                Assert.That(nugetPostCheck, Is.GreaterThan(nugetPush));
+                Assert.That(githubPush, Is.GreaterThan(nugetPostCheck));
+                Assert.That(githubPostCheck, Is.GreaterThan(githubPush));
+                Assert.That(
+                    workflow.Split("-RequirePresent", StringSplitOptions.None),
+                    Has.Length.EqualTo(3),
+                    "Exactly the two post-push feed checks must require presence.");
+                Assert.That(verifier, Does.Contain("[switch]$RequirePresent"));
+                Assert.That(verifier, Does.Contain("WaitUntilPresent:$RequirePresent"));
+            });
+        }
+
         private static string CreateTestPackage(string name, Dictionary<string, string> entries)
         {
             string directory = Path.Combine(

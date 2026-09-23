@@ -117,6 +117,11 @@ jobs:
             # on the base branch after this one was cut, which would make an
             # unrelated base-branch change look like a build-relevant change here.
             $changed = @(& git diff --name-only "$($env:BASE_SHA)...HEAD")
+            if ($LASTEXITCODE -ne 0) {
+                throw (
+                    "Could not diff pull-request base '$($env:BASE_SHA)' against HEAD " +
+                    "(git exit code $LASTEXITCODE). Refusing to skip required CI work.")
+            }
             $relevantChanges = [bool](& ./.github/scripts/get-path-relevance.ps1 -ChangedFile $changed)
             Write-Host "Changed files: $(@($changed).Count); build-relevant: $relevantChanges"
         }

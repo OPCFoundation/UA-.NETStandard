@@ -245,17 +245,31 @@ function Measure-TestResults([string] $directory)
     $total = 0
     $passed = 0
     $failed = 0
+    $nonPassingCounters = @(
+        'failed',
+        'error',
+        'timeout',
+        'aborted',
+        'passedButRunAborted',
+        'inconclusive',
+        'notRunnable',
+        'disconnected',
+        'warning',
+        'completed',
+        'inProgress',
+        'pending')
     $trxFiles = @(Get-ChildItem -LiteralPath $directory -Recurse -File -Filter *.trx -ErrorAction SilentlyContinue)
     foreach ($trxFile in $trxFiles) {
         # XmlDocument.Load rather than [xml](Get-Content): PubSub emits several
         # megabytes of results and the array-of-lines cast fails on files that
         # size.
         $document = [System.Xml.XmlDocument]::new()
+        $document.XmlResolver = $null
         $document.Load($trxFile.FullName)
         foreach ($counters in $document.GetElementsByTagName('Counters')) {
             $total += Get-CounterValue $counters 'total'
             $passed += Get-CounterValue $counters 'passed'
-            foreach ($name in @('failed', 'error', 'timeout', 'aborted', 'passedButRunAborted')) {
+            foreach ($name in $nonPassingCounters) {
                 $failed += Get-CounterValue $counters $name
             }
         }

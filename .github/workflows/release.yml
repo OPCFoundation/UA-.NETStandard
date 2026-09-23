@@ -317,9 +317,10 @@ jobs:
               'published only to GitHub Packages.')
           foreach ($package in $packages) {
               # --skip-duplicate keeps a partially completed promotion
-              # re-runnable. "Verify already-published package identity" above
-              # has already proved that anything it skips is this candidate's
-              # own bytes.
+              # re-runnable. The preflight above rejects a foreign existing
+              # package; the post-push verification below closes the remaining
+              # race where another publisher claims the version between that
+              # check and this push.
               dotnet nuget push $package.FullName `
                 --source 'https://api.nuget.org/v3/index.json' `
                 --symbol-source 'https://api.nuget.org/v3/index.json' `
@@ -329,6 +330,12 @@ jobs:
                   throw "nuget.org push failed for '$($package.Name)'."
               }
           }
+          ./.azurepipelines/assert-published-packages-match.ps1 `
+            -PackageDirectory promotion `
+            -ManifestPath 'promotion/current-package-set.json' `
+            -Feed 'nuget.org' `
+            -ExcludeDebugPackages `
+            -RequirePresent
 
       - name: Push to GitHub Packages
         # nuget-publish.yml deliberately never pushes a stable candidate to
@@ -346,8 +353,9 @@ jobs:
           # exclude them; see docs/ReleaseProcess.md.
           $packages = @(Get-ChildItem promotion -Filter '*.nupkg' -File | Sort-Object Name)
           foreach ($package in $packages) {
-              # As above: the identity gate has already proved that any
-              # duplicate this skips is byte-identical to the candidate.
+              # As above, the preflight and post-push checks jointly prove that
+              # a duplicate is this candidate rather than a package published
+              # in the check-then-push window.
               dotnet nuget push $package.FullName `
                 --source 'https://nuget.pkg.github.com/OPCFoundation/index.json' `
                 --api-key $env:GITHUB_PACKAGES_TOKEN `
@@ -357,6 +365,12 @@ jobs:
                   throw "GitHub Packages push failed for '$($package.Name)'."
               }
           }
+          ./.azurepipelines/assert-published-packages-match.ps1 `
+            -PackageDirectory promotion `
+            -ManifestPath 'promotion/current-package-set.json' `
+            -Feed 'GitHub Packages' `
+            -GitHubToken $env:GITHUB_PACKAGES_TOKEN `
+            -RequirePresent
 
       - name: Summary
         if: always()

@@ -525,10 +525,14 @@ line you intend to release; the change has the required approvals.
 it authenticates to any feed, so an ordering violation that appeared after
 your dry run stops the promotion before the first public write rather than
 midway through it. It then runs `assert-published-packages-match.ps1` against
-both feeds: `dotnet nuget push --skip-duplicate` treats an existing
-id/version as a successful no-op without looking at it, so this gate proves
-first that every version the candidate already occupies holds this
-candidate's own content. Comparison ignores the `.signature.p7s` part,
+both feeds before **and after** publication: `dotnet nuget push
+--skip-duplicate` treats an existing id/version as a successful no-op without
+looking at it, so the preflight proves that every version the candidate already
+occupies holds this candidate's own content. The mandatory post-push check waits
+for feed indexing and then proves every expected package is present with the
+candidate's content, closing the race where another publisher claims an
+immutable id/version between the preflight and the push. Comparison ignores the
+`.signature.p7s` part,
 because nuget.org repository-signs packages at ingestion and the bytes it
 serves therefore legitimately differ from the bytes that were pushed;
 everything else must match exactly. A version claimed by a different build
@@ -543,10 +547,11 @@ fails the promotion instead of being silently skipped.
 2. Approve the pending deployment to the `release` environment when
    prompted (in the GitHub UI, or `gh run watch <new-run-id>` from the CLI).
    *Completion evidence*: the run proceeds past "Push to nuget.org" and
-   "Push to GitHub Packages" without error. The nuget.org log explicitly says
-   it is publishing only non-Debug package IDs; the GitHub Packages loop
-   reports `--skip-duplicate` success (not a conflict) for the complete
-   candidate, including its `.Debug` packages.
+   "Push to GitHub Packages" without error. Each step ends by reporting that
+   its post-push publication is byte-identical to the candidate. The nuget.org
+   log explicitly says it is publishing only non-Debug package IDs; the GitHub
+   Packages loop covers the complete candidate, including its `.Debug`
+   packages.
 
 3. Confirm the non-Debug packages are live on nuget.org:
    ```powershell
@@ -616,9 +621,11 @@ or [Approved promotion](#approved-promotion).
    absence there is not a partial-release symptom.
 
    The re-run is safe because `assert-published-packages-match.ps1` runs
-   before either push and proves that every version this candidate already
-   occupies really holds this candidate's own bytes (see the gate table
-   below). Because that proof exists,
+   before and after each push. The preflight proves that every version this
+   candidate already occupies really holds this candidate's own bytes; the
+   post-push check proves that every package now present is still this
+   candidate, including a duplicate accepted by `--skip-duplicate` (see the
+   gate table below). Because that proof exists,
    `validate-preview-package-ordering.ps1` deliberately does **not** treat
    the candidate's own already-published `-preview.N` as a violation -
    otherwise the recovery in this step would be unreachable. Any *higher*

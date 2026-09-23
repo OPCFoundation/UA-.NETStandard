@@ -120,6 +120,51 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
+        /// VSTest has more non-passing counters than failed/error/timeout. A
+        /// partial run can contain passing tests and still be inconclusive,
+        /// disconnected, not runnable, or unfinished. The executor must sum the
+        /// same complete set as the Azure gate before asking for a verdict.
+        /// </summary>
+        [Test]
+        public async Task ExecutorCountsEveryNonPassingTrxCounterAsync()
+        {
+            string executor = Path.Combine(FindRepositoryRoot(), ".github", "scripts", "run-dotnet-tests.ps1");
+            string source = await File.ReadAllTextAsync(executor).ConfigureAwait(false);
+            int start = source.IndexOf("function Measure-TestResults", StringComparison.Ordinal);
+            int end = source.IndexOf("\nfunction Get-CounterValue", start, StringComparison.Ordinal);
+            Assert.That(start, Is.GreaterThanOrEqualTo(0));
+            Assert.That(end, Is.GreaterThan(start));
+            string measure = source[start..end];
+
+            string[] expected =
+            [
+                "failed",
+                "error",
+                "timeout",
+                "aborted",
+                "passedButRunAborted",
+                "inconclusive",
+                "notRunnable",
+                "disconnected",
+                "warning",
+                "completed",
+                "inProgress",
+                "pending"
+            ];
+
+            Assert.Multiple(() =>
+            {
+                foreach (string counter in expected)
+                {
+                    Assert.That(
+                        measure,
+                        Does.Contain($"'{counter}'"),
+                        $"Measure-TestResults must reject the TRX '{counter}' counter.");
+                }
+            });
+        }
+
+        /// <summary>
         /// A run that produced no TRX at all is a broken run, not an empty one.
         /// Every mainline project runs on VSTest and must emit one, so silence
         /// here means the suite stopped executing.

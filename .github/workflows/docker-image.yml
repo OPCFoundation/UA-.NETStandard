@@ -61,6 +61,11 @@ jobs:
             # branch head, so a change that landed on the base branch after
             # this one was cut is not misread as an image-relevant change.
             $changed = @(& git diff --name-only "$($env:BASE_SHA)...HEAD")
+            if ($LASTEXITCODE -ne 0) {
+                throw (
+                    "Could not diff pull-request base '$($env:BASE_SHA)' against HEAD " +
+                    "(git exit code $LASTEXITCODE). Refusing to skip required image builds.")
+            }
             $relevantChanges = $false
             foreach ($file in $changed) {
                 if ($file -like 'docs/*' -or $file -like 'tests/*') {

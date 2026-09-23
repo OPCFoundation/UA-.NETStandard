@@ -122,6 +122,36 @@ namespace Opc.Ua.Tools.Tests
             Assert.That(source, Does.Contain("./.github/scripts/get-path-relevance.ps1 -ChangedFile $changed"));
         }
 
+        /// <summary>
+        /// An unavailable base ref must fail the gate rather than look like an
+        /// empty, documentation-only diff. Both fixed-name required summaries
+        /// depend on these internal relevance checks.
+        /// </summary>
+        [TestCase("buildandtest.yml", "$relevantChanges = [bool]")]
+        [TestCase("docker-image.yml", "$relevantChanges = $false")]
+        public async Task WorkflowFailsClosedWhenGitDiffFailsAsync(string workflowName, string relevanceDecision)
+        {
+            string workflow = Path.Combine(FindRepositoryRoot(), ".github", "workflows", workflowName);
+            string source = await File.ReadAllTextAsync(workflow).ConfigureAwait(false);
+            int diff = source.IndexOf("$changed = @(& git diff --name-only", StringComparison.Ordinal);
+            int exitCheck = source.IndexOf("if ($LASTEXITCODE -ne 0)", diff, StringComparison.Ordinal);
+            int decision = source.IndexOf(relevanceDecision, diff, StringComparison.Ordinal);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(diff, Is.GreaterThanOrEqualTo(0));
+                Assert.That(exitCheck, Is.GreaterThan(diff), "git diff must be checked immediately.");
+                Assert.That(
+                    decision,
+                    Is.GreaterThan(exitCheck),
+                    "Relevance must not be evaluated after a failed git diff.");
+                Assert.That(
+                    source[exitCheck..decision],
+                    Does.Contain("throw"),
+                    "A failed diff must fail the gate rather than become an empty change set.");
+            });
+        }
+
         private static async Task<bool> EvaluateAsync(params string[] changedFiles)
         {
             string root = FindRepositoryRoot();

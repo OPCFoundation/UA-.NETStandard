@@ -34,8 +34,10 @@
     skipped reports Total > 0 with Passed = 0 and must not be treated as green.
 
  .PARAMETER Failed
-    Recorded tests that failed, errored, timed out, aborted, or passed in a run
-    that was aborted.
+    Sum of every TRX counter that represents a failed, non-passing, or
+    unfinished test: failed, error, timeout, aborted, passedButRunAborted,
+    inconclusive, notRunnable, disconnected, warning, completed, inProgress,
+    and pending. This is the same fail-closed set the Azure gate uses.
 
  .PARAMETER ExitCode
     Exit code of the 'dotnet test' process.
@@ -92,7 +94,7 @@ function Get-TestRunVerdict
         return [pscustomobject]@{
             Passed    = $false
             Tolerated = $false
-            Reason    = "$Failed test(s) failed, errored, timed out or aborted."
+            Reason    = "$Failed test(s) failed, were non-passing, or did not finish."
         }
     }
 

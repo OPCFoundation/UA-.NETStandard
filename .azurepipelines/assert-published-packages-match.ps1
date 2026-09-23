@@ -58,7 +58,20 @@ param(
 
     # nuget.org deliberately never receives the ".Debug" package IDs; they are
     # published only to GitHub Packages. See docs/ReleaseProcess.md.
-    [switch]$ExcludeDebugPackages
+    [switch]$ExcludeDebugPackages,
+
+    # Preflight permits an absent package because the following push will create
+    # it. Post-push verification requires every candidate package to be present,
+    # closing the check-then-push race created by --skip-duplicate.
+    [switch]$RequirePresent,
+
+    # Feed ingestion is asynchronous. A real push may return before the flat
+    # container/download endpoint serves the immutable package bytes.
+    [ValidateRange(0, 1800)]
+    [int]$PublicationTimeoutSeconds = 300,
+
+    [ValidateRange(1, 60)]
+    [int]$PublicationPollSeconds = 10
 )
 
 $ErrorActionPreference = 'Stop'
@@ -74,27 +87,42 @@ function Get-PublishedPackageBytes {
     param(
         [Parameter(Mandatory)][string]$Uri,
         [Parameter(Mandatory)][string]$Destination,
-        [hashtable]$Headers = @{}
+        [hashtable]$Headers = @{},
+        [switch]$WaitUntilPresent,
+        [int]$TimeoutSeconds = 0,
+        [int]$PollSeconds = 10
     )
 
-    $response = Invoke-WebRequest -Uri $Uri -Headers $Headers -SkipHttpErrorCheck `
-        -MaximumRetryCount 3 -RetryIntervalSec 5 -OutFile $Destination -PassThru
-    if ($response.StatusCode -eq 404) {
-        if (Test-Path -LiteralPath $Destination) {
-            Remove-Item -LiteralPath $Destination -Force
+    $deadline = [DateTimeOffset]::UtcNow.AddSeconds($TimeoutSeconds)
+    while ($true) {
+        $response = Invoke-WebRequest -Uri $Uri -Headers $Headers -SkipHttpErrorCheck `
+            -MaximumRetryCount 3 -RetryIntervalSec 5 -OutFile $Destination -PassThru
+        if ($response.StatusCode -eq 404) {
+            if (Test-Path -LiteralPath $Destination) {
+                Remove-Item -LiteralPath $Destination -Force
+            }
+            if (-not $WaitUntilPresent) {
+                return $null
+            }
+            if ([DateTimeOffset]::UtcNow -ge $deadline) {
+                throw (
+                    "'$Uri' was still absent after $TimeoutSeconds second(s). The push may not " +
+                    'have published this candidate, so the release is blocked.')
+            }
+            Start-Sleep -Seconds $PollSeconds
+            continue
         }
-        return $null
+        if ($response.StatusCode -ne 200) {
+            throw (
+                "Unable to read '$Uri' (HTTP $($response.StatusCode)). Whether the candidate's " +
+                'version is already taken cannot be decided, so the release is blocked; ' +
+                'see docs/ReleaseProcess.md.')
+        }
+        if (-not (Test-Path -LiteralPath $Destination)) {
+            throw "'$Uri' answered HTTP 200 but produced no package to compare."
+        }
+        return $Destination
     }
-    if ($response.StatusCode -ne 200) {
-        throw (
-            "Unable to read '$Uri' (HTTP $($response.StatusCode)). Whether the candidate's " +
-            'version is already taken cannot be decided, so the release is blocked; ' +
-            'see docs/ReleaseProcess.md.')
-    }
-    if (-not (Test-Path -LiteralPath $Destination)) {
-        throw "'$Uri' answered HTTP 200 but produced no package to compare."
-    }
-    return $Destination
 }
 
 $manifest = Get-Content -LiteralPath $ManifestPath -Raw | ConvertFrom-Json
@@ -143,7 +171,13 @@ try {
         }
 
         $destination = Join-Path $workingDirectory "$lowerId.$lowerVersion.nupkg"
-        $downloaded = Get-PublishedPackageBytes -Uri $uri -Destination $destination -Headers $headers
+        $downloaded = Get-PublishedPackageBytes `
+            -Uri $uri `
+            -Destination $destination `
+            -Headers $headers `
+            -WaitUntilPresent:$RequirePresent `
+            -TimeoutSeconds $PublicationTimeoutSeconds `
+            -PollSeconds $PublicationPollSeconds
         if ($null -eq $downloaded) {
             $absent++
             continue
@@ -175,9 +209,14 @@ try {
             "instead of re-using a taken one: $($details -join '; ')")
     }
 
+    if ($RequirePresent -and $absent -ne 0) {
+        throw "$Feed post-push verification unexpectedly left $absent package(s) absent."
+    }
+
+    $phase = if ($RequirePresent) { 'post-push publication' } else { 'pre-push duplicates' }
     Write-Host (
-        "Verified $Feed duplicates: $verified package(s) already published are byte-identical " +
-        "to this candidate and $absent are not yet published.")
+        "Verified $Feed $phase`: $verified package(s) are byte-identical to this candidate " +
+        "and $absent are not yet published.")
 }
 finally {
     Remove-Item -LiteralPath $workingDirectory -Recurse -Force -ErrorAction SilentlyContinue
