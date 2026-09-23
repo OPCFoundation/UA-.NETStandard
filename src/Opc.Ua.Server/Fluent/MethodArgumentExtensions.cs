@@ -236,6 +236,9 @@ namespace Opc.Ua.Server.Fluent
             args.ReferenceTypeId = ReferenceTypeIds.HasProperty;
             args.TypeDefinitionId = VariableTypeIds.PropertyType;
 
+            args.DataType = DataTypeIds.Argument;
+            args.ValueRank = ValueRanks.OneDimension;
+
             args.Value = arguments;
         }
     }
