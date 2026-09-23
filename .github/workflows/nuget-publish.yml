@@ -450,7 +450,7 @@ jobs:
           # three-component "release/2.0.0" naming: that line is frozen and
           # keeps its history, but no longer publishes. See
           # docs/ReleaseProcess.md.
-          $isEligibleRef = $env:GITHUB_REF -eq 'refs/heads/master' -or
+          $isEligibleRef = $env:GITHUB_REF -ceq 'refs/heads/master' -or
               (Test-CanonicalReleaseBranchRef -Ref $env:GITHUB_REF)
           "PUBLISH_CHANNEL=$($inventory.channel)" | Out-File -FilePath $env:GITHUB_ENV -Append
           "PUBLISH_ELIGIBLE_REF=$($isEligibleRef.ToString().ToLowerInvariant())" |
