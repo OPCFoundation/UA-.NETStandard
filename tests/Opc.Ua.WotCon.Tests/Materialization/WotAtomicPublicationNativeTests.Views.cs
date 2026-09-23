@@ -41,6 +41,7 @@ using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Export;
 using Opc.Ua.Server;
+using Opc.Ua.WotCon.Bindings;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
@@ -543,9 +544,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             LifecycleWotViewProjectionHost views,
             bool allowNativeRefresh = false,
             bool autoRefresh = false,
-            IWotDocumentConverter? converter = null)
+            IWotDocumentConverter? converter = null,
+            IWotBinderRegistry? binderRegistry = null)
         {
-            HandoffProbe probe = ObserveHandoff(views, converter ?? new StockViewSourceConverter());
+            HandoffProbe probe = ObserveHandoff(views, converter ?? new StockViewSourceConverter(), binderRegistry);
             var options = new WotRegistryServerOptions { AutoRefresh = autoRefresh };
             if (allowNativeRefresh)
             {

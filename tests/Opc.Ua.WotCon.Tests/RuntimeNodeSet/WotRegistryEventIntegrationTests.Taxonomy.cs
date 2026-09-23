@@ -519,6 +519,14 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
         [Test]
         public async Task ReadinessCancellationCannotPreventAddressSpaceCleanup()
         {
+            await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
+            {
+                GroupId = WotRegistryGroups.ThingDescriptions,
+                ResourceId = "readiness-cancel",
+                VersionId = "v1",
+                Kind = WoTDocumentKindEnum.ThingDescription,
+                Content = ByteString.From(SelectiveConverter.ValidTd("readiness-cancel"))
+            }).ConfigureAwait(false);
             using var cancellation = new CancellationTokenSource();
             void CancelAfterCompletion(object? sender, WotMaterializationEventArgs change)
             {

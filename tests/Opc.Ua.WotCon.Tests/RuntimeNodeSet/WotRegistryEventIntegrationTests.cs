@@ -75,6 +75,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
         private RequestHeader m_requestHeader = null!;
         private SecureChannelContext m_secureChannelContext = null!;
         private WotRegistryService m_registry = null!;
+        private FileWotRegistryStore m_store = null!;
         private WotMaterializationCoordinator m_coordinator = null!;
 
         [SetUp]
@@ -116,7 +117,8 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                     ResourceDocumentAttributeName = "thing"
                 }
             };
-            m_registry = new WotRegistryService();
+            m_store = new FileWotRegistryStore(Path.Combine(m_pkiRoot, "registry"));
+            m_registry = new WotRegistryService(m_store);
             var host = new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle);
             m_failureConverter = new SelectiveConverter();
             m_coordinator = new WotMaterializationCoordinator(
@@ -145,6 +147,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
 
             m_coordinator?.Dispose();
             m_registry?.Dispose();
+            m_store?.Dispose();
             m_server?.Dispose();
 
             if (!string.IsNullOrEmpty(m_pkiRoot) && Directory.Exists(m_pkiRoot))

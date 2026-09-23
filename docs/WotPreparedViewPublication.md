@@ -239,6 +239,24 @@ through its existing reconciliation queue. Clients use `RefreshGeneration`,
 not a cached summary's generation, for `ExpectedGeneration`; a later invocation
 may have committed individual units before its completion summary is available.
 
+## Failure-event context
+
+The coordinator carries each failing operation's phase into its concrete
+failure event. Load failures retain Fetch, DependencyResolution, Projection or
+Activation as reported by that operation; they are not all relabelled Projection.
+Format and compatibility failures remain distinct validation diagnostics.
+
+Binding failures include the captured selected Version identity and the actual
+serving generation. A rejected strict unit reports the previous committed
+generation; a degraded unit that commits reports its committed generation.
+Selecting a non-default Version does not substitute the default or active
+Version as the failure source. The existing native event queue resolves that
+exact Version node and preserves delivery order through refresh completion.
+
+These rules report outcomes supplied by the configured conversion and binding
+providers. They do not add a JSON Schema validator or infer compatibility success
+from parsing.
+
 ## Captured dependency metadata
 
 `IWotRefreshCaptureProvider` resolves to the registered

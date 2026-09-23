@@ -550,7 +550,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         private HandoffProbe ObserveHandoff(
-            IWotViewProjectionHost? viewHost = null, IWotDocumentConverter? converter = null)
+            IWotViewProjectionHost? viewHost = null,
+            IWotDocumentConverter? converter = null,
+            IWotBinderRegistry? binderRegistry = null)
         {
             var probe = new HandoffProbe();
             var runtimeFactory = new Mock<IWotProjectionBindingRuntimeFactory>(MockBehavior.Strict);
@@ -673,7 +675,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             });
             m_coordinator.Dispose();
             m_coordinator = new WotMaterializationCoordinator(
-                m_registry, host.Object, documentConverter: converter ?? m_converter, viewProjectionHost: viewHost)
+                m_registry, host.Object, binderRegistry: binderRegistry,
+                documentConverter: converter ?? m_converter, viewProjectionHost: viewHost)
             {
                 ServerNamespaceUris = m_server.CurrentInstance.NamespaceUris
             };

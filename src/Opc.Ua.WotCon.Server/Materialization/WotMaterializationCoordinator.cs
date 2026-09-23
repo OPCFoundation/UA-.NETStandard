@@ -939,7 +939,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     results.Add(FailResult(member, generation, phase, reason));
                     projections.Add(FailProjection(member, reason));
-                    RaiseLoadFailure(member, generation, reason);
+                    RaiseLoadFailure(member, generation, phase, reason);
                 }
                 return new ClosureOutcome(
                     results.ToImmutable(),
@@ -997,7 +997,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             WoTPhaseEnum.Fetch,
                             reason));
                         projections.Add(FailProjection(affected, reason));
-                        RaiseLoadFailure(affected, generation, reason);
+                        RaiseLoadFailure(affected, generation, WoTPhaseEnum.Fetch, reason);
                     }
                     return new ClosureOutcome(
                         results.ToImmutable(),
@@ -1050,15 +1050,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             generation,
                             failurePhase,
                             conversionError));
-                        if (failurePhase == WoTPhaseEnum.Projection)
+                        if (failurePhase is not (WoTPhaseEnum.FormatValidation or WoTPhaseEnum.CompatibilityValidation))
                         {
                             projections.Add(FailProjection(affected, conversionError));
-                            RaiseLoadFailure(affected, generation, conversionError);
+                            RaiseLoadFailure(affected, generation, failurePhase, conversionError);
                         }
                         else
                         {
                             WoTValidationOutcomeDataType validation =
-                                FormatFailure(conversionError);
+                                ValidationFailure(conversionError, failurePhase);
                             projections.Add(FailProjection(
                                 affected,
                                 conversionError,
@@ -1066,6 +1066,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             RaiseValidationFailure(
                                 affected,
                                 generation,
+                                failurePhase,
                                 validation,
                                 conversionError);
                         }
@@ -1121,7 +1122,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     results.Add(FailResult(member, generation, WoTPhaseEnum.Projection, exception.Message));
                     projections.Add(FailProjection(member, exception.Message));
-                    RaiseLoadFailure(member, generation, exception.Message);
+                    RaiseLoadFailure(member, generation, WoTPhaseEnum.Projection, exception.Message);
                 }
                 return new ClosureOutcome(
                     results.ToImmutable(),
@@ -1149,7 +1150,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     results.Add(FailResult(member, generation, WoTPhaseEnum.DependencyResolution, reason));
                     projections.Add(FailProjection(member, reason));
-                    RaiseLoadFailure(member, generation, reason);
+                    RaiseLoadFailure(member, generation, WoTPhaseEnum.DependencyResolution, reason);
                 }
                 return new ClosureOutcome(results.ToImmutable(), projections, 0);
             }
@@ -1169,7 +1170,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         const string reason = "Unsupported binding forms in a strict closure.";
                         results.Add(FailResult(member, generation, WoTPhaseEnum.Projection, reason));
                         projections.Add(FailProjection(member, reason));
-                        RaiseBindingFailure(member, reason);
+                        RaiseBindingFailure(member, generation, reason);
                         return new ClosureOutcome(
                             results.ToImmutable(),
                             projections,
@@ -1181,7 +1182,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         string.Join(
                             ", ", plan.UnsupportedForms.Select(form => form.AffordanceName).Distinct().Take(3));
                     degradationReasons.Add(bindingReason);
-                    RaiseBindingFailure(member, bindingReason);
+                    RaiseBindingFailure(member, generation, bindingReason);
                 }
                 else if (!isDeclaration && plan.HasNonExecutableForms)
                 {
@@ -1256,7 +1257,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         results.Add(FailResult(
                             member, generation, WoTPhaseEnum.Activation, ex.Message));
                         projections.Add(FailProjection(member, ex.Message));
-                        RaiseLoadFailure(member, generation, ex.Message);
+                        RaiseLoadFailure(member, generation, WoTPhaseEnum.Activation, ex.Message);
                     }
                     return new ClosureOutcome(
                         results.ToImmutable(),
@@ -1655,7 +1656,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     viewResults.Add(FailResult(
                         member, generation, WoTPhaseEnum.Activation, reason));
                     viewProjections.Add(FailProjection(member, reason));
-                    RaiseLoadFailure(member, generation, reason);
+                    RaiseLoadFailure(member, generation, WoTPhaseEnum.Activation, reason);
                 }
             }
         }
@@ -1686,8 +1687,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 const string reason = "The projection document could not be parsed.";
                 viewResults.Add(FailResult(
                     member, generation, WoTPhaseEnum.FormatValidation, reason));
-                viewProjections.Add(FailProjection(member, reason, FormatFailure(reason)));
-                RaiseValidationFailure(member, generation, FormatFailure(reason), reason);
+                viewProjections.Add(FailProjection(member, reason, ValidationFailure(reason)));
+                RaiseValidationFailure(
+                    member, generation, WoTPhaseEnum.FormatValidation, ValidationFailure(reason), reason);
                 return;
             }
 
@@ -1707,7 +1709,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     "The projection document could not be materialized as a View.");
                 viewResults.Add(FailResult(member, generation, WoTPhaseEnum.Projection, reason));
                 viewProjections.Add(FailProjection(member, reason));
-                RaiseLoadFailure(member, generation, reason);
+                RaiseLoadFailure(member, generation, WoTPhaseEnum.Projection, reason);
                 return;
             }
 
@@ -2480,15 +2482,18 @@ namespace Opc.Ua.WotCon.Server.Materialization
             };
         }
 
-        private static WoTValidationOutcomeDataType FormatFailure(string? reason)
+        private static WoTValidationOutcomeDataType ValidationFailure(
+            string? reason, WoTPhaseEnum phase = WoTPhaseEnum.FormatValidation)
         {
+            bool compatibility = phase == WoTPhaseEnum.CompatibilityValidation;
             return new()
             {
-                FormatValidated = true,
-                FormatOutcome = WoTOutcomeEnum.Failed,
-                FormatReason = reason ?? string.Empty,
-                CompatibilityValidated = false,
-                CompatibilityOutcome = WoTOutcomeEnum.Skipped,
+                FormatValidated = !compatibility,
+                FormatOutcome = compatibility ? WoTOutcomeEnum.Skipped : WoTOutcomeEnum.Failed,
+                FormatReason = compatibility ? string.Empty : reason ?? string.Empty,
+                CompatibilityValidated = compatibility,
+                CompatibilityOutcome = compatibility ? WoTOutcomeEnum.Failed : WoTOutcomeEnum.Skipped,
+                CompatibilityReason = compatibility ? reason ?? string.Empty : string.Empty,
                 ValidatedAt = DateTime.UtcNow,
                 VocabularyVersion = WotNodeSetConverter.VocabularyNamespace
             };
@@ -2510,7 +2515,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             });
         }
 
-        private void RaiseLoadFailure(WotResource resource, uint generation, string? reason)
+        private void RaiseLoadFailure(
+            WotResource resource, uint generation, WoTPhaseEnum phase, string? reason)
         {
             RaiseEvent(new WotMaterializationEventArgs(WotMaterializationEventKind.LoadFailure)
             {
@@ -2519,7 +2525,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 VersionId = resource.DefaultVersionId ?? string.Empty,
                 DocumentKind = resource.Kind,
                 Generation = generation,
-                Phase = WoTPhaseEnum.Projection,
+                Phase = phase,
                 Outcome = WoTOutcomeEnum.Failed,
                 LoadState = WoTLoadStateEnum.Failed,
                 Reason = reason ?? string.Empty
@@ -2527,7 +2533,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         private void RaiseValidationFailure(
-            WotResource resource, uint generation,
+            WotResource resource, uint generation, WoTPhaseEnum phase,
             WoTValidationOutcomeDataType validation, string? reason)
         {
             RaiseEvent(new WotMaterializationEventArgs(
@@ -2538,7 +2544,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 VersionId = resource.DefaultVersionId ?? string.Empty,
                 DocumentKind = resource.Kind,
                 Generation = generation,
-                Phase = WoTPhaseEnum.FormatValidation,
+                Phase = phase,
                 Outcome = WoTOutcomeEnum.Failed,
                 LoadState = WoTLoadStateEnum.Failed,
                 Validation = validation,
@@ -2546,14 +2552,17 @@ namespace Opc.Ua.WotCon.Server.Materialization
             });
         }
 
-        private void RaiseBindingFailure(WotResource resource, string? reason)
+        private void RaiseBindingFailure(WotResource resource, uint generation, string? reason)
         {
             RaiseEvent(new WotMaterializationEventArgs(
                         WotMaterializationEventKind.BindingFailure)
             {
                 Xid = resource.Xid,
                 ResourceId = resource.ResourceId,
+                VersionId = resource.DefaultVersionId ?? string.Empty,
                 DocumentKind = resource.Kind,
+                Generation = generation,
+                Phase = WoTPhaseEnum.Projection,
                 Outcome = WoTOutcomeEnum.Failed,
                 LoadState = WoTLoadStateEnum.Failed,
                 Reason = reason ?? string.Empty
