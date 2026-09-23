@@ -203,6 +203,7 @@ namespace Opc.Ua.WotCon.Server
             await Registry.InitializeAsync(cancellationToken).ConfigureAwait(false);
             Registry.Changed += OnRegistryChanged;
             Coordinator.Event += OnCoordinatorEvent;
+            Coordinator.RefreshStateChanged += OnRefreshStateChanged;
 
             // Build the stable registry projection during preparation. Dependent runtime
             // registrations require the later, awaited readiness phase.
@@ -291,6 +292,7 @@ namespace Opc.Ua.WotCon.Server
         {
             Registry.Changed -= OnRegistryChanged;
             Coordinator.Event -= OnCoordinatorEvent;
+            Coordinator.RefreshStateChanged -= OnRefreshStateChanged;
             m_recoveryProjectionRegistration?.Dispose();
             await m_reconcileQueue.CompleteAsync(cancellationToken).ConfigureAwait(false);
             await Coordinator.RemoveAllAsync(cancellationToken).ConfigureAwait(false);
@@ -347,6 +349,8 @@ namespace Opc.Ua.WotCon.Server
                 new Variant(Wot.WotNodeSetConverter.VocabularyNamespace));
             if (registry is WoTRegistryState typed)
             {
+                typed.AddLastRefreshTime(context).AddLastRefreshSummary(context);
+                m_projection.BindPublishedRegistryProperties(typed);
                 typed.AddLastRefreshPlan(context);
                 typed.LastRefreshPlan!.AccessLevel = AccessLevels.CurrentRead;
                 typed.LastRefreshPlan.UserAccessLevel = AccessLevels.CurrentRead;
@@ -563,6 +567,40 @@ namespace Opc.Ua.WotCon.Server
             }
         }
 
+        private void OnRefreshStateChanged(object? sender, EventArgs e)
+        {
+            try
+            {
+                WoTRefreshSummaryDataType? summary = Coordinator.LastRefreshSummary;
+                if (summary is not null)
+                {
+                    m_reconcileQueue.Enqueue(() =>
+                    {
+                        UpdateRefreshState(summary);
+                        return Task.CompletedTask;
+                    });
+                }
+            }
+            catch (Exception failure) when (failure is not OutOfMemoryException)
+            {
+                m_logger.RegistryProjectionReconcileFailed(failure);
+            }
+        }
+
+        private void UpdateRefreshState(WoTRefreshSummaryDataType summary)
+        {
+            if (m_registryNode is not WoTRegistryState registry)
+            {
+                return;
+            }
+            registry.LastRefreshTime!.Value = summary.EndTime;
+            registry.LastRefreshTime.StatusCode = StatusCodes.Good;
+            registry.LastRefreshSummary!.Value = CoreUtils.Clone(summary) ??
+                throw new InvalidOperationException("A completed refresh summary could not be captured.");
+            registry.LastRefreshSummary.StatusCode = StatusCodes.Good;
+            registry.ClearChangeMasks(SystemContext, includeChildren: true);
+        }
+
         private Task ReportCoordinatorEventAsync(
             WotMaterializationEventArgs e,
             WoTValidationOutcomeDataType? validation,
@@ -713,6 +751,11 @@ namespace Opc.Ua.WotCon.Server
                         change.Current,
                         CancellationToken.None)
                     .ConfigureAwait(false);
+                if (m_registryNode is WoTRegistryState registry)
+                {
+                    registry.RefreshGeneration!.Value = change.Current.RefreshGeneration;
+                    registry.RefreshGeneration.ClearChangeMasks(SystemContext, includeChildren: false);
+                }
             }
             catch (Exception ex)
             {

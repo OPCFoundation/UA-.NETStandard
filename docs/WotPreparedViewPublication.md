@@ -217,6 +217,26 @@ predicted node count remains available. Custom source providers must implement
 private validation to preview changed units. Unsupported validation is reported
 as a failure, not a successful preview.
 
+## Registry refresh state
+
+The well-known registry exposes read-only `RefreshGeneration`,
+`LastRefreshTime` and `LastRefreshSummary`. Generation comes from the registry
+image captured with native routing, including restored publications. The summary
+and its end time describe the last completed actual refresh; they are diagnostic
+state, not an alternative generation guard.
+
+The coordinator owns the completion cache for direct, automatic and Method
+invocations. `LastRefreshSummary` returns a detached copy. No-op and completed
+failure results replace the cache without inventing a new generation. Dry runs,
+stale-generation rejection and interrupted invocations leave it unchanged.
+Before a completion in that coordinator's lifetime, time and summary reads
+return `BadWaitingForInitialData`.
+
+The native projection publishes completed values and value-change notifications
+through its existing reconciliation queue. Clients use `RefreshGeneration`,
+not a cached summary's generation, for `ExpectedGeneration`; a later invocation
+may have committed individual units before its completion summary is available.
+
 ## Captured dependency metadata
 
 `IWotRefreshCaptureProvider` resolves to the registered

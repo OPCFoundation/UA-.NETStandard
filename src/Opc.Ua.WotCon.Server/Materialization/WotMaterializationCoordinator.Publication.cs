@@ -54,6 +54,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
         public WoTRefreshPlanDataType? LastRefreshPlan => CoreUtils.Clone(Volatile.Read(ref m_lastRefreshPlan));
 
         /// <summary>
+        /// Gets a detached summary of the last completed actual refresh, or null before one has completed.
+        /// Dry runs and interrupted invocations do not replace it.
+        /// </summary>
+        public WoTRefreshSummaryDataType? LastRefreshSummary =>
+            CoreUtils.Clone(Volatile.Read(ref m_lastRefreshSummary));
+
+        /// <summary>
         /// Gets the actual invocation-isolated modes supported by the configured owners.
         /// Legacy immediate projection is not advertised as this capability.
         /// </summary>
@@ -61,6 +68,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             m_registry is IWotInvocationRegistryPublicationService { SupportsPreparedPublication: true } &&
                 m_sourceHost is IWotInvocationProjectionHost source
                 ? [.. source.SupportedAtomicities] : [];
+
+        internal event EventHandler? RefreshStateChanged;
 
         private Dictionary<string, ClosureState> ClosureStates => m_preparing?.Closures ?? m_closures;
         private HashSet<string> ProjectionNamespaces => m_preparing?.Namespaces ?? m_projectionNamespaceUris;
@@ -222,6 +231,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             var completed = new WotRefreshResult(summary, rows.ToImmutable(), m_generation);
             if (!refresh.Request.DryRun)
             {
+                Volatile.Write(ref m_lastRefreshSummary, CoreUtils.Clone(completed.Summary));
                 if (succeeded != 0)
                 {
                     RaiseCommittedEvent(CreateCompletion(completed, refresh.Request.RequestId), completed);
@@ -230,6 +240,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     RaiseEvent(CreateCompletion(completed, refresh.Request.RequestId));
                 }
+                Volatile.Write(ref m_lastRefreshSummary, CoreUtils.Clone(completed.Summary));
+                RefreshStateChanged?.Invoke(this, EventArgs.Empty);
             }
             return completed;
         }
@@ -1209,5 +1221,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
         private PublicationCapture? m_preparing;
         private WotCommittedPublicationState m_committedPublication;
         private WoTRefreshPlanDataType? m_lastRefreshPlan;
+        private WoTRefreshSummaryDataType? m_lastRefreshSummary;
     }
 }

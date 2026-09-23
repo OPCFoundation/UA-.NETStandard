@@ -54,6 +54,42 @@ namespace Opc.Ua.WotCon.Server
             return new RegistryReadImage(m_manager, intended);
         }
 
+        internal void BindPublishedRegistryProperties(WoTRegistryState registry)
+        {
+            registry.RefreshGeneration!.AccessLevel = AccessLevels.CurrentRead;
+            registry.RefreshGeneration.UserAccessLevel = AccessLevels.CurrentRead;
+            registry.RefreshGeneration.OnSimpleReadValueAsync = (context, _, ct) =>
+            {
+                ct.ThrowIfCancellationRequested();
+                uint generation = GetCapturedReadImage(context)?.RefreshGeneration ??
+                    m_registry.Current.RefreshGeneration;
+                return new ValueTask<AttributeSimpleReadResult>(
+                    new AttributeSimpleReadResult(StatusCodes.Good, Variant.From(generation)));
+            };
+            registry.LastRefreshTime!.AccessLevel = AccessLevels.CurrentRead;
+            registry.LastRefreshTime.UserAccessLevel = AccessLevels.CurrentRead;
+            registry.LastRefreshTime.StatusCode = StatusCodes.BadWaitingForInitialData;
+            registry.LastRefreshTime.OnSimpleReadValueAsync = (_, _, ct) =>
+            {
+                ct.ThrowIfCancellationRequested();
+                WoTRefreshSummaryDataType? summary = m_manager.Coordinator.LastRefreshSummary;
+                return new ValueTask<AttributeSimpleReadResult>(summary is null
+                    ? new AttributeSimpleReadResult(StatusCodes.BadWaitingForInitialData, Variant.Null)
+                    : new AttributeSimpleReadResult(StatusCodes.Good, Variant.From(summary.EndTime)));
+            };
+            registry.LastRefreshSummary!.AccessLevel = AccessLevels.CurrentRead;
+            registry.LastRefreshSummary.UserAccessLevel = AccessLevels.CurrentRead;
+            registry.LastRefreshSummary.StatusCode = StatusCodes.BadWaitingForInitialData;
+            registry.LastRefreshSummary.OnSimpleReadValueAsync = (_, _, ct) =>
+            {
+                ct.ThrowIfCancellationRequested();
+                WoTRefreshSummaryDataType? summary = m_manager.Coordinator.LastRefreshSummary;
+                return new ValueTask<AttributeSimpleReadResult>(summary is null
+                    ? new AttributeSimpleReadResult(StatusCodes.BadWaitingForInitialData, Variant.Null)
+                    : new AttributeSimpleReadResult(StatusCodes.Good, Variant.FromStructure(summary)));
+            };
+        }
+
         private void BindPublishedResourceProperties(WoTDocumentState document, WotResource resource)
         {
             (string, string) identity = (resource.GroupId, resource.ResourceId);
@@ -89,18 +125,7 @@ namespace Opc.Ua.WotCon.Server
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            RegistryReadImage? captured = null;
-            if (context is ServerSystemContext { OperationContext: not null } &&
-                m_manager.Server.NodeManager is INodeManagerReadImageSource images)
-            {
-                INodeManagerReadImage? image = images.GetReadImage(m_manager);
-                captured = image switch
-                {
-                    RegistryReadImage current => current,
-                    null => Volatile.Read(ref m_initialReadImage),
-                    _ => throw new InvalidOperationException("The registry has an incompatible native read image.")
-                };
-            }
+            RegistryReadImage? captured = GetCapturedReadImage(context);
             ResourceReadImage resource;
             bool found;
             if (captured is not null)
@@ -126,12 +151,28 @@ namespace Opc.Ua.WotCon.Server
                 new AttributeSimpleReadResult(ServiceResult.Good, select(resource)));
         }
 
+        private RegistryReadImage? GetCapturedReadImage(ISystemContext context)
+        {
+            if (context is not ServerSystemContext { OperationContext: not null } ||
+                m_manager.Server.NodeManager is not INodeManagerReadImageSource images)
+            {
+                return null;
+            }
+            return images.GetReadImage(m_manager) switch
+            {
+                RegistryReadImage current => current,
+                null => Volatile.Read(ref m_initialReadImage),
+                _ => throw new InvalidOperationException("The registry has an incompatible native read image.")
+            };
+        }
+
         private RegistryReadImage? m_initialReadImage;
 
         private sealed class RegistryReadImage(IAsyncNodeManager owner, WotRegistrySnapshot snapshot)
             : INodeManagerReadImage
         {
             public IAsyncNodeManager Owner { get; } = owner;
+            public uint RefreshGeneration { get; } = snapshot.RefreshGeneration;
 
             public bool TryGetResource((string, string) identity, out ResourceReadImage resource)
             {

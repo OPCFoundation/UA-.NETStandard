@@ -540,10 +540,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         private async Task<HandoffProbe> ConfigureStockViewsAsync(
-            LifecycleWotViewProjectionHost views, bool allowNativeRefresh = false)
+            LifecycleWotViewProjectionHost views,
+            bool allowNativeRefresh = false,
+            bool autoRefresh = false,
+            IWotDocumentConverter? converter = null)
         {
-            HandoffProbe probe = ObserveHandoff(views, new StockViewSourceConverter());
-            var options = new WotRegistryServerOptions { AutoRefresh = false };
+            HandoffProbe probe = ObserveHandoff(views, converter ?? new StockViewSourceConverter());
+            var options = new WotRegistryServerOptions { AutoRefresh = autoRefresh };
             if (allowNativeRefresh)
             {
                 options.ManagementAccess = new WotManagementAccessPolicy
