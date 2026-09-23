@@ -31,6 +31,15 @@ a configured trace-file or Debug sink can receive them, even without a
 messages. Trace events and file output can be enabled independently; file
 write failures report the actual path and error in Debug output.
 
+Ordinary `ILogger` event IDs, including source-generated class offsets, are
+identifiers rather than trace masks; their trace category comes from the log
+level. The obsolete `Utils.Trace(int traceMask, ...)` and
+`Utils.Log(int traceMask, ...)` APIs retain their explicit category, including
+combined masks, in `TraceEventArgs.TraceMask`. For direct `ILogger` compatibility
+calls, an `EventId` whose number **and name** match a `Utils.TraceMasks` constant
+(for example, `new EventId(Utils.TraceMasks.ServiceDetail, "ServiceDetail")`)
+also selects that legacy category. A matching number alone does not.
+
 ```csharp
 public interface ITelemetryContext
 {

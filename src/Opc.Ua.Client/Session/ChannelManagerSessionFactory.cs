@@ -80,7 +80,7 @@ namespace Opc.Ua.Client
             m_manager = manager ?? throw new ArgumentNullException(nameof(manager));
             Telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
             m_timeProvider = timeProvider;
-            m_engineFactory = engineFactory;
+            SubscriptionEngineFactory = engineFactory;
             SecurityPolicyRegistry = securityPolicies;
             m_innerFactory = new DefaultSessionFactory(telemetry)
             {
@@ -102,7 +102,7 @@ namespace Opc.Ua.Client
         public ISecurityPolicyRegistry? SecurityPolicyRegistry { get; }
 
         /// <inheritdoc/>
-        public ISubscriptionEngineFactory? SubscriptionEngineFactory => m_engineFactory;
+        public ISubscriptionEngineFactory? SubscriptionEngineFactory { get; }
 
         /// <inheritdoc/>
         /// <exception cref="ArgumentNullException">
@@ -144,7 +144,7 @@ namespace Opc.Ua.Client
                 endpoint,
                 clientCertificate,
                 clientCertificateChain,
-                availableEndpoints,
+                availableEndpoints.IsEmpty ? endpoint.DiscoveryEndpoints : availableEndpoints,
                 discoveryProfileUris);
         }
 
@@ -369,7 +369,7 @@ namespace Opc.Ua.Client
                             channel,
                             configuration,
                             endpoint,
-                            engineFactory: m_engineFactory,
+                            engineFactory: SubscriptionEngineFactory,
                             timeProvider: m_timeProvider,
                             securityPolicies: SecurityPolicyRegistry);
                         session.BindManagedChannel(m_manager, channel);
@@ -418,6 +418,7 @@ namespace Opc.Ua.Client
         /// Refreshes endpoint metadata, validates its domain, and installs the active client certificate in the
         /// manager.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="configuration"/> is <c>null</c>.</exception>
         private async Task<ServiceMessageContext> PrepareEndpointAndManagerAsync(
             ApplicationConfiguration configuration,
             ITransportWaitingConnection? connection,
@@ -497,6 +498,5 @@ namespace Opc.Ua.Client
         private readonly IClientChannelManager m_manager;
         private readonly DefaultSessionFactory m_innerFactory;
         private readonly TimeProvider? m_timeProvider;
-        private readonly ISubscriptionEngineFactory? m_engineFactory;
     }
 }

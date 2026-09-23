@@ -295,6 +295,11 @@ namespace Opc.Ua.Client.TestFramework
                 try
                 {
                     var reverseConnectUri = new Uri($"{uriScheme}://localhost:{testPort}");
+                    if (Utils.IsUriWssScheme(reverseConnectUri.AbsoluteUri))
+                    {
+                        // The client's certificate carries the machine name as its DNS identity.
+                        reverseConnectUri = new Uri(Utils.ReplaceLocalhost(reverseConnectUri.AbsoluteUri));
+                    }
                     ReverseConnectManager.AddEndpoint(reverseConnectUri, Config);
                     await ReverseConnectManager.StartServiceAsync(Config).ConfigureAwait(false);
                     ReverseConnectUri = reverseConnectUri.ToString();

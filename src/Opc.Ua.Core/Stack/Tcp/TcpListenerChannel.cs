@@ -235,6 +235,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Wraps an accepted socket in its decorated byte transport and releases both wrappers if attachment fails.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="socket"/> is <c>null</c>.</exception>
         internal void AttachCore(uint channelId, Socket socket)
         {
             if (socket == null)
@@ -283,6 +284,8 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Installs a transport on an undisposed channel and starts receiving its messages.
         /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
         private void AttachCore(uint channelId, IUaSCByteTransport transport)
         {
             if (Volatile.Read(ref m_disposed) != 0)
@@ -312,7 +315,8 @@ namespace Opc.Ua.Bindings
         {
             using (Gate.Enter())
             {
-                if (Volatile.Read(ref m_disposed) != 0 || UsedBySession ||
+                if (Volatile.Read(ref m_disposed) != 0 ||
+                    UsedBySession ||
                     State is TcpChannelState.Closed or TcpChannelState.Closing)
                 {
                     return false;
@@ -988,6 +992,52 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Validates that this channel can accept a reconnect handoff from the
+        /// supplied source channel.
+        /// </summary>
+        /// <param name="reconnectingChannel">The channel offering the transport.</param>
+        /// <param name="requestedChannelId">The target id named by the request.</param>
+        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="ArgumentNullException"><paramref name="reconnectingChannel"/> is <c>null</c>.</exception>
+        internal void ValidateReconnectTarget(
+            TcpListenerChannel reconnectingChannel,
+            uint requestedChannelId)
+        {
+            if (reconnectingChannel == null)
+            {
+                throw new ArgumentNullException(nameof(reconnectingChannel));
+            }
+
+            if (requestedChannelId == 0 ||
+                ReferenceEquals(this, reconnectingChannel))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTcpSecureChannelUnknown,
+                    "Could not find secure channel referenced in the OpenSecureChannel request.");
+            }
+
+            if (State is not TcpChannelState.Open and not TcpChannelState.Faulted)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTcpSecureChannelUnknown,
+                    "The secure channel referenced in the OpenSecureChannel request cannot accept a reconnect.");
+            }
+
+            if (SecurityMode == MessageSecurityMode.None ||
+                reconnectingChannel.DiscoveryOnly ||
+                reconnectingChannel.SecurityMode != SecurityMode ||
+                !string.Equals(
+                    reconnectingChannel.SecurityPolicyUri,
+                    SecurityPolicyUri,
+                    StringComparison.Ordinal))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTcpSecureChannelUnknown,
+                    "The secure channel referenced in the OpenSecureChannel request does not match the reconnecting channel security.");
+            }
+        }
+
+        /// <summary>
         /// Set the flag if a response is required for the use case of reverse connect.
         /// </summary>
         protected void SetResponseRequired(bool responseRequired)
@@ -1104,7 +1154,7 @@ namespace Opc.Ua.Bindings
         public static partial void TcpListenChannelLog0(
             this ILogger logger,
             string channel,
-            global::System.Net.EndPoint? remoteEndpoint,
+            EndPoint? remoteEndpoint,
             uint channelId);
 
         [LoggerMessage(EventId = CoreEventIds.TcpListenerChannel + 1, Level = LogLevel.Information,
@@ -1126,7 +1176,7 @@ namespace Opc.Ua.Bindings
             Message = "ChannelId {Id}: ForceChannelFault due to {Message}.")]
         public static partial void TcpListenChannelLog3(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             uint id,
             string message);
 
@@ -1136,10 +1186,10 @@ namespace Opc.Ua.Bindings
         public static partial void TcpListenChannelLog4(
             this ILogger logger,
             string channel,
-            global::System.Net.EndPoint? remoteEndpoint,
+            EndPoint? remoteEndpoint,
             uint channelId,
             uint tokenId,
-            global::Opc.Ua.ServiceResult reason);
+            ServiceResult reason);
 
         [LoggerMessage(EventId = CoreEventIds.TcpListenerChannel + 5, Level = LogLevel.Information,
             Message = "{Channel} Cleanup Transport={RemoteEndpoint}, ChannelId={ChannelId}, " +
@@ -1147,7 +1197,7 @@ namespace Opc.Ua.Bindings
         public static partial void TcpListenChannelLog5(
             this ILogger logger,
             string channel,
-            global::System.Net.EndPoint? remoteEndpoint,
+            EndPoint? remoteEndpoint,
             uint channelId,
             uint tokenId,
             string reason);
@@ -1157,7 +1207,7 @@ namespace Opc.Ua.Bindings
         public static partial void TcpListenChannelLog6(
             this ILogger logger,
             uint channelId,
-            global::Opc.Ua.StatusCode status);
+            StatusCode status);
 
         [LoggerMessage(EventId = CoreEventIds.TcpListenerChannel + 7, Level = LogLevel.Debug,
             Message = "ChannelId {Id}: Request {RequestId}: SendServiceFault={ServiceFault}")]
@@ -1165,16 +1215,16 @@ namespace Opc.Ua.Bindings
             this ILogger logger,
             uint id,
             uint requestId,
-            global::Opc.Ua.StatusCode serviceFault);
+            StatusCode serviceFault);
 
         [LoggerMessage(EventId = CoreEventIds.TcpListenerChannel + 8, Level = LogLevel.Error,
             Message = "ChannelId {Id}: Request {RequestId}: SendServiceFault={ServiceFault}: Unexpected error.")]
         public static partial void TcpListenChannelLog8(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             uint id,
             uint requestId,
-            global::Opc.Ua.StatusCode serviceFault);
+            StatusCode serviceFault);
 
         [LoggerMessage(EventId = CoreEventIds.TcpListenerChannel + 9, Level = LogLevel.Information,
             Message = "{Channel} ChannelId={ChannelId}: closing because the peer certificate is no longer trusted.")]
@@ -1183,5 +1233,4 @@ namespace Opc.Ua.Bindings
             string channel,
             uint channelId);
     }
-
 }

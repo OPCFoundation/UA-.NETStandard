@@ -29,6 +29,8 @@
 
 #nullable enable
 
+// CA2000: the test harness owns or immediately tears down the disposable cryptographic helpers.
+#pragma warning disable CA2000
 using System;
 using System.Reflection;
 using System.Security.Cryptography;
@@ -57,19 +59,19 @@ namespace Opc.Ua.Server.Tests
         public void ReplacingOrResettingPolicyDisposesThePreviousEphemeralKey(bool reset)
         {
             using var harness = new NonceHarness();
-            harness.Session.GetNewEphemeralKey();
+            harness.GetNewEphemeralKey();
             using Nonce original = GetCurrentNonce(harness.Session);
             Assert.That(GetKey(original), Is.Not.Null);
             if (reset)
             {
-                harness.Session.SetUserTokenSecurityPolicy(kPolicy);
+                harness.Session.SetUserTokenSecurityPolicy(harness.PolicyUri);
             }
             else
             {
-                harness.Session.GetNewEphemeralKey();
+                harness.GetNewEphemeralKey();
             }
             Assert.That(GetKey(original), Is.Null);
-            harness.Session.GetNewEphemeralKey();
+            harness.GetNewEphemeralKey();
             Nonce current = GetCurrentNonce(harness.Session);
             Assert.That(current, Is.Not.SameAs(original));
             Assert.That(GetKey(current), Is.Not.Null);
@@ -86,19 +88,14 @@ namespace Opc.Ua.Server.Tests
         public async Task RetiredNonceRemainsUsableUntilEveryDecryptBorrowCompletesAsync(int borrowers, bool fail)
         {
             using var harness = new NonceHarness();
-            EphemeralKeyType ephemeral = harness.Session.GetNewEphemeralKey()!;
+            EphemeralKeyType ephemeral = harness.GetNewEphemeralKey();
             using Nonce original = GetCurrentNonce(harness.Session);
-            using Nonce publicNonce = Nonce.CreateNonce(kPolicy, ephemeral.PublicKey.ToArray());
-            using Nonce senderNonce = Nonce.CreateNonce(kPolicy);
-            using var issuerCertificates = new CertificateCollection();
-            EncryptedSecret encryptor = EncryptedSecret.CreateForEcc(
-                harness.MessageContext, kPolicy, issuerCertificates, harness.ServerCertificate,
-                publicNonce, harness.ClientCertificate, senderNonce, doNotEncodeSenderCertificate: true);
-            byte[] encrypted = encryptor.Encrypt(s_testSecret, harness.ServerNonce.Data!);
+            UserNameIdentityToken encrypted = await harness.EncryptPasswordAsync(ephemeral).ConfigureAwait(false);
             using var releaseFirst = new ManualResetEventSlim();
             using var releaseRest = new ManualResetEventSlim();
             using var key = new BlockingKey(GetKey(original)!, borrowers, fail, releaseFirst, releaseRest);
             s_keyField.SetValue(original, key);
+            harness.BeforeDecrypt = key.WaitForRelease;
             var operations = new Task<IUserIdentityTokenHandler>[borrowers];
             for (int i = 0; i < operations.Length; i++)
             {
@@ -108,7 +105,8 @@ namespace Opc.Ua.Server.Tests
                     {
                         PolicyId = "ecc",
                         UserName = "test-user",
-                        Password = ByteString.From(encrypted)
+                        Password = encrypted.Password,
+                        EncryptionAlgorithm = encrypted.EncryptionAlgorithm
                     };
                     (IUserIdentityTokenHandler identity, _) = await harness.Session.ValidateBeforeActivateAsync(
                         harness.Context, harness.ClientSignature, new ExtensionObject(token), new SignatureData(),
@@ -123,9 +121,9 @@ namespace Opc.Ua.Server.Tests
                 if (completed != key.Entered.Task)
                 {
                     await completed.ConfigureAwait(false);
-                    Assert.Fail("Credential validation did not reach ECDH key agreement.");
+                    Assert.Fail("Credential validation did not reach the decryption barrier.");
                 }
-                harness.Session.GetNewEphemeralKey();
+                harness.GetNewEphemeralKey();
                 Assert.That(key.Disposed, Is.False);
                 releaseFirst.Set();
                 if (borrowers > 1)
@@ -166,6 +164,25 @@ namespace Opc.Ua.Server.Tests
             Assert.That(GetKey(original), Is.Null);
         }
 
+        [Test]
+        public void HarnessConstructionFailureReleasesCertificates()
+        {
+            Certificate? server = null;
+            Certificate? client = null;
+            Assert.That(
+                () => new NonceHarness(harness =>
+                {
+                    server = harness.ServerCertificate;
+                    client = harness.ClientCertificate;
+                    throw new InvalidOperationException("Controlled signature initialization failure.");
+                }),
+                Throws.TypeOf<InvalidOperationException>());
+            Assert.That(server, Is.Not.Null);
+            Assert.That(client, Is.Not.Null);
+            Assert.That(() => server!.RawData, Throws.TypeOf<CryptographicException>());
+            Assert.That(() => client!.RawData, Throws.TypeOf<CryptographicException>());
+        }
+
         /// <summary>
         /// Reads the session's current user-token nonce for direct key-lifetime assertions.
         /// </summary>
@@ -183,58 +200,85 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Owns a secured session and matching client proof for exercising ephemeral credential decryption.
+        /// Owns a secured session and matching client proof for exercising nonce ownership during credential decryption.
         /// </summary>
         private sealed class NonceHarness : IDisposable
         {
             /// <summary>
-            /// Creates elliptic-curve client and server certificates and a session with an ECC username policy.
+            /// Uses ECDH where available and RSA otherwise, without changing the platform's security policy registry.
             /// </summary>
-            public NonceHarness()
+            public NonceHarness(Action<NonceHarness>? beforeSignature = null)
             {
-                ServerCertificate = CertificateBuilder.Create("CN=Nonce Lifetime Server")
-                    .SetECCurve(ECCurve.NamedCurves.nistP256).CreateForECDsa();
-                ClientCertificate = CertificateBuilder.Create("CN=Nonce Lifetime Client")
-                    .SetECCurve(ECCurve.NamedCurves.nistP256).CreateForECDsa();
-                ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-                MessageContext = ServiceMessageContext.CreateEmpty(telemetry);
-                var endpoint = new EndpointDescription
+                UsesEcdh = SecurityPolicies.Default.GetInfo(kEcdhPolicy) != null;
+                PolicyUri = UsesEcdh ? kEcdhPolicy : SecurityPolicies.Basic256Sha256;
+                SecurityPolicyInfo policy = SecurityPolicies.Default.GetInfo(PolicyUri)
+                    ?? throw new InvalidOperationException("The nonce fixture requires a supported security policy.");
+                try
                 {
-                    EndpointUrl = "opc.tcp://localhost:4840/nonce-lifetime",
-                    SecurityMode = MessageSecurityMode.SignAndEncrypt,
-                    SecurityPolicyUri = kPolicy,
-                    ServerCertificate = ServerCertificate.RawData.ToByteString(),
-                    UserIdentityTokens =
-                    [
-                        new UserTokenPolicy
+                    ServerCertificate = CreateCertificate("CN=Nonce Lifetime Server");
+                    ClientCertificate = CreateCertificate("CN=Nonce Lifetime Client");
+                    ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+                    MessageContext = ServiceMessageContext.CreateEmpty(telemetry);
+                    var endpoint = new EndpointDescription
+                    {
+                        EndpointUrl = "opc.tcp://localhost:4840/nonce-lifetime",
+                        SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                        SecurityPolicyUri = PolicyUri,
+                        ServerCertificate = ServerCertificate.RawData.ToByteString(),
+                        UserIdentityTokens =
+                        [
+                            new UserTokenPolicy
+                            {
+                                PolicyId = "ecc",
+                                TokenType = UserTokenType.UserName,
+                                SecurityPolicyUri = PolicyUri
+                            }
+                        ]
+                    };
+                    var channel = new SecureChannelContext(
+                        "nonce-channel", endpoint, RequestEncoding.Binary,
+                        ClientCertificate.RawData, ServerCertificate.RawData, new byte[32]);
+                    Context = new OperationContext(
+                        new RequestHeader(), channel, RequestType.ActivateSession, RequestLifetime.None);
+                    var server = new Mock<IServerInternal>();
+                    server.SetupGet(value => value.Telemetry).Returns(telemetry);
+                    server.SetupGet(value => value.NamespaceUris).Returns(new NamespaceTable());
+                    server.SetupGet(value => value.MessageContext).Returns(MessageContext);
+                    var policies = new Mock<ISecurityPolicyRegistry>();
+                    policies.Setup(value => value.GetInfo(It.IsAny<string>()))
+                        .Returns((string uri) => SecurityPolicies.Default.GetInfo(uri));
+                    policies.Setup(value => value.VerifySignatureData(
+                            It.IsAny<SignatureData>(), It.IsAny<string>(), It.IsAny<Certificate>(), It.IsAny<byte[]>()))
+                        .Returns((SignatureData signature, string uri, Certificate certificate, byte[] data) =>
+                            SecurityPolicies.Default.VerifySignatureData(signature, uri, certificate, data));
+                    policies.Setup(value => value.DecryptAsync(
+                            It.IsAny<Certificate>(), It.IsAny<string>(), It.IsAny<EncryptedData>(),
+                            It.IsAny<CancellationToken>()))
+                        .Returns((Certificate certificate, string uri, EncryptedData data, CancellationToken ct) =>
                         {
-                            PolicyId = "ecc",
-                            TokenType = UserTokenType.UserName,
-                            SecurityPolicyUri = kPolicy
-                        }
-                    ]
-                };
-                var channel = new SecureChannelContext(
-                    "nonce-channel", endpoint, RequestEncoding.Binary,
-                    ClientCertificate.RawData, ServerCertificate.RawData, new byte[32]);
-                Context = new OperationContext(
-                    new RequestHeader(), channel, RequestType.ActivateSession, RequestLifetime.None);
-                var server = new Mock<IServerInternal>();
-                server.SetupGet(value => value.Telemetry).Returns(telemetry);
-                server.SetupGet(value => value.NamespaceUris).Returns(new NamespaceTable());
-                server.SetupGet(value => value.MessageContext).Returns(MessageContext);
-                ServerNonce = Nonce.CreateNonce(32);
-                using Nonce clientNonce = Nonce.CreateNonce(32);
-                Session = new ServerSession(
-                    Context, server.Object, ServerCertificate, new NodeId(100), clientNonce.Data.ToByteString(),
-                    ServerNonce, "NonceLifetime", new ApplicationDescription { ApplicationUri = "urn:nonce-lifetime" },
-                    endpoint.EndpointUrl, ClientCertificate.AddRef(), [], 60_000, 10, 10);
-                Session.SetUserTokenSecurityPolicy(kPolicy);
-                SecurityPolicyInfo policy = SecurityPolicies.Default.GetInfo(kPolicy)!;
-                ClientSignature = SecurityPolicies.Default.CreateSignatureData(
-                    policy, ClientCertificate, policy.GetClientSignatureData(
-                        channel.ChannelThumbprint, ServerNonce.Data, ServerCertificate.RawData,
-                        channel.ServerChannelCertificate, channel.ClientChannelCertificate, clientNonce.Data!));
+                            BeforeDecrypt?.Invoke();
+                            return SecurityPolicies.Default.DecryptAsync(certificate, uri, data, ct);
+                        });
+                    server.As<ISecurityPolicyRegistryProvider>().SetupGet(value => value.SecurityPolicyRegistry)
+                        .Returns(policies.Object);
+                    ServerNonce = Nonce.CreateNonce(32);
+                    using var clientNonce = Nonce.CreateNonce(32);
+                    Session = new ServerSession(
+                        Context, server.Object, ServerCertificate, new NodeId(100), clientNonce.Data.ToByteString(),
+                        ServerNonce, "NonceLifetime", new ApplicationDescription { ApplicationUri = "urn:nonce-lifetime" },
+                        endpoint.EndpointUrl, ClientCertificate.AddRef(), [], 60_000, 10, 10);
+                    Session.SetUserTokenSecurityPolicy(PolicyUri);
+                    beforeSignature?.Invoke(this);
+                    ClientSignature = SecurityPolicies.Default.CreateSignatureData(
+                        policy, ClientCertificate, policy.GetClientSignatureData(
+                            channel.ChannelThumbprint, ServerNonce.Data, ServerCertificate.RawData,
+                            channel.ServerChannelCertificate, channel.ClientChannelCertificate, clientNonce.Data));
+                }
+                catch
+                {
+                    Dispose();
+                    throw;
+                }
             }
 
             /// <summary>
@@ -263,7 +307,7 @@ namespace Opc.Ua.Server.Tests
             public SignatureData ClientSignature { get; }
 
             /// <summary>
-            /// Gets the activation context bound to the secured ECC channel.
+            /// Gets the activation context bound to the secured channel.
             /// </summary>
             public OperationContext Context { get; }
 
@@ -273,20 +317,91 @@ namespace Opc.Ua.Server.Tests
             public ServerSession Session { get; }
 
             /// <summary>
+            /// Gets whether this platform supports the fixture's raw-ECDH policy.
+            /// </summary>
+            public bool UsesEcdh { get; }
+
+            /// <summary>
+            /// Gets the supported policy used for the channel and credential encryption.
+            /// </summary>
+            public string PolicyUri { get; }
+
+            /// <summary>
+            /// Gets or sets the barrier used before the real RSA credential decryption.
+            /// </summary>
+            public Action? BeforeDecrypt { get; set; }
+
+            /// <summary>
+            /// Creates a session nonce and ensures it owns a disposable key for the lifetime assertions.
+            /// </summary>
+            /// <exception cref="InvalidOperationException">The session did not create a nonce.</exception>
+            public EphemeralKeyType GetNewEphemeralKey()
+            {
+                EphemeralKeyType key = Session.GetNewEphemeralKey()
+                    ?? throw new InvalidOperationException("The fixture did not create a session nonce.");
+                if (!UsesEcdh)
+                {
+                    // RSA credential decryption still borrows the session nonce. Attach a real disposable key
+                    // to observe its ownership without enabling unsupported raw-ECDH agreement.
+                    s_keyField.SetValue(
+                        GetCurrentNonce(Session),
+                        ECDiffieHellman.Create(ECCurve.NamedCurves.nistP256));
+                }
+                return key;
+            }
+
+            /// <summary>
+            /// Encrypts the expected plaintext using the actual supported credential-encryption implementation.
+            /// </summary>
+            public async Task<UserNameIdentityToken> EncryptPasswordAsync(EphemeralKeyType ephemeral)
+            {
+                using Nonce? publicNonce = UsesEcdh
+                    ? Nonce.CreateNonce(PolicyUri, ephemeral.PublicKey.ToArray())
+                    : null;
+                using var issuerCertificates = new CertificateCollection();
+                var token = new UserNameIdentityTokenHandler("test-user", s_testSecret);
+                try
+                {
+                    await token.EncryptAsync(
+                        ServerCertificate,
+                        ServerNonce.Data!,
+                        PolicyUri,
+                        MessageContext,
+                        receiverEphemeralKey: publicNonce,
+                        senderCertificate: ClientCertificate,
+                        senderIssuerCertificates: issuerCertificates,
+                        doNotEncodeSenderCertificate: true).ConfigureAwait(false);
+                    return (UserNameIdentityToken)token.Token;
+                }
+                finally
+                {
+                    CryptoUtils.ZeroMemory(token.DecryptedPassword!);
+                }
+            }
+
+            /// <summary>
             /// Releases the session, operation context, session nonce, and client and server certificates.
             /// </summary>
             public void Dispose()
             {
-                Session.Dispose();
-                Context.Dispose();
-                ServerNonce.Dispose();
-                ClientCertificate.Dispose();
-                ServerCertificate.Dispose();
+                Session?.Dispose();
+                Context?.Dispose();
+                ServerNonce?.Dispose();
+                ClientCertificate?.Dispose();
+                ServerCertificate?.Dispose();
+            }
+
+            private Certificate CreateCertificate(string subjectName)
+            {
+                return UsesEcdh
+                    ? CertificateBuilder.Create(subjectName)
+                        .SetECCurve(ECCurve.NamedCurves.nistP256).CreateForECDsa()
+                    : CertificateBuilder.Create(subjectName).CreateForRSA();
             }
         }
 
         /// <summary>
-        /// Pauses ECDH borrowers at key agreement and records when the underlying key is disposed.
+        /// Pauses credential decryption and records when the nonce's underlying key is disposed.
         /// </summary>
         private sealed class BlockingKey(
             ECDiffieHellman inner,
@@ -329,22 +444,11 @@ namespace Opc.Ua.Server.Tests
 #endif
 
             /// <summary>
-            /// Records disposal and releases the wrapped agreement key exactly once.
-            /// </summary>
-            protected override void Dispose(bool disposing)
-            {
-                if (disposing && !Disposed)
-                {
-                    Disposed = true;
-                    inner.Dispose();
-                }
-                base.Dispose(disposing);
-            }
-
-            /// <summary>
             /// Holds each key borrower at its barrier and optionally injects an agreement failure after release.
             /// </summary>
-            private void WaitForRelease()
+            /// <exception cref="TimeoutException"></exception>
+            /// <exception cref="CryptographicException"></exception>
+            public void WaitForRelease()
             {
                 int position = Interlocked.Increment(ref m_entered);
                 if (position == borrowers)
@@ -363,6 +467,19 @@ namespace Opc.Ua.Server.Tests
             }
 
             /// <summary>
+            /// Records disposal and releases the wrapped agreement key exactly once.
+            /// </summary>
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing && !Disposed)
+                {
+                    Disposed = true;
+                    inner.Dispose();
+                }
+                base.Dispose(disposing);
+            }
+
+            /// <summary>
             /// Counts borrowers that have reached key agreement before a disposal request.
             /// </summary>
             private int m_entered;
@@ -371,7 +488,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Selects the ECC security policy whose user-token nonce carries the ephemeral ECDH key.
         /// </summary>
-        private const string kPolicy = SecurityPolicies.ECC_nistP256;
+        private const string kEcdhPolicy = SecurityPolicies.ECC_nistP256;
 
         /// <summary>
         /// Supplies the plaintext expected from successful borrowed-key decryption.

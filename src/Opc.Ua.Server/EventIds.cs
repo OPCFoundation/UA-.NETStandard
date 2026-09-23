@@ -297,6 +297,11 @@ namespace Opc.Ua
         /// Event identifier offset for pending certificate-key compensation.
         /// </summary>
         public const int PendingCertificateKey = 660;
+
+        /// <summary>
+        /// Event identifier offset for isolated event-delivery failures.
+        /// </summary>
+        public const int EventManager = 670;
     }
 
     /// <summary>

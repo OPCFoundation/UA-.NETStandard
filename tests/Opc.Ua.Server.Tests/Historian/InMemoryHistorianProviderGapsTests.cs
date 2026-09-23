@@ -42,6 +42,7 @@ using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Historian;
@@ -68,7 +69,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public void DisposeIsIdempotent()
         {
-            var provider = new InMemoryHistorianProvider();
+            var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
 
             Assert.DoesNotThrow(() =>
             {
@@ -86,7 +89,9 @@ namespace Opc.Ua.Server.Tests.Historian
             // Production code: Register always overwrites capabilities
             // (m_capabilities[nodeId] = capabilities ?? default).
             // So a second Register with capsB DOES overwrite capsA.
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("reg-twice", NamespaceIndex);
 
             var capsA = new HistorianNodeCapabilities { InsertData = true };
@@ -109,7 +114,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public void ForgetUnknownNodeReturnsFalse()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
 
             // Forget a node that was never registered.
             bool result = provider.Forget(new NodeId("never-registered", 42));
@@ -128,7 +135,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task SetCapabilitiesOverridesPreviousCapabilitiesAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("set-caps", NamespaceIndex);
 
             var capsA = new HistorianNodeCapabilities { InsertData = true };
@@ -150,7 +159,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task InsertBatchAsyncFanOutsAcrossNodesAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeA = new NodeId("batch.a", NamespaceIndex);
             var nodeB = new NodeId("batch.b", NamespaceIndex);
             provider.Register(nodeA);
@@ -212,7 +223,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task DeleteRawAsyncRemovesValuesInTimeRangeAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("del-raw", NamespaceIndex);
             provider.Register(nodeId);
 
@@ -259,7 +272,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task InsertEventReadEventRoundTripAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("evt-node", NamespaceIndex);
 
             HistorianOperationContext context = CreateContext();
@@ -313,7 +328,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task ReplaceEventReplacesExistingEventAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("evt-replace", NamespaceIndex);
 
             HistorianOperationContext context = CreateContext();
@@ -371,7 +388,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task ReplaceEventAppliesIndexRangeToStoredFieldAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("evt-range-replace", NamespaceIndex);
             HistorianOperationContext context = CreateContext();
             var eventId = ByteString.From([0xAA, 0xBB]);
@@ -462,7 +481,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task DeleteEventsAsyncRemovesByEventIdAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("evt-del", NamespaceIndex);
 
             HistorianOperationContext context = CreateContext();
@@ -532,7 +553,9 @@ namespace Opc.Ua.Server.Tests.Historian
             // for valid (non-null) DataValues — the preflight always returns
             // Good. So we test the commit-all path via ReplaceAtomicAsync
             // instead.
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("atomic-replace", NamespaceIndex);
             provider.Register(nodeId);
 

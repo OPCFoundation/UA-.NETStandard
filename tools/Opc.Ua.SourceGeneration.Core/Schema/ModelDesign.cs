@@ -884,6 +884,9 @@ namespace Opc.Ua.Schema.Model
                 NumericId == other.NumericId &&
                 NumericIdSpecified == other.NumericIdSpecified &&
                 StringId == other.StringId &&
+                GuidId == other.GuidId &&
+                GuidIdSpecified == other.GuidIdSpecified &&
+                ArrayEqualityComparer<byte>.Default.Equals(OpaqueId, other.OpaqueId) &&
                 WriteAccess == other.WriteAccess &&
                 PartNo == other.PartNo &&
                 Category == other.Category &&
@@ -915,6 +918,9 @@ namespace Opc.Ua.Schema.Model
             hash.Add(NumericId);
             hash.Add(NumericIdSpecified);
             hash.Add(StringId);
+            hash.Add(GuidId);
+            hash.Add(GuidIdSpecified);
+            hash.Add(OpaqueId, ArrayEqualityComparer<byte>.Default);
             hash.Add(WriteAccess);
             hash.Add(PartNo);
             hash.Add(Category);

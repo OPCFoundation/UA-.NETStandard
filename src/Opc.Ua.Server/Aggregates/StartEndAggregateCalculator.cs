@@ -274,7 +274,7 @@ namespace Opc.Ua.Server
             DataValue end = values[^1];
 
             // check for bad bounds.
-            if (!IsGood(start) || !IsGood(end))
+            if (StatusCode.IsBad(start.StatusCode) || StatusCode.IsBad(end.StatusCode))
             {
                 return GetNoDataValue(slice);
             }
@@ -315,7 +315,8 @@ namespace Opc.Ua.Server
                 GetTimestamp(slice),
                 GetTimestamp(slice));
 
-            if (!IsGood(start) || !IsGood(end))
+            if (StatusCode.IsUncertain(start.StatusCode) ||
+                StatusCode.IsUncertain(end.StatusCode))
             {
                 value = value.WithStatus(StatusCodes.UncertainDataSubNormal);
             }

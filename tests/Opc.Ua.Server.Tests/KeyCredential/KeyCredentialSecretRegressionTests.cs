@@ -27,8 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: test helpers intentionally transfer disposable ownership or use short-lived throwaway values.
+#pragma warning disable CA2000
 using System;
+using System.Buffers.Binary;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -59,7 +63,7 @@ namespace Opc.Ua.Server.Tests.KeyCredential
             byte[] expected = [11, 22, 33, 44, 55];
             byte[] encrypted = EncryptedSecret.CreateForRsa(harness.MessageContext, policy, harness.Certificate)
                 .Encrypt(expected, []);
-            byte[] original = encrypted.AsSpan().ToArray();
+            byte[] original = [.. encrypted];
             KeyCredentialUpdateMethodStateResult result = await harness.UpdateAsync(
                 encrypted, harness.Certificate.Thumbprint, policy).ConfigureAwait(false);
             Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -67,6 +71,28 @@ namespace Opc.Ua.Server.Tests.KeyCredential
             Assert.That(harness.Stored.Secret, Is.EqualTo(expected));
             Assert.That(encrypted, Is.EqualTo(original));
             Assert.That(harness.Node.CredentialId.Value, Is.EqualTo("credential-1"));
+        }
+
+        [TestCase(32)]
+        [TestCase(64)]
+        [TestCase(128)]
+        public async Task PeerEncryptedUpdateAcceptsAnUncheckedNonceAsync(int nonceLength)
+        {
+            using var harness = new Harness();
+            await harness.BindAsync().ConfigureAwait(false);
+            byte[] expected = [11, 22, 33, 44, 55];
+            byte[] nonce = Nonce.CreateRandomNonceData(nonceLength);
+            byte[] envelope = CreatePeerRsaEnvelope(harness, expected, nonce);
+            byte[] original = [.. envelope];
+
+            KeyCredentialUpdateMethodStateResult result = await harness.UpdateAsync(
+                envelope, harness.Certificate.Thumbprint, SecurityPolicies.Aes256_Sha256_RsaPss)
+                .ConfigureAwait(false);
+
+            Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(harness.StoreWrites, Is.EqualTo(1));
+            Assert.That(harness.Stored.Secret, Is.EqualTo(expected));
+            Assert.That(envelope, Is.EqualTo(original));
         }
 
         /// <summary>
@@ -179,14 +205,14 @@ namespace Opc.Ua.Server.Tests.KeyCredential
         /// </summary>
         [Test]
         public async Task EncryptingKeyUsesTheSameConfiguredRegistryAsDecryptionAsync(
-            [Values(false, true)] bool dependencyInjection)
+            [Values] bool dependencyInjection)
         {
             using var harness = new Harness(dependencyInjection);
             await harness.BindAsync().ConfigureAwait(false);
             GetEncryptingKeyMethodStateResult key = await harness.GetKeyAsync(string.Empty).ConfigureAwait(false);
             Assert.That(key.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(key.RevisedSecurityPolicyUri, Is.EqualTo(SecurityPolicies.Aes256_Sha256_RsaPss));
-            using Certificate certificate = Certificate.FromRawData(key.PublicKey);
+            using var certificate = Certificate.FromRawData(key.PublicKey);
             Assert.That(certificate.Thumbprint, Is.EqualTo(harness.Certificate.Thumbprint));
             Assert.That(certificate.HasPrivateKey, Is.False);
             byte[] encrypted = EncryptedSecret.CreateForRsa(
@@ -194,7 +220,7 @@ namespace Opc.Ua.Server.Tests.KeyCredential
             KeyCredentialUpdateMethodStateResult result = await harness.UpdateAsync(
                 encrypted, certificate.Thumbprint, key.RevisedSecurityPolicyUri).ConfigureAwait(false);
             Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(harness.Stored.Secret, Is.EqualTo(new byte[] { 41, 42 }));
+            Assert.That(harness.Stored.Secret, Is.EqualTo(")*"u8.ToArray()));
         }
 
         /// <summary>
@@ -234,6 +260,92 @@ namespace Opc.Ua.Server.Tests.KeyCredential
             Assert.That(key.PublicKey.IsEmpty, Is.True);
         }
 
+        private static byte[] CreatePeerRsaEnvelope(Harness harness, byte[] secret, byte[] nonce)
+        {
+            using var aes = Aes.Create();
+            aes.KeySize = 256;
+            aes.Mode = CipherMode.CBC;
+            aes.Padding = PaddingMode.None;
+            aes.GenerateKey();
+            aes.GenerateIV();
+            byte[] signingKey = Nonce.CreateRandomNonceData(32);
+            byte[] encryptionKey = aes.Key;
+            byte[] iv = aes.IV;
+            byte[] keyData = null;
+            byte[] payload = null;
+            try
+            {
+                using (var keys = new BinaryEncoder(harness.MessageContext))
+                {
+                    keys.WriteByteString(null, signingKey);
+                    keys.WriteByteString(null, encryptionKey);
+                    keys.WriteByteString(null, iv);
+                    keyData = keys.CloseAndReturnBuffer();
+                }
+                using RSA rsa = harness.Certificate.GetRSAPublicKey();
+                byte[] encryptedKeys = rsa.Encrypt(keyData, RSAEncryptionPadding.OaepSHA256);
+
+                using (var plaintext = new BinaryEncoder(harness.MessageContext))
+                {
+                    plaintext.WriteByteString(null, nonce);
+                    plaintext.WriteByteString(null, secret);
+                    int padding = (16 - ((plaintext.Position + 2) % 16)) % 16;
+                    for (int i = 0; i < padding; i++)
+                    {
+                        plaintext.WriteByte(null, (byte)padding);
+                    }
+                    plaintext.WriteUInt16(null, (ushort)padding);
+                    payload = plaintext.CloseAndReturnBuffer();
+                }
+                using ICryptoTransform cipher = aes.CreateEncryptor();
+                byte[] encryptedPayload = cipher.TransformFinalBlock(payload, 0, payload.Length);
+
+                using var encoder = new BinaryEncoder(harness.MessageContext);
+                encoder.WriteNodeId(null, DataTypeIds.RsaEncryptedSecret);
+                encoder.WriteByte(null, (byte)ExtensionObjectEncoding.Binary);
+                int lengthPosition = encoder.Position;
+                encoder.WriteUInt32(null, 0);
+                encoder.WriteString(null, SecurityPolicies.Aes256_Sha256_RsaPss);
+                encoder.WriteByteString(null, Utils.FromHexString(harness.Certificate.Thumbprint));
+                encoder.WriteDateTime(null, DateTime.UtcNow);
+                encoder.WriteUInt16(null, checked((ushort)encryptedKeys.Length));
+                foreach (byte value in encryptedKeys)
+                {
+                    encoder.WriteByte(null, value);
+                }
+                foreach (byte value in encryptedPayload)
+                {
+                    encoder.WriteByte(null, value);
+                }
+                int signaturePosition = encoder.Position;
+                for (int i = 0; i < 32; i++)
+                {
+                    encoder.WriteByte(null, 0);
+                }
+                byte[] envelope = encoder.CloseAndReturnBuffer();
+                BinaryPrimitives.WriteUInt32LittleEndian(
+                    envelope.AsSpan(lengthPosition, 4), checked((uint)(envelope.Length - lengthPosition - 4)));
+                using var hmac = new HMACSHA256(signingKey);
+                byte[] signature = hmac.ComputeHash(envelope, 0, signaturePosition);
+                signature.CopyTo(envelope, signaturePosition);
+                return envelope;
+            }
+            finally
+            {
+                CryptoUtils.ZeroMemory(signingKey);
+                CryptoUtils.ZeroMemory(encryptionKey);
+                CryptoUtils.ZeroMemory(iv);
+                if (keyData != null)
+                {
+                    CryptoUtils.ZeroMemory(keyData);
+                }
+                if (payload != null)
+                {
+                    CryptoUtils.ZeroMemory(payload);
+                }
+            }
+        }
+
         /// <summary>
         /// Supplies an authorized credential node, observable store, and certificate registry for secret-update tests.
         /// </summary>
@@ -256,7 +368,7 @@ namespace Opc.Ua.Server.Tests.KeyCredential
                 registry.Setup(value => value.AcquireApplicationCertificateBySecurityPolicy(It.IsAny<string>()))
                     .Returns(CreateEntry);
                 var store = new Mock<IKeyCredentialStore>();
-                store.Setup(value => value.ListAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<string>());
+                store.Setup(value => value.ListAsync(It.IsAny<CancellationToken>())).ReturnsAsync([]);
                 store.Setup(value => value.UpdateAsync(
                         It.IsAny<string>(), It.IsAny<Server.KeyCredential>(), It.IsAny<CancellationToken>()))
                     .Callback<string, Server.KeyCredential, CancellationToken>((_, value, _) =>

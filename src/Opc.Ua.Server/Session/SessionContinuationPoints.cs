@@ -90,11 +90,11 @@ namespace Opc.Ua.Server
             NamespaceTable namespaceUris)
         {
             m_sessionIdProvider = sessionIdProvider ?? throw new ArgumentNullException(nameof(sessionIdProvider));
-            if (maxBrowse <= 0)
+            if (maxBrowse < 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(maxBrowse));
             }
-            if (maxHistory <= 0)
+            if (maxHistory < 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(maxHistory));
             }
@@ -109,6 +109,7 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Gets or sets the maximum number of browse continuation points retained before the oldest is dropped.
+        /// A value of zero means that no limit is imposed.
         /// </summary>
         public int MaxBrowse { get; set; }
 
@@ -116,6 +117,7 @@ namespace Opc.Ua.Server
         /// Saves a browse continuation point, dropping the oldest when the limit is exceeded.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="continuationPoint"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         public void SaveBrowse(ContinuationPoint continuationPoint)
         {
             if (continuationPoint == null)
@@ -150,7 +152,7 @@ namespace Opc.Ua.Server
                             "The session closed while the browse continuation point was being persisted.");
                     }
                     m_browse ??= [];
-                    while (m_browse.Count >= MaxBrowse)
+                    while (MaxBrowse > 0 && m_browse.Count >= MaxBrowse)
                     {
                         ContinuationPoint cp = m_browse[0];
                         m_browse.RemoveAt(0);
@@ -223,6 +225,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Removes and disposes browse continuation points owned by the specified node manager.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public void RemoveBrowseForManager(IAsyncNodeManager nodeManager)
         {
             if (nodeManager is null)
@@ -695,7 +698,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                while (m_history.Count >= m_maxHistory)
+                while (m_maxHistory > 0 && m_history.Count >= m_maxHistory)
                 {
                     int evictionIndex = FindEvictableHistoryIndex();
                     if (evictionIndex < 0)
@@ -784,24 +787,51 @@ namespace Opc.Ua.Server
                     .LoadContinuationPointsAsync(ownerSessionId, cancellationToken)
                     .ConfigureAwait(false);
 
+                List<ContinuationPointEnvelope>? lateEnvelopes = null;
                 lock (m_lock)
                 {
-                    foreach (ContinuationPointEnvelope envelope in envelopes)
+                    if (m_closed)
                     {
-                        switch (envelope.Kind)
+                        lateEnvelopes = [];
+                        foreach (ContinuationPointEnvelope envelope in envelopes)
                         {
-                            case ContinuationPointKind.Browse:
-                                m_mirroredBrowseOwners ??= [];
-                                m_mirroredBrowseOwners[envelope.Id] =
-                                    envelope.OwnerSessionId;
-                                break;
-                            case ContinuationPointKind.History:
-                                m_mirroredHistoryOwners ??= [];
-                                m_mirroredHistoryOwners[envelope.Id] =
-                                    envelope.OwnerSessionId;
-                                break;
+                            if (envelope.Kind is ContinuationPointKind.Browse or ContinuationPointKind.History)
+                            {
+                                lateEnvelopes.Add(envelope);
+                            }
                         }
                     }
+                    else
+                    {
+                        foreach (ContinuationPointEnvelope envelope in envelopes)
+                        {
+                            switch (envelope.Kind)
+                            {
+                                case ContinuationPointKind.Browse:
+                                    m_mirroredBrowseOwners ??= [];
+                                    m_mirroredBrowseOwners[envelope.Id] =
+                                        envelope.OwnerSessionId;
+                                    break;
+                                case ContinuationPointKind.History:
+                                    m_mirroredHistoryOwners ??= [];
+                                    m_mirroredHistoryOwners[envelope.Id] =
+                                        envelope.OwnerSessionId;
+                                    break;
+                            }
+                        }
+                    }
+                }
+
+                if (lateEnvelopes != null)
+                {
+                    foreach (ContinuationPointEnvelope envelope in lateEnvelopes)
+                    {
+                        m_store.RemoveContinuationPoint(
+                            envelope.OwnerSessionId,
+                            envelope.Kind,
+                            envelope.Id);
+                    }
+                    return;
                 }
             }
 
@@ -911,6 +941,7 @@ namespace Opc.Ua.Server
         {
             List<ContinuationPoint>? browseCPs;
             List<HistoryContinuationPoint>? historyCPs;
+            var mirrored = new List<(NodeId OwnerSessionId, ContinuationPointKind Kind, Guid Id)>();
             lock (m_lock)
             {
                 m_closed = true;
@@ -918,8 +949,27 @@ namespace Opc.Ua.Server
                 m_browse = null;
                 historyCPs = m_history;
                 m_history = null;
+                if (m_mirroredBrowseOwners != null)
+                {
+                    foreach (KeyValuePair<Guid, NodeId> pair in m_mirroredBrowseOwners)
+                    {
+                        mirrored.Add((pair.Value, ContinuationPointKind.Browse, pair.Key));
+                    }
+                }
+                if (m_mirroredHistoryOwners != null)
+                {
+                    foreach (KeyValuePair<Guid, NodeId> pair in m_mirroredHistoryOwners)
+                    {
+                        mirrored.Add((pair.Value, ContinuationPointKind.History, pair.Key));
+                    }
+                }
                 m_mirroredBrowseOwners = null;
                 m_mirroredHistoryOwners = null;
+            }
+
+            foreach ((NodeId ownerSessionId, ContinuationPointKind kind, Guid id) in mirrored)
+            {
+                m_store?.RemoveContinuationPoint(ownerSessionId, kind, id);
             }
 
             if (browseCPs != null)

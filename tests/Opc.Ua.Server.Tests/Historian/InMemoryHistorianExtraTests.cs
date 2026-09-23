@@ -34,6 +34,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Historian;
@@ -67,7 +68,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task InsertBatchAsyncWithNullValuesEntryReturnsEmptyStatusListAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId($"batch-null-{Guid.NewGuid():N}", Ns);
             provider.Register(nodeId);
 
@@ -94,7 +97,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task DeleteRawAsyncReturnsGoodNoDataWhenNodeNotRegisteredAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId($"del-raw-noarch-{Guid.NewGuid():N}", Ns);
 
             HistorianOperationContext ctx = CreateContext();
@@ -116,7 +121,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task DeleteRawAsyncWithIsDeleteModifiedTrueRemovesFromModifiedLogAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId($"del-mod-{Guid.NewGuid():N}", Ns);
             provider.Register(nodeId);
 
@@ -136,8 +143,11 @@ namespace Opc.Ua.Server.Tests.Historian
                 isDeleteModified: true, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(StatusCode.IsGood(outcome.OperationResults[0]), Is.True);
-            Assert.That(outcome.OldValues, Has.Count.EqualTo(1));
+            // Both the insert entry (logged as an INSERT modification) and
+            // the delete entry are removed from the modified log.
+            Assert.That(outcome.OldValues, Has.Count.EqualTo(2));
             Assert.That(outcome.OldValues[0].SourceTimestamp, Is.EqualTo((DateTimeUtc)t1));
+            Assert.That(outcome.OldValues[1].SourceTimestamp, Is.EqualTo((DateTimeUtc)t1));
         }
 
         /// <summary>
@@ -146,16 +156,20 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task DeleteRawAsyncWithIsDeleteModifiedTrueReturnsGoodNoDataWhenModifiedLogIsEmptyAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId($"del-mod-empty-{Guid.NewGuid():N}", Ns);
             provider.Register(nodeId);
 
             HistorianOperationContext ctx = CreateContext();
-            // Seed a raw value but never delete it (no modified-log entries).
+            // Seed a raw value (which is itself logged as an INSERT modification
+            // entry outside the queried window below) and query a disjoint
+            // time window that contains no modified-log entries.
             await provider.InsertAsync(ctx, nodeId, [MakeValue(BaseTime.AddSeconds(1), 1.0)], CancellationToken.None).ConfigureAwait(false);
 
             HistorianUpdateOutcome<DataValue> outcome = await provider.DeleteRawAsync(ctx, nodeId,
-                (DateTimeUtc)BaseTime, (DateTimeUtc)BaseTime.AddMinutes(1),
+                (DateTimeUtc)BaseTime.AddMinutes(-2), (DateTimeUtc)BaseTime.AddMinutes(-1),
                 isDeleteModified: true, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(outcome.OperationResults[0], Is.EqualTo(StatusCodes.GoodNoData));
@@ -169,7 +183,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task DeleteRawAsyncWithStartGreaterThanEndSwapsAndDeletesAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId($"del-swap-{Guid.NewGuid():N}", Ns);
             provider.Register(nodeId);
 
@@ -195,7 +211,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task DeleteAtTimeAsyncReturnsAllBadNoEntryExistsWhenNodeNotRegisteredAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId($"del-at-noarch-{Guid.NewGuid():N}", Ns);
 
             HistorianOperationContext ctx = CreateContext();
@@ -217,7 +235,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task DeleteAnnotationsAsyncReturnsAllBadNoEntryExistsWhenNodeNotRegisteredAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId($"del-ann-noarch-{Guid.NewGuid():N}", Ns);
 
             HistorianOperationContext ctx = CreateContext();
@@ -238,7 +258,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task InsertAnnotationsAsyncDuplicateKeyReturnsBadEntryExistsAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId($"ann-dup-{Guid.NewGuid():N}", Ns);
             provider.Register(nodeId);
 
@@ -260,7 +282,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task ReplaceAnnotationsAsyncReturnsBadNoEntryExistsForNonExistingEntryAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId($"ann-rep-ne-{Guid.NewGuid():N}", Ns);
             provider.Register(nodeId);
 
@@ -283,7 +307,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task ReplaceAnnotationsAsyncReplacesExistingEntryAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId($"ann-rep-ex-{Guid.NewGuid():N}", Ns);
             provider.Register(nodeId);
 
@@ -307,7 +333,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task UpdateAnnotationsAsyncInsertsOrReplacesAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId($"ann-upd-{Guid.NewGuid():N}", Ns);
             provider.Register(nodeId);
 
@@ -335,7 +363,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task ReadRawBackwardWithReturnBoundsIncludesBoundValuesAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId($"raw-bwd-{Guid.NewGuid():N}", Ns);
             provider.Register(nodeId);
 

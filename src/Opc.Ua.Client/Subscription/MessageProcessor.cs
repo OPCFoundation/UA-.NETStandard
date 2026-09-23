@@ -114,6 +114,7 @@ namespace Opc.Ua.Client.Subscriptions
                     Comparer = Comparer<IncomingMessage>.Create(
                         IncomingMessage.Compare)
                 });
+            m_messageCapacity = new SemaphoreSlim(kIncomingMessageCapacity);
             m_messageWorkerTask = ProcessReceivedMessagesAsync(m_cts.Token);
         }
 
@@ -137,15 +138,25 @@ namespace Opc.Ua.Client.Subscriptions
             IReadOnlyList<uint>? availableSequenceNumbers,
             IReadOnlyList<string> stringTable)
         {
+            long generation = Volatile.Read(ref m_generation);
             if (availableSequenceNumbers != null)
             {
                 AvailableInRetransmissionQueue = availableSequenceNumbers;
             }
             LastNotificationTimestamp = TimeProvider.GetTimestamp();
-            await m_messages.Writer.WriteAsync(new IncomingMessage(message, stringTable,
-                TimeProvider.GetUtcNow(),
-                Volatile.Read(ref m_generation)))
-                .ConfigureAwait(false);
+            await m_messageCapacity.WaitAsync(m_cts.Token).ConfigureAwait(false);
+            try
+            {
+                await m_messages.Writer.WriteAsync(new IncomingMessage(message, stringTable,
+                    TimeProvider.GetUtcNow(),
+                    generation))
+                    .ConfigureAwait(false);
+            }
+            catch
+            {
+                m_messageCapacity.Release();
+                throw;
+            }
         }
 
         /// <summary>
@@ -166,6 +177,7 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     m_messageDispatchGate.Dispose();
                     m_cts.Dispose();
+                    m_messageCapacity.Dispose();
                     (m_messages as IDisposable)?.Dispose();
                     Disposed = true;
                 }
@@ -271,7 +283,14 @@ namespace Opc.Ua.Client.Subscriptions
                 IAsyncEnumerable<IncomingMessage> reader = m_messages.Reader.ReadAllAsync(ct);
                 await foreach (IncomingMessage incoming in reader.ConfigureAwait(false))
                 {
-                    await ProcessMessageAsync(incoming, ct).ConfigureAwait(false);
+                    try
+                    {
+                        await ProcessMessageAsync(incoming, ct).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        m_messageCapacity.Release();
+                    }
                 }
             }
             catch (OperationCanceledException)
@@ -328,16 +347,7 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     return;
                 }
-                bool wasDispatching = m_dispatchContext.Value;
-                m_dispatchContext.Value = true;
-                try
-                {
-                    await ProcessMessageCoreAsync(incoming, ct).ConfigureAwait(false);
-                }
-                finally
-                {
-                    m_dispatchContext.Value = wasDispatching;
-                }
+                await ProcessMessageCoreAsync(incoming, ct).ConfigureAwait(false);
             }
             finally
             {
@@ -521,38 +531,29 @@ namespace Opc.Ua.Client.Subscriptions
                 uint[] ordered = SortAscendingWrapAware(availableSequenceNumbers);
                 Logger.SubscriptionRecoveringTransferredMessages(Id, ordered.Length);
 
-                bool wasDispatching = m_dispatchContext.Value;
-                m_dispatchContext.Value = true;
-                try
+                // Advance the dedup gate after each completed attempt so
+                // cancellation preserves progress already made and the
+                // next message is not treated as the first after create.
+                foreach (uint sequenceNumber in ordered)
                 {
-                    // Advance the dedup gate after each completed attempt so
-                    // cancellation preserves progress already made and the
-                    // next message is not treated as the first after create.
-                    foreach (uint sequenceNumber in ordered)
+                    await RepublishKnownAvailableAsync(
+                        sequenceNumber,
+                        sequenceNumber,
+                        ct)
+                        .ConfigureAwait(false);
+                    if (IsNewerSequenceNumber(
+                        sequenceNumber,
+                        LastDataSequenceNumberProcessed))
                     {
-                        await RepublishKnownAvailableAsync(
-                            sequenceNumber,
-                            sequenceNumber,
-                            ct)
-                            .ConfigureAwait(false);
-                        if (IsNewerSequenceNumber(
-                            sequenceNumber,
-                            LastDataSequenceNumberProcessed))
-                        {
-                            LastDataSequenceNumberProcessed = sequenceNumber;
-                        }
-                        if (IsNewerSequenceNumber(
-                            sequenceNumber,
-                            LastSequenceNumberProcessed))
-                        {
-                            LastSequenceNumberProcessed = sequenceNumber;
-                        }
-                        ct.ThrowIfCancellationRequested();
+                        LastDataSequenceNumberProcessed = sequenceNumber;
                     }
-                }
-                finally
-                {
-                    m_dispatchContext.Value = wasDispatching;
+                    if (IsNewerSequenceNumber(
+                        sequenceNumber,
+                        LastSequenceNumberProcessed))
+                    {
+                        LastSequenceNumberProcessed = sequenceNumber;
+                    }
+                    ct.ThrowIfCancellationRequested();
                 }
             }
             finally
@@ -700,10 +701,11 @@ namespace Opc.Ua.Client.Subscriptions
                 if (!shouldAcknowledge)
                 {
                     publishStateMask |= PublishState.KeepAlive;
-                    await OnKeepAliveNotificationAsync(
-                        message.SequenceNumber,
-                        (DateTime)message.PublishTime,
-                        publishStateMask).ConfigureAwait(false);
+                    await DispatchCallbackAsync(
+                        () => OnKeepAliveNotificationAsync(
+                            message.SequenceNumber,
+                            (DateTime)message.PublishTime,
+                            publishStateMask)).ConfigureAwait(false);
                 }
                 else
                 {
@@ -770,22 +772,24 @@ namespace Opc.Ua.Client.Subscriptions
             if (notificationData.Value.TryGetValue(
                 out DataChangeNotification? datachange))
             {
-                await OnDataChangeNotificationAsync(
-                    message.SequenceNumber,
-                    (DateTime)message.PublishTime,
-                    datachange,
-                    publishStateMask,
-                    stringTable).ConfigureAwait(false);
+                await DispatchCallbackAsync(
+                    () => OnDataChangeNotificationAsync(
+                        message.SequenceNumber,
+                        (DateTime)message.PublishTime,
+                        datachange,
+                        publishStateMask,
+                        stringTable)).ConfigureAwait(false);
             }
             else if (notificationData.Value.TryGetValue(
                 out EventNotificationList? events))
             {
-                await OnEventDataNotificationAsync(
-                    message.SequenceNumber,
-                    (DateTime)message.PublishTime,
-                    events,
-                    publishStateMask,
-                    stringTable).ConfigureAwait(false);
+                await DispatchCallbackAsync(
+                    () => OnEventDataNotificationAsync(
+                        message.SequenceNumber,
+                        (DateTime)message.PublishTime,
+                        events,
+                        publishStateMask,
+                        stringTable)).ConfigureAwait(false);
             }
             else if (notificationData.Value.TryGetValue(
                 out StatusChangeNotification? statusChanged))
@@ -803,13 +807,37 @@ namespace Opc.Ua.Client.Subscriptions
                     // TODO: Also complete this subscription
                     mask |= PublishState.Timeout;
                 }
-                await OnStatusChangeNotificationAsync(
-                    message.SequenceNumber,
-                    (DateTime)message.PublishTime,
-                    statusChanged,
-                    mask,
-                    stringTable).ConfigureAwait(false);
+                await DispatchCallbackAsync(
+                    () => OnStatusChangeNotificationAsync(
+                        message.SequenceNumber,
+                        (DateTime)message.PublishTime,
+                        statusChanged,
+                        mask,
+                        stringTable)).ConfigureAwait(false);
             }
+        }
+
+        private async ValueTask DispatchCallbackAsync(Func<ValueTask> callback)
+        {
+            DispatchScope? previous = s_dispatchScope.Value;
+            var scope = new DispatchScope(this);
+            s_dispatchScope.Value = scope;
+            try
+            {
+                await callback().ConfigureAwait(false);
+            }
+            finally
+            {
+                Volatile.Write(ref scope.Active, 0);
+                s_dispatchScope.Value = previous;
+            }
+        }
+
+        private sealed class DispatchScope(MessageProcessor processor)
+        {
+            public MessageProcessor Processor { get; } = processor;
+
+            public int Active = 1;
         }
 
         /// <summary>
@@ -860,19 +888,30 @@ namespace Opc.Ua.Client.Subscriptions
         /// Whether the current asynchronous flow is dispatching one of this
         /// processor's notification callbacks.
         /// </summary>
-        protected bool IsDispatchingNotification => m_dispatchContext.Value;
+        protected bool IsDispatchingNotification
+        {
+            get
+            {
+                DispatchScope? scope = s_dispatchScope.Value;
+                return scope != null &&
+                    ReferenceEquals(scope.Processor, this) &&
+                    Volatile.Read(ref scope.Active) != 0;
+            }
+        }
 
+        private static readonly AsyncLocal<DispatchScope?> s_dispatchScope = new();
         private readonly ISubscriptionServiceSetClientMethods m_services;
-        // CA2213: both fields are disposed in DisposeAsync(bool) — suppressed
+        // CA2213: fields are disposed in DisposeAsync(bool) — suppressed
         // because the analyzer does not track IAsyncDisposable disposal paths.
 #pragma warning disable CA2213
         private readonly SemaphoreSlim m_messageDispatchGate = new(1, 1);
         private readonly CancellationTokenSource m_cts = new();
+        private readonly SemaphoreSlim m_messageCapacity;
 #pragma warning restore CA2213
-        private readonly AsyncLocal<bool> m_dispatchContext = new();
         private long m_generation;
         private readonly Task m_messageWorkerTask;
         private readonly Channel<IncomingMessage> m_messages;
+        private const int kIncomingMessageCapacity = 1024;
     }
 
     /// <summary>
@@ -962,5 +1001,4 @@ namespace Opc.Ua.Client.Subscriptions
             uint subscriptionId,
             int count);
     }
-
 }

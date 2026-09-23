@@ -76,6 +76,10 @@ namespace Opc.Ua.WotCon.Server
                 server.NamespaceUris, Namespaces.WotCon);
             m_xRegistryNamespaceIndex = WotConModelPartition.GetRequiredNamespaceIndex(
                 server.NamespaceUris, XRegistryWellKnown.XRegistryNamespaceUri);
+            if (NodeIdFactory is not INodeIdFactoryPolicy)
+            {
+                NodeIdFactory = NodeIdFactory.WithMode(NodeIdAssignmentMode.String);
+            }
             Coordinator.StrictBindings = options.StrictBindings;
             Coordinator.RetirementPolicy = options.RetirementPolicy;
             Coordinator.ServerNamespaceUris = server.NamespaceUris;

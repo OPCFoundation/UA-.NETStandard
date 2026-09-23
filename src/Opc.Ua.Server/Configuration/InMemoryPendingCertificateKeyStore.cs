@@ -56,7 +56,7 @@ namespace Opc.Ua.Server
     /// construction or DI) to be used at all.
     /// </para>
     /// </remarks>
-    public sealed class InMemoryPendingCertificateKeyStore : IMatchingPendingCertificateKeyStore
+    public sealed class InMemoryPendingCertificateKeyStore : IPeekablePendingCertificateKeyStore
     {
         /// <inheritdoc/>
         public ValueTask<bool> SaveAsync(
@@ -113,6 +113,19 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        public ValueTask<Certificate?> TryPeekMatchingAsync(
+            PendingCertificateKeyContext context,
+            Certificate certificate,
+            CancellationToken cancellationToken = default)
+        {
+            if (certificate == null)
+            {
+                throw new ArgumentNullException(nameof(certificate));
+            }
+            return TryTakeCore(context, certificate, cancellationToken, consume: false);
+        }
+
+        /// <inheritdoc/>
         public ValueTask<bool> TryRestoreAsync(
             PendingCertificateKeyContext context,
             Certificate certificateWithPrivateKey,
@@ -140,12 +153,14 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Transfers ownership of the pending key to the caller when any requested certificate match succeeds.
+        /// Returns an owning key handle and optionally consumes the entry after a requested certificate match.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         private ValueTask<Certificate?> TryTakeCore(
             PendingCertificateKeyContext context,
             Certificate? matchingCertificate,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool consume = true)
         {
             if (context == null)
             {
@@ -165,8 +180,12 @@ namespace Opc.Ua.Server
                 if (m_entries.TryGetValue(key, out Certificate? entry) &&
                     (matchingCertificate == null || X509Utils.VerifyKeyPair(matchingCertificate, entry)))
                 {
-                    m_entries.Remove(key);
-                    return new ValueTask<Certificate?>(entry);
+                    if (consume)
+                    {
+                        m_entries.Remove(key);
+                        return new ValueTask<Certificate?>(entry);
+                    }
+                    return new ValueTask<Certificate?>(entry.AddRef());
                 }
             }
 #pragma warning restore CA2000

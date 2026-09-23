@@ -44,6 +44,35 @@ namespace Opc.Ua.Redundancy.Server.Tests.Security
     [TestFixture]
     public sealed class PendingKeyCompareExchangeRegressionTests
     {
+        [Test]
+        public async Task SharedMatchingPeekLeavesTheRecordAvailableToAnotherReplicaAsync()
+        {
+            using var backend = new InMemorySharedKeyValueStore();
+            var options = new DistributedPushConfigurationOptions();
+            var writer = new SharedKeyValuePendingCertificateKeyStore(backend, options);
+            var reader = new SharedKeyValuePendingCertificateKeyStore(backend, options);
+            PendingCertificateKeyContext context = NewContext();
+            using Certificate pending = NewKey("peek");
+            using Certificate wrong = NewKey("wrong");
+            Assert.That(await writer.SaveAsync(context, pending).ConfigureAwait(false), Is.True);
+            using Certificate rejected = await reader.TryPeekMatchingAsync(context, wrong).ConfigureAwait(false);
+            Assert.That(rejected, Is.Null);
+            using (Certificate peeked = await reader.TryPeekMatchingAsync(context, pending).ConfigureAwait(false))
+            {
+                Assert.That(peeked.Thumbprint, Is.EqualTo(pending.Thumbprint));
+                Assert.That(X509Utils.VerifyKeyPair(pending, peeked), Is.True);
+            }
+            using var cancelled = new CancellationTokenSource();
+            cancelled.Cancel();
+            Assert.That(() => reader.TryPeekMatchingAsync(context, pending, cancelled.Token).AsTask(),
+                Throws.InstanceOf<OperationCanceledException>());
+            using Certificate taken = await writer.TryTakeMatchingAsync(context, pending).ConfigureAwait(false);
+            Assert.That(taken.Thumbprint, Is.EqualTo(pending.Thumbprint));
+            Assert.That(X509Utils.VerifyKeyPair(pending, taken), Is.True);
+            using Certificate consumed = await reader.TryPeekMatchingAsync(context, pending).ConfigureAwait(false);
+            Assert.That(consumed, Is.Null);
+        }
+
         /// <summary>
         /// Verifies an unrelated upload cannot consume the shared key before its matching upload claims it once.
         /// </summary>
@@ -72,7 +101,7 @@ namespace Opc.Ua.Redundancy.Server.Tests.Security
         /// </summary>
         [Test]
         public async Task AConcurrentSigningRequestSurvivesBothSidesOfTheClaimCompareExchangeAsync(
-            [Values(false, true)] bool replaceAfterClaim)
+            [Values] bool replaceAfterClaim)
         {
             using var backend = new InMemorySharedKeyValueStore();
             var options = new DistributedPushConfigurationOptions();
@@ -115,7 +144,7 @@ namespace Opc.Ua.Redundancy.Server.Tests.Security
         /// Verifies restoration succeeds only while no newer replica has published a replacement key.
         /// </summary>
         [Test]
-        public async Task ConditionalRestorationNeverReplacesANewerReplicaKeyAsync([Values(false, true)] bool replace)
+        public async Task ConditionalRestorationNeverReplacesANewerReplicaKeyAsync([Values] bool replace)
         {
             using var backend = new InMemorySharedKeyValueStore();
             var store = new SharedKeyValuePendingCertificateKeyStore(backend, new DistributedPushConfigurationOptions());

@@ -349,7 +349,7 @@ namespace Opc.Ua.Server
                 return (new ServiceResult(StatusCodes.BadNothingToDo), NodeId.Null);
             }
 
-            if (item.BrowseName.IsNull)
+            if (item.BrowseName.IsNull || string.IsNullOrEmpty(item.BrowseName.Name))
             {
                 return (new ServiceResult(StatusCodes.BadBrowseNameInvalid), NodeId.Null);
             }
@@ -638,15 +638,17 @@ namespace Opc.Ua.Server
                 }
             }
 
-            bool crossManagerTarget =
-                targetOwner != null &&
+            bool localTarget = targetOwner != null;
+
+            _ =
+                localTarget &&
                 !ReferenceEquals(targetOwner, sourceOwner);
-            if (crossManagerTarget &&
+            if (localTarget &&
                 (sourceMetadata == null || sourceMetadata.NodeClass == NodeClass.Unspecified))
             {
                 return new ServiceResult(StatusCodes.BadSourceNodeIdInvalid);
             }
-            if (crossManagerTarget &&
+            if (localTarget &&
                 (targetMetadata == null || targetMetadata.NodeClass == NodeClass.Unspecified))
             {
                 return new ServiceResult(StatusCodes.BadTargetNodeIdInvalid);
@@ -670,7 +672,7 @@ namespace Opc.Ua.Server
 
             // Write the complementary edge into the target's owning manager when the
             // target is explicitly local. Roll back the source edge if the target mutation fails.
-            if (crossManagerTarget)
+            if (localTarget)
             {
                 var inverseItem = new AddReferencesItem
                 {
@@ -686,7 +688,8 @@ namespace Opc.Ua.Server
                 {
                     ServiceResult inverseResult = await targetOwner!.AddReferenceAsync(
                         context, inverseItem, cancellationToken).ConfigureAwait(false);
-                    if (ServiceResult.IsBad(inverseResult))
+                    if (ServiceResult.IsBad(inverseResult) &&
+                        inverseResult.StatusCode != StatusCodes.BadDuplicateReferenceNotAllowed)
                     {
                         m_logger.AddReferencesFailedToMirrorInverseEdgeRefType(
                             item.ReferenceTypeId,
@@ -699,6 +702,11 @@ namespace Opc.Ua.Server
                             item).ConfigureAwait(false);
                         return inverseResult;
                     }
+                }
+                catch (ServiceResultException ex)
+                    when (ex.StatusCode == StatusCodes.BadDuplicateReferenceNotAllowed)
+                {
+                    return sourceResult;
                 }
                 catch (Exception ex)
                 {
@@ -823,8 +831,7 @@ namespace Opc.Ua.Server
             }
 
             DeleteReferencesItem sourceItem = item;
-            if (item.DeleteBidirectional &&
-                (!explicitlyLocalTarget || crossManagerTarget))
+            if (item.DeleteBidirectional)
             {
                 sourceItem = new DeleteReferencesItem
                 {
@@ -855,7 +862,8 @@ namespace Opc.Ua.Server
                 return sourceResult;
             }
 
-            if (!crossManagerTarget)
+            if (!item.DeleteBidirectional ||
+                !explicitlyLocalTarget)
             {
                 return sourceResult;
             }
@@ -873,7 +881,8 @@ namespace Opc.Ua.Server
             {
                 ServiceResult inverseResult = await targetOwner!.DeleteReferenceAsync(
                     context, inverseItem, cancellationToken).ConfigureAwait(false);
-                if (ServiceResult.IsBad(inverseResult))
+                if (ServiceResult.IsBad(inverseResult) &&
+                    inverseResult.StatusCode != StatusCodes.BadNoMatch)
                 {
                     m_logger.DeleteReferencesFailedToMirrorInverseDeleteRefType(
                         item.ReferenceTypeId,
@@ -887,6 +896,10 @@ namespace Opc.Ua.Server
                         targetMetadata!.NodeClass).ConfigureAwait(false);
                     return inverseResult;
                 }
+            }
+            catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes.BadNoMatch)
+            {
+                return sourceResult;
             }
             catch (Exception ex)
             {
@@ -1016,7 +1029,8 @@ namespace Opc.Ua.Server
             ushort namespaceIndex,
             CancellationToken cancellationToken)
         {
-            if (context.Session == null || ConfigurationNodeManager == null)
+            if (ConfigurationNodeManager == null ||
+                (context.Session == null && context.UserIdentity == null && context.ChannelContext == null))
             {
                 return StatusCodes.Good;
             }

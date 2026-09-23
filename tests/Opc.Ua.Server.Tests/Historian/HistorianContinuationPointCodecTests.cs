@@ -357,6 +357,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     StartTime = startTime,
                     EndTime = startTime.AddHours(1),
                     MaxValues = 11,
+                    PageLimit = 3,
                     IsForward = true
                 }
             };
@@ -366,7 +367,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 original,
                 CancellationToken.None).ConfigureAwait(false);
             Assert.That(envelope, Is.Not.Null);
-            Assert.That(envelope!.CodecVersion, Is.EqualTo(3));
+            Assert.That(envelope!.CodecVersion, Is.EqualTo(5));
 
             IHistoryContinuationPoint? decoded = await codec.DecodeAsync(
                 envelope,
@@ -380,11 +381,14 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(
                 state.AnnotationRequest!.NodeId,
                 Is.EqualTo(parentNodeId));
+            Assert.That(state.AnnotationRequest.MaxValues, Is.EqualTo(11));
+            Assert.That(state.AnnotationRequest.PageLimit, Is.EqualTo(3));
         }
 
         /// <summary>
         /// Verifies that legacy annotation continuations use their state node as the request node.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         [TestCase(1)]
         [TestCase(2)]
         public async Task LegacyAnnotationContinuationUsesStateNodeForRequestAsync(
@@ -413,7 +417,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var nodeId = new NodeId("HistorizedVariable", 1);
             PortableProvider provider = new("shared-historian");
             registry.RegisterForNode(nodeId, provider);
-            Guid id = Guid.NewGuid();
+            var id = Guid.NewGuid();
             NodeId ownerSessionId = new(Guid.NewGuid());
             DateTime startTime = new(
                 2026,

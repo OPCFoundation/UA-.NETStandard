@@ -40,19 +40,41 @@ using Quickstarts.Servers;
 
 namespace TestData
 {
+    /// <summary>
+    /// Receives simulated data changes and value-generation requests.
+    /// </summary>
     public interface ITestDataSystemCallback
     {
+        /// <summary>
+        /// Reports a newly sampled value for a test-data variable.
+        /// </summary>
+        /// <param name="variable">The variable whose value changed.</param>
+        /// <param name="value">The new simulated value.</param>
+        /// <param name="statusCode">The quality of the sampled value.</param>
+        /// <param name="timestamp">The timestamp associated with the sampled value.</param>
         void OnDataChange(
             BaseVariableState variable,
             Variant value,
             StatusCode statusCode,
             DateTime timestamp);
 
+        /// <summary>
+        /// Requests regeneration of a test-data variable's simulated value.
+        /// </summary>
+        /// <param name="variable">The variable whose value should be generated.</param>
         void OnGenerateValues(BaseVariableState variable);
     }
 
+    /// <summary>
+    /// Generates simulated values for a test-data variable.
+    /// </summary>
     public interface ITestDataSystemValuesGenerator
     {
+        /// <summary>
+        /// Generates a new simulated value using the supplied system context.
+        /// </summary>
+        /// <param name="context">The context used to generate and publish the value.</param>
+        /// <returns>The status of the value-generation operation.</returns>
         StatusCode OnGenerateValues(ISystemContext context);
     }
 
@@ -80,7 +102,11 @@ namespace TestData
                 NamespaceUris = namespaceUris,
                 ServerUris = serverUris
             };
-            Historian = new InMemoryHistorianProvider();
+            Historian = new InMemoryHistorianProvider(new InMemoryHistorianOptions
+            {
+                // This history is seeded once rather than continuously captured.
+                RawDataRetentionPeriod = TimeSpan.Zero
+            }, m_timeProvider);
         }
 
         /// <summary>
@@ -164,7 +190,7 @@ namespace TestData
         {
             // Match the historic behaviour of the previous HistoryArchive
             // sample: ~1000 samples spaced 10 seconds apart leading up to now.
-            DateTime now = DateTime.UtcNow;
+            DateTime now = m_timeProvider.GetUtcNow().UtcDateTime;
             var seed = new List<DataValue>(1001);
             for (int ii = 1000; ii >= 0; ii--)
             {
@@ -952,5 +978,4 @@ namespace TestData
             Message = "DoSample HiRes={HiRes:ss.ffff} Now={CurrentTime:ss.ffff}")]
         public static partial void DoSample(this ILogger logger, DateTime hiRes, DateTime currentTime);
     }
-
 }

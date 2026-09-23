@@ -65,8 +65,8 @@ namespace Opc.Ua.Redundancy.Server
             }
 
             builder.Services.AddSingleton(serviceLevelProvider);
-            builder.Services.AddSingleton<IServerStartupTask>(
-                sp => new ServiceLevelStartupTask(sp.GetRequiredService<IServiceLevelProvider>()));
+            builder.Services.TryAddEnumerable(
+                ServiceDescriptor.Singleton<IServerStartupTask, ServiceLevelStartupTask>());
             return builder;
         }
 
@@ -135,8 +135,8 @@ namespace Opc.Ua.Redundancy.Server
 
             // The service-level startup task updates Server.ServiceLevel from
             // the provider.
-            builder.Services.AddSingleton<IServerStartupTask>(sp =>
-                new ServiceLevelStartupTask(sp.GetRequiredService<IServiceLevelProvider>()));
+            builder.Services.TryAddEnumerable(
+                ServiceDescriptor.Singleton<IServerStartupTask, ServiceLevelStartupTask>());
 
             // The address-space startup task builds the node-state store with
             // the server message context (only available at startup), starts

@@ -98,6 +98,13 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 return ((EndpointIncomingRequest)incomingRequest).ProcessAsync();
             }
 
+            public static ValueTask<IServiceResponse> ProcessAsyncLocal(
+                object incomingRequest,
+                CancellationToken cancellationToken)
+            {
+                return ((EndpointIncomingRequest)incomingRequest).ProcessAsync(cancellationToken);
+            }
+
             public static ValueTask CallAsyncLocal(object incomingRequest)
             {
                 return ((EndpointIncomingRequest)incomingRequest).CallAsync();
@@ -289,6 +296,37 @@ namespace Opc.Ua.Core.Tests.Stack.Server
 
             Assert.That(response, Is.InstanceOf<ServiceFault>());
             Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.BadUnexpectedError));
+        }
+
+        [Test]
+        public async Task ProcessAsyncCancellationAbortsQueuedServiceAsync()
+        {
+            using var server = new TestServer();
+            var endpoint = new TestEndpointBase(server);
+            var req = new ReadRequest { RequestHeader = new RequestHeader() };
+            var ctx = new SecureChannelContext("1", new EndpointDescription(), RequestEncoding.Binary);
+
+            endpoint.AddServiceLocal(req.TypeId, typeof(ReadRequest),
+                async (_, _, lifetime) =>
+                {
+                    await Task.Delay(Timeout.InfiniteTimeSpan, lifetime.CancellationToken)
+                        .ConfigureAwait(false);
+                    return new ReadResponse();
+                });
+
+            object incoming = endpoint.CreateIncomingRequest(req, ctx);
+            using var cancellation = new CancellationTokenSource();
+            ValueTask<IServiceResponse> responseTask =
+                TestEndpointBase.ProcessAsyncLocal(incoming, cancellation.Token);
+
+            cancellation.Cancel();
+
+            IServiceResponse response = await responseTask.AsTask()
+                .WaitAsync(TimeSpan.FromSeconds(1))
+                .ConfigureAwait(false);
+
+            Assert.That(response, Is.InstanceOf<ServiceFault>());
+            Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.BadTimeout));
         }
 
         [Test]

@@ -72,7 +72,8 @@ namespace Opc.Ua.Server
         IAsyncDisposable,
         ITimeProviderProvider,
         ISecurityPolicyRegistryProvider,
-        INodeIdFactoryProvider
+        INodeIdFactoryProvider,
+        IServerServiceLevelControl
     {
         /// <summary>
         /// Initializes the datastore with the server configuration.
@@ -238,6 +239,16 @@ namespace Opc.Ua.Server
 
             try
             {
+                await DrainRoleStateBindingAsync().ConfigureAwait(false);
+            }
+            catch (Exception exception)
+            {
+                disposalErrors ??= [];
+                disposalErrors.Add(exception);
+            }
+
+            try
+            {
                 if (NodeManager is IAsyncDisposable asyncNodeManager)
                 {
                     await asyncNodeManager.DisposeAsync().ConfigureAwait(false);
@@ -253,8 +264,6 @@ namespace Opc.Ua.Server
                 disposalErrors.Add(exception);
             }
 
-            m_roleStateBinding?.Dispose();
-            m_roleStateBinding = null;
             (RoleManager as IDisposable)?.Dispose();
             RoleManager = null!;
             ResourceManager?.Dispose();
@@ -308,6 +317,19 @@ namespace Opc.Ua.Server
             lock (m_historianBuildersLock)
             {
                 m_historianBuilders.Add(builder);
+            }
+        }
+
+        /// <summary>
+        /// Stops role reconciliation before shutdown deletes the address space.
+        /// </summary>
+        internal async ValueTask DrainRoleStateBindingAsync()
+        {
+            RoleStateBinding? binding = m_roleStateBinding;
+            if (binding != null)
+            {
+                await binding.DisposeAsync().ConfigureAwait(false);
+                Interlocked.CompareExchange(ref m_roleStateBinding, null, binding);
             }
         }
 
@@ -1003,12 +1025,22 @@ namespace Opc.Ua.Server
                 return;
             }
 
+            CancellationToken closeCancellationToken = CancellationToken.None;
+
             try
             {
-                await NodeManager.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken)
+                await NodeManager.SessionClosingAsync(
+                    context,
+                    sessionId,
+                    deleteSubscriptions,
+                    closeCancellationToken)
                     .ConfigureAwait(false);
                 await SubscriptionManager
-                    .SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken)
+                    .SessionClosingAsync(
+                        context,
+                        sessionId,
+                        deleteSubscriptions,
+                        closeCancellationToken)
                     .ConfigureAwait(false);
             }
             finally
@@ -1016,7 +1048,7 @@ namespace Opc.Ua.Server
                 // The Session is marked closing for good, so it must not be left registered and
                 // serving when a NodeManager or the SubscriptionManager fails to tear its state
                 // down. The original failure still propagates to the caller.
-                await SessionManager.CloseSessionAsync(sessionId, cancellationToken).ConfigureAwait(false);
+                await SessionManager.CloseSessionAsync(sessionId, closeCancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -1176,6 +1208,34 @@ namespace Opc.Ua.Server
             ReportEvent(context, e);
         }
 
+        /// <inheritdoc/>
+        public Action<byte> ClaimServiceLevelControl()
+        {
+            lock (m_serviceLevelLock)
+            {
+                if (m_hasServiceLevelOwner)
+                {
+                    throw new InvalidOperationException("Server.ServiceLevel already has an explicit provider.");
+                }
+                if (ServerObject?.ServiceLevel == null)
+                {
+                    throw new InvalidOperationException("Server.ServiceLevel is not available.");
+                }
+                m_hasServiceLevelOwner = true;
+                return PublishServiceLevel;
+            }
+        }
+
+        private void PublishServiceLevel(byte level)
+        {
+            lock (m_serviceLevelLock)
+            {
+                ServerObject.ServiceLevel!.Value = level;
+                ServerObject.ServiceLevel.Timestamp = TimeProvider.GetUtcNow().UtcDateTime;
+                ServerObject.ServiceLevel.ClearChangeMasks(DefaultSystemContext, false);
+            }
+        }
+
         /// <summary>
         /// Updates Server.ServiceLevel after the session count changes.
         /// </summary>
@@ -1202,9 +1262,18 @@ namespace Opc.Ua.Server
 
             lock (m_serviceLevelLock)
             {
+                if (m_hasServiceLevelOwner)
+                {
+                    return;
+                }
                 byte currentServiceLevel = Convert.ToByte(
                     ServerObject.ServiceLevel.Value,
                     CultureInfo.InvariantCulture);
+
+                if (currentServiceLevel < ServiceLevels.HealthyMinimum)
+                {
+                    return;
+                }
 
                 if (!ServerServiceLevelCalculator.ShouldUpdate(currentServiceLevel, targetServiceLevel))
                 {
@@ -1657,6 +1726,7 @@ namespace Opc.Ua.Server
         private readonly List<Historian.HistorianBuilder> m_historianBuilders = [];
         private readonly Lock m_historianBuildersLock = new();
         private readonly Lock m_serviceLevelLock = new();
+        private bool m_hasServiceLevelOwner;
         private RoleStateBinding? m_roleStateBinding;
         private volatile IReadOnlyList<ITransportListener>? m_transportListeners;
         private ArrayOf<EndpointDescription> m_serverEndpoints;

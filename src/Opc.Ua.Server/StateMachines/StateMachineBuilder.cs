@@ -854,6 +854,7 @@ namespace Opc.Ua.Server.StateMachines
                     {
                         materializedChild.SetState(ctx, 0);
                     }
+                    childBuilder.m_dispatcher.SynchronizeInitialState(ctx, 0);
                     materializedChild.SetSuspended(ctx, true);
                     return;
                 }
@@ -868,7 +869,13 @@ namespace Opc.Ua.Server.StateMachines
                 if (!preserveOnReentry || !childHasState)
                 {
                     materializedChild.SetState(ctx, initialChildStateId);
+                    materializedChild.ClearChangeMasks(ctx, true);
                 }
+                childBuilder.m_dispatcher.SynchronizeInitialState(
+                    ctx,
+                    StateMachineBuilder.ResolveStateId(
+                        materializedChild,
+                        materializedChild.CurrentState?.Id?.Value ?? NodeId.Null));
             }
 
             SyncChildToParentState(m_context, ExtractCurrentStateId(m_stateMachine));
@@ -878,7 +885,11 @@ namespace Opc.Ua.Server.StateMachines
             m_dispatcher.AddEnterStateHandler(parentStateId,
                 (ctx, parent) => SyncChildToParentState(ctx, parentStateId));
             m_dispatcher.AddExitStateHandler(parentStateId,
-                (ctx, parent) => materializedChild.SetSuspended(ctx, true));
+                (ctx, parent) =>
+                {
+                    childBuilder.m_dispatcher.SynchronizeInitialState(ctx, 0);
+                    materializedChild.SetSuspended(ctx, true);
+                });
 
             return this;
         }
@@ -1672,12 +1683,14 @@ namespace Opc.Ua.Server.StateMachines
             // at the node's construction value (true) and a client can
             // only discover the answer by calling and being refused.
             method.OnReadExecutable =
-                (ISystemContext ctx, NodeState node, ref bool value) => {
+                (ctx, node, ref value) =>
+                {
                     value = m_stateMachine.IsCausePermitted(ctx, causeId, false);
                     return ServiceResult.Good;
                 };
             method.OnReadUserExecutable =
-                (ISystemContext ctx, NodeState node, ref bool value) => {
+                (ctx, node, ref value) =>
+                {
                     value = m_stateMachine.IsCausePermitted(ctx, causeId, true);
                     return ServiceResult.Good;
                 };
@@ -1686,6 +1699,7 @@ namespace Opc.Ua.Server.StateMachines
         /// <summary>
         /// Replaces a state's timed transition and arms it immediately when that state is already current.
         /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
         public void AddTimedTransition(
             uint fromStateId,
             TimeSpan timeout,
@@ -1702,7 +1716,7 @@ namespace Opc.Ua.Server.StateMachines
             {
                 if (m_disposed)
                 {
-                    throw new ObjectDisposedException(nameof(StateMachineDispatcher<TState>));
+                    throw new ObjectDisposedException(nameof(StateMachineDispatcher<>));
                 }
                 m_timedTransitions[fromStateId] = entry;
             }
@@ -1902,6 +1916,10 @@ namespace Opc.Ua.Server.StateMachines
                             m_context, stateId, revision, entry.TransitionId, entry.CauseId,
                             () => !registration.IsDisposed &&
                                 ReferenceEquals(Interlocked.CompareExchange(ref entry.Active, null, registration), registration));
+                        if (ServiceResult.IsGood(result))
+                        {
+                            m_stateMachine.ClearChangeMasks(m_context, true);
+                        }
                         if (ServiceResult.IsBad(result) && result.StatusCode != StatusCodes.BadInvalidState)
                         {
                             m_logger.TimedTransitionRejected(stateId, result);

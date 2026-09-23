@@ -64,6 +64,7 @@ namespace Opc.Ua.Server.Historian
         /// </summary>
         /// <param name="nodeId">The historizing variable or notifier.</param>
         /// <param name="ct">Cancellation token.</param>
+        /// <returns>Whether this provider serves history for the requested node.</returns>
         ValueTask<bool> IsHistorizingAsync(NodeId nodeId, CancellationToken ct);
 
         /// <summary>
@@ -71,6 +72,7 @@ namespace Opc.Ua.Server.Historian
         /// </summary>
         /// <param name="nodeId">The historizing variable or notifier.</param>
         /// <param name="ct">Cancellation token.</param>
+        /// <returns>The supported history operations and limits for the requested node.</returns>
         ValueTask<HistorianNodeCapabilities> GetCapabilitiesAsync(NodeId nodeId, CancellationToken ct);
     }
 }

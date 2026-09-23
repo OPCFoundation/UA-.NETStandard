@@ -242,6 +242,9 @@ certificate registry. `UpdateCredential` decrypts a UA Binary
 It verifies the declared policy, certificate thumbprint, envelope, signature
 and timestamp; invalid input never reaches the store. Both methods require
 the SecurityAdmin role and an encrypted SecureChannel.
+The envelope nonce is deliberately not compared with a session nonce:
+outside `ActivateSession`, OPC UA Part 4 Table 185 requires the receiver not
+to check it.
 
 The push binding accepts `Basic256Sha256`, `Aes128_Sha256_RsaOaep` and
 `Aes256_Sha256_RsaPss`. Restrict or reorder these through
@@ -280,6 +283,34 @@ Client-side, `GdsKeyCredentialAccessTokenProvider` adapts a
 `KeyCredentialServiceClient` to `IAccessTokenProvider`, so the standard
 `IssuedTokenIdentityProvider` can materialize a UA `IssuedIdentityToken`
 for the bridge profile.
+
+The bridge token payload carries a `"version"` field. It versions this vendor
+extension's own JSON payload, and has no OPC UA counterpart: Part 6 §6.5.3 and
+the GDS KeyCredential services define neither this payload nor a version field.
+The server accepts `"version": 2` only, whose HMAC proof covers a non-empty
+`aud` that must exactly match the resource server's `ApplicationUri`, so a proof
+minted for one server is rejected by another.
+
+The provider implements `IEndpointAccessTokenProvider`. Normal identity
+selection forwards the selected endpoint automatically, including for the
+vendor bridge profile. The audience is the first non-blank value of metadata
+`Audience`, metadata `ResourceUri`, or `endpoint.Server.ApplicationUri`.
+Thus a policy containing only `{"authorityUri":"urn:example:gds"}` still binds
+the proof to the target resource server, never to the GDS authority or client
+application. Explicit audience/resource metadata must identify that same server.
+
+```csharp
+var identities = new IssuedTokenIdentityProvider(
+    keyCredentialProvider, GdsKeyCredentialAccessTokenProvider.ProfileUri);
+
+// Direct acquisition outside normal identity selection also supplies the target.
+using AccessToken token = await keyCredentialProvider.AcquireAsync(
+    metadata, targetEndpoint, cancellationToken);
+```
+
+The metadata-only acquisition overload requires an explicit non-blank audience
+or resource URI. If none is available, acquisition fails before requesting or
+reading credential secrets instead of emitting an unusable unbound token.
 
 ## Audit Events
 

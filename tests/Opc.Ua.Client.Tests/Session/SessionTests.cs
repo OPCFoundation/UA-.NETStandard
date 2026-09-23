@@ -31,6 +31,7 @@
 // making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
 #pragma warning disable CA2000
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -51,6 +52,92 @@ namespace Opc.Ua.Client.Tests
     [SetUICulture("en-us")]
     public sealed class SessionTests
     {
+        [TestCase(3, false, true)]
+        [TestCase(4, true, true)]
+        [TestCase(4, false, false)]
+        public async Task FetchTypeTreeVisitsEveryNodeAndTerminatesAsync(int count, bool singleId, bool cycle)
+        {
+            using var session = SessionMock.Create();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            ushort namespaceIndex = session.NamespaceUris.GetIndexOrAppend("urn:test:type-traversal");
+            var ids = Enumerable.Range(1, count)
+                .Select(value => new NodeId((uint)value, namespaceIndex)).ToArrayOf();
+            var browsed = new HashSet<NodeId>();
+            session.Channel.Setup(channel => channel.SendRequestAsync(
+                    It.IsAny<ReadRequest>(), It.IsAny<CancellationToken>()))
+                .Returns((ReadRequest request, CancellationToken ct) =>
+                {
+                    ct.ThrowIfCancellationRequested();
+                    return new ValueTask<IServiceResponse>(new ReadResponse
+                    {
+                        Results = request.NodesToRead.ConvertAll(item => item.AttributeId switch
+                        {
+                            Attributes.NodeId => new DataValue(item.NodeId),
+                            Attributes.NodeClass => new DataValue((int)NodeClass.ObjectType),
+                            Attributes.BrowseName => new DataValue(new QualifiedName("Type", namespaceIndex)),
+                            Attributes.DisplayName => new DataValue(LocalizedText.From("Type")),
+                            Attributes.IsAbstract => new DataValue(false),
+                            _ => DataValue.FromStatusCode(StatusCodes.BadAttributeIdInvalid)
+                        })
+                    });
+                });
+            session.Channel.Setup(channel => channel.SendRequestAsync(
+                    It.IsAny<BrowseRequest>(), It.IsAny<CancellationToken>()))
+                .Returns((BrowseRequest request, CancellationToken ct) =>
+                {
+                    ct.ThrowIfCancellationRequested();
+                    return new ValueTask<IServiceResponse>(new BrowseResponse
+                    {
+                        Results = request.NodesToBrowse.ConvertAll(item =>
+                        {
+                            browsed.Add(item.NodeId);
+                            int index = ids.ToList().IndexOf(item.NodeId);
+                            return new BrowseResult
+                            {
+                                References = index == count - 1 && !cycle ? [] :
+                                [
+                                    new ReferenceDescription
+                                    {
+                                        ReferenceTypeId = ReferenceTypeIds.HasSubtype,
+                                        IsForward = true,
+                                        NodeId = new ExpandedNodeId(ids[(index + 1) % count]),
+                                        NodeClass = NodeClass.ObjectType,
+                                        BrowseName = new QualifiedName("Type", namespaceIndex)
+                                    }
+                                ]
+                            };
+                        })
+                    });
+                });
+
+            IServiceMessageContext context = session.MessageContext;
+            int lookups = 0;
+            session.Channel.SetupGet(channel => channel.MessageContext).Returns(() =>
+            {
+                Assert.That(++lookups, Is.LessThan(128),
+                    "The cached graph must terminate instead of recursively revisiting the cycle.");
+                return context;
+            });
+            try
+            {
+                if (singleId)
+                {
+                    await session.FetchTypeTreeAsync(new ExpandedNodeId(ids[0]), timeout.Token).ConfigureAwait(false);
+                }
+                else
+                {
+                    await session.FetchTypeTreeAsync(
+                        [new ExpandedNodeId(ids[0])], timeout.Token).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                session.Channel.SetupGet(channel => channel.MessageContext).Returns(context);
+            }
+
+            Assert.That(browsed, Is.EquivalentTo(ids.ToList()));
+        }
+
         [Test]
         public void BuildTransportChainReturnsLeafFollowedByIssuers()
         {
@@ -806,9 +893,11 @@ namespace Opc.Ua.Client.Tests
             using var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
-            var namespaceArray1 = new DataValue(Variant.From([Namespaces.OpcUa, "http://namespace2", "http://namespace3"]));
+            var namespaceArray1 = new DataValue(
+                Variant.From([Namespaces.OpcUa, "http://namespace2", "http://namespace3"]));
             var serverArray1 = new DataValue(Variant.From(["http://server1", "http://server2"]));
-            var namespaceArray2 = new DataValue(Variant.From([Namespaces.OpcUa, "http://namespace3", "http://namespace2"]));
+            var namespaceArray2 = new DataValue(
+                Variant.From([Namespaces.OpcUa, "http://namespace3", "http://namespace2"]));
             var serverArray2 = new DataValue(Variant.From(["http://server1", "http://server2", "http://server3"]));
 
             sut.Channel
@@ -830,15 +919,18 @@ namespace Opc.Ua.Client.Tests
             await sut.FetchNamespaceTablesAsync(ct).ConfigureAwait(false);
 
             // Assert
-            Assert.That(sut.NamespaceUris.ToArray(), Is.EquivalentTo([Namespaces.OpcUa, "http://namespace2", "http://namespace3"]));
+            Assert.That(sut.NamespaceUris.ToArray(),
+                Is.EquivalentTo([Namespaces.OpcUa, "http://namespace2", "http://namespace3"]));
             Assert.That(sut.ServerUris.ToArray(), Is.EquivalentTo(["http://server1", "http://server2"]));
 
             // Act
             await sut.FetchNamespaceTablesAsync(ct).ConfigureAwait(false);
 
             // Assert
-            Assert.That(sut.NamespaceUris.ToArray(), Is.EquivalentTo([Namespaces.OpcUa, "http://namespace3", "http://namespace2"]));
-            Assert.That(sut.ServerUris.ToArray(), Is.EquivalentTo(["http://server1", "http://server2", "http://server3"]));
+            Assert.That(sut.NamespaceUris.ToArray(),
+                Is.EquivalentTo([Namespaces.OpcUa, "http://namespace3", "http://namespace2"]));
+            Assert.That(sut.ServerUris.ToArray(),
+                Is.EquivalentTo(["http://server1", "http://server2", "http://server3"]));
 
             sut.Channel.Verify();
         }
@@ -850,7 +942,8 @@ namespace Opc.Ua.Client.Tests
             using var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
-            var namespaceArray1 = new DataValue(new Variant([Namespaces.OpcUa, "http://namespace2", "http://namespace3"]));
+            var namespaceArray1 = new DataValue(
+                new Variant([Namespaces.OpcUa, "http://namespace2", "http://namespace3"]));
             var serverArray1 = new DataValue(new Variant(["http://server1", "http://server2"]));
             var namespaceArray2 = new DataValue(new Variant([Namespaces.OpcUa, "http://namespace3"]));
             var serverArray2 = new DataValue(new Variant(["http://server1"]));
@@ -874,7 +967,8 @@ namespace Opc.Ua.Client.Tests
             await sut.FetchNamespaceTablesAsync(ct).ConfigureAwait(false);
 
             // Assert
-            Assert.That(sut.NamespaceUris.ToArray(), Is.EquivalentTo([Namespaces.OpcUa, "http://namespace2", "http://namespace3"]));
+            Assert.That(sut.NamespaceUris.ToArray(),
+                Is.EquivalentTo([Namespaces.OpcUa, "http://namespace2", "http://namespace3"]));
             Assert.That(sut.ServerUris.ToArray(), Is.EquivalentTo(["http://server1", "http://server2"]));
 
             // Act
@@ -1064,7 +1158,7 @@ namespace Opc.Ua.Client.Tests
         {
             // Arrange
             using var sut = SessionMock.Create();
-            sut.SetConnected();
+            sut.SetConnectedAndResponsive();
             CancellationToken ct = CancellationToken.None;
 
             sut.Channel
@@ -1111,7 +1205,7 @@ namespace Opc.Ua.Client.Tests
         {
             // Arrange
             using var sut = SessionMock.Create();
-            sut.SetConnected();
+            sut.SetConnectedAndResponsive();
             CancellationToken ct = CancellationToken.None;
 
             sut.Channel
@@ -1139,7 +1233,7 @@ namespace Opc.Ua.Client.Tests
         {
             // Arrange
             var sut = SessionMock.Create();
-            sut.SetConnected();
+            sut.SetConnectedAndResponsive();
             CloseSessionRequest? closeRequest = null;
             sut.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -1168,7 +1262,7 @@ namespace Opc.Ua.Client.Tests
         {
             // Arrange
             using var sut = SessionMock.Create();
-            sut.SetConnected();
+            sut.SetConnectedAndResponsive();
             sut.DeleteSubscriptionsOnClose = false;
             CancellationToken ct = CancellationToken.None;
 
@@ -1200,7 +1294,7 @@ namespace Opc.Ua.Client.Tests
         {
             // Arrange
             using var sut = SessionMock.Create();
-            sut.SetConnected();
+            sut.SetConnectedAndResponsive();
             CancellationToken ct = CancellationToken.None;
 
             sut.Channel
@@ -1229,7 +1323,7 @@ namespace Opc.Ua.Client.Tests
         {
             // Arrange
             using var sut = SessionMock.Create();
-            sut.SetConnected();
+            sut.SetConnectedAndResponsive();
             CancellationToken ct = CancellationToken.None;
 
             sut.Channel
@@ -1260,7 +1354,7 @@ namespace Opc.Ua.Client.Tests
         {
             // Arrange
             using var sut = SessionMock.Create();
-            sut.SetConnected();
+            sut.SetConnectedAndResponsive();
             CancellationToken ct = CancellationToken.None;
 
             sut.Channel
@@ -1280,6 +1374,125 @@ namespace Opc.Ua.Client.Tests
             // Assert
             Assert.That(result, Is.EqualTo(StatusCodes.BadUnexpectedError));
             sut.Channel.Verify();
+        }
+
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        public async Task ShutdownCancellationOfKeepAliveStillClosesServerSessionAsync(
+            bool disposeAsync,
+            bool serverRejectsClose)
+        {
+            StatusCode closeStatus = serverRejectsClose ? StatusCodes.BadSessionIdInvalid : StatusCodes.Good;
+            EndpointDescription endpoint = CreateSessionEndpointDescription("opc.tcp://localhost:4840");
+            await using var session = SessionMock.Create(endpoint, [endpoint]);
+            ConfigureSuccessfulOpenResponses(
+                session.Channel,
+                [endpoint],
+                ByteString.From([1, 2, 3, 4]),
+                NodeId.Parse("s=keep-alive-auth"));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var readStarted = new TaskCompletionSource<CancellationToken>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var readCompletion = new TaskCompletionSource<IServiceResponse>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            int keepAliveErrors = 0;
+            session.KeepAlive += (_, args) =>
+            {
+                if (ServiceResult.IsBad(args.Status))
+                {
+                    Interlocked.Increment(ref keepAliveErrors);
+                }
+            };
+            session.Channel
+                .Setup(channel => channel.SendRequestAsync(
+                    It.Is<ReadRequest>(request =>
+                        request.NodesToRead.Count == 1 &&
+                        request.NodesToRead[0].NodeId == VariableIds.Server_ServerStatus_State),
+                    It.IsAny<CancellationToken>()))
+                .Returns((ReadRequest _, CancellationToken ct) =>
+                    new ValueTask<IServiceResponse>(ReadUntilCanceledAsync(ct)));
+            session.Channel
+                .Setup(channel => channel.SendRequestAsync(
+                    It.IsAny<CloseSessionRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IServiceResponse>(new CloseSessionResponse
+                {
+                    ResponseHeader = new ResponseHeader { ServiceResult = closeStatus }
+                }))
+                .Verifiable(Times.Once);
+            session.Channel
+                .Setup(channel => channel.CloseAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask())
+                .Verifiable(Times.Once);
+
+            await session.OpenAsync("test", new UserIdentity(), timeout.Token).ConfigureAwait(false);
+            CancellationToken readCancellation = await readStarted.Task
+                .WaitAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(session.KeepAliveStopped, Is.False);
+
+            if (disposeAsync)
+            {
+                await session.DisposeAsync().AsTask().WaitAsync(timeout.Token).ConfigureAwait(false);
+            }
+            else
+            {
+                StatusCode result = await session.CloseAsync(5000, true, timeout.Token).ConfigureAwait(false);
+                Assert.That(result, Is.EqualTo(closeStatus));
+            }
+
+            Assert.That(readCancellation.IsCancellationRequested, Is.True);
+            Assert.That(Volatile.Read(ref keepAliveErrors), Is.Zero);
+            Assert.That(session.KeepAliveStopped, Is.False);
+            session.Channel.Verify();
+
+            async Task<IServiceResponse> ReadUntilCanceledAsync(CancellationToken ct)
+            {
+                using CancellationTokenRegistration registration = ct.Register(() =>
+                    readCompletion.TrySetException(
+                        new ServiceResultException(StatusCodes.BadRequestCancelledByClient)));
+                readStarted.TrySetResult(ct);
+                return await readCompletion.Task.ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task KeepAliveServiceFailureWithoutCancellationStillStopsLivenessAsync()
+        {
+            EndpointDescription endpoint = CreateSessionEndpointDescription("opc.tcp://localhost:4840");
+            await using var session = SessionMock.Create(endpoint, [endpoint]);
+            ConfigureSuccessfulOpenResponses(
+                session.Channel,
+                [endpoint],
+                ByteString.From([1, 2, 3, 4]),
+                NodeId.Parse("s=keep-alive-auth"));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var reportedError = new TaskCompletionSource<StatusCode>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            session.KeepAlive += (_, args) =>
+            {
+                if (args.Status is { } status && ServiceResult.IsBad(status))
+                {
+                    reportedError.TrySetResult(status.StatusCode);
+                }
+            };
+            session.Channel
+                .Setup(channel => channel.SendRequestAsync(
+                    It.Is<ReadRequest>(request =>
+                        request.NodesToRead.Count == 1 &&
+                        request.NodesToRead[0].NodeId == VariableIds.Server_ServerStatus_State),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new ServiceResultException(StatusCodes.BadTimeout));
+
+            await session.OpenAsync("test", new UserIdentity(), timeout.Token).ConfigureAwait(false);
+            StatusCode reportedStatus = await reportedError.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+
+            Assert.That(reportedStatus, Is.EqualTo(StatusCodes.BadTimeout));
+            Assert.That(session.KeepAliveStopped, Is.True);
+            await session.CloseAsync(5000, true, timeout.Token).ConfigureAwait(false);
+            session.Channel.Verify(channel => channel.SendRequestAsync(
+                It.IsAny<CloseSessionRequest>(),
+                It.IsAny<CancellationToken>()), Times.Never);
         }
 
         [Test]
@@ -1683,6 +1896,260 @@ namespace Opc.Ua.Client.Tests
             sut.Channel.Verify();
         }
 
+        [TestCase(null, "", null, "")]
+        [TestCase("", null, "", null)]
+        [TestCase(null, null, null, null)]
+        [TestCase("", "", "", "")]
+        public async Task OpenAsyncAcceptsNullAndEmptyTokenFieldsAsync(
+            string? discoveryPolicyId,
+            string? authenticatedPolicyId,
+            string? discoveryPolicyUri,
+            string? authenticatedPolicyUri)
+        {
+            EndpointDescription discovery = CreateSessionEndpointDescription("opc.tcp://localhost:4840");
+            discovery.UserIdentityTokens[0].PolicyId = discoveryPolicyId;
+            discovery.UserIdentityTokens[0].SecurityPolicyUri = discoveryPolicyUri;
+            EndpointDescription authenticated = CreateSessionEndpointDescription("opc.tcp://localhost:4840");
+            authenticated.UserIdentityTokens[0].PolicyId = authenticatedPolicyId;
+            authenticated.UserIdentityTokens[0].SecurityPolicyUri = authenticatedPolicyUri;
+            using var session = SessionMock.Create(discovery, [discovery]);
+            ConfigureSuccessfulOpenResponses(
+                session.Channel,
+                [authenticated],
+                ByteString.From([1, 2, 3, 4]),
+                NodeId.Parse("s=token"));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+            await session.OpenAsync("test", new UserIdentity(), timeout.Token).ConfigureAwait(false);
+
+            Assert.That(session.Connected, Is.True);
+            session.Channel.Verify(
+                channel => channel.SendRequestAsync(
+                    It.IsAny<ActivateSessionRequest>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        [Test]
+        public void OpenAsyncRejectsChangedAuthenticatedTokenType()
+        {
+            EndpointDescription discovery = CreateSessionEndpointDescription("opc.tcp://localhost:4840");
+            discovery.UserIdentityTokens = [CreateUserTokenPolicy("identity", UserTokenType.Anonymous)];
+            EndpointDescription authenticated = CreateSessionEndpointDescription("opc.tcp://localhost:4840");
+            authenticated.UserIdentityTokens = [CreateUserTokenPolicy("identity", UserTokenType.UserName)];
+            using var session = SessionMock.Create(discovery);
+            ConfigureSuccessfulOpenResponses(
+                session.Channel,
+                [authenticated],
+                ByteString.From([1, 2, 3, 4]),
+                NodeId.Parse("s=token"));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await session.OpenAsync("test", new UserIdentity(), timeout.Token)
+                    .ConfigureAwait(false));
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            session.Channel.Verify(
+                channel => channel.SendRequestAsync(
+                    It.IsAny<ActivateSessionRequest>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        [Test]
+        public async Task RecreateInPlaceDoesNotReuseAnotherEndpointDiscoverySnapshotAsync()
+        {
+            EndpointDescription initial = CreateSessionEndpointDescription("opc.tcp://initial:4840");
+            EndpointDescription extra = CreateSessionEndpointDescription("opc.tcp://initial:4841");
+            EndpointDescription replacement = CreateSessionEndpointDescription("opc.tcp://replacement:4840");
+            using var session = SessionMock.Create(initial, [initial, extra]);
+            session.SetConnected();
+            var endpoint = new ConfiguredEndpoint(null, replacement, new EndpointConfiguration());
+            Mock<ITransportChannel> channel = CreateReconnectChannelMock(session, replacement);
+            ConfigureSuccessfulOpenResponses(
+                channel,
+                [replacement],
+                ByteString.From([1, 2, 3, 4]),
+                NodeId.Parse("s=replacement-token"));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+            await session.RecreateInPlaceAsync(endpoint: endpoint, channel: channel.Object, ct: timeout.Token)
+                .ConfigureAwait(false);
+
+            Assert.That(session.Connected, Is.True);
+            Assert.That(session.ConfiguredEndpoint, Is.SameAs(endpoint));
+            channel.Verify(value => value.SendRequestAsync(
+                It.IsAny<CreateSessionRequest>(),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RecreateRefreshesDiscoveryOnSuppliedChannelAsync(bool reverseConnection)
+        {
+            using SessionMock session = CreateSessionWithDiscoverySnapshot();
+            EndpointDescription refreshed = CoreUtils.Clone(session.ConfiguredEndpoint.Description)!;
+            refreshed.SecurityLevel = 2;
+            session.Channel.Setup(channel => channel.SendRequestAsync(
+                    It.IsAny<GetEndpointsRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new GetEndpointsResponse { Endpoints = [refreshed] });
+            ConfigureSuccessfulOpenResponses(
+                session.Channel, [refreshed], ByteString.From([1, 2, 3, 4]), NodeId.Parse("s=recreated"));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+            await session.RecreateInPlaceAsync(
+                connection: reverseConnection ? Mock.Of<ITransportWaitingConnection>() : null,
+                channel: session.Channel.Object,
+                ct: timeout.Token).ConfigureAwait(false);
+
+            Assert.That(session.Connected, Is.True);
+            Assert.That(session.ConfiguredEndpoint.Description.EndpointUrl, Is.EqualTo("opc.tcp://localhost:0"));
+            session.Channel.Verify(channel => channel.SendRequestAsync(
+                It.Is<GetEndpointsRequest>(request => request.EndpointUrl == "opc.tcp://localhost:0"),
+                It.IsAny<CancellationToken>()), Times.Once);
+            session.Channel.Verify(channel => channel.SendRequestAsync(
+                It.IsAny<CreateSessionRequest>(), It.IsAny<CancellationToken>()), Times.Once);
+            session.Channel.Verify(channel => channel.CloseAsync(It.IsAny<CancellationToken>()), Times.Never);
+            session.Channel.Verify(channel => channel.Dispose(), Times.Never);
+        }
+
+        [TestCaseSource(nameof(s_discoveryUnavailableStatuses))]
+        public async Task RecreateDiscoveryUnavailableUsesStoredSnapshotAsync(StatusCode status)
+        {
+            using SessionMock session = CreateSessionWithDiscoverySnapshot();
+            session.Channel.Setup(channel => channel.SendRequestAsync(
+                    It.IsAny<GetEndpointsRequest>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new ServiceResultException(status));
+            ConfigureSuccessfulOpenResponses(
+                session.Channel, [session.ConfiguredEndpoint.Description],
+                ByteString.From([1, 2, 3, 4]), NodeId.Parse("s=recreated"));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+            await session.RecreateInPlaceAsync(channel: session.Channel.Object, ct: timeout.Token)
+                .ConfigureAwait(false);
+
+            Assert.That(session.Connected, Is.True);
+            session.Channel.Verify(channel => channel.SendRequestAsync(
+                It.IsAny<GetEndpointsRequest>(), It.IsAny<CancellationToken>()), Times.Once);
+            session.Channel.Verify(channel => channel.SendRequestAsync(
+                It.IsAny<ActivateSessionRequest>(), It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task RecreateDiscoveryComparisonRejectsChangedAuthenticatedEndpointsAsync(
+            bool discoveryAvailable,
+            bool changeToken)
+        {
+            using SessionMock session = CreateSessionWithDiscoverySnapshot();
+            EndpointDescription authenticated = CoreUtils.Clone(session.ConfiguredEndpoint.Description)!;
+            if (changeToken)
+            {
+                authenticated.UserIdentityTokens[0].TokenType = UserTokenType.UserName;
+            }
+            else
+            {
+                authenticated.SecurityLevel = 2;
+            }
+            session.Channel.Setup(channel => channel.SendRequestAsync(
+                    It.IsAny<GetEndpointsRequest>(), It.IsAny<CancellationToken>()))
+                .Returns(() => discoveryAvailable
+                    ? new ValueTask<IServiceResponse>(new GetEndpointsResponse
+                    {
+                        Endpoints = session.ConfiguredEndpoint.DiscoveryEndpoints
+                    })
+                    : throw new ServiceResultException(StatusCodes.BadServiceUnsupported));
+            ConfigureSuccessfulOpenResponses(
+                session.Channel, [authenticated], ByteString.From([1, 2, 3, 4]), NodeId.Parse("s=recreated"));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+            await Assert.ThatAsync(
+                async () => await session.RecreateInPlaceAsync(
+                    channel: session.Channel.Object, ct: timeout.Token).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadSecurityChecksFailed)).ConfigureAwait(false);
+
+            session.Channel.Verify(channel => channel.SendRequestAsync(
+                It.IsAny<CreateSessionRequest>(), It.IsAny<CancellationToken>()), Times.Once);
+            session.Channel.Verify(channel => channel.SendRequestAsync(
+                It.IsAny<ActivateSessionRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [TestCaseSource(nameof(s_discoverySecurityStatuses))]
+        public async Task RecreateDiscoverySecurityFailureDoesNotFallBackAsync(StatusCode status)
+        {
+            using SessionMock session = CreateSessionWithDiscoverySnapshot();
+            session.Channel.Setup(channel => channel.SendRequestAsync(
+                    It.IsAny<GetEndpointsRequest>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new ServiceResultException(status));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+            await Assert.ThatAsync(
+                async () => await session.RecreateInPlaceAsync(
+                    channel: session.Channel.Object, ct: timeout.Token).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(status)).ConfigureAwait(false);
+
+            session.Channel.Verify(channel => channel.SendRequestAsync(
+                It.IsAny<CreateSessionRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [Test]
+        public async Task RecreateDiscoveryCancellationDoesNotActivateAsync()
+        {
+            using SessionMock session = CreateSessionWithDiscoverySnapshot();
+            using var cancellation = new CancellationTokenSource();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var blocked = new TaskCompletionSource<IServiceResponse>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            session.Channel.Setup(channel => channel.SendRequestAsync(
+                    It.IsAny<GetEndpointsRequest>(), It.IsAny<CancellationToken>()))
+                .Returns(async (IServiceRequest _, CancellationToken ct) =>
+                {
+                    entered.TrySetResult(true);
+                    return await blocked.Task.WaitAsync(ct).ConfigureAwait(false);
+                });
+            Task recreate = session.RecreateInPlaceAsync(
+                channel: session.Channel.Object, ct: cancellation.Token);
+            try
+            {
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                cancellation.Cancel();
+                await Assert.ThatAsync(
+                    async () => await recreate.ConfigureAwait(false),
+                    Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+                session.Channel.Verify(channel => channel.SendRequestAsync(
+                    It.IsAny<CreateSessionRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+            }
+            finally
+            {
+                cancellation.Cancel();
+                blocked.TrySetCanceled();
+            }
+        }
+
+        [Test]
+        public async Task RecreateRejectsEmptyDiscoveryInsteadOfUsingStoredSnapshotAsync()
+        {
+            using SessionMock session = CreateSessionWithDiscoverySnapshot();
+            session.Channel.Setup(channel => channel.SendRequestAsync(
+                    It.IsAny<GetEndpointsRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new GetEndpointsResponse { Endpoints = [] });
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+            await Assert.ThatAsync(
+                async () => await session.RecreateInPlaceAsync(
+                    channel: session.Channel.Object, ct: timeout.Token).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadSecurityChecksFailed)).ConfigureAwait(false);
+
+            session.Channel.Verify(channel => channel.SendRequestAsync(
+                It.IsAny<CreateSessionRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
         [Test]
         public void OpenAsyncShouldHandleCreateSessionSuccessButActivationError()
         {
@@ -2073,9 +2540,12 @@ namespace Opc.Ua.Client.Tests
             using var sut = SessionMock.Create();
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            using var subscription1 = new Subscription(telemetry, new SubscriptionOptions { DisplayName = "Subscription1" });
-            using var subscription2 = new Subscription(telemetry, new SubscriptionOptions { DisplayName = "Subscription2" });
-            using var subscription3 = new Subscription(telemetry, new SubscriptionOptions { DisplayName = "Subscription3" });
+            using var subscription1 = new Subscription(
+                telemetry, new SubscriptionOptions { DisplayName = "Subscription1" });
+            using var subscription2 = new Subscription(
+                telemetry, new SubscriptionOptions { DisplayName = "Subscription2" });
+            using var subscription3 = new Subscription(
+                telemetry, new SubscriptionOptions { DisplayName = "Subscription3" });
 
             sut.AddSubscription(subscription1);
             sut.AddSubscription(subscription2);
@@ -2094,7 +2564,8 @@ namespace Opc.Ua.Client.Tests
             var loadedSubscriptions = loadSession.Load(stream).ToList();
 
             Assert.That(loadedSubscriptions, Has.Count.EqualTo(2), "Only the specified subscriptions should be saved");
-            Assert.That(loadedSubscriptions.Select(s => s.DisplayName), Is.EquivalentTo(["Subscription1", "Subscription3"]));
+            Assert.That(loadedSubscriptions.Select(s => s.DisplayName),
+                Is.EquivalentTo(["Subscription1", "Subscription3"]));
         }
 
         [Test]
@@ -2135,6 +2606,18 @@ namespace Opc.Ua.Client.Tests
                     new UserTokenPolicy()
                 ]
             };
+        }
+
+        private static SessionMock CreateSessionWithDiscoverySnapshot()
+        {
+            EndpointDescription description = CreateSessionEndpointDescription("opc.tcp://localhost:0");
+            description.SecurityLevel = 1;
+            var session = SessionMock.Create(description);
+            session.SetConnected();
+            ArrayOf<EndpointDescription> snapshot = [CoreUtils.Clone(description)!];
+            typeof(ConfiguredEndpoint).GetProperty(nameof(ConfiguredEndpoint.DiscoveryEndpoints))!
+                .SetValue(session.ConfiguredEndpoint, snapshot);
+            return session;
         }
 
         private static UserTokenPolicy CreateUserTokenPolicy(
@@ -2255,7 +2738,8 @@ namespace Opc.Ua.Client.Tests
                     typeof(IRetryBudget),
                     typeof(CancellationToken),
                     typeof(bool),
-                    typeof(bool)
+                    typeof(bool),
+                    typeof(SessionClient)
                 ],
                 null);
 
@@ -2263,11 +2747,24 @@ namespace Opc.Ua.Client.Tests
 
             var task = (Task?)method!.Invoke(
                 session,
-                [endpoint, null, channel, null, CancellationToken.None, false, requireTokenReuse]);
+                [endpoint, null, channel, null, CancellationToken.None, false, requireTokenReuse, null]);
 
             Assert.That(task, Is.Not.Null);
             return task!;
         }
+
+        private static readonly StatusCode[] s_discoveryUnavailableStatuses =
+        [
+            StatusCodes.BadNotConnected,
+            StatusCodes.BadTimeout,
+            StatusCodes.BadServiceUnsupported
+        ];
+
+        private static readonly StatusCode[] s_discoverySecurityStatuses =
+        [
+            StatusCodes.BadSecurityChecksFailed,
+            StatusCodes.BadCertificateUntrusted
+        ];
 
         private const BindingFlags PrivateInstance =
             BindingFlags.NonPublic | BindingFlags.Instance;

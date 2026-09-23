@@ -1,7 +1,34 @@
-// ------------------------------------------------------------
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
 //  Copyright (c) Microsoft Corporation.  All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
-// ------------------------------------------------------------
 
 #nullable enable
 
@@ -834,7 +861,7 @@ namespace Opc.Ua.Client.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var rootId = ReferenceTypeIds.References;
+            NodeId rootId = ReferenceTypeIds.References;
             var childId = new NodeId("CustomReference", 0);
 
             var context = new Mock<INodeCacheContext>();
@@ -903,6 +930,72 @@ namespace Opc.Ua.Client.Tests
                 Is.EqualTo(NodeId.Null));
 
             context.Verify();
+        }
+
+        [Test]
+        public async Task FindReferenceTypeAsyncStopsAtHierarchyCycleAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            NodeId rootId = ReferenceTypeIds.References;
+            var childId = new NodeId("Cycle", 0);
+
+            var context = new Mock<INodeCacheContext>();
+            context.Setup(c => c.NamespaceUris).Returns(new NamespaceTable());
+            context
+                .Setup(c => c.FetchNodeAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<NodeId>(),
+                    NodeClass.Unspecified,
+                    false,
+                    It.IsAny<CancellationToken>()))
+                .Returns((RequestHeader _, NodeId nodeId, NodeClass _, bool _, CancellationToken _) =>
+                    new ValueTask<Node>(new ReferenceTypeNode
+                    {
+                        NodeId = nodeId,
+                        BrowseName = QualifiedName.From(nodeId == rootId ? "References" : "Cycle"),
+                        NodeClass = NodeClass.ReferenceType
+                    }));
+            context
+                .Setup(c => c.FetchNodesAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.Is<ArrayOf<NodeId>>(ids => ids.Count == 1 && ids[0] == childId),
+                    It.IsAny<bool>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ResultSet<Node>
+                {
+                    Results =
+                    [
+                        new ReferenceTypeNode
+                        {
+                            NodeId = childId,
+                            BrowseName = QualifiedName.From("Cycle"),
+                            NodeClass = NodeClass.ReferenceType
+                        }
+                    ],
+                    Errors = [ServiceResult.Good]
+                });
+            context
+                .Setup(c => c.FetchReferencesAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<NodeId>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync((RequestHeader _, NodeId nodeId, CancellationToken _) =>
+                    [
+                        new ReferenceDescription
+                        {
+                            NodeId = new ExpandedNodeId(nodeId == rootId ? childId : rootId),
+                            ReferenceTypeId = ReferenceTypeIds.HasSubtype,
+                            IsForward = true
+                        }
+                    ]);
+
+            var nodeCache = new NodeCache(context.Object, telemetry);
+
+            NodeId result = await nodeCache.FindReferenceTypeAsync(
+                QualifiedName.From("Missing"),
+                default).ConfigureAwait(false);
+
+            Assert.That(result, Is.EqualTo(NodeId.Null));
         }
 
         [Test]

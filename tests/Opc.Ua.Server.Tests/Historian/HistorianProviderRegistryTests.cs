@@ -70,6 +70,92 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         /// <summary>
+        /// Verifies that replacing the default removes the old provider from active routing
+        /// while retaining its owned lifetime until registry disposal.
+        /// </summary>
+        [Test]
+        public void ReplacingDefaultRemovesPreviousProviderButDefersOwnedDisposal()
+        {
+            var previous = new DisposableHistorianProvider();
+            var replacement = new DisposableHistorianProvider();
+            var registry = new HistorianProviderRegistry(new NamespaceTable());
+
+            registry.RegisterDefault(previous);
+            registry.RegisterDefault(replacement);
+
+            Assert.That(registry.Resolve(new NodeId("default-replacement", 1)), Is.SameAs(replacement));
+            Assert.That(registry.Providers, Has.Count.EqualTo(1));
+            Assert.That(registry.Providers.Contains(replacement), Is.True);
+            Assert.That(previous.DisposeCount, Is.Zero);
+
+            registry.Dispose();
+
+            Assert.That(previous.DisposeCount, Is.EqualTo(1));
+            Assert.That(replacement.DisposeCount, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Verifies that replacing node and namespace bindings removes retired providers
+        /// from active membership while registry disposal still disposes owned providers.
+        /// </summary>
+        [Test]
+        public void ReplacingNodeAndNamespaceBindingsSeparatesActiveAndOwnedProviders()
+        {
+            var namespaceTable = new NamespaceTable();
+            namespaceTable.Append("urn:test:registry-replacement");
+            var registry = new HistorianProviderRegistry(namespaceTable);
+            var oldNodeProvider = new DisposableHistorianProvider();
+            var newNodeProvider = new DisposableHistorianProvider();
+            var oldNamespaceProvider = new DisposableHistorianProvider();
+            var newNamespaceProvider = new DisposableHistorianProvider();
+            var nodeId = new NodeId("node-replacement", 1);
+
+            registry.RegisterForNode(nodeId, oldNodeProvider);
+            registry.RegisterForNode(nodeId, newNodeProvider);
+            registry.RegisterForNamespace("urn:test:registry-replacement", oldNamespaceProvider);
+            registry.RegisterForNamespace("urn:test:registry-replacement", newNamespaceProvider);
+
+            Assert.That(registry.Resolve(nodeId), Is.SameAs(newNodeProvider));
+            Assert.That(
+                registry.Resolve(new NodeId("namespace-replacement", 1)),
+                Is.SameAs(newNamespaceProvider));
+            Assert.That(registry.Providers, Has.Count.EqualTo(2));
+            Assert.That(registry.Providers.Contains(newNodeProvider), Is.True);
+            Assert.That(registry.Providers.Contains(newNamespaceProvider), Is.True);
+            Assert.That(oldNodeProvider.DisposeCount, Is.Zero);
+            Assert.That(oldNamespaceProvider.DisposeCount, Is.Zero);
+
+            registry.Dispose();
+
+            Assert.That(oldNodeProvider.DisposeCount, Is.EqualTo(1));
+            Assert.That(newNodeProvider.DisposeCount, Is.EqualTo(1));
+            Assert.That(oldNamespaceProvider.DisposeCount, Is.EqualTo(1));
+            Assert.That(newNamespaceProvider.DisposeCount, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Verifies that unregistering a binding removes its provider from active membership
+        /// but retains owned disposal responsibility until registry disposal.
+        /// </summary>
+        [Test]
+        public void UnregisterRetainsOwnedProviderForDeferredDisposal()
+        {
+            var provider = new DisposableHistorianProvider();
+            var registry = new HistorianProviderRegistry(new NamespaceTable());
+            var nodeId = new NodeId("unregister-retired", 1);
+
+            registry.RegisterForNode(nodeId, provider);
+
+            Assert.That(registry.UnregisterForNode(nodeId), Is.True);
+            Assert.That(registry.Providers, Is.Empty);
+            Assert.That(provider.DisposeCount, Is.Zero);
+
+            registry.Dispose();
+
+            Assert.That(provider.DisposeCount, Is.EqualTo(1));
+        }
+
+        /// <summary>
         /// Verifies that an exact-node provider binding takes precedence over namespace and default bindings.
         /// </summary>
         [Test]

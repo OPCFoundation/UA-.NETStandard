@@ -98,16 +98,6 @@ namespace Opc.Ua.Server.Historian
             uint attributeId,
             NumericRange indexRange)
         {
-            _ = context;
-            if (relativePath.Count == 0)
-            {
-                if (attributeId == Attributes.NodeId)
-                {
-                    return new Variant(m_record.EventType);
-                }
-                return default;
-            }
-
             var key = new HistorianEventFieldKey(
                 typeDefinitionId,
                 relativePath,

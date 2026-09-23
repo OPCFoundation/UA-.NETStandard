@@ -44,6 +44,11 @@ using Microsoft.Extensions.Logging;
 using System.Runtime.InteropServices;
 #endif
 
+#if NET8_0_OR_GREATER || NET472_OR_GREATER
+using System.Security.AccessControl;
+using System.Security.Principal;
+#endif
+
 namespace Opc.Ua
 {
     /// <summary>
@@ -289,12 +294,22 @@ namespace Opc.Ua
                 // build file name.
                 string fileName = GetFileName(certificate);
 
-                // write the private and public key.
-                WriteFile(data, fileName, writePrivateKey);
-
-                if (writePrivateKey)
+                try
                 {
-                    WriteFile(certificate.RawData, fileName, false);
+                    // write the private and public key.
+                    WriteFile(data, fileName, writePrivateKey);
+
+                    if (writePrivateKey)
+                    {
+                        WriteFile(certificate.RawData, fileName, false);
+                    }
+                }
+                finally
+                {
+                    if (writePrivateKey)
+                    {
+                        CryptoUtils.ZeroMemory(data);
+                    }
                 }
 
                 m_lastDirectoryCheck = DateTime.MinValue;
@@ -467,7 +482,7 @@ namespace Opc.Ua
                                                 entry.Certificate.Thumbprint, contents, out newContent) &&
                                             newContent != null)
                                         {
-                                            using CertificateCollection remaining = CertificateCollection.From(
+                                            using var remaining = CertificateCollection.From(
                                                 PEMReader.ImportPublicKeysFromPEM(newContent));
                                             if (remaining.Count == 0)
                                             {
@@ -1512,6 +1527,7 @@ namespace Opc.Ua
             bool allowOverride = false)
         {
             var filePath = new StringBuilder();
+            bool storeDirectoryExisted = Directory?.Exists == true;
 
             if (Directory is { Exists: false } storeDir)
             {
@@ -1548,9 +1564,23 @@ namespace Opc.Ua
 
             // create the directory.
             var fileInfo = new FileInfo(filePath.ToString());
+            bool directoryExisted = fileInfo.Directory?.Exists == true && (!m_noSubDirs || storeDirectoryExisted);
+            bool fileExisted = fileInfo.Exists;
             if (fileInfo.Directory is { Exists: false } parentDir)
             {
                 parentDir.Create();
+            }
+
+            if (includePrivateKey)
+            {
+                RestrictPrivateDirectory(fileInfo.Directory, directoryExisted);
+                if (fileExisted)
+                {
+                    // An existing file keeps its own explicit permissions, which the
+                    // directory change does not alter. Restrict it before the new key
+                    // material is written so the bytes are never briefly world-readable.
+                    RestrictPrivateFile(fileInfo, existed: true);
+                }
             }
 
             // write file.
@@ -1566,11 +1596,174 @@ namespace Opc.Ua
                 writer.Dispose();
             }
 
+            if (includePrivateKey)
+            {
+                RestrictPrivateFile(fileInfo, fileExisted);
+            }
+
             m_certificateSubdir?.Refresh();
             m_privateKeySubdir?.Refresh();
 
             return fileInfo;
         }
+
+        private void RestrictPrivateDirectory(DirectoryInfo? directory, bool existed)
+        {
+            if (directory == null)
+            {
+                return;
+            }
+
+            try
+            {
+#if NET8_0_OR_GREATER || NET472_OR_GREATER
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    RestrictPrivateWindowsDirectory(directory);
+                }
+#if NET8_0_OR_GREATER
+                else
+                {
+                    File.SetUnixFileMode(
+                        directory.FullName,
+                        UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+                }
+#endif
+#endif
+            }
+            catch (UnauthorizedAccessException ex) when (existed && HasPrivateAccess(directory))
+            {
+                m_logger.PrivatePermissionsUnchanged(ex, Redact.Create(directory.FullName));
+            }
+        }
+
+        private void RestrictPrivateFile(FileInfo file, bool existed)
+        {
+            try
+            {
+#if NET8_0_OR_GREATER || NET472_OR_GREATER
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    RestrictPrivateWindowsFile(file);
+                }
+#if NET8_0_OR_GREATER
+                else
+                {
+                    File.SetUnixFileMode(file.FullName, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+                }
+#endif
+#endif
+            }
+            catch (UnauthorizedAccessException ex) when (existed && HasPrivateAccess(file))
+            {
+                m_logger.PrivatePermissionsUnchanged(ex, Redact.Create(file.FullName));
+            }
+        }
+
+        private static bool HasPrivateAccess(FileSystemInfo path)
+        {
+#if NET8_0_OR_GREATER
+            if (!OperatingSystem.IsWindows())
+            {
+                UnixFileMode required = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+                if (path is DirectoryInfo)
+                {
+                    required |= UnixFileMode.UserExecute;
+                }
+                return File.GetUnixFileMode(path.FullName) == required;
+            }
+#endif
+#if NET8_0_OR_GREATER || NET472_OR_GREATER
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                return path is DirectoryInfo directory
+                    ? HasPrivateWindowsAccess(directory.GetAccessControl(), isDirectory: true)
+                    : HasPrivateWindowsAccess(((FileInfo)path).GetAccessControl(), isDirectory: false);
+            }
+#endif
+            return false;
+        }
+
+#if NET8_0_OR_GREATER || NET472_OR_GREATER
+#pragma warning disable CA1416 // These helpers are reached only after a Windows platform check.
+        private static void RestrictPrivateWindowsDirectory(DirectoryInfo directory)
+        {
+            DirectorySecurity security = directory.GetAccessControl();
+            SetPrivateAccessRules(security, InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit);
+            directory.SetAccessControl(security);
+        }
+
+        private static void RestrictPrivateWindowsFile(FileInfo file)
+        {
+            FileSecurity security = file.GetAccessControl();
+            SetPrivateAccessRules(security, InheritanceFlags.None);
+            file.SetAccessControl(security);
+        }
+
+        private static void SetPrivateAccessRules(FileSystemSecurity security, InheritanceFlags inheritance)
+        {
+            security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+            foreach (FileSystemAccessRule rule in security.GetAccessRules(
+                includeExplicit: true, includeInherited: false, typeof(SecurityIdentifier)))
+            {
+                security.RemoveAccessRuleSpecific(rule);
+            }
+            using var identity = WindowsIdentity.GetCurrent();
+            security.AddAccessRule(new FileSystemAccessRule(
+                identity.User!, FileSystemRights.FullControl, inheritance,
+                PropagationFlags.None, AccessControlType.Allow));
+            security.AddAccessRule(new FileSystemAccessRule(
+                new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null), FileSystemRights.FullControl,
+                inheritance, PropagationFlags.None, AccessControlType.Allow));
+            security.AddAccessRule(new FileSystemAccessRule(
+                new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null), FileSystemRights.FullControl,
+                inheritance, PropagationFlags.None, AccessControlType.Allow));
+        }
+
+        private static bool HasPrivateWindowsAccess(FileSystemSecurity security, bool isDirectory)
+        {
+            var descriptor = new RawSecurityDescriptor(security.GetSecurityDescriptorBinaryForm(), 0);
+            if (descriptor.DiscretionaryAcl == null)
+            {
+                return false;
+            }
+            using var identity = WindowsIdentity.GetCurrent();
+            var system = new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null);
+            var administrators = new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null);
+            FileSystemRights granted = 0;
+            FileSystemRights denied = 0;
+            const FileSystemRights metadataOnlyRights =
+                FileSystemRights.ReadPermissions | FileSystemRights.Synchronize;
+            foreach (FileSystemAccessRule rule in security.GetAccessRules(
+                includeExplicit: true, includeInherited: true, typeof(SecurityIdentifier)))
+            {
+                bool currentUser = rule.IdentityReference == identity.User;
+                if (rule.AccessControlType == AccessControlType.Allow &&
+                    (rule.FileSystemRights & ~metadataOnlyRights) != 0 &&
+                    !currentUser &&
+                    rule.IdentityReference != system &&
+                    rule.IdentityReference != administrators)
+                {
+                    return false;
+                }
+                if (currentUser && (rule.PropagationFlags & PropagationFlags.InheritOnly) == 0)
+                {
+                    if (rule.AccessControlType == AccessControlType.Allow)
+                    {
+                        granted |= rule.FileSystemRights;
+                    }
+                    else
+                    {
+                        denied |= rule.FileSystemRights;
+                    }
+                }
+            }
+            FileSystemRights required = (isDirectory ? FileSystemRights.ReadAndExecute : FileSystemRights.Read) |
+                FileSystemRights.Write;
+            return (granted & ~denied & required) == required;
+        }
+#pragma warning restore CA1416
+#endif
 
         /// <summary>
         /// Writes replacement PEM contents to a temporary file and atomically replaces the existing file.
@@ -1712,15 +1905,15 @@ namespace Opc.Ua
             Message = "Failed to add certificate with thumbprint {Thumbprint} to store {StorePath}.")]
         public static partial void DirectoryStoreLog1(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string? thumbprint,
-            global::Opc.Ua.Redaction.RedactionWrapper<string> storePath);
+            RedactionWrapper<string> storePath);
 
         [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 2, Level = LogLevel.Debug,
             Message = "Failed to delete {FileName} - force reload.")]
         public static partial void DirectoryStoreLog2(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string? fileName);
 
         [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 3, Level = LogLevel.Warning,
@@ -1735,77 +1928,77 @@ namespace Opc.Ua
             Message = "Imported the PFX private key for {Certificate}.")]
         public static partial void DirectoryStoreLog5(
             this ILogger logger,
-            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+            Certificate? certificate);
 
         [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 6, Level = LogLevel.Debug,
             Message = "PFX Private key could not be verified for {Certificate}.")]
         public static partial void DirectoryStoreLog6(
             this ILogger logger,
-            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+            Certificate? certificate);
 
         [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 7, Level = LogLevel.Debug,
             Message = "Failed to import the PFX private for {Certificate}.")]
         public static partial void DirectoryStoreLog7(
             this ILogger logger,
-            global::System.Exception? exception,
-            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+            Exception? exception,
+            Certificate? certificate);
 
         [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 8, Level = LogLevel.Information,
             Message = "Imported the PEM private key for {Certificate}.")]
         public static partial void DirectoryStoreLog8(
             this ILogger logger,
-            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+            Certificate? certificate);
 
         [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 9, Level = LogLevel.Debug,
             Message = "PEM Private key could not be verified for {Certificate}.")]
         public static partial void DirectoryStoreLog9(
             this ILogger logger,
-            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+            Certificate? certificate);
 
         [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 10, Level = LogLevel.Debug,
             Message = "Failed to import the PEM private for {Certificate}.")]
         public static partial void DirectoryStoreLog10(
             this ILogger logger,
-            global::System.Exception? exception,
-            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+            Exception? exception,
+            Certificate? certificate);
 
         [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 11, Level = LogLevel.Information,
             Message = "Imported the PEM private key for {Certificate}.")]
         public static partial void DirectoryStoreLog11(
             this ILogger logger,
-            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+            Certificate? certificate);
 
         [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 12, Level = LogLevel.Debug,
             Message = "PEM Private key could not be verified for {Certificate}.")]
         public static partial void DirectoryStoreLog12(
             this ILogger logger,
-            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+            Certificate? certificate);
 
         [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 13, Level = LogLevel.Debug,
             Message = "Failed to import the PEM private for {Certificate}.")]
         public static partial void DirectoryStoreLog13(
             this ILogger logger,
-            global::System.Exception? exception,
-            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+            Exception? exception,
+            Certificate? certificate);
 
         [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 14, Level = LogLevel.Error,
             Message = "A private key for the certificate {Certificate} does not exist.")]
         public static partial void DirectoryStoreLog14(
             this ILogger logger,
-            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+            Certificate? certificate);
 
         [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 15, Level = LogLevel.Error,
             Message = "Could not load private key for certificate with thumbprint [{Thumbprint}]")]
         public static partial void DirectoryStoreLog15(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string? thumbprint);
 
         [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 16, Level = LogLevel.Error,
             Message = "The private key for the certificate with thumbprint [{Thumbprint}] failed to import.")]
         public static partial void DirectoryStoreLog16(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string? thumbprint);
 
         [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 17, Level = LogLevel.Error,
@@ -1828,7 +2021,7 @@ namespace Opc.Ua
             Message = "Failed to parse CRL {Crl} in store {StorePath}.")]
         public static partial void DirectoryStoreLog20(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string? crl,
             string storePath);
 
@@ -1836,7 +2029,7 @@ namespace Opc.Ua
             Message = "Failed to parse CRL {Crl} in store {StorePath}.")]
         public static partial void DirectoryStoreLog21(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string? crl,
             string storePath);
 
@@ -1844,14 +2037,14 @@ namespace Opc.Ua
             Message = "Could not load certificate from file: {FilePath}")]
         public static partial void DirectoryStoreLog22(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string? filePath);
 
         [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 23, Level = LogLevel.Information,
             Message = "Certificate store reloaded from {Path}, {Count} entries.")]
         public static partial void DirectoryStoreLog23(
             this ILogger logger,
-            global::Opc.Ua.Redaction.RedactionWrapper<string> path,
+            RedactionWrapper<string> path,
             int count);
 
         [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 24, Level = LogLevel.Warning,
@@ -1859,6 +2052,13 @@ namespace Opc.Ua
                 "not written to the store. Only the public certificate was stored; the key " +
                 "remains where it resides.")]
         public static partial void PrivateKeyNotExportableStoringPublicOnly(this ILogger logger, string? thumbprint);
-    }
 
+        [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 25, Level = LogLevel.Warning,
+            Message = "Could not update private-key permissions for {Path}; " +
+                "existing private permissions were verified.")]
+        public static partial void PrivatePermissionsUnchanged(
+            this ILogger logger,
+            Exception exception,
+            RedactionWrapper<string> path);
+    }
 }

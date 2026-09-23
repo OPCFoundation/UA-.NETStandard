@@ -213,9 +213,10 @@ namespace Opc.Ua.Server
             out uint newlyUnacknowledgedCount)
         {
             newlyUnacknowledgedCount = 0;
+            uint effectiveMaxMessageCount = Math.Max(1u, MaxMessageCount);
 
             // have to drop unsent messages if out of queue space.
-            int overflowCount = (int)Math.Max(0, (long)messages.Count - MaxMessageCount);
+            int overflowCount = (int)Math.Max(0, messages.Count - effectiveMaxMessageCount);
             if (overflowCount > 0)
             {
                 m_logger.WARNINGQUEUEOVERFLOWDroppingCountMessagesIncrease(overflowCount, Id, MaxMessageCount);
@@ -229,7 +230,9 @@ namespace Opc.Ua.Server
             ArrayOf<uint> removedSequenceNumbers = m_retransmissionStore == null ? default : [];
 
             // Only the excess over capacity displaces previously retained messages.
-            int evictionCount = (int)Math.Max(0, (long)SentMessages.Count + messages.Count - MaxMessageCount);
+            int evictionCount = (int)Math.Max(
+                0,
+                (long)SentMessages.Count + messages.Count - effectiveMaxMessageCount);
             if (evictionCount > 0)
             {
                 newlyUnacknowledgedCount = (uint)evictionCount;
@@ -444,5 +447,4 @@ namespace Opc.Ua.Server
             uint subscriptionId,
             uint maxMessageCount);
     }
-
 }

@@ -37,6 +37,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
+using Opc.Ua.Identity;
 using Opc.Ua.Schema;
 using Opc.Ua.Security.Certificates;
 
@@ -602,6 +603,8 @@ namespace Opc.Ua.Server
             using IDisposable? rateLimitLease = BeginSessionEstablishmentOrThrow();
 
             ISession? session = null;
+            CertificateCollection? clientIssuerCertificates = null;
+            Certificate? parsedClientCertificate = null;
             try
             {
                 // check the server uri.
@@ -618,11 +621,7 @@ namespace Opc.Ua.Server
                     requireEncryption = true;
                 }
 
-                CertificateCollection? clientIssuerCertificates = null;
-
                 // validate client application instance certificate.
-                Certificate? parsedClientCertificate = null;
-
                 if (context.SecurityPolicyUri != SecurityPolicies.None)
                 {
                     try
@@ -704,18 +703,16 @@ namespace Opc.Ua.Server
                 }
 
                 // verify the nonce provided by the client.
-                if (!clientNonce.IsEmpty)
+                if (context.SecurityPolicyUri != SecurityPolicies.None)
                 {
-                    if (clientNonce.Length < m_minNonceLength)
+                    if (clientNonce.Length < m_minNonceLength || clientNonce.Length > 128)
                     {
                         throw new ServiceResultException(StatusCodes.BadNonceInvalid);
                     }
-
-                    // ignore nonce if security policy set to none
-                    if (context.SecurityPolicyUri == SecurityPolicies.None)
-                    {
-                        clientNonce = default;
-                    }
+                }
+                else
+                {
+                    clientNonce = default;
                 }
 
                 // load the certificate for the security profile. The session
@@ -741,6 +738,11 @@ namespace Opc.Ua.Server
                     .ConfigureAwait(false);
 
                 session = result.Session;
+                ServerInternal.UpdateServerDiagnostics(diagnostics =>
+                {
+                    diagnostics.CurrentSessionCount++;
+                    diagnostics.CumulatedSessionCount++;
+                });
                 sessionId = result.SessionId;
                 authenticationToken = result.AuthenticationToken;
                 serverNonce = result.ServerNonce;
@@ -764,10 +766,11 @@ namespace Opc.Ua.Server
                     catch (ServiceResultException sre)
                         when (sre.StatusCode == StatusCodes.BadCertificateHostNameInvalid)
                     {
+                        Debug.Assert(session != null);
                         m_logger.ServerClientConnectsWithAnEndpointUrlEndpointUrl(endpointUrl);
                         ServerInternal.ReportAuditUrlMismatchEvent(
                             context.AuditEntryId!,
-                            session,
+                            session!,
                             revisedSessionTimeout,
                             endpointUrl,
                             m_logger);
@@ -812,18 +815,12 @@ namespace Opc.Ua.Server
                     clientNonce,
                     serverNonce);
 
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.CurrentSessionCount++;
-                    diagnostics.CumulatedSessionCount++;
-                });
-
                 m_logger.ServerSESSIONCREATEDSessionIdSessionId(sessionId);
 
                 // report audit for successful create session
                 ServerInternal.ReportAuditCreateSessionEvent(
                     context.AuditEntryId!,
-                    session,
+                    session!,
                     revisedSessionTimeout,
                     m_logger);
 
@@ -847,8 +844,14 @@ namespace Opc.Ua.Server
                     MaxRequestMessageSize = maxRequestMessageSize
                 };
             }
-            catch (ServiceResultException e)
+            catch (Exception exception)
             {
+                ServiceResultException e = exception as ServiceResultException
+                    ?? ServiceResultException.Create(
+                        StatusCodes.BadUnexpectedError,
+                        exception,
+                        "CreateSession failed: {0}",
+                        exception.Message);
                 m_logger.ServerSESSIONCREATEFailedErrorMessage(e.Message);
 
                 // report the failed AuditCreateSessionEvent
@@ -861,7 +864,13 @@ namespace Opc.Ua.Server
 
                 if (session != null)
                 {
-                    await ServerInternal.SessionManager.CloseSessionAsync(session.Id, requestLifetime.CancellationToken).ConfigureAwait(false);
+                    await ServerInternal.SessionManager.CloseSessionAsync(session.Id, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    parsedClientCertificate?.Dispose();
+                    clientIssuerCertificates?.Dispose();
                 }
 
                 ServerInternal.UpdateServerDiagnostics(diagnostics =>
@@ -1073,6 +1082,7 @@ namespace Opc.Ua.Server
                     m_logger,
                     context.AuditEntryId!,
                     session!,
+                    ExtractAuditUserIdentityToken(userIdentityToken),
                     e);
 
                 ServerInternal.UpdateServerDiagnostics(diagnostics =>
@@ -1133,6 +1143,26 @@ namespace Opc.Ua.Server
                 error == StatusCodes.BadCertificateHostNameInvalid ||
                 error == StatusCodes.BadCertificatePolicyCheckFailed ||
                 error == StatusCodes.BadApplicationSignatureInvalid;
+        }
+
+        private static UserIdentityToken? ExtractAuditUserIdentityToken(ExtensionObject userIdentityToken)
+        {
+            if (userIdentityToken.TryGetValue(out UserIdentityToken? decodedToken))
+            {
+                return decodedToken;
+            }
+
+            if (userIdentityToken.Encoding != ExtensionObjectEncoding.Binary ||
+                !userIdentityToken.TryGetAsBinary(out ByteString _))
+            {
+                return null;
+            }
+
+            return BaseVariableState.DecodeExtensionObject(
+                null!,
+                typeof(UserIdentityToken),
+                userIdentityToken,
+                false) as UserIdentityToken;
         }
 
         /// <summary>
@@ -2763,25 +2793,8 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public IServerInternal CurrentInstance
-        {
-            get
-            {
-                m_semaphoreSlim.Wait();
-                try
-                {
-                    if (m_serverInternal == null)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadServerHalted);
-                    }
-                    return m_serverInternal;
-                }
-                finally
-                {
-                    m_semaphoreSlim.Release();
-                }
-            }
-        }
+        public IServerInternal CurrentInstance =>
+            Volatile.Read(ref m_serverInternal) ?? throw new ServiceResultException(StatusCodes.BadServerHalted);
 
         /// <summary>
         /// Returns the current status of the server.
@@ -3410,21 +3423,13 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException"></exception>
         protected virtual void OnRequestComplete(OperationContext context)
         {
-            m_semaphoreSlim.Wait();
-            try
+            if (Volatile.Read(ref m_serverInternal) == null)
             {
-                if (m_serverInternal == null)
-                {
-                    throw new ServiceResultException(StatusCodes.BadServerHalted);
-                }
+                throw new ServiceResultException(StatusCodes.BadServerHalted);
+            }
 
-                // The request itself is completed by disposing the OperationContext, which owns
-                // the execution scope. This hook remains for derived servers that extend it.
-            }
-            finally
-            {
-                m_semaphoreSlim.Release();
-            }
+            // The request itself is completed by disposing the OperationContext, which owns
+            // the execution scope. This hook remains for derived servers that extend it.
         }
 
         /// <summary>
@@ -3765,6 +3770,15 @@ namespace Opc.Ua.Server
                     TimeProvider,
                     SecurityPolicyRegistry);
 
+                foreach (IUserTokenAuthenticator authenticator in m_preStartAuthenticators)
+                {
+                    m_serverInternal.IdentityRegistry.Register(authenticator);
+                }
+                foreach (IIdentityAugmenter augmenter in m_preStartIdentityAugmenters)
+                {
+                    m_serverInternal.IdentityRegistry.RegisterAugmenter(augmenter);
+                }
+
                 m_serverInternal.SetNodeIdFactory(NodeIdFactory);
                 m_serverInternal.SetNodeIdCollisionDetection(DetectNodeIdCollisions);
                 if (NodeIdFactory is Hosting.IServerPreStartupTask factoryInitialization)
@@ -4077,6 +4091,38 @@ namespace Opc.Ua.Server
             }
         }
 
+        internal void RegisterIdentityAuthenticator(IUserTokenAuthenticator authenticator)
+        {
+            if (authenticator == null)
+            {
+                throw new ArgumentNullException(nameof(authenticator));
+            }
+
+            if (m_serverInternal is { } serverInternal)
+            {
+                serverInternal.IdentityRegistry.Register(authenticator);
+                return;
+            }
+
+            m_preStartAuthenticators.Add(authenticator);
+        }
+
+        internal void RegisterIdentityAugmenter(IIdentityAugmenter augmenter)
+        {
+            if (augmenter == null)
+            {
+                throw new ArgumentNullException(nameof(augmenter));
+            }
+
+            if (m_serverInternal is { } serverInternal)
+            {
+                serverInternal.IdentityRegistry.RegisterAugmenter(augmenter);
+                return;
+            }
+
+            m_preStartIdentityAugmenters.Add(augmenter);
+        }
+
         /// <inheritdoc/>
         protected override async ValueTask OnServerStartedAsync(
             CancellationToken cancellationToken = default)
@@ -4157,6 +4203,11 @@ namespace Opc.Ua.Server
             // Drain in-flight requests by disposing the request queue before the address space
             // is torn down.
             StopRequestQueue();
+
+            await RunShutdownStageAsync(
+                    failures,
+                    serverInternal.DrainRoleStateBindingAsync)
+                .ConfigureAwait(false);
 
             if (lifecycle is not null)
             {
@@ -5073,8 +5124,9 @@ namespace Opc.Ua.Server
         private readonly List<HistorianProviderRegistration>
             m_historianProviders = [];
 
-        private readonly List<Hosting.IServerPreStartupTask> m_preStartupTasks =
-            [];
+        private readonly List<Hosting.IServerPreStartupTask> m_preStartupTasks = [];
+        private readonly List<IUserTokenAuthenticator> m_preStartAuthenticators = [];
+        private readonly List<IIdentityAugmenter> m_preStartIdentityAugmenters = [];
 
         private IDisposable? m_certManagerSubscription;
         private ServerRateLimitOptions? m_rateLimitOptions;

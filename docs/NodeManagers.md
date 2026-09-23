@@ -326,10 +326,9 @@ The rule applied by `SubscriptionManager.CalculateRevisedSamplingInterval` is:
 
 1. A requested interval below zero is resolved to the default sampling interval:
    the **publishing interval of the subscription** when the item is created, and
-   the item's **current sampling interval** when it is modified. (The modify case
-   preserves the behaviour of 1.5.378 and earlier, so a `ModifyMonitoredItems`
-   call that leaves the sampling interval unspecified does not silently retune
-   the item.)
+   the item's **current sampling interval** when it is modified. A
+   `ModifyMonitoredItems` call that leaves the sampling interval unspecified
+   therefore does not silently retune the item.
 2. If the node declares `MinimumSamplingIntervals.Continuous` (`0`) for the
    `Value` Attribute, it reports by exception and **no** lower bound is applied —
    the requested interval is returned unchanged.
@@ -1419,6 +1418,19 @@ unaccepted monitored item from registration, sampling, and any newly
 acquired component-cache entry. Existing items on that node remain valid.
 Recoverable bad data values do not prevent creating the monitored item.
 
+`AsyncCustomNodeManager` acquires current values through
+`NodeState.ReadAttributeAsync`, including initial creation, aggregate-filter
+validation and current-value fallbacks, lifecycle compatibility checks,
+reattachment/recovery, and re-enabling monitoring. Async `OnReadValueAsync`
+bindings therefore supply the first sample rather than the node's stored
+placeholder (OPC UA Part 4 [5.13.1.3](https://reference.opcfoundation.org/Core/Part4/v105/docs/5.13.1.3)).
+Provider awaits run outside the monitored-item registry semaphore; registration
+and cleanup remain serialized, and the operation lifetime prevents disposal
+from releasing owned resources before the read completes. Request cancellation
+removes unaccepted registrations instead of publishing a cancelled read as a
+successful initial sample. Override `ReadInitialValueAsync` for custom initial
+acquisition.
+
 Manager-level asynchronous batch hooks receive only successful items and
 run after the monitored-item manager has applied its changes:
 
@@ -1820,6 +1832,21 @@ builder.Boilers.Boiler__1.DrumX001
 
 #### Hand-written node managers
 
+The `Server` Object (`i=2253`) is the aggregate event subscription point
+(OPC UA Part 5 [8.3.2](https://reference.opcfoundation.org/Core/Part5/v105/docs/8.3.2)).
+Server-wide fan-out treats an individual root or manager's `BadNotSupported` as
+non-participation, not as a failure of every other source. Root registration
+does not silently set `EventNotifier.SubscribeToEvents`; declare the capability
+on actual notifiers as required by Part 3
+[7.18](https://reference.opcfoundation.org/Core/Part3/v105/docs/7.18).
+A direct subscription to an unsupported root still fails with `BadNotSupported`.
+Legacy `null` success results are normalized to `Good` before per-root or
+per-manager status inspection.
+Other startup errors fail the item and roll back attempted registrations.
+Unsubscription continues across independent roots and managers while reporting
+genuine cleanup errors; unsupported participants do not turn successful deletion
+into an error.
+
 An event stream that connects an asynchronous upstream producer can also
 implement `IEventSourceReadiness`. The registry enumerates the stream while
 awaiting `WaitUntilReadyAsync`; creation of a corresponding event monitored
@@ -1828,6 +1855,13 @@ must not wait for the first event. Failures are returned to the subscribing
 client, reported through `OnError`, and stop that activation. For reactivatable
 producers, return a new readiness-aware stream from the `Publish` factory on
 each activation.
+
+Failed factories, iterators, and readiness checks are reported to the caller
+and `OnError`. While a source is still wanted, retries use an exponential delay
+from one second up to thirty seconds rather than an immediate restart loop.
+Only the current activation can request a retry; a late failure from a cancelled
+activation cannot retire its replacement. A failed event subscription rolls back
+its monitored-node registration and notifier count before returning the error.
 
 Managers that don't use the source generator can opt in by deriving
 from `Opc.Ua.Server.Fluent.FluentNodeManagerBase` and calling
@@ -2579,10 +2613,9 @@ argument, every type — generated or hand-written — sees the real
 `ISystemContext` during a copy; nothing wraps the context to hide the
 `NodeIdFactory`.
 
-> **Breaking change in 2.0.** The four argument `FindChild` and the two
-> argument `CreateChild` are gone. An override written against 1.5.378 fails
-> to compile until the parameter is added; see the
-> [migration guide](migrate/2.0.x/node-states.md#nodestate-findchild-and-createchild-state-nodeid-assignment).
+`NodeState.FindChild` takes the request as an argument and `CreateChild` takes
+the state NodeId; migrating an override written against 1.5.378 is covered by the
+[migration guide](migrate/2.0.x/node-states.md#nodestate-findchild-and-createchild-state-nodeid-assignment).
 
 ### Current limitations
 

@@ -219,6 +219,12 @@ namespace Opc.Ua.SourceGeneration
                     BaseTypeNamespace = type.BaseType?.Namespace,
                     NumericId = type.NumericIdSpecified ? type.NumericId : 0u,
                     StringId = string.IsNullOrEmpty(type.StringId) ? null : type.StringId,
+                    GuidId = type.GuidIdSpecified
+                        ? type.GuidId.ToString("D", CultureInfo.InvariantCulture)
+                        : null,
+                    OpaqueId = type.OpaqueId != null
+                        ? Convert.ToBase64String(type.OpaqueId)
+                        : null,
                     IsAbstract = type.IsAbstract
                 };
                 if (type is DataTypeDesign dataType)

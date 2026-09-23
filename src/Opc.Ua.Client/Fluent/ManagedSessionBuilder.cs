@@ -734,7 +734,8 @@ namespace Opc.Ua.Client
             IServerRedundancyHandler redundancy = m_redundancyHandler ??
                 new DefaultServerRedundancyHandler(
                     new DefaultRedundantServerEndpointResolver(m_telemetry),
-                    opts.TimeProvider);
+                    opts.TimeProvider,
+                    opts.ServerRedundancy);
 
             IClientChannelManager? channelManager = m_channelManager;
             ServiceProviderHttpClientFactory? ownedHttpClientFactory = null;
@@ -809,22 +810,31 @@ namespace Opc.Ua.Client
                 opts.TimeProvider,
                 channelManager,
                 opts.NetworkRedundancy,
+                opts.ServerRedundancy,
                 m_reverseConnectManager,
                 opts.ConnectGate,
                 ct: ct).ConfigureAwait(false);
 
-            if (opts.ModelChangeTracking)
+            try
             {
-                await session.EnableModelChangeTrackingAsync(ct).ConfigureAwait(false);
+                if (opts.ModelChangeTracking)
+                {
+                    await session.EnableModelChangeTrackingAsync(ct).ConfigureAwait(false);
+                }
+                if (opts.LoadComplexTypes)
+                {
+                    // The type system owns a resolver whose NodeCache registers a
+                    // Meter; it is only needed for this one-shot load, so dispose
+                    // it rather than leaving it rooted for the process lifetime.
+                    using ComplexTypeSystem complexTypeSystem =
+                        ComplexTypes.ComplexTypeSystemClientExtensions.Create(session, m_telemetry);
+                    await complexTypeSystem.LoadAsync(ct: ct).ConfigureAwait(false);
+                }
             }
-            if (opts.LoadComplexTypes)
+            catch
             {
-                // The type system owns a resolver whose NodeCache registers a
-                // Meter; it is only needed for this one-shot load, so dispose
-                // it rather than leaving it rooted for the process lifetime.
-                using ComplexTypeSystem complexTypeSystem =
-                    ComplexTypes.ComplexTypeSystemClientExtensions.Create(session, m_telemetry);
-                await complexTypeSystem.LoadAsync(ct: ct).ConfigureAwait(false);
+                await session.DisposeAsync().ConfigureAwait(false);
+                throw;
             }
 
             return session;

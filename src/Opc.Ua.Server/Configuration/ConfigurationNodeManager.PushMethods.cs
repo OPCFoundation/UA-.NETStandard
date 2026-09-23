@@ -85,7 +85,7 @@ namespace Opc.Ua.Server
                     .ConfigureAwait(false);
             }
 
-            subject.ConfigureEncryption(m_configuration.CertificateManager as ICertificateRegistry);
+            subject.ConfigureEncryption(m_configuration.CertificateManager);
             await subject.BindAsync(
                     folder,
                     SystemContext,
@@ -96,8 +96,10 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Validates and stages a certificate upload, restoring any consumed pending key if staging fails.
+        /// Validates and stages a certificate upload without consuming a pending signing key.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         private async ValueTask<UpdateCertificateMethodStateResult> UpdateCertificateAsync(
             ISystemContext context,
             MethodState method,
@@ -140,10 +142,9 @@ namespace Opc.Ua.Server
             CertificateCollection? newIssuerCollection = null;
             Certificate? newCertificateWithKey = null;
             Certificate? previousCertificateWithKey = null;
-            Certificate? consumedPendingKey = null;
-            PendingCertificateKeyContext? consumedPendingContext = null;
-            IMatchingPendingCertificateKeyStore? matchingKeyStore =
-                m_pendingKeyStore as IMatchingPendingCertificateKeyStore;
+            PendingCertificateKeyContext? pendingContextToClaim = null;
+            var matchingKeyStore =
+                m_pendingKeyStore as IPeekablePendingCertificateKeyStore;
             try
             {
                 if (certificate.IsEmpty)
@@ -282,7 +283,7 @@ namespace Opc.Ua.Server
                         // build issuer chain
                         foreach (ByteString issuerRawCert in issuerCertificates)
                         {
-                            using Certificate issuerCertificate = Certificate.FromRawData(issuerRawCert);
+                            using var issuerCertificate = Certificate.FromRawData(issuerRawCert);
                             newIssuerCollection.Add(issuerCertificate);
                         }
                     }
@@ -367,44 +368,37 @@ namespace Opc.Ua.Server
                                 CreatePendingKeyContext(certificateGroup, existingCertIdentifier);
                             if (matchingKeyStore != null)
                             {
-                                consumedPendingContext = pendingKeyContext;
-                                consumedPendingKey = await matchingKeyStore
-                                    .TryTakeMatchingAsync(pendingKeyContext, newCert, ct).ConfigureAwait(false);
+                                using Certificate? pendingKey = await matchingKeyStore
+                                    .TryPeekMatchingAsync(pendingKeyContext, newCert, ct).ConfigureAwait(false);
+                                if (pendingKey != null)
+                                {
+                                    pendingContextToClaim = pendingKeyContext;
+                                    break;
+                                }
                             }
-                            else if (previousCertificateWithKey == null ||
+                            if (previousCertificateWithKey == null ||
                                 !X509Utils.VerifyKeyPair(newCert, previousCertificateWithKey))
                             {
                                 throw new ServiceResultException(
-                                    StatusCodes.BadNotSupported,
-                                    "The pending-key store must support matching-only consumption.");
+                                    matchingKeyStore == null
+                                        ? StatusCodes.BadNotSupported
+                                        : StatusCodes.BadSecurityChecksFailed,
+                                    matchingKeyStore == null
+                                        ? "The pending-key store must support non-consuming matching reads."
+                                        : "The certificate matches neither the pending nor the existing private key.");
                             }
 
                             Certificate exportableKey;
-                            if (consumedPendingKey != null)
-                            {
-                                // The regenerated key from a matching
-                                // CreateSigningRequest(regeneratePrivateKey:
-                                // true) is consumed here.
-                                exportableKey = consumedPendingKey.AddRef();
-                            }
-                            else
                             {
                                 // CA2000: exportableKey is disposed by the
                                 // `using` immediately below; the analyzer
                                 // cannot track disposal through the
                                 // conditional (?:) assignment.
 #pragma warning disable CA2000
-                                if (previousCertificateWithKey == null)
-                                {
-                                    throw new ServiceResultException(
-                                        StatusCodes.BadSecurityChecksFailed,
-                                        "A private key was not found");
-                                }
-
                                 try
                                 {
                                     exportableKey = X509Utils.CreateCopyWithPrivateKey(
-                                        previousCertificateWithKey, false);
+                                        previousCertificateWithKey!, false);
                                 }
                                 catch (CryptographicException ex)
                                 {
@@ -460,7 +454,9 @@ namespace Opc.Ua.Server
                 }
 
                 NodeId groupNodeId = certificateGroup.NodeId;
-                Certificate stagedNewCert = newCertificateWithKey!;
+                Certificate stagedPublicCertificate = newCert;
+                Certificate? stagedNewCert = newCertificateWithKey;
+                Certificate? stagedPendingKey = null;
                 CertificateCollection stagedIssuers = newIssuerCollection;
                 Certificate? stagedPreviousCert = previousCertificateWithKey;
                 // Populated by CommitAsync with the thumbprints of exactly
@@ -470,7 +466,7 @@ namespace Opc.Ua.Server
                 // coordinator only reverse-compensates operations that
                 // committed in full), so it always reads the value
                 // CommitAsync wrote.
-                ArrayOf<string> stagedNewlyAddedIssuerThumbprints = ArrayOf<string>.Empty;
+                ArrayOf<string> stagedNewlyAddedIssuerThumbprints = [];
                 ct.ThrowIfCancellationRequested();
 
                 // CA2025: the coordinator guarantees CommitAsync/RollbackAsync
@@ -486,14 +482,41 @@ namespace Opc.Ua.Server
                     AffectedCertificateType = certificateTypeId,
                     CommitAsync = async ct2 =>
                     {
-                        stagedNewlyAddedIssuerThumbprints = await ApplyCertificateSlotChangeAsync(
-                            certificateGroup,
-                            existingCertIdentifier,
-                            previousThumbprint,
-                            stagedNewCert,
-                            stagedIssuers,
-                            ct2,
-                            stagedPreviousCert).ConfigureAwait(false);
+                        try
+                        {
+                            if (stagedNewCert == null)
+                            {
+                                stagedPendingKey = await matchingKeyStore!
+                                    .TryTakeMatchingAsync(
+                                        pendingContextToClaim!,
+                                        stagedPublicCertificate,
+                                        ct2).ConfigureAwait(false) ??
+                                    throw new ServiceResultException(
+                                        StatusCodes.BadSecurityChecksFailed,
+                                        "The matching regenerated private key is no longer available.");
+                                ct2.ThrowIfCancellationRequested();
+                                stagedNewCert = DefaultCertificateFactory.Instance
+                                    .CreateWithPrivateKey(stagedPublicCertificate, stagedPendingKey);
+                            }
+
+                            stagedNewlyAddedIssuerThumbprints = await ApplyCertificateSlotChangeAsync(
+                                certificateGroup,
+                                existingCertIdentifier,
+                                previousThumbprint,
+                                stagedNewCert,
+                                stagedIssuers,
+                                ct2,
+                                stagedPreviousCert).ConfigureAwait(false);
+                        }
+                        catch
+                        {
+                            if (stagedPendingKey != null)
+                            {
+                                await RestorePendingSigningKeyAfterFailureAsync(
+                                    matchingKeyStore!, pendingContextToClaim!, stagedPendingKey).ConfigureAwait(false);
+                            }
+                            throw;
+                        }
                         if (stagedPreviousCert != null)
                         {
                             RegisterPendingRotation(certificateTypeId, stagedPreviousCert);
@@ -510,24 +533,35 @@ namespace Opc.Ua.Server
                     },
                     RollbackAsync = async ct2 =>
                     {
-                        await ApplyCertificateSlotChangeAsync(
-                            certificateGroup,
-                            existingCertIdentifier,
-                            stagedNewCert.Thumbprint,
-                            stagedPreviousCert,
-                            null,
-                            ct2).ConfigureAwait(false);
-                        // Remove exactly the issuers the commit above newly
-                        // added, preserving every issuer that was already
-                        // present in the store before this operation ran.
-                        await RemoveIssuerCertificatesAsync(
-                            certificateGroup,
-                            stagedNewlyAddedIssuerThumbprints,
-                            ct2).ConfigureAwait(false);
+                        try
+                        {
+                            await ApplyCertificateSlotChangeAsync(
+                                certificateGroup,
+                                existingCertIdentifier,
+                                stagedNewCert!.Thumbprint,
+                                stagedPreviousCert,
+                                null,
+                                ct2).ConfigureAwait(false);
+                            await RemoveIssuerCertificatesAsync(
+                                certificateGroup,
+                                stagedNewlyAddedIssuerThumbprints,
+                                ct2).ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            if (stagedPendingKey != null)
+                            {
+                                await RestorePendingSigningKeyAsync(
+                                    matchingKeyStore!, pendingContextToClaim!, stagedPendingKey, ct2)
+                                    .ConfigureAwait(false);
+                            }
+                        }
                     },
                     DisposeStaged = () =>
                     {
-                        stagedNewCert.Dispose();
+                        stagedPublicCertificate.Dispose();
+                        stagedNewCert?.Dispose();
+                        stagedPendingKey?.Dispose();
                         stagedIssuers.Dispose();
                         stagedPreviousCert?.Dispose();
                     }
@@ -537,32 +571,13 @@ namespace Opc.Ua.Server
                 // Ownership of these transferred to the staged operation
                 // above; clear the local handles so the outer finally does
                 // not double-dispose them.
+                newCert = null;
                 newCertificateWithKey = null;
                 newIssuerCollection = null;
                 previousCertificateWithKey = null;
             }
             catch (Exception e)
             {
-                if (consumedPendingKey != null && consumedPendingContext != null && matchingKeyStore != null)
-                {
-                    try
-                    {
-                        await PushConfigurationRollback.RunAsync(async rollbackToken =>
-                        {
-                            if (!await matchingKeyStore.TryRestoreAsync(
-                                consumedPendingContext, consumedPendingKey, rollbackToken).ConfigureAwait(false))
-                            {
-                                m_logger.PendingSigningKeyWasSuperseded(
-                                    consumedPendingContext.CertificateGroupId,
-                                    consumedPendingContext.CertificateTypeId);
-                            }
-                        }, m_timeProvider).ConfigureAwait(false);
-                    }
-                    catch (Exception restoreError)
-                    {
-                        m_logger.PendingSigningKeyRestoreFailed(restoreError);
-                    }
-                }
                 // report the failure of UpdateCertificate via an audit event
                 Server.ReportCertificateUpdatedAuditEvent(
                     context,
@@ -585,7 +600,6 @@ namespace Opc.Ua.Server
                 newIssuerCollection?.Dispose();
                 newCertificateWithKey?.Dispose();
                 previousCertificateWithKey?.Dispose();
-                consumedPendingKey?.Dispose();
             }
 
             // §7.10.17: the staged operation started/continued the active
@@ -598,6 +612,47 @@ namespace Opc.Ua.Server
                 ServiceResult = ServiceResult.Good,
                 ApplyChangesRequired = true
             };
+        }
+
+        private async Task RestorePendingSigningKeyAsync(
+            IMatchingPendingCertificateKeyStore store,
+            PendingCertificateKeyContext context,
+            Certificate key,
+            CancellationToken ct)
+        {
+            if (!await store.TryRestoreAsync(context, key, ct).ConfigureAwait(false))
+            {
+                m_logger.PendingSigningKeyWasSuperseded(context.CertificateGroupId, context.CertificateTypeId);
+            }
+        }
+
+        private async Task RestorePendingSigningKeyAfterFailureAsync(
+            IMatchingPendingCertificateKeyStore store,
+            PendingCertificateKeyContext context,
+            Certificate key)
+        {
+            try
+            {
+                await PushConfigurationRollback.RunAsync(
+                    ct => RestorePendingSigningKeyAsync(store, context, key, ct), m_timeProvider).ConfigureAwait(false);
+            }
+            catch (Exception restoreError)
+            {
+                m_logger.PendingSigningKeyRestoreFailed(restoreError);
+            }
+        }
+
+        private static async ValueTask<Certificate?> ClaimObsoletePendingKeyAsync(
+            IPendingCertificateKeyStore store,
+            PendingCertificateKeyContext context,
+            CancellationToken ct)
+        {
+            if (store is IMatchingPendingCertificateKeyStore matchingStore)
+            {
+                return await matchingStore.TryTakeAsync(context, ct).ConfigureAwait(false);
+            }
+            await store.RemoveAsync(context, ct).ConfigureAwait(false);
+            return null;
         }
 
         /// <summary>
@@ -789,6 +844,10 @@ namespace Opc.Ua.Server
                 NodeId groupNodeId = certificateGroup.NodeId;
                 Certificate stagedNewCert = certificateWithKey;
                 Certificate? stagedPreviousCert = previousCertificateWithKey;
+                Certificate? discardedPendingKey = null;
+                PendingCertificateKeyContext pendingContext =
+                    CreatePendingKeyContext(certificateGroup, existingCertIdentifier);
+                IPendingCertificateKeyStore pendingStore = m_pendingKeyStore;
                 // CA2025: the coordinator guarantees CommitAsync/RollbackAsync
                 // complete before DisposeStaged runs; see the identical
                 // suppression in UpdateCertificateAsync for the full
@@ -800,14 +859,29 @@ namespace Opc.Ua.Server
                     AffectedCertificateType = certificateTypeId,
                     CommitAsync = async ct =>
                     {
-                        await ApplyCertificateSlotChangeAsync(
-                            certificateGroup,
-                            existingCertIdentifier,
-                            previousThumbprint,
-                            stagedNewCert,
-                            null,
-                            ct,
-                            stagedPreviousCert).ConfigureAwait(false);
+                        discardedPendingKey = await ClaimObsoletePendingKeyAsync(pendingStore, pendingContext, ct)
+                            .ConfigureAwait(false);
+                        try
+                        {
+                            await ApplyCertificateSlotChangeAsync(
+                                certificateGroup,
+                                existingCertIdentifier,
+                                previousThumbprint,
+                                stagedNewCert,
+                                null,
+                                ct,
+                                stagedPreviousCert).ConfigureAwait(false);
+                        }
+                        catch
+                        {
+                            if (discardedPendingKey != null)
+                            {
+                                await RestorePendingSigningKeyAfterFailureAsync(
+                                    (IMatchingPendingCertificateKeyStore)pendingStore,
+                                    pendingContext, discardedPendingKey).ConfigureAwait(false);
+                            }
+                            throw;
+                        }
                         if (stagedPreviousCert != null)
                         {
                             RegisterPendingRotation(certificateTypeId, stagedPreviousCert);
@@ -820,17 +894,33 @@ namespace Opc.Ua.Server
                     // having actually removed it yet), restore it instead
                     // of leaving the slot empty; otherwise there was
                     // nothing live to restore.
-                    RollbackAsync = ct => ApplyCertificateSlotChangeAsync(
-                        certificateGroup,
-                        existingCertIdentifier,
-                        stagedNewCert.Thumbprint,
-                        stagedPreviousCert,
-                        null,
-                        ct),
+                    RollbackAsync = async ct =>
+                    {
+                        try
+                        {
+                            await ApplyCertificateSlotChangeAsync(
+                                certificateGroup,
+                                existingCertIdentifier,
+                                stagedNewCert.Thumbprint,
+                                stagedPreviousCert,
+                                null,
+                                ct).ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            if (discardedPendingKey != null)
+                            {
+                                await RestorePendingSigningKeyAsync(
+                                    (IMatchingPendingCertificateKeyStore)pendingStore,
+                                    pendingContext, discardedPendingKey, ct).ConfigureAwait(false);
+                            }
+                        }
+                    },
                     DisposeStaged = () =>
                     {
                         stagedNewCert.Dispose();
                         stagedPreviousCert?.Dispose();
+                        discardedPendingKey?.Dispose();
                     }
                 });
 #pragma warning restore CA2025
@@ -851,12 +941,6 @@ namespace Opc.Ua.Server
                 // staged operation (i.e. an exception occurred before staging).
                 previousCertificateWithKey?.Dispose();
             }
-
-            // The slot's future content no longer comes from a pending
-            // signing request; discard any pending regenerated key for it.
-            await m_pendingKeyStore
-                .RemoveAsync(CreatePendingKeyContext(certificateGroup, existingCertIdentifier), cancellationToken)
-                .ConfigureAwait(false);
 
             // §7.10.17: refresh TransactionDiagnostics now the operation is
             // staged so Result reads Bad_InvalidState while the transaction
@@ -881,6 +965,7 @@ namespace Opc.Ua.Server
         /// same transaction for this slot permits this call even though
         /// nothing has actually been added to the store/registry yet.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private async ValueTask<DeleteCertificateMethodStateResult> DeleteCertificateAsync(
             ISystemContext context,
             MethodState method,
@@ -939,6 +1024,10 @@ namespace Opc.Ua.Server
 
             NodeId groupNodeId = certificateGroup.NodeId;
             Certificate? stagedPreviousCert = previousCertificateWithKey;
+            Certificate? discardedPendingKey = null;
+            PendingCertificateKeyContext pendingContext =
+                CreatePendingKeyContext(certificateGroup, existingCertIdentifier);
+            IPendingCertificateKeyStore pendingStore = m_pendingKeyStore;
             m_coordinator.Stage(sessionId, new PushConfigurationOperation
             {
                 AffectedCertificateGroup = groupNodeId,
@@ -957,33 +1046,64 @@ namespace Opc.Ua.Server
                 },
                 CommitAsync = async ct =>
                 {
-                    await ApplyCertificateSlotChangeAsync(
-                        certificateGroup,
-                        existingCertIdentifier,
-                        previousThumbprint,
-                        null,
-                        null,
-                        ct).ConfigureAwait(false);
+                    discardedPendingKey = await ClaimObsoletePendingKeyAsync(pendingStore, pendingContext, ct)
+                        .ConfigureAwait(false);
+                    try
+                    {
+                        await ApplyCertificateSlotChangeAsync(
+                            certificateGroup,
+                            existingCertIdentifier,
+                            previousThumbprint,
+                            null,
+                            null,
+                            ct).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        if (discardedPendingKey != null)
+                        {
+                            await RestorePendingSigningKeyAfterFailureAsync(
+                                (IMatchingPendingCertificateKeyStore)pendingStore,
+                                pendingContext, discardedPendingKey).ConfigureAwait(false);
+                        }
+                        throw;
+                    }
                     if (stagedPreviousCert != null)
                     {
                         RegisterPendingRotation(certificateTypeId, stagedPreviousCert);
                     }
                 },
-                RollbackAsync = stagedPreviousCert == null
-                    ? null
-                    : ct => ApplyCertificateSlotChangeAsync(
-                        certificateGroup,
-                        existingCertIdentifier,
-                        null,
-                        stagedPreviousCert,
-                        null,
-                        ct),
-                DisposeStaged = () => stagedPreviousCert?.Dispose()
+                RollbackAsync = async ct =>
+                {
+                    try
+                    {
+                        if (stagedPreviousCert != null)
+                        {
+                            await ApplyCertificateSlotChangeAsync(
+                                certificateGroup,
+                                existingCertIdentifier,
+                                null,
+                                stagedPreviousCert,
+                                null,
+                                ct).ConfigureAwait(false);
+                        }
+                    }
+                    finally
+                    {
+                        if (discardedPendingKey != null)
+                        {
+                            await RestorePendingSigningKeyAsync(
+                                (IMatchingPendingCertificateKeyStore)pendingStore,
+                                pendingContext, discardedPendingKey, ct).ConfigureAwait(false);
+                        }
+                    }
+                },
+                DisposeStaged = () =>
+                {
+                    stagedPreviousCert?.Dispose();
+                    discardedPendingKey?.Dispose();
+                }
             });
-
-            await m_pendingKeyStore
-                .RemoveAsync(CreatePendingKeyContext(certificateGroup, existingCertIdentifier), cancellationToken)
-                .ConfigureAwait(false);
 
             // §7.10.17: refresh TransactionDiagnostics now the operation is
             // staged so Result reads Bad_InvalidState while the transaction
@@ -999,6 +1119,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates a signing request and updates the scope's pending key only after request generation succeeds.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private async ValueTask<CreateSigningRequestMethodStateResult> CreateSigningRequestAsync(
             ISystemContext context,
             MethodState method,
@@ -1036,11 +1157,11 @@ namespace Opc.Ua.Server
             NodeId sessionId = GetSessionId(context);
             m_coordinator.ValidateSessionCanParticipate(sessionId);
 
-            if (regeneratePrivateKey && m_pendingKeyStore is not IMatchingPendingCertificateKeyStore)
+            if (regeneratePrivateKey && m_pendingKeyStore is not IPeekablePendingCertificateKeyStore)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadNotSupported,
-                    "Regenerating a private key requires a pending-key store with matching-only consumption.");
+                    "Regenerating a private key requires a pending-key store with non-consuming matching reads.");
             }
 
             CertificateIdentifier existingCertIdentifier =
@@ -1069,9 +1190,10 @@ namespace Opc.Ua.Server
                     m_configuration.ApplicationUri,
                     Server.Telemetry,
                     cancellationToken).ConfigureAwait(false);
-                subjectName = existingCertificate?.Subject ?? throw new ServiceResultException(
-                    StatusCodes.BadInvalidArgument,
-                    "The SubjectName must be specified when an existing certificate cannot be resolved.");
+                subjectName = existingCertificate?.Subject ??
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidArgument,
+                        "The SubjectName must be specified when an existing certificate cannot be resolved.");
             }
 
             X500DistinguishedName? requestedSubject = null;

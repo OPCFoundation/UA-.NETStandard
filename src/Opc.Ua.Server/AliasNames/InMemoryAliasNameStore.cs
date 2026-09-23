@@ -141,7 +141,10 @@ namespace Opc.Ua.Server.AliasNames
                     "Unknown category: " + categoryId,
                     nameof(categoryId));
             }
-            var key = new MappingKey(referenceTypeId, targetNode);
+            var key = new MappingKey(
+                referenceTypeId,
+                targetNode,
+                string.IsNullOrEmpty(serverUri) ? null : serverUri);
             if (!entry.Aliases.TryGetValue(name, out Dictionary<MappingKey, string?>? group))
             {
                 group = [];
@@ -177,6 +180,7 @@ namespace Opc.Ua.Server.AliasNames
             await m_semaphore.WaitAsync(ct).ConfigureAwait(false);
             try
             {
+                long deadline = AliasNameWildcardMatcher.CreateDeadline();
                 CollectMatches(
                     root,
                     pattern,
@@ -185,6 +189,7 @@ namespace Opc.Ua.Server.AliasNames
                     verbose: false,
                     nonVerboseSink: result,
                     verboseSink: null,
+                    deadline,
                     ct);
             }
             finally
@@ -221,6 +226,7 @@ namespace Opc.Ua.Server.AliasNames
             await m_semaphore.WaitAsync(ct).ConfigureAwait(false);
             try
             {
+                long deadline = AliasNameWildcardMatcher.CreateDeadline();
                 CollectMatches(
                     root,
                     pattern,
@@ -229,6 +235,7 @@ namespace Opc.Ua.Server.AliasNames
                     verbose: true,
                     nonVerboseSink: null,
                     verboseSink: result,
+                    deadline,
                     ct);
             }
             finally
@@ -293,7 +300,10 @@ namespace Opc.Ua.Server.AliasNames
                         continue;
                     }
 
-                    var key = new MappingKey(req.TargetReferenceType, req.TargetNode);
+                    var key = new MappingKey(
+                        req.TargetReferenceType,
+                        req.TargetNode,
+                        string.IsNullOrEmpty(req.TargetServer) ? null : req.TargetServer);
                     if (!entry.Aliases.TryGetValue(req.Name,
                             out Dictionary<MappingKey, string?>? group))
                     {
@@ -450,7 +460,7 @@ namespace Opc.Ua.Server.AliasNames
 
         private void RegisterCategoryRecursive(
             AliasNameCategoryDescriptor descriptor,
-            NodeId? parentId = null)
+            NodeId parentId = default)
         {
             if (!m_categories.TryAdd(descriptor.NodeId, new CategoryEntry(descriptor)))
             {
@@ -458,9 +468,9 @@ namespace Opc.Ua.Server.AliasNames
                     "Duplicate category NodeId: " + descriptor.NodeId,
                     nameof(descriptor));
             }
-            if (parentId != null)
+            if (!parentId.IsNull)
             {
-                m_parentByCategory[descriptor.NodeId] = parentId.Value;
+                m_parentByCategory[descriptor.NodeId] = parentId;
             }
             foreach (AliasNameCategoryDescriptor child in descriptor.SubCategories)
             {
@@ -507,6 +517,7 @@ namespace Opc.Ua.Server.AliasNames
             bool verbose,
             List<AliasNameDataType>? nonVerboseSink,
             List<AliasNameVerboseDataType>? verboseSink,
+            long deadline,
             CancellationToken ct)
         {
             ushort nsIndex = category.Descriptor.BrowseName.NamespaceIndex;
@@ -515,7 +526,7 @@ namespace Opc.Ua.Server.AliasNames
                 in category.Aliases)
             {
                 ct.ThrowIfCancellationRequested();
-                if (!AliasNameWildcardMatcher.Matches(alias.Key, pattern))
+                if (!AliasNameWildcardMatcher.Matches(alias.Key, pattern, deadline))
                 {
                     continue;
                 }
@@ -572,6 +583,7 @@ namespace Opc.Ua.Server.AliasNames
                         verbose,
                         nonVerboseSink,
                         verboseSink,
+                        deadline,
                         ct);
                 }
             }
@@ -645,7 +657,8 @@ namespace Opc.Ua.Server.AliasNames
 
         private readonly record struct MappingKey(
             NodeId ReferenceTypeId,
-            ExpandedNodeId TargetNode);
+            ExpandedNodeId TargetNode,
+            string? TargetServer);
 
         private sealed class CategoryEntry
         {
@@ -658,7 +671,14 @@ namespace Opc.Ua.Server.AliasNames
 
             public AliasNameCategoryDescriptor Descriptor { get; }
             public Dictionary<string, Dictionary<MappingKey, string?>> Aliases { get; }
-            public uint LastChange { get; set; }
+
+            public uint LastChange
+            {
+                get => Volatile.Read(ref m_lastChange);
+                set => Volatile.Write(ref m_lastChange, value);
+            }
+
+            private uint m_lastChange;
         }
     }
 }
