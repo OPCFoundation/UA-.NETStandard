@@ -280,7 +280,10 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                 ct: CancellationToken).WaitAsync(PhaseTimeout).ConfigureAwait(false);
             Session.ConnectionStateChanged += (_, change) =>
             {
-                if (change.NewState == ConnectionState.Connected)
+                // Initial Connected may be dispatched after CreateAsync returns.
+                if (change.NewState == ConnectionState.Connected &&
+                    change.PreviousState != ConnectionState.Connecting &&
+                    m_outerRecoveryStarted.Task.IsCompleted)
                 {
                     m_outerRecoveryCompleted.TrySetResult(true);
                 }

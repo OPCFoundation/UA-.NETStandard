@@ -204,6 +204,9 @@ an `ISession` facade that wraps a raw `Session` and adds:
   snapshot, so an unavailable primary cannot prevent selecting a cached
   backup. A provider that ignores cancellation is still observed, and no
   overlapping refresh is started while it remains in flight.
+  On timeout or caller cancellation, the handler cancels the resolver scope before
+  disposing it, even if cancellation delivery to that scope is delayed. Late
+  results cannot populate the endpoint cache.
   The default handler can resolve cached peer URIs even when the primary is
   unavailable, and invalidates a peer's cached endpoint after failed failover.
   Certificate-validation reconnect failures refresh endpoint discovery before

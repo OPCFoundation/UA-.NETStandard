@@ -573,6 +573,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(harness.ReplacementSubscription.IsReleased, Is.False);
             await WaitForPhaseAsync(harness.SuccessorSession.Entered, "replacement after failed restoration")
                 .ConfigureAwait(false);
+            Assert.That(harness.OuterRecoveryCompleted.IsCompleted, Is.False,
+                "Outer recovery cannot complete before the successor session response.");
             Task<TimeSpan> ackTimer = harness.Clock.WaitForTimerCreatedAsync(
                 TimeSpan.Zero, live.Subscription.CurrentPublishingInterval);
             harness.SuccessorSession.Release();
