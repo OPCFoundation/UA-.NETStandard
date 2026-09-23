@@ -10,6 +10,7 @@ Rate limiting is **on by default with conservative limits** sized so normal and 
 
 - **Inbound connections** (`opc.tcp` listener): a per-second token bucket (with a burst) admits new connections; beyond the burst a connection is shed cheaply so the CPU-bound secure-channel handshake is protected. The listener socket backlog is configurable and defaults to 512 (raised from the previous hard-coded 10) so a burst of simultaneous connects is absorbed rather than dropped by the OS.
 - **Session establishment** (`CreateSession` / `ActivateSession`): a concurrency limiter bounds the number of in-flight establishment operations so a connect storm cannot saturate every core and starve steady-state publish delivery. When at capacity the server returns `BadServerTooBusy` with a retry-after hint in the fault, before doing the expensive certificate validation / signing.
+- **Incomplete messages** (`opc.tcp` and `opc.wss` secure channels): the chunks a channel keeps while it waits for the final chunk of a message draw on one memory budget shared by all channels and listeners of the server, so connections that never finish a message cannot exhaust the server's memory. See [Incomplete messages](#incomplete-messages).
 
 ### Status codes
 
@@ -18,6 +19,7 @@ Rate limiting is **on by default with conservative limits** sized so normal and 
 | Session establishment at capacity | `BadServerTooBusy` (transient — the client should back off and retry) |
 | Hard session cap reached (`MaxSessionCount`) | `BadTooManySessions` |
 | Connection shed at the listener | the connection is dropped; the client sees a transport error and, together with any subsequent `BadServerTooBusy`, backs off |
+| Chunks of incomplete messages exceed the chunk reassembly budget | the server sends an `Error` message with `BadTcpNotEnoughResources` and closes the channel; the client reconnects |
 
 ### Configuration
 
@@ -65,6 +67,37 @@ server.RateLimitOptions = new ServerRateLimitOptions { ConnectionsPerSecond = 20
 ```
 
 The `opc.tcp` listener consumes an `IConnectionRateLimiter` and a backlog value through `TransportListenerSettings`, injected by `StandardServer.ConfigureTransportListenerSettings`. A custom server can override that hook to supply its own limiter. The default `TokenBucketConnectionRateLimiter` wraps a `System.Threading.RateLimiting.TokenBucketRateLimiter`.
+
+### Incomplete messages
+
+A secure channel keeps the chunks of a message until its final chunk arrives (OPC 10000-6 §6.7.2). The `MaxMessageSize` and `MaxChunkCount` negotiated by the Hello/Acknowledge exchange bound what one channel keeps, but not what all channels keep together: a peer that opens many channels, sends intermediate chunks and never the final one, holds the per-channel maximum on every channel until the process runs out of memory. The server therefore charges every intermediate chunk it keeps against a `ChunkReassemblyBudget` (namespace `Opc.Ua.Bindings`) that all its channels and listeners share:
+
+- A chunk is charged the length of the buffer it is received into, which is what it keeps alive. After the Hello the listener receives into buffers of the negotiated chunk size, so a client that negotiates small chunks is charged for what it sends, not for buffers of the listener's maximum size.
+- The final chunk of a message is never charged: it is processed at once, so a request that fits in one chunk is served even while the budget is exhausted.
+- Channels on which no session has been activated may fill only half the budget (`MaxBytesWithoutSession`), so peers that never authenticate cannot take the room the channels of sessions need.
+- The reservation is released when the message completes, when a chunk of another request or an abort chunk discards it, and when the channel goes away.
+- A chunk that does not fit discards the incomplete message; the server sends an `Error` message with `BadTcpNotEnoughResources` — the error OPC 10000-6 §7.1.5 defines for a server that runs out of resources — and closes the channel. Other channels are not affected.
+
+By default a server sizes the budget from `TransportQuotas.MaxMessageSize`: room for sixteen messages of that size, but no less than 64 MiB and no more than 1 GiB, and always room for four of them. A configuration that does not limit the message size gets 1 GiB. With the default 2 MiB and the reference server's 4 MiB message size the budget is 64 MiB. `ChunkReassemblyBudget.GetDefaultMaxBytes(maxMessageSize)` returns the default for a given size.
+
+Raise the budget when many clients send large requests at the same time; lower it on a device with little memory. Through dependency injection:
+
+```csharp
+services.AddOpcUa()
+    .AddServer(options => options.ApplicationName = "MyServer")
+    .WithChunkReassemblyBudget(256L * 1024 * 1024);
+```
+
+Without dependency injection, set the budget on the server before it starts. One instance can also be shared by several servers of a process:
+
+```csharp
+var server = new StandardServer(telemetry)
+{
+    ChunkReassemblyBudget = new ChunkReassemblyBudget(256L * 1024 * 1024)
+};
+```
+
+The `ChunkReassemblyBudget(maxBytes, maxBytesWithoutSession)` constructor sets the share of channels without a session explicitly, for example the whole budget for a server that serves sessionless requests. A host that opens a transport listener itself passes the budget through `TransportListenerSettings.ChunkReassemblyBudget`; a listener given none creates its own, sized the same way from its endpoint configuration.
 
 ## HTTPS / Kestrel transport
 

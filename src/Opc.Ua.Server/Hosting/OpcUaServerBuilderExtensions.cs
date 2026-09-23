@@ -570,6 +570,42 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Bounds the memory that the chunks of incomplete messages may hold
+        /// across all the transport listeners of the hosted server.
+        /// </summary>
+        /// <remarks>
+        /// A peer that never sends the final chunk of a message makes the server
+        /// keep the chunks it sent. Without this call the budget is sized by
+        /// <see cref="Opc.Ua.Bindings.ChunkReassemblyBudget.GetDefaultMaxBytes(int)"/> from the
+        /// maximum message size; raise it when many clients send large requests
+        /// at the same time, lower it on a device with little memory. Channels on
+        /// which no session has been activated may fill half of it.
+        /// </remarks>
+        /// <param name="builder">The server builder.</param>
+        /// <param name="maxBytes">
+        /// The number of bytes the chunks of incomplete messages may hold in
+        /// total.
+        /// </param>
+        /// <returns>The same <see cref="IOpcUaServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/>
+        /// is <c>null</c>.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxBytes"/>
+        /// is not positive.</exception>
+        public static IOpcUaServerBuilder WithChunkReassemblyBudget(
+            this IOpcUaServerBuilder builder,
+            long maxBytes)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.Replace(
+                ServiceDescriptor.Singleton(new Opc.Ua.Bindings.ChunkReassemblyBudget(maxBytes)));
+            return builder;
+        }
+
+        /// <summary>
         /// Registers a role manager that is installed on the hosted server at startup.
         /// </summary>
         /// <param name="builder">The server builder.</param>

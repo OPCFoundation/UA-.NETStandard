@@ -203,6 +203,8 @@ namespace Opc.Ua.Bindings
                 messageContext.MaxDecoderRecoveries = configuration.MaxDecoderRecoveries;
             }
             m_quotas.CertificateValidator = settings.CertificateValidator;
+            m_quotas.ChunkReassemblyBudget = settings.ChunkReassemblyBudget ??
+                new ChunkReassemblyBudget(ChunkReassemblyBudget.GetDefaultMaxBytes(m_quotas.MaxMessageSize));
 
             m_serverCertificates = settings.ServerCertificates!;
             m_bufferManager = new BufferManager(

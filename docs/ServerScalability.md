@@ -27,6 +27,7 @@ The server can shed excess load deterministically rather than aborting work mid-
 
 - **Connection-admission rate limiting** at the TCP listener, bounding the rate of new secure-channel handshakes to what the host can absorb.
 - **Session-establishment admission**: `CreateSession` and `ActivateSession` requests beyond the configured concurrency are rejected with **`BadServerTooBusy`**, carrying a machine-readable retry-after hint, instead of queuing unboundedly.
+- **A memory budget for incomplete messages**: the chunks that secure channels keep while waiting for the rest of a message share one bound across all connections, so peers that never finish a message cannot exhaust the server's memory; see [Incomplete messages](RateLimiting.md#incomplete-messages).
 - **HTTPS/Kestrel rate limiting**: the HTTPS binding can attach an ASP.NET Core rate limiter through dependency injection.
 - **Client-side adaptive backoff**: the client honors a server's *busy* signal — and any retry-after hint — with bounded exponential backoff, so a well-behaved client ramps its connects instead of hammering.
 

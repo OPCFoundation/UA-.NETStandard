@@ -229,6 +229,7 @@ namespace Opc.Ua.Bindings
 
             BufferManager = bufferManager ?? throw new ArgumentNullException(nameof(bufferManager));
             Quotas = quotas ?? throw new ArgumentNullException(nameof(quotas));
+            m_chunkReassemblyBudget = quotas.ChunkReassemblyBudget;
             m_serverCertificates = serverCertificates;
             ServerCertificate = serverCertificate;
             ServerCertificateChain = serverCertificateChain;
@@ -313,7 +314,9 @@ namespace Opc.Ua.Bindings
                 // A message the peer never finished sending leaves its chunks
                 // queued here. Nothing else returns them, so a client that sends
                 // one intermediate chunk and disconnects would cost the pool a
-                // receive buffer per channel.
+                // receive buffer per channel - and keep its share of the chunk
+                // reassembly budget, which every other channel of the server
+                // draws on.
                 //
                 // Dispose runs alongside the receive loop, which may be saving a
                 // chunk at this moment, so the collection is detached under the
@@ -327,6 +330,7 @@ namespace Opc.Ua.Bindings
                     m_partialMessageClosed = true;
                     partialChunks = m_partialMessageChunks;
                     m_partialMessageChunks = null;
+                    ReleasePartialMessageReservation();
                 }
                 partialChunks?.Release(BufferManager, "Dispose");
 
@@ -564,6 +568,14 @@ namespace Opc.Ua.Bindings
         /// straight away. A caller must therefore never pass a chunk it has
         /// already handed over — use <see cref="TakeSavedChunks"/> when the body
         /// is saved and only the collection is wanted.
+        /// <para>
+        /// The chunk is kept until the rest of its message arrives, so the buffer
+        /// it occupies is reserved against the <see cref="ChunkReassemblyBudget"/>
+        /// of the channel's quotas, which the other channels of the listener
+        /// share. A chunk that does not fit is returned together with the
+        /// incomplete message it belongs to, and the channel is torn down as for
+        /// a message that exceeds its limits.
+        /// </para>
         /// </remarks>
         protected bool SaveIntermediateChunk(
             uint requestId,
@@ -571,57 +583,7 @@ namespace Opc.Ua.Bindings
             bool isServerContext,
             bool gateHeld)
         {
-            bool firstChunk;
-            bool chunkOrSizeLimitsExceeded;
-
-            lock (m_partialMessageLock)
-            {
-                // Disposal has already released the partial message and nothing
-                // will release it again, so a chunk arriving after that goes
-                // straight back to the pool rather than into a new collection.
-                if (m_partialMessageClosed)
-                {
-                    ReturnBuffer(chunk, "SaveIntermediateChunk");
-                    return false;
-                }
-
-                firstChunk = m_partialMessageChunks == null;
-                m_partialMessageChunks ??= [];
-
-                chunkOrSizeLimitsExceeded = MessageLimitsExceeded(
-                    isServerContext,
-                    m_partialMessageChunks.TotalSize,
-                    m_partialMessageChunks.Count);
-
-                if ((m_partialRequestId != requestId) || chunkOrSizeLimitsExceeded)
-                {
-                    if (m_partialMessageChunks.Count > 0)
-                    {
-                        m_logger.UaSCChannelLog4(m_partialRequestId);
-                    }
-
-                    m_partialMessageChunks.Release(BufferManager, "SaveIntermediateChunk");
-                }
-
-                if (!chunkOrSizeLimitsExceeded && requestId != 0 && chunk.Array != null)
-                {
-                    m_partialRequestId = requestId;
-                    m_partialMessageChunks.Add(chunk);
-                }
-                else
-                {
-                    ReturnBuffer(chunk, "SaveIntermediateChunk");
-                }
-            }
-
-            // Outside the lock: tearing the channel down can take the gate, and
-            // the partial message lock must stay a leaf.
-            if (chunkOrSizeLimitsExceeded)
-            {
-                DoMessageLimitsExceeded(gateHeld);
-            }
-
-            return firstChunk;
+            return SaveChunk(requestId, chunk, isServerContext, gateHeld, isFinal: false);
         }
 
         /// <summary>
@@ -662,13 +624,19 @@ namespace Opc.Ua.Bindings
         /// Returns the chunks saved for message.
         /// </summary>
         /// <inheritdoc cref="SaveIntermediateChunk" path="/param"/>
+        /// <remarks>
+        /// <paramref name="chunk"/> is the final chunk of the message, which is
+        /// taken for processing at once, so unlike an intermediate chunk it is
+        /// not reserved against the chunk reassembly budget: a message that fits
+        /// in a single chunk is never refused for want of room.
+        /// </remarks>
         protected BufferCollection GetSavedChunks(
             uint requestId,
             ArraySegment<byte> chunk,
             bool isServerContext,
             bool gateHeld)
         {
-            SaveIntermediateChunk(requestId, chunk, isServerContext, gateHeld);
+            SaveChunk(requestId, chunk, isServerContext, gateHeld, isFinal: true);
             return TakeSavedChunks();
         }
 
@@ -678,12 +646,17 @@ namespace Opc.Ua.Bindings
         /// is needed; passing it to <see cref="GetSavedChunks"/> a second time
         /// would either queue the same buffer twice or release it early.
         /// </summary>
+        /// <remarks>
+        /// The chunks now belong to the caller, so their reservation in the chunk
+        /// reassembly budget is released.
+        /// </remarks>
         protected BufferCollection TakeSavedChunks()
         {
             lock (m_partialMessageLock)
             {
                 BufferCollection savedChunks = m_partialMessageChunks ?? [];
                 m_partialMessageChunks = null;
+                ReleasePartialMessageReservation();
                 return savedChunks;
             }
         }
@@ -710,6 +683,183 @@ namespace Opc.Ua.Bindings
         protected virtual void DoMessageLimitsExceeded(bool gateHeld)
         {
             m_logger.UaSCChannelLog5(ChannelId);
+        }
+
+        /// <summary>
+        /// Whether the channel carries the messages of an activated session, so
+        /// that its incomplete messages may draw on the whole chunk reassembly
+        /// budget rather than only on the share of channels without a session.
+        /// </summary>
+        /// <remarks>
+        /// A client channel only receives responses to requests it sent itself,
+        /// so it does; a server channel overrides this until a session has been
+        /// activated on it.
+        /// </remarks>
+        private protected virtual bool ServesActivatedSession => true;
+
+        /// <summary>
+        /// Code executed when an intermediate chunk does not fit in the chunk
+        /// reassembly budget. The incomplete message it belonged to has already
+        /// been discarded.
+        /// </summary>
+        /// <param name="gateHeld">
+        /// Whether the caller already holds the channel gate, as for
+        /// <see cref="DoMessageLimitsExceeded(bool)"/>.
+        /// </param>
+        /// <remarks>
+        /// The channel cannot carry on: the rest of the discarded message is
+        /// still to come and would otherwise be assembled into a message that
+        /// lacks its beginning. The default therefore tears the channel down the
+        /// way <see cref="DoMessageLimitsExceeded(bool)"/> does.
+        /// </remarks>
+        private protected virtual void OnChunkReassemblyBudgetExceeded(bool gateHeld)
+        {
+            DoMessageLimitsExceeded(gateHeld);
+        }
+
+        /// <summary>
+        /// Adds a chunk to the message being assembled, first discarding a
+        /// message the chunk does not continue.
+        /// </summary>
+        /// <param name="requestId">The request the chunk belongs to.</param>
+        /// <param name="chunk">The chunk to save.</param>
+        /// <param name="isServerContext">Whether this is a server channel.</param>
+        /// <param name="gateHeld">Whether the caller already holds the channel gate.</param>
+        /// <param name="isFinal">
+        /// Whether the chunk completes the message, which the caller then takes
+        /// straight away. Only a chunk that has to wait for the rest of its
+        /// message is reserved against the chunk reassembly budget.
+        /// </param>
+        /// <returns>Whether no chunk of a message was waiting before this one.</returns>
+        private bool SaveChunk(
+            uint requestId,
+            ArraySegment<byte> chunk,
+            bool isServerContext,
+            bool gateHeld,
+            bool isFinal)
+        {
+            bool firstChunk;
+            bool chunkOrSizeLimitsExceeded;
+            bool budgetExceeded = false;
+
+            lock (m_partialMessageLock)
+            {
+                // Disposal has already released the partial message and nothing
+                // will release it again, so a chunk arriving after that goes
+                // straight back to the pool rather than into a new collection.
+                if (m_partialMessageClosed)
+                {
+                    ReturnBuffer(chunk, "SaveIntermediateChunk");
+                    return false;
+                }
+
+                firstChunk = m_partialMessageChunks == null;
+                m_partialMessageChunks ??= [];
+
+                chunkOrSizeLimitsExceeded = MessageLimitsExceeded(
+                    isServerContext,
+                    m_partialMessageChunks.TotalSize,
+                    m_partialMessageChunks.Count);
+
+                if ((m_partialRequestId != requestId) || chunkOrSizeLimitsExceeded)
+                {
+                    if (m_partialMessageChunks.Count > 0)
+                    {
+                        m_logger.UaSCChannelLog4(m_partialRequestId);
+                    }
+
+                    // The room of the discarded message is given back before the
+                    // chunk that replaces it is charged, so that chunk is not
+                    // refused for room it does not need.
+                    m_partialMessageChunks.Release(BufferManager, "SaveIntermediateChunk");
+                    ReleasePartialMessageReservation();
+                }
+
+                if (!chunkOrSizeLimitsExceeded && requestId != 0 && chunk.Array != null)
+                {
+                    // Reserve what the chunk keeps alive, which is the whole
+                    // buffer it was received into, not only the bytes it carries.
+                    if (isFinal || TryReservePartialMessageChunk(chunk.Array.Length))
+                    {
+                        m_partialRequestId = requestId;
+                        m_partialMessageChunks.Add(chunk);
+                    }
+                    else
+                    {
+                        // Without this chunk the message cannot be completed, so
+                        // what has arrived of it goes as well.
+                        m_partialMessageChunks.Release(BufferManager, "SaveIntermediateChunk");
+                        ReleasePartialMessageReservation();
+                        ReturnBuffer(chunk, "SaveIntermediateChunk");
+                        budgetExceeded = true;
+                    }
+                }
+                else
+                {
+                    ReturnBuffer(chunk, "SaveIntermediateChunk");
+                }
+            }
+
+            // Outside the lock: tearing the channel down can take the gate, and
+            // the partial message lock must stay a leaf.
+            if (chunkOrSizeLimitsExceeded)
+            {
+                DoMessageLimitsExceeded(gateHeld);
+            }
+            else if (budgetExceeded)
+            {
+                if (m_chunkReassemblyBudget is ChunkReassemblyBudget budget)
+                {
+                    bool hasSession = ServesActivatedSession;
+                    m_logger.UaSCChannelChunkReassemblyBudgetExceeded(
+                        ChannelId,
+                        hasSession ? budget.MaxBytes : budget.MaxBytesWithoutSession,
+                        hasSession);
+                }
+
+                OnChunkReassemblyBudgetExceeded(gateHeld);
+            }
+
+            return firstChunk;
+        }
+
+        /// <summary>
+        /// Reserves room for a chunk of the partial message, to be released with
+        /// the message. Called with the partial message lock held.
+        /// </summary>
+        /// <param name="byteCount">The length of the buffer the chunk occupies.</param>
+        /// <returns><c>true</c> if the chunk may be kept.</returns>
+        private bool TryReservePartialMessageChunk(int byteCount)
+        {
+            ChunkReassemblyBudget? budget = m_chunkReassemblyBudget;
+            if (budget == null)
+            {
+                return true;
+            }
+
+            if (!budget.TryReserve(byteCount, ServesActivatedSession))
+            {
+                return false;
+            }
+
+            m_partialMessageReservedBytes += byteCount;
+            return true;
+        }
+
+        /// <summary>
+        /// Gives the room the partial message holds back to the chunk
+        /// reassembly budget. Called with the partial message lock held:
+        /// releasing never blocks, so the lock stays a leaf, and the room is free
+        /// before anything else on the channel is charged against it.
+        /// </summary>
+        private void ReleasePartialMessageReservation()
+        {
+            long reservedBytes = m_partialMessageReservedBytes;
+            m_partialMessageReservedBytes = 0;
+            if (reservedBytes > 0)
+            {
+                m_chunkReassemblyBudget?.Release(reservedBytes);
+            }
         }
 
         /// <inheritdoc/>
@@ -1673,11 +1823,20 @@ namespace Opc.Ua.Bindings
         private BufferCollection? m_partialMessageChunks;
 
         /// <summary>
+        /// The bytes the partial message holds reserved in
+        /// <see cref="m_chunkReassemblyBudget"/>.
+        /// </summary>
+        private long m_partialMessageReservedBytes;
+
+        /// <summary>
         /// Guards <see cref="m_partialMessageChunks"/>,
-        /// <see cref="m_partialRequestId"/> and
+        /// <see cref="m_partialRequestId"/>,
+        /// <see cref="m_partialMessageReservedBytes"/> and
         /// <see cref="m_partialMessageClosed"/>. The channel gate cannot serve:
         /// it is not re-entrant, the client saves response chunks without it,
-        /// and disposal does not take it. Nothing is acquired while this is held.
+        /// and disposal does not take it. Nothing is acquired while this is held;
+        /// the chunk reassembly budget it reserves against and releases to is
+        /// lock-free.
         /// </summary>
         private readonly Lock m_partialMessageLock = new();
 
@@ -1685,6 +1844,13 @@ namespace Opc.Ua.Bindings
         /// Set once disposal has released the partial message.
         /// </summary>
         private bool m_partialMessageClosed;
+
+        /// <summary>
+        /// The budget the chunks of incomplete messages are reserved against,
+        /// captured from the quotas when the channel is created so that every
+        /// reservation is released to the budget it was taken from.
+        /// </summary>
+        private readonly ChunkReassemblyBudget? m_chunkReassemblyBudget;
 
         private IUaSCByteTransport? m_transport;
         private readonly BackgroundTaskScope m_backgroundWork;
@@ -1985,5 +2151,15 @@ namespace Opc.Ua.Bindings
         public static partial void UaSCChannelNonceRejected(
             this ILogger logger,
             Exception exception);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryChannel + 17, Level = LogLevel.Warning,
+            Message = "ChannelId {ChannelId}: The chunks of incomplete messages would exceed the {LimitBytes} " +
+                "bytes the chunk reassembly budget leaves the channel (session activated: {HasSession}). " +
+                "The incomplete message is discarded.")]
+        public static partial void UaSCChannelChunkReassemblyBudgetExceeded(
+            this ILogger logger,
+            uint channelId,
+            long limitBytes,
+            bool hasSession);
     }
 }

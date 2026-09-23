@@ -372,6 +372,13 @@ namespace Opc.Ua.Bindings
         public bool UsedBySession => Volatile.Read(ref m_sessionCount) > 0;
 
         /// <summary>
+        /// A server channel may draw on the whole chunk reassembly budget only
+        /// once a session has been activated on it, so a peer that never
+        /// activates one cannot take the memory the sessions of the server need.
+        /// </summary>
+        private protected override bool ServesActivatedSession => UsedBySession;
+
+        /// <summary>
         /// Records an active session on the channel.
         /// </summary>
         protected void AddSession()

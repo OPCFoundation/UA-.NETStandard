@@ -866,10 +866,399 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(pool.DuplicateReturnCount, Is.Zero);
         }
 
+        /// <summary>
+        /// A chunk that waits for the rest of its message reserves the buffer it
+        /// keeps alive - the whole rented array, not just the bytes it carries -
+        /// and an abort hands the reservation back with the chunks.
+        /// </summary>
+        [Test]
+        public async Task IntermediateChunksReserveTheBuffersTheyKeepAsync()
+        {
+            var pool = new TrackingArrayPool();
+            var budget = new ChunkReassemblyBudget(1024 * 1024);
+            using TestServerChannel channel = CreateOpenChannel(pool, budget: budget);
+
+            ArraySegment<byte> first = channel.CreateRequestChunkForTest(
+                TcpMessageType.Message, isFinal: false, sequenceNumber: 1, requestId: 1, bodySize: 100);
+            ArraySegment<byte> second = channel.CreateRequestChunkForTest(
+                TcpMessageType.Message, isFinal: false, sequenceNumber: 2, requestId: 1, bodySize: 100);
+            long expected = first.Array!.Length + second.Array!.Length;
+
+            await channel.FeedReceivedChunkAsync(first).ConfigureAwait(false);
+            await channel.FeedReceivedChunkAsync(second).ConfigureAwait(false);
+
+            Assert.That(budget.ReservedBytes, Is.EqualTo(expected));
+            Assert.That(pool.OutstandingCount, Is.EqualTo(2));
+
+            ArraySegment<byte> abort = channel.CreateRequestChunkForTest(
+                TcpMessageType.Message, isFinal: true, sequenceNumber: 3, requestId: 1);
+            BitConverter.GetBytes(TcpMessageType.Message | TcpMessageType.Abort).CopyTo(abort.Array!, abort.Offset);
+            await channel.FeedReceivedChunkAsync(abort).ConfigureAwait(false);
+
+            Assert.That(budget.ReservedBytes, Is.Zero);
+            Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Open));
+        }
+
+        /// <summary>
+        /// A request that arrives in several chunks and fits in the budget is
+        /// assembled and dispatched as before, and leaves nothing reserved.
+        /// </summary>
+        [Test]
+        public async Task MultiChunkRequestWithinTheBudgetIsDispatchedAndReleasedAsync()
+        {
+            var pool = new TrackingArrayPool();
+            var budget = new ChunkReassemblyBudget(1024 * 1024);
+            using TestServerChannel channel = CreateOpenChannel(pool, budget: budget);
+            WriteRequest received = null;
+            channel.SetRequestReceivedCallback((_, _, request) => received = request as WriteRequest);
+            byte[] payload = new byte[3000];
+            for (int ii = 0; ii < payload.Length; ii++)
+            {
+                payload[ii] = (byte)ii;
+            }
+            var request = new WriteRequest
+            {
+                NodesToWrite =
+                [
+                    new WriteValue
+                    {
+                        NodeId = new NodeId("chunked", 1),
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue(new Variant(ByteString.From(payload)))
+                    }
+                ]
+            };
+
+            List<ArraySegment<byte>> chunks = channel.CreateRequestChunksForTest(
+                requestId: 7, firstSequenceNumber: 1, request, maxBodySize: 1024);
+            Assert.That(chunks, Has.Count.GreaterThan(2));
+
+            for (int ii = 0; ii < chunks.Count; ii++)
+            {
+                await channel.FeedReceivedChunkAsync(chunks[ii]).ConfigureAwait(false);
+                if (ii < chunks.Count - 1)
+                {
+                    Assert.That(budget.ReservedBytes, Is.GreaterThan(0));
+                }
+            }
+
+            Assert.That(received, Is.Not.Null);
+            Assert.That(received.NodesToWrite[0].Value.WrappedValue.TryGetValue(out ByteString value), Is.True);
+            Assert.That(value, Is.EqualTo(ByteString.From(payload)));
+            Assert.That(budget.ReservedBytes, Is.Zero);
+            Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// A chunk that does not fit discards the incomplete message and closes
+        /// the channel, after telling the client Bad_TcpNotEnoughResources
+        /// (OPC 10000-6 §7.1.5). Nothing stays reserved and no buffer is lost.
+        /// </summary>
+        [Test]
+        public async Task ChunkBeyondTheBudgetClosesTheChannelWithNotEnoughResourcesAsync()
+        {
+            var pool = new TrackingArrayPool();
+            using TestServerChannel probe = CreateOpenChannel(pool);
+            int rented = probe.GetRentedLengthForTest(TcpMessageLimits.SymmetricHeaderSize +
+                TcpMessageLimits.SequenceHeaderSize + 8);
+            var budget = new ChunkReassemblyBudget(2L * rented, rented);
+            using TestServerChannel channel = CreateOpenChannel(pool, budget: budget);
+            var transport = new GateByteTransport(expectedSendCount: 1, captureSentChunks: true);
+            transport.Complete();
+            channel.SetTransport(transport);
+
+            await channel.FeedReceivedChunkAsync(channel.CreateRequestChunkForTest(
+                TcpMessageType.Message, isFinal: false, sequenceNumber: 1, requestId: 1)).ConfigureAwait(false);
+            Assert.That(budget.ReservedBytes, Is.EqualTo(rented));
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Open));
+
+            await channel.FeedReceivedChunkAsync(channel.CreateRequestChunkForTest(
+                TcpMessageType.Message, isFinal: false, sequenceNumber: 2, requestId: 1)).ConfigureAwait(false);
+
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+            Assert.That(budget.ReservedBytes, Is.Zero);
+            Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+            byte[] sent = transport.LastSentChunk;
+            Assert.That(sent, Is.Not.Null, "the client was not told why the channel closed.");
+            Assert.That(BitConverter.ToUInt32(sent, 0), Is.EqualTo(TcpMessageType.Error));
+            ErrorMessage error = TcpMessageParsers.ReadErrorMessage(
+                new ArraySegment<byte>(sent, 8, sent.Length - 8));
+            Assert.That(error.StatusCode, Is.EqualTo((uint)StatusCodes.BadTcpNotEnoughResources));
+        }
+
+        /// <summary>
+        /// The refusal also reaches a caller that does not hold the gate, and the
+        /// channel it closes has no transport left to report to.
+        /// </summary>
+        [Test]
+        public void ChunkBeyondTheBudgetClosesAChannelWithoutTransport()
+        {
+            var pool = new TrackingArrayPool();
+            var budget = new ChunkReassemblyBudget(2, 1);
+            using TestServerChannel channel = CreateOpenChannel(pool, budget: budget);
+            byte[] buffer = channel.TakeBufferForTest(32);
+
+            channel.SaveReceivedPartForTest(1, new ArraySegment<byte>(buffer, 0, 32));
+
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+            Assert.That(budget.ReservedBytes, Is.Zero);
+            Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// Channels without an activated session may only fill their share, so
+        /// the channels of sessions still find room when unauthenticated peers
+        /// have taken all they may.
+        /// </summary>
+        [Test]
+        public async Task ChannelsOfSessionsDrawOnTheWholeBudgetAsync()
+        {
+            var pool = new TrackingArrayPool();
+            using TestServerChannel probe = CreateOpenChannel(pool);
+            int rented = probe.GetRentedLengthForTest(TcpMessageLimits.SymmetricHeaderSize +
+                TcpMessageLimits.SequenceHeaderSize + 8);
+            var budget = new ChunkReassemblyBudget(2L * rented, rented);
+            using TestServerChannel sessionless = CreateOpenChannel(pool, budget: budget);
+            using TestServerChannel otherSessionless = CreateOpenChannel(pool, budget: budget);
+            using TestServerChannel session = CreateOpenChannel(pool, budget: budget);
+            using TestServerChannel otherSession = CreateOpenChannel(pool, budget: budget);
+            session.ActivateSessionForTest();
+            otherSession.ActivateSessionForTest();
+
+            await FeedIntermediateChunkAsync(sessionless).ConfigureAwait(false);
+            await FeedIntermediateChunkAsync(otherSessionless).ConfigureAwait(false);
+            await FeedIntermediateChunkAsync(session).ConfigureAwait(false);
+            await FeedIntermediateChunkAsync(otherSession).ConfigureAwait(false);
+
+            Assert.That(sessionless.CurrentState, Is.EqualTo(TcpChannelState.Open));
+            Assert.That(otherSessionless.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+            Assert.That(session.CurrentState, Is.EqualTo(TcpChannelState.Open));
+            Assert.That(otherSession.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+            Assert.That(budget.ReservedBytes, Is.EqualTo(2L * rented));
+            Assert.That(pool.OutstandingCount, Is.EqualTo(2));
+        }
+
+        /// <summary>
+        /// The final chunk of a message is processed at once and never reserved,
+        /// so a request that fits in one chunk is served even while the budget is
+        /// exhausted.
+        /// </summary>
+        [Test]
+        public async Task SingleChunkRequestIsServedWhileTheBudgetIsExhaustedAsync()
+        {
+            var pool = new TrackingArrayPool();
+            using TestServerChannel probe = CreateOpenChannel(pool);
+            int rented = probe.GetRentedLengthForTest(TcpMessageLimits.SymmetricHeaderSize +
+                TcpMessageLimits.SequenceHeaderSize + 8);
+            var budget = new ChunkReassemblyBudget(rented, rented);
+            using TestServerChannel holder = CreateOpenChannel(pool, budget: budget);
+            using TestServerChannel channel = CreateOpenChannel(pool, budget: budget);
+            int delivered = 0;
+            channel.SetRequestReceivedCallback((_, _, _) => delivered++);
+
+            await FeedIntermediateChunkAsync(holder).ConfigureAwait(false);
+            Assert.That(budget.ReservedBytes, Is.EqualTo(budget.MaxBytes));
+
+            await channel.FeedReceivedChunkAsync(channel.CreateRequestChunkForTest(
+                1, 1, new ReadRequest(), intermediate: false)).ConfigureAwait(false);
+
+            Assert.That(delivered, Is.EqualTo(1));
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Open));
+            Assert.That(budget.ReservedBytes, Is.EqualTo(budget.MaxBytes));
+        }
+
+        /// <summary>
+        /// A chunk of another request discards the incomplete message it
+        /// interrupts, and the reservation of that message goes with it.
+        /// </summary>
+        [Test]
+        public async Task DiscardingAnIncompleteMessageReleasesItsReservationAsync()
+        {
+            var pool = new TrackingArrayPool();
+            var budget = new ChunkReassemblyBudget(1024 * 1024);
+            using TestServerChannel channel = CreateOpenChannel(pool, budget: budget);
+
+            await channel.FeedReceivedChunkAsync(channel.CreateRequestChunkForTest(
+                TcpMessageType.Message, isFinal: false, sequenceNumber: 1, requestId: 1)).ConfigureAwait(false);
+            await channel.FeedReceivedChunkAsync(channel.CreateRequestChunkForTest(
+                TcpMessageType.Message, isFinal: false, sequenceNumber: 2, requestId: 1)).ConfigureAwait(false);
+            ArraySegment<byte> interrupting = channel.CreateRequestChunkForTest(
+                TcpMessageType.Message, isFinal: false, sequenceNumber: 3, requestId: 2);
+            long expected = interrupting.Array!.Length;
+
+            await channel.FeedReceivedChunkAsync(interrupting).ConfigureAwait(false);
+
+            Assert.That(budget.ReservedBytes, Is.EqualTo(expected));
+            Assert.That(pool.OutstandingCount, Is.EqualTo(1));
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Open));
+        }
+
+        /// <summary>
+        /// The incomplete message a chunk of another request discards gives its
+        /// room back before that chunk is charged, so the chunk is not refused
+        /// for room it does not need - for example the first chunk after a
+        /// reconnect, while the message the dropped connection left behind still
+        /// fills the budget.
+        /// </summary>
+        [Test]
+        public async Task ChunkOfANewRequestReusesTheRoomOfTheMessageItDiscardsAsync()
+        {
+            var pool = new TrackingArrayPool();
+            using TestServerChannel probe = CreateOpenChannel(pool);
+            int rented = probe.GetRentedLengthForTest(TcpMessageLimits.SymmetricHeaderSize +
+                TcpMessageLimits.SequenceHeaderSize + 8);
+            var budget = new ChunkReassemblyBudget(2L * rented, rented);
+            using TestServerChannel channel = CreateOpenChannel(pool, budget: budget);
+
+            await channel.FeedReceivedChunkAsync(channel.CreateRequestChunkForTest(
+                TcpMessageType.Message, isFinal: false, sequenceNumber: 1, requestId: 1)).ConfigureAwait(false);
+            Assert.That(budget.ReservedBytes, Is.EqualTo(budget.MaxBytesWithoutSession));
+
+            await channel.FeedReceivedChunkAsync(channel.CreateRequestChunkForTest(
+                TcpMessageType.Message, isFinal: false, sequenceNumber: 2, requestId: 2)).ConfigureAwait(false);
+
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Open));
+            Assert.That(budget.ReservedBytes, Is.EqualTo(rented));
+            Assert.That(pool.OutstandingCount, Is.EqualTo(1));
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// A message that breaks the per channel chunk limit is discarded along
+        /// with its reservation.
+        /// </summary>
+        [Test]
+        public async Task ExceedingTheRequestChunkLimitReleasesTheReservationAsync()
+        {
+            var pool = new TrackingArrayPool();
+            var budget = new ChunkReassemblyBudget(1024 * 1024);
+            using TestServerChannel channel = CreateOpenChannel(pool, budget: budget);
+            channel.SetMaxRequestChunkCountForTest(1);
+
+            for (uint sequenceNumber = 1; sequenceNumber <= 3; sequenceNumber++)
+            {
+                await channel.FeedReceivedChunkAsync(channel.CreateRequestChunkForTest(
+                    TcpMessageType.Message,
+                    isFinal: false,
+                    sequenceNumber,
+                    requestId: 1)).ConfigureAwait(false);
+            }
+
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+            Assert.That(budget.ReservedBytes, Is.Zero);
+            Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// A peer that disconnects in the middle of a message leaves no
+        /// reservation behind: the budget is shared, so a leaked one would be
+        /// lost to every other channel of the server.
+        /// </summary>
+        [Test]
+        public async Task DisposeReleasesTheReservationOfAnUnfinishedMessageAsync()
+        {
+            var pool = new TrackingArrayPool();
+            var budget = new ChunkReassemblyBudget(1024 * 1024);
+            TestServerChannel channel = CreateOpenChannel(pool, budget: budget);
+
+            try
+            {
+                await FeedIntermediateChunkAsync(channel).ConfigureAwait(false);
+                Assert.That(budget.ReservedBytes, Is.GreaterThan(0));
+            }
+            finally
+            {
+                channel.Dispose();
+            }
+
+            Assert.That(budget.ReservedBytes, Is.Zero);
+            Assert.That(pool.OutstandingCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// Many connections that each send intermediate chunks and never the
+        /// final one. Every connection stays within its own negotiated limits,
+        /// so only the budget the channels share keeps what they hold together
+        /// from growing with their number.
+        /// </summary>
+        [Test]
+        public async Task ConnectionsThatNeverFinishAMessageCannotExhaustMemoryAsync()
+        {
+            const int connectionCount = 64;
+            const int chunksPerConnection = 8;
+            const int bodySize = 1000;
+            var pool = new TrackingArrayPool();
+            using TestServerChannel probe = CreateOpenChannel(pool);
+            int rented = probe.GetRentedLengthForTest(TcpMessageLimits.SymmetricHeaderSize +
+                TcpMessageLimits.SequenceHeaderSize + bodySize);
+            var budget = new ChunkReassemblyBudget(20L * rented);
+            var channels = new List<TestServerChannel>();
+
+            try
+            {
+                for (int connection = 0; connection < connectionCount; connection++)
+                {
+                    TestServerChannel channel = CreateOpenChannel(pool, budget: budget);
+                    channels.Add(channel);
+                    for (uint sequenceNumber = 1; sequenceNumber <= chunksPerConnection; sequenceNumber++)
+                    {
+                        await channel.FeedReceivedChunkAsync(channel.CreateRequestChunkForTest(
+                            TcpMessageType.Message,
+                            isFinal: false,
+                            sequenceNumber,
+                            requestId: 1,
+                            bodySize: bodySize)).ConfigureAwait(false);
+
+                        Assert.That(budget.ReservedBytes, Is.LessThanOrEqualTo(budget.MaxBytesWithoutSession));
+                        Assert.That(pool.OutstandingCount, Is.LessThanOrEqualTo(10));
+
+                        // a refused connection is closed; nothing more arrives on it.
+                        if (channel.CurrentState != TcpChannelState.Open)
+                        {
+                            break;
+                        }
+                    }
+                }
+
+                // the first connection keeps what it sent, every later one is
+                // refused before it can take the room that is left.
+                Assert.That(
+                    channels.FindAll(c => c.CurrentState == TcpChannelState.Closed),
+                    Has.Count.EqualTo(connectionCount - 1));
+            }
+            finally
+            {
+                foreach (TestServerChannel channel in channels)
+                {
+                    channel.Dispose();
+                }
+            }
+
+            Assert.That(budget.ReservedBytes, Is.Zero);
+            Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+        }
+
+        private static ValueTask FeedIntermediateChunkAsync(TestServerChannel channel)
+        {
+            return channel.FeedReceivedChunkAsync(channel.CreateRequestChunkForTest(
+                TcpMessageType.Message,
+                isFinal: false,
+                sequenceNumber: 1,
+                requestId: 1));
+        }
+
         private static TestServerChannel CreateOpenChannel(
             TrackingArrayPool pool,
             int maxBufferSize = 64 * 1024,
-            int? maxStringLength = null)
+            int? maxStringLength = null,
+            ChunkReassemblyBudget budget = null)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var context = ServiceMessageContext.Create(telemetry);
@@ -880,7 +1269,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             var quotas = new ChannelQuotas(context)
             {
                 MaxBufferSize = maxBufferSize,
-                MaxMessageSize = 4 * 1024 * 1024
+                MaxMessageSize = 4 * 1024 * 1024,
+                ChunkReassemblyBudget = budget
             };
             var manager = new BufferManager(
                 nameof(TcpServerChannelBufferTests),
@@ -1260,6 +1650,53 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             public void CallSymmetricSendServiceFault(uint requestId, ServiceResult fault, uint requestHandle)
             {
                 SendServiceFault(CurrentToken!, requestId, fault, requestHandle);
+            }
+
+            /// <summary>
+            /// Records a session activated on the channel, as a good ActivateSession response does.
+            /// </summary>
+            public void ActivateSessionForTest()
+            {
+                AddSession();
+            }
+
+            /// <summary>
+            /// Returns the length of the array a chunk of <paramref name="size"/> bytes is received into.
+            /// </summary>
+            public int GetRentedLengthForTest(int size)
+            {
+                return BufferManager.GetExpectedBufferSize(size);
+            }
+
+            /// <summary>
+            /// Encodes a request and splits it into chunks with bodies of at most
+            /// <paramref name="maxBodySize"/> bytes, all intermediate except the last.
+            /// </summary>
+            public List<ArraySegment<byte>> CreateRequestChunksForTest(
+                uint requestId,
+                uint firstSequenceNumber,
+                IServiceRequest request,
+                int maxBodySize)
+            {
+                using var stream = new System.IO.MemoryStream();
+                BinaryEncoder.EncodeMessage(request, stream, Quotas.MessageContext, true);
+                byte[] encoded = stream.ToArray();
+
+                var chunks = new List<ArraySegment<byte>>();
+                uint sequenceNumber = firstSequenceNumber;
+                for (int offset = 0; offset < encoded.Length; offset += maxBodySize)
+                {
+                    int count = Math.Min(maxBodySize, encoded.Length - offset);
+                    byte[] body = new byte[count];
+                    Buffer.BlockCopy(encoded, offset, body, 0, count);
+                    chunks.Add(CreateRequestChunkForTest(
+                        TcpMessageType.Message,
+                        isFinal: offset + count == encoded.Length,
+                        sequenceNumber++,
+                        requestId,
+                        body: body));
+                }
+                return chunks;
             }
 
             protected override void OnTransportError(ServiceResult result)

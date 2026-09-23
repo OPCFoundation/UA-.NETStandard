@@ -521,6 +521,26 @@ provider through the server-wide historian registry, or override
 [Server address-space metadata](NodeManagers.md#server-address-space-metadata) and
 [Historical Access](HistoricalAccess.md).
 
+## Sizing the memory for incomplete chunked messages
+
+In 1.5.x a server bounded the chunks of a message it was still assembling
+only per secure channel, by the negotiated `MaxMessageSize` and
+`MaxChunkCount`, so connections that never sent the final chunk of a
+message could together exhaust the server's memory. The `opc.tcp` and
+`opc.wss` listeners now charge those chunks against one
+`ChunkReassemblyBudget` shared by all channels and listeners of the server.
+A chunk that does not fit closes its channel with
+`BadTcpNotEnoughResources`; channels on which no session has been activated
+may fill half the budget, and a request that fits in one chunk is never
+refused.
+
+No code has to change. The default budget is sixteen messages of
+`TransportQuotas.MaxMessageSize`, at least 64 MiB and at most 1 GiB. A server
+whose clients send many large requests at the same time can raise it with
+`WithChunkReassemblyBudget(maxBytes)` on the server builder, or by setting
+`ServerBase.ChunkReassemblyBudget` before the server starts. See
+[Incomplete messages](RateLimiting.md#incomplete-messages).
+
 ## Migrating custom ISessionManager implementations to ShutdownAsync
 
 `ISessionManager.Shutdown()` is **gone**, replaced by

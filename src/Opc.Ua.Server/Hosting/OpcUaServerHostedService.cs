@@ -271,6 +271,14 @@ namespace Opc.Ua.Server.Hosting
                 m_server.RateLimitOptions = rateLimitOptions;
             }
 
+            // A registered budget bounds what incomplete messages may hold across
+            // all the listeners; without one the server sizes it from the
+            // maximum message size.
+            if (m_services.GetService<ChunkReassemblyBudget>() is { } chunkReassemblyBudget)
+            {
+                m_server.ChunkReassemblyBudget = chunkReassemblyBudget;
+            }
+
             foreach (OpcUaServerNodeManagerRegistration reg in
                 m_services.GetServices<OpcUaServerNodeManagerRegistration>())
             {

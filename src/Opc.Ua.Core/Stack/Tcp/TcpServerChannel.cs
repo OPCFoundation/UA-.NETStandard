@@ -602,6 +602,19 @@ namespace Opc.Ua.Bindings
                     TcpMessageLimits.MinBufferSize,
                     BufferManager.GetSuggestedBufferSize(ReceiveBufferSize));
 
+                // No chunk may be larger than the negotiated size from now on, so
+                // the transport rents its receive buffers at that size rather than
+                // at the size the connection was accepted with. The chunk count
+                // limit below allows proportionally more chunks for a smaller
+                // size, and an incomplete message keeps the whole buffer of every
+                // chunk alive, so buffers of the accepted size would let a client
+                // that negotiates small chunks hold several times the maximum
+                // message size.
+                if (Transport is IUaSCByteTransportLimits transportLimits)
+                {
+                    transportLimits.SetReceiveBufferSize(ReceiveBufferSize);
+                }
+
                 // update send buffer size.
                 SendBufferSize = Math.Min(SendBufferSize, (int)sendBufferSize);
                 SendBufferSize = Math.Min(
@@ -1790,6 +1803,42 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Tells the client that the server cannot keep more chunks of
+        /// incomplete messages, and closes the channel.
+        /// </summary>
+        /// <remarks>
+        /// <c>Bad_TcpNotEnoughResources</c> is the error OPC 10000-6 §7.1.5
+        /// defines for a server that runs out of memory, and a client may use it
+        /// to delay its reconnect. The incomplete message has already been
+        /// discarded; closing the channel keeps the rest of it from being
+        /// assembled into a message that lacks its beginning. Like
+        /// <see cref="DoMessageLimitsExceeded(bool)"/> this takes no lock, so it
+        /// is correct from either context.
+        /// </remarks>
+        private protected override void OnChunkReassemblyBudgetExceeded(bool gateHeld)
+        {
+            try
+            {
+                if (Transport != null)
+                {
+                    SendErrorMessage(ServiceResult.Create(
+                        StatusCodes.BadTcpNotEnoughResources,
+                        "The server cannot keep more chunks of incomplete messages."));
+                }
+            }
+            catch (Exception e)
+            {
+                // The transport may have gone since it was checked; the client
+                // then sees the connection close instead of the reason.
+                m_logger.TcpServerReassemblyErrorNotSent(e, ChannelId);
+            }
+            finally
+            {
+                ChannelClosed();
+            }
+        }
+
+        /// <summary>
         /// Validate the type of message before it is decoded.
         /// </summary>
         /// <param name="token">The token the fault is sent under.</param>
@@ -1979,6 +2028,14 @@ namespace Opc.Ua.Bindings
         [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 18, Level = LogLevel.Error,
             Message = "ChannelId {ChannelId}: reconnect handoff failed; closing the unadopted connection.")]
         public static partial void TcpServerReconnectFailed(
+            this ILogger logger,
+            Exception exception,
+            uint channelId);
+
+        [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 19, Level = LogLevel.Debug,
+            Message = "ChannelId {ChannelId}: Could not tell the client that the chunk reassembly budget " +
+                "is exhausted; closing the channel.")]
+        public static partial void TcpServerReassemblyErrorNotSent(
             this ILogger logger,
             Exception exception,
             uint channelId);

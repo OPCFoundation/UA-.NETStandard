@@ -748,6 +748,10 @@ namespace Opc.Ua
                 listeners.Clear();
             }
 
+            // The listeners are gone and their channels with them; a restart
+            // sizes a new budget from the configuration it is started with.
+            m_defaultChunkReassemblyBudget = null;
+
             // close the hosts.
             lock (ServiceHosts)
             {
@@ -889,6 +893,23 @@ namespace Opc.Ua
         public ISecurityPolicyRegistry? SecurityPolicyRegistry { get; set; }
 
         /// <summary>
+        /// The budget that bounds the memory the chunks of incomplete messages
+        /// hold across all the transport listeners of the server, or <c>null</c>
+        /// to let the server create one.
+        /// </summary>
+        /// <remarks>
+        /// Set this before starting the server to size the budget, or to share
+        /// one budget between the servers of a process - a dependency-injected
+        /// server sets it from its container. When it is left <c>null</c> the
+        /// server creates a budget when it opens its listeners, sized by
+        /// <see cref="ChunkReassemblyBudget.GetDefaultMaxBytes(int)"/>
+        /// from the maximum message size of its transport quotas, and all its
+        /// listeners share it. Either way no connection can make the server keep
+        /// more than the budget for messages whose final chunk never arrives.
+        /// </remarks>
+        public ChunkReassemblyBudget? ChunkReassemblyBudget { get; set; }
+
+        /// <summary>
         /// Gets or sets the encodeable factory to use for this server instance.
         /// </summary>
         /// <remarks>
@@ -1022,6 +1043,13 @@ namespace Opc.Ua
             {
                 IServiceMessageContext messageContext = m_messageContext
                     ?? throw new ServiceResultException(StatusCodes.BadServerHalted);
+
+                // One budget for all the listeners, so that a peer cannot hold
+                // the budget of each by spreading its connections across them.
+                ChunkReassemblyBudget chunkReassemblyBudget = ChunkReassemblyBudget ??
+                    (m_defaultChunkReassemblyBudget ??= new ChunkReassemblyBudget(
+                        ChunkReassemblyBudget.GetDefaultMaxBytes(endpointConfiguration.MaxMessageSize)));
+
                 var settings = new TransportListenerSettings
                 {
                     Descriptions = endpoints,
@@ -1031,7 +1059,8 @@ namespace Opc.Ua
                     SecurityPolicyRegistry = SecurityPolicyRegistry,
                     NamespaceUris = messageContext.NamespaceUris,
                     Factory = messageContext.Factory,
-                    MaxChannelCount = 0
+                    MaxChannelCount = 0,
+                    ChunkReassemblyBudget = chunkReassemblyBudget
                 };
 
                 settings.MaxChannelCount = Configuration!.ServerConfiguration!.MaxChannelCount;
@@ -1970,6 +1999,12 @@ namespace Opc.Ua
         private RequestQueue m_requestQueue;
         private readonly ITelemetryContext m_telemetry;
         private ITransportBindingRegistry? m_transportBindings;
+
+        /// <summary>
+        /// The budget the server created for its listeners because
+        /// <see cref="ChunkReassemblyBudget"/> was not set.
+        /// </summary>
+        private ChunkReassemblyBudget? m_defaultChunkReassemblyBudget;
 
         private bool m_disposed;
         private bool m_ownsCertificateManager;

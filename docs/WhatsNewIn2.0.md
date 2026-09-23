@@ -268,7 +268,11 @@ several places: socket and event-handler leaks during server restart,
 timer leaks in `ChannelAsyncOperation.EndAsync`, `TcpTransportListener`
 resource leakage in `ServerBase.StopAsync`, undeleted subscription
 diagnostic nodes, and the abandoned-subscription map migrated from a
-locked `List` to a `ConcurrentDictionary`.
+locked `List` to a `ConcurrentDictionary`. The `opc.tcp` and `opc.wss`
+listeners bound the memory that incomplete chunked messages hold across all
+connections with a shared
+[chunk reassembly budget](RateLimiting.md#incomplete-messages), and receive
+each chunk into a buffer of the negotiated chunk size.
 
 ### Security and certificates
 

@@ -783,6 +783,13 @@ properties (bindable from `IConfiguration` or set via the
 | `ConfigureBuilder` | Code-only callback | Pre-security server-policy and server-option escape hatch, including max failed authentication attempts, sessions, channels, auditing, and HTTPS mutual TLS. |
 | `ConfigureRateLimits` | Code-only callback | Tunes the default connection and session-establishment admission controls. |
 
+The memory that incomplete chunked messages may hold across all listeners
+of the server is set on the server builder rather than on the options:
+`builder.AddServer(...).WithChunkReassemblyBudget(maxBytes)` registers the
+`ChunkReassemblyBudget` the hosted server uses. Without it the budget is
+sized from `MaxMessageSize`; see
+[Incomplete messages](RateLimiting.md#incomplete-messages).
+
 ### Server-side reverse connect
 
 A regular DI server can dial back to clients via reverse-hello using
