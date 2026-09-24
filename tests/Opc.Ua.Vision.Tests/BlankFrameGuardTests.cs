@@ -31,6 +31,7 @@ using System;
 using System.Reflection;
 using NUnit.Framework;
 using Opc.Ua.Vision.OpenUsd.Rendering;
+using OpenUsd.Rendering;
 using OpenUsd.Rendering.Silk;
 
 namespace Opc.Ua.Vision.Tests
@@ -215,12 +216,14 @@ namespace Opc.Ua.Vision.Tests
                     typeof(byte[]),
                     typeof(SilkMeshRenderResult),
                     typeof(ulong),
-                    typeof(uint)
+                    typeof(uint),
+                    typeof(RenderDiagnosticsState)
                 },
                 modifiers: null);
             Assert.That(ctor, Is.Not.Null,
-                "SilkFrameCaptureResult's internal (int,int,byte[],SilkMeshRenderResult,ulong,uint) constructor must exist for BlankFrameGuard tests to construct fixtures.");
-            return (SilkFrameCaptureResult)ctor!.Invoke(new object[] { width, height, rgba, render, 0UL, 0U });
+                "SilkFrameCaptureResult's internal capture constructor must exist for BlankFrameGuard tests to construct fixtures.");
+            return (SilkFrameCaptureResult)ctor!.Invoke(
+                new object[] { width, height, rgba, render, 0UL, 0U, RenderDiagnosticsState.Empty });
         }
     }
 }

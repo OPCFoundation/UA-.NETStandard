@@ -7,11 +7,44 @@
     the rest of the build system.
 #>
 
-# Try install tool
-# Note: Keep Version 3.7.115, it is known working for 4 digit versioning
-& dotnet @("tool", "install", "--tool-path", "./tools", "--version", "3.7.115", "--framework", "net80", "nbgv") 2>&1 
+# Keep the CLI and the MSBuild package on the same explicit version. A version
+# range or omitted --version would make otherwise identical CI runs use
+# different nbgv behavior as releases appear on nuget.org.
+[xml]$centralPackages = Get-Content -LiteralPath './Directory.Packages.props' -Raw
+$nbgvVersions = @($centralPackages.Project.ItemGroup.PackageVersion |
+    Where-Object { $_.Include -eq 'Nerdbank.GitVersioning' } |
+    ForEach-Object { $_.Version })
+if ($nbgvVersions.Count -ne 1 -or [string]::IsNullOrWhiteSpace($nbgvVersions[0])) {
+    throw 'Directory.Packages.props must declare exactly one Nerdbank.GitVersioning version.'
+}
 
-$props = (& ./tools/nbgv  @("get-version", "-f", "json")) | ConvertFrom-Json
+$nbgvVersion = $nbgvVersions[0]
+if ($nbgvVersion -notmatch '^\d+\.\d+\.\d+$') {
+    throw "Nerdbank.GitVersioning version '$nbgvVersion' must be an explicit stable version."
+}
+
+$toolPath = './tools'
+$toolExecutable = Join-Path $toolPath 'nbgv'
+if ($IsWindows) {
+    $toolExecutable += '.exe'
+}
+
+$toolCommand = if (Test-Path -LiteralPath $toolExecutable) { 'update' } else { 'install' }
+& dotnet @(
+    'tool',
+    $toolCommand,
+    '--tool-path',
+    $toolPath,
+    '--version',
+    $nbgvVersion,
+    '--framework',
+    'net10.0',
+    'nbgv') 2>&1
+if ($LastExitCode -ne 0) {
+    throw "Failed to $toolCommand nbgv $nbgvVersion (exit code $LastExitCode)."
+}
+
+$props = (& $toolExecutable @("get-version", "-f", "json")) | ConvertFrom-Json
 if ($LastExitCode -ne 0) {
    throw "Error: 'nbgv get-version -f json' failed with $($LastExitCode)."
 }
@@ -28,11 +61,11 @@ $version = [pscustomobject] @{
 # Call versioning for build
 if ($version.Public -eq 'True')
 {
-   & ./tools/nbgv  @("cloud", "-c", "-a", "-v", "$($version.Full)$($version.Pre)")
+   & $toolExecutable @("cloud", "-c", "-a", "-v", "$($version.Full)$($version.Pre)")
 }
 else
 {
-   & ./tools/nbgv  @("cloud", "-c", "-a")
+   & $toolExecutable @("cloud", "-c", "-a")
 }
 
 if ($LastExitCode -ne 0) {
