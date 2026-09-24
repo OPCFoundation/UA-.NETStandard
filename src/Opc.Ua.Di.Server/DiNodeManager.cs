@@ -297,8 +297,10 @@ namespace Opc.Ua.Di.Server
         /// <c>IDiPostSetupRunner</c>-based hosting hooks. The flow is:
         /// <list type="number">
         ///   <item><description>
-        ///     The framework's <c>base.CreateAddressSpaceAsync</c> loads
-        ///     predefined nodes and wires the type tree.
+        ///     <c>LoadPredefinedNodesAsync</c> loads predefined nodes and
+        ///     wires the type tree. The manager runs its own pipeline rather
+        ///     than the one in <c>FluentNodeManagerBase.CreateAddressSpaceAsync</c>,
+        ///     because the post-setup runner has to run before sealing.
         ///   </description></item>
         ///   <item><description>
         ///     The manager's fluent builder is created and attached, then
@@ -329,8 +331,8 @@ namespace Opc.Ua.Di.Server
             IDictionary<NodeId, IList<IReference>> externalReferences,
             CancellationToken cancellationToken = default)
         {
-            await base.CreateAddressSpaceAsync(
-                externalReferences, cancellationToken).ConfigureAwait(false);
+            await LoadPredefinedNodesAsync(
+                SystemContext, externalReferences, cancellationToken).ConfigureAwait(false);
 
             NodeManagerBuilder builder = CreateFluentBuilder(InstanceNamespaceIndex);
 

@@ -559,7 +559,7 @@ The runner is injected into the manager via the factory. The base
 `CreateAddressSpaceAsync` for every concrete subclass:
 
 - The base `DiNodeManager.CreateAddressSpaceAsync` calls
-  `base.CreateAddressSpaceAsync` → `CreateFluentBuilder(...)` →
+  `LoadPredefinedNodesAsync` → `CreateFluentBuilder(...)` →
   `ConfigureAsync(builder, ct)` → `RegisterAuthoredNodesAsync` →
   `CompleteConfigureAsync` → `PostSetupRunner.RunAsync(this, ct)` →
   `builder.SealAsync(ct)` in that order. Sealing comes last because the
@@ -585,7 +585,7 @@ sequenceDiagram
     participant Run as IDiPostSetupRunner
 
     Host->>Base: CreateAddressSpaceAsync(externalReferences, ct)
-    Base->>Base: await base.CreateAddressSpaceAsync
+    Base->>Base: await LoadPredefinedNodesAsync
     Note over Base: predefined nodes loaded, type tree wired
     Base->>B: CreateFluentBuilder(InstanceNamespaceIndex)
     Note over B: attached to the manager's event-source<br/>and simulation registries
