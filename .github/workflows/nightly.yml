@@ -55,7 +55,7 @@ jobs:
       id: matrix
       shell: pwsh
       env:
-        INCLUDE_MACOS: ${{ inputs.include_macos }}
+        INCLUDE_MACOS: ${{ github.event_name == 'schedule' || inputs.include_macos }}
       run: |
         ./.github/scripts/get-ci-matrix.ps1 `
           -Scope full `
@@ -80,7 +80,7 @@ jobs:
       id: aot
       shell: pwsh
       env:
-        INCLUDE_MACOS: ${{ inputs.include_macos }}
+        INCLUDE_MACOS: ${{ github.event_name == 'schedule' || inputs.include_macos }}
       run: |
         # Windows is included here and not in the pull-request workflow: it is
         # the leg the Azure `testaot` stage owns today, so a full-scope run on
