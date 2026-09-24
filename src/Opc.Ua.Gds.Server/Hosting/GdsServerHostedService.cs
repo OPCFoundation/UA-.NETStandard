@@ -190,7 +190,7 @@ namespace Opc.Ua.Gds.Server.Hosting
                 : m_options.ApplicationName;
 
             string pkiRoot = string.IsNullOrEmpty(m_options.PkiRoot)
-                ? Path.Combine(Path.GetTempPath(), "OPC Foundation", appName, "pki")
+                ? GetDefaultPkiRoot(appName)
                 : m_options.PkiRoot;
 
             string subject = string.IsNullOrEmpty(m_options.SubjectName)
@@ -365,6 +365,29 @@ namespace Opc.Ua.Gds.Server.Hosting
         {
             m_server?.Dispose();
             base.Dispose();
+        }
+
+        /// <summary>
+        /// The certificate store root used when <see cref="GdsServerOptions.PkiRoot"/>
+        /// is empty: a per-user application-data directory. The shared temporary
+        /// directory is not used because on Linux/macOS other local users can
+        /// pre-create it and plant trusted certificates or read the CA private key.
+        /// </summary>
+        /// <exception cref="ServiceResultException">No per-user application-data
+        /// directory is available (e.g. HOME is not set); configure PkiRoot.</exception>
+        internal static string GetDefaultPkiRoot(string applicationName)
+        {
+            string appData = Environment.GetFolderPath(
+                Environment.SpecialFolder.LocalApplicationData,
+                Environment.SpecialFolderOption.DoNotVerify);
+            if (string.IsNullOrEmpty(appData))
+            {
+                throw ServiceResultException.ConfigurationError(
+                    "No per-user application data directory is available for the " +
+                    "certificate stores. Configure GdsServerOptions.PkiRoot.");
+            }
+
+            return Path.Combine(appData, "OPC Foundation", applicationName, "pki");
         }
 
         private GlobalDiscoveryServerConfiguration BuildGdsConfiguration(string pkiRoot)
