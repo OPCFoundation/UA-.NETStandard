@@ -1571,7 +1571,10 @@ namespace Opc.Ua
                 return;
             }
             StartObject();
-            WriteString(JsonProperties.Text, value.Text);
+            if (!string.IsNullOrEmpty(value.Text))
+            {
+                WriteString(JsonProperties.Text, value.Text);
+            }
             if (!string.IsNullOrEmpty(value.Locale))
             {
                 WriteString(JsonProperties.Locale, value.Locale);
@@ -1580,12 +1583,13 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// An empty locale is not encoded (Part 6 5.4.2.15), so a value without text and
-        /// locale is the null LocalizedText (all fields default, Part 6 5.1.2) on the wire.
+        /// Text and Locale are not encoded if they are null or empty (Part 6 5.4.2.15), so a
+        /// value without either is the null LocalizedText (all fields default, Part 6 5.1.2).
         /// </summary>
         private static bool IsJsonNull(LocalizedText value)
         {
-            return value.IsNull || (value.Text == null && string.IsNullOrEmpty(value.Locale));
+            return value.IsNull ||
+                (string.IsNullOrEmpty(value.Text) && string.IsNullOrEmpty(value.Locale));
         }
 
         /// <summary>
@@ -1917,15 +1921,37 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// A decoder reconstructs a Variant without a Value field as the default scalar of
-        /// its UaType, so only a default scalar can be omitted. A null array is written as
-        /// an empty array instead, which is semantically the same (Part 6 5.1.11).
+        /// The Value field is not encoded if the value is a NULL for a nullable built-in
+        /// type (Part 6 5.4.2.17, Table 1). Default values of the other types are always
+        /// written, and a null array is written as an empty array, which is semantically
+        /// the same (Part 6 5.1.11), so a decoder never has to guess the value rank.
         /// </summary>
-        private bool CanOmitVariantValue(in Variant value)
+        private static bool CanOmitVariantValue(in Variant value)
         {
-            return m_options.IgnoreDefaultValues &&
-                value.TypeInfo.IsScalar &&
-                value.ValueIsDefaultOrNull;
+            if (!value.TypeInfo.IsScalar)
+            {
+                return false;
+            }
+            switch (value.TypeInfo.BuiltInType)
+            {
+                case BuiltInType.LocalizedText:
+                    return IsJsonNull(value.GetLocalizedText());
+                case BuiltInType.String:
+                case BuiltInType.DateTime:
+                case BuiltInType.Guid:
+                case BuiltInType.ByteString:
+                case BuiltInType.XmlElement:
+                case BuiltInType.NodeId:
+                case BuiltInType.ExpandedNodeId:
+                case BuiltInType.QualifiedName:
+                case BuiltInType.ExtensionObject:
+                case BuiltInType.DataValue:
+                    return value.ValueIsDefaultOrNull;
+                default:
+                    // Includes Variant and DiagnosticInfo, which are not valid Variant
+                    // contents and must still reach the writer to be rejected.
+                    return false;
+            }
         }
 
         /// <summary>

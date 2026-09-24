@@ -558,6 +558,12 @@ namespace Opc.Ua.Fuzzing
                 return AreJsonEquivalentExpandedNodeIds(leftExpandedNodeId, rightExpandedNodeId, context);
             }
 
+            if (left is LocalizedText leftLocalizedText &&
+                right is LocalizedText rightLocalizedText)
+            {
+                return IsJsonEquivalentLocalizedText(leftLocalizedText, rightLocalizedText);
+            }
+
             if (IsArrayOf(type))
             {
                 return IsJsonEquivalentArrayOf(left, right, type, seen, options, context);
@@ -714,6 +720,17 @@ namespace Opc.Ua.Fuzzing
             }
 
             return prototype != null && Utils.IsEqual(prototype, decoded);
+        }
+
+        /// <summary>
+        /// Null and empty strings are semantically the same (Part 6 5.1.11), and the JSON
+        /// encoding does not encode either for Text or Locale (Part 6 5.4.2.15).
+        /// </summary>
+        private static bool IsJsonEquivalentLocalizedText(LocalizedText left, LocalizedText right)
+        {
+            return left.Equals(right) ||
+                (string.Equals(left.Text ?? string.Empty, right.Text ?? string.Empty, StringComparison.Ordinal) &&
+                    string.Equals(left.Locale ?? string.Empty, right.Locale ?? string.Empty, StringComparison.Ordinal));
         }
 
         private static bool IsJsonEquivalentQualifiedName(QualifiedName left, QualifiedName right)
