@@ -150,6 +150,16 @@ namespace Opc.Ua.Schema.Xsd
                 else
                 {
                     var sequence = new XmlSchemaSequence();
+                    if (HasOptionalFields(structure))
+                    {
+                        // Part 6 5.3.6: the XML encoding of a structure with optional
+                        // fields starts with the EncodingMask of the present fields.
+                        sequence.Items.Add(new XmlSchemaElement
+                        {
+                            Name = "EncodingMask",
+                            SchemaTypeName = Xs("unsignedInt")
+                        });
+                    }
                     AddStructureFields(sequence.Items, structure.Fields, forceOptional: false);
                     complexType.Particle = sequence;
                 }
@@ -162,24 +172,49 @@ namespace Opc.Ua.Schema.Xsd
             private void AddEnum(UaTypeDescription type, EnumDefinition enumeration)
             {
                 var simpleType = new XmlSchemaSimpleType { Name = type.Name };
-                var restriction = new XmlSchemaSimpleTypeRestriction
+                var restriction = new XmlSchemaSimpleTypeRestriction();
+                if (enumeration.IsOptionSet)
                 {
-                    BaseTypeName = enumeration.IsOptionSet ? Xs("int") : Xs("string")
-                };
-                ArrayOf<EnumField> fields = enumeration.Fields;
-                for (int i = 0; i < fields.Count; i++)
+                    // Part 3 8.52: the fields of an OptionSet are bit numbers; the value is
+                    // the underlying unsigned integer with any combination of these bits.
+                    restriction.BaseTypeName = Xs("unsignedLong");
+                }
+                else
                 {
-                    EnumField field = fields[i];
-                    restriction.Facets.Add(new XmlSchemaEnumerationFacet
+                    restriction.BaseTypeName = Xs("string");
+                    ArrayOf<EnumField> fields = enumeration.Fields;
+                    for (int i = 0; i < fields.Count; i++)
                     {
-                        Value = enumeration.IsOptionSet ? XmlConvert.ToString(field.Value) : EnumValue(field, i)
-                    });
+                        restriction.Facets.Add(new XmlSchemaEnumerationFacet
+                        {
+                            Value = EnumValue(fields[i], i)
+                        });
+                    }
                 }
 
                 simpleType.Content = restriction;
                 Schema.Items.Add(simpleType);
                 AddElement(type.Name, Tns(type.Name), isNillable: false);
                 AddListType(type.Name, Tns(type.Name), isNillable: false);
+            }
+
+            private static bool HasOptionalFields(StructureDefinition structure)
+            {
+                if (structure.StructureType == StructureType.StructureWithOptionalFields)
+                {
+                    return true;
+                }
+
+                ArrayOf<StructureField> fields = structure.Fields;
+                for (int i = 0; i < fields.Count; i++)
+                {
+                    if (fields[i].IsOptional)
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
             }
 
             private void AddStructureFields(
@@ -258,6 +293,13 @@ namespace Opc.Ua.Schema.Xsd
                         return new TypeReference(Tns(referenced.Name), referenced.Name, true);
                     }
 
+                    if (string.Equals(referenced.NamespaceUri, Namespaces.OpcUa, StringComparison.Ordinal))
+                    {
+                        // Part 6 F.1: the standard types live in the Types.xsd namespace
+                        // which is already imported with the ua prefix.
+                        return new TypeReference(Ua(referenced.Name), referenced.Name, true);
+                    }
+
                     AddNamespaceImport(referenced.NamespaceUri);
                     return new TypeReference(new XmlQualifiedName(referenced.Name, referenced.NamespaceUri),
                         referenced.Name,
@@ -318,8 +360,10 @@ namespace Opc.Ua.Schema.Xsd
                     case BuiltInType.Enumeration:
                         return new TypeReference(Xs("int"), "Int32", false);
                     case BuiltInType.UInt32:
-                    case BuiltInType.StatusCode:
                         return new TypeReference(Xs("unsignedInt"), "UInt32", false);
+                    case BuiltInType.StatusCode:
+                        // Part 6 5.3.1.12: ua:StatusCode wraps the value in a <Code> element.
+                        return new TypeReference(Ua("StatusCode"), "StatusCode", false);
                     case BuiltInType.Int64:
                         return new TypeReference(Xs("long"), "Int64", false);
                     case BuiltInType.UInt64:
@@ -333,7 +377,8 @@ namespace Opc.Ua.Schema.Xsd
                     case BuiltInType.DateTime:
                         return new TypeReference(Xs("dateTime"), "DateTime", true);
                     case BuiltInType.Guid:
-                        return new TypeReference(Xs("string"), "Guid", true);
+                        // Part 6 5.3.1.7: ua:Guid wraps the value in a <String> element.
+                        return new TypeReference(Ua("Guid"), "Guid", true);
                     case BuiltInType.ByteString:
                         return new TypeReference(Xs("base64Binary"), "ByteString", true);
                     case BuiltInType.XmlElement:

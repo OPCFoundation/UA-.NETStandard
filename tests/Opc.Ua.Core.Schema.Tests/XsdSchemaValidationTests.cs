@@ -116,6 +116,118 @@ namespace Opc.Ua.Schema.Tests
             });
         }
 
+        /// <summary>
+        /// The generated schema validates what the XmlEncoder writes: the leading EncodingMask
+        /// of a structure with optional fields (Part 6 5.3.6), the wrapped ua:Guid and
+        /// ua:StatusCode (5.3.1.7/5.3.1.12), OptionSet bit combinations (Part 3 8.52) and
+        /// standard structures from the Types.xsd namespace (Part 6 F.1).
+        /// </summary>
+        [Test]
+        public void GeneratedSchemaValidatesXmlEncoderOutput()
+        {
+            UaTypeDescription flags = Describe(
+                4121,
+                "ValidatedFlags",
+                SchemaTestData.TestNamespace,
+                SchemaTestData.TestNamespaceIndex,
+                new EnumDefinition
+                {
+                    IsOptionSet = true,
+                    Fields =
+                    [
+                        new EnumField { Name = "Bit0", Value = 0 },
+                        new EnumField { Name = "Bit2", Value = 2 }
+                    ]
+                });
+            UaTypeDescription range = Describe(
+                884,
+                "Range",
+                Namespaces.OpcUa,
+                0,
+                new StructureDefinition
+                {
+                    BaseDataType = DataTypeIds.Structure,
+                    StructureType = StructureType.Structure,
+                    Fields =
+                    [
+                        SchemaTestData.Field("Low", SchemaTestData.BuiltIn(BuiltInType.Double)),
+                        SchemaTestData.Field("High", SchemaTestData.BuiltIn(BuiltInType.Double))
+                    ]
+                });
+            UaTypeDescription encoded = SchemaTestData.Structure(
+                4120,
+                "ValidatedEncoded",
+                SchemaTestData.Field("Id", SchemaTestData.BuiltIn(BuiltInType.Guid)),
+                SchemaTestData.Field("Status", SchemaTestData.BuiltIn(BuiltInType.StatusCode)),
+                SchemaTestData.Field("Note", SchemaTestData.BuiltIn(BuiltInType.String), optional: true),
+                SchemaTestData.Field("Flags", new NodeId(4121, SchemaTestData.TestNamespaceIndex)),
+                SchemaTestData.Field("Limits", DataTypeIds.Range));
+            DefaultSchemaProvider provider = CreateProvider(flags, range, encoded);
+            var schema = (XmlSchemaDocument)provider.GetXmlSchema(encoded);
+
+            var context = ServiceMessageContext.Create(null);
+            var encoder = new XmlEncoder(
+                new XmlQualifiedName("ValidatedEncoded", SchemaTestData.TestNamespace),
+                null!,
+                context);
+            encoder.PushNamespace(SchemaTestData.TestNamespace);
+            encoder.WriteEncodingMask(1);
+            encoder.WriteGuid("Id", Uuid.NewUuid());
+            encoder.WriteStatusCode("Status", StatusCodes.BadUnexpectedError);
+            encoder.WriteString("Note", "note");
+            encoder.WriteUInt32("Flags", 5);
+            encoder.WriteEncodeable("Limits", new Range { Low = 1.0, High = 2.0 });
+            encoder.PopNamespace();
+            string xml = encoder.CloseAndReturnText()!;
+
+            var errors = new List<string>();
+            var settings = new XmlReaderSettings { ValidationType = ValidationType.Schema };
+            settings.ValidationEventHandler += (_, e) => errors.Add(e.Severity + ": " + e.Message);
+            AddSchema(settings.Schemas, UaTypesNamespace, kUaTypesStub);
+            AddSchema(settings.Schemas, schema.TargetNamespace, schema.ToSchemaString());
+            using (var reader = XmlReader.Create(new StringReader(xml), settings))
+            {
+                while (reader.Read())
+                {
+                }
+            }
+
+            Assert.That(errors, Is.Empty, xml + "\n" + schema.ToSchemaString());
+        }
+
+        private static UaTypeDescription Describe(
+            uint id,
+            string name,
+            string namespaceUri,
+            ushort namespaceIndex,
+            DataTypeDefinition definition)
+        {
+            return new UaTypeDescription(
+                new ExpandedNodeId(new NodeId(id, namespaceIndex)),
+                new QualifiedName(name, namespaceIndex),
+                definition,
+                namespaceUri);
+        }
+
+        /// <summary>
+        /// The subset of the standard Types.xsd used by <see cref="GeneratedSchemaValidatesXmlEncoderOutput"/>.
+        /// </summary>
+        private const string kUaTypesStub =
+            "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\" " +
+            "xmlns:ua=\"http://opcfoundation.org/UA/2008/02/Types.xsd\" " +
+            "targetNamespace=\"http://opcfoundation.org/UA/2008/02/Types.xsd\" elementFormDefault=\"qualified\">" +
+            "<xs:complexType name=\"Guid\"><xs:sequence>" +
+            "<xs:element name=\"String\" type=\"xs:string\" minOccurs=\"0\" nillable=\"true\"/>" +
+            "</xs:sequence></xs:complexType>" +
+            "<xs:complexType name=\"StatusCode\"><xs:sequence>" +
+            "<xs:element name=\"Code\" type=\"xs:unsignedInt\" minOccurs=\"0\"/>" +
+            "</xs:sequence></xs:complexType>" +
+            "<xs:complexType name=\"Range\"><xs:sequence>" +
+            "<xs:element name=\"Low\" type=\"xs:double\" minOccurs=\"0\"/>" +
+            "<xs:element name=\"High\" type=\"xs:double\" minOccurs=\"0\"/>" +
+            "</xs:sequence></xs:complexType>" +
+            "</xs:schema>";
+
         private static DefaultSchemaProvider CreateProvider(params UaTypeDescription[] types)
         {
             var registry = new DataTypeDefinitionRegistry();
