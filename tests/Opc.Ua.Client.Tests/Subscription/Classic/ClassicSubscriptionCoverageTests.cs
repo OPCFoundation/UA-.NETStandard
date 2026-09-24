@@ -730,6 +730,40 @@ namespace Opc.Ua.Client.Tests
             Assert.That(item.ServerId, Is.EqualTo(100u));
         }
 
+        /// <summary>
+        /// An item removed while its create request is in flight exists on the
+        /// server once the response arrives, so it must be queued for
+        /// deletion instead of being leaked (L7-8).
+        /// </summary>
+        [Test]
+        public async Task ItemRemovedDuringCreateIsQueuedForDeletionAsync()
+        {
+            using Subscription subscription = CreateSubscription();
+            MonitoredItem item = CreateItem(4322u, "Removed");
+            Mock<ISession> session = CreateItemSession(7, () => subscription.RemoveItem(item));
+            session
+                .Setup(s => s.DeleteMonitoredItemsAsync(
+                    It.IsAny<RequestHeader>(),
+                    7,
+                    It.IsAny<ArrayOf<uint>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new DeleteMonitoredItemsResponse { Results = [StatusCodes.Good] });
+            subscription.Session = session.Object;
+            await subscription.CreateAsync().ConfigureAwait(false);
+            subscription.AddItem(item);
+
+            await subscription.CreateItemsAsync().ConfigureAwait(false);
+            ArrayOf<MonitoredItem> deleted = await subscription.DeleteItemsAsync().ConfigureAwait(false);
+
+            Assert.That(deleted.Count, Is.EqualTo(1));
+            Assert.That(deleted[0], Is.SameAs(item));
+            session.Verify(s => s.DeleteMonitoredItemsAsync(
+                It.IsAny<RequestHeader>(),
+                7,
+                It.Is<ArrayOf<uint>>(ids => ids.Count == 1 && ids[0] == 100u),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+
         private static Mock<ISession> CreateItemSession(uint subscriptionId, Action onCreateItems = null)
         {
             var session = new Mock<ISession>();

@@ -1285,6 +1285,23 @@ namespace Opc.Ua.Client
                             response.DiagnosticInfos,
                             response.ResponseHeader);
                 }
+
+                // An item removed while its create request was in flight was
+                // not queued for deletion (it was not created yet), but it now
+                // exists on the server: queue it so it is not leaked.
+                lock (m_cache)
+                {
+                    foreach (MonitoredItem monitoredItem in itemsToCreate)
+                    {
+                        if (monitoredItem.Status.Created &&
+                            (!m_monitoredItems.TryGetValue(monitoredItem.ClientHandle, out MonitoredItem? current) ||
+                                !ReferenceEquals(current, monitoredItem)) &&
+                            !m_deletedItems.Contains(monitoredItem))
+                        {
+                            m_deletedItems.Add(monitoredItem);
+                        }
+                    }
+                }
             }
             catch
             {
