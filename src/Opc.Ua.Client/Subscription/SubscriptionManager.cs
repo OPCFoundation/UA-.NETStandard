@@ -1175,13 +1175,44 @@ namespace Opc.Ua.Client.Subscriptions
             SubscriptionOptions options = snapshots[0].ToOptions();
             var optionsMonitor = new OptionsMonitor<SubscriptionOptions>(options);
 
-            for (int i = 1; i < snapshots.Count; i++)
+            try
             {
-                ct.ThrowIfCancellationRequested();
-                await AttachSecondaryPartitionAsync(
-                    wrapper, handler, optionsMonitor,
-                    snapshots[i], transferSubscriptions, ct)
-                    .ConfigureAwait(false);
+                for (int i = 1; i < snapshots.Count; i++)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    await AttachSecondaryPartitionAsync(
+                        wrapper, handler, optionsMonitor,
+                        snapshots[i], transferSubscriptions, ct)
+                        .ConfigureAwait(false);
+                }
+            }
+            catch
+            {
+                // The primary and any secondaries attached so far are
+                // registered, but the caller never receives the wrapper.
+                // Roll back like RestoreAsync does for a failed transfer so
+                // no zombie keeps a server subscription alive and keeps
+                // calling the handler with nobody able to dispose it.
+                IReadOnlyList<IManagedSubscription> partitions = wrapper.Partitions;
+                lock (m_subscriptionLock)
+                {
+                    m_logicals.Remove(wrapper);
+                    foreach (IManagedSubscription partition in partitions)
+                    {
+                        m_subscriptions.Remove(partition);
+                    }
+                }
+                try
+                {
+                    await wrapper.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception disposeException)
+                    when (disposeException is not OutOfMemoryException)
+                {
+                    m_logger.ReCreationDidNotComplete(
+                        partitions.Count > 0 ? partitions[0].Id : 0);
+                }
+                throw;
             }
             return wrapper;
         }
@@ -1224,11 +1255,25 @@ namespace Opc.Ua.Client.Subscriptions
                 wrapper.ForwardingHandler ?? handler;
             IManagedSubscription partition = MintPreloadedPartition(
                 effective, optionsMonitor, loadState);
-            AttachReactiveFallback(partition, wrapper);
+            try
+            {
+                AttachReactiveFallback(partition, wrapper);
 
-            // Append to the wrapper's partition list so the composite
-            // collection's policy + index account for it.
-            wrapper.AppendPreloadedPartition(partition);
+                // Append to the wrapper's partition list so the composite
+                // collection's policy + index account for it.
+                wrapper.AppendPreloadedPartition(partition);
+            }
+            catch
+            {
+                // Not yet owned by the wrapper, so the group rollback would
+                // not find it.
+                lock (m_subscriptionLock)
+                {
+                    m_subscriptions.Remove(partition);
+                }
+                await partition.DisposeAsync().ConfigureAwait(false);
+                throw;
+            }
 
             // Best-effort transfer: when the saved ServerId is
             // non-zero AND the caller asked for transfer, issue

@@ -348,6 +348,117 @@ namespace Opc.Ua.Client.Subscriptions
                 .Count(c => ReferenceEquals(c.Options, so1)), Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// A revised publishing interval times keep-alive count beyond
+        /// <see cref="TimeSpan.MaxValue"/> must not fault the publish workers
+        /// (which the controller would respawn in a hot loop without ever
+        /// sending a Publish).
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task PublishWorkerSurvivesOverflowingKeepAliveProductAsync(
+            CancellationToken testCt)
+        {
+            ILoggerFactory loggerFactory = m_telemetry.LoggerFactory;
+            var session = new FakeSubscriptionManagerContext();
+            OptionsMonitor<SubscriptionOptions> so1 = OptionsFactory.Create<SubscriptionOptions>();
+            var ms1 = new FakeManagedSubscription
+            {
+                Id = 1,
+                Created = true,
+                CurrentPublishingInterval = TimeSpan.FromHours(1),
+                CurrentKeepAliveCount = uint.MaxValue
+            };
+            var sut = new SubscriptionManager(session,
+                loggerFactory, DiagnosticsMasks.None);
+            session.CreateSubscriptionFactory = (_, _, _) => ms1;
+            sut.Add(m_mockNotificationDataHandler.Object, so1);
+            sut.MaxPublishWorkerCount = 1;
+
+            var published = new TaskCompletionSource<uint>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            session.OnPublishAsync = (h, s, ct) =>
+            {
+                published.TrySetResult(h.TimeoutHint);
+                return new ValueTask<PublishResponse>(new PublishResponse
+                {
+                    AvailableSequenceNumbers = [],
+                    NotificationMessage = new NotificationMessage(),
+                    Results = s.ConvertAll(_ => StatusCodes.Good),
+                    SubscriptionId = 1,
+                    MoreNotifications = false,
+                    ResponseHeader = new ResponseHeader
+                    {
+                        ServiceResult = StatusCodes.Good,
+                        StringTable = []
+                    }
+                });
+            };
+
+            sut.Resume();
+            try
+            {
+                uint timeoutHint = await published.Task.WaitAsync(testCt).ConfigureAwait(false);
+                Assert.That(timeoutHint, Is.GreaterThan(0u));
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// When a secondary partition of a multi-partition snapshot fails to
+        /// attach, the already registered primary must be rolled back: the
+        /// caller never receives the wrapper and could not dispose it.
+        /// </summary>
+        [Test]
+        public async Task RestoreGroupRollsBackPrimaryWhenSecondaryFailsAsync()
+        {
+            var session = new FakeSubscriptionManagerContext
+            {
+                OnTransferSubscriptionsAsync = (_, _, _, _) =>
+                    new ValueTask<TransferSubscriptionsResponse>(
+                        new TransferSubscriptionsResponse
+                        {
+                            ResponseHeader = new ResponseHeader
+                            {
+                                ServiceResult = StatusCodes.BadServiceUnsupported
+                            }
+                        })
+            };
+            var primary = new FakeManagedSubscription { Id = 7, Created = true };
+            int created = 0;
+            session.CreateSubscriptionFactory = (_, _, _) =>
+            {
+                if (++created == 1)
+                {
+                    return primary;
+                }
+                throw ServiceResultException.Create(StatusCodes.BadOutOfMemory,
+                    "Secondary partition could not be created.");
+            };
+            var sut = new SubscriptionManager(session,
+                m_telemetry.LoggerFactory, DiagnosticsMasks.None);
+            await using (sut.ConfigureAwait(false))
+            {
+                var options = new SubscriptionOptions();
+                SubscriptionStateSnapshot[] snapshots =
+                [
+                    SubscriptionStateSnapshot.AsOptions(options, 7, [], []),
+                    SubscriptionStateSnapshot.AsOptions(options, 8, [], [])
+                ];
+
+                Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await sut.RestoreGroupAsync(m_mockNotificationDataHandler.Object,
+                        snapshots, true, default).ConfigureAwait(false));
+
+                Assert.That(sut.Count, Is.Zero);
+                Assert.That(sut.Items, Is.Empty);
+                Assert.That(primary.DisposeAsyncCalls, Is.GreaterThan(0));
+            }
+        }
+
         [Test]
         public void TransferSubscriptionsOnRecreateSetAndGet()
         {
