@@ -27,10 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
 using NUnit.Framework;
+using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Database.Linq;
 
 namespace Opc.Ua.Gds.Tests
@@ -260,6 +262,103 @@ namespace Opc.Ua.Gds.Tests
             LinqApplicationsDatabase database = CreateConformanceTestDatabase();
 
             Assert.That(database.FindApplications(applicationUri), Is.Empty);
+        }
+
+        /// <summary>
+        /// OPC 10000-12 §7.9.5: FinishRequest returns Bad_InvalidArgument when
+        /// the RequestId does not reference a request of the application.
+        /// </summary>
+        [Test]
+        public void FinishRequestOfAnotherApplicationThrowsBadInvalidArgument()
+        {
+            var database = new LinqApplicationsDatabase();
+            NodeId applicationA = database.RegisterApplication(CreateServerApplication("urn:test:a", "ServerA"));
+            NodeId applicationB = database.RegisterApplication(CreateServerApplication("urn:test:b", "ServerB"));
+            NodeId requestB = database.StartSigningRequest(
+                applicationB, "DefaultApplicationGroup", "RsaSha256ApplicationCertificateType",
+                ByteString.From([1, 2, 3]), "admin");
+            database.ApproveRequest(requestB, false);
+
+            Assert.That(
+                () => database.FinishRequest(applicationA, requestB, out _, out _, out _, out _),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(
+                () => database.ReadRequest(applicationA, requestB, out _, out _, out _, out _, out _, out _, out _),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(
+                database.FinishRequest(applicationB, requestB, out _, out _, out _, out _),
+                Is.EqualTo(CertificateRequestState.Approved));
+        }
+
+        [Test]
+        public void StartRequestForAnotherGroupKeepsFirstRequestPending()
+        {
+            var database = new LinqApplicationsDatabase();
+            NodeId application = database.RegisterApplication(CreateServerApplication("urn:test:a", "ServerA"));
+            NodeId rsaRequest = database.StartSigningRequest(
+                application, "DefaultApplicationGroup", "RsaSha256ApplicationCertificateType",
+                ByteString.From([1, 2, 3]), "admin");
+            NodeId httpsRequest = database.StartSigningRequest(
+                application, "DefaultHttpsGroup", "HttpsCertificateType",
+                ByteString.From([4, 5, 6]), "admin");
+
+            Assert.That(httpsRequest, Is.Not.EqualTo(rsaRequest));
+            database.ApproveRequest(rsaRequest, false);
+            Assert.That(
+                database.FinishRequest(application, rsaRequest, out string? groupId, out string? typeId, out _, out _),
+                Is.EqualTo(CertificateRequestState.Approved));
+            Assert.That(groupId, Is.EqualTo("DefaultApplicationGroup"));
+            Assert.That(typeId, Is.EqualTo("RsaSha256ApplicationCertificateType"));
+            Assert.That(
+                database.FinishRequest(application, httpsRequest, out _, out _, out _, out _),
+                Is.EqualTo(CertificateRequestState.New));
+
+            // A new request for the same group and type supersedes the old one.
+            NodeId renewedRequest = database.StartSigningRequest(
+                application, "DefaultApplicationGroup", "RsaSha256ApplicationCertificateType",
+                ByteString.From([7, 8, 9]), "admin");
+            Assert.That(renewedRequest, Is.Not.EqualTo(rsaRequest));
+            Assert.That(
+                () => database.FinishRequest(application, rsaRequest, out _, out _, out _, out _),
+                Throws.TypeOf<ServiceResultException>());
+        }
+
+        /// <summary>
+        /// OPC 10000-12 §7.9.4: the private key password shall not be persisted.
+        /// </summary>
+        [Test]
+        public void NewKeyPairRequestPasswordIsNotPersisted()
+        {
+            string fileName = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".json");
+            try
+            {
+                var database = JsonApplicationsDatabase.Load(fileName);
+                NodeId application = database.RegisterApplication(CreateServerApplication("urn:test:a", "ServerA"));
+                NodeId request = database.StartNewKeyPairRequest(
+                    application, "DefaultApplicationGroup", "RsaSha256ApplicationCertificateType",
+                    "CN=ServerA", ["localhost"], "PFX", "secret-password".AsSpan(), "admin");
+                database.ApproveRequest(request, false);
+
+                Assert.That(File.ReadAllText(fileName), Does.Not.Contain("secret-password"));
+                Assert.That(
+                    database.ReadRequest(application, request, out _, out _, out _, out _, out _, out _,
+                        out ReadOnlySpan<char> password),
+                    Is.EqualTo(CertificateRequestState.Approved));
+                Assert.That(password.ToString(), Is.EqualTo("secret-password"));
+
+                // After a reload the password is gone, so the request cannot be
+                // completed with an unprotected private key.
+                database = JsonApplicationsDatabase.Load(fileName);
+                Assert.That(
+                    database.FinishRequest(application, request, out _, out _, out _, out _),
+                    Is.EqualTo(CertificateRequestState.Rejected));
+            }
+            finally
+            {
+                File.Delete(fileName);
+            }
         }
 
         /// <summary>
