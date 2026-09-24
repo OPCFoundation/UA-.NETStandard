@@ -64,6 +64,9 @@ namespace Opc.Ua.Server.Tests.Historian
             BaseDataVariableState node = CreateVariable(nodeId);
             var provider = new Mock<IHistorianProvider>();
             provider
+                .Setup(value => value.IsHistorizingAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<bool>(true));
+            provider
                 .Setup(p => p.GetCapabilitiesAsync(
                     nodeId,
                     It.IsAny<CancellationToken>()))
@@ -103,7 +106,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 details,
                 TimestampsToReturn.Source,
                 firstResult,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(firstError), Is.True);
             Assert.That(firstResult.ContinuationPoint.IsEmpty, Is.False);
@@ -124,7 +127,7 @@ namespace Opc.Ua.Server.Tests.Historian
                         details,
                         TimestampsToReturn.Source,
                         new HistoryReadResult(),
-                        CancellationToken.None))!;
+                        CancellationToken.None).ConfigureAwait(false))!;
             Assert.That(
                 exception.StatusCode,
                 Is.EqualTo(StatusCodes.BadCommunicationError));
@@ -138,7 +141,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 details,
                 TimestampsToReturn.Source,
                 retryResult,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(retryError), Is.True);
             Assert.That(retryResult.StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -161,6 +164,9 @@ namespace Opc.Ua.Server.Tests.Historian
             var nodeId = new NodeId("modified-retry", 1);
             BaseDataVariableState node = CreateVariable(nodeId);
             var provider = new Mock<IHistorianProvider>();
+            provider
+                .Setup(value => value.IsHistorizingAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<bool>(true));
             provider
                 .Setup(p => p.GetCapabilitiesAsync(
                     nodeId,
@@ -202,7 +208,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 details,
                 TimestampsToReturn.Source,
                 firstResult,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(firstError), Is.True);
             Assert.That(firstResult.ContinuationPoint.IsEmpty, Is.False);
@@ -221,7 +227,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     details,
                     TimestampsToReturn.Source,
                     new HistoryReadResult(),
-                    CancellationToken.None));
+                    CancellationToken.None).ConfigureAwait(false));
 
             var retryResult = new HistoryReadResult();
             ServiceResult retryError = await HistorianDispatcher.DispatchRawReadAsync(
@@ -232,7 +238,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 details,
                 TimestampsToReturn.Source,
                 retryResult,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(retryError), Is.True);
             Assert.That(retryResult.StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -297,7 +303,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     details,
                     TimestampsToReturn.Source,
                     firstResult,
-                    CancellationToken.None);
+                    CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(firstError), Is.True);
             Assert.That(firstResult.ContinuationPoint.IsEmpty, Is.False);
@@ -316,7 +322,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     details,
                     TimestampsToReturn.Source,
                     new HistoryReadResult(),
-                    CancellationToken.None));
+                    CancellationToken.None).ConfigureAwait(false));
 
             var retryResult = new HistoryReadResult();
             ServiceResult retryError =
@@ -328,7 +334,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     details,
                     TimestampsToReturn.Source,
                     retryResult,
-                    CancellationToken.None);
+                    CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(retryError), Is.True);
             Assert.That(retryResult.StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -416,7 +422,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     initialDetails,
                     TimestampsToReturn.Source,
                     firstResult,
-                    CancellationToken.None);
+                    CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(firstError), Is.True);
             Assert.That(firstResult.ContinuationPoint.IsEmpty, Is.False);
@@ -442,7 +448,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     incomingDetails,
                     TimestampsToReturn.Source,
                     new HistoryReadResult(),
-                    CancellationToken.None));
+                    CancellationToken.None).ConfigureAwait(false));
 
             var retryResult = new HistoryReadResult();
             ServiceResult retryError =
@@ -454,7 +460,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     incomingDetails,
                     TimestampsToReturn.Source,
                     retryResult,
-                    CancellationToken.None);
+                    CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(retryError), Is.True);
             Assert.That(retryResult.StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -487,7 +493,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 out AggregateManager aggregateManager);
             var nodeId = new NodeId("native-processed-retry", 1);
             var aggregateId = new NodeId("native-processed-aggregate", 1);
-            await RegisterAggregateAsync(aggregateManager, aggregateId);
+            await RegisterAggregateAsync(aggregateManager, aggregateId).ConfigureAwait(false);
             BaseDataVariableState node = CreateVariable(nodeId);
             var provider = new Mock<IHistorianProvider>();
             provider
@@ -509,7 +515,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 .Returns(new ValueTask<HistorianPage<DataValue>>(
                     new HistorianPage<DataValue>(
                         [CreateDataValue(2)])));
-            var state = CreateProcessedState(
+            HistorianContinuationState state = CreateProcessedState(
                 Guid.NewGuid(),
                 provider.Object,
                 nodeId,
@@ -532,7 +538,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     aggregateId,
                     TimestampsToReturn.Source,
                     new HistoryReadResult(),
-                    CancellationToken.None));
+                    CancellationToken.None).ConfigureAwait(false));
 
             var retryResult = new HistoryReadResult();
             ServiceResult retryError =
@@ -545,7 +551,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     aggregateId,
                     TimestampsToReturn.Source,
                     retryResult,
-                    CancellationToken.None);
+                    CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(retryError), Is.True);
             Assert.That(retryResult.StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -564,7 +570,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 out AggregateManager aggregateManager);
             var nodeId = new NodeId("buffered-processed-retry", 1);
             var aggregateId = new NodeId("buffered-processed-aggregate", 1);
-            await RegisterAggregateAsync(aggregateManager, aggregateId);
+            await RegisterAggregateAsync(aggregateManager, aggregateId).ConfigureAwait(false);
             BaseDataVariableState node = CreateVariable(nodeId);
             var provider = new Mock<IHistorianProvider>();
             provider
@@ -574,7 +580,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 .Returns(new ValueTask<HistorianNodeCapabilities>(
                     HistorianNodeCapabilities.ReadOnly));
             _ = provider.As<IHistorianDataProvider>();
-            Guid oldId = Guid.NewGuid();
+            var oldId = Guid.NewGuid();
             HistorianContinuationState state = CreateProcessedState(
                 oldId,
                 provider.Object,
@@ -608,7 +614,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     aggregateId,
                     TimestampsToReturn.Source,
                     failedResult,
-                    CancellationToken.None);
+                    CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(failedError), Is.True);
             Assert.That(
@@ -643,7 +649,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     aggregateId,
                     TimestampsToReturn.Source,
                     retryResult,
-                    CancellationToken.None);
+                    CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(retryError), Is.True);
             Assert.That(retryResult.StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -728,7 +734,7 @@ namespace Opc.Ua.Server.Tests.Historian
             BaseDataVariableState node = CreateVariable(nodeId);
             var provider = new Mock<IHistorianProvider>();
             _ = provider.As<IHistorianProcessedProvider>();
-            Guid oldId = Guid.NewGuid();
+            var oldId = Guid.NewGuid();
             continuationPoints.SaveHistory(CreateProcessedState(
                 oldId,
                 provider.Object,
@@ -751,7 +757,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     aggregateId,
                     TimestampsToReturn.Source,
                     firstResult,
-                    CancellationToken.None);
+                    CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(
                 firstError.StatusCode,
@@ -769,7 +775,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     aggregateId,
                     TimestampsToReturn.Source,
                     retryResult,
-                    CancellationToken.None);
+                    CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(retryError), Is.True);
             Assert.That(
@@ -781,7 +787,7 @@ namespace Opc.Ua.Server.Tests.Historian
         /// Verifies that failed durable restoration falls back to the local continuation state.
         /// </summary>
         [Test]
-        public async Task DurableRestorationFailureFallsBackToLocalStateAsync()
+        public Task DurableRestorationFailureFallsBackToLocalStateAsync()
         {
             var continuationPoints = new TestContinuationPoints();
             ServerSystemContext systemContext = CreateSystemContext(
@@ -804,7 +810,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     It.IsAny<CancellationToken>()))
                 .Throws(new ServiceResultException(
                     StatusCodes.BadCommunicationError));
-            Guid oldId = Guid.NewGuid();
+            var oldId = Guid.NewGuid();
             var originalState = new HistorianContinuationState
             {
                 Id = oldId,
@@ -840,7 +846,7 @@ namespace Opc.Ua.Server.Tests.Historian
                         new ReadRawModifiedDetails(),
                         TimestampsToReturn.Source,
                         new HistoryReadResult(),
-                        CancellationToken.None))!;
+                        CancellationToken.None).ConfigureAwait(false))!;
 
             Assert.That(
                 exception.StatusCode,
@@ -858,6 +864,7 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(
                 continuationPoints.Peek(oldId),
                 Is.SameAs(originalState));
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -932,7 +939,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 historyStore: store,
                 historyCodec: codec,
                 namespaceUris: namespaceUris);
-            Guid continuationId = Guid.NewGuid();
+            var continuationId = Guid.NewGuid();
             await sourcePoints.SaveHistoryAsync(
                 new HistorianContinuationState
                 {
@@ -952,7 +959,7 @@ namespace Opc.Ua.Server.Tests.Historian
                         IsForward = true
                     }
                 },
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             NodeId targetSessionId = new(Guid.NewGuid());
             var targetPoints = new SessionContinuationPoints(
@@ -965,7 +972,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 namespaceUris: namespaceUris);
             await targetPoints.LoadMirroredAsync(
                 sourceSessionId,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
             ServerSystemContext systemContext = CreateSystemContext(
                 targetPoints,
                 server.Object);
@@ -985,7 +992,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     new ReadRawModifiedDetails(),
                     TimestampsToReturn.Source,
                     result,
-                    CancellationToken.None);
+                    CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(error), Is.True);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -1067,7 +1074,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var store = new DurableHistoryStore();
             var codec = new HistorianContinuationPointCodec(server.Object);
             NodeId sourceSessionId = new(Guid.NewGuid());
-            Guid legacyId = Guid.NewGuid();
+            var legacyId = Guid.NewGuid();
             await store.StoreAsync(
                 CreateLegacyAnnotationEnvelope(
                     messageContext,
@@ -1078,7 +1085,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     legacyId,
                     parentNodeId,
                     formatVersion),
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             NodeId targetSessionId = new(Guid.NewGuid());
             var targetPoints = new SessionContinuationPoints(
@@ -1091,7 +1098,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 namespaceUris: namespaceUris);
             await targetPoints.LoadMirroredAsync(
                 sourceSessionId,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
             ServerSystemContext systemContext = CreateSystemContext(
                 targetPoints,
                 server.Object);
@@ -1111,7 +1118,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     new ReadRawModifiedDetails(),
                     TimestampsToReturn.Source,
                     firstResult,
-                    CancellationToken.None);
+                    CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(firstError), Is.True);
             Assert.That(firstResult.StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -1119,13 +1126,13 @@ namespace Opc.Ua.Server.Tests.Historian
             ArrayOf<HistoryContinuationPointEnvelope> successors =
                 await store.LoadAsync(
                     targetSessionId,
-                    CancellationToken.None);
+                    CancellationToken.None).ConfigureAwait(false);
             Assert.That(successors, Has.Count.EqualTo(1));
-            Assert.That(successors[0].CodecVersion, Is.EqualTo(3));
+            Assert.That(successors[0].CodecVersion, Is.EqualTo(5));
             var decodedSuccessor =
                 (HistorianContinuationState)await codec.DecodeAsync(
                     successors[0],
-                    CancellationToken.None);
+                    CancellationToken.None).ConfigureAwait(false);
             Assert.That(decodedSuccessor, Is.Not.Null);
             Assert.That(decodedSuccessor!.NodeId, Is.EqualTo(propertyNodeId));
             Assert.That(
@@ -1150,14 +1157,14 @@ namespace Opc.Ua.Server.Tests.Historian
                     new ReadRawModifiedDetails(),
                     TimestampsToReturn.Source,
                     secondResult,
-                    CancellationToken.None);
+                    CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(secondError), Is.True);
             Assert.That(secondResult.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(secondResult.ContinuationPoint.IsEmpty, Is.True);
             Assert.That(
                 providerRequestNodeIds,
-                Is.EqualTo(new[] { parentNodeId, parentNodeId }));
+                Is.EqualTo([parentNodeId, parentNodeId]));
         }
 
         /// <summary>
@@ -1176,7 +1183,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var propertyNodeId = new NodeId("Annotations", 1);
             var provider = new Mock<IHistorianProvider>();
             _ = provider.As<IHistorianAnnotationProvider>();
-            Guid continuationId = Guid.NewGuid();
+            var continuationId = Guid.NewGuid();
             continuationPoints.SaveHistory(
                 new HistorianContinuationState
                 {
@@ -1214,7 +1221,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     new ReadRawModifiedDetails(),
                     TimestampsToReturn.Source,
                     result,
-                    CancellationToken.None);
+                    CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(error), Is.True);
             Assert.That(
@@ -1231,7 +1238,7 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         private static readonly DateTime s_baseTime =
-            new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         private static HistoricalDataValue CreateHistoricalValue(int value)
         {

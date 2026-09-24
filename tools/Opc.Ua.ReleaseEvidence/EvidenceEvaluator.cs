@@ -57,6 +57,7 @@ namespace Opc.Ua.ReleaseEvidence
         /// <summary>
         /// Writes a release-evidence report and returns a failure code when the assessed release is blocked.
         /// </summary>
+        /// <exception cref="InvalidDataException"></exception>
         public async Task<int> EvaluateAsync(
             string repositoryRoot,
             string evidencePath,
@@ -99,9 +100,11 @@ namespace Opc.Ua.ReleaseEvidence
             bool baselineFailed = false;
             VerifiedClaims? verified = null;
             bool requiredStable = Versions.RequiresStableControls(policy, expected.Release);
-            if (schemaVersion == 1)
+            if (schemaVersion == 1 ||
+                (document.RootElement.TryGetProperty("archives", out _) &&
+                    !document.RootElement.TryGetProperty("source", out _)))
             {
-                ArchiveManifest legacy = document.Deserialize(EvidenceJsonContext.Default.ArchiveManifest)!;
+                var legacy = ArchiveManifest.Read(document.RootElement);
                 if (legacy.Archives == null ||
                     legacy.Repository == null ||
                     legacy.Workflow == null ||
@@ -110,17 +113,17 @@ namespace Opc.Ua.ReleaseEvidence
                     legacy.Commit == null ||
                     legacy.PackageVersion == null)
                 {
-                    throw new InvalidDataException("The v1 archive manifest is missing required fields.");
+                    throw new InvalidDataException("The archive manifest is missing required fields.");
                 }
                 Versions.Parse(legacy.PackageVersion);
                 if (legacy.Commit != expected.Source.ActualSha || legacy.Repository != expected.Source.Repository)
                 {
-                    findings.Add(new Finding("SOURCE_IDENTITY", "The v1 manifest has a different source identity."));
+                    findings.Add(new Finding("SOURCE_IDENTITY", "The archive manifest has a different source identity."));
                 }
                 if (legacy.RunId != expected.Producer.RunId || legacy.Workflow != expected.Producer.Workflow)
                 {
                     findings.Add(new Finding(
-                        "PRODUCER_IDENTITY", "The v1 manifest has a different producer identity."));
+                        "PRODUCER_IDENTITY", "The archive manifest has a different producer identity."));
                 }
                 findings.Add(new Finding("EVIDENCE_SCHEMA", "Only a v2 companion can satisfy the evidence contract."));
             }
@@ -139,8 +142,10 @@ namespace Opc.Ua.ReleaseEvidence
                     throw new InvalidDataException("The evidence does not satisfy the closed v2 JSON schema.");
                 }
                 EvidenceEnvelope envelope = document.Deserialize(EvidenceJsonContext.Default.EvidenceEnvelope)!;
-                if (envelope.Artifacts.Length > 1024 || envelope.Documents.Length > 16384 ||
-                    envelope.Assurance.Jobs.Length > 512 || envelope.Assurance.InputIdentities.Length > 16384)
+                if (envelope.Artifacts.Length > 1024 ||
+                    envelope.Documents.Length > 16384 ||
+                    envelope.Assurance.Jobs.Length > 512 ||
+                    envelope.Assurance.InputIdentities.Length > 16384)
                 {
                     throw new InvalidDataException("Evidence exceeds the bounded artifact/document/job scope.");
                 }
@@ -209,7 +214,8 @@ namespace Opc.Ua.ReleaseEvidence
                 verified?.Policy?.Stage ?? policy.Stage,
                 verified?.Policy?.ExpectedRelease.Channel ?? expected.Release.Channel, expected.Release.Group,
                 blocking, baselineFailed, verified?.Records.Count > 0 ||
-                    verified?.NativeNuget != null || verified?.CodeqlReviews.Count > 0,
+                    verified?.NativeNuget != null ||
+                    verified?.CodeqlReviews.Count > 0,
                 [.. findings.Select(f => f.Code).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)],
                 [.. findings], inputDigest, verified?.NativeNuget?.ProducerEvidenceDigest);
             await files.WriteModelAsync(
@@ -229,7 +235,8 @@ namespace Opc.Ua.ReleaseEvidence
             List<Finding> findings,
             CancellationToken cancellationToken)
         {
-            if (bundlePath == null || verified.BundleRoot == null ||
+            if (bundlePath == null ||
+                verified.BundleRoot == null ||
                 !verified.Has("producer"))
             {
                 findings.Add(new Finding(
@@ -259,7 +266,8 @@ namespace Opc.Ua.ReleaseEvidence
                 ArtifactRecord[] runnable = [.. envelope.Artifacts.Where(a => a.Kind == "oci-manifest")];
                 if (producer.OciBuilds.Count != runnable.Length ||
                     runnable.Any(a => !producer.OciBuilds.TryGetValue(a.Id + "@" + a.Digest,
-                        out OciBuildExpectation? build) || !ValidOciBuild(build, a, group, envelope)))
+                        out OciBuildExpectation? build) ||
+                        !ValidOciBuild(build, a, group, envelope)))
                 {
                     findings.Add(new Finding(
                         "PROVENANCE_VERIFIED", "Authenticated native build/source/tool scope is incomplete."));
@@ -274,7 +282,8 @@ namespace Opc.Ua.ReleaseEvidence
                     using JsonDocument context = await files.ReadJsonAsync(
                         EvidenceFiles.Confined(evidenceRoot, document.Path), cancellationToken).ConfigureAwait(false);
                     if (context.RootElement.TryGetProperty("kind", out JsonElement kind) &&
-                        kind.ValueKind == JsonValueKind.String && kind.GetString() == "oci-build-context")
+                        kind.ValueKind == JsonValueKind.String &&
+                        kind.GetString() == "oci-build-context")
                     {
                         OciAnalysis contextual = await adapter.VerifyAuthenticatedAsync(
                             requestPath, evidenceRoot, expected, group, envelope, verified, cancellationToken)
@@ -323,7 +332,8 @@ namespace Opc.Ua.ReleaseEvidence
                         image.Layout + "/blobs/sha256/" + artifact.Digest[7..])).Where(File.Exists)];
                 IArtifactSignatureVerifier signaturesVerifier =
                     artifactVerifier ?? new CosignArtifactSignatureVerifier(files, new ProcessRunner());
-                if (proofs.Length != 1 || paths.Length == 0 ||
+                if (proofs.Length != 1 ||
+                    paths.Length == 0 ||
                     !await signaturesVerifier.VerifyAsync(
                         paths[0], proofs[0], verified.BundleRoot, verified.Policy!, cancellationToken)
                         .ConfigureAwait(false))
@@ -339,16 +349,18 @@ namespace Opc.Ua.ReleaseEvidence
         {
             string repository = "https://github.com/" + envelope.Source.Repository;
             string[] source = build.SourceUri.Split('#');
-            return build.SourceSha == envelope.Source.ActualSha && source.Length <= 2 &&
+            return build.SourceSha == envelope.Source.ActualSha &&
+                source.Length <= 2 &&
                 (source[0] == repository || source[0] == repository + ".git") &&
-                (source.Length == 1 || source[1] == envelope.Source.ActualRef ||
+                (source.Length == 1 ||
+                    source[1] == envelope.Source.ActualRef ||
                     source[1] == envelope.Source.ActualSha) &&
                 group.Images!.Any(i => group.UpstreamRepositoryPrefix + "/" + i.Id == artifact.Id &&
                     i.Dockerfile == build.Dockerfile) &&
                 envelope.Producer.Tools.Any(t => t.Id == "buildkit" && t.Digest == build.BuildkitDigest) &&
                 envelope.Producer.Tools.Any(t => t.Id == "buildkit-syft-scanner" && t.Digest == build.ScannerDigest) &&
                 build.Materials.All(m => m.Algorithm != "sha1" ||
-                    m.Uri == build.SourceUri && m.Digest == envelope.Source.ActualSha);
+                    (m.Uri == build.SourceUri && m.Digest == envelope.Source.ActualSha));
         }
 
         private async Task CheckArtifactSignaturesAsync(
@@ -359,7 +371,9 @@ namespace Opc.Ua.ReleaseEvidence
             CancellationToken cancellationToken)
         {
             if (!verified.Records.TryGetValue("artifact-signatures", out VerificationRecord? record) ||
-                record.ArtifactSignatures == null || verified.Policy == null || verified.BundleRoot == null)
+                record.ArtifactSignatures == null ||
+                verified.Policy == null ||
+                verified.BundleRoot == null)
             {
                 findings.Add(new Finding("SIGNATURE_VERIFIED", "Actual package signature proofs are unavailable."));
                 return;
@@ -378,7 +392,8 @@ namespace Opc.Ua.ReleaseEvidence
                 archives.TryGetValue(artifact.Digest, out string? path);
                 IArtifactSignatureVerifier signaturesVerifier =
                     artifactVerifier ?? new NugetAuthorSignatureVerifier(files, new ProcessRunner());
-                if (proofs.Length != 1 || path == null ||
+                if (proofs.Length != 1 ||
+                    path == null ||
                     !await signaturesVerifier.VerifyAsync(
                         path, proofs[0], verified.BundleRoot, verified.Policy, cancellationToken)
                         .ConfigureAwait(false))
@@ -452,7 +467,7 @@ namespace Opc.Ua.ReleaseEvidence
                 bundleRoot, envelope, group, profiles, findings, verified, cancellationToken).ConfigureAwait(false);
             AssessmentRecord assessment = await ProducerAssessments.ReadAsync(
                 envelope, bundleRoot, files, cancellationToken).ConfigureAwait(false);
-            if ((assessment.PendingControls == null) != (assessment.ObservedControls == null) ||
+            if (assessment.PendingControls == null != (assessment.ObservedControls == null) ||
                 (assessment.PendingControls != null &&
                     !assessment.PendingControls.Concat(assessment.ObservedControls!)
                         .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).SequenceEqual(
@@ -492,7 +507,9 @@ namespace Opc.Ua.ReleaseEvidence
             }
             foreach (ArtifactRecord artifact in envelope.Artifacts)
             {
-                if (!Versions.Equal(artifact.Version, envelope.Release.Version))
+                if (group.Kind == "nuget"
+                    ? !Versions.IsPackageVersionForRelease(artifact.Version, envelope.Release.Version)
+                    : !Versions.Equal(artifact.Version, envelope.Release.Version))
                 {
                     findings.Add(new Finding(
                         "ARTIFACT_MEMBERSHIP", "An artifact belongs to a different release version."));
@@ -670,16 +687,19 @@ namespace Opc.Ua.ReleaseEvidence
                 }
                 if (document.Type == "archive-manifest")
                 {
-                    ArchiveManifest manifest = await files.ReadModelAsync(
-                        path, EvidenceJsonContext.Default.ArchiveManifest, cancellationToken).ConfigureAwait(false);
+                    using JsonDocument manifestDocument = await files.ReadJsonAsync(path, cancellationToken)
+                        .ConfigureAwait(false);
+                    var manifest = ArchiveManifest.Read(manifestDocument.RootElement);
                     if (document.Subject.Kind != "artifact-set" ||
+                        document.Version != (manifest.SchemaVersion == 1 ? "1" : "2") ||
                         document.Subject.Digest != document.Digest ||
                         manifest.Commit != envelope.Source.ActualSha ||
                         manifest.Repository != envelope.Source.Repository ||
-                        manifest.RunId != envelope.Producer.RunId)
+                        manifest.RunId != envelope.Producer.RunId ||
+                        !Versions.Equal(manifest.PackageVersion, envelope.Release.Version))
                     {
                         findings.Add(new Finding(
-                            "ARTIFACT_INTEGRITY", "V1 manifest source/producer/artifact-set binding differs."));
+                            "ARTIFACT_INTEGRITY", "Archive manifest source/producer/artifact-set binding differs."));
                     }
                     foreach (ArchiveRecord archive in manifest.Archives)
                     {
@@ -698,10 +718,11 @@ namespace Opc.Ua.ReleaseEvidence
             }
             foreach (ArtifactRecord artifact in envelope.Artifacts)
             {
-                if (artifact.Kind != "oci-index" && !envelope.Documents.Any(d => d.Type == "sbom" &&
-                    d.Subject.Kind == artifact.Kind &&
-                    d.Subject.Id == artifact.Id &&
-                    d.Subject.Digest == artifact.Digest))
+                if (artifact.Kind != "oci-index" &&
+                    !envelope.Documents.Any(d => d.Type == "sbom" &&
+                        d.Subject.Kind == artifact.Kind &&
+                        d.Subject.Id == artifact.Id &&
+                        d.Subject.Digest == artifact.Digest))
                 {
                     findings.Add(new Finding("INVENTORY_COMPLETE", $"Missing per-subject SBOM: {artifact.Id}."));
                 }

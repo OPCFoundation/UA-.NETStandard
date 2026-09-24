@@ -135,6 +135,10 @@ namespace Opc.Ua.Client.Subscriptions
         /// <inheritdoc/>
         public bool Created => Id != 0;
 
+        /// <inheritdoc/>
+        public bool IsCreationInProgress
+            => Volatile.Read(ref m_creationInProgress) != 0;
+
         internal bool IsDispatchingCallback => IsDispatchingNotification;
 
         /// <inheritdoc/>
@@ -226,8 +230,14 @@ namespace Opc.Ua.Client.Subscriptions
             }
             else
             {
-                OnOptionsChanged(options.CurrentValue);
+                // Signal the initial pass unconditionally. Routing this through
+                // OnOptionsChanged would short-circuit on the record comparison
+                // whenever the supplied options equal the defaults, and the
+                // subscription would never be created on the server until some
+                // unrelated change happened to wake the state manager.
+                Options = options.CurrentValue;
                 m_changeTracking = options.OnChange((o, _) => OnOptionsChanged(o));
+                m_stateControl.Set();
             }
             m_stateManagement = StateManagerAsync(m_cts.Token);
         }
@@ -445,23 +455,47 @@ namespace Opc.Ua.Client.Subscriptions
                         uint oldId = Id;
                         if (oldId != 0)
                         {
-                            await DeleteForRecreateAsync(oldId, token)
-                                .ConfigureAwait(false);
-                            AckQueue.DropPendingForSubscription(oldId);
+                            // Subscription ids are unique for the entire server
+                            // at any instant (Part 4 §5.14.2.2), but they are
+                            // freed for reuse once a subscription is gone. So
+                            // this retired id may already have been handed to a
+                            // sibling that recreated first, and the fact that
+                            // it resolves to a different live subscription
+                            // proves exactly that. Deleting it would tear down
+                            // the sibling, so only delete an id that still
+                            // resolves to this subscription.
+                            if (AckQueue.OwnsSubscriptionId(this, oldId))
+                            {
+                                await DeleteForRecreateAsync(oldId, token)
+                                    .ConfigureAwait(false);
+                                AckQueue.DropPendingForSubscription(oldId);
+                            }
+                            else
+                            {
+                                // The pending acknowledgements under that id
+                                // now belong to the sibling; leave them.
+                                Logger.SubscriptionSkippedDeleteOfReusedId(Id, oldId);
+                                StopKeepAliveTimer();
+                                OnSubscriptionDeleteCompleted();
+                            }
                         }
                     },
                     async token =>
                     {
-                        await CreateAsync(Options, token).ConfigureAwait(false);
-                        await RunAfterCreateHookAsync(token).ConfigureAwait(false);
-                        await m_monitoredItems.ApplyChangesAsync(true, true,
-                            token).ConfigureAwait(false);
+                        if (!Options.Disabled)
+                        {
+                            await CreateAsync(Options, token).ConfigureAwait(false);
+                            await RunAfterCreateHookAsync(token).ConfigureAwait(false);
+                            await m_monitoredItems.ApplyChangesAsync(true, true,
+                                token).ConfigureAwait(false);
+                        }
                     },
                     ct).ConfigureAwait(false);
             }
             finally
             {
                 m_stateLock.Release();
+                m_stateControl.Set();
             }
         }
 
@@ -491,13 +525,39 @@ namespace Opc.Ua.Client.Subscriptions
 
                 await m_monitoredItems.ApplyChangesAsync(true, false,
                     ct).ConfigureAwait(false);
+                await ModifyAsync(Options, ct).ConfigureAwait(false);
                 StartKeepAliveTimer();
-                return true;
             }
             finally
             {
                 m_stateLock.Release();
+                m_stateControl.Set();
             }
+
+            // Recover the messages the server still holds for this
+            // subscription. Doing this here rather than waiting for the next
+            // publish response ensures the notifications are also recovered on
+            // a subscription that stays quiet (or only emits keep-alives)
+            // after the transfer. Runs outside the state lock so a
+            // notification handler may call back into the subscription. The
+            // transfer itself already succeeded at this point, so a failed
+            // recovery is logged and does not fail the transfer - the
+            // remaining messages are still recoverable through the normal
+            // gap-walking republish.
+            try
+            {
+                await RecoverTransferredMessagesAsync(availableSequenceNumbers, ct)
+                    .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Logger.SubscriptionFailedToRecoverTransferredMessages(ex, Id);
+            }
+            return true;
         }
 
         /// <summary>
@@ -524,27 +584,30 @@ namespace Opc.Ua.Client.Subscriptions
             await m_stateLock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                Id = 0;
-                m_createdEvent.Reset();
-                CurrentPublishingInterval = TimeSpan.Zero;
-                CurrentKeepAliveCount = 0;
-                CurrentLifetimeCount = 0;
-                CurrentPublishingEnabled = false;
-                CurrentPriority = 0;
-                CurrentMaxNotificationsPerPublish = 0;
-                LastSequenceNumberProcessed = 0;
-                LastNotificationTimestamp = 0;
-                AvailableInRetransmissionQueue = [];
-
-                // Reset every loaded item so it queues a fresh
-                // CreateMonitoredItem on the next ApplyChanges pass.
-                foreach (IMonitoredItem item in m_monitoredItems.Items)
-                {
-                    if (item is MonitoredItems.MonitoredItem mi)
+                await ResetMessageGenerationAsync(
+                    _ =>
                     {
-                        mi.Reset();
-                    }
-                }
+                        Id = 0;
+                        m_createdEvent.Reset();
+                        Volatile.Write(ref m_lastRequestedSettings, null);
+                        CurrentPublishingInterval = TimeSpan.Zero;
+                        CurrentKeepAliveCount = 0;
+                        CurrentLifetimeCount = 0;
+                        CurrentPublishingEnabled = false;
+                        CurrentPriority = 0;
+                        CurrentMaxNotificationsPerPublish = 0;
+
+                        foreach (IMonitoredItem item in m_monitoredItems.Items)
+                        {
+                            if (item is MonitoredItems.MonitoredItem mi)
+                            {
+                                mi.Reset();
+                            }
+                        }
+                        return default;
+                    },
+                    _ => default,
+                    ct).ConfigureAwait(false);
             }
             finally
             {
@@ -610,16 +673,21 @@ namespace Opc.Ua.Client.Subscriptions
                     // in-flight recreate walks both of them.
                     await m_backgroundWork.DisposeAsync().ConfigureAwait(false);
 
-                    await m_stateManagement.ConfigureAwait(false);
-
-                    await m_stateLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
                     try
                     {
-                        await m_monitoredItems.DisposeAsync().ConfigureAwait(false);
+                        await m_stateManagement.ConfigureAwait(false);
                     }
                     finally
                     {
-                        m_stateLock.Release();
+                        await m_stateLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                        try
+                        {
+                            await m_monitoredItems.DisposeAsync().ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            m_stateLock.Release();
+                        }
                     }
                 }
                 finally
@@ -654,6 +722,13 @@ namespace Opc.Ua.Client.Subscriptions
         /// <inheritdoc/>
         public void Update()
         {
+            m_stateControl.Set();
+        }
+
+        /// <inheritdoc/>
+        public void RequestRecreate()
+        {
+            Interlocked.Exchange(ref m_recreateRequested, 1);
             m_stateControl.Set();
         }
 
@@ -816,6 +891,16 @@ namespace Opc.Ua.Client.Subscriptions
                     async _ => await RecoverAfterUnsolicitedTransferAsync()
                         .ConfigureAwait(false));
             }
+            else if (notification.Status == StatusCodes.BadTimeout &&
+                Created &&
+                !Disposed &&
+                Interlocked.CompareExchange(
+                    ref m_recreateAfterTimeoutInProgress, 1, 0) == 0)
+            {
+                m_backgroundWork.Run(
+                    nameof(RecoverAfterSubscriptionTimeoutAsync),
+                    RecoverAfterSubscriptionTimeoutAsync);
+            }
             return default;
         }
 
@@ -862,7 +947,24 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
+        private async ValueTask RecoverAfterSubscriptionTimeoutAsync(CancellationToken ct)
+        {
+            try
+            {
+                ct.ThrowIfCancellationRequested();
+                await ResetToRecreateAsync(ct).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+            }
+            finally
+            {
+                Interlocked.Exchange(ref m_recreateAfterTimeoutInProgress, 0);
+            }
+        }
+
         private int m_recreateAfterTransferInProgress;
+        private int m_creationInProgress;
 
         /// <summary>
         /// Called when the subscription state changed
@@ -896,8 +998,31 @@ namespace Opc.Ua.Client.Subscriptions
                 // re-enters the engine. Handlers that need backpressure
                 // should buffer in OnSubscriptionStateChangedAsync and
                 // process on a worker.
-                _ = m_handler.OnSubscriptionStateChangedAsync(this, state,
-                    publishStateMask).AsTask();
+                Task dispatch = m_handler
+                    .OnSubscriptionStateChangedAsync(this, state, publishStateMask)
+                    .AsTask();
+                if (!dispatch.IsCompleted)
+                {
+                    // Observe the fault: an unobserved exception from the
+                    // fire-and-forget dispatch would otherwise surface on the
+                    // finalizer thread.
+                    _ = dispatch.ContinueWith(
+                        static (t, s) => ((Subscription)s!).Logger
+                            .SubscriptionOnSubscriptionStateChangedAsyncHandlerThrew(
+                                t.Exception,
+                                (Subscription)s!),
+                        this,
+                        CancellationToken.None,
+                        TaskContinuationOptions.OnlyOnFaulted |
+                        TaskContinuationOptions.ExecuteSynchronously,
+                        TaskScheduler.Default);
+                }
+                else if (dispatch.IsFaulted)
+                {
+                    Logger.SubscriptionOnSubscriptionStateChangedAsyncHandlerThrew(
+                        dispatch.Exception,
+                        this);
+                }
             }
             catch (Exception ex)
             {
@@ -925,10 +1050,17 @@ namespace Opc.Ua.Client.Subscriptions
                     await m_stateLock.WaitAsync(ct).ConfigureAwait(false);
                     SubscriptionOptions options = Options;
                     bool applyFailed = false;
+                    bool recreateRequired = false;
                     try
                     {
                         while (!ct.IsCancellationRequested)
                         {
+                            if (Interlocked.Exchange(ref m_recreateRequested, 0) != 0)
+                            {
+                                recreateRequired = Created;
+                                break;
+                            }
+
                             if (options.Disabled)
                             {
                                 await DeleteAsync(ct).ConfigureAwait(false);
@@ -950,7 +1082,6 @@ namespace Opc.Ua.Client.Subscriptions
                                 await RunAfterCreateHookAsync(ct)
                                     .ConfigureAwait(false);
                             }
-
                             else
                             {
                                 await ModifyAsync(options, ct).ConfigureAwait(false);
@@ -971,6 +1102,13 @@ namespace Opc.Ua.Client.Subscriptions
                     catch (Exception ex)
                     {
                         applyFailed = true;
+                        // The server no longer knows this subscription, so every
+                        // further Modify / ApplyChanges against the current id
+                        // fails the same way. Recreate it instead of retrying
+                        // the dead id until the process ends.
+                        recreateRequired = Created &&
+                            ex is ServiceResultException sre &&
+                            sre.StatusCode == StatusCodes.BadSubscriptionIdInvalid;
                         // Rate-limit: log the first failure of a streak at Error
                         // and the subsequent retries at Debug so a persistently
                         // failing apply cannot flood the log.
@@ -988,6 +1126,13 @@ namespace Opc.Ua.Client.Subscriptions
                     finally
                     {
                         m_stateLock.Release();
+                    }
+
+                    if (recreateRequired && !ct.IsCancellationRequested)
+                    {
+                        // Takes the state lock itself, so it has to run after
+                        // the release above.
+                        await ResetToRecreateAsync(ct).ConfigureAwait(false);
                     }
 
                     // A per-item change can fail transiently (e.g. a bad status
@@ -1042,11 +1187,16 @@ namespace Opc.Ua.Client.Subscriptions
             await m_stateLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
             try
             {
-                // Local disposal must finish even when the server is unreachable.
-                // A failed remote delete is logged; the server retains its lifetime-based cleanup.
-                using CancellationTokenSource cleanup = TimeProvider.CreateCancellationTokenSource(
-                    TimeSpan.FromSeconds(5));
-                await DeleteAsync(cleanup.Token).ConfigureAwait(false);
+                if (Created)
+                {
+                    // Expiring the remote-delete budget must not cancel local generation
+                    // retirement. Wait for the active callback before resetting its state.
+                    using CancellationTokenSource cleanup = TimeProvider.CreateCancellationTokenSource(
+                        TimeSpan.FromSeconds(5));
+                    await ResetMessageGenerationAsync(
+                        _ => DeleteCoreAsync(cleanup.Token), _ => default, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
             }
             finally
             {
@@ -1088,6 +1238,11 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 return;
             }
+            await ResetMessageGenerationAsync(DeleteCoreAsync, _ => default, ct).ConfigureAwait(false);
+        }
+
+        private async ValueTask DeleteCoreAsync(CancellationToken ct)
+        {
             try
             {
                 // delete the subscription.
@@ -1143,19 +1298,33 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="ct"></param>
         internal async ValueTask CreateAsync(SubscriptionOptions options, CancellationToken ct)
         {
-            // create the subscription.
-            AdjustCounts(options, out uint revisedMaxKeepAliveCount, out uint revisedLifetimeCount);
+            Interlocked.Exchange(ref m_creationInProgress, 1);
+            try
+            {
+                // create the subscription.
+                AdjustCounts(options, out uint revisedMaxKeepAliveCount, out uint revisedLifetimeCount);
 
-            CreateSubscriptionResponse response = await m_context.SubscriptionServiceSet.CreateSubscriptionAsync(null,
-                options.PublishingInterval.TotalMilliseconds, revisedLifetimeCount,
-                revisedMaxKeepAliveCount, options.MaxNotificationsPerPublish,
-                options.PublishingEnabled, options.Priority, ct).ConfigureAwait(false);
+                CreateSubscriptionResponse response = await m_context.SubscriptionServiceSet.CreateSubscriptionAsync(null,
+                    options.PublishingInterval.TotalMilliseconds, revisedLifetimeCount,
+                    revisedMaxKeepAliveCount, options.MaxNotificationsPerPublish,
+                    options.PublishingEnabled, options.Priority, ct).ConfigureAwait(false);
 
-            OnSubscriptionUpdateComplete(true, response.SubscriptionId,
-                TimeSpan.FromMilliseconds(response.RevisedPublishingInterval),
-                response.RevisedMaxKeepAliveCount, response.RevisedLifetimeCount,
-                options.Priority, options.MaxNotificationsPerPublish,
-                options.PublishingEnabled);
+                RememberRequestedSettings(
+                    options.PublishingInterval,
+                    revisedMaxKeepAliveCount,
+                    revisedLifetimeCount,
+                    options.Priority,
+                    options.MaxNotificationsPerPublish);
+                OnSubscriptionUpdateComplete(true, response.SubscriptionId,
+                    TimeSpan.FromMilliseconds(response.RevisedPublishingInterval),
+                    response.RevisedMaxKeepAliveCount, response.RevisedLifetimeCount,
+                    options.Priority, options.MaxNotificationsPerPublish,
+                    options.PublishingEnabled);
+            }
+            finally
+            {
+                Interlocked.Exchange(ref m_creationInProgress, 0);
+            }
         }
 
         /// <summary>
@@ -1169,11 +1338,12 @@ namespace Opc.Ua.Client.Subscriptions
             // modify the subscription.
             AdjustCounts(options, out uint revisedMaxKeepAliveCount, out uint revisedLifetimeCount);
 
-            if (revisedMaxKeepAliveCount != CurrentKeepAliveCount ||
-                revisedLifetimeCount != CurrentLifetimeCount ||
-                options.Priority != CurrentPriority ||
-                options.MaxNotificationsPerPublish != CurrentMaxNotificationsPerPublish ||
-                options.PublishingInterval != CurrentPublishingInterval)
+            if (ShouldModifyRequestedSettings(
+                    options.PublishingInterval,
+                    revisedMaxKeepAliveCount,
+                    revisedLifetimeCount,
+                    options.Priority,
+                    options.MaxNotificationsPerPublish))
             {
                 ModifySubscriptionResponse response = await m_context.SubscriptionServiceSet.ModifySubscriptionAsync(null, Id,
                     options.PublishingInterval.TotalMilliseconds, revisedLifetimeCount,
@@ -1185,6 +1355,12 @@ namespace Opc.Ua.Client.Subscriptions
                     await SetPublishingModeAsync(options, ct).ConfigureAwait(false);
                 }
 
+                RememberRequestedSettings(
+                    options.PublishingInterval,
+                    revisedMaxKeepAliveCount,
+                    revisedLifetimeCount,
+                    options.Priority,
+                    options.MaxNotificationsPerPublish);
                 OnSubscriptionUpdateComplete(false, 0,
                     TimeSpan.FromMilliseconds(response.RevisedPublishingInterval),
                     response.RevisedMaxKeepAliveCount, response.RevisedLifetimeCount,
@@ -1241,6 +1417,10 @@ namespace Opc.Ua.Client.Subscriptions
             byte priority, uint maxNotificationsPerPublish,
             bool publishingEnabled)
         {
+            bool keepAliveSettingsChanged =
+                CurrentKeepAliveCount != revisedKeepAliveCount ||
+                CurrentPublishingInterval != revisedPublishingInterval;
+
             if (CurrentPublishingEnabled != publishingEnabled)
             {
                 Logger.SubscriptionCreatedPublishingNew(
@@ -1292,10 +1472,23 @@ namespace Opc.Ua.Client.Subscriptions
 
             if (created)
             {
+                if (Volatile.Read(ref m_lastRequestedSettings) == null)
+                {
+                    RememberRequestedSettings(
+                        revisedPublishingInterval,
+                        revisedKeepAliveCount,
+                        revisedLifetimeCount,
+                        priority,
+                        maxNotificationsPerPublish);
+                }
                 Id = subscriptionId;
                 StartKeepAliveTimer();
                 NotifyManagerOfCreation();
                 m_createdEvent.Set();
+            }
+            else if (keepAliveSettingsChanged)
+            {
+                StartKeepAliveTimer();
             }
 
             // Notify all monitored items of the changes
@@ -1309,13 +1502,11 @@ namespace Opc.Ua.Client.Subscriptions
         /// Delete the subscription.
         /// Ignore errors, always reset all parameter.
         /// </summary>
-        internal void OnSubscriptionDeleteCompleted()
+        private void OnSubscriptionDeleteCompleted()
         {
-            LastSequenceNumberProcessed = 0;
-            LastNotificationTimestamp = 0;
-
             Id = 0;
             m_createdEvent.Reset();
+            Volatile.Write(ref m_lastRequestedSettings, null);
             CurrentPublishingInterval = TimeSpan.Zero;
             CurrentKeepAliveCount = 0;
             CurrentPublishingEnabled = false;
@@ -1324,6 +1515,13 @@ namespace Opc.Ua.Client.Subscriptions
             m_deletedItems.Clear();
 
             // Notify all monitored items of the changes
+            foreach (IMonitoredItem item in m_monitoredItems.Items)
+            {
+                if (item is MonitoredItems.MonitoredItem monitoredItem)
+                {
+                    monitoredItem.Reset();
+                }
+            }
             m_monitoredItems.OnSubscriptionStateChange(SubscriptionState.Deleted,
                 CurrentPublishingInterval);
             OnSubscriptionStateChanged(SubscriptionState.Deleted);
@@ -1348,7 +1546,8 @@ namespace Opc.Ua.Client.Subscriptions
             m_keepAliveInterval = CurrentPublishingInterval.Multiply(CurrentKeepAliveCount + 1);
             if (m_keepAliveInterval < s_minKeepAliveTimerInterval)
             {
-                m_keepAliveInterval = options.PublishingInterval.Multiply(options.KeepAliveCount + 1);
+                AdjustCounts(options, out uint adjustedKeepAliveCount, out _);
+                m_keepAliveInterval = options.PublishingInterval.Multiply(adjustedKeepAliveCount + 1);
             }
             if (m_keepAliveInterval > s_maxKeepAliveTimerInterval)
             {
@@ -1412,7 +1611,14 @@ namespace Opc.Ua.Client.Subscriptions
                 }
 
                 uint minLifetimeInterval = (uint)options.MinLifetimeInterval.TotalMilliseconds;
-                uint publishingInterval = (uint)options.PublishingInterval.TotalMilliseconds;
+                // Only the local lifetime-count divisor is clamped: a
+                // sub-millisecond interval truncates to zero here and would
+                // divide by zero. The requested interval is sent unchanged, so
+                // 0 still asks the server for its fastest supported interval
+                // (Part 4 §5.14.3.2).
+                uint publishingInterval = Math.Max(
+                    1u,
+                    (uint)options.PublishingInterval.TotalMilliseconds);
                 uint minLifetimeCount = minLifetimeInterval / publishingInterval;
                 if (lifetimeCount < minLifetimeCount)
                 {
@@ -1458,19 +1664,63 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
+        private void RememberRequestedSettings(
+            TimeSpan publishingInterval,
+            uint keepAliveCount,
+            uint lifetimeCount,
+            byte priority,
+            uint maxNotificationsPerPublish)
+        {
+            Volatile.Write(ref m_lastRequestedSettings, new RequestedSubscriptionSettings(
+                publishingInterval,
+                keepAliveCount,
+                lifetimeCount,
+                priority,
+                maxNotificationsPerPublish));
+        }
+
+        private bool ShouldModifyRequestedSettings(
+            TimeSpan publishingInterval,
+            uint keepAliveCount,
+            uint lifetimeCount,
+            byte priority,
+            uint maxNotificationsPerPublish)
+        {
+            return Volatile.Read(ref m_lastRequestedSettings) != new RequestedSubscriptionSettings(
+                publishingInterval,
+                keepAliveCount,
+                lifetimeCount,
+                priority,
+                maxNotificationsPerPublish);
+        }
+
+        private sealed record RequestedSubscriptionSettings(
+            TimeSpan PublishingInterval,
+            uint KeepAliveCount,
+            uint LifetimeCount,
+            byte Priority,
+            uint MaxNotificationsPerPublish);
+
         private static readonly TimeSpan s_minKeepAliveTimerInterval = TimeSpan.FromSeconds(1);
+
         private static readonly TimeSpan s_maxKeepAliveTimerInterval =
             TimeSpan.FromMilliseconds(uint.MaxValue - 1u);
+
         private static readonly TimeSpan s_keepAliveTimerMargin = TimeSpan.FromSeconds(1);
         private const int kBaseApplyRetryBackoffMs = 250;
         private const int kMaxApplyRetryBackoffMs = 5000;
         private TimeSpan m_keepAliveInterval;
         private int m_publishLateCount;
+        private int m_recreateRequested;
+        private int m_recreateAfterTimeoutInProgress;
+        private RequestedSubscriptionSettings? m_lastRequestedSettings;
         private Func<CancellationToken, ValueTask>? m_onAfterCreateAsync;
         private readonly AsyncAutoResetEvent m_stateControl = new();
         private readonly AsyncManualResetEvent m_createdEvent = new();
+
         private readonly TaskCompletionSource<bool> m_disposeCompletion = new(
             TaskCreationOptions.RunContinuationsAsynchronously);
+
         private readonly CancellationTokenSource m_cts = new();
         private readonly Task m_stateManagement;
         private readonly SemaphoreSlim m_stateLock = new(1, 1);
@@ -1655,6 +1905,21 @@ namespace Opc.Ua.Client.Subscriptions
             Subscription subscription,
             uint old,
             uint @new);
-    }
 
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 66, Level = LogLevel.Information,
+            Message = "Subscription {SubscriptionId}: skipped deleting stale id {StaleId} " +
+                "because it now belongs to another subscription.")]
+        public static partial void SubscriptionSkippedDeleteOfReusedId(
+            this ILogger logger,
+            uint subscriptionId,
+            uint staleId);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 67, Level = LogLevel.Error,
+            Message = "Subscription {SubscriptionId}: failed to recover the messages the server " +
+                "still held after the transfer completed.")]
+        public static partial void SubscriptionFailedToRecoverTransferredMessages(
+            this ILogger logger,
+            Exception? exception,
+            uint subscriptionId);
+    }
 }

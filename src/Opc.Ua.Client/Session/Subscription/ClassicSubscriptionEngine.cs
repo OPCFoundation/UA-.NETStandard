@@ -816,7 +816,7 @@ namespace Opc.Ua.Client
                 notificationMessage.StringTable = responseHeader.StringTable;
 
                 // update subscription cache.
-                subscription.SaveMessageInCache(availableSequenceNumberList, notificationMessage);
+                subscription.SaveMessageInCache(availableSequenceNumbers, notificationMessage);
 
                 // raise the notification.
                 var args = new NotificationEventArgs(

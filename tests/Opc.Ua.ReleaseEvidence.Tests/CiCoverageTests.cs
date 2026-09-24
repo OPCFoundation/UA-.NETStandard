@@ -131,6 +131,88 @@ namespace Opc.Ua.ReleaseEvidence.Tests
         }
 
         /// <summary>
+        /// Captures the package-version target's preview result while retaining the independently checked root version.
+        /// </summary>
+        [Test]
+        public async Task CapturePreservesPreviewFamilyVersionAsync()
+        {
+            using var work = new CiEvidenceWorkspace();
+            await work.PrepareCaptureAsync().ConfigureAwait(false);
+            string path = work.At("Generator.csproj");
+            string project = await File.ReadAllTextAsync(path).ConfigureAwait(false);
+            project = project.Replace("</Project>", """
+                <PropertyGroup><_IsPreviewPackage>true</_IsPreviewPackage></PropertyGroup>
+                <Target Name="ApplyPreviewPackageVersion">
+                  <PropertyGroup>
+                    <_PreviewSourceVersion>$(PackageVersion)</_PreviewSourceVersion>
+                    <PackageVersion>$(PackageVersion)-preview.6</PackageVersion>
+                  </PropertyGroup>
+                </Target>
+                </Project>
+                """, StringComparison.Ordinal);
+            await File.WriteAllTextAsync(path, project).ConfigureAwait(false);
+            int code = await new BuildCapture(work.Files, new ProcessRunner()).CaptureAsync(
+                CiEvidenceWorkspace.RepositoryRoot, work.At("capture.json"), work.At("captured"),
+                CancellationToken.None).ConfigureAwait(false);
+            FrozenBundle bundle = await work.Files.ReadModelAsync(
+                work.At("captured/build-inputs.json"), EvidenceJsonContext.Default.FrozenBundle,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(code, Is.Zero);
+            Assert.That(bundle.Version, Is.EqualTo("2.0.0"));
+            ProjectMapping generator = bundle.Mappings.Single(m => m.IsPackable);
+            Assert.That(generator.PackageVersion, Is.EqualTo("2.0.0-preview.6"));
+            Assert.That(generator.Payloads.Where(p => p.Origin == "project:" + generator.Project)
+                .Select(p => p.Version), Is.All.EqualTo("2.0.0-preview.6"));
+        }
+
+        /// <summary>
+        /// Accepts a preview-family archive only when its exact version matches the evaluated package mapping.
+        /// </summary>
+        /// <param name="capturedVersion">The independently captured package version.</param>
+        /// <param name="accepted">Whether the archive matches its mapping.</param>
+        [TestCase("2.0.0-preview.6", true)]
+        [TestCase("2.0.0-preview.7", false)]
+        [TestCase("2.0.0", false)]
+        public async Task PreviewArchiveRequiresExactCapturedVersionAsync(string capturedVersion, bool accepted)
+        {
+            using var work = new CiEvidenceWorkspace();
+            await work.PreparePackageAsync().ConfigureAwait(false);
+            using (ZipArchive archive = ZipFile.Open(work.ArchivePath, ZipArchiveMode.Update))
+            {
+                ZipArchiveEntry entry = archive.GetEntry("Fixture.Library.nuspec")!;
+                string original;
+                using (var reader = new StreamReader(entry.Open()))
+                {
+                    original = await reader.ReadToEndAsync().ConfigureAwait(false);
+                }
+                entry.Delete();
+                await using Stream stream = archive.CreateEntry("Fixture.Library.nuspec").Open();
+                byte[] bytes = Encoding.UTF8.GetBytes(original.Replace(
+                    "<version>2.0.0</version>", "<version>2.0.0-preview.6</version>", StringComparison.Ordinal));
+                await stream.WriteAsync(bytes).ConfigureAwait(false);
+            }
+            ProjectMapping[] mappings = [.. work.Mappings.Select(m =>
+                m.IsPackable ? m with { PackageVersion = capturedVersion } : m)];
+            Task<PackageInventory> ReconcileAsync()
+            {
+                return new PackageReconciler(work.Files).ReconcileAsync(
+                    work.ArchivePath, "2.0.0", mappings, [], CancellationToken.None);
+            }
+            if (accepted)
+            {
+                PackageInventory result = await ReconcileAsync().ConfigureAwait(false);
+                Assert.That(result.Artifact.Version, Is.EqualTo("2.0.0-preview.6"));
+                Assert.That(result.UnmetControls, Is.Empty);
+            }
+            else
+            {
+                Assert.That(ReconcileAsync, Throws.TypeOf<InvalidDataException>()
+                    .With.Message.Contains("evaluated package mapping"));
+            }
+        }
+
+        /// <summary>
         /// Verifies actual payload ownership and CycloneDX dependency edges without confusing build and consumer scope.
         /// </summary>
         [Test]
@@ -352,13 +434,28 @@ namespace Opc.Ua.ReleaseEvidence.Tests
         /// <summary>
         /// Verifies digest-bound sidecars and source mappings while retaining original archives and manifest bytes.
         /// </summary>
-        [TestCase("development", 0)]
-        [TestCase("stable", 1)]
+        /// <param name="channel">The release channel supplied to generation.</param>
+        /// <param name="expectedExit">The unchanged required-policy result.</param>
+        /// <param name="manifestVersion">The archive-manifest format to retain byte-for-byte.</param>
+        [TestCase("development", 0, 1)]
+        [TestCase("stable", 1, 1)]
+        [TestCase("development", 0, 2)]
+        [TestCase("stable", 1, 2)]
         public async Task NugetGenerationPreservesBytesAndReportsUnauthenticatedControlsAsync(
-            string channel, int expectedExit)
+            string channel, int expectedExit, int manifestVersion)
         {
             using var work = new CiEvidenceWorkspace();
             EvaluationExpectation context = await work.PrepareNugetAsync(channel).ConfigureAwait(false);
+            if (manifestVersion == 2)
+            {
+                JsonObject updated = await work.ReadObjectAsync("manifest.json").ConfigureAwait(false);
+                updated["schemaVersion"] = 2;
+                updated["basePackageVersion"] = updated["packageVersion"]!.DeepClone();
+                updated.Remove("packageVersion");
+                updated["channel"] = "stable";
+                updated["packageVersions"] = new JsonArray("2.0.0");
+                await work.WriteJsonAsync("manifest.json", updated).ConfigureAwait(false);
+            }
             byte[] archive = await File.ReadAllBytesAsync(work.ArchivePath).ConfigureAwait(false);
             byte[] manifest = await File.ReadAllBytesAsync(work.At("manifest.json")).ConfigureAwait(false);
             int code = await work.GenerateAsync().ConfigureAwait(false);
@@ -392,6 +489,8 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             Assert.That(envelope.Assurance.Completed, Is.Zero);
             Assert.That(envelope.Documents.Count(d => d.Type == "inventory"), Is.EqualTo(1));
             Assert.That(envelope.Documents.Count(d => d.Type == "sbom"), Is.EqualTo(1));
+            Assert.That(envelope.Documents.Single(d => d.Type == "archive-manifest").Version,
+                Is.EqualTo(manifestVersion == 1 ? "1" : "2"));
             foreach (DocumentRecord document in envelope.Documents)
             {
                 byte[] bytes = await File.ReadAllBytesAsync(Path.Combine(work.At("evidence"), document.Path))

@@ -432,6 +432,12 @@ namespace Opc.Ua.Server
         {
             get
             {
+                if (MonitoringMode == MonitoringMode.Disabled ||
+                    (MonitoringMode != MonitoringMode.Reporting && !m_triggered))
+                {
+                    return false;
+                }
+
                 // check if aggregate interval has passed.
                 if (AggregateFilter?.HasEndTimePassed(DateTime.UtcNow) == true)
                 {
@@ -445,15 +451,9 @@ namespace Opc.Ua.Server
                 }
 
                 // check if it has been triggered.
-                if (MonitoringMode != MonitoringMode.Disabled && m_triggered)
+                if (m_triggered)
                 {
                     return true;
-                }
-
-                // check if monitoring was turned off.
-                if (MonitoringMode != MonitoringMode.Reporting)
-                {
-                    return false;
                 }
 
                 if (m_sourceSamplingInterval == 0)
@@ -1248,7 +1248,7 @@ namespace Opc.Ua.Server
         {
             if (QueueSize > 1)
             {
-                m_dataChangeQueueHandler!.QueueRequiredValue(
+                m_dataChangeQueueHandler?.QueueRequiredValue(
                     value,
                     error,
                     replaceExisting);
@@ -1378,12 +1378,6 @@ namespace Opc.Ua.Server
                     return;
                 }
 
-                // check for space in the queue.
-                if (m_eventQueueHandler.SetQueueOverflowIfFull())
-                {
-                    return;
-                }
-
                 // construct the context to use for the event filter.
                 var context = new FilterContext(
                     m_server.NamespaceUris,
@@ -1397,10 +1391,17 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(StatusCodes.BadInternalError);
                 }
 
-                // apply filter.
+                // apply filter first: an event the where clause would have rejected was
+                // never going to be queued, so it must not count as a queue overflow.
                 bool overrideRetain = false;
                 if (!bypassFilter &&
                     !CanSendFilteredAlarm(context, filter, instance, out overrideRetain))
+                {
+                    return;
+                }
+
+                // check for space in the queue only for events that passed the filter.
+                if (m_eventQueueHandler.SetQueueOverflowIfFull())
                 {
                     return;
                 }
@@ -2336,6 +2337,14 @@ namespace Opc.Ua.Server
                                 restoredQueue,
                                 m_discardOldest,
                                 m_server.Telemetry);
+
+                            // the queue may have been persisted with a size that was
+                            // revised since, e.g. a literal size of 1 before queueSize 1
+                            // was mapped to the server minimum (Part 4 §7.21).
+                            if (restoredQueue.QueueSize != QueueSize)
+                            {
+                                m_eventQueueHandler.SetQueueSize(QueueSize, m_discardOldest);
+                            }
                         }
                         else
                         {

@@ -350,6 +350,50 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         [Test]
+        public async Task OpenSecureChannelReportsTheTimeErrorOfATrustedExpiredLeafAsync()
+        {
+            // UaSCBinaryChannel throws the validation result with ThrowIfInvalid; the server
+            // channel may report a validity period error to the client (Part 4 §6.1.3).
+            string trustedDir = await WriteStoreAsync([m_rootCa]).ConfigureAwait(false);
+            CertificateValidationCore core = NewCore(trustedDir);
+            using CertificateCollection chain = Chain(m_expiredLeaf);
+
+            CertificateValidationResult result = await core.ValidateAsync(
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
+            ServiceResultException thrown = Assert.Throws<ServiceResultException>(result.ThrowIfInvalid);
+
+            Assert.That(
+                Bindings.TcpServerChannel.TryGetReportableCertificateError(
+                    thrown, out ServiceResultException reportable),
+                Is.True,
+                thrown.Result.ToLongString());
+            Assert.That(reportable.StatusCode, Is.EqualTo(StatusCodes.BadCertificateTimeInvalid));
+        }
+
+        [Test]
+        public async Task OpenSecureChannelHidesTheTimeErrorOfAnUntrustedExpiredLeafAsync()
+        {
+            // the expired leaf is also untrusted: the validator nests the validity period error
+            // with the chain and trust list errors, which must hide it as Bad_SecurityChecksFailed.
+            CertificateValidationCore core = NewCore();
+            using CertificateCollection chain = Chain(m_expiredLeaf);
+
+            CertificateValidationResult result = await core.ValidateAsync(
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
+            ServiceResultException thrown = Assert.Throws<ServiceResultException>(result.ThrowIfInvalid);
+
+            Assert.That(
+                ContainsStatusCode(result, StatusCodes.BadCertificateUntrusted) ||
+                ContainsStatusCode(result, StatusCodes.BadCertificateChainIncomplete),
+                Is.True,
+                thrown.Result.ToLongString());
+            Assert.That(
+                Bindings.TcpServerChannel.TryGetReportableCertificateError(thrown, out _),
+                Is.False,
+                thrown.Result.ToLongString());
+        }
+
+        [Test]
         public async Task ValidateAsyncNotYetValidLeafReturnsBadCertificateTimeInvalidAsync()
         {
             string trustedDir = await WriteStoreAsync([m_rootCa]).ConfigureAwait(false);
@@ -749,6 +793,83 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(
                 ContainsStatusCode(result, StatusCodes.BadCertificateUseNotAllowed), Is.True);
             Assert.That(result.IsSuppressible, Is.True);
+        }
+
+        /// <summary>
+        /// A peer named by the trust list's own TrustedCertificates element - the
+        /// &lt;TrustedCertificates&gt; configuration list, or
+        /// SecurityConfiguration.AddTrustedPeer - is trusted even though the
+        /// store behind the trust list is empty. Before the fix that list never
+        /// reached the validator and such a peer was rejected with
+        /// BadCertificateUntrusted.
+        /// </summary>
+        [Test]
+        public async Task ValidateAsyncTrustsCertificateListedOnTrustListOnlyAsync()
+        {
+            CertificateValidationCore core = NewCore();
+            core.Update(null, TrustListWith(NewTempDir(), m_selfSignedApp), null);
+            using CertificateCollection chain = Chain(m_selfSignedApp);
+
+            CertificateValidationResult result = await core.ValidateAsync(
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.IsValid, Is.True);
+        }
+
+        /// <summary>
+        /// The same for a CA: a leaf issued by an authority listed only on the
+        /// trust list chains to it.
+        /// </summary>
+        [Test]
+        public async Task ValidateAsyncTrustsLeafOfIssuerListedOnTrustListOnlyAsync()
+        {
+            CertificateValidationCore core = NewCore();
+            core.Update(null, TrustListWith(NewTempDir(), m_rootCa), null);
+            using CertificateCollection chain = Chain(m_leaf);
+
+            CertificateValidationResult result = await core.ValidateAsync(
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.IsValid, Is.True);
+        }
+
+        /// <summary>
+        /// A certificate the trust list does not name is still untrusted, so the
+        /// list is consulted rather than trusted wholesale.
+        /// </summary>
+        [Test]
+        public async Task ValidateAsyncRejectsCertificateMissingFromTrustListAsync()
+        {
+            CertificateValidationCore core = NewCore();
+            core.Update(null, TrustListWith(NewTempDir(), m_rootCa), null);
+            using CertificateCollection chain = Chain(m_selfSignedApp);
+
+            CertificateValidationResult result = await core.ValidateAsync(
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(
+                ContainsStatusCode(result, StatusCodes.BadCertificateUntrusted), Is.True);
+        }
+
+        /// <summary>
+        /// A trust list whose store is empty and whose TrustedCertificates names
+        /// the given certificates, which is the shape the configuration file
+        /// produces for &lt;TrustedCertificates&gt;.
+        /// </summary>
+        private static CertificateTrustList TrustListWith(
+            string dir,
+            params Certificate[] trusted)
+        {
+            CertificateTrustList trustList = TrustList(dir);
+
+            foreach (Certificate certificate in trusted)
+            {
+                trustList.TrustedCertificates = trustList.TrustedCertificates.AddItem(
+                    new CertificateIdentifier { RawData = certificate.RawData });
+            }
+
+            return trustList;
         }
 
         private static Certificate CreateLeaf(

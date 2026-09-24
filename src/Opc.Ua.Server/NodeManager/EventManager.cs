@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
 {
@@ -40,6 +41,17 @@ namespace Opc.Ua.Server
     /// </summary>
     public class EventManager : IDisposable
     {
+        /// <summary>
+        /// The queue size used for an event monitored item that requests the
+        /// server default (queueSize 0) or the server minimum (queueSize 1),
+        /// before it is limited by the configured maximum event queue size.
+        /// </summary>
+        /// <remarks>
+        /// Part 4 §7.21: for event monitored items these two values do not
+        /// disable queueing as they do for data change items.
+        /// </remarks>
+        public const uint DefaultEventQueueSize = 1000;
+
         /// <summary>
         /// Creates a new instance of a sampling group.
         /// </summary>
@@ -147,16 +159,27 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                ServiceResult result = await nodeManager
-                    .ValidateEventRolePermissionsAsync(monitoredItem, e, cancellationToken)
-                    .ConfigureAwait(false);
-
-                if (ServiceResult.IsBad(result))
+                try
                 {
-                    continue;
+                    cancellationToken.ThrowIfCancellationRequested();
+                    ServiceResult result = await nodeManager
+                        .ValidateEventRolePermissionsAsync(monitoredItem, e, cancellationToken)
+                        .ConfigureAwait(false);
+                    // An Uncertain verdict is not a denial, so it must not drop the event.
+                    if (!ServiceResult.IsBad(result))
+                    {
+                        monitoredItem.QueueEvent(e);
+                    }
                 }
-
-                monitoredItem.QueueEvent(e);
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception error) when (
+                    error is not OutOfMemoryException and not StackOverflowException and not AccessViolationException)
+                {
+                    TelemetryExtensions.CreateLogger<EventManager>(null).EventReceiverFailed(error, monitoredItem.Id);
+                }
             }
         }
 
@@ -257,8 +280,19 @@ namespace Opc.Ua.Server
         /// <summary>
         /// calculates a revised queue size based on the application confiugration limits
         /// </summary>
+        /// <remarks>
+        /// Part 4 §7.21: for event monitored items a requested queueSize of 0 returns
+        /// the server default and 1 the minimum queue size the server requires for
+        /// Event Notifications. Taking 1 literally keeps only the last event raised
+        /// between two publishes.
+        /// </remarks>
         private uint CalculateRevisedQueueSize(bool isDurable, uint queueSize)
         {
+            if (queueSize <= 1)
+            {
+                queueSize = DefaultEventQueueSize;
+            }
+
             if (queueSize > m_maxEventQueueSize && !isDurable)
             {
                 queueSize = m_maxEventQueueSize;
@@ -336,5 +370,15 @@ namespace Opc.Ua.Server
         private readonly Dictionary<uint, IEventMonitoredItem> m_monitoredItems;
         private readonly uint m_maxEventQueueSize;
         private readonly uint m_maxDurableEventQueueSize;
+    }
+
+    internal static partial class EventManagerLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.EventManager, Level = LogLevel.Error,
+            Message = "Event delivery to monitored item {MonitoredItemId} failed; other receivers will continue.")]
+        public static partial void EventReceiverFailed(
+            this ILogger logger,
+            Exception exception,
+            uint monitoredItemId);
     }
 }

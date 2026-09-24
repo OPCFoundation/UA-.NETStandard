@@ -84,12 +84,14 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Gets or sets the sustained inbound-connection admission rate per second,
-        /// server-wide (a single bucket shared across all remote peers).
+        /// server-wide (a single bucket shared across all remote peers). Zero or
+        /// negative selects <see cref="DefaultConnectionsPerSecond"/>.
         /// </summary>
         public int ConnectionsPerSecond { get; set; } = DefaultConnectionsPerSecond;
 
         /// <summary>
-        /// Gets or sets the inbound-connection burst capacity, server-wide.
+        /// Gets or sets the inbound-connection burst capacity, server-wide. Zero
+        /// or negative selects <see cref="DefaultConnectionBurst"/>.
         /// </summary>
         public int ConnectionBurst { get; set; } = DefaultConnectionBurst;
 

@@ -101,7 +101,7 @@ jobs:
   - task: UseDotNet@2
     inputs:
       packageType: sdk
-      version: '10.0.x'
+      version: '10.0.401'
   - task: PowerShell@2
     name: testmatrix
     displayName: Prepare Tests
@@ -172,7 +172,7 @@ jobs:
     displayName: 'Install .NET 10.0'
     inputs:
       packageType: 'sdk'
-      version: '10.0.x'
+      version: '10.0.401'
   - task: NuGetToolInstaller@1
     inputs:
       versionSpec: '>=7.0.x'
@@ -194,7 +194,8 @@ jobs:
         if (Test-Path $dir) { Remove-Item $dir -Recurse -Force }
         $null = New-Item -ItemType Directory -Path $dir
         if ('$(file)' -like '*Fuzz.Tests.csproj') {
-            & ./.azurepipelines/assurance/fuzz-inputs.ps1 -Project '$(file)' -OutputPath "$dir/public-inputs.json"
+            & ./.azurepipelines/assurance/fuzz-inputs.ps1 -Project '$(file)' `
+              -OutputPath "$dir/public-inputs.json" -RequireCommitted
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         }
   - task: DotNetCoreCLI@2
@@ -203,19 +204,35 @@ jobs:
       command: restore
       projects: $(file)
       arguments: '${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }}'
+  - task: PowerShell@2
+    displayName: 'Determine the supported result format'
+    inputs:
+      pwsh: true
+      targetType: inline
+      script: |
+        $output = & dotnet msbuild '$(file)' -nologo `
+          '-getProperty:IsTestingPlatformApplication;TestingPlatformDotnetTestSupport;OutputType' `
+          '-p:TargetFramework=${{ parameters.framework }}' `
+          '-p:CustomTestTarget=${{ parameters.customtestarget }}' `
+          '-p:Configuration=${{ parameters.configuration }}' 2>&1 | Out-String
+        if ($LASTEXITCODE -ne 0) { throw 'Cannot determine the selected test runner.' }
+        $start = $output.IndexOf('{')
+        $end = $output.LastIndexOf('}')
+        if ($start -lt 0 -or $end -le $start) { throw 'No evaluated test runner properties were returned.' }
+        $properties = ($output.Substring($start, $end - $start + 1) | ConvertFrom-Json).Properties
+        $mtp = $properties.IsTestingPlatformApplication -eq 'true' -and
+          $properties.TestingPlatformDotnetTestSupport -eq 'true' -and $properties.OutputType -eq 'Exe'
+        Write-Host "##vso[task.setvariable variable=REQUIRE_TRX]$((-not $mtp).ToString().ToLowerInvariant())"
   - task: DotNetCoreCLI@2
     displayName: Test ${{ parameters.configuration }}
+    condition: and(succeeded(), not(contains(variables['file'], 'fuzzing')))
     env:
       OPCUA_ASSURANCE_REPLAY_PATH: '$(TestResultsDirectory)/fuzz-replay.xml'
     timeoutInMinutes: 90
-    # continueOnError: a non-zero 'dotnet test' exit code no longer fails the job
-    # directly - the "Evaluate test results" gate below decides pass/fail from the
-    # emitted TRX. This is required because the hosted macOS agent intermittently
-    # stalls the test host during PROCESS EXIT (after every test has already
-    # passed and all teardowns have run; managed threads are frozen so no in-test
-    # mitigation can fire), and the blame collector then kills the host with a
-    # non-zero exit even though the run was functionally green. A real test
-    # failure is still caught: it is recorded in the TRX and fails the gate.
+    # Continue to result publication and diagnostic collection even when the
+    # test host exits nonzero. The strict gate below determines the job result:
+    # failed, aborted, and incomplete runs are rejected even when every recorded
+    # test passed. This includes hosts terminated by the blame collector.
     continueOnError: true
     inputs:
       command: test
@@ -253,13 +270,70 @@ jobs:
       # "nodename nor servname provided, or not known" and failed the job).
       arguments: '--no-restore ${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }} ${{ variables.CoverageArgs }} ${{ variables.TestFilterArgs }} --blame-hang-timeout ${{ parameters.hangtimeout }} --blame-hang-dump-type mini --blame-crash --blame-crash-dump-type mini --logger trx --results-directory $(TestResultsDirectory)'
       publishTestResults: false
+  - task: PowerShell@2
+    displayName: 'Build and replay fuzz tests with private diagnostics'
+    condition: and(succeeded(), contains(variables['file'], 'fuzzing'))
+    continueOnError: true
+    timeoutInMinutes: 90
+    env:
+      OPCUA_ASSURANCE_REPLAY_PATH: '$(TestResultsDirectory)/fuzz-replay.xml'
+    inputs:
+      pwsh: true
+      targetType: inline
+      script: |
+        $dir = '$(TestResultsDirectory)'
+        $log = Join-Path $dir 'build-and-test.log'
+        try {
+            $buildArgs = @(
+                'build', '$(file)', '--no-restore', '--framework', '${{ parameters.framework }}',
+                '--configuration', '${{ parameters.configuration }}')
+            if ('${{ parameters.customtestarget }}') {
+                $buildArgs += '/p:CustomTestTarget=${{ parameters.customtestarget }}'
+            }
+            $coverage = '${{ parameters.coverage }}' -eq 'True' -and
+                '${{ parameters.framework }}' -notlike 'net4*' -and
+                '${{ parameters.customtestarget }}' -notlike 'net4*'
+            if ($coverage) { $buildArgs += '/p:CollectCoverage=true' }
+            & dotnet @buildArgs *> $log
+            if ($LASTEXITCODE -ne 0) { throw 'Fuzz build failed.' }
+            if ('$(file)' -like '*Fuzz.Tests.csproj') {
+                & ./.azurepipelines/assurance/fuzz-inputs.ps1 -Project '$(file)' `
+                    -BuildOutput '$(folder)/bin/${{ parameters.configuration }}/${{ parameters.framework }}' `
+                    -OutputPath "$dir/copied-inputs.json" -RequireCommitted
+                if ($LASTEXITCODE -ne 0) { throw 'The copied replay inputs could not be verified.' }
+                $before = Get-Content "$dir/public-inputs.json" -Raw | ConvertFrom-Json
+                $after = Get-Content "$dir/copied-inputs.json" -Raw | ConvertFrom-Json
+                if ($before.inventoryDigest -cne $after.inventoryDigest) { throw 'Replay inputs changed after selection.' }
+            }
+            $testArgs = @(
+                'test', '$(file)', '--no-build', '--framework', '${{ parameters.framework }}',
+                '--configuration', '${{ parameters.configuration }}',
+                '--blame-hang-timeout', '${{ parameters.hangtimeout }}', '--blame-hang-dump-type', 'mini',
+                '--blame-crash', '--blame-crash-dump-type', 'mini', '--logger', 'trx',
+                '--results-directory', $dir)
+            if ('${{ parameters.customtestarget }}') {
+                $testArgs += '/p:CustomTestTarget=${{ parameters.customtestarget }}'
+            }
+            if ('${{ parameters.testfilter }}') { $testArgs += @('--filter', '${{ parameters.testfilter }}') }
+            if ($coverage) {
+                $testArgs += @('/p:CollectCoverage=true', '--collect:XPlat Code Coverage',
+                    '--settings', './tests/coverlet.runsettings.xml')
+            }
+            & dotnet @testArgs *>> $log
+            if ($LASTEXITCODE -ne 0) { throw 'Fuzz execution exited unsuccessfully.' }
+        }
+        catch {
+            $_ | Out-String | Out-File -LiteralPath $log -Append
+            Write-Host '##vso[task.logissue type=error]Fuzz execution failed; raw diagnostics remain private on the runner.'
+            exit 1
+        }
   - task: PublishTestResults@2
     displayName: 'Publish Test Results ${{ parameters.configuration }} (${{ parameters.framework }})'
     # succeededOrFailed() so test results land in AzDO even when tests failed;
     # continueOnError so a transient publish failure (e.g. macOS hosted agent DNS
     # hiccup against opcfoundation.visualstudio.com) does not flip the job to
     # failed when the actual tests already passed.
-    condition: and(succeededOrFailed(), not(contains(variables['file'], 'Fuzz.Tests')))
+    condition: and(succeededOrFailed(), not(contains(variables['file'], 'fuzzing')))
     continueOnError: true
     inputs:
       testResultsFormat: VSTest
@@ -271,18 +345,29 @@ jobs:
     displayName: 'Evaluate test results ${{ parameters.configuration }} (${{ parameters.framework }})'
     # Result-driven gate: the job's pass/fail is defined by the emitted TRX, not
     # by the 'dotnet test' exit code (the test step runs with continueOnError).
-    # Fails the job if any test failed/errored/timed-out/aborted, or if no results
-    # were produced at all. Tolerates ONLY a non-zero exit when every recorded
-    # test passed - i.e. the benign macOS test-host process-exit stall that the
-    # blame collector turns into a non-zero exit after a fully green run. This
-    # runs before the failure-only artifact steps below so their failed()
-    # conditions still see a genuine failure.
+    # Every TRX must describe a completed successful run, with no run-level
+    # errors and consistent results/counters. Green counters alone can describe
+    # a partial run whose host crashed. A Failed or Aborted verdict is never
+    # accepted, including a blame kill after all recorded tests passed. Only an
+    # explicit Completed/Passed verdict can establish TRX success; no-TRX MTP
+    # jobs retain their exit-status fallback. Run before failure-only artifacts.
+    condition: succeededOrFailed()
+    inputs:
+      pwsh: true
+      targetType: inline
+      script: |
+        ./.azurepipelines/assurance/evaluate-test-results.ps1 -ResultsDirectory '$(TestResultsDirectory)' `
+          -RequireTrx:('$(REQUIRE_TRX)' -ne 'false') -Sanitize
+        exit $LASTEXITCODE
+  - task: PowerShell@2
+    displayName: 'Produce sanitized execution proof'
     condition: succeededOrFailed()
     inputs:
       pwsh: true
       targetType: filePath
       filePath: ./.azurepipelines/assurance/results.ps1
-      arguments: -ResultsPath "$(TestResultsDirectory)" -OutputPath "$(TestResultsDirectory)/public-results.json" -Kind trx -Enforce
+      # An exit-only MTP baseline fallback is never completed release evidence.
+      arguments: -ResultsPath "$(TestResultsDirectory)" -OutputPath "$(TestResultsDirectory)/public-results.json" -Kind trx -StrictTrx
   - task: PowerShell@2
     displayName: 'Verify copied public replay inputs'
     condition: and(succeededOrFailed(), contains(variables['file'], 'Fuzz.Tests'))
@@ -293,7 +378,7 @@ jobs:
         $dir = '$(TestResultsDirectory)'
         & ./.azurepipelines/assurance/fuzz-inputs.ps1 -Project '$(file)' `
             -BuildOutput '$(folder)/bin/${{ parameters.configuration }}/${{ parameters.framework }}' `
-            -OutputPath "$dir/copied-inputs.json"
+            -OutputPath "$dir/copied-inputs.json" -RequireCommitted
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         $before = Get-Content "$dir/public-inputs.json" -Raw | ConvertFrom-Json
         $after = Get-Content "$dir/copied-inputs.json" -Raw | ConvertFrom-Json
@@ -305,7 +390,7 @@ jobs:
       pwsh: true
       targetType: filePath
       filePath: ./.azurepipelines/assurance/write-job.ps1
-      arguments: -Project "$(file)" -ResultsPath "$(TestResultsDirectory)" -OutputPath "$(TestResultsDirectory)/public/evidence.job.json" -Workflow azure-pipelines.yml -HostTfm "${{ parameters.framework }}" -LibraryTfm "${{ coalesce(parameters.customtestarget, parameters.framework) }}" -Configuration "${{ parameters.configuration }}" -Filter "${{ parameters.testfilter }}"
+      arguments: -Project "$(file)" -ResultsPath "$(TestResultsDirectory)" -OutputPath "$(TestResultsDirectory)/public/evidence.job.json" -Workflow azure-pipelines.yml -HostTfm "${{ parameters.framework }}" -LibraryTfm "${{ coalesce(parameters.customtestarget, parameters.framework) }}" -Configuration "${{ parameters.configuration }}" -Filter "${{ parameters.testfilter }}" -StrictTrx
   - task: PowerShell@2
     displayName: 'Detect public assurance result'
     condition: succeededOrFailed()
@@ -318,6 +403,14 @@ jobs:
             Copy-Item '$(TestResultsDirectory)/public-inputs.json' '$(TestResultsDirectory)/public/public-inputs.json'
         }
         Write-Host "##vso[task.setvariable variable=HAS_ASSURANCE]$($found.ToString().ToLowerInvariant())"
+        if ('${{ parameters.jobnamesuffix }}' -eq 'assurance') {
+            if (-not $found) { throw 'The selected assurance record is missing.' }
+            $proof = Get-Content '$(TestResultsDirectory)/public/evidence.job.results.json' -Raw | ConvertFrom-Json
+            if ($proof.status -cne 'completed' -or
+                ($proof.kind -ceq 'trx' -and $proof.counts.skipped -ne 0)) {
+                throw 'The selected assurance execution was not complete.'
+            }
+        }
   - task: PublishPipelineArtifact@1
     displayName: 'Publish sanitized assurance only'
     condition: and(succeededOrFailed(), eq(variables['HAS_ASSURANCE'], 'true'))
@@ -377,7 +470,7 @@ jobs:
     # application crash reports that accumulate on shared agents.  Qualifying reports
     # created in the last two hours are copied into $(Agent.TempDirectory)/mac-diagnostics/
     # so the 'Stage diagnostic dumps' CopyFiles step below picks them up automatically.
-    condition: and(failed(), eq(variables['Agent.OS'], 'Darwin'), not(contains(variables['file'], 'Fuzz.Tests')))
+    condition: and(failed(), eq(variables['Agent.OS'], 'Darwin'), not(contains(variables['file'], 'fuzzing')))
     continueOnError: true
     inputs:
       targetType: inline
@@ -426,7 +519,7 @@ jobs:
   # warning on an empty targetPath, which we do NOT want on healthy runs.
   - task: CopyFiles@2
     displayName: 'Stage diagnostic dumps'
-    condition: and(succeededOrFailed(), not(contains(variables['file'], 'Fuzz.Tests')))
+    condition: and(succeededOrFailed(), not(contains(variables['file'], 'fuzzing')))
     continueOnError: true
     inputs:
       SourceFolder: '$(TestResultsDirectory)'
@@ -457,7 +550,7 @@ jobs:
     # Only publish when the probe found at least one dump; otherwise
     # PublishPipelineArtifact@1 warns on an empty targetPath and the whole
     # step lights up yellow on healthy runs.
-    condition: and(succeededOrFailed(), eq(variables['dumpProbe.HAS_DUMPS'], 'true'), not(contains(variables['file'], 'Fuzz.Tests')))
+    condition: and(succeededOrFailed(), eq(variables['dumpProbe.HAS_DUMPS'], 'true'), not(contains(variables['file'], 'fuzzing')))
     inputs:
       targetPath: '$(Build.ArtifactStagingDirectory)/dumps'
       artifact: 'dumps-$(System.JobId)'

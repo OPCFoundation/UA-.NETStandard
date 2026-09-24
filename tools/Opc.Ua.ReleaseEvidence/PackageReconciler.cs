@@ -49,6 +49,7 @@ namespace Opc.Ua.ReleaseEvidence
         /// <summary>
         /// Builds a package inventory by checking archive identity and matching payload bytes to evaluated owners.
         /// </summary>
+        /// <exception cref="InvalidDataException"></exception>
         public async Task<PackageInventory> ReconcileAsync(
             string archivePath,
             string releaseVersion,
@@ -74,7 +75,7 @@ namespace Opc.Ua.ReleaseEvidence
             {
                 throw new InvalidDataException("Invalid embedded NuGet package ID.");
             }
-            if (!Versions.Equal(version, releaseVersion))
+            if (!Versions.IsPackageVersionForRelease(version, releaseVersion))
             {
                 throw new InvalidDataException("Archive nuspec version differs from the release context.");
             }
@@ -88,6 +89,11 @@ namespace Opc.Ua.ReleaseEvidence
             if (matching.Length == 0 && !metapackage)
             {
                 throw new InvalidDataException($"No evaluated package mapping for {id}.");
+            }
+            if ((metapackage && !Versions.Equal(version, releaseVersion)) ||
+                (matching.Length == 1 && !Versions.Equal(version, matching[0].PackageVersion)))
+            {
+                throw new InvalidDataException("Archive nuspec version differs from its evaluated package mapping.");
             }
             string configuration = metapackage ? "Release" : matching[0].Configuration;
             string kind = archivePath.EndsWith(".snupkg", StringComparison.OrdinalIgnoreCase)
@@ -253,6 +259,7 @@ namespace Opc.Ua.ReleaseEvidence
         /// <summary>
         /// Rejects unsafe or duplicate archive paths, symbolic links, and excessive entry, size, or compression limits.
         /// </summary>
+        /// <exception cref="InvalidDataException"></exception>
         internal static void ValidateEntries(ZipArchive archive)
         {
             if (archive.Entries.Count is 0 or > 100000)
@@ -309,7 +316,7 @@ namespace Opc.Ua.ReleaseEvidence
                     path.EndsWith(".nuspec", StringComparison.OrdinalIgnoreCase)) ||
                 metadata.Elements().Any(e =>
                     (e.Name.LocalName is "readme" or "icon" ||
-                        e.Name.LocalName == "license" && e.Attribute("type")?.Value == "file") &&
+                        (e.Name.LocalName == "license" && e.Attribute("type")?.Value == "file")) &&
                     e.Value == path);
         }
 

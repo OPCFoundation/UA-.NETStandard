@@ -33,6 +33,8 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Security;
+using System.Net.Sockets;
+using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -266,7 +268,11 @@ namespace Opc.Ua.Bindings
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, ct);
             try
             {
-                using var content = new ByteArrayContent(EncodeRequest(request, context));
+                using var requestMessage = new HttpRequestMessage(HttpMethod.Post, m_url)
+                {
+                    Content = new ByteArrayContent(EncodeRequest(request, context))
+                };
+                HttpContent content = requestMessage.Content;
                 content.Headers.ContentType = MediaType;
                 if (EndpointDescription?.SecurityPolicyUri != null &&
                     !string.Equals(
@@ -279,9 +285,9 @@ namespace Opc.Ua.Bindings
                         EndpointDescription.SecurityPolicyUri);
                 }
 
-                HttpResponseMessage response = await client.PostAsync(
-                    m_url,
-                    content,
+                using HttpResponseMessage response = await client.SendAsync(
+                    requestMessage,
+                    HttpCompletionOption.ResponseHeadersRead,
                     linkedCts.Token).ConfigureAwait(false);
 
                 // Translate an HTTP 429/503 (e.g. from an AddHttpsRateLimiter
@@ -296,13 +302,9 @@ namespace Opc.Ua.Bindings
 
                 response.EnsureSuccessStatusCode();
 
-#if NET6_0_OR_GREATER
-                Stream responseContent = await response.Content.ReadAsStreamAsync(ct)
-                    .ConfigureAwait(false);
-#else
-                Stream responseContent = await response.Content.ReadAsStreamAsync()
-                    .ConfigureAwait(false);
-#endif
+                byte[] responseBytes = await HttpResponseBodyReader.ReadAsync(
+                    response.Content, context.MaxMessageSize, linkedCts.Token).ConfigureAwait(false);
+                using var responseContent = new MemoryStream(responseBytes, writable: false);
                 IServiceResponse serviceResponse = DecodeResponse(responseContent, context);
                 if (serviceResponse != null)
                 {
@@ -316,29 +318,21 @@ namespace Opc.Ua.Bindings
             {
                 if (hre.InnerException is WebException webex)
                 {
-                    StatusCode statusCode;
-                    switch (webex.Status)
-                    {
-                        case WebExceptionStatus.Timeout:
-                            statusCode = StatusCodes.BadRequestTimeout;
-                            break;
-                        case WebExceptionStatus.ConnectionClosed:
-                        case WebExceptionStatus.ConnectFailure:
-                            statusCode = StatusCodes.BadNotConnected;
-                            break;
-                        default:
-                            statusCode = StatusCodes.BadUnknownResponse;
-                            break;
-                    }
                     m_logger.HttpsChannelLog1(webex);
-                    throw ServiceResultException.Create((uint)statusCode, webex.Message);
                 }
-                m_logger.HttpsChannelLog2(hre);
-                throw;
+                else
+                {
+                    m_logger.HttpsChannelLog2(hre);
+                }
+                throw ServiceResultException.Create(
+                    MapRequestFailure(hre),
+                    hre,
+                    "Error sending request: {0}",
+                    hre.InnerException?.Message ?? hre.Message);
             }
             catch (OperationCanceledException e)
             {
-                if (cts.IsCancellationRequested)
+                if (cts.IsCancellationRequested || !ct.IsCancellationRequested)
                 {
                     m_logger.HttpsChannelLog3(e, OperationTimeout);
                     throw ServiceResultException.Create(
@@ -572,6 +566,9 @@ namespace Opc.Ua.Bindings
             return true;
         }
 
+        /// <summary>
+        /// Creates an HTTP client with transport quotas, certificate validation, and automatic redirects disabled.
+        /// </summary>
         private HttpClient CreateDirectHttpClient()
         {
             // auto validate server cert, if supported
@@ -643,10 +640,17 @@ namespace Opc.Ua.Bindings
 
                 try
                 {
-                    serverCertificateCustomValidationCallback = (_, cert, chain, _) =>
+                    serverCertificateCustomValidationCallback = (_, cert, chain, sslPolicyErrors) =>
                     {
                         try
                         {
+                            if ((sslPolicyErrors & SslPolicyErrors.RemoteCertificateNameMismatch) != 0)
+                            {
+                                throw new ServiceResultException(
+                                    StatusCodes.BadCertificateHostNameInvalid,
+                                    "The HTTPS certificate host name does not match the endpoint.");
+                            }
+
                             if (chain != null && chain.ChainElements != null)
                             {
                                 int i = 0;
@@ -733,9 +737,18 @@ namespace Opc.Ua.Bindings
                 // of the stack, so TLS-layer revocation on the HttpClient handler is
                 // intentionally left disabled to avoid duplicate / inconsistent checks.
 #pragma warning disable CA5400 // HttpClient is created without enabling CheckCertificateRevocationList
-                var client = new HttpClient(handler);
+                var client = new HttpClient(handler)
+                {
+                    Timeout = Timeout.InfiniteTimeSpan
+                };
 #pragma warning restore CA5400 // HttpClient is created without enabling CheckCertificateRevocationList
                 handler = null; // ownership transferred to HttpClient
+
+                // No MaxResponseContentBufferSize here: it only bounds buffering
+                // HttpClient does itself, and every response is read with
+                // HttpCompletionOption.ResponseHeadersRead and bounded by
+                // HttpResponseBodyReader. Setting it would read as a limit that is
+                // in force on the factory-supplied client too, and it is not.
                 return client;
             }
             finally
@@ -808,6 +821,65 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Maps a failed HTTP request onto the status code the stack reports for
+        /// it, distinguishing a transport failure worth retrying from a delivered
+        /// HTTP error or a rejected TLS handshake.
+        /// </summary>
+        private static StatusCode MapRequestFailure(HttpRequestException exception)
+        {
+            if (exception.InnerException is WebException webException)
+            {
+                return webException.Status switch
+                {
+                    WebExceptionStatus.Timeout => StatusCodes.BadRequestTimeout,
+                    WebExceptionStatus.ConnectionClosed or WebExceptionStatus.ConnectFailure
+                        => StatusCodes.BadNotConnected,
+                    _ => StatusCodes.BadUnknownResponse
+                };
+            }
+            if (exception.InnerException is SocketException socketException)
+            {
+                return MapSocketError(socketException.SocketErrorCode);
+            }
+
+            // A TLS failure - including a server certificate the UA validator
+            // rejected in the handler callback - is permanent for this endpoint.
+            if (exception.InnerException is AuthenticationException)
+            {
+                return StatusCodes.BadSecurityChecksFailed;
+            }
+
+            // Anything else reached the server or failed for a reason the
+            // transport cannot fix by trying again: EnsureSuccessStatusCode
+            // throws with no inner exception at all.
+            return StatusCodes.BadUnknownResponse;
+        }
+
+        /// <summary>
+        /// Maps the socket error behind a failed HTTP request onto the status
+        /// code the stack reports for it.
+        /// </summary>
+        private static StatusCode MapSocketError(SocketError error)
+        {
+            switch (error)
+            {
+                case SocketError.TimedOut:
+                    return StatusCodes.BadRequestTimeout;
+                case SocketError.ConnectionAborted:
+                case SocketError.ConnectionRefused:
+                case SocketError.ConnectionReset:
+                case SocketError.HostDown:
+                case SocketError.HostNotFound:
+                case SocketError.HostUnreachable:
+                case SocketError.NetworkDown:
+                case SocketError.NetworkUnreachable:
+                    return StatusCodes.BadNotConnected;
+                default:
+                    return StatusCodes.BadUnknownResponse;
+            }
+        }
+
+        /// <summary>
         /// True when the endpoint advertises <see cref="Profiles.HttpsJsonTransport"/>.
         /// </summary>
         private bool IsJsonProfile =>
@@ -842,39 +914,39 @@ namespace Opc.Ua.Bindings
         public static partial void HttpsChannelLog0(
             this ILogger logger,
             string? channelType,
-            global::System.Uri? url);
+            Uri? url);
 
         [LoggerMessage(EventId = CoreEventIds.HttpsTransportChannel + 1, Level = LogLevel.Error,
             Message = "Exception sending HTTPS request.")]
         public static partial void HttpsChannelLog1(
             this ILogger logger,
-            global::System.Exception? exception);
+            Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.HttpsTransportChannel + 2, Level = LogLevel.Error,
             Message = "Exception sending HTTPS request.")]
         public static partial void HttpsChannelLog2(
             this ILogger logger,
-            global::System.Exception? exception);
+            Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.HttpsTransportChannel + 3, Level = LogLevel.Error,
             Message = "Send request timed out after {OperationTimeout}ms.")]
         public static partial void HttpsChannelLog3(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             int operationTimeout);
 
         [LoggerMessage(EventId = CoreEventIds.HttpsTransportChannel + 4, Level = LogLevel.Error,
             Message = "Exception sending HTTPS request.")]
         public static partial void HttpsChannelLog4(
             this ILogger logger,
-            global::System.Exception? exception);
+            Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.HttpsTransportChannel + 5, Level = LogLevel.Information,
             Message = "{ChannelType} Open {Url}.")]
         public static partial void HttpsChannelLog5(
             this ILogger logger,
             string? channelType,
-            global::System.Uri? url);
+            Uri? url);
 
         [LoggerMessage(EventId = CoreEventIds.HttpsTransportChannel + 6, Level = LogLevel.Warning,
             Message = "{ChannelType}: Bypassing IOpcUaHttpClientFactory because an OPC UA " +
@@ -888,13 +960,13 @@ namespace Opc.Ua.Bindings
             Message = "Exception creating HTTPS Client.")]
         public static partial void HttpsChannelLog7(
             this ILogger logger,
-            global::System.Exception? exception);
+            Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.HttpsTransportChannel + 8, Level = LogLevel.Error,
             Message = "Copy of the private key for https was denied")]
         public static partial void HttpsChannelLog8(
             this ILogger logger,
-            global::System.Exception? exception);
+            Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.HttpsTransportChannel + 9, Level = LogLevel.Information,
             Message = "{ChannelType} Validate server chain:")]
@@ -918,12 +990,11 @@ namespace Opc.Ua.Bindings
             Message = "{ChannelType} Failed to validate certificate.")]
         public static partial void HttpsChannelLog12(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string? channelType);
 
         [LoggerMessage(EventId = CoreEventIds.HttpsTransportChannel + 13, Level = LogLevel.Information,
             Message = "{ChannelType} ServerCertificate callback enabled.")]
         public static partial void HttpsChannelLog13(this ILogger logger, string? channelType);
     }
-
 }

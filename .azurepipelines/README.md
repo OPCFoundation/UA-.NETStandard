@@ -9,7 +9,7 @@ commands, and the release-evidence tooling.
 | Root | YAML pipelines/templates and cross-cutting `get-root.ps1`, `get-matrix.ps1`, `set-version.ps1`, `generate-slnx.ps1`, and `validate-migration-plugin.ps1` |
 | `assurance/` | Discovery, fuzz-input identity, result and proof collection, NativeAOT and CodeQL helpers, authenticated retrieval/review, and `profiles.json` |
 | `containers/` | Container matrix selection and `evidence.ps1` for OCI evidence collection and offline evaluation |
-| `nuget/` | `evidence.ps1`, its shared `evidence-functions.ps1`, package validators, `expected-packages.txt`, and Debug/Release signing lists |
+| `nuget/` | `evidence.ps1`, its shared `evidence-functions.ps1`, package/version policy, preview ordering and published-content checks, package validators, `expected-packages.txt`, and Debug/Release signing lists |
 | `release/` | `promotion.ps1`, `policy.json`, `artifacts.json`, readiness progress, and all release/verification/readiness/review/delivery JSON schemas |
 | `coverage/` | `check.ps1`, the shared coverage gate; its thresholds remain in the repository-root `coverage-thresholds.json` |
 

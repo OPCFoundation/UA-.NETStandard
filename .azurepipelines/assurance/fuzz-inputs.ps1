@@ -37,12 +37,15 @@ private archives into these roots. Output contains counts and an aggregate diges
 never input names, content or exception messages. Public input hashes bind replay.
 An absent or
 empty good-seed bucket fails; a frozen zero regression inventory is legitimate.
+CI uses RequireCommitted to reject untracked inputs and tracked changes relative
+to HEAD. Local input-copy fixtures can validate their synthetic roots without Git.
 #>
 param(
     [string] $RepoRoot = (Split-Path (Split-Path $PSScriptRoot)),
     [Parameter(Mandatory)][string] $Project,
     [string] $ProfilesPath = (Join-Path $PSScriptRoot 'profiles.json'),
     [string] $BuildOutput = '',
+    [switch] $RequireCommitted,
     [Parameter(Mandatory)][string] $OutputPath
 )
 $ErrorActionPreference = 'Stop'
@@ -83,6 +86,22 @@ try {
             $sources[$destination] = $file.FullName
             $manifest.regressionInputs++
         }
+    }
+    if ($RequireCommitted) {
+        $inputRoots = @($job.corpusBuckets | ForEach-Object { "$($job.corpusRoot)/$_" }) + @($job.regressionRoot)
+        $trackedOutput = @(& git -C $RepoRoot ls-files -z -- @inputRoots 2>&1)
+        if ($LASTEXITCODE -ne 0) { throw 'Cannot verify committed public input paths.' }
+        $tracked = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+        foreach ($path in (($trackedOutput -join "`n").Split([char] 0, [StringSplitOptions]::RemoveEmptyEntries))) {
+            $null = $tracked.Add($path)
+        }
+        foreach ($source in $sources.Values) {
+            if (-not $tracked.Contains([IO.Path]::GetRelativePath($RepoRoot, $source).Replace('\', '/'))) {
+                throw 'An uncommitted overlay is not a public replay input.'
+            }
+        }
+        & git -C $RepoRoot diff --quiet HEAD -- @inputRoots 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw 'Public replay inputs differ from the checked-out commit.' }
     }
     foreach ($entry in $sources.GetEnumerator()) {
         if (-not $destinations.Add($entry.Key)) { throw 'Case-insensitive output collision.' }

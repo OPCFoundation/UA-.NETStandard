@@ -108,7 +108,7 @@ try {
     }
     elseif ($Operation -eq 'Aggregate') {
         $manifest = Read-NugetJson (Join-Path $Packages 'release-manifest.json')
-        $context = New-NugetContext $RepositoryRoot $manifest.packageVersion
+        $context = New-NugetContext $RepositoryRoot (Get-NugetManifestVersion $manifest)
         $envelope = Merge-NugetSidecars $RepositoryRoot $Inputs $Packages $Output $context
         foreach ($configuration in @('Release', 'Debug')) {
             $root = Join-Path $Inputs "opcua-$configuration-$($context.producer.runId)\evidence"
@@ -150,18 +150,19 @@ try {
     elseif ($Operation -eq 'Preflight') {
         $blocking = $policy.stage -ceq 'required'
         $manifest = Read-NugetJson (Join-Path $Packages 'release-manifest.json')
-        $channel = Get-NugetChannel $manifest.packageVersion
+        $manifestVersion = Get-NugetManifestVersion $manifest
+        $channel = Get-NugetChannel $manifestVersion
         $blocking = $policy.stage -ceq 'required' -and $channel -ceq 'stable' -and
-            [int]$manifest.packageVersion.Split('.')[0] -eq $policy.currentMajor
+            [int]$manifestVersion.Split('.')[0] -eq $policy.currentMajor
         $context = if ($Expected) { Read-NugetJson $Expected } else {
-            New-NugetContext $RepositoryRoot $manifest.packageVersion
+            New-NugetContext $RepositoryRoot $manifestVersion
         }
         if ($Destination -ceq 'NugetOrg' -and (
             $env:SOURCE_SHA -cnotmatch '^[0-9a-f]{40}([0-9a-f]{24})?$' -or
             $env:SOURCE_RUN_ID -cnotmatch '^[1-9][0-9]*$' -or
             $env:SOURCE_ATTEMPT -cnotmatch '^[1-9][0-9]*$' -or
             $env:SOURCE_DEFINITION_SHA -cnotmatch '^[0-9a-f]{40}([0-9a-f]{24})?$' -or
-            $env:SOURCE_REF -cnotmatch '^refs/heads/release/.+$' -or
+            $env:SOURCE_REF -cnotmatch '^refs/heads/release/(0|[1-9]\d*)\.(0|[1-9]\d*)$' -or
             $manifest.commit -cne $env:SOURCE_SHA -or $manifest.ref -cne $env:SOURCE_REF -or
             $manifest.runId -cne $env:SOURCE_RUN_ID -or
             $context.source.actualSha -cne $env:SOURCE_SHA -or
@@ -178,10 +179,10 @@ try {
             $context.source.repository -cne $manifest.repository -or $context.source.actualSha -cne $manifest.commit -or
             $context.source.actualRef -cne $manifest.ref -or
             $context.producer.runId -cne $manifest.runId -or $context.producer.workflow -cne $manifest.workflow -or
-            $context.release.version -cne $manifest.packageVersion) {
+            $context.release.version -cne $manifestVersion) {
             $blocking = $true
             $failureControl = 'SOURCE_IDENTITY'
-            throw 'Trusted expectations differ from v1.'
+            throw 'Trusted expectations differ from the archive manifest.'
         }
         $context.policyDigest = Get-NugetDigest (Join-Path $RepositoryRoot '.azurepipelines\release\policy.json')
         $context.release.channel = $channel
@@ -262,6 +263,7 @@ try {
             Copy-NugetDocument $Work $contentEvidence (Split-Path -Leaf $contentReport) (Get-NugetDigest $contentReport)
             if ($contentCode -eq 1 -or $content.status -cne 'content-matched' -or
                 -not $content.contentPreserved -or -not $content.authorSignaturePreserved -or
+                $content.packageId -cne $entry.id -or $content.version -cne $entry.version -or
                 $content.authorArchiveDigest -cne $entry.authorDigest -or
                 $content.deliveredArchiveDigest -cne (Get-NugetDigest $download)) {
                 Write-NugetReceipt $Output $Packages $Destination $entry.file 'delivery-content-mismatch' `
@@ -272,16 +274,11 @@ try {
             $null = New-Item -ItemType Directory -Force -Path $feedDirectory
             Move-Item -LiteralPath $download -Destination (Resolve-NugetPath $feedDirectory $entry.file)
             try {
-                & (Join-Path $PSScriptRoot 'validate-package-set.ps1') -PackageDirectory $feedDirectory `
-                    -ManifestPath (Join-Path $feedDirectory 'verified.json') -ExpectedVersion $entry.version `
-                    -VerifySignatures *> (Join-Path $Work "verify-$id.log")
+                & dotnet nuget verify --all (Resolve-NugetPath $feedDirectory $entry.file) `
+                    *> (Join-Path $Work "verify-$id.log")
             }
             catch { Stop-NugetEvidence 'Delivered NuGet package/signature baseline validation failed.' 1 }
             if ($LASTEXITCODE -ne 0) { Stop-NugetEvidence 'Delivered NuGet signature validation failed.' 1 }
-            $verified = Read-NugetJson (Join-Path $feedDirectory 'verified.json')
-            if ($verified.archives.Count -ne 1 -or $verified.archives[0].id -cne $entry.id) {
-                Stop-NugetEvidence 'Delivered package identity differs.' 1
-            }
             $savedBundle = if ($VerificationBundle) { $VerificationBundle } else {
                 Join-Path $Packages 'verification-bundle.json'
             }
@@ -322,11 +319,12 @@ try {
     }
     elseif ($Operation -eq 'Attach') {
         $manifest = Read-NugetJson (Join-Path $Packages 'release-manifest.json')
+        $manifestVersion = Get-NugetManifestVersion $manifest
         if ($manifest.repository -cne 'OPCFoundation/UA-.NETStandard' -or
-            [int]$manifest.packageVersion.Split('.')[0] -ne $policy.currentMajor) { throw 'Not a current official release.' }
+            [int]$manifestVersion.Split('.')[0] -ne $policy.currentMajor) { throw 'Not a current official release.' }
         $tag = $null
         $release = $null
-        foreach ($candidateTag in @($manifest.packageVersion, "v$($manifest.packageVersion)")) {
+        foreach ($candidateTag in @($manifestVersion, "v$manifestVersion")) {
             $json = & gh api "repos/$($manifest.repository)/releases/tags/$candidateTag" `
                 2> (Join-Path $Work 'release-lookup.log')
             if ($LASTEXITCODE -eq 0) {
@@ -345,7 +343,7 @@ try {
         if ($release.draft -or $release.tag_name -cne $tag -or $commit.sha -cne $manifest.commit) {
             throw 'Existing release is not bound to this source/version.'
         }
-        $bundle = Join-Path $Work "nuget-evidence-$($manifest.packageVersion)-$($manifest.runId).zip"
+        $bundle = Join-Path $Work "nuget-evidence-$manifestVersion-$($manifest.runId).zip"
         $public = Join-Path $Work 'public-attachment'
         Copy-NugetPublicAttachment $Packages $public
         Compress-Archive -LiteralPath $public -DestinationPath $bundle

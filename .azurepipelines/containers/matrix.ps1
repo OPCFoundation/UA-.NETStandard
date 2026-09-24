@@ -31,9 +31,9 @@
 .SYNOPSIS
 Selects Docker image and independent evidence-group matrices from the release catalog.
 .DESCRIPTION
-Master builds both groups; release/docker branch pushes build the main container group.
-Manual dispatch retains the Pump-only operation. Pull requests validate both groups
-without granting publication authority.
+All supported events build both container groups. The groups retain independent
+evidence manifests while sharing image selection, registry layout and platforms.
+Pull requests validate the images without granting publication authority.
 #>
 [CmdletBinding()]
 param(
@@ -51,11 +51,11 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $selected = switch ($EventName) {
-    'workflow_dispatch' { 'pump' }
+    'workflow_dispatch' { 'containers'; 'pump' }
     'pull_request' { 'containers'; 'pump' }
     'push' {
         if ($Ref -ceq 'refs/heads/master') { 'containers'; 'pump' }
-        elseif ($Ref -cmatch '^refs/heads/(release/.+|docker.*)$') { 'containers' }
+        elseif ($Ref -cmatch '^refs/heads/(release/.+|docker.*)$') { 'containers'; 'pump' }
         else { throw 'Push reference is outside the Docker workflow trigger scope.' }
     }
 }

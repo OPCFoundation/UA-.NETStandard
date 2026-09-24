@@ -854,6 +854,11 @@ namespace Opc.Ua
             /// The discovery URL for the address.
             /// </summary>
             public Uri? DiscoveryUrl { get; set; }
+
+            /// <summary>
+            /// Gets the transport profiles explicitly requested for this base address.
+            /// </summary>
+            internal ArrayOf<string> RequestedProfiles { get; init; }
         }
 
         /// <summary>
@@ -1245,14 +1250,24 @@ namespace Opc.Ua
             }
 
             var filteredAddresses = new List<BaseAddress>();
+            ArrayOf<string> requestedProfiles = profileUris.ConvertAll(Profiles.NormalizeUri);
 
             foreach (BaseAddress baseAddress in baseAddresses)
             {
-                foreach (string profileUri in profileUris)
+                string baseProfile = TransportProfileIdentity.GetEffective(baseAddress.ProfileUri, baseAddress.Url.ToString());
+                foreach (string profileUri in requestedProfiles)
                 {
-                    if (baseAddress.ProfileUri == Profiles.NormalizeUri(profileUri))
+                    if (baseProfile == profileUri ||
+                        ServesSameScheme(baseProfile, profileUri))
                     {
-                        filteredAddresses.Add(baseAddress);
+                        filteredAddresses.Add(new BaseAddress
+                        {
+                            Url = baseAddress.Url,
+                            AlternateUrls = baseAddress.AlternateUrls,
+                            ProfileUri = baseProfile,
+                            DiscoveryUrl = baseAddress.DiscoveryUrl,
+                            RequestedProfiles = requestedProfiles
+                        });
                         break;
                     }
                 }
@@ -1284,14 +1299,16 @@ namespace Opc.Ua
                     {
                         if (alternateUrl.IdnHost == endpointUrl.IdnHost)
                         {
-                            if (!accessibleAddresses.Any(item => item.Url == alternateUrl))
+                            if (!accessibleAddresses.Any(item =>
+                                item.Url == alternateUrl && item.ProfileUri == baseAddress.ProfileUri))
                             {
                                 accessibleAddresses.Add(
                                     new BaseAddress
                                     {
                                         Url = alternateUrl,
                                         ProfileUri = baseAddress.ProfileUri,
-                                        DiscoveryUrl = alternateUrl
+                                        DiscoveryUrl = alternateUrl,
+                                        RequestedProfiles = baseAddress.RequestedProfiles
                                     });
                             }
                             break;
@@ -1415,19 +1432,20 @@ namespace Opc.Ua
                 foreach (EndpointDescription endpoint in endpoints)
                 {
                     var endpointUrl = new UriBuilder(endpoint.EndpointUrl!);
+                    string endpointProfile = TransportProfileIdentity.GetEffective(
+                        endpoint.TransportProfileUri, endpoint.EndpointUrl!);
 
                     // find matching base address.
                     foreach (BaseAddress baseAddress in baseAddresses)
                     {
-                        bool translateHttpsEndpoint = false;
-                        if (endpoint.TransportProfileUri == Profiles.HttpsBinaryTransport &&
-                            baseAddress.ProfileUri == Profiles.HttpsBinaryTransport)
+                        string baseProfile = TransportProfileIdentity.GetEffective(
+                            baseAddress.ProfileUri, baseAddress.Url.ToString());
+                        if (!baseAddress.RequestedProfiles.IsEmpty &&
+                            !baseAddress.RequestedProfiles.Contains(endpointProfile))
                         {
-                            translateHttpsEndpoint = true;
+                            continue;
                         }
-
-                        if (endpoint.TransportProfileUri != baseAddress.ProfileUri &&
-                            !translateHttpsEndpoint)
+                        if (endpointProfile != baseProfile && !ServesSameScheme(baseProfile, endpointProfile))
                         {
                             continue;
                         }
@@ -1462,14 +1480,21 @@ namespace Opc.Ua
                         translation.SecurityMode = endpoint.SecurityMode;
                         translation.SecurityPolicyUri = endpoint.SecurityPolicyUri;
                         translation.ServerCertificate = endpoint.ServerCertificate;
-                        translation.TransportProfileUri = endpoint.TransportProfileUri;
+                        translation.TransportProfileUri = endpointProfile;
                         translation.UserIdentityTokens = endpoint.UserIdentityTokens;
                         translation.Server = application;
 
+                        // The transport profile is part of the identity: binary,
+                        // JSON and OpenAPI endpoints share a URL, security mode
+                        // and policy, so leaving it out collapses them into one.
                         if (!translations.Exists(match =>
                                 match.EndpointUrl!
                                     .Equals(translation.EndpointUrl, StringComparison.Ordinal) &&
                                 match.SecurityMode == translation.SecurityMode &&
+                                string.Equals(
+                                    match.TransportProfileUri,
+                                    translation.TransportProfileUri,
+                                    StringComparison.Ordinal) &&
                                 match.SecurityPolicyUri!.Equals(
                                     translation.SecurityPolicyUri,
                                     StringComparison.Ordinal)))
@@ -1480,10 +1505,75 @@ namespace Opc.Ua
                 }
             } while (matchPort && translations.Count == 0);
 
-            translations.Sort(
-                (ep1, ep2) => string.CompareOrdinal(ep1.EndpointUrl, ep2.EndpointUrl));
+            // Ordered by URL, then by transport profile. The HTTPS binary, JSON
+            // and OpenAPI descriptions of one listener share a URL, security mode
+            // and policy, and List.Sort is not stable - without the second key a
+            // client that picks "the first endpoint that fits" (which is what
+            // CoreClientUtils.SelectEndpoint does, having no transport filter of
+            // its own) would get an arbitrary one of the three and fail to open a
+            // channel for a profile it has no binding for. Binary sorts first, so
+            // that client keeps getting the endpoint it got before the JSON and
+            // OpenAPI twins were published at all.
+            translations.Sort((ep1, ep2) =>
+            {
+                int byUrl = string.CompareOrdinal(ep1.EndpointUrl, ep2.EndpointUrl);
+                return byUrl != 0
+                    ? byUrl
+                    : TransportProfileRank(ep1.TransportProfileUri)
+                        .CompareTo(TransportProfileRank(ep2.TransportProfileUri));
+            });
 
             return translations;
+        }
+
+        /// <summary>
+        /// Returns whether an endpoint's transport profile is served by the same
+        /// URL scheme as a base address's profile, so the endpoint belongs on
+        /// that address even though the two profile URIs differ.
+        /// </summary>
+        private static bool ServesSameScheme(
+            string? baseAddressProfileUri,
+            string? endpointProfileUri)
+        {
+            if (TransportProfileIdentity.IsHttps(baseAddressProfileUri))
+            {
+                return TransportProfileIdentity.IsHttps(endpointProfileUri);
+            }
+
+            if (Profiles.IsWssBinary(baseAddressProfileUri))
+            {
+                return Profiles.IsWssOpenApi(endpointProfileUri) ||
+                    string.Equals(
+                        endpointProfileUri,
+                        Profiles.UaWssJsonTransport,
+                        StringComparison.Ordinal);
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Orders transport profiles so that the binary encodings a client is
+        /// always able to speak are offered ahead of the JSON and OpenAPI ones.
+        /// </summary>
+        private static int TransportProfileRank(string? transportProfileUri)
+        {
+            if (Profiles.IsHttpsJson(transportProfileUri) ||
+                string.Equals(
+                    transportProfileUri,
+                    Profiles.UaWssJsonTransport,
+                    StringComparison.Ordinal))
+            {
+                return 1;
+            }
+
+            if (Profiles.IsHttpsOpenApi(transportProfileUri) ||
+                Profiles.IsWssOpenApi(transportProfileUri))
+            {
+                return 2;
+            }
+
+            return 0;
         }
 
         /// <summary>

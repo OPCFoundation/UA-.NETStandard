@@ -28,9 +28,13 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Client
 {
@@ -61,7 +65,7 @@ namespace Opc.Ua.Client
     /// from the current endpoint.
     /// </para>
     /// </remarks>
-    public sealed class DefaultServerRedundancyHandler : IServerRedundancyHandler
+    public sealed class DefaultServerRedundancyHandler : IServerRedundancyHandler, IServerRedundancyEndpointCache
     {
         /// <summary>
         /// The default maintenance retry backoff when the server does not provide a future return time.
@@ -71,12 +75,22 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Initializes a new instance of the <see cref="DefaultServerRedundancyHandler"/> class.
         /// </summary>
+        /// <param name="endpointResolver">Resolves a peer URI to an endpoint.</param>
+        /// <param name="timeProvider">Clock used for the discovery bound.</param>
+        /// <param name="options">
+        /// Bounds applied to peer discovery. Defaults to
+        /// <see cref="ServerRedundancyOptions.DefaultTimeout"/> per peer.
+        /// </param>
         public DefaultServerRedundancyHandler(
             IRedundantServerEndpointResolver? endpointResolver = null,
-            TimeProvider? timeProvider = null)
+            TimeProvider? timeProvider = null,
+            ServerRedundancyOptions? options = null)
         {
             m_endpointResolver = endpointResolver ?? new DefaultRedundantServerEndpointResolver();
             m_timeProvider = timeProvider ?? TimeProvider.System;
+            ServerRedundancyOptions effective = options ?? new ServerRedundancyOptions();
+            effective.Validate();
+            m_peerDiscoveryTimeout = effective.PeerDiscoveryTimeout;
         }
 
         /// <inheritdoc/>
@@ -84,10 +98,28 @@ namespace Opc.Ua.Client
             ISession session,
             CancellationToken ct = default)
         {
+            ServerRedundancyInfo snapshot = await ReadRedundancyInfoAsync(session, ct).ConfigureAwait(false);
+            return await ((IServerRedundancyEndpointCache)this).ResolveCachedEndpointsAsync(
+                snapshot, session.ConfiguredEndpoint, ct).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        ValueTask<ServerRedundancyInfo> IServerRedundancyEndpointCache.ReadRedundancyInfoAsync(
+            ISession session,
+            CancellationToken ct)
+        {
+            return ReadRedundancyInfoAsync(session, ct);
+        }
+
+        private async ValueTask<ServerRedundancyInfo> ReadRedundancyInfoAsync(
+            ISession session,
+            CancellationToken ct)
+        {
             if (session is null)
             {
                 throw new ArgumentNullException(nameof(session));
             }
+            ct.ThrowIfCancellationRequested();
 
             // Read redundancy status and peer discovery nodes in one call.
             ArrayOf<NodeId> nodeIds =
@@ -101,6 +133,7 @@ namespace Opc.Ua.Client
 
             (ArrayOf<DataValue> values, ArrayOf<ServiceResult> errors) =
                 await session.ReadValuesAsync(nodeIds, ct).ConfigureAwait(false);
+            ct.ThrowIfCancellationRequested();
 
             RedundancySupport mode = RedundancySupport.None;
             if (StatusCode.IsGood(errors[0].StatusCode))
@@ -134,12 +167,15 @@ namespace Opc.Ua.Client
                 currentServerId = mode == RedundancySupport.Transparent
                     ? await ReadCurrentServerIdAsync(session, ct).ConfigureAwait(false)
                     : string.Empty;
-                redundantServers = await ResolveEndpointsAsync(
-                    redundantServers,
-                    session.ConfiguredEndpoint,
-                    ct).ConfigureAwait(false);
+                redundantServers = redundantServers.ConvertAll(server => WithEndpoint(
+                    server, m_resolvedEndpoints.TryGetValue(
+                        CreateCacheKey(server.ServerUri, session.ConfiguredEndpoint),
+                        out ConfiguredEndpoint? endpoint)
+                        ? endpoint
+                        : null));
             }
 
+            ct.ThrowIfCancellationRequested();
             return new ServerRedundancyInfo
             {
                 Mode = mode,
@@ -245,51 +281,170 @@ namespace Opc.Ua.Client
             return SelectBestPeer(redundancyInfo, currentEndpoint)?.Endpoint;
         }
 
+        /// <inheritdoc/>
+        async ValueTask<ServerRedundancyInfo> IServerRedundancyEndpointCache.ResolveCachedEndpointsAsync(
+            ServerRedundancyInfo snapshot,
+            ConfiguredEndpoint currentEndpoint,
+            CancellationToken ct)
+        {
+            ArrayOf<RedundantServer> servers = await ResolveEndpointsAsync(
+                snapshot.RedundantServers, currentEndpoint, ct).ConfigureAwait(false);
+            return new ServerRedundancyInfo
+            {
+                Mode = snapshot.Mode,
+                RedundantServers = servers,
+                ServiceLevel = snapshot.ServiceLevel,
+                ServiceLevelAccessible = snapshot.ServiceLevelAccessible,
+                ServiceLevelSubrange = snapshot.ServiceLevelSubrange,
+                EstimatedReturnTime = snapshot.EstimatedReturnTime,
+                CurrentServerId = snapshot.CurrentServerId
+            };
+        }
+
+        /// <inheritdoc/>
+        void IServerRedundancyEndpointCache.InvalidateEndpoint(ConfiguredEndpoint endpoint)
+        {
+            foreach (KeyValuePair<EndpointCacheKey, ConfiguredEndpoint> cached in m_resolvedEndpoints)
+            {
+                if (ReferenceEquals(cached.Value, endpoint) ||
+                    Equals(cached.Value.EndpointUrl, endpoint.EndpointUrl))
+                {
+                    ((ICollection<KeyValuePair<EndpointCacheKey, ConfiguredEndpoint>>)m_resolvedEndpoints)
+                        .Remove(cached);
+                }
+            }
+        }
+
         private async ValueTask<ArrayOf<RedundantServer>> ResolveEndpointsAsync(
             ArrayOf<RedundantServer> redundantServers,
             ConfiguredEndpoint currentEndpoint,
             CancellationToken ct)
         {
-            var result = new List<RedundantServer>();
+            var tasks = new Task<RedundantServer>[redundantServers.Count];
             for (int ii = 0; ii < redundantServers.Count; ii++)
             {
-                RedundantServer server = redundantServers[ii];
-                ConfiguredEndpoint? endpoint = await ResolveEndpointAsync(
-                    server.ServerUri,
-                    currentEndpoint,
-                    ct).ConfigureAwait(false);
-                result.Add(new RedundantServer
-                {
-                    ServerUri = server.ServerUri,
-                    ServiceLevel = server.ServiceLevel,
-                    ServiceLevelKnown = server.ServiceLevelKnown,
-                    ServerState = server.ServerState,
-                    Endpoint = endpoint
-                });
+                tasks[ii] = ResolveServerAsync(redundantServers[ii], currentEndpoint, ct);
             }
 
-            return new ArrayOf<RedundantServer>(result.ToArray());
+            return await Task.WhenAll(tasks).ConfigureAwait(false);
         }
 
-        private async ValueTask<ConfiguredEndpoint?> ResolveEndpointAsync(
+        private async Task<RedundantServer> ResolveServerAsync(
+            RedundantServer server,
+            ConfiguredEndpoint currentEndpoint,
+            CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            ConfiguredEndpoint? endpoint = null;
+            if (!string.IsNullOrEmpty(server.ServerUri))
+            {
+                using CancellationTokenSource timeout = m_timeProvider.CreateCancellationTokenSource(
+                    m_peerDiscoveryTimeout);
+                using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, timeout.Token);
+                try
+                {
+                    endpoint = await ResolveEndpointAsync(server.ServerUri, currentEndpoint, linked.Token)
+                        .WaitAsync(m_peerDiscoveryTimeout, m_timeProvider, ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception exception) when (exception is ServiceResultException or TimeoutException
+                    or OperationCanceledException or IOException or SocketException)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    m_logger.ManagedSessionRedundancyDiscoveryFailed(exception);
+                }
+            }
+            return WithEndpoint(server, endpoint);
+        }
+
+        private static RedundantServer WithEndpoint(RedundantServer server, ConfiguredEndpoint? endpoint)
+        {
+            return new RedundantServer
+            {
+                ServerUri = server.ServerUri,
+                ServiceLevel = server.ServiceLevel,
+                ServiceLevelKnown = server.ServiceLevelKnown,
+                ServerState = server.ServerState,
+                Endpoint = endpoint
+            };
+        }
+
+        private async Task<ConfiguredEndpoint?> ResolveEndpointAsync(
             string serverUri,
             ConfiguredEndpoint currentEndpoint,
             CancellationToken ct)
         {
-            if (m_resolvedEndpoints.TryGetValue(serverUri, out ConfiguredEndpoint? cachedEndpoint))
+            EndpointCacheKey key = CreateCacheKey(serverUri, currentEndpoint);
+            while (true)
             {
-                return cachedEndpoint;
+                ct.ThrowIfCancellationRequested();
+                if (m_resolvedEndpoints.TryGetValue(key, out ConfiguredEndpoint? cachedEndpoint))
+                {
+                    return cachedEndpoint;
+                }
+                var proposed = new Lazy<Task<ConfiguredEndpoint?>>(() =>
+                {
+                    Task<ConfiguredEndpoint?> resolution = DiscoverEndpointAsync(key, currentEndpoint, ct);
+                    _ = ObserveEndpointResolutionAsync(resolution);
+                    return resolution;
+                });
+                Lazy<Task<ConfiguredEndpoint?>> pending = m_pendingResolutions.GetOrAdd(key, proposed);
+                try
+                {
+                    return await pending.Value.WaitAsync(ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (
+                    !ct.IsCancellationRequested && !ReferenceEquals(proposed, pending))
+                {
+                    // A prior caller's cancelled lookup has drained; this caller can now retry without overlap.
+                }
             }
+        }
 
-            ConfiguredEndpoint? endpoint = await m_endpointResolver
-                .ResolveAsync(serverUri, currentEndpoint, ct)
-                .ConfigureAwait(false);
-            if (endpoint != null)
+        private async Task<ConfiguredEndpoint?> DiscoverEndpointAsync(
+            EndpointCacheKey key,
+            ConfiguredEndpoint currentEndpoint,
+            CancellationToken ct)
+        {
+            try
             {
-                m_resolvedEndpoints[serverUri] = endpoint;
+                ConfiguredEndpoint? endpoint = await m_endpointResolver
+                    .ResolveAsync(key.ServerUri, currentEndpoint, ct).ConfigureAwait(false);
+                ct.ThrowIfCancellationRequested();
+                if (endpoint != null)
+                {
+                    m_resolvedEndpoints[key] = endpoint;
+                }
+                return endpoint;
             }
+            finally
+            {
+                m_pendingResolutions.TryRemove(key, out _);
+            }
+        }
 
-            return endpoint;
+        private static EndpointCacheKey CreateCacheKey(string serverUri, ConfiguredEndpoint currentEndpoint)
+        {
+            return new EndpointCacheKey(serverUri, ManagedChannelKey.FromEndpoint(currentEndpoint));
+        }
+
+        private async Task ObserveEndpointResolutionAsync(Task<ConfiguredEndpoint?> resolution)
+        {
+            try
+            {
+                await resolution.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // The caller observes cancellation or the bounded peer-discovery timeout.
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                m_logger.ManagedSessionRedundancyDiscoveryFailed(exception);
+            }
         }
 
         private static ArrayOf<RedundantServer> ReadRedundantServers(
@@ -492,7 +647,19 @@ namespace Opc.Ua.Client
         }
 
         private readonly IRedundantServerEndpointResolver m_endpointResolver;
-        private readonly Dictionary<string, ConfiguredEndpoint> m_resolvedEndpoints = new(StringComparer.Ordinal);
+
+        private readonly ConcurrentDictionary<EndpointCacheKey, ConfiguredEndpoint> m_resolvedEndpoints = new();
+
         private readonly TimeProvider m_timeProvider;
+
+        private readonly TimeSpan m_peerDiscoveryTimeout;
+
+        private readonly ILogger m_logger =
+            AmbientMessageContext.Telemetry.CreateLogger<DefaultServerRedundancyHandler>();
+
+        private readonly ConcurrentDictionary<EndpointCacheKey, Lazy<Task<ConfiguredEndpoint?>>> m_pendingResolutions =
+            new();
+
+        private readonly record struct EndpointCacheKey(string ServerUri, ManagedChannelKey Channel);
     }
 }

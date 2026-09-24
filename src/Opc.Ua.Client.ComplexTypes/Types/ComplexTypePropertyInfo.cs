@@ -136,6 +136,7 @@ namespace Opc.Ua.Client.ComplexTypes
                         return Variant.From((QualifiedName)value);
                     case BuiltInType.LocalizedText:
                         return Variant.From((LocalizedText)value);
+                    case BuiltInType.Null:
                     case BuiltInType.ExtensionObject:
                         return
                             PropertyInfo.PropertyType == typeof(ExtensionObject) ?
@@ -202,11 +203,12 @@ namespace Opc.Ua.Client.ComplexTypes
                         return Variant.From((QualifiedName[])value);
                     case BuiltInType.LocalizedText:
                         return Variant.From((LocalizedText[])value);
+                    case BuiltInType.Null:
                     case BuiltInType.ExtensionObject:
                         return
                             PropertyInfo.PropertyType.GetElementType() == typeof(ExtensionObject) ?
                             Variant.From((ExtensionObject[])value) :
-                            Variant.FromStructure(((IEncodeable[])value).ToArrayOf());
+                            Variant.FromStructure(Array.ConvertAll((IEncodeable[])value, element => element).ToArrayOf());
                     case BuiltInType.DataValue:
                         return Variant.From((DataValue[])value);
                     case BuiltInType.Number:
@@ -268,6 +270,7 @@ namespace Opc.Ua.Client.ComplexTypes
                         return Variant.From(MatrixOf.From<QualifiedName>((Array)value));
                     case BuiltInType.LocalizedText:
                         return Variant.From(MatrixOf.From<LocalizedText>((Array)value));
+                    case BuiltInType.Null:
                     case BuiltInType.ExtensionObject:
                         return
                             PropertyInfo.PropertyType.GetElementType() == typeof(ExtensionObject) ?
@@ -368,6 +371,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     case BuiltInType.LocalizedText:
                         PropertyInfo.SetValue(o, v.GetLocalizedText());
                         return;
+                    case BuiltInType.Null:
                     case BuiltInType.ExtensionObject:
                         PropertyInfo.SetValue(o,
                             PropertyInfo.PropertyType == typeof(ExtensionObject) ?
@@ -461,11 +465,22 @@ namespace Opc.Ua.Client.ComplexTypes
                     case BuiltInType.LocalizedText:
                         PropertyInfo.SetValue(o, v.GetLocalizedTextArray().ToArray());
                         return;
+                    case BuiltInType.Null:
+                    case BuiltInType.ExtensionObject when
+                        PropertyInfo.PropertyType.GetElementType() != typeof(ExtensionObject):
+                        ArrayOf<IEncodeable> structures = v.GetStructureArray<IEncodeable>();
+                        if (structures.IsNull)
+                        {
+                            PropertyInfo.SetValue(o, null);
+                            return;
+                        }
+                        Array structureArray = Array.CreateInstance(
+                            PropertyInfo.PropertyType.GetElementType()!, structures.Count);
+                        Array.Copy(structures.ToArray()!, structureArray, structures.Count);
+                        PropertyInfo.SetValue(o, structureArray);
+                        return;
                     case BuiltInType.ExtensionObject:
-                        PropertyInfo.SetValue(o,
-                            PropertyInfo.PropertyType.GetElementType() == typeof(ExtensionObject) ?
-                                v.GetExtensionObjectArray().ToArray() :
-                                v.GetStructureArray<IEncodeable>().ToArray());
+                        PropertyInfo.SetValue(o, v.GetExtensionObjectArray().ToArray());
                         return;
                     case BuiltInType.DataValue:
                         PropertyInfo.SetValue(o, v.GetDataValueArray().ToArray());
@@ -554,11 +569,22 @@ namespace Opc.Ua.Client.ComplexTypes
                     case BuiltInType.LocalizedText:
                         PropertyInfo.SetValue(o, v.GetLocalizedTextMatrix().CreateArrayInstance());
                         return;
+                    case BuiltInType.Null:
+                    case BuiltInType.ExtensionObject when
+                        PropertyInfo.PropertyType.GetElementType() != typeof(ExtensionObject):
+                        MatrixOf<IEncodeable> structures = v.GetStructureMatrix<IEncodeable>();
+                        if (structures.IsNull)
+                        {
+                            PropertyInfo.SetValue(o, null);
+                            return;
+                        }
+                        Array structureArray = Array.CreateInstance(
+                            PropertyInfo.PropertyType.GetElementType()!, structures.Dimensions);
+                        Array.Copy(structures.CreateArrayInstance()!, structureArray, structures.Count);
+                        PropertyInfo.SetValue(o, structureArray);
+                        return;
                     case BuiltInType.ExtensionObject:
-                        PropertyInfo.SetValue(o,
-                            PropertyInfo.PropertyType.GetElementType() == typeof(ExtensionObject) ?
-                                v.GetExtensionObjectMatrix().CreateArrayInstance() :
-                                v.GetStructureMatrix<IEncodeable>().CreateArrayInstance());
+                        PropertyInfo.SetValue(o, v.GetExtensionObjectMatrix().CreateArrayInstance());
                         return;
                     case BuiltInType.DataValue:
                         PropertyInfo.SetValue(o, v.GetDataValueMatrix().CreateArrayInstance());

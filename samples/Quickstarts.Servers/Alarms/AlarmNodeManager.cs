@@ -1006,26 +1006,25 @@ namespace Alarms
             ServerSystemContext systemContext = SystemContext.Copy(context);
             IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
 
-            bool didRefresh = false;
+            HashSet<(uint SubscriptionId, uint MonitoredItemId)>? refreshesInCall = null;
 
             for (int ii = 0; ii < methodsToCall.Count; ii++)
             {
                 CallMethodRequest methodToCall = methodsToCall[ii];
 
-                bool refreshMethod =
-                    methodToCall.MethodId.Equals(MethodIds.ConditionType_ConditionRefresh) ||
-                    methodToCall.MethodId.Equals(MethodIds.ConditionType_ConditionRefresh2);
-
-                if (refreshMethod)
+                // A second refresh of the same subscription (or monitored item) in one
+                // Call is still in progress when it is processed. Refreshes of other
+                // subscriptions are independent and must reach the server's refresh
+                // queue: OPC 10000-9 §5.5.7 scopes Bad_RefreshInProgress to the
+                // subscription being refreshed. Only valid targets are recorded, so an
+                // unknown subscription or monitored item keeps its own error every time.
+                if (TryGetRefreshTarget(methodToCall, out (uint, uint) refreshTarget) &&
+                    IsValidRefreshTarget(context, refreshTarget) &&
+                    !(refreshesInCall ??= []).Add(refreshTarget))
                 {
-                    if (didRefresh)
-                    {
-                        errors[ii] = StatusCodes.BadRefreshInProgress;
-                        methodToCall.Processed = true;
-                        continue;
-                    }
-
-                    didRefresh = true;
+                    errors[ii] = StatusCodes.BadRefreshInProgress;
+                    methodToCall.Processed = true;
+                    continue;
                 }
 
                 bool ackMethod = methodToCall.MethodId
@@ -1220,6 +1219,75 @@ namespace Alarms
             foreach (AlarmHolder alarmHolder in m_alarms.Values)
             {
                 alarmHolder.GetBranchesForConditionRefresh(events);
+            }
+        }
+
+        /// <summary>
+        /// Returns the subscription and monitored item a ConditionRefresh or
+        /// ConditionRefresh2 request targets. Requests with malformed arguments
+        /// return false and are left to the method's own argument validation.
+        /// </summary>
+        private static bool TryGetRefreshTarget(
+            CallMethodRequest request,
+            out (uint SubscriptionId, uint MonitoredItemId) target)
+        {
+            target = default;
+            ArrayOf<Variant> arguments = request.InputArguments;
+
+            if (request.MethodId.Equals(MethodIds.ConditionType_ConditionRefresh))
+            {
+                if (arguments.Count == 1 &&
+                    arguments[0].TryGetValue(out uint subscriptionId))
+                {
+                    target = (subscriptionId, 0);
+                    return true;
+                }
+            }
+            else if (request.MethodId.Equals(MethodIds.ConditionType_ConditionRefresh2))
+            {
+                if (arguments.Count == 2 &&
+                    arguments[0].TryGetValue(out uint subscriptionId) &&
+                    arguments[1].TryGetValue(out uint monitoredItemId))
+                {
+                    target = (subscriptionId, monitoredItemId);
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Returns true when the subscription manager would accept a refresh of the target
+        /// for the calling session, apart from a refresh already being in progress.
+        /// </summary>
+        private bool IsValidRefreshTarget(
+            OperationContext context,
+            (uint SubscriptionId, uint MonitoredItemId) target)
+        {
+            if (!Server.SubscriptionManager.TryGetSubscription(
+                target.SubscriptionId,
+                out ISubscription? subscription))
+            {
+                return false;
+            }
+
+            try
+            {
+                if (target.MonitoredItemId == 0)
+                {
+                    subscription.ValidateConditionRefresh(context);
+                }
+                else
+                {
+                    subscription.ValidateConditionRefresh2(context, target.MonitoredItemId);
+                }
+
+                return true;
+            }
+            catch (ServiceResultException e)
+            {
+                return e.StatusCode == StatusCodes.BadRefreshInProgress;
             }
         }
 

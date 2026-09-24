@@ -34,6 +34,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Identity;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
 {
@@ -82,6 +83,7 @@ namespace Opc.Ua.Client
             bool poolNotifications,
             bool enableTokenReuseFailover,
             NetworkRedundancyOptions? networkRedundancy,
+            ServerRedundancyOptions? serverRedundancy,
             IClientChannelManager? channelManager,
             IClientConnectGate? connectGate)
         {
@@ -94,6 +96,9 @@ namespace Opc.Ua.Client
             m_reconnectPolicy = reconnectPolicy
                 ?? throw new ArgumentNullException(nameof(reconnectPolicy));
             m_redundancyHandler = redundancyHandler;
+            ServerRedundancyOptions redundancyOptions = serverRedundancy ?? new ServerRedundancyOptions();
+            redundancyOptions.Validate();
+            m_redundancyRefreshTimeout = redundancyOptions.RefreshTimeout;
             m_logger = logger
                 ?? throw new ArgumentNullException(nameof(logger));
             m_identity = identity;
@@ -123,6 +128,7 @@ namespace Opc.Ua.Client
                 logger,
                 m_maxTotalReconnectTime,
                 m_timeProvider);
+            m_serviceLock.BeforeReaderLockAsync = WaitForServiceAvailabilityAsync;
 
             WireStateMachineCallbacks();
             SubscribeCertificateChanges();
@@ -185,9 +191,16 @@ namespace Opc.Ua.Client
         /// Optional alternate Endpoints for OPC 10000-4 §6.6.4 non-transparent network redundancy. Transparent network
         /// redundancy is handled by the infrastructure endpoint and does not require alternates.
         /// </param>
+        /// <param name="serverRedundancy">
+        /// Optional bounds for the best-effort server-redundancy refresh. Defaults to two seconds per operation.
+        /// </param>
         /// <param name="reverseConnectManager">Optional reverse-connect manager.</param>
         /// <param name="connectGate">Optional shared initial connect
         /// admission gate.</param>
+        /// <param name="connection">Optional waiting reverse connection. It is
+        /// single-use and therefore consumed by the initial connect only.</param>
+        /// <param name="updateBeforeConnect">Overrides
+        /// <see cref="ConfiguredEndpoint.UpdateBeforeConnect"/> when set.</param>
         /// <param name="ct">Cancellation token.</param>
         /// <returns>A connected <see cref="ManagedSession"/>.</returns>
         public static async Task<ManagedSession> CreateAsync(
@@ -210,31 +223,29 @@ namespace Opc.Ua.Client
             TimeProvider? timeProvider = null,
             IClientChannelManager? channelManager = null,
             NetworkRedundancyOptions? networkRedundancy = null,
+            ServerRedundancyOptions? serverRedundancy = null,
             ReverseConnectManager? reverseConnectManager = null,
             IClientConnectGate? connectGate = null,
+            ITransportWaitingConnection? connection = null,
+            bool? updateBeforeConnect = null,
             CancellationToken ct = default)
         {
             telemetry ??= sessionFactory.Telemetry;
             ILogger<ManagedSession> logger = telemetry.CreateLogger<ManagedSession>();
 
             // Default the engine factory to V2 so callers get the new
-            // ISubscriptionManager API by default. If the inner session
-            // factory is a DefaultSessionFactory and no engine factory is
-            // already configured on it, propagate this choice so the inner
-            // Session is constructed with the V2 engine.
+            // ISubscriptionManager API by default. If the session factory has
+            // no engine configured, propagate this choice so the inner
+            // Session is constructed with the V2 engine. The factory returns
+            // a copy, so a shared factory instance is never modified.
             engineFactory ??= timeProvider == null
                 ? DefaultSubscriptionEngineFactory.Instance
                 : new DefaultSubscriptionEngineFactory(timeProvider);
-            if (sessionFactory is DefaultSessionFactory dsf &&
-                dsf.SubscriptionEngineFactory is null)
+            if (sessionFactory.SubscriptionEngineFactory is null)
             {
-                sessionFactory = new DefaultSessionFactory(dsf.Telemetry)
-                {
-                    ReturnDiagnostics = dsf.ReturnDiagnostics,
-                    SubscriptionEngineFactory = engineFactory,
-                    TimeProvider = timeProvider ?? dsf.TimeProvider,
-                    SecurityPolicyRegistry = dsf.SecurityPolicyRegistry
-                };
+                sessionFactory = sessionFactory.WithSubscriptionEngine(
+                    engineFactory,
+                    timeProvider);
             }
 
             var managed = new ManagedSession(
@@ -255,12 +266,15 @@ namespace Opc.Ua.Client
                 poolNotifications,
                 enableTokenReuseFailover,
                 networkRedundancy,
+                serverRedundancy,
                 channelManager,
                 connectGate)
             {
                 m_engineFactory = engineFactory,
                 m_securityPolicies = ResolveSecurityPolicies(sessionFactory),
-                m_reverseConnectManager = reverseConnectManager
+                m_reverseConnectManager = reverseConnectManager,
+                m_initialConnection = connection,
+                m_updateBeforeConnect = updateBeforeConnect
             };
 
             managed.StateMachine.Start();
@@ -330,7 +344,7 @@ namespace Opc.Ua.Client
                 return;
             }
 
-            await AwaitWithCancellationAsync(task, ct).ConfigureAwait(false);
+            await task.WaitAsync(ct).ConfigureAwait(false);
             MarkIdentityRefreshObserved(version);
         }
 
@@ -664,19 +678,23 @@ namespace Opc.Ua.Client
             ITransportChannel? channel,
             CancellationToken ct = default)
         {
-            using (await m_serviceLock.ReaderLockAsync(ct)
-                .ConfigureAwait(false))
+            ct.ThrowIfCancellationRequested();
+            ConnectionStateBudgetOperation? operation = connection == null && channel == null
+                ? null
+                : (_, token) => HandleManualReconnectAsync(connection, channel, ct, token);
+            if (!StateMachine.RequestReconnect(operation))
             {
-                await InnerSession.ReconnectAsync(
-                    connection, channel, ct).ConfigureAwait(false);
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidState, "The managed session cannot start the requested reconnect.");
             }
+            await StateMachine.WaitForConnectedAsync(ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
         public async Task ReloadInstanceCertificateAsync(
             CancellationToken ct = default)
         {
-            using (await m_serviceLock.ReaderLockAsync(ct)
+            using (await m_serviceLock.WriterLockAsync(ct)
                 .ConfigureAwait(false))
             {
                 await InnerSession.ReloadInstanceCertificateAsync(ct)
@@ -780,7 +798,7 @@ namespace Opc.Ua.Client
             ArrayOf<string> preferredLocales,
             CancellationToken ct = default)
         {
-            using (await m_serviceLock.ReaderLockAsync(ct)
+            using (await m_serviceLock.WriterLockAsync(ct)
                 .ConfigureAwait(false))
             {
                 await InnerSession.UpdateSessionAsync(
@@ -794,7 +812,7 @@ namespace Opc.Ua.Client
             ArrayOf<string> preferredLocales,
             CancellationToken ct = default)
         {
-            using (await m_serviceLock.ReaderLockAsync(ct)
+            using (await m_serviceLock.WriterLockAsync(ct)
                 .ConfigureAwait(false))
             {
                 await InnerSession.ChangePreferredLocalesAsync(
@@ -947,9 +965,9 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         [Obsolete("Channels are now managed centrally via IClientChannelManager. " +
-                "Use ManagedSessionBuilder.WithChannelManager(...) or " +
-                "Session.CreateAsync(IClientChannelManager, ...) instead of manual " +
-                "AttachChannel/DetachChannel. This method remains functional for back-compat.")]
+            "Use ManagedSessionBuilder.WithChannelManager(...) or " +
+            "Session.CreateAsync(IClientChannelManager, ...) instead of manual " +
+            "AttachChannel/DetachChannel. This method remains functional for back-compat.")]
         public void AttachChannel(ITransportChannel channel)
         {
             InnerSession.AttachChannel(channel);
@@ -957,9 +975,9 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         [Obsolete("Channels are now managed centrally via IClientChannelManager. " +
-                "Use ManagedSessionBuilder.WithChannelManager(...) or " +
-                "Session.CreateAsync(IClientChannelManager, ...) instead of manual " +
-                "AttachChannel/DetachChannel. This method remains functional for back-compat.")]
+            "Use ManagedSessionBuilder.WithChannelManager(...) or " +
+            "Session.CreateAsync(IClientChannelManager, ...) instead of manual " +
+            "AttachChannel/DetachChannel. This method remains functional for back-compat.")]
         public void DetachChannel()
         {
             InnerSession.DetachChannel();
@@ -1000,6 +1018,17 @@ namespace Opc.Ua.Client
                     .UpdateIdentityAsync(provider, ct: ct)
                     .ConfigureAwait(false);
             }
+
+            // Adopt the new provider: a refresh loop still bound to the old one
+            // would reactivate the previous identity on its next tick and undo
+            // this call. Only rebind when a loop is actually running, so a
+            // one-shot update on a session without a provider stays one-shot.
+            if (m_identityProvider != null &&
+                !ReferenceEquals(m_identityProvider, provider))
+            {
+                m_identityProvider = provider;
+                StartIdentityRefreshLoop();
+            }
         }
 
         private void WireStateMachineCallbacks()
@@ -1007,8 +1036,30 @@ namespace Opc.Ua.Client
             StateMachine.ConnectAsync = HandleConnectAsync;
             StateMachine.ReconnectWithBudgetAsync = HandleReconnectAsync;
             StateMachine.FailoverWithBudgetAsync = HandleFailoverAsync;
+            StateMachine.CompleteRecoveryAsync = HandleCompleteRecoveryAsync;
             StateMachine.CloseSessionAsync = HandleCloseSessionAsync;
             StateMachine.StateChanged += OnStateChanged;
+        }
+
+        private ValueTask WaitForServiceAvailabilityAsync(CancellationToken ct)
+        {
+            return StateMachine.IsWorkerFlow
+                ? default
+                : StateMachine.WaitForServiceAvailabilityAsync(ct);
+        }
+
+        private async Task<ServiceResult> HandleCompleteRecoveryAsync(CancellationToken ct)
+        {
+            try
+            {
+                await InnerSession.CompleteSessionRecoveryAsync(ct).ConfigureAwait(false);
+                return ServiceResult.Good;
+            }
+            catch (Exception exception)
+            {
+                m_logger.ManagedSessionReconnectAttemptFailed(exception);
+                return ToAttemptFailure(exception);
+            }
         }
 
         private async Task<ServiceResult> HandleConnectAsync(
@@ -1040,9 +1091,10 @@ namespace Opc.Ua.Client
                 // flag to false so the channel is opened against exactly that URL
                 // instead of re-discovering and adopting the server-advertised URL.
                 string? profile = ConfiguredEndpoint.Description.TransportProfileUri;
-                bool updateBeforeConnect = ConfiguredEndpoint.UpdateBeforeConnect
-                    && !Profiles.IsHttpsOpenApi(profile)
-                    && !Profiles.IsWssOpenApi(profile);
+                bool updateBeforeConnect =
+                    (m_updateBeforeConnect ?? ConfiguredEndpoint.UpdateBeforeConnect) &&
+                    !Profiles.IsHttpsOpenApi(profile) &&
+                    !Profiles.IsWssOpenApi(profile);
 
                 IDisposable? connectLease = null;
                 Session session;
@@ -1055,19 +1107,100 @@ namespace Opc.Ua.Client
                             .ConfigureAwait(false);
                     }
 
-                    if (m_reverseConnectManager != null)
+                    // A waiting reverse connection is single-use: hand it to
+                    // the first connect attempt only, every reconnect goes
+                    // through the regular paths below. Consumed only once the
+                    // gate has granted the attempt - taking it before would
+                    // burn it on a gate rejection and leave the retry to fall
+                    // back to an outbound path, which cannot reach a server
+                    // that only ever connects in reverse.
+                    ITransportWaitingConnection? waitingConnection =
+                        Interlocked.Exchange(ref m_initialConnection, null);
+                    IUserIdentity? initialIdentity = m_identity;
+                    if (m_identityProvider != null)
                     {
-                        ISessionFactory reverseFactory = SessionFactory;
-                        if (m_channelManager != null)
+                        if (updateBeforeConnect && m_reverseConnectManager != null)
                         {
-                            reverseFactory = new ChannelManagerSessionFactory(
-                                m_channelManager,
+                            ITransportWaitingConnection discoveryConnection = waitingConnection
+                                ?? await m_reverseConnectManager.WaitForConnectionAsync(
+                                    ConfiguredEndpoint.EndpointUrl!,
+                                    ConfiguredEndpoint.ReverseConnect?.ServerUri,
+                                    ct).ConfigureAwait(false);
+                            await ConfiguredEndpoint.UpdateFromServerAsync(
+                                ConfiguredEndpoint.EndpointUrl!,
+                                discoveryConnection,
+                                ConfiguredEndpoint.Description.SecurityMode,
+                                ConfiguredEndpoint.Description.SecurityPolicyUri!,
                                 SessionFactory.Telemetry,
-                                SessionFactory.ReturnDiagnostics,
-                                m_timeProvider,
-                                m_engineFactory,
-                                m_securityPolicies);
+                                ct).ConfigureAwait(false);
+                            waitingConnection = null;
+                            updateBeforeConnect = false;
                         }
+                        else if (updateBeforeConnect && waitingConnection == null)
+                        {
+                            await ConfiguredEndpoint.UpdateFromServerAsync(
+                                m_configuration, SessionFactory.Telemetry, ct).ConfigureAwait(false);
+                            updateBeforeConnect = false;
+                        }
+
+                        ServiceMessageContext identityContext =
+                            m_configuration.CreateMessageContext();
+                        string policyUri = ConfiguredEndpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
+                        using CertificateEntry? certificate = policyUri == SecurityPolicies.None
+                            ? null
+                            : await Session.LoadInstanceCertificateEntryAsync(
+                                m_configuration,
+                                policyUri,
+                                SessionFactory.Telemetry,
+                                useCertificateRegistry: m_channelManager != null,
+                                ct).ConfigureAwait(false);
+                        IdentitySelectionContext selectionContext = Session.CreateIdentitySelectionContext(
+                                m_configuration,
+                                ConfiguredEndpoint.Description,
+                                identityContext,
+                                certificate?.Certificate,
+                                m_securityPolicies ?? SecurityPolicies.Default);
+                        if (ConfiguredEndpoint.Description.UserIdentityTokens.Count == 0 &&
+                            m_identity != null)
+                        {
+                            // Discovery has not populated the endpoint's token policies yet,
+                            // typically because the server was down at startup. Selecting an
+                            // identity now could only fail at the identity layer and mask the
+                            // real cause, so keep the configured identity and let the attempt
+                            // fail at the transport layer for the reconnect policy to retry.
+                            // This needs a configured identity to fall back to: without one
+                            // the inner session turns the absent identity into Anonymous and
+                            // rejects it, which is neither the caller's intent nor a usable
+                            // diagnostic. In that case consult the provider instead, so its
+                            // own error names the missing policies.
+                            m_logger.ManagedSessionIdentityProviderDeferredUntilDiscovery();
+                        }
+                        else
+                        {
+                            initialIdentity = await m_identityProvider
+                                .AcquireIdentityAsync(selectionContext, ct)
+                                .ConfigureAwait(false);
+                        }
+                    }
+
+                    if (waitingConnection != null)
+                    {
+                        session = (Session)await SessionFactory.CreateAsync(
+                            m_configuration,
+                            waitingConnection,
+                            ConfiguredEndpoint,
+                            updateBeforeConnect,
+                            m_checkDomain,
+                            m_sessionName,
+                            m_sessionTimeout,
+                            initialIdentity,
+                            m_preferredLocales,
+                            ct).ConfigureAwait(false);
+                    }
+                    else if (m_reverseConnectManager != null)
+                    {
+                        ISessionFactory reverseFactory =
+                            CreateChannelManagerFactory() ?? SessionFactory;
 
                         session = (Session)await reverseFactory.CreateAsync(
                             m_configuration,
@@ -1077,29 +1210,28 @@ namespace Opc.Ua.Client
                             m_checkDomain,
                             m_sessionName,
                             m_sessionTimeout,
-                            m_identityProvider == null ? m_identity : null,
+                            initialIdentity,
                             m_preferredLocales,
                             ct).ConfigureAwait(false);
                     }
-                    else if (m_channelManager != null)
+                    else if (CreateChannelManagerFactory() is ISessionFactory channelFactory)
                     {
                         // Channel-manager-aware path: acquire a shared
                         // managed channel and let the manager drive any
                         // future reconnect transparently. Other sessions
                         // sharing this endpoint join the same channel.
-                        session = await Session.CreateAsync(
-                            m_channelManager,
+                        // Routed through the factory so the diagnostics mask
+                        // configured on SessionFactory is applied, as on the
+                        // reverse-connect path above.
+                        session = (Session)await channelFactory.CreateAsync(
                             m_configuration,
                             ConfiguredEndpoint,
                             updateBeforeConnect,
                             m_checkDomain,
                             m_sessionName,
                             m_sessionTimeout,
-                            m_identityProvider == null ? m_identity : null,
+                            initialIdentity,
                             m_preferredLocales,
-                            m_engineFactory,
-                            m_timeProvider,
-                            m_securityPolicies,
                             ct).ConfigureAwait(false);
                     }
                     else
@@ -1111,7 +1243,7 @@ namespace Opc.Ua.Client
                             m_checkDomain,
                             m_sessionName,
                             m_sessionTimeout,
-                            m_identityProvider == null ? m_identity : null,
+                            initialIdentity,
                             m_preferredLocales,
                             ct).ConfigureAwait(false);
                     }
@@ -1124,50 +1256,52 @@ namespace Opc.Ua.Client
                     connectLease?.Dispose();
                 }
 
-                if (m_identityProvider != null)
+                try
                 {
-                    using (await m_serviceLock.WriterLockAsync(ct)
-                        .ConfigureAwait(false))
+                    if (m_identityProvider != null)
                     {
-                        await session
-                            .UpdateIdentityAsync(m_identityProvider, ct: ct)
-                            .ConfigureAwait(false);
+                        StartIdentityRefreshLoop();
                     }
-                    StartIdentityRefreshLoop();
+
+                    // Propagate token-reuse failover to the inner
+                    // session so a redundancy failover re-activates the existing
+                    // session instead of creating a new one.
+                    session.EnableTokenReuseFailover = m_enableTokenReuseFailover;
+
+                    // Apply opt-in V2 transfer-on-recreate. The V2 engine
+                    // and SubscriptionManager survive in-place re-creates
+                    // (failover via Session.RecreateInPlaceAsync), so this
+                    // setting persists for the entire session lifetime
+                    // once applied here. No-op when the classic engine is
+                    // in use.
+                    if ((m_transferSubscriptionsOnRecreate || m_poolNotifications) &&
+                        session.SubscriptionEngine
+                            is DefaultSubscriptionEngine v2 &&
+                        v2.SubscriptionManager
+                            is Subscriptions.SubscriptionManager v2Manager)
+                    {
+                        if (m_transferSubscriptionsOnRecreate)
+                        {
+                            v2Manager.TransferSubscriptionsOnRecreate = true;
+                        }
+                        if (m_poolNotifications)
+                        {
+                            v2Manager.PoolNotifications = true;
+                        }
+                    }
+
+                    await RefreshRedundancyInfoBestEffortAsync(ct).ConfigureAwait(false);
                 }
-
-                // Propagate token-reuse failover to the inner
-                // session so a redundancy failover re-activates the existing
-                // session instead of creating a new one.
-                session.EnableTokenReuseFailover = m_enableTokenReuseFailover;
-
-                // Apply opt-in V2 transfer-on-recreate. The V2 engine
-                // and SubscriptionManager survive in-place re-creates
-                // (failover via Session.RecreateInPlaceAsync), so this
-                // setting persists for the entire session lifetime
-                // once applied here. No-op when the classic engine is
-                // in use.
-                if ((m_transferSubscriptionsOnRecreate || m_poolNotifications) &&
-                    session.SubscriptionEngine
-                        is DefaultSubscriptionEngine v2 &&
-                    v2.SubscriptionManager
-                        is Subscriptions.SubscriptionManager v2Manager)
+                catch
                 {
-                    if (m_transferSubscriptionsOnRecreate)
-                    {
-                        v2Manager.TransferSubscriptionsOnRecreate = true;
-                    }
-                    if (m_poolNotifications)
-                    {
-                        v2Manager.PoolNotifications = true;
-                    }
-                }
-
-                if (m_redundancyHandler != null)
-                {
-                    m_redundancyInfo = await m_redundancyHandler
-                        .FetchRedundancyInfoAsync(this, ct)
+                    // The inner session is already published but not fully set
+                    // up (no identity, no refresh loop, no redundancy info).
+                    // Retract it so the retry runs a complete connect instead
+                    // of merely reactivating a half-configured anonymous
+                    // session and reporting Good.
+                    await DiscardIncompleteSessionAsync(session)
                         .ConfigureAwait(false);
+                    throw;
                 }
 
                 m_logger.ManagedSessionConnectedSessionIdSessionId(session.SessionId);
@@ -1178,6 +1312,30 @@ namespace Opc.Ua.Client
             {
                 m_logger.ManagedSessionConnectFailed(ex);
                 return ToAttemptFailure(ex);
+            }
+        }
+
+        private async Task<ServiceResult> HandleManualReconnectAsync(
+            ITransportWaitingConnection? connection,
+            ITransportChannel? channel,
+            CancellationToken callerToken,
+            CancellationToken workerToken)
+        {
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(callerToken, workerToken);
+            try
+            {
+                using IDisposable recovery = InnerSession.DeferSubscriptionRecovery();
+                using (await m_serviceLock.WriterLockAsync(linked.Token).ConfigureAwait(false))
+                {
+                    await InnerSession.ReconnectAsync(connection, channel, linked.Token).ConfigureAwait(false);
+                }
+                await RefreshRedundancyInfoBestEffortAsync(linked.Token).ConfigureAwait(false);
+                return ServiceResult.Good;
+            }
+            catch (Exception exception)
+            {
+                m_logger.ManagedSessionReconnectAttemptFailed(exception);
+                return ToAttemptFailure(exception);
             }
         }
 
@@ -1200,22 +1358,39 @@ namespace Opc.Ua.Client
             {
                 m_logger.ManagedSessionReconnecting();
 
+                using IDisposable recovery = session.DeferSubscriptionRecovery();
                 using (await m_serviceLock.WriterLockAsync(ct)
                     .ConfigureAwait(false))
                 {
                     try
                     {
-                        await session.ReconnectAsync(
-                                budget,
-                                ct)
-                            .ConfigureAwait(false);
+                        if (m_reverseConnectManager != null)
+                        {
+                            Uri endpointUrl = session.ConfiguredEndpoint.EndpointUrl
+                                ?? throw new ServiceResultException(
+                                    StatusCodes.BadInvalidState,
+                                    "A reverse-connect session requires a configured endpoint URL.");
+                            ITransportWaitingConnection connection =
+                                await m_reverseConnectManager.WaitForConnectionAsync(
+                                    endpointUrl,
+                                    session.ConfiguredEndpoint.Description.Server?.ApplicationUri,
+                                    ct).ConfigureAwait(false);
+                            await session.ReconnectAsync(connection, null, ct).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            await session.ReconnectAsync(budget, ct).ConfigureAwait(false);
+                        }
                     }
                     catch (ServiceResultException sre) when (
                         sre.StatusCode == StatusCodes.BadSecureChannelClosed &&
                         session.ManagedChannel?.State is ChannelState.Closed or ChannelState.Faulted)
                     {
+                        // Rotate from the endpoint currently in use, not from
+                        // the originally configured one - otherwise the
+                        // selector keeps handing out the first alternate.
                         ConfiguredEndpoint? alternateEndpoint =
-                            SelectNextNetworkEndpoint(ConfiguredEndpoint);
+                            SelectNextNetworkEndpoint(session.ConfiguredEndpoint);
                         if (alternateEndpoint == null)
                         {
                             m_logger.ManagedSessionManagedChannelFaultedRecreatingSession(sre);
@@ -1224,11 +1399,18 @@ namespace Opc.Ua.Client
                         {
                             m_logger.ManagedSessionManagedChannelFaultedRecreatingSession2(sre);
                         }
-                        await session.RecreateInPlaceAsync(
-                                endpoint: alternateEndpoint,
-                                budget: budget,
-                                ct: ct)
+                        await RecreateInPlaceAndRebindAsync(
+                                session,
+                                alternateEndpoint,
+                                budget,
+                                ct)
                             .ConfigureAwait(false);
+                    }
+                    catch (ServiceResultException sre) when (RequiresEndpointRefresh(sre.StatusCode))
+                    {
+                        m_logger.ManagedSessionReconnectRejectedStatusRecreatingSession(sre, sre.StatusCode);
+                        await RefreshEndpointAsync(session.ConfiguredEndpoint, ct).ConfigureAwait(false);
+                        await RecreateInPlaceAndRebindAsync(session, null, budget, ct).ConfigureAwait(false);
                     }
                     catch (ServiceResultException sre) when (
                         RequiresSessionRecreate(sre.StatusCode))
@@ -1245,13 +1427,27 @@ namespace Opc.Ua.Client
                         m_logger.ManagedSessionReconnectRejectedStatusRecreatingSession(
                             sre,
                             sre.StatusCode);
-                        await session.RecreateInPlaceAsync(
-                                endpoint: null,
-                                budget: budget,
-                                ct: ct)
+                        await RecreateInPlaceAndRebindAsync(session, null, budget, ct)
                             .ConfigureAwait(false);
                     }
+                    catch (ServiceResultException sre) when (IsConnectivityFailure(sre.StatusCode))
+                    {
+                        ConfiguredEndpoint? alternateEndpoint =
+                            SelectNextNetworkEndpoint(session.ConfiguredEndpoint);
+                        if (alternateEndpoint == null)
+                        {
+                            throw;
+                        }
+
+                        await RecreateInPlaceAndRebindAsync(
+                            session,
+                            alternateEndpoint,
+                            budget,
+                            ct).ConfigureAwait(false);
+                    }
                 }
+
+                await RefreshRedundancyInfoBestEffortAsync(ct).ConfigureAwait(false);
 
                 m_reconnectPolicy.Reset();
 
@@ -1264,6 +1460,26 @@ namespace Opc.Ua.Client
                 m_logger.ManagedSessionReconnectAttemptFailed(ex);
                 return ToAttemptFailure(ex);
             }
+        }
+
+        /// <summary>
+        /// Builds the factory that acquires transports from the shared channel
+        /// manager, or <see langword="null"/> when no manager is configured.
+        /// </summary>
+        private ChannelManagerSessionFactory? CreateChannelManagerFactory()
+        {
+            if (m_channelManager == null)
+            {
+                return null;
+            }
+
+            return new ChannelManagerSessionFactory(
+                m_channelManager,
+                SessionFactory.Telemetry,
+                SessionFactory.ReturnDiagnostics,
+                m_timeProvider,
+                m_engineFactory,
+                m_securityPolicies);
         }
 
         private ConfiguredEndpoint? SelectNextNetworkEndpoint(
@@ -1319,6 +1535,30 @@ namespace Opc.Ua.Client
                 statusCode == StatusCodes.BadIdentityTokenInvalid;
         }
 
+        private static bool RequiresEndpointRefresh(StatusCode statusCode)
+        {
+            return statusCode == StatusCodes.BadSecurityChecksFailed ||
+                statusCode == StatusCodes.BadCertificateInvalid ||
+                statusCode == StatusCodes.BadCertificateUntrusted;
+        }
+
+        private static bool IsConnectivityFailure(StatusCode statusCode)
+        {
+            return statusCode == StatusCodes.BadTcpInternalError ||
+                statusCode == StatusCodes.BadCommunicationError ||
+                statusCode == StatusCodes.BadNotConnected ||
+                statusCode == StatusCodes.BadConnectionClosed ||
+                statusCode == StatusCodes.BadSecureChannelClosed;
+        }
+
+        private Task RefreshEndpointAsync(ConfiguredEndpoint endpoint, CancellationToken ct)
+        {
+            return endpoint.UpdateFromServerAsync(
+                m_configuration,
+                SessionFactory.Telemetry,
+                ct);
+        }
+
         /// <summary>
         /// Builds the <see cref="ServiceResult"/> reported to the connection state
         /// machine for a failed connect, reconnect, or failover attempt.
@@ -1352,19 +1592,25 @@ namespace Opc.Ua.Client
             IRetryBudget budget,
             CancellationToken ct)
         {
-            if (m_redundancyHandler == null || m_redundancyInfo == null)
+            if (m_redundancyHandler == null)
             {
                 return new ServiceResult(
                     StatusCodes.BadNotSupported);
             }
 
+            ConfiguredEndpoint? failoverEndpoint = null;
             try
             {
+                await RefreshRedundancyInfoBestEffortAsync(ct).ConfigureAwait(false);
+                if (m_redundancyInfo == null)
+                {
+                    return new ServiceResult(StatusCodes.BadNothingToDo);
+                }
+
                 ConfiguredEndpoint currentEndpoint = m_session?.ConfiguredEndpoint
                     ?? ConfiguredEndpoint;
-                ConfiguredEndpoint? failoverEndpoint =
-                    m_redundancyHandler.SelectFailoverTarget(
-                        m_redundancyInfo, currentEndpoint);
+                await RefreshRedundancyInfoBestEffortAsync(ct, resolveCachedEndpoints: true).ConfigureAwait(false);
+                failoverEndpoint = m_redundancyHandler.SelectFailoverTarget(m_redundancyInfo, currentEndpoint);
 
                 if (failoverEndpoint == null)
                 {
@@ -1393,8 +1639,9 @@ namespace Opc.Ua.Client
                     // against the new endpoint and drive subscription
                     // recreate/transfer for both unamanged templates and
                     // the new engine.
-                    await session
-                        .RecreateInPlaceAsync(
+                    using IDisposable recovery = session.DeferSubscriptionRecovery();
+                    await RecreateInPlaceAndRebindAsync(
+                            session,
                             failoverEndpoint,
                             budget,
                             ct)
@@ -1409,8 +1656,151 @@ namespace Opc.Ua.Client
             }
             catch (Exception ex)
             {
+                if (ex is not OperationCanceledException &&
+                    failoverEndpoint != null &&
+                    m_redundancyHandler is IServerRedundancyEndpointCache cache)
+                {
+                    cache.InvalidateEndpoint(failoverEndpoint);
+                }
                 m_logger.ManagedSessionFailoverFailed(ex);
                 return ToAttemptFailure(ex);
+            }
+        }
+
+        private async Task RefreshRedundancyInfoBestEffortAsync(
+            CancellationToken ct,
+            bool resolveCachedEndpoints = false)
+        {
+            ct.ThrowIfCancellationRequested();
+            IServerRedundancyHandler? handler = m_redundancyHandler;
+            if (handler == null)
+            {
+                return;
+            }
+            if (resolveCachedEndpoints)
+            {
+                ServerRedundancyInfo? snapshot = m_redundancyInfo;
+                if (handler is not IServerRedundancyEndpointCache cache || snapshot == null)
+                {
+                    return;
+                }
+                if (m_redundancyEndpointRefreshTask is { IsCompleted: false } pending)
+                {
+                    try
+                    {
+                        await pending.WaitAsync(ct).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                    {
+                        // The previous connection's refresh was cancelled; retry using this failover's token.
+                    }
+                }
+                snapshot = Volatile.Read(ref m_redundancyInfo) ?? snapshot;
+                await StartRedundancyEndpointRefresh(cache, snapshot, ct).WaitAsync(ct).ConfigureAwait(false);
+                return;
+            }
+
+            Task<ServerRedundancyInfo>? previous = m_redundancyRefreshTask;
+            if (previous != null && !previous.IsCompleted)
+            {
+                return;
+            }
+            Func<CancellationToken, ValueTask<ServerRedundancyInfo>> operation =
+                handler is IServerRedundancyEndpointCache reader
+                    ? token => reader.ReadRedundancyInfoAsync(this, token)
+                    : token => handler.FetchRedundancyInfoAsync(this, token);
+            Task<ServerRedundancyInfo>? refresh = null;
+            try
+            {
+                refresh = FetchRedundancySnapshotAsync(operation, ct);
+                m_redundancyRefreshTask = refresh;
+                m_redundancyInfo = await refresh.WaitAsync(m_redundancyRefreshTimeout, m_timeProvider, ct)
+                    .ConfigureAwait(false)
+                    ?? throw ServiceResultException.Unexpected("The redundancy handler returned no snapshot.");
+                if (handler is IServerRedundancyEndpointCache cache &&
+                    m_redundancyInfo.Mode is not (RedundancySupport.None or RedundancySupport.Transparent))
+                {
+                    _ = StartRedundancyEndpointRefresh(cache, m_redundancyInfo, ct);
+                }
+            }
+            catch (Exception exception) when (exception is OperationCanceledException or TimeoutException)
+            {
+                if (refresh != null)
+                {
+                    _ = ObserveLateRedundancyRefreshAsync(refresh);
+                }
+                ct.ThrowIfCancellationRequested();
+                m_logger.ManagedSessionRedundancyDiscoveryFailed(exception);
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                m_logger.ManagedSessionRedundancyDiscoveryFailed(exception);
+            }
+        }
+
+        private Task<ServerRedundancyInfo> StartRedundancyEndpointRefresh(
+            IServerRedundancyEndpointCache cache,
+            ServerRedundancyInfo snapshot,
+            CancellationToken ct)
+        {
+            if (m_redundancyEndpointRefreshTask is { IsCompleted: false } previous)
+            {
+                return previous;
+            }
+            var completion = new TaskCompletionSource<ServerRedundancyInfo>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            m_redundancyEndpointRefreshTask = completion.Task;
+            ConfiguredEndpoint current = m_session?.ConfiguredEndpoint ?? ConfiguredEndpoint;
+            if (!m_backgroundWork.Run("RefreshRedundantEndpoints", async shutdown =>
+            {
+                using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, shutdown);
+                try
+                {
+                    ServerRedundancyInfo resolved = await cache.ResolveCachedEndpointsAsync(
+                        snapshot, current, linked.Token).ConfigureAwait(false);
+                    linked.Token.ThrowIfCancellationRequested();
+                    Interlocked.CompareExchange(ref m_redundancyInfo, resolved, snapshot);
+                    completion.TrySetResult(resolved);
+                }
+                catch (OperationCanceledException exception)
+                {
+                    completion.TrySetCanceled(exception.CancellationToken);
+                }
+                catch (Exception exception) when (exception is not OutOfMemoryException)
+                {
+                    completion.TrySetException(exception);
+                }
+            }))
+            {
+                completion.TrySetCanceled(CancellationToken.None);
+            }
+            _ = ObserveLateRedundancyRefreshAsync(completion.Task);
+            return completion.Task;
+        }
+
+        private async Task<ServerRedundancyInfo> FetchRedundancySnapshotAsync(
+            Func<CancellationToken, ValueTask<ServerRedundancyInfo>> operation,
+            CancellationToken ct)
+        {
+            using CancellationTokenSource timeout = m_timeProvider.CreateCancellationTokenSource(
+                m_redundancyRefreshTimeout);
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, timeout.Token);
+            return await operation(linked.Token).ConfigureAwait(false);
+        }
+
+        private async Task ObserveLateRedundancyRefreshAsync(Task<ServerRedundancyInfo> refresh)
+        {
+            try
+            {
+                await refresh.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // The bounded refresh already cancelled this operation.
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                m_logger.ManagedSessionRedundancyDiscoveryFailed(exception);
             }
         }
 
@@ -1448,6 +1838,77 @@ namespace Opc.Ua.Client
                     await session.DisposeKeepingChannelAsync().ConfigureAwait(false);
                 }
             }
+        }
+
+        /// <summary>
+        /// Retracts an inner session that was published before its setup
+        /// completed, so the connect retry does not mistake it for a usable
+        /// session.
+        /// </summary>
+        private async Task DiscardIncompleteSessionAsync(Session session)
+        {
+            await StopIdentityRefreshLoopAsync().ConfigureAwait(false);
+
+            if (ReferenceEquals(m_session, session))
+            {
+                m_session = null;
+            }
+
+            UnwireSessionEvents(session);
+
+            try
+            {
+                await session.DisposeAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                m_logger.ManagedSessionSessionCloseFailed(ex);
+            }
+        }
+
+        /// <summary>
+        /// Recreates the session in place and, whatever the outcome, rebinds
+        /// the channel events afterwards. Every in-place recreate has to go
+        /// through here: the recreate swaps the managed channel lease, and the
+        /// rebind is what keeps later channel faults triggering a reconnect.
+        /// </summary>
+        private async Task RecreateInPlaceAndRebindAsync(
+            Session session,
+            ConfiguredEndpoint? endpoint,
+            IRetryBudget budget,
+            CancellationToken ct)
+        {
+            IManagedTransportChannel? previousChannel = session.ManagedChannel;
+            try
+            {
+                await session.RecreateInPlaceAsync(endpoint, budget, ct)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                RebindManagedChannelEvents(session, previousChannel);
+            }
+        }
+
+        /// <summary>
+        /// Re-subscribes to the channel state of the lease a session currently
+        /// holds. An in-place recreate swaps the managed channel lease, which
+        /// would otherwise silently drop the handler wired in
+        /// <see cref="WireSessionEvents"/> and stop later channel faults from
+        /// triggering a reconnect.
+        /// </summary>
+        private void RebindManagedChannelEvents(
+            Session session,
+            IManagedTransportChannel? previousChannel)
+        {
+            IManagedTransportChannel? currentChannel = session.ManagedChannel;
+            if (ReferenceEquals(previousChannel, currentChannel))
+            {
+                return;
+            }
+
+            previousChannel?.StateChanged -= OnManagedChannelStateChanged;
+            currentChannel?.StateChanged += OnManagedChannelStateChanged;
         }
 
         private void WireSessionEvents(Session session)
@@ -1502,7 +1963,11 @@ namespace Opc.Ua.Client
                 // channel.
                 if (Volatile.Read(ref m_channelReconnectInProgress) > 0)
                 {
-                    m_logger.ManagedSessionKeepAliveFailureSuppressedWhile();
+                    long since = Volatile.Read(ref m_channelReconnectStartedAt);
+                    m_logger.ManagedSessionKeepAliveFailureSuppressedWhile(
+                        since == 0
+                            ? TimeSpan.Zero
+                            : m_timeProvider.GetElapsedTime(since));
                 }
                 else
                 {
@@ -1529,13 +1994,18 @@ namespace Opc.Ua.Client
             {
                 case ChannelState.TransportReconnecting:
                 case ChannelState.TransportConnectedSessionReactivating:
-                    Interlocked.Increment(ref m_channelReconnectInProgress);
+                    if (Interlocked.Increment(ref m_channelReconnectInProgress) == 1)
+                    {
+                        Volatile.Write(ref m_channelReconnectStartedAt, m_timeProvider.GetTimestamp());
+                    }
                     break;
                 case ChannelState.Ready:
                     Interlocked.Exchange(ref m_channelReconnectInProgress, 0);
+                    Volatile.Write(ref m_channelReconnectStartedAt, 0);
                     break;
                 case ChannelState.Faulted:
                     Interlocked.Exchange(ref m_channelReconnectInProgress, 0);
+                    Volatile.Write(ref m_channelReconnectStartedAt, 0);
                     // Channel-mgr gave up. Surface to outer state
                     // machine so the IReconnectPolicy / failover path
                     // can run.
@@ -1543,6 +2013,7 @@ namespace Opc.Ua.Client
                     break;
                 case ChannelState.Closed:
                     Interlocked.Exchange(ref m_channelReconnectInProgress, 0);
+                    Volatile.Write(ref m_channelReconnectStartedAt, 0);
                     // Channel-mgr closed. Surface to outer state
                     // machine so the IReconnectPolicy / failover path
                     // can run.
@@ -1712,25 +2183,6 @@ namespace Opc.Ua.Client
             }
         }
 
-        private static async Task AwaitWithCancellationAsync(Task task, CancellationToken ct)
-        {
-            if (task.IsCompleted || !ct.CanBeCanceled)
-            {
-                await task.ConfigureAwait(false);
-                return;
-            }
-
-            var cancellation = new TaskCompletionSource<object?>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-            using (ct.Register(
-                static state => ((TaskCompletionSource<object?>)state!).TrySetCanceled(),
-                cancellation))
-            {
-                Task completed = await Task.WhenAny(task, cancellation.Task).ConfigureAwait(false);
-                await completed.ConfigureAwait(false);
-            }
-        }
-
         private async Task DelayAsync(TimeSpan delay, CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
@@ -1835,18 +2287,6 @@ namespace Opc.Ua.Client
             }
         }
 
-        private void CancelIdentityRefreshLoop()
-        {
-            CancellationTokenSource? cts;
-            lock (m_identityRefreshLock)
-            {
-                cts = m_identityRefreshCancellation;
-                m_identityRefreshCancellation = null;
-                m_identityRefreshTask = null;
-            }
-            cts?.Cancel();
-        }
-
         /// <summary>
         /// Returns the security policy registry the session factory was
         /// composed with, so a policy the application contributed through
@@ -1873,32 +2313,26 @@ namespace Opc.Ua.Client
         /// <see cref="Dispose()"/>.</param>
         protected virtual void Dispose(bool disposing)
         {
-            if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+            if (!disposing)
             {
                 return;
             }
 
-            if (disposing)
-            {
-                CancelIdentityRefreshLoop();
-                UnsubscribeCertificateChanges();
-                StateMachine.RequestClose();
-
-                Session? session = m_session;
-                m_session = null;
-
-                if (session != null)
-                {
-                    UnwireSessionEvents(session);
-                    session.Dispose();
-                }
-
-                m_serviceLock.Dispose();
-            }
+            // Run the same teardown as DisposeAsync. Doing only part of it here
+            // left the state machine, the background work queue, the streaming
+            // subscription and the revalidation loop running while the service
+            // lock they use was already disposed.
+            DisposeAsyncCoreAsync().AsTask().GetAwaiter().GetResult();
         }
 
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
+        {
+            await DisposeAsyncCoreAsync().ConfigureAwait(false);
+            GC.SuppressFinalize(this);
+        }
+
+        private async ValueTask DisposeAsyncCoreAsync()
         {
             if (Interlocked.Exchange(ref m_disposed, 1) != 0)
             {
@@ -1937,10 +2371,11 @@ namespace Opc.Ua.Client
                 {
                     m_logger.ManagedSessionDisposeCloseFailed(ex);
                 }
-
             }
 
-            GC.SuppressFinalize(this);
+            // Last: everything that could still be holding the lock (state
+            // machine worker, background work, streaming) is torn down above.
+            m_serviceLock.Dispose();
         }
 
         private sealed class DelayState : IDisposable
@@ -1988,7 +2423,13 @@ namespace Opc.Ua.Client
 
         private readonly ILogger m_logger;
         private readonly IUserIdentity? m_identity;
-        private readonly IClientIdentityProvider? m_identityProvider;
+
+        /// <summary>
+        /// The provider that materializes user identities. Replaced by
+        /// <see cref="UpdateIdentityAsync(IClientIdentityProvider, CancellationToken)"/>
+        /// so the refresh loop follows the identity that is actually active.
+        /// </summary>
+        private volatile IClientIdentityProvider? m_identityProvider;
         private readonly TimeProvider m_timeProvider;
         private readonly TimeSpan m_maxTotalReconnectTime;
         private readonly ArrayOf<string> m_preferredLocales;
@@ -2001,14 +2442,36 @@ namespace Opc.Ua.Client
         private readonly NetworkRedundancyEndpointSelector? m_networkEndpointSelector;
         private readonly IClientChannelManager? m_channelManager;
         private ReverseConnectManager? m_reverseConnectManager;
+
+        /// <summary>
+        /// A caller supplied reverse connection. A waiting connection can only
+        /// be used once, so it is consumed by the first connect attempt and
+        /// every later reconnect falls back to the normal connect paths.
+        /// </summary>
+        private ITransportWaitingConnection? m_initialConnection;
+
+        /// <summary>
+        /// Overrides <see cref="ConfiguredEndpoint.UpdateBeforeConnect"/> when
+        /// the caller passed the flag explicitly to the factory.
+        /// </summary>
+        private bool? m_updateBeforeConnect;
         private readonly IClientConnectGate? m_connectGate;
         private ISubscriptionEngineFactory? m_engineFactory;
         private ISecurityPolicyRegistry? m_securityPolicies;
         private int m_channelReconnectInProgress;
+
+        /// <summary>
+        /// Timestamp of the transition into the suppression window, so a keep-alive
+        /// suppressed by a stuck reconnect reports how long it has been suppressed.
+        /// </summary>
+        private long m_channelReconnectStartedAt;
         private ServerRedundancyInfo? m_redundancyInfo;
+        private Task<ServerRedundancyInfo>? m_redundancyRefreshTask;
+        private Task<ServerRedundancyInfo>? m_redundancyEndpointRefreshTask;
+        private readonly TimeSpan m_redundancyRefreshTimeout;
         private readonly Lock m_identityRefreshLock = new();
 #pragma warning disable CA2213
-        // Disposed by StopIdentityRefreshLoopAsync; sync Dispose cancels because it cannot await.
+        // Owned and disposed by StopIdentityRefreshLoopAsync.
         // TODO: move ManagedSession to async-only disposal.
         private CancellationTokenSource? m_identityRefreshCancellation;
 #pragma warning restore CA2213
@@ -2089,10 +2552,12 @@ namespace Opc.Ua.Client
             Message = "ManagedSession: Session close failed.")]
         public static partial void ManagedSessionSessionCloseFailed(this ILogger logger, Exception? exception);
 
-        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 22, Level = LogLevel.Debug,
-            Message = "ManagedSession: keep-alive failure suppressed while channel manager reconnect is in" +
-                " progress.")]
-        public static partial void ManagedSessionKeepAliveFailureSuppressedWhile(this ILogger logger);
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 22, Level = LogLevel.Information,
+            Message = "ManagedSession: keep-alive failure suppressed for {Elapsed} while channel manager" +
+                " reconnect is in progress.")]
+        public static partial void ManagedSessionKeepAliveFailureSuppressedWhile(
+            this ILogger logger,
+            TimeSpan elapsed);
 
         [LoggerMessage(EventId = ClientEventIds.ManagedSession + 23, Level = LogLevel.Error,
             Message = "ManagedSession: ChannelStateChanged handler threw an exception.")]
@@ -2115,6 +2580,17 @@ namespace Opc.Ua.Client
         public static partial void ManagedSessionDisposalAfterConnectionFailureFailed(
             this ILogger logger,
             Exception? exception);
-    }
 
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 27, Level = LogLevel.Warning,
+            Message = "ManagedSession: Redundancy refresh failed; retaining the previous snapshot.")]
+        public static partial void ManagedSessionRedundancyDiscoveryFailed(
+            this ILogger logger,
+            Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 28, Level = LogLevel.Information,
+            Message = "ManagedSession: The endpoint advertises no user token policies yet; " +
+                      "connecting with the configured identity until discovery succeeds.")]
+        public static partial void ManagedSessionIdentityProviderDeferredUntilDiscovery(
+            this ILogger logger);
+    }
 }

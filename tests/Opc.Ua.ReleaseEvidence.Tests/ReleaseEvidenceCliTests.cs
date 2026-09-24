@@ -75,16 +75,30 @@ namespace Opc.Ua.ReleaseEvidence.Tests
         /// <summary>
         /// Verifies that a legacy manifest produces a blocking incomplete report under the active evidence contract.
         /// </summary>
-        [Test]
-        public async Task LegacyManifestIsRejectedByTheActiveContractAsync()
+        /// <param name="schemaVersion">The standalone archive-manifest version.</param>
+        [TestCase(1)]
+        [TestCase(2)]
+        public async Task LegacyManifestIsRejectedByTheActiveContractAsync(int schemaVersion)
         {
             string work = CreateWorkspace();
             try
             {
                 string result = Path.Combine(work, "result.json");
+                JsonObject manifest = JsonNode.Parse(
+                    await File.ReadAllTextAsync(Fixture("v1.json")).ConfigureAwait(false))!.AsObject();
+                if (schemaVersion == 2)
+                {
+                    manifest["schemaVersion"] = 2;
+                    manifest["basePackageVersion"] = manifest["packageVersion"]!.DeepClone();
+                    manifest.Remove("packageVersion");
+                    manifest["channel"] = "stable";
+                    manifest["packageVersions"] = new JsonArray();
+                }
+                string manifestPath = Path.Combine(work, "manifest.json");
+                await File.WriteAllTextAsync(manifestPath, manifest.ToJsonString()).ConfigureAwait(false);
                 (int code, string output) = await RunAsync(
                     "evaluate", "--repository-root", FindRoot(),
-                    "--evidence", Fixture("v1.json"), "--expected", Fixture("expected.json"),
+                    "--evidence", manifestPath, "--expected", Fixture("expected.json"),
                     "--output", result).ConfigureAwait(false);
                 Assert.That(code, Is.EqualTo(1), output);
                 Assert.That(File.Exists(result), Is.True, output);
@@ -1091,11 +1105,23 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                 {
                     runnable["size"] = 1;
                 }
+                JsonObject armConfig = await BlobDescriptorAsync(blobs, /*lang=json,strict*/ """
+                    {"architecture":"arm64","os":"linux","config":{"Labels":{
+                    "org.opencontainers.image.version":"2.0.0",
+                    "org.opencontainers.image.revision":"1111111111111111111111111111111111111111"}}}
+                    """, "application/vnd.oci.image.config.v1+json").ConfigureAwait(false);
+                JsonObject armManifest = manifest.DeepClone().AsObject();
+                armManifest["config"] = armConfig;
+                JsonObject armRunnable = await BlobDescriptorAsync(
+                    blobs, armManifest.ToJsonString(), "application/vnd.oci.image.manifest.v1+json")
+                    .ConfigureAwait(false);
+                armRunnable["platform"] = JsonNode.Parse(
+                    """{"architecture":"arm64","os":"linux","variant":"v8"}""");
                 var indexDocument = new JsonObject
                 {
                     ["schemaVersion"] = 2,
                     ["mediaType"] = "application/vnd.oci.image.index.v1+json",
-                    ["manifests"] = new JsonArray(runnable, attestation)
+                    ["manifests"] = new JsonArray(runnable, armRunnable, attestation)
                 };
                 string index = await WriteBlobAsync(blobs, indexDocument.ToJsonString()).ConfigureAwait(false);
                 JsonNode expected = JsonNode.Parse(await File.ReadAllTextAsync(Fixture("expected.json"))
@@ -1105,7 +1131,7 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                 await File.WriteAllTextAsync(context, expected.ToJsonString()).ConfigureAwait(false);
                 string request = Path.Combine(work, "oci.json");
                 await File.WriteAllTextAsync(request, $$"""
-                    {"images":[{"id":"ghcr.io/opcfoundation/pumpdeviceintegrationserver",
+                    {"images":[{"id":"ghcr.io/opcfoundation/uanetstandard/pumpserver",
                     "layout":"layout","rootDigest":"{{index}}"}]}
                     """).ConfigureAwait(false);
                 string result = Path.Combine(work, "oci-result.json");
@@ -1116,15 +1142,16 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                 using var report = JsonDocument.Parse(await File.ReadAllTextAsync(result).ConfigureAwait(false));
                 if (mutation == "descriptor-size")
                 {
-                    Assert.That(report.RootElement.GetProperty("artifacts").GetArrayLength(), Is.EqualTo(1));
+                    Assert.That(report.RootElement.GetProperty("artifacts").GetArrayLength(), Is.EqualTo(2));
                     Assert.That(report.RootElement.GetProperty("artifacts").ToString(),
-                        Does.Contain("oci-index").And.Not.Contain("oci-manifest"));
+                        Does.Contain("oci-index").And.Contain("linux/arm64/v8").And.Not.Contain("linux/amd64"));
                 }
                 else
                 {
-                    Assert.That(report.RootElement.GetProperty("artifacts").GetArrayLength(), Is.EqualTo(2));
+                    Assert.That(report.RootElement.GetProperty("artifacts").GetArrayLength(), Is.EqualTo(3));
                     Assert.That(report.RootElement.GetProperty("artifacts").ToString(),
-                        Does.Contain("oci-index").And.Contain("oci-manifest").And.Contain("linux/amd64"));
+                        Does.Contain("oci-index").And.Contain("oci-manifest")
+                            .And.Contain("linux/amd64").And.Contain("linux/arm64/v8"));
                 }
                 Assert.That(report.RootElement.GetProperty("status").GetString(), Is.EqualTo("incomplete"));
                 Assert.That(report.RootElement.GetProperty("unmetControls").ToString(),

@@ -29,11 +29,13 @@
 
 <#
 .SYNOPSIS
-Discovers the Actions net10 test matrix and evaluates PR path relevance.
+Provides compatibility net10 assurance discovery and shared PR path relevance.
 .DESCRIPTION
 Ordinary projects are discovered under tests. The three public replay projects
 are explicitly required under fuzzing. No legacy/alternate TFM is claimed by
 this matrix; Azure uses evaluated MSBuild applicability in get-matrix.ps1.
+The CI workload is expanded by .github/scripts/get-ci-matrix.ps1. Relevance is
+delegated to its callers' primary get-path-relevance.ps1 rule.
 #>
 param(
     [string] $RepoRoot = (Split-Path (Split-Path $PSScriptRoot)),
@@ -61,18 +63,8 @@ foreach ($area in @('Encoders', 'Certificates', 'Network')) {
 }
 $relevant = $true
 if ($ChangedFilesPath) {
-    $relevant = $false
-    foreach ($file in Get-Content -LiteralPath $ChangedFilesPath) {
-        $file = $file.Replace('\', '/')
-        $name = [IO.Path]::GetFileName($file)
-        if ($name -match '\.(cs|csproj|props|targets|slnx|sln|runsettings)$' -or
-            $name -in @('global.json', 'nuget.config', 'coverage-thresholds.json') -or
-            $file -like 'fuzzing/*' -or $file -like '.azurepipelines/*' -or
-            $file -like '.github/workflows/*' -or $file -like 'tests/*.ps1' -or
-            $file -like 'tests/*.runsettings*') {
-            $relevant = $true
-            break
-        }
-    }
+    $changed = @(Get-Content -LiteralPath $ChangedFilesPath)
+    $rule = Join-Path (Split-Path (Split-Path $PSScriptRoot)) '.github/scripts/get-path-relevance.ps1'
+    $relevant = [bool](& $rule -ChangedFile $changed)
 }
 @{ projects = $projects; relevantChanges = $relevant } | ConvertTo-Json -Depth 5 -Compress

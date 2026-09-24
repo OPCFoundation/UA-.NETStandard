@@ -109,7 +109,10 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
             (bool found, ByteString stored) = await sharedStore
                 .TryGetAsync(PubSubRedundancyStoreKeys.SecurityKeyPrefix + "group-a")
                 .ConfigureAwait(false);
-            bool unprotected = protector.TryUnprotect(stored, out ByteString plaintext);
+            bool unprotected = protector.TryUnprotect(
+                RecordProtectionContext.Create(
+                    "pubsub-security-group", PubSubRedundancyStoreKeys.SecurityKeyPrefix + "group-a"),
+                stored, out ByteString plaintext);
 
             Assert.That(found, Is.True);
             Assert.That(unprotected, Is.True);
@@ -152,6 +155,65 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
             SksSecurityGroup actual = await keyStore.GetSecurityGroupAsync("group-a").ConfigureAwait(false);
             Assert.That(actual, Is.Not.Null);
             AssertGroupsEqual(actual, original);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task TransplantedSecurityGroupFailsClosedAsync(bool fenced)
+        {
+            using var sharedStore = new InMemorySharedKeyValueStore();
+            using AesCbcHmacRecordProtector protector = CreateProtector();
+            SharedStorePubSubSecurityKeyStore keyStore = CreateKeyStore(sharedStore, protector);
+            SksSecurityGroup expected = CreateGroup("source");
+            if (fenced)
+            {
+                await keyStore.SaveSecurityGroupAsync(expected, 10).ConfigureAwait(false);
+            }
+            else
+            {
+                await keyStore.SaveSecurityGroupAsync(expected).ConfigureAwait(false);
+            }
+            (bool found, ByteString record) = await sharedStore.TryGetAsync(
+                PubSubRedundancyStoreKeys.SecurityKeyPrefix + "source").ConfigureAwait(false);
+            Assert.That(found, Is.True);
+            await sharedStore.SetAsync(PubSubRedundancyStoreKeys.SecurityKeyPrefix + "target", record)
+                .ConfigureAwait(false);
+
+            Assert.That(await keyStore.GetSecurityGroupAsync("target").ConfigureAwait(false), Is.Null);
+            SksSecurityGroup retained = await keyStore.GetSecurityGroupAsync("source").ConfigureAwait(false);
+            Assert.That(retained, Is.Not.Null);
+            AssertGroupsEqual(retained, expected);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SecurityGroupRejectsEmptyContextOrTamperingAsync(bool emptyContext)
+        {
+            using var sharedStore = new InMemorySharedKeyValueStore();
+            using AesCbcHmacRecordProtector protector = CreateProtector();
+            SharedStorePubSubSecurityKeyStore keyStore = CreateKeyStore(sharedStore, protector);
+            await keyStore.SaveSecurityGroupAsync(CreateGroup("source")).ConfigureAwait(false);
+            const string key = PubSubRedundancyStoreKeys.SecurityKeyPrefix + "source";
+            (_, ByteString record) = await sharedStore.TryGetAsync(key).ConfigureAwait(false);
+            ByteString invalid;
+            if (emptyContext)
+            {
+                Assert.That(protector.TryUnprotect(
+                    RecordProtectionContext.Create("pubsub-security-group", key), record, out ByteString plaintext),
+                    Is.True);
+                invalid = protector.Protect(default, plaintext);
+            }
+            else
+            {
+                byte[] tampered = record.ToArray();
+                tampered[^1] ^= 1;
+                invalid = ByteString.From(tampered);
+            }
+            await sharedStore.SetAsync(key, invalid).ConfigureAwait(false);
+
+            Assert.That(await keyStore.GetSecurityGroupAsync("source").ConfigureAwait(false), Is.Null);
+            (_, ByteString retained) = await sharedStore.TryGetAsync(key).ConfigureAwait(false);
+            Assert.That(retained, Is.EqualTo(invalid));
         }
 
         private static SharedStorePubSubSecurityKeyStore CreateKeyStore(

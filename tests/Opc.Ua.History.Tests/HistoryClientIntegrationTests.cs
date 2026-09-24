@@ -463,6 +463,7 @@ namespace Opc.Ua.History.Tests
         {
             var client = new HistoryClient(Session);
             DateTime sourceTime = DateTime.UtcNow.AddYears(-10).AddSeconds(1201);
+            DateTime beforeInsert = DateTime.UtcNow;
             DateTime beforeReplace = DateTime.UtcNow;
 
             ArrayOf<StatusCode> insertStatuses = await client.InsertAsync(
@@ -496,16 +497,23 @@ namespace Opc.Ua.History.Tests
                 modified.Add(modifiedValue);
             }
 
-            Assert.That(modified, Has.Count.EqualTo(1));
-            Assert.That(modified[0].Value.SourceTimestamp, Is.EqualTo(sourceTime));
+            Assert.That(modified, Has.Count.EqualTo(2));
+            ModifiedHistoryValue insert = modified.Single(value =>
+                value.Info.UpdateType == HistoryUpdateType.Insert);
+            ModifiedHistoryValue replace = modified.Single(value =>
+                value.Info.UpdateType == HistoryUpdateType.Replace);
+            Assert.That(insert.Value.SourceTimestamp, Is.EqualTo(sourceTime));
             Assert.That(
-                modified[0].Value.WrappedValue.TryGetValue(out double priorValue),
+                insert.Value.WrappedValue.TryGetValue(out double insertedValue),
+                Is.True);
+            Assert.That(insertedValue, Is.EqualTo(123.0));
+            Assert.That(insert.Info.ModificationTime.ToDateTime(), Is.GreaterThanOrEqualTo(beforeInsert));
+            Assert.That(replace.Value.SourceTimestamp, Is.EqualTo(sourceTime));
+            Assert.That(
+                replace.Value.WrappedValue.TryGetValue(out double priorValue),
                 Is.True);
             Assert.That(priorValue, Is.EqualTo(123.0));
-            Assert.That(modified[0].Info.UpdateType, Is.EqualTo(HistoryUpdateType.Replace));
-            Assert.That(
-                modified[0].Info.ModificationTime.ToDateTime(),
-                Is.GreaterThanOrEqualTo(beforeReplace));
+            Assert.That(replace.Info.ModificationTime.ToDateTime(), Is.GreaterThanOrEqualTo(beforeReplace));
         }
 
         /// <summary>

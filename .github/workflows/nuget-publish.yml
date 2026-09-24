@@ -2,10 +2,19 @@ name: NuGet Publish
 
 # Builds the complete signed NuGet package set on every branch. Release
 # configuration supplies all normal package IDs; Debug configuration supplies
-# only package IDs ending in .Debug. Automatic master and release/* runs publish
-# normal packages to GitHub Packages and retain the exact bytes for release.yml.
-# Publication and public attestations are restricted to upstream master/release/*
-# definitions. Other branches retain the existing build/sign/validate baseline.
+# only package IDs ending in .Debug.
+#
+# Automatic publication to GitHub Packages happens only for an in-development
+# preview package set (a base version such as "2.0.0-preview.6", never an
+# exact stable "2.0.0") built from master or a canonical
+# "release/<major>.<minor>" branch (e.g. release/2.0). A stable package set is
+# always built, signed, and validated here - and its exact bytes are retained
+# for release.yml - but it is never pushed to any feed automatically; a
+# maintainer promotes it separately by running release.yml against this run's
+# ID. See docs/ReleaseProcess.md for the full release model and procedures.
+#
+# Manual (workflow_dispatch) runs can build/validate from any branch, but the
+# same eligibility rules gate whether packages actually get pushed anywhere.
 
 on:
   workflow_dispatch:
@@ -67,7 +76,7 @@ jobs:
       - name: Setup .NET 10.0
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '10.0.401'
 
       - name: Decode strong-name key
         shell: pwsh
@@ -116,7 +125,7 @@ jobs:
       - name: Determine package mode
         shell: pwsh
         run: |
-          if ('${{ github.ref_type }}' -eq 'tag') {
+          if ($env:GITHUB_REF_TYPE -eq 'tag') {
               $mode = 'Public'
           }
           else {
@@ -141,7 +150,7 @@ jobs:
           dotnet build 'preview-pack.slnx' `
             --no-incremental `
             --configuration '${{ matrix.configuration }}' `
-            "/p:Version=$env:NBGV_Version" `
+            "/p:Version=$env:NBGV_NuGetPackageVersion" `
             "/p:AssemblyVersion=$env:NBGV_SimpleVersion" `
             "/p:FileVersion=$env:NBGV_AssemblyFileVersion" `
             "/p:PackageVersion=$env:NBGV_NuGetPackageVersion" `
@@ -186,8 +195,9 @@ jobs:
       - name: Read package version
         shell: pwsh
         run: |
+          . ./.azurepipelines/nuget/package-version-policy.ps1
           Add-Type -AssemblyName System.IO.Compression.FileSystem
-          $versions = @(Get-ChildItem "$env:ARTIFACTS_DIR" -Filter '*.nupkg' -File |
+          $corePackages = @(Get-ChildItem "$env:ARTIFACTS_DIR" -Filter 'OPCFoundation.NetStandard.Opc.Ua.Core.*.nupkg' -File |
               ForEach-Object {
                   $archive = [IO.Compression.ZipFile]::OpenRead($_.FullName)
                   try {
@@ -204,24 +214,44 @@ jobs:
                       finally {
                           $reader.Dispose()
                       }
-                      [string]$metadata.package.metadata.version
+                      # A Debug-configuration pack produces only
+                      # ".Debug"-suffixed package IDs, so the anchor here is
+                      # "Core.Debug" rather than plain "Core" in that matrix
+                      # leg; accept either.
+                      $id = [string]$metadata.package.metadata.id
+                      if ($id -eq 'OPCFoundation.NetStandard.Opc.Ua.Core' -or
+                          $id -eq 'OPCFoundation.NetStandard.Opc.Ua.Core.Debug') {
+                          [string]$metadata.package.metadata.version
+                      }
                   }
                   finally {
                       $archive.Dispose()
                   }
-              } | Sort-Object -Unique)
-          if ($versions.Count -ne 1 -or [string]::IsNullOrWhiteSpace($versions[0])) {
-              throw "Modern packages contain unexpected versions: $($versions -join ', ')."
+              } | Where-Object { $_ } | Sort-Object -Unique)
+          if ($corePackages.Count -ne 1 -or [string]::IsNullOrWhiteSpace($corePackages[0])) {
+              throw "Unable to identify exactly one core package version: $($corePackages -join ', ')."
           }
-          "PACK_VERSION=$($versions[0])" | Out-File -FilePath $env:GITHUB_ENV -Append
-          Write-Host "Package version is $($versions[0])."
+          $channel = if (Test-StablePackageVersion -Version $corePackages[0]) { 'stable' } else { 'preview' }
+          "PACK_VERSION=$($corePackages[0])" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "PACK_CHANNEL=$channel" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Write-Host "Base package version is $($corePackages[0]) (channel: $channel)."
 
-      - name: Keep only distinct Debug package IDs
+      - name: Require every Debug package ID to be distinct
+        # The Debug leg exists purely to produce the "<id>.Debug" half of the
+        # package set. A project that packs here under its ordinary Release ID
+        # would collide byte-for-byte with the Release leg in the aggregation
+        # step below, so it must either rename itself (the per-project
+        # "<PackageId>$(PackageId).Debug</PackageId>" override) or opt out
+        # with "<IsPackable>false</IsPackable>" under Configuration=Debug.
+        # Silently deleting the offender instead would ship a package set in
+        # which some libraries simply have no Debug counterpart, with nothing
+        # anywhere reporting it. Fail closed and name the packages.
         if: matrix.configuration == 'Debug'
         shell: pwsh
         run: |
           Add-Type -AssemblyName System.IO.Compression.FileSystem
           $packages = @(Get-ChildItem "$env:ARTIFACTS_DIR" -Filter '*.nupkg' -File)
+          $unsuffixed = @()
           foreach ($package in $packages) {
               $archive = [IO.Compression.ZipFile]::OpenRead($package.FullName)
               try {
@@ -245,19 +275,24 @@ jobs:
               }
 
               if (-not $id.EndsWith('.Debug', [StringComparison]::OrdinalIgnoreCase)) {
-                  Remove-Item -LiteralPath $package.FullName
-                  $symbols = Join-Path $package.DirectoryName "$($package.BaseName).snupkg"
-                  if (Test-Path -LiteralPath $symbols) {
-                      Remove-Item -LiteralPath $symbols
-                  }
+                  $unsuffixed += $id
               }
           }
 
-          $debugPackages = @(Get-ChildItem "$env:ARTIFACTS_DIR" -Filter '*.nupkg' -File)
-          if ($debugPackages.Count -eq 0) {
+          if ($unsuffixed.Count -gt 0) {
+              throw (
+                  "The Debug configuration packed $($unsuffixed.Count) package(s) under a " +
+                  "Release package ID: $(($unsuffixed | Sort-Object -Unique) -join ', '). " +
+                  'Give each owning project a Debug PackageId override ' +
+                  '(<PackageId>$(PackageId).Debug</PackageId>) or exclude it from the ' +
+                  'Debug pack (<IsPackable>false</IsPackable>) under ' +
+                  "Condition=`"'`$(Configuration)' == 'Debug'`".")
+          }
+
+          if ($packages.Count -eq 0) {
               throw 'The Debug build produced no package IDs ending in .Debug.'
           }
-          Write-Host "Retained $($debugPackages.Count) distinct Debug package(s)."
+          Write-Host "Verified $($packages.Count) distinct Debug package(s)."
 
       - name: Validate source-generator packages
         if: matrix.configuration == 'Release'
@@ -368,7 +403,7 @@ jobs:
       - name: Setup .NET 10.0
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '10.0.401'
 
       - name: Prepare offline evidence tool
         shell: pwsh
@@ -383,8 +418,10 @@ jobs:
           path: downloaded
 
       - name: Aggregate and validate packages
+        id: package_set
         shell: pwsh
         run: |
+          . ./.azurepipelines/nuget/package-version-policy.ps1
           $output = Join-Path $env:GITHUB_WORKSPACE 'promotion'
           New-Item -ItemType Directory -Force -Path $output | Out-Null
           $archives = @(Get-ChildItem downloaded -Recurse -File | Where-Object {
@@ -411,14 +448,34 @@ jobs:
           if ($LASTEXITCODE -ne 0 -or $actualSha -cne $env:GITHUB_SHA) {
               throw 'The aggregate checkout differs from the selected producing commit.'
           }
+
+          # Defense in depth: a stable ("2.0.0"-shaped) package set should be
+          # possible only when NBGV itself resolved this ref as a public
+          # release, which version.json restricts to exactly
+          # "refs/heads/release/<major>.<minor>". Refuse to produce a stable
+          # candidate from anywhere else - including master - rather than
+          # silently building it. See docs/ReleaseProcess.md.
+          if ($inventory.channel -eq 'stable' -and
+              -not (Test-CanonicalReleaseBranchForPackageVersion `
+                  -Ref $env:GITHUB_REF `
+                  -Version $inventory.basePackageVersion)) {
+              throw (
+                  "Refusing to build a stable package set ($($inventory.basePackageVersion)) " +
+                  "from ref '$($env:GITHUB_REF)'. Stable releases are only produced from a " +
+                  "canonical release/<major>.<minor> branch whose major/minor matches " +
+                  'the package version.')
+          }
+
           $manifest = [ordered]@{
-              schemaVersion = 1
-              repository = '${{ github.repository }}'
+              repository = $env:GITHUB_REPOSITORY
               workflow = '.github/workflows/nuget-publish.yml'
-              runId = '${{ github.run_id }}'
-              ref = '${{ github.ref }}'
+              runId = $env:GITHUB_RUN_ID
+              ref = $env:GITHUB_REF
               commit = $actualSha
-              packageVersion = $inventory.packageVersion
+              schemaVersion = 2
+              basePackageVersion = $inventory.basePackageVersion
+              channel = $inventory.channel
+              packageVersions = $inventory.packageVersions
               packageCount = $inventory.packageCount
               symbolPackageCount = $inventory.symbolPackageCount
               debugPackageCount = $inventory.debugPackageCount
@@ -426,6 +483,28 @@ jobs:
           }
           $manifest | ConvertTo-Json -Depth 6 |
               Set-Content -LiteralPath (Join-Path $output 'release-manifest.json') -Encoding utf8NoBOM
+
+          # A branch is eligible for automatic feed publication only as
+          # master (development previews) or a canonical release/<M>.<m>
+          # line (in-progress stabilization previews, or - separately gated
+          # below by channel - the frozen moment it goes stable). This
+          # deliberately excludes every other branch, including the retired
+          # three-component "release/2.0.0" naming: that line is frozen and
+          # keeps its history, but no longer publishes. See
+          # docs/ReleaseProcess.md.
+          $isEligibleRef = $env:GITHUB_REF -ceq 'refs/heads/master' -or
+              (Test-CanonicalReleaseBranchRef -Ref $env:GITHUB_REF)
+          "PUBLISH_CHANNEL=$($inventory.channel)" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "PUBLISH_ELIGIBLE_REF=$($isEligibleRef.ToString().ToLowerInvariant())" |
+              Out-File -FilePath $env:GITHUB_ENV -Append
+          "channel=$($inventory.channel)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "eligible_ref=$($isEligibleRef.ToString().ToLowerInvariant())" |
+              Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host (
+              "Package set channel: $($inventory.channel) (base version " +
+              "$($inventory.basePackageVersion)); ref eligible for feed " +
+              "publication: $isEligibleRef.")
+
 
       - name: Aggregate sanitized evidence
         shell: pwsh
@@ -515,14 +594,41 @@ jobs:
             -Output promotion\assurance -Work "$env:RUNNER_TEMP\nuget-assurance"
 
       - name: Preflight current policy
+        if: ${{ steps.package_set.outputs.channel == 'preview' && steps.package_set.outputs.eligible_ref == 'true' }}
         shell: pwsh
         run: |
           .\.azurepipelines\nuget\evidence.ps1 -Operation Preflight -Packages promotion `
             -Output promotion\preflight.json `
             -Work "$env:RUNNER_TEMP\nuget-preflight"
 
-      - name: Push to GitHub Packages
+      - name: Verify preview package ordering
+        # A stable candidate pins the preview-only families to the number
+        # committed in preview-version.props, which cannot track the growing
+        # "-preview.<height>" series that ordinary development keeps
+        # publishing. Prove the candidate still outranks every published
+        # preview before the bytes are retained for promotion - once pushed,
+        # a NuGet version can never be corrected. See docs/ReleaseProcess.md.
+        if: ${{ steps.package_set.outputs.channel == 'stable' }}
         shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ./.azurepipelines/nuget/validate-preview-package-ordering.ps1 `
+            -ManifestPath (Join-Path $env:GITHUB_WORKSPACE 'promotion/package-set.json')
+
+      - name: Push to GitHub Packages
+        # Only ever auto-publish in-development preview builds built from an
+        # eligible branch (master, or a canonical release/<major>.<minor>
+        # line) this way. A stable candidate ("channel" == "stable", e.g. an
+        # exact "2.0.0" on release/2.0) is validated and staged in the
+        # "opcua-packages-*" artifact below, but is never pushed to any feed
+        # automatically - release.yml's separate, environment-gated, manually
+        # approved promotion is the only path that publishes a stable
+        # release. See docs/ReleaseProcess.md ("Approved promotion").
+        if: ${{ steps.package_set.outputs.channel == 'preview' && steps.package_set.outputs.eligible_ref == 'true' }}
+        shell: pwsh
+        env:
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $packages = @(Get-ChildItem promotion -Filter '*.nupkg' -File | Sort-Object Name)
           .\.azurepipelines\nuget\evidence.ps1 -Operation Receipt -Packages promotion `
@@ -535,7 +641,7 @@ jobs:
               if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
               dotnet nuget push $package.FullName `
                 --source 'https://nuget.pkg.github.com/OPCFoundation/index.json' `
-                --api-key '${{ secrets.GITHUB_TOKEN }}' `
+                --api-key $env:GITHUB_PACKAGES_TOKEN `
                 --skip-duplicate `
                 --no-symbols
               $pushCode = $LASTEXITCODE
@@ -549,6 +655,24 @@ jobs:
               }
           }
 
+      - name: Skip feed publication
+        if: ${{ steps.package_set.outputs.channel == 'stable' || steps.package_set.outputs.eligible_ref != 'true' }}
+        shell: pwsh
+        run: |
+          if ('${{ steps.package_set.outputs.channel }}' -eq 'stable') {
+              Write-Host (
+                  'Stable package set detected; skipping automatic feed publication. ' +
+                  'Run .github/workflows/release.yml against this run ID once it is ' +
+                  'reviewed and approved (see docs/ReleaseProcess.md).')
+          }
+          else {
+              Write-Host (
+                  "Ref '$($env:GITHUB_REF)' is not eligible for automatic feed " +
+                  'publication (only master and a canonical release/<major>.<minor> ' +
+                  'line are); the validated package set was still produced and ' +
+                  'staged in the run artifact.')
+          }
+
       - name: Upload promotion artifact
         if: ${{ always() && hashFiles('promotion/release-manifest.json') != '' }}
         uses: actions/upload-artifact@v7
@@ -556,18 +680,30 @@ jobs:
           name: opcua-packages-${{ github.run_id }}
           path: promotion
           if-no-files-found: error
-          retention-days: ${{ startsWith(github.ref, 'refs/heads/release/') && 30 || 1 }}
+          retention-days: ${{ (startsWith(github.ref, 'refs/heads/release/') && 30) || 1 }}
 
       - name: Summary
         shell: pwsh
         run: |
           $manifest = Get-Content promotion/release-manifest.json -Raw | ConvertFrom-Json
+          $publishedNote = if ($manifest.channel -eq 'stable') {
+              'No (stable candidate awaits release.yml promotion)'
+          }
+          elseif ('${{ steps.package_set.outputs.eligible_ref }}' -eq 'true') {
+              'Yes (GitHub Packages)'
+          }
+          else {
+              'No (ref not eligible)'
+          }
           @"
           ### NuGet package publication
 
-          - Version: ``$($manifest.packageVersion)``
+          - Channel: ``$($manifest.channel)``
+          - Base version: ``$($manifest.basePackageVersion)``
+          - Package versions: ``$($manifest.packageVersions -join ', ')``
           - Packages: ``$($manifest.packageCount)``
           - Debug packages: ``$($manifest.debugPackageCount)``
           - Symbol packages: ``$($manifest.symbolPackageCount)``
+          - Published to a feed: ``$publishedNote``
           - Promotion artifact: ``opcua-packages-${{ github.run_id }}``
           "@ | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY

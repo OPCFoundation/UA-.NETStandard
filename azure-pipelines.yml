@@ -11,27 +11,28 @@ parameters:
   - mixed
   - managed
   - hosted
-# Which CI system owns the all-TFM solution build, the cross-platform test
-# matrix and the Native AoT run.  This is one half of a single conceptual
-# switch - the other half is CI_BUILD_BACKEND in
-# .github/workflows/buildandtest.yml.  BOTH MUST BE FLIPPED TOGETHER.
+# How much of the build/test workload this pipeline runs during the migration to
+# GitHub Actions.
 #
-#   ado     - Azure Pipelines owns the work: the Linux all-TFM build leg, the
-#             Linux test leg and Native AoT all run on pull requests, and the
-#             equivalent GitHub Actions jobs stand down.
-#   actions - (default) the work is split across both CI systems: GitHub Actions
-#             runs the all-TFM builds, the ubuntu test matrix and AoT, and the
-#             stages below fall back to their Schedule/Manual-only cadence.
+# GitHub Actions owns pull-request validation outright:
+# .github/workflows/buildandtest.yml runs the complete build and test workload
+# unconditionally and has no switch that hands any of it back. Since the Azure
+# context was dropped from the master ruleset this pipeline no longer runs on
+# pull requests at all (`pr: none` below), so this parameter now only decides
+# how much of the Actions workload the remaining push and manual runs duplicate
+# while both systems run in parallel.
 #
-# Either way the per-(framework, configuration) coverage gate stays here, in the
-# always-on 'Fast PR test' stage, because it is the required status check.
+#   ado     - duplicate the full workload here: the Linux all-TFM build leg, the
+#             Linux test leg and Native AoT run alongside the Windows matrix.
+#   actions - (default) run the narrow gate here and leave the rest to the
+#             stages' Schedule/Manual-only cadence.
 #
-# Note on scope: Azure Pipelines evaluates the YAML from the PR's merge ref, so
-# a PR targeting master378 or a release branch runs *that* branch's copy of this
-# file.  In practice every PR that evaluates this file targets master, which is
-# why the conditions below only need the parameter and not a target-branch test.
+# Note on scope: Azure Pipelines evaluates a pull request against the *target*
+# branch's copy of this file, so master378 and the release/* lines are governed
+# by their own copies and keep their own Azure validation. Only master is
+# affected by the settings here.
 - name: ciBuildBackend
-  displayName: 'CI build backend: actions splits the all-TFM build, cross-platform tests and AoT with GitHub Actions; ado runs all of it here'
+  displayName: 'CI build backend: actions runs the narrow gate here; ado additionally duplicates the all-TFM build, cross-platform tests and AoT'
   type: string
   default: actions
   values:
@@ -79,45 +80,35 @@ trigger:
     exclude:
     - 'docs/**'
     - '**/*.md'
-pr:
-  autoCancel: 'true'
-  drafts: 'true'
-  branches:
-    include:
-    - '*'
-  paths:
-    include:
-    - '*'
-    exclude:
-    - 'docs/**'
-    - '**/*.md'
+pr: none
+# Pull-request validation is owned outright by GitHub Actions
+# (.github/workflows/buildandtest.yml, required context 'build-and-test
+# summary').  The Azure context was dropped from the master ruleset first, so
+# disabling this trigger removes a duplicate rather than a gate.
+#
+# Azure Pipelines evaluates a PR against the target branch's copy of this file,
+# and every existing release/* line is a 1.x branch or the frozen release/2.0.0.
+# Those keep their own copy of this file and their own required Azure context in
+# the 'Release' ruleset, so they are unaffected by this change.
+#
+# Before a canonical release/2.<minor> branch is cut from master, the 'Release'
+# ruleset must stop requiring the Azure context for it - the branch inherits
+# 'pr: none' from this file, so that context would otherwise never report and
+# would block every pull request into the new line.  See
+# docs/DeveloperGuide.md#migration-status.
 
-# Weekly full-scope run.  Fires every Sunday at 02:00 UTC (late Saturday
-# night in the Americas / early Sunday morning in EU).  `always: true`
-# forces the run even when there are no commits since the previous one so
-# the badge in README.md reflects a recent green build. All stages that
-# are gated on `ScheduledBuild` (AOT, Debug, .NET 9/8/472/netstandard)
-# are automatically included because Build.Reason is 'Schedule' for these runs.
-# macOS jobs are additionally controlled by MacOSJobsEnabled and are disabled
-# while GitHub Actions owns them.
-schedules:
-- cron: '0 2 * * 0'
-  displayName: 'Weekly full-scope tests (Sat night UTC)'
-  branches:
-    include:
-    - master
-  always: true
+# The weekly full-scope schedule moved to .github/workflows/nightly.yml. Keep
+# the Azure stage graph available for manual recovery runs only; stages gated on
+# `ScheduledBuild` still run when a maintainer queues this pipeline manually.
 
 variables:
-  FullBuild: ${{ ne(variables['Build.Reason'], 'PullRequest') }}
   ScheduledBuild: ${{ in(variables['Build.Reason'], 'Schedule', 'Manual') }}
-  # 'True' when Azure Pipelines owns the build/test matrix that GitHub Actions
-  # otherwise runs (see the ciBuildBackend parameter).  Native AoT, normally
-  # Schedule/Manual-only here, additionally runs on pull requests while this is
-  # True, because it is then the only place that work happens.
+  # 'True' when Azure Pipelines additionally duplicates the build/test matrix
+  # GitHub Actions already runs (see the ciBuildBackend parameter).  Native AoT,
+  # normally Schedule/Manual-only here, then also runs on push builds.
   AdoOwnsMatrix: ${{ eq(parameters.ciBuildBackend, 'ado') }}
   # GitHub Actions owns macOS validation. Keep the Azure definitions available
-  # for emergency/manual use, but do not schedule them unless explicitly enabled.
+  # for emergency/manual use, but do not run them unless explicitly enabled.
   MacOSJobsEnabled: false
   macImage: 'macOS-15'
   # Two pool profiles are defined so stages can be routed independently and the
@@ -168,23 +159,23 @@ stages:
       # type: master/scheduled/manual builds cover all supported TFMs here,
       # while PR builds are narrowed so the managed pool is not swamped.
       solutions: ''
-      ${{ if ne(variables.FullBuild, 'False') }}:
+      ${{ if ne(variables['Build.Reason'], 'PullRequest') }}:
         tfms: 'net472,net48,netstandard2.0,netstandard2.1,net8.0,net9.0,net10.0'
       ${{ elseif eq(parameters.ciBuildBackend, 'ado') }}:
-        # ADO owns the all-TFM PR build that GitHub Actions normally runs, so a
-        # PR has to cover all seven TFMs.  Windows takes the .NET Framework
-        # targets and the Linux leg below takes the modern ones - the same split
-        # the build-all-tfm-windows / build-all-tfm-linux jobs use - which keeps
-        # full coverage without fanning every TFM across both pools.
+        # Duplicate the all-TFM PR build GitHub Actions runs, so a PR covers all
+        # seven TFMs here too.  Windows takes the .NET Framework targets and the
+        # Linux leg below takes the modern ones, which keeps full coverage
+        # without fanning every TFM across both pools.
         tfms: 'net472,net48,netstandard2.0'
       ${{ else }}:
-        # GitHub Actions owns the all-TFM build; this PR gate only needs the two
+        # GitHub Actions runs the all-TFM build; this PR gate only needs the two
         # TFMs the contribution guide requires.
         tfms: 'net10.0,net48'
   - ${{ if eq(parameters.ciBuildBackend, 'ado') }}:
-    # Replaces the GitHub Actions build-all-tfm-linux job: proves UA.slnx still
-    # compiles on Linux for every Linux-capable TFM.  Release only, because this
-    # leg exists to catch TFM/platform breaks rather than to exercise Debug.
+    # Duplicates the GitHub Actions build-solutions Linux legs: proves UA.slnx
+    # still compiles on Linux for every Linux-capable TFM.  Release only,
+    # because this leg exists to catch TFM/platform breaks rather than to
+    # exercise Debug.
     - template: .azurepipelines/sln.yml
       parameters:
         poolImage: ${{ variables.mgdLinuxImage }}
@@ -211,8 +202,7 @@ stages:
       framework: net10.0
       # With the default ciBuildBackend=actions this leg stays Windows-only
       # because the GitHub Actions build-and-test job provides the Linux
-      # coverage.  When ADO owns the matrix it also covers Linux, replacing
-      # that job.
+      # coverage.  Setting it to ado duplicates that Linux leg here.
       ${{ if eq(parameters.ciBuildBackend, 'ado') }}:
         agents: '@{ windows = "${{ variables.mgdWindowsImage }}"; linux = "${{ variables.mgdLinuxImage }}" }'
       ${{ else }}:
@@ -237,7 +227,7 @@ stages:
   displayName: 'Full security and public replay profile'
   # Preserve fast PR selection. Every non-PR build (including release branches)
   # runs the complete, unfiltered Windows/net10 profile, not just weekly builds.
-  condition: and(succeeded(), ne(variables.FullBuild, 'False'))
+  condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
   jobs:
   - template: .azurepipelines/test.yml
     parameters:
@@ -284,9 +274,9 @@ stages:
   dependsOn: []
   displayName: 'Test Native AoT'
   # Native AoT is Schedule/Manual-only while GitHub Actions runs its own ubuntu
-  # AoT job.  When ADO owns the matrix this is the only place AoT runs, so it
-  # has to gate pull requests too.
-  condition: and(succeeded(), or(ne(variables.FullBuild, 'False'), ne(variables.AdoOwnsMatrix, 'False')))
+  # AoT job.  When ADO owns the matrix this is the only place AoT runs here, so
+  # it also runs on push builds.
+  condition: and(succeeded(), or(ne(variables.ScheduledBuild, 'False'), ne(variables.AdoOwnsMatrix, 'False')))
   jobs:
   - template: .azurepipelines/test-aot.yml
     parameters:
@@ -476,11 +466,14 @@ stages:
 # usage.
 #
 # 'Skipped' is accepted because the Schedule/Manual-only stages report exactly
-# that on a pull request.  When a stage genuinely fails the condition is false,
-# this stage is skipped, and Azure Pipelines then posts NO check for it - which
-# leaves the required check permanently unfulfilled and blocks the merge.  That
-# is deliberately fail-closed: the failing job itself is already red, and a
+# that on an ordinary push build.  When a stage genuinely fails the condition is
+# false, this stage is skipped, and Azure Pipelines then posts NO check for it -
+# which leaves any required check permanently unfulfilled and blocks the merge.
+# That is deliberately fail-closed: the failing job itself is already red, and a
 # required check that never reports can never be mistaken for a passing one.
+# On master this now only affects push builds - `build-and-test summary` from
+# GitHub Actions is the required check, and this pipeline no longer runs on
+# pull requests - but master378 and the release/* lines still depend on it.
 - stage: gate
   displayName: 'Tests passed'
   dependsOn: ${{ parameters.testStages }}
@@ -489,8 +482,8 @@ stages:
       not(canceled()),
       in(dependencies.build.result, 'Succeeded', 'SucceededWithIssues'),
       in(dependencies.testfastpr.result, 'Succeeded', 'SucceededWithIssues'),
-      or(in(dependencies.testassurance.result, 'Succeeded', 'SucceededWithIssues'), and(eq(variables.FullBuild, 'False'), eq(dependencies.testassurance.result, 'Skipped'))),
-      or(in(dependencies.testaot.result, 'Succeeded', 'SucceededWithIssues'), and(eq(variables.FullBuild, 'False'), eq(variables.AdoOwnsMatrix, 'False'), eq(dependencies.testaot.result, 'Skipped'))),
+      or(in(dependencies.testassurance.result, 'Succeeded', 'SucceededWithIssues'), and(eq(variables['Build.Reason'], 'PullRequest'), eq(dependencies.testassurance.result, 'Skipped'))),
+      or(in(dependencies.testaot.result, 'Succeeded', 'SucceededWithIssues'), and(eq(variables.ScheduledBuild, 'False'), eq(variables.AdoOwnsMatrix, 'False'), eq(dependencies.testaot.result, 'Skipped'))),
       or(in(dependencies.testdebug.result, 'Succeeded', 'SucceededWithIssues'), and(eq(variables.ScheduledBuild, 'False'), eq(dependencies.testdebug.result, 'Skipped'))),
       or(in(dependencies.testnet90.result, 'Succeeded', 'SucceededWithIssues'), and(eq(variables.ScheduledBuild, 'False'), eq(dependencies.testnet90.result, 'Skipped'))),
       or(in(dependencies.testnet80.result, 'Succeeded', 'SucceededWithIssues'), and(eq(variables.ScheduledBuild, 'False'), eq(dependencies.testnet80.result, 'Skipped'))),

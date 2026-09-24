@@ -61,11 +61,11 @@ try {
     Assert-NugetIndependentTrust $TrustPolicy @($ControllerRoot, $CandidateRoot, $Work)
     if ($Operation -ceq 'Write' -and (
         $env:GITHUB_REPOSITORY -cne 'OPCFoundation/UA-.NETStandard' -or
-        $env:GITHUB_REF -cne 'refs/heads/master' -or
+        $env:GITHUB_REF -cnotmatch '^refs/heads/release/(0|[1-9]\d*)\.(0|[1-9]\d*)$' -or
         $env:GITHUB_EVENT_NAME -cne 'workflow_dispatch' -or
         $env:GITHUB_WORKFLOW_REF -cne
-            'OPCFoundation/UA-.NETStandard/.github/workflows/release.yml@refs/heads/master')) {
-        Stop-NugetEvidence 'The official writer must execute as the protected existing release controller.' 1
+            "OPCFoundation/UA-.NETStandard/.github/workflows/release.yml@$env:GITHUB_REF")) {
+        Stop-NugetEvidence 'The official writer must execute as the approved canonical release-branch controller.' 1
     }
     $tool = Resolve-NugetPath $ControllerRoot `
         'tools/Opc.Ua.ReleaseEvidence/bin/Release/net10.0/Opc.Ua.ReleaseEvidence.dll'

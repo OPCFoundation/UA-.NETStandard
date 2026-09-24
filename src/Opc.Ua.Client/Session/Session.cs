@@ -130,7 +130,9 @@ namespace Opc.Ua.Client
         /// a DER encoded blob to a X509Certificate2 will not include a private key.
         /// The <i>availableEndpoints</i> and <i>discoveryProfileUris</i> parameters are
         /// used to validate that the list of EndpointDescriptions returned at GetEndpoints
-        /// matches the list returned at CreateSession.
+        /// matches the list returned at CreateSession. Each open uses the endpoint's
+        /// latest discovery snapshot when available. Explicit constructor metadata
+        /// is a fallback only while the original endpoint description is still in use.
         /// </remarks>
         public Session(
             ITransportChannel channel,
@@ -161,6 +163,7 @@ namespace Opc.Ua.Client
             clientCertificateChain?.Dispose();
             m_discoveryServerEndpoints = availableEndpoints;
             m_discoveryProfileUris = discoveryProfileUris;
+            m_discoveryEndpointDescription = endpoint.Description;
         }
 
         /// <summary>
@@ -185,7 +188,14 @@ namespace Opc.Ua.Client
             m_instanceCertificateEntry = template.m_instanceCertificateEntry?.AddRef();
             m_effectiveEndpoint = template.m_effectiveEndpoint;
             SessionFactory = template.SessionFactory;
-            m_defaultSubscription = template.m_defaultSubscription;
+            if (template.m_defaultSubscription != null)
+            {
+                // Clone rather than share: both sessions dispose their default
+                // subscription. Assigning through the property also disposes
+                // the instance the chained constructor created.
+                DefaultSubscription = template.m_defaultSubscription
+                    .CloneSubscription(false);
+            }
             DeleteSubscriptionsOnClose = template.DeleteSubscriptionsOnClose;
             TransferSubscriptionsOnReconnect = template.TransferSubscriptionsOnReconnect;
             EnableTokenReuseFailover = template.EnableTokenReuseFailover;
@@ -200,13 +210,9 @@ namespace Opc.Ua.Client
             m_identity = template.Identity;
             m_keepAliveInterval = template.KeepAliveInterval;
 
-            // Create timer for keep alive event triggering but in off state
-            m_keepAliveTimer = m_timeProvider.CreateTimer(
-                _ => m_keepAliveEvent.Set(),
-                this,
-                Timeout.InfiniteTimeSpan,
-                Timeout.InfiniteTimeSpan);
-
+            // The keep alive timer is already created (in off state) by the
+            // constructor this one chains to; creating a second one here would
+            // orphan the first.
             m_checkDomain = template.m_checkDomain;
             ContinuationPointPolicy = template.ContinuationPointPolicy;
             ReturnDiagnostics = template.ReturnDiagnostics;
@@ -232,6 +238,35 @@ namespace Opc.Ua.Client
             {
                 AddSubscription(subscription.CloneSubscription(copyEventHandlers));
             }
+        }
+
+        private CancellationTokenSource CreateCloseRequestCancellationTokenSource(
+            int timeout,
+            CancellationToken ct)
+        {
+            var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeoutCts.CancelAfter(GetCloseRequestTimeout(timeout));
+            return timeoutCts;
+        }
+
+        private int GetCloseRequestTimeout(int timeout)
+        {
+            if (timeout > 0)
+            {
+                return timeout;
+            }
+
+            if (OperationTimeout > 0)
+            {
+                return OperationTimeout;
+            }
+
+            if (m_keepAliveInterval > 0)
+            {
+                return m_keepAliveInterval;
+            }
+
+            return kReconnectTimeout;
         }
 
         /// <summary>
@@ -500,15 +535,17 @@ namespace Opc.Ua.Client
 
                 try
                 {
-                    if (Connected)
+                    if (Connected && CanReceiveResponses())
                     {
                         var request = new CloseSessionRequest
                         {
                             DeleteSubscriptions = DeleteSubscriptionsOnClose
                         };
                         UpdateRequestHeader(request, true, "CloseSession");
+                        using CancellationTokenSource timeoutCts =
+                            CreateCloseRequestCancellationTokenSource(timeout: 0, CancellationToken.None);
                         await TransportChannel
-                            .SendRequestAsync(request, default)
+                            .SendRequestAsync(request, timeoutCts.Token)
                             .ConfigureAwait(false);
                     }
                 }
@@ -1028,7 +1065,10 @@ namespace Opc.Ua.Client
                 subscription.Snapshot(out SubscriptionState subscriptionState);
                 subscriptionStates.Add(subscriptionState);
             }
-            state = new SessionState(configuration)
+            // Clone the configuration rather than constructing a SessionState
+            // from it: the record copy constructor of the SessionOptions base
+            // would drop every member declared on SessionState itself.
+            state = configuration with
             {
                 Subscriptions = subscriptionStates
             };
@@ -1039,7 +1079,7 @@ namespace Opc.Ua.Client
         {
             using Activity? activity = m_telemetry.StartActivity();
             ThrowIfDisposed();
-            Restore((SessionConfiguration)state);
+            RestoreSessionState(state);
             if (state.Subscriptions.IsEmpty)
             {
                 return;
@@ -1080,6 +1120,16 @@ namespace Opc.Ua.Client
         public void Restore(SessionConfiguration sessionConfiguration)
         {
             ThrowIfDisposed();
+            RestoreSessionState(sessionConfiguration);
+        }
+
+        /// <summary>
+        /// Restores the session identity, nonces and token policy from a
+        /// snapshot. Accepts any <see cref="SessionState"/> so the state and
+        /// configuration snapshots round-trip through the same code path.
+        /// </summary>
+        private void RestoreSessionState(SessionState sessionConfiguration)
+        {
             ByteString serverCertificate = m_endpoint.Description?.ServerCertificate ?? default;
             m_sessionName = sessionConfiguration.SessionName ?? "SessionName";
             m_serverCertificate?.Dispose();
@@ -1094,6 +1144,7 @@ namespace Opc.Ua.Client
                 ? sessionConfiguration.ClientNonce.ToArray()
                 : null;
             m_userTokenSecurityPolicyUri = sessionConfiguration.UserIdentityTokenPolicy;
+            m_eccServerEphemeralKey?.Dispose();
             if (sessionConfiguration.ServerEccEphemeralKey.Length > 0)
             {
                 string? ephemeralKeyPolicyUri = !string.IsNullOrEmpty(m_userTokenSecurityPolicyUri)
@@ -1241,7 +1292,10 @@ namespace Opc.Ua.Client
 
             if (obj is ISession session)
             {
-                if (!m_endpoint.Equals(session.Endpoint))
+                // Compare the configured endpoints: ISession.Endpoint is the
+                // channel's EndpointDescription, which is never equal to a
+                // ConfiguredEndpoint and throws once the channel is released.
+                if (!m_endpoint.Equals(session.ConfiguredEndpoint))
                 {
                     return false;
                 }
@@ -1278,7 +1332,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task OpenAsync(
+        public Task OpenAsync(
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
@@ -1287,12 +1341,53 @@ namespace Opc.Ua.Client
             bool closeChannel,
             CancellationToken ct)
         {
+            return OpenCoreAsync(
+                this, sessionName, sessionTimeout, identity, preferredLocales, checkDomain, closeChannel, ct);
+        }
+
+        private async Task OpenCoreAsync(
+            SessionClient serviceClient,
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity identity,
+            ArrayOf<string> preferredLocales,
+            bool checkDomain,
+            bool closeChannel,
+            CancellationToken ct,
+            ArrayOf<EndpointDescription> refreshedEndpoints = default)
+        {
             ThrowIfDisposed();
             using Activity? activity = m_telemetry.StartActivity();
+
+            ArrayOf<EndpointDescription> discoveryServerEndpoints = refreshedEndpoints.IsEmpty
+                ? m_endpoint.DiscoveryEndpoints
+                : refreshedEndpoints;
+            ArrayOf<string> discoveryProfileUris = default;
+            if (discoveryServerEndpoints.IsEmpty &&
+                ReferenceEquals(m_endpoint.Description, m_discoveryEndpointDescription))
+            {
+                // Explicit constructor metadata only belongs to that description,
+                // not to an endpoint adopted by a later recreate or discovery.
+                discoveryServerEndpoints = m_discoveryServerEndpoints;
+                discoveryProfileUris = m_discoveryProfileUris;
+            }
+            discoveryServerEndpoints = discoveryServerEndpoints.ConvertAll(endpoint => CoreUtils.Clone(endpoint)!);
 
             uint maxMessageSize = (uint?)MessageContext?.MaxMessageSize ??
                 throw ServiceResultException.Unexpected(
                     "Transport channel is null or does not have a message context");
+
+            if (TransportChannel is ManagedTransportChannelLease lease)
+            {
+                using ClientChannelCertificateSnapshot certificates = lease.Entry.SnapshotClientCertificate();
+                CertificateEntry? replacement = BuildInstanceCertificateEntry(
+                    certificates.Certificate,
+                    certificates.Chain);
+                CertificateEntry? previous = m_instanceCertificateEntry;
+                m_instanceCertificateEntry = replacement;
+                m_effectiveEndpoint = m_endpoint;
+                previous?.Dispose();
+            }
 
             // Load certificate and chain if not already loaded.
             await LoadInstanceCertificateAsync(false, ct).ConfigureAwait(false);
@@ -1374,11 +1469,18 @@ namespace Opc.Ua.Client
             {
                 if (m_endpoint.Description.SecurityPolicyUri == SecurityPolicies.None)
                 {
-                    // first try to connect with client certificate NULL
+                    // first try to connect with client certificate NULL.
+                    // The request header still has to be sent: the ECDH key is
+                    // requested through its additionalHeader (Part 4 §7.1 /
+                    // §7.15) and without it the server returns no ephemeral key
+                    // for ECC user token encryption. Sending it is safe against
+                    // a server that does not do ECC - Part 4 §7.32 says an
+                    // application that does not understand an additional header
+                    // should ignore it.
                     try
                     {
-                        response = await base.CreateSessionAsync(
-                            null,
+                        response = await serviceClient.CreateSessionAsync(
+                            requestHeader,
                             clientDescription,
                             m_endpoint.Description.Server.ApplicationUri,
                             m_endpoint.EndpointUrl!.ToString(),
@@ -1400,7 +1502,7 @@ namespace Opc.Ua.Client
 
                 if (!successCreateSession)
                 {
-                    response = await base.CreateSessionAsync(
+                    response = await serviceClient.CreateSessionAsync(
                         requestHeader,
                         clientDescription,
                         m_endpoint.Description.Server.ApplicationUri,
@@ -1454,7 +1556,16 @@ namespace Opc.Ua.Client
                 // verify that the server returned the same instance certificate.
                 ValidateServerCertificateData(serverCertificateData);
 
-                ValidateServerEndpoints(serverEndpoints);
+                EndpointDescription authenticatedEndpoint = ValidateServerEndpoints(
+                    serverEndpoints, discoveryServerEndpoints, discoveryProfileUris);
+                if (!authenticatedEndpoint.UserIdentityTokens.Contains(
+                    policy => AreEquivalentUserTokenPolicies(policy, identityPolicy)))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadSecurityChecksFailed,
+                        "The server returned a different security policy for the selected user identity token.");
+                }
+                UpdateDescription(m_endpoint.Description, authenticatedEndpoint);
 
                 ValidateServerCertificateApplicationUri(serverCertificate, m_endpoint);
 
@@ -1553,7 +1664,7 @@ namespace Opc.Ua.Client
 
                 // activate session.
                 ByteString activationRequestNonce = serverNonce;
-                ActivateSessionResponse activateResponse = await ActivateSessionAsync(
+                ActivateSessionResponse activateResponse = await serviceClient.ActivateSessionAsync(
                     header,
                     clientSignature,
                     [],
@@ -1583,7 +1694,7 @@ namespace Opc.Ua.Client
                 }
 
                 // fetch namespaces.
-                await FetchNamespaceTablesAsync(ct).ConfigureAwait(false);
+                await FetchNamespaceTablesAsync(serviceClient, ct).ConfigureAwait(false);
 
                 lock (m_lock)
                 {
@@ -1603,7 +1714,7 @@ namespace Opc.Ua.Client
                 }
 
                 // fetch operation limits
-                await FetchOperationLimitsAsync(ct).ConfigureAwait(false);
+                await FetchOperationLimitsAsync(serviceClient, ct).ConfigureAwait(false);
 
                 // start keep alive thread.
                 await StartKeepAliveTimerAsync().ConfigureAwait(false);
@@ -1617,7 +1728,7 @@ namespace Opc.Ua.Client
 
                 try
                 {
-                    await base.CloseSessionAsync(null, false, CancellationToken.None)
+                    await serviceClient.CloseSessionAsync(null, false, CancellationToken.None)
                         .ConfigureAwait(false);
                 }
                 catch (Exception e)
@@ -1717,37 +1828,13 @@ namespace Opc.Ua.Client
                         {
                             throw ServiceResultException.Create(
                                 StatusCodes.BadIdentityTokenRejected,
-                                "OverrideUserTokenPolicyUriNotOffered (override '{0}' is not advertised by the endpoint).",
+                                "OverrideUserTokenPolicyUriNotOffered " +
+                                "(override '{0}' is not advertised by the endpoint).",
                                 overrideUserTokenPolicyUri);
                         }
                     }
 
                     bool hasOverride = !string.IsNullOrEmpty(overrideUserTokenPolicyUri);
-                    ArrayOf<string> enabledPolicies;
-                    if (hasOverride)
-                    {
-                        enabledPolicies = new[] { overrideUserTokenPolicyUri! };
-                    }
-                    else if (m_configuration.SecurityConfiguration != null &&
-                        !m_configuration.SecurityConfiguration.SupportedSecurityPolicies.IsNull)
-                    {
-                        enabledPolicies = m_configuration.SecurityConfiguration
-                            .SupportedSecurityPolicies;
-                    }
-                    else
-                    {
-                        enabledPolicies = new[]
-                        {
-                            m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None
-                        };
-                    }
-
-                    CertificateKeyAlgorithm instanceAlg =
-                        CryptoUtils.GetCertificateKeyAlgorithm(m_instanceCertificateEntry?.Certificate);
-                    int instanceKeySize = instanceAlg == CertificateKeyAlgorithm.RSA
-                        ? CryptoUtils.GetRsaPublicKeySize(m_instanceCertificateEntry?.Certificate)
-                        : 0;
-
                     // Pin only when there's actually a bound ephemeral
                     // key; an override request bypasses pinning (the
                     // caller is explicitly asking for a new policy and
@@ -1758,37 +1845,41 @@ namespace Opc.Ua.Client
                             ? m_userTokenSecurityPolicyUri
                             : null;
 
-                    context = new IdentitySelectionContext(
+                    context = CreateIdentitySelectionContext(
+                        m_configuration,
                         m_endpoint.Description,
-                        m_endpoint.Description.UserIdentityTokens,
                         MessageContext,
-                        enabledPolicies)
-                    {
-                        ClientInstanceCertificateAlgorithm = instanceAlg,
-                        ClientInstanceCertificateKeySize = instanceKeySize,
-                        CurrentEphemeralKeyPolicyUri = boundEphemeralUri,
-                        SecurityPolicyRegistry = m_securityPolicies
-                    };
+                        m_instanceCertificateEntry?.Certificate,
+                        m_securityPolicies,
+                        overrideUserTokenPolicyUri,
+                        boundEphemeralUri);
                 }
 
                 IUserIdentity identity = await provider.AcquireIdentityAsync(context, ct)
                     .ConfigureAwait(false);
 
+                string? previousPolicyUri = null;
+                Nonce? previousEphemeralKey = null;
+                bool overrideCommitted = false;
                 if (!string.IsNullOrEmpty(overrideUserTokenPolicyUri))
                 {
-                    string? previousPolicyUri;
                     // Commit override state ONLY after the new identity
                     // has been materialised — if AcquireIdentityAsync
                     // threw (cert load failure, policy mismatch, etc.)
                     // the previous ephemeral key + URI must remain
                     // intact so the existing identity stays usable.
+                    // The key is parked rather than disposed: it is only
+                    // ever renewed by a successful activation response, so
+                    // a failed override would otherwise leave the previous
+                    // identity without the key its next encryption needs.
                     lock (m_lock)
                     {
                         previousPolicyUri = m_userTokenSecurityPolicyUri;
-                        m_eccServerEphemeralKey?.Dispose();
+                        previousEphemeralKey = m_eccServerEphemeralKey;
                         m_eccServerEphemeralKey = null;
                         m_userTokenSecurityPolicyUri = overrideUserTokenPolicyUri;
                     }
+                    overrideCommitted = true;
 
                     // Auditable security event (CR/SR 1.10, SR 2.8):
                     // the user-token policy in effect for the active
@@ -1799,7 +1890,25 @@ namespace Opc.Ua.Client
                         overrideUserTokenPolicyUri);
                 }
 
-                await UpdateSessionAsync(identity, default, ct).ConfigureAwait(false);
+                try
+                {
+                    await UpdateSessionAsync(identity, default, ct).ConfigureAwait(false);
+                    previousEphemeralKey?.Dispose();
+                }
+                catch when (overrideCommitted)
+                {
+                    // The server did not accept the new identity, so the old
+                    // one stays active. Put the token policy and the ephemeral
+                    // key back so reconnects keep encrypting it with the policy
+                    // and key it was issued for.
+                    lock (m_lock)
+                    {
+                        m_userTokenSecurityPolicyUri = previousPolicyUri;
+                        m_eccServerEphemeralKey?.Dispose();
+                        m_eccServerEphemeralKey = previousEphemeralKey;
+                    }
+                    throw;
+                }
             }
             catch (ServiceResultException ex)
                 when (ex.StatusCode == StatusCodes.BadIdentityChangeNotSupported)
@@ -1900,12 +2009,14 @@ namespace Opc.Ua.Client
         /// computed over it and the current channel.
         /// </param>
         /// <param name="ct">A cancellation token.</param>
+        /// <param name="recoveryClient">An optional client bound to this recovery callback's send channel.</param>
         /// <exception cref="ServiceResultException"></exception>
         private async Task ReactivateExistingSessionAsync(
             IUserIdentity? identity,
             ArrayOf<string> preferredLocales,
             ByteString serverNonce,
-            CancellationToken ct)
+            CancellationToken ct,
+            SessionClient? recoveryClient = null)
         {
             // get the identity token.
             string securityPolicyUri =
@@ -2010,28 +2121,42 @@ namespace Opc.Ua.Client
                     ct).ConfigureAwait(false);
             }
 
+            // The policy has to be in effect while the response is processed
+            // (the ECDH key in the response header is verified against it), but
+            // it must not outlive a failed activation: the previously active
+            // identity is still the one the server accepts in that case.
+            string? previousUserTokenSecurityPolicyUri = m_userTokenSecurityPolicyUri;
             m_userTokenSecurityPolicyUri = tokenSecurityPolicyUri;
 
-            RequestHeader? requestHeader = CreateRequestHeaderForActivateSession(
-                tokenSecurityPolicyUri!);
-
+            ActivateSessionResponse response;
             ByteString activationRequestNonce = serverNonce;
-            ActivateSessionResponse response = await ActivateSessionAsync(
-                requestHeader,
-                clientSignature,
-                [],
-                preferredLocales,
-                new ExtensionObject(identityToken.Token),
-                userTokenSignature,
-                ct).ConfigureAwait(false);
+            try
+            {
+                RequestHeader? requestHeader = CreateRequestHeaderForActivateSession(
+                    tokenSecurityPolicyUri!);
 
-            serverNonce = response.ServerNonce;
-            ValidateServerNonce(
-                serverNonce,
-                activationRequestNonce,
-                m_endpoint.Description.SecurityMode);
+                response = await (recoveryClient ?? this).ActivateSessionAsync(
+                    requestHeader,
+                    clientSignature,
+                    [],
+                    preferredLocales,
+                    new ExtensionObject(identityToken.Token),
+                    userTokenSignature,
+                    ct).ConfigureAwait(false);
 
-            ProcessResponseAdditionalHeader(response.ResponseHeader, m_serverCertificate);
+                serverNonce = response.ServerNonce;
+                ValidateServerNonce(
+                    serverNonce,
+                    activationRequestNonce,
+                    m_endpoint.Description.SecurityMode);
+
+                ProcessResponseAdditionalHeader(response.ResponseHeader, m_serverCertificate);
+            }
+            catch
+            {
+                m_userTokenSecurityPolicyUri = previousUserTokenSecurityPolicyUri;
+                throw;
+            }
 
             // save nonce and new values.
             lock (m_lock)
@@ -2194,14 +2319,50 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task<bool> TransferSubscriptionsAsync(
+        public Task<bool> TransferSubscriptionsAsync(
             SubscriptionCollection subscriptions,
             bool sendInitialValues,
             CancellationToken ct)
         {
+            return TransferSubscriptionsCoreAsync(
+                subscriptions,
+                sendInitialValues,
+                false,
+                null,
+                ct);
+        }
+
+        /// <summary>
+        /// Transfers the subscriptions to this session.
+        /// </summary>
+        /// <param name="subscriptions">The subscriptions to transfer.</param>
+        /// <param name="sendInitialValues">Whether the server resends the
+        /// initial values of the monitored items.</param>
+        /// <param name="sessionRecreatedInPlace">Set when the session object
+        /// itself was re-created in place and the subscriptions therefore
+        /// still reference this instance while belonging to the previous
+        /// server session.</param>
+        /// <param name="notTransferred">Receives every subscription the
+        /// server did not take over, so the caller can recreate exactly
+        /// those. A subscription the server reports as already belonging to
+        /// this session is live and is not added.</param>
+        /// <param name="ct">Cancellation token to cancel the operation with.</param>
+        private async Task<bool> TransferSubscriptionsCoreAsync(
+            SubscriptionCollection subscriptions,
+            bool sendInitialValues,
+            bool sessionRecreatedInPlace,
+            ICollection<Subscription>? notTransferred,
+            CancellationToken ct)
+        {
             using Activity? activity = m_telemetry.StartActivity();
-            ArrayOf<uint> subscriptionIds = CreateSubscriptionIdsForTransfer(subscriptions);
+            ArrayOf<uint> subscriptionIds = CreateSubscriptionIdsForTransfer(
+                subscriptions,
+                sessionRecreatedInPlace);
             int failedSubscriptions = 0;
+            // Subscriptions the server has taken over so far. Needed when the
+            // loop below is abandoned by an exception: those must not be
+            // reported as failed and recreated on top of the live ones.
+            var transferred = new HashSet<Subscription>();
 
             if (subscriptionIds.Count > 0)
             {
@@ -2227,6 +2388,7 @@ namespace Opc.Ua.Client
                         m_logger.TransferSubscriptionFailedServiceResult(
                             responseHeader.ServiceResult,
                             SessionId);
+                        AddAll(notTransferred, subscriptions);
                         return false;
                     }
 
@@ -2244,6 +2406,8 @@ namespace Opc.Ua.Client
                                     ct)
                                 .ConfigureAwait(false))
                             {
+                                transferred.Add(subscriptions[ii]);
+
                                 // create ack for available sequence numbers
                                 foreach (uint sequenceNumber in results[ii]
                                     .AvailableSequenceNumbers)
@@ -2262,10 +2426,16 @@ namespace Opc.Ua.Client
                                     subscriptionIds[ii],
                                     SessionId);
                                 failedSubscriptions++;
+                                notTransferred?.Add(subscriptions[ii]);
                             }
                         }
                         else if (results[ii].StatusCode == StatusCodes.BadNothingToDo)
                         {
+                            // The subscription already belongs to this session,
+                            // so it is live and must not be recreated. It also
+                            // counts as taken over, so a throw further down the
+                            // loop cannot sweep it into notTransferred.
+                            transferred.Add(subscriptions[ii]);
                             m_logger.SubscriptionIdSubscriptionIdAlreadyMemberSession(
                                 subscriptionIds[ii],
                                 SessionId);
@@ -2278,6 +2448,7 @@ namespace Opc.Ua.Client
                                 results[ii].StatusCode,
                                 SessionId);
                             failedSubscriptions++;
+                            notTransferred?.Add(subscriptions[ii]);
                         }
                     }
                 }
@@ -2288,6 +2459,16 @@ namespace Opc.Ua.Client
                         subscriptions.Count,
                         SessionId);
                     failedSubscriptions++;
+                    if (notTransferred != null)
+                    {
+                        foreach (Subscription subscription in subscriptions)
+                        {
+                            if (!transferred.Contains(subscription))
+                            {
+                                notTransferred.Add(subscription);
+                            }
+                        }
+                    }
                 }
                 finally
                 {
@@ -2303,16 +2484,35 @@ namespace Opc.Ua.Client
             }
 
             return failedSubscriptions == 0;
+
+            static void AddAll(
+                ICollection<Subscription>? target,
+                SubscriptionCollection subscriptions)
+            {
+                if (target == null)
+                {
+                    return;
+                }
+                foreach (Subscription subscription in subscriptions)
+                {
+                    target.Add(subscription);
+                }
+            }
         }
 
         /// <inheritdoc/>
-        public async Task FetchNamespaceTablesAsync(CancellationToken ct = default)
+        public Task FetchNamespaceTablesAsync(CancellationToken ct = default)
+        {
+            return FetchNamespaceTablesAsync(this, ct);
+        }
+
+        private async Task FetchNamespaceTablesAsync(ISessionClient serviceClient, CancellationToken ct)
         {
             using Activity? activity = m_telemetry.StartActivity();
             ArrayOf<ReadValueId> nodesToRead = PrepareNamespaceTableNodesToRead();
 
             // read from server.
-            ReadResponse response = await ReadAsync(
+            ReadResponse response = await serviceClient.ReadAsync(
                 null,
                 0,
                 TimestampsToReturn.Neither,
@@ -2334,18 +2534,8 @@ namespace Opc.Ua.Client
         public async Task FetchTypeTreeAsync(ExpandedNodeId typeId, CancellationToken ct = default)
         {
             using Activity? activity = m_telemetry.StartActivity();
-            if (await NodeCache.FindAsync(typeId, ct).ConfigureAwait(false) is Node node)
-            {
-                var subTypes = new List<ExpandedNodeId>();
-                foreach (IReference reference in node.Find(ReferenceTypeIds.HasSubtype, false))
-                {
-                    subTypes.Add(reference.TargetId);
-                }
-                if (subTypes.Count > 0)
-                {
-                    await FetchTypeTreeAsync(subTypes, ct).ConfigureAwait(false);
-                }
-            }
+            await FetchTypeTreeAsync(typeId, [typeId], ct)
+                .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -2354,10 +2544,54 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             using Activity? activity = m_telemetry.StartActivity();
+            var visited = new HashSet<ExpandedNodeId>();
+            foreach (ExpandedNodeId typeId in typeIds)
+            {
+                visited.Add(typeId);
+            }
+
+            await FetchTypeTreeAsync(typeIds, visited, ct).ConfigureAwait(false);
+        }
+
+        private async Task FetchTypeTreeAsync(
+            ExpandedNodeId typeId,
+            HashSet<ExpandedNodeId> visited,
+            CancellationToken ct)
+        {
+            if (await NodeCache.FindAsync(typeId, ct).ConfigureAwait(false) is not Node node)
+            {
+                return;
+            }
+
+            var subTypes = new List<ExpandedNodeId>();
+            foreach (IReference reference in node.Find(ReferenceTypeIds.HasSubtype, false))
+            {
+                if (visited.Add(reference.TargetId))
+                {
+                    subTypes.Add(reference.TargetId);
+                }
+            }
+
+            if (subTypes.Count > 0)
+            {
+                await FetchTypeTreeAsync(subTypes.ToArrayOf(), visited, ct).ConfigureAwait(false);
+            }
+        }
+
+        private async Task FetchTypeTreeAsync(
+            ArrayOf<ExpandedNodeId> typeIds,
+            HashSet<ExpandedNodeId> visited,
+            CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
             ArrayOf<NodeId> referenceTypeIds = [ReferenceTypeIds.HasSubtype];
             ArrayOf<INode> nodes = await NodeCache
                 .FindReferencesAsync(typeIds, referenceTypeIds, false, false, ct)
                 .ConfigureAwait(false);
+            foreach (INode node in nodes)
+            {
+                visited.Add(node.NodeId);
+            }
             var subTypes = new List<ExpandedNodeId>();
             foreach (INode inode in nodes)
             {
@@ -2365,7 +2599,7 @@ namespace Opc.Ua.Client
                 {
                     foreach (IReference reference in node.Find(ReferenceTypeIds.HasSubtype, false))
                     {
-                        if (!typeIds.Contains(reference.TargetId))
+                        if (visited.Add(reference.TargetId))
                         {
                             subTypes.Add(reference.TargetId);
                         }
@@ -2374,12 +2608,17 @@ namespace Opc.Ua.Client
             }
             if (subTypes.Count > 0)
             {
-                await FetchTypeTreeAsync(subTypes.ToArrayOf(), ct).ConfigureAwait(false);
+                await FetchTypeTreeAsync(subTypes.ToArrayOf(), visited, ct).ConfigureAwait(false);
             }
         }
 
         /// <inheritdoc/>
-        public async Task FetchOperationLimitsAsync(CancellationToken ct)
+        public Task FetchOperationLimitsAsync(CancellationToken ct)
+        {
+            return FetchOperationLimitsAsync(this, ct);
+        }
+
+        private async Task FetchOperationLimitsAsync(SessionClient serviceClient, CancellationToken ct)
         {
             using Activity? activity = m_telemetry.StartActivity();
 
@@ -2438,11 +2677,15 @@ namespace Opc.Ua.Client
         VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRead
             ];
             (ArrayOf<DataValue> values, ArrayOf<ServiceResult> errors) =
-                await this.ReadValuesAsync(nodeIds, ct).ConfigureAwait(false);
+                await serviceClient.ReadValuesAsync(nodeIds, ct).ConfigureAwait(false);
             int index = 0;
             OperationLimits.MaxNodesPerRead = ApplyOperationLimit(
                 OperationLimits.MaxNodesPerRead,
                 GetUInt32(ref index, values, errors));
+            if (serviceClient is SessionClientBatched batched)
+            {
+                batched.OperationLimits.MaxNodesPerRead = OperationLimits.MaxNodesPerRead;
+            }
 
             nodeIds =
             [
@@ -2475,7 +2718,7 @@ namespace Opc.Ua.Client
         VariableIds.Server_ServerCapabilities_MaxSelectClauseParameters
             ];
 
-            (values, errors) = await this.ReadValuesAsync(nodeIds, ct).ConfigureAwait(false);
+            (values, errors) = await serviceClient.ReadValuesAsync(nodeIds, ct).ConfigureAwait(false);
             index = 0;
             OperationLimits.MaxNodesPerHistoryReadData = ApplyOperationLimit(
                 OperationLimits.MaxNodesPerHistoryReadData, GetUInt32(ref index, values, errors));
@@ -2846,7 +3089,8 @@ namespace Opc.Ua.Client
             IRetryBudget? budget,
             CancellationToken ct,
             bool recreateSubscriptions = true,
-            bool requireTokenReuse = false)
+            bool requireTokenReuse = false,
+            SessionClient? recoveryClient = null)
         {
             ThrowIfDisposed();
             using Activity? activity = m_telemetry.StartActivity();
@@ -2917,6 +3161,16 @@ namespace Opc.Ua.Client
                     v2Engine.SubscriptionManager
                         is Subscriptions.SubscriptionManager v2Manager)
                 {
+                    // The drain aborts each in-flight publish attempt through a
+                    // per-attempt token linked to the worker token, never the
+                    // worker token itself: a worker parked on the channel ready
+                    // gate unwinds its attempt and returns to the paused park
+                    // instead of terminating, so it resumes once this recreate
+                    // completes. Do not replace this with a bare timeout. A
+                    // timeout leaves the worker running with a request in flight
+                    // and lifts nothing, and the quiesce must stay in place for
+                    // the whole operation so DropPendingForSubscription cannot
+                    // observe a partially unwound attempt.
                     await v2Manager.DrainAsync(ct).ConfigureAwait(false);
                 }
             }
@@ -2972,8 +3226,7 @@ namespace Opc.Ua.Client
                 else
                 {
                     ITransportChannel newChannel;
-                    ServiceMessageContext messageContext = m_configuration
-                        .CreateMessageContext(Factory);
+                    IServiceMessageContext messageContext = MessageContext;
 
                     if (connection != null)
                     {
@@ -2991,8 +3244,9 @@ namespace Opc.Ua.Client
                                     : null,
 #pragma warning restore CA2000
                                 messageContext,
-                                ct)
-                            .ConfigureAwait(false);
+                                    securityPolicies: m_securityPolicies,
+                                    ct)
+                                .ConfigureAwait(false);
                     }
                     else
                     {
@@ -3009,8 +3263,9 @@ namespace Opc.Ua.Client
                                     : null,
 #pragma warning restore CA2000
                                 messageContext,
-                                ct)
-                            .ConfigureAwait(false);
+                                    securityPolicies: m_securityPolicies,
+                                    ct)
+                                .ConfigureAwait(false);
                     }
 
                     TransportChannel = newChannel;
@@ -3054,7 +3309,8 @@ namespace Opc.Ua.Client
                                 m_identity ?? new UserIdentity(),
                                 m_preferredLocales,
                                 m_serverNonce,
-                                ct)
+                                ct,
+                                recoveryClient)
                             .ConfigureAwait(false);
                         reused = true;
                         m_logger.SessionTOKENREUSEFAILOVERSessionIdSucceeded(SessionId);
@@ -3089,36 +3345,67 @@ namespace Opc.Ua.Client
                     UserIdentity? tempIdentity = m_identity == null
                         ? new UserIdentity()
                         : null;
-                    await OpenAsync(
+
+                    // Only tear the channel down on activation failure when this
+                    // method created it. A caller supplied channel or a channel
+                    // manager lease is owned elsewhere and the error handling
+                    // below restores the previous lease.
+                    bool ownsChannel = channel == null && manager == null;
+                    ArrayOf<EndpointDescription> refreshedEndpoints = default;
+                    if (!m_endpoint.DiscoveryEndpoints.IsEmpty)
+                    {
+                        using var discovery = new RecoveryDiscoveryClient(
+                            (recoveryClient ?? this).TransportChannel, m_telemetry);
+                        try
+                        {
+                            GetEndpointsResponse response = await discovery.GetEndpointsAsync(
+                                null, m_endpoint.Description.EndpointUrl, default, default, ct).ConfigureAwait(false);
+                            if (response.Endpoints.IsEmpty)
+                            {
+                                throw new ServiceResultException(
+                                    StatusCodes.BadSecurityChecksFailed, "Discovery returned no server endpoints.");
+                            }
+                            refreshedEndpoints = response.Endpoints;
+                        }
+                        catch (ServiceResultException exception) when (
+                            exception.StatusCode == StatusCodes.BadServiceUnsupported ||
+                            exception.StatusCode == StatusCodes.BadNotSupported ||
+                            exception.StatusCode == StatusCodes.BadTimeout ||
+                            exception.StatusCode == StatusCodes.BadNotConnected ||
+                            exception.StatusCode == StatusCodes.BadConnectionClosed ||
+                            exception.StatusCode == StatusCodes.BadSecureChannelClosed ||
+                            exception.StatusCode == StatusCodes.BadCommunicationError ||
+                            exception.StatusCode == StatusCodes.BadNoCommunication)
+                        {
+                            ct.ThrowIfCancellationRequested();
+                            m_logger.RecreationDiscoveryUnavailableUsingStoredSnapshot(exception);
+                        }
+                        catch (TimeoutException exception)
+                        {
+                            ct.ThrowIfCancellationRequested();
+                            m_logger.RecreationDiscoveryUnavailableUsingStoredSnapshot(exception);
+                        }
+                    }
+                    await OpenCoreAsync(
+                            recoveryClient ?? this,
                             m_sessionName,
                             (uint)m_sessionTimeout,
                             m_identity ?? tempIdentity!,
                             m_preferredLocales,
                             m_checkDomain,
-                            true,
-                            ct)
+                            ownsChannel,
+                            ct,
+                            refreshedEndpoints)
                         .ConfigureAwait(false);
                 }
 
                 if (recreateSubscriptions)
                 {
-#if OPCUA_V1_CLIENT
-                    // V1: drive the classic template-based recreate using
-                    // the subscriptions still attached to this Session.
-                    await RecreateSubscriptionsAsync(
-                            TransferSubscriptionsOnReconnect,
-                            Subscriptions,
-                            ct)
-                        .ConfigureAwait(false);
-#endif
-
-                    // V2: hand the previous session id to the engine so
-                    // configured subscriptions can attempt transfer or
-                    // fall back to recreate against the new session id.
-                    await m_engine.RecreateSubscriptionsAsync(
-                            previousSessionId,
-                            ct)
-                        .ConfigureAwait(false);
+                    m_pendingSubscriptionRecovery = new PendingSubscriptionRecovery(previousSessionId, reused);
+                    if (recoveryClient == null)
+                    {
+                        await CompleteSessionRecoveryAsync(ct).ConfigureAwait(false);
+                    }
                 }
 
                 managedLeaseActivated = true;
@@ -3169,11 +3456,45 @@ namespace Opc.Ua.Client
                 }
 
 #if OPCUA_V1_CLIENT
-                if (m_engine is not ClassicSubscriptionEngine)
+                if (m_engine is not ClassicSubscriptionEngine && m_pendingSubscriptionRecovery == null)
+#else
+                if (m_pendingSubscriptionRecovery == null)
 #endif
                 {
                     m_engine.ResumePublishing();
                 }
+            }
+        }
+
+        /// <summary>
+        /// Restores subscriptions only after their session and ordinary service path are available.
+        /// </summary>
+        internal async Task CompleteSessionRecoveryAsync(CancellationToken ct)
+        {
+            if (Volatile.Read(ref m_subscriptionRecoveryDeferrals) != 0)
+            {
+                return;
+            }
+            PendingSubscriptionRecovery? pending = m_pendingSubscriptionRecovery;
+            if (pending == null)
+            {
+                return;
+            }
+            try
+            {
+#if OPCUA_V1_CLIENT
+                await RecreateSubscriptionsAsync(
+                    TransferSubscriptionsOnReconnect && !pending.ReusedSession,
+                    Subscriptions,
+                    ct,
+                    sessionRecreatedInPlace: !pending.ReusedSession).ConfigureAwait(false);
+#endif
+                await m_engine.RecreateSubscriptionsAsync(pending.PreviousSessionId, ct).ConfigureAwait(false);
+                m_pendingSubscriptionRecovery = null;
+            }
+            finally
+            {
+                m_engine.ResumePublishing();
             }
         }
 
@@ -3231,20 +3552,25 @@ namespace Opc.Ua.Client
                 {
                     try
                     {
-                        // Wait for or cancel outstanding publish requests before closing session.
-                        await WaitForOrCancelOutstandingPublishRequestsAsync(ct).ConfigureAwait(false);
-
-                        // close the session and delete all subscriptions if specified.
-                        var requestHeader = new RequestHeader
+                        if (CanReceiveResponses())
                         {
-                            TimeoutHint = timeout > 0
-                                ? (uint)timeout
-                                : (uint)(OperationTimeout > 0 ? OperationTimeout : 0)
-                        };
-                        CloseSessionResponse response = await base.CloseSessionAsync(
-                            requestHeader,
-                            DeleteSubscriptionsOnClose,
-                            ct).ConfigureAwait(false);
+                            using CancellationTokenSource timeoutCts =
+                                CreateCloseRequestCancellationTokenSource(timeout, ct);
+
+                            // Wait for or cancel outstanding publish requests before closing session.
+                            await WaitForOrCancelOutstandingPublishRequestsAsync(timeoutCts.Token)
+                                .ConfigureAwait(false);
+
+                            // close the session and delete all subscriptions if specified.
+                            var requestHeader = new RequestHeader
+                            {
+                                TimeoutHint = (uint)GetCloseRequestTimeout(timeout)
+                            };
+                            CloseSessionResponse response = await base.CloseSessionAsync(
+                                requestHeader,
+                                DeleteSubscriptionsOnClose,
+                                timeoutCts.Token).ConfigureAwait(false);
+                        }
                     }
                     // don't throw errors on disconnect, but return them
                     // so the caller can log the error.
@@ -3351,7 +3677,8 @@ namespace Opc.Ua.Client
             ITransportWaitingConnection? connection,
             ITransportChannel? channel,
             IRetryBudget? budget,
-            CancellationToken ct)
+            CancellationToken ct,
+            SessionClient? recoveryClient = null)
         {
             ThrowIfDisposed();
 
@@ -3385,7 +3712,8 @@ namespace Opc.Ua.Client
                     connection,
                     channel,
                     budget,
-                    ct).ConfigureAwait(false);
+                    ct,
+                    recoveryClient: recoveryClient).ConfigureAwait(false);
                 return;
             }
 
@@ -3405,19 +3733,19 @@ namespace Opc.Ua.Client
             try
             {
                 bool reconnecting = Reconnecting;
-                Reconnecting = true;
-                resetReconnect = true;
-                m_reconnectLock.Release();
-
-                // check if already connecting.
                 if (reconnecting)
                 {
+                    m_reconnectLock.Release();
                     m_logger.SessionAlreadyAttemptingReconnect();
 
                     throw ServiceResultException.Create(
                         StatusCodes.BadInvalidState,
                         "Session is already attempting to reconnect.");
                 }
+
+                Reconnecting = true;
+                resetReconnect = true;
+                m_reconnectLock.Release();
 
                 m_logger.SessionRECONNECTSessionIdStarting(SessionId);
 
@@ -3507,6 +3835,7 @@ namespace Opc.Ua.Client
                                 : null,
 #pragma warning restore CA2000
                             MessageContext,
+                            securityPolicies: m_securityPolicies,
                             ct).ConfigureAwait(false);
 
                         // disposes the existing channel.
@@ -3541,6 +3870,7 @@ namespace Opc.Ua.Client
                                 : null,
 #pragma warning restore CA2000
                             MessageContext,
+                            securityPolicies: m_securityPolicies,
                             ct).ConfigureAwait(false);
 
                         // disposes the existing channel.
@@ -3548,7 +3878,7 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                ITransportChannel activeChannel = TransportChannel;
+                ITransportChannel activeChannel = recoveryClient?.TransportChannel ?? TransportChannel;
 
                 byte[] channelThumbprint = activeChannel.ChannelThumbprint;
                 byte[] serverChannelCertificate = activeChannel.ServerChannelCertificate;
@@ -3630,7 +3960,7 @@ namespace Opc.Ua.Client
                 try
                 {
                     // reactivate session.
-                    ActivateSessionResponse activateResult = await ActivateSessionAsync(
+                    ActivateSessionResponse activateResult = await (recoveryClient ?? this).ActivateSessionAsync(
                         header,
                         clientSignature,
                         [],
@@ -3644,6 +3974,9 @@ namespace Opc.Ua.Client
                         serverNonce,
                         m_serverNonce,
                         m_endpoint.Description.SecurityMode);
+                    ProcessResponseAdditionalHeader(
+                        activateResult.ResponseHeader,
+                        m_serverCertificate);
                     ArrayOf<StatusCode> certificateResults = activateResult.Results;
                     ArrayOf<DiagnosticInfo> certificateDiagnosticInfos = activateResult.DiagnosticInfos;
 
@@ -3655,7 +3988,9 @@ namespace Opc.Ua.Client
                         m_serverNonce = serverNonce;
                     }
 
-                    await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
+                    // Never pass the caller token here: if it fired the session would
+                    // stay Reconnecting forever and every later reconnect would fail.
+                    await m_reconnectLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
                     Reconnecting = false;
                     resetReconnect = false;
                     m_reconnectLock.Release();
@@ -3686,7 +4021,7 @@ namespace Opc.Ua.Client
             {
                 if (resetReconnect)
                 {
-                    await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
+                    await m_reconnectLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
                     Reconnecting = false;
                     m_reconnectLock.Release();
                 }
@@ -3767,22 +4102,37 @@ namespace Opc.Ua.Client
         /// if set to <c>true</c>.</param>
         /// <param name="subscriptionsTemplate">The template for the subscriptions.</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
+        /// <param name="sessionRecreatedInPlace">Set when this session object
+        /// was re-activated in place, i.e. the subscriptions passed in are the
+        /// live ones owned by this instance rather than fresh templates.</param>
         private async Task RecreateSubscriptionsAsync(
             bool transferSubscriptionTemplates,
             IEnumerable<Subscription> subscriptionsTemplate,
-            CancellationToken ct)
+            CancellationToken ct,
+            bool sessionRecreatedInPlace = false)
         {
             using Activity? activity = m_telemetry.StartActivity();
             bool transferred = false;
+            // Per-subscription outcome of the transfer. Only an in-place
+            // recreate needs it: a subscription the server did take over is
+            // live on this session and must not be reset, even when the
+            // transfer of a sibling failed. Null means the outcome is unknown
+            // (no transfer attempted, or the transfer call itself failed), in
+            // which case every subscription is treated as lost.
+            HashSet<Subscription>? notTransferred = null;
             if (transferSubscriptionTemplates)
             {
                 try
                 {
-                    transferred = await TransferSubscriptionsAsync(
+                    HashSet<Subscription>? outcome = sessionRecreatedInPlace ? [] : null;
+                    transferred = await TransferSubscriptionsCoreAsync(
                         [.. subscriptionsTemplate],
                         false,
+                        sessionRecreatedInPlace,
+                        outcome,
                         ct)
                         .ConfigureAwait(false);
+                    notTransferred = outcome;
                 }
                 catch (ServiceResultException sre)
                 {
@@ -3807,10 +4157,31 @@ namespace Opc.Ua.Client
                 // Create the subscriptions which were not transferred.
                 foreach (Subscription subscription in Subscriptions)
                 {
-                    if (!subscription.Created)
+                    if (subscription.Created)
                     {
-                        await subscription.CreateAsync(ct).ConfigureAwait(false);
+                        if (!sessionRecreatedInPlace)
+                        {
+                            continue;
+                        }
+
+                        if (notTransferred != null && !notTransferred.Contains(subscription))
+                        {
+                            // The server took this one over (or reported it as
+                            // already belonging to this session), so it is live
+                            // here and must be left alone.
+                            continue;
+                        }
+
+                        // Transfer was not requested or did not succeed, so the
+                        // server side subscription is unreachable from the new
+                        // session (Part 4 §5.14.1.3) and is left to expire on
+                        // its own lifetime. Drop the stale ids and the
+                        // monitored item state and create it again.
+                        await subscription.ResetForSessionRecreateAsync()
+                            .ConfigureAwait(false);
                     }
+
+                    await subscription.CreateAsync(ct).ConfigureAwait(false);
                 }
             }
         }
@@ -4126,7 +4497,8 @@ namespace Opc.Ua.Client
             // Wait for the requests in flight, but only while a response can
             // still arrive: without a live transport the wait would just delay
             // the close by the full timeout.
-            if (pending.Count > 0 && CanReceiveResponses() &&
+            if (pending.Count > 0 &&
+                CanReceiveResponses() &&
                 PublishRequestCancelDelayOnCloseSession != 0)
             {
                 TimeSpan waitTimeout = PublishRequestCancelDelayOnCloseSession < 0
@@ -4172,7 +4544,7 @@ namespace Opc.Ua.Client
                 }
             }
 
-            if (requestsToCancel.Count > 0)
+            if (requestsToCancel.Count > 0 && CanReceiveResponses())
             {
                 m_logger.CancellingCountOutstandingPublishRequests(requestsToCancel.Count);
 
@@ -4206,19 +4578,18 @@ namespace Opc.Ua.Client
         /// Completes once all of the supplied tasks completed, ignoring their
         /// outcome. The publish completion handler reports the failures.
         /// </summary>
-        private static async Task WhenAllCompletedAsync(List<Task> tasks)
+        private static Task WhenAllCompletedAsync(List<Task> tasks)
         {
-            foreach (Task task in tasks)
-            {
-                try
-                {
-                    await task.ConfigureAwait(false);
-                }
-                catch (Exception)
-                {
-                    // Observed by the publish completion handler.
-                }
-            }
+            return Task.WhenAll(tasks).ContinueWith(
+                ObserveCompletedTask,
+                CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+        }
+
+        private static void ObserveCompletedTask(Task completed)
+        {
+            _ = completed.Exception;
         }
 
         /// <summary>
@@ -4412,8 +4783,11 @@ namespace Opc.Ua.Client
                 }
                 catch (ServiceResultException sre)
                 {
-                    // recover from error condition when secure channel is still alive
-                    OnKeepAliveError(sre.Result);
+                    // The transport can report cancellation of this worker as a service error.
+                    if (!ct.IsCancellationRequested)
+                    {
+                        OnKeepAliveError(sre.Result);
+                    }
                 }
                 catch (ObjectDisposedException) when (Disposed)
                 {
@@ -4520,12 +4894,17 @@ namespace Opc.Ua.Client
                         ServerState.Unknown,
                         m_timeProvider.GetUtcNow().UtcDateTime);
                     callback(this, args);
-                    m_inKeepAliveCallback = false;
                     return !args.CancelKeepAlive;
                 }
                 catch (Exception e)
                 {
                     m_logger.SessionUnexpectedErrorInvokingKeepAliveCallback(e);
+                }
+                finally
+                {
+                    // Must be cleared even when the handler throws, otherwise
+                    // teardown never awaits the keep alive worker.
+                    m_inKeepAliveCallback = false;
                 }
             }
 
@@ -4750,6 +5129,18 @@ namespace Opc.Ua.Client
                 identity.TokenHandler.UpdatePolicy(identityPolicy);
             }
 
+            string effectiveTokenPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
+                ? securityPolicyUri
+                : identityPolicy.SecurityPolicyUri!;
+            if (identity.TokenType == UserTokenType.UserName &&
+                effectiveTokenPolicyUri == SecurityPolicies.None &&
+                m_endpoint.Description.SecurityMode != MessageSecurityMode.SignAndEncrypt)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "A UserName identity token without token encryption requires a SignAndEncrypt channel.");
+            }
+
             requireEncryption = securityPolicyUri != SecurityPolicies.None;
 
             if (!requireEncryption)
@@ -4758,6 +5149,81 @@ namespace Opc.Ua.Client
                     identityPolicy.SecurityPolicyUri != SecurityPolicies.None &&
                     !string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri);
             }
+        }
+
+        internal static IdentitySelectionContext CreateIdentitySelectionContext(
+            ApplicationConfiguration configuration,
+            EndpointDescription endpoint,
+            IServiceMessageContext messageContext,
+            Certificate? instanceCertificate,
+            ISecurityPolicyRegistry securityPolicies,
+            string? overrideUserTokenPolicyUri = null,
+            string? currentEphemeralKeyPolicyUri = null)
+        {
+            ArrayOf<string> enabledPolicies;
+            if (!string.IsNullOrEmpty(overrideUserTokenPolicyUri))
+            {
+                enabledPolicies = [overrideUserTokenPolicyUri!];
+            }
+            else if (configuration.SecurityConfiguration != null &&
+                !configuration.SecurityConfiguration.SupportedSecurityPolicies.IsNull)
+            {
+                // The channel policy was already accepted for this endpoint, so a user-token
+                // policy naming it must pass the client gate too. Without this the client
+                // contradicts itself and rejects the server's own policy as NotEnabledByClient
+                // whenever SupportedSecurityPolicies is narrower than the negotiated channel.
+                // Policies with an empty SecurityPolicyUri inherit the channel policy and are
+                // already accepted unconditionally by the gate.
+                enabledPolicies = UnionWithChannelPolicy(
+                    configuration.SecurityConfiguration.SupportedSecurityPolicies,
+                    endpoint.SecurityPolicyUri);
+            }
+            else
+            {
+                enabledPolicies = [endpoint.SecurityPolicyUri ?? SecurityPolicies.None];
+            }
+
+            CertificateKeyAlgorithm algorithm = CryptoUtils.GetCertificateKeyAlgorithm(instanceCertificate);
+            return new IdentitySelectionContext(
+                endpoint, endpoint.UserIdentityTokens, messageContext, enabledPolicies)
+            {
+                ClientInstanceCertificateAlgorithm = algorithm,
+                ClientInstanceCertificateKeySize = algorithm == CertificateKeyAlgorithm.RSA
+                    ? CryptoUtils.GetRsaPublicKeySize(instanceCertificate)
+                    : 0,
+                CurrentEphemeralKeyPolicyUri = currentEphemeralKeyPolicyUri,
+                SecurityPolicyRegistry = securityPolicies
+            };
+        }
+
+        /// <summary>
+        /// Adds the negotiated channel security policy to the client's supported set.
+        /// </summary>
+        /// <param name="supportedPolicies">The configured client policies.</param>
+        /// <param name="channelPolicyUri">The endpoint's channel security policy.</param>
+        /// <returns>The supported policies including the channel policy.</returns>
+        private static ArrayOf<string> UnionWithChannelPolicy(
+            ArrayOf<string> supportedPolicies,
+            string? channelPolicyUri)
+        {
+            if (string.IsNullOrEmpty(channelPolicyUri) || supportedPolicies.Count == 0)
+            {
+                return supportedPolicies;
+            }
+
+            ReadOnlySpan<string> span = supportedPolicies.Span;
+            for (int ii = 0; ii < span.Length; ii++)
+            {
+                if (string.Equals(span[ii], channelPolicyUri, StringComparison.Ordinal))
+                {
+                    return supportedPolicies;
+                }
+            }
+
+            string[] union = new string[supportedPolicies.Count + 1];
+            span.CopyTo(union);
+            union[^1] = channelPolicyUri!;
+            return new ArrayOf<string>(union);
         }
 
         private void BuildCertificateData(
@@ -4905,20 +5371,23 @@ namespace Opc.Ua.Client
         /// Validates the server endpoints returned.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private void ValidateServerEndpoints(ArrayOf<EndpointDescription> serverEndpoints)
+        private EndpointDescription ValidateServerEndpoints(
+            ArrayOf<EndpointDescription> serverEndpoints,
+            ArrayOf<EndpointDescription> discoveryServerEndpoints,
+            ArrayOf<string> discoveryProfileUris)
         {
-            if (!m_discoveryServerEndpoints.IsEmpty)
+            if (!discoveryServerEndpoints.IsEmpty)
             {
                 // Compare EndpointDescriptions returned at GetEndpoints with values returned at CreateSession
                 ArrayOf<EndpointDescription> expectedServerEndpoints = default;
-                if (!serverEndpoints.IsNull && !m_discoveryProfileUris.IsEmpty)
+                if (!serverEndpoints.IsNull && !discoveryProfileUris.IsEmpty)
                 {
                     // Select EndpointDescriptions with a transportProfileUri that matches the
                     // profileUris specified in the original GetEndpoints() request.
                     var expectedServerEndpointsList = new List<EndpointDescription>();
                     foreach (EndpointDescription serverEndpoint in serverEndpoints)
                     {
-                        if (m_discoveryProfileUris.Contains(uri => uri == serverEndpoint.TransportProfileUri))
+                        if (discoveryProfileUris.Contains(uri => uri == serverEndpoint.TransportProfileUri))
                         {
                             expectedServerEndpointsList.Add(serverEndpoint);
                         }
@@ -4930,7 +5399,7 @@ namespace Opc.Ua.Client
                     expectedServerEndpoints = serverEndpoints;
                 }
 
-                if (m_discoveryServerEndpoints.Count != expectedServerEndpoints.Count)
+                if (discoveryServerEndpoints.Count != expectedServerEndpoints.Count)
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadSecurityChecksFailed,
@@ -4939,48 +5408,29 @@ namespace Opc.Ua.Client
 
                 if (!HaveEquivalentServerEndpoints(
                         expectedServerEndpoints,
-                        m_discoveryServerEndpoints))
+                        discoveryServerEndpoints))
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadSecurityChecksFailed,
-                        "The list of ServerEndpoints returned at CreateSession does not match the list from GetEndpoints.");
+                        "The list of ServerEndpoints returned at CreateSession " +
+                        "does not match the list from GetEndpoints.");
                 }
             }
 
             // find the matching description (TBD - check domains against certificate).
-            bool found = false;
-
-            EndpointDescription? foundDescription = FindMatchingDescription(
+            // could be a security risk.
+            return (FindMatchingDescription(
                 serverEndpoints,
                 m_endpoint.Description,
-                true);
-            if (foundDescription != null)
-            {
-                found = true;
-                // ensure endpoint has up to date information.
-                UpdateDescription(m_endpoint.Description, foundDescription);
-            }
-            else
-            {
-                foundDescription = FindMatchingDescription(
+                true) ??
+                FindMatchingDescription(
                     serverEndpoints,
                     m_endpoint.Description,
-                    false);
-                if (foundDescription != null)
-                {
-                    found = true;
-                    // ensure endpoint has up to date information.
-                    UpdateDescription(m_endpoint.Description, foundDescription);
-                }
-            }
-
-            // could be a security risk.
-            if (!found)
-            {
+                    false)) ??
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
-                    "Server did not return an EndpointDescription that matched the one used to create the secure channel.");
-            }
+                    "Server did not return an EndpointDescription " +
+                    "that matched the one used to create the secure channel.");
         }
 
         private static bool HaveEquivalentServerEndpoints(
@@ -5045,7 +5495,7 @@ namespace Opc.Ua.Client
             foreach (UserTokenPolicy serverToken in serverTokens)
             {
                 int matchIndex = unmatchedDiscoveryTokens.FindIndex(
-                    discoveryToken => serverToken.IsEqual(discoveryToken));
+                    discoveryToken => AreEquivalentUserTokenPolicies(serverToken, discoveryToken));
 
                 if (matchIndex < 0)
                 {
@@ -5056,6 +5506,25 @@ namespace Opc.Ua.Client
             }
 
             return unmatchedDiscoveryTokens.Count == 0;
+        }
+
+        private static bool AreEquivalentUserTokenPolicies(UserTokenPolicy first, UserTokenPolicy second)
+        {
+            return first.TokenType == second.TokenType &&
+                string.Equals(
+                    first.PolicyId ?? string.Empty, second.PolicyId ?? string.Empty, StringComparison.Ordinal) &&
+                string.Equals(
+                    first.SecurityPolicyUri ?? string.Empty,
+                    second.SecurityPolicyUri ?? string.Empty,
+                    StringComparison.Ordinal) &&
+                string.Equals(
+                    first.IssuedTokenType ?? string.Empty,
+                    second.IssuedTokenType ?? string.Empty,
+                    StringComparison.Ordinal) &&
+                string.Equals(
+                    first.IssuerEndpointUrl ?? string.Empty,
+                    second.IssuerEndpointUrl ?? string.Empty,
+                    StringComparison.Ordinal);
         }
 
         /// <summary>
@@ -5200,6 +5669,7 @@ namespace Opc.Ua.Client
                     m_configuration,
                     endpoint.Description.SecurityPolicyUri,
                     m_telemetry,
+                    useCertificateRegistry: m_channelManager != null,
                     ct).ConfigureAwait(false);
                 m_effectiveEndpoint = endpoint;
             }
@@ -5287,18 +5757,56 @@ namespace Opc.Ua.Client
         /// <see cref="CertificateEntry"/> (certificate plus issuers-only chain).
         /// </summary>
         /// <remarks>
-        /// The certificate is loaded fresh from the configured store (rather than
-        /// borrowed from the certificate manager) so the channel owns an
-        /// independent certificate whose lifetime is decoupled from the manager's
-        /// application-certificate hot-swap on rotation.
+        /// Managed callers prefer the active registry. Unmanaged callers retain
+        /// configured-store selection, including explicit store replacements.
+        /// The returned entry owns independent references.
         /// </remarks>
         /// <exception cref="ServiceResultException"></exception>
-        internal static async Task<CertificateEntry> LoadInstanceCertificateEntryAsync(
+        internal static Task<CertificateEntry> LoadInstanceCertificateEntryAsync(
             ApplicationConfiguration configuration,
             string securityProfile,
             ITelemetryContext telemetry,
             CancellationToken ct = default)
         {
+            return LoadInstanceCertificateEntryAsync(configuration, securityProfile, telemetry, false, ct);
+        }
+
+        /// <summary>
+        /// Acquires a session-owned certificate and optional issuer chain
+        /// from the active registry or configured store.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        internal static async Task<CertificateEntry> LoadInstanceCertificateEntryAsync(
+            ApplicationConfiguration configuration,
+            string securityProfile,
+            ITelemetryContext telemetry,
+            bool useCertificateRegistry,
+            CancellationToken ct = default)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (useCertificateRegistry && configuration.CertificateManager != null)
+            {
+                using CertificateEntry? registered = configuration.CertificateManager
+                    .AcquireApplicationCertificateBySecurityPolicy(securityProfile);
+                if (registered != null)
+                {
+                    if (!registered.Certificate.HasPrivateKey)
+                    {
+                        throw ServiceResultException.ConfigurationError(
+                            "Active application certificate for security profile {0} is missing a private key.",
+                            securityProfile);
+                    }
+                    using CertificateCollection activeIssuers =
+                        configuration.SecurityConfiguration.SendCertificateChain
+                        ? registered.IssuerChain.AddRef()
+                        : new CertificateCollection();
+                    return new CertificateEntry(
+                        registered.Certificate,
+                        activeIssuers,
+                        registered.CertificateType);
+                }
+            }
+
             using Certificate certificate = await configuration.SecurityConfiguration
                 .FindApplicationCertificateAsync(
                     securityProfile,
@@ -5350,17 +5858,27 @@ namespace Opc.Ua.Client
         /// Creates and validates the subscription ids for a transfer.
         /// </summary>
         /// <param name="subscriptions">The subscriptions to transfer.</param>
+        /// <param name="sessionRecreatedInPlace">Set when this session object
+        /// was re-created in place, so the subscriptions still reference it
+        /// while belonging to the previous server session.</param>
         /// <returns>The subscription ids for the transfer.</returns>
         /// <exception cref="ServiceResultException">Thrown if a subscription is in invalid state.</exception>
         private ArrayOf<uint> CreateSubscriptionIdsForTransfer(
-            SubscriptionCollection subscriptions)
+            SubscriptionCollection subscriptions,
+            bool sessionRecreatedInPlace = false)
         {
             var subscriptionIds = new List<uint>();
             lock (m_lock)
             {
                 foreach (Subscription subscription in subscriptions)
                 {
-                    if (subscription.Created && SessionId.Equals(subscription.Session?.SessionId))
+                    // After an in-place recreate the subscriptions are still
+                    // attached to this instance but belong to the previous
+                    // (now invalid) server session, so the "already created on
+                    // this session" guard below does not apply.
+                    if (!sessionRecreatedInPlace &&
+                        subscription.Created &&
+                        SessionId.Equals(subscription.Session?.SessionId))
                     {
                         throw new ServiceResultException(
                             StatusCodes.BadInvalidState,
@@ -5539,7 +6057,8 @@ namespace Opc.Ua.Client
                         {
                             throw new ServiceResultException(
                                 StatusCodes.BadDecodingError,
-                                "Server certificate or security policy URI is not available. User authentication not possible.");
+                                "Server certificate or security policy URI is not available. " +
+                                "User authentication not possible.");
                         }
 
                         if (!CryptoUtils.Verify(
@@ -5553,6 +6072,10 @@ namespace Opc.Ua.Client
                                 "Could not verify signature on ECDHKey. User authentication not possible.");
                         }
 
+                        // Each activation hands out a new ephemeral key; the
+                        // previous one owns an ECDiffieHellman instance and
+                        // leaks unless it is disposed here.
+                        m_eccServerEphemeralKey?.Dispose();
                         m_eccServerEphemeralKey = Nonce.CreateNonce(
                             m_securityPolicies.GetInfo(m_userTokenSecurityPolicyUri!)!,
                             key.PublicKey.ToArray());
@@ -5647,9 +6170,11 @@ namespace Opc.Ua.Client
         private byte[]? m_clientNonce;
         private ByteString m_serverNonce;
         private ByteString m_previousServerNonce;
-        // OPC 10000-4 §5.7.3.1 forbids reuse of any once-used server nonce, so retain the full
-        // Session history. This state is owned by the Session and released when it is disposed;
-        // bounding or evicting entries would allow non-consecutive nonce reuse to go undetected.
+        /// <summary>
+        /// OPC 10000-4 §5.7.3.1 forbids reuse of any once-used server nonce, so retain the full
+        /// Session history. This state is owned by the Session and released when it is disposed;
+        /// bounding or evicting entries would allow non-consecutive nonce reuse to go undetected.
+        /// </summary>
         private readonly HashSet<ByteString> m_serverNonceHistory = [];
         private ByteString m_sessionClientCertificate;
 #pragma warning disable CA2213 // Disposed in Dispose method (m_serverCertificate?.Dispose() in cleanup path)
@@ -5680,6 +6205,7 @@ namespace Opc.Ua.Client
         private bool m_disposeAsyncCalled;
         private readonly ArrayOf<EndpointDescription> m_discoveryServerEndpoints;
         private readonly ArrayOf<string> m_discoveryProfileUris;
+        private readonly EndpointDescription? m_discoveryEndpointDescription;
         private new readonly ILogger m_logger;
         private readonly TimeProvider m_timeProvider;
         private readonly ISecurityPolicyRegistry m_securityPolicies;
@@ -5696,6 +6222,16 @@ namespace Opc.Ua.Client
         /// teardown continues without blocking.
         /// </summary>
         private static readonly TimeSpan s_keepAliveStopTimeout = TimeSpan.FromSeconds(5);
+
+        private sealed class RecoveryDiscoveryClient(ITransportChannel channel, ITelemetryContext telemetry)
+            : DiscoveryClient(channel, telemetry)
+        {
+            protected override void Dispose(bool disposing)
+            {
+                ReleaseChannel();
+                base.Dispose(disposing);
+            }
+        }
 
         private sealed class AsyncRequestState : IDisposable
         {
@@ -6214,7 +6750,9 @@ namespace Opc.Ua.Client
 
         [LoggerMessage(EventId = ClientEventIds.Session + 58, Level = LogLevel.Error,
             Message = "Cannot read ServerArray node: {StatusCode} - skipping.")]
-        public static partial void CannotReadServerArrayNodeStatusCodeSkipping(this ILogger logger, StatusCode statusCode);
+        public static partial void CannotReadServerArrayNodeStatusCodeSkipping(
+            this ILogger logger,
+            StatusCode statusCode);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 59, Level = LogLevel.Information,
             Message = "Server signature is null or empty.")]
@@ -6273,6 +6811,11 @@ namespace Opc.Ua.Client
                       "abandoning it. The worker task runs on the thread pool and will not " +
                       "prevent process exit.")]
         public static partial void KeepAliveWorkerDidNotStopWithinTimeout(this ILogger logger, int timeoutSeconds);
-    }
 
+        [LoggerMessage(EventId = ClientEventIds.Session + 70, Level = LogLevel.Warning,
+            Message = "Session recreation discovery is unavailable; validating against the stored endpoint snapshot.")]
+        public static partial void RecreationDiscoveryUnavailableUsingStoredSnapshot(
+            this ILogger logger,
+            Exception exception);
+    }
 }

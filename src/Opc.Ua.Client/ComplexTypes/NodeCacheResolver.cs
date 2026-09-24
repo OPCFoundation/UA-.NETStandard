@@ -41,7 +41,7 @@ namespace Opc.Ua.Client.ComplexTypes
     /// <summary>
     /// Implements the complex type resolver for a Session using a cache.
     /// </summary>
-    public class NodeCacheResolver : IComplexTypeResolver
+    public class NodeCacheResolver : IComplexTypeResolver, IDisposable
     {
         /// <summary>
         /// Initializes the type resolver with a session to load the custom type information.
@@ -51,6 +51,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 new NodeCacheContext(session),
                 telemetry), telemetry)
         {
+            m_ownsNodeCache = true;
         }
 
         /// <summary>
@@ -66,6 +67,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 telemetry,
                 cacheExpiry), telemetry)
         {
+            m_ownsNodeCache = true;
         }
 
         /// <summary>
@@ -82,6 +84,29 @@ namespace Opc.Ua.Client.ComplexTypes
                 cacheExpiry,
                 capacity), telemetry)
         {
+            m_ownsNodeCache = true;
+        }
+
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Disposes the node cache this resolver created for itself. A cache
+        /// supplied by the caller is left alone - it is theirs to dispose.
+        /// Without this the cache (and the Meter it registers) roots up to its
+        /// capacity in nodes for the lifetime of the process.
+        /// </summary>
+        /// <param name="disposing">True when called from <see cref="Dispose()"/>.</param>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing && m_ownsNodeCache && m_nodeCache is IDisposable disposable)
+            {
+                disposable.Dispose();
+            }
         }
 
         /// <summary>
@@ -129,12 +154,22 @@ namespace Opc.Ua.Client.ComplexTypes
 
             // find the dictionary for the description.
 #pragma warning disable IDE0008 // Use explicit type
-            var references = await FindReferencesAsync(
-                dataTypeSystem,
-                ReferenceTypeIds.HasComponent,
-                false,
-                ct)
-                .ConfigureAwait(false);
+            var references = ArrayOf<INode>.Empty;
+            try
+            {
+                references = await FindReferencesAsync(
+                    dataTypeSystem,
+                    ReferenceTypeIds.HasComponent,
+                    false,
+                    ct)
+                    .ConfigureAwait(false);
+            }
+            catch (ServiceResultException sre)
+                when (sre.StatusCode == StatusCodes.BadNodeIdUnknown)
+            {
+                // A server without the type system node at all is the same
+                // case as one exposing it empty: no dictionaries to load.
+            }
 #pragma warning restore IDE0008 // Use explicit type
 
             if (references.Count == 0)
@@ -147,18 +182,51 @@ namespace Opc.Ua.Client.ComplexTypes
             // batch read all encodings and namespaces
             ArrayOf<ExpandedNodeId> referenceNodeIds = references.ConvertAll(r => r.NodeId);
 
-            // find namespace properties
-#pragma warning disable IDE0008 // Use explicit type
-            var namespaceReferences = await FindReferencesAsync(
+            // Warm the cache for every dictionary with one batched browse,
+            // then resolve each dictionary's NamespaceUri property on its own.
+            // The batched call returns one flat list across all dictionaries,
+            // so pairing it positionally with the input list mismatches as
+            // soon as a dictionary exposes no - or more than one - property.
+            await FindReferencesAsync(
                     referenceNodeIds,
                     ReferenceTypeIds.HasProperty,
                     false,
                     ct)
                 .ConfigureAwait(false);
-#pragma warning restore IDE0008 // Use explicit type
 
-            ArrayOf<INode> namespaceNodes = namespaceReferences.Filter(
-                n => n.BrowseName == BrowseNames.NamespaceUri);
+            var namespaceNodeList = new List<INode>(referenceNodeIds.Count);
+            var namespaceOwners = new List<NodeId>(referenceNodeIds.Count);
+            foreach (ExpandedNodeId dictionaryNodeId in referenceNodeIds.ToList())
+            {
+                ArrayOf<INode> properties;
+                try
+                {
+                    properties = await FindReferencesAsync(
+                        dictionaryNodeId,
+                        ReferenceTypeIds.HasProperty,
+                        false,
+                        ct)
+                        .ConfigureAwait(false);
+                }
+                catch (ServiceResultException exception)
+                {
+                    m_logger.DictionaryLoadErrorDictionaryDitionaryIdErrorMessage(
+                        dictionaryNodeId, exception.Message);
+                    references = references.Filter(reference => reference.NodeId != dictionaryNodeId);
+                    continue;
+                }
+                foreach (INode property in properties.ToList())
+                {
+                    if (property.BrowseName == BrowseNames.NamespaceUri)
+                    {
+                        namespaceNodeList.Add(property);
+                        namespaceOwners.Add(
+                            ExpandedNodeId.ToNodeId(dictionaryNodeId, NamespaceUris));
+                        break;
+                    }
+                }
+            }
+            var namespaceNodes = namespaceNodeList.ToArrayOf();
 
             // read all schema definitions
             ArrayOf<NodeId> referenceExpandedNodeIds = references
@@ -188,7 +256,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     {
                         if (nameSpaceValues[ii].WrappedValue.TryGetValue(out string ns))
                         {
-                            namespaces[(NodeId)referenceNodeIds[ii]] = ns;
+                            namespaces[namespaceOwners[ii]] = ns;
                             continue;
                         }
                         nameSpaceValues = nameSpaceValues.ReplaceItem(
@@ -390,8 +458,15 @@ namespace Opc.Ua.Client.ComplexTypes
                 result.Add(rootNode);
             }
 
+            var visited = new HashSet<ExpandedNodeId>();
+            if (dataType != ExpandedNodeId.Null)
+            {
+                visited.Add(dataType);
+            }
+
             while (nodesToBrowse.Count > 0)
             {
+                ct.ThrowIfCancellationRequested();
 #pragma warning disable IDE0008 // Use explicit type
                 var response = await FindReferencesAsync(
                     nodesToBrowse,
@@ -402,19 +477,28 @@ namespace Opc.Ua.Client.ComplexTypes
 #pragma warning restore IDE0008 // Use explicit type
 
                 var nextNodesToBrowse = new List<ExpandedNodeId>();
-                if (nestedSubTypes)
+                foreach (INode reference in response.ToList())
                 {
-                    nextNodesToBrowse.AddRange(response.ConvertAll(r => r.NodeId).ToList());
-                }
-
-                if (filterUATypes)
-                {
-                    // filter out default namespace
-                    result.AddRange(response.Filter(rd => rd.NodeId.NamespaceIndex != 0).ToList());
-                }
-                else
-                {
-                    result.AddRange(response);
+                    if (!visited.Add(reference.NodeId))
+                    {
+                        continue;
+                    }
+                    if (nestedSubTypes)
+                    {
+                        nextNodesToBrowse.Add(reference.NodeId);
+                    }
+                    if (filterUATypes)
+                    {
+                        // filter out default namespace
+                        if (reference.NodeId.NamespaceIndex != 0)
+                        {
+                            result.Add(reference);
+                        }
+                    }
+                    else
+                    {
+                        result.Add(reference);
+                    }
                 }
                 nodesToBrowse = nextNodesToBrowse;
             }
@@ -441,12 +525,18 @@ namespace Opc.Ua.Client.ComplexTypes
                 ct)
                 .ConfigureAwait(false);
 #pragma warning restore IDE0008 // Use explicit type
-            INode? property = references.Count > 0 ? references[0] : null;
-            if (property != null)
+
+            foreach (string wellKnownName in s_enumDefinitionPropertyNames)
             {
-                // read the enum type array
-                DataValue value = await GetValueAsync(property.NodeId, ct).ConfigureAwait(false);
-                return value.IsNull ? default : value.WrappedValue;
+                foreach (INode property in references.ToList())
+                {
+                    if (property.BrowseName.Name == wellKnownName)
+                    {
+                        DataValue value = await GetValueAsync(property.NodeId, ct)
+                            .ConfigureAwait(false);
+                        return value.IsNull ? default : value.WrappedValue;
+                    }
+                }
             }
             return default;
         }
@@ -557,57 +647,77 @@ namespace Opc.Ua.Client.ComplexTypes
                 return result;
             }
 
-            // create item to read.
-            ArrayOf<ReadValueId> itemsToRead = dictionaryIds
-                .ConvertAll(nodeId => new ReadValueId
-                {
-                    NodeId = nodeId,
-                    AttributeId = Attributes.Value,
-                    IndexRange = null,
-                    DataEncoding = default
-                });
-
-            // read values.
-            ReadResponse readResponse = await m_session
-                .ReadAsync(null, 0, TimestampsToReturn.Neither, itemsToRead, ct)
-                .ConfigureAwait(false);
-
-            ArrayOf<DataValue> values = readResponse.Results;
-            ArrayOf<DiagnosticInfo> diagnosticInfos = readResponse.DiagnosticInfos;
-            ResponseHeader response = readResponse.ResponseHeader;
-            ClientBase.ValidateResponse(values, itemsToRead);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
-
-            int ii = 0;
-            foreach (NodeId nodeId in dictionaryIds.ToList())
+            try
             {
-                // check for error.
-                if (StatusCode.IsBad(values[ii].StatusCode))
-                {
-                    if (values[ii].StatusCode != StatusCodes.BadEncodingLimitsExceeded)
+                // create item to read.
+                ArrayOf<ReadValueId> itemsToRead = dictionaryIds
+                    .ConvertAll(nodeId => new ReadValueId
                     {
-                        ServiceResult sr = ClientBase.GetResult(
-                            values[ii].StatusCode,
-                            0,
-                            diagnosticInfos,
-                            response);
-                        throw new ServiceResultException(sr);
-                    }
+                        NodeId = nodeId,
+                        AttributeId = Attributes.Value,
+                        IndexRange = null,
+                        DataEncoding = default
+                    });
 
-                    // Fall back to reading the byte string in chunks.
-                    ByteString chunkedReadResult =
-                        await m_session.ReadByteStringInChunksAsync(nodeId, ct)
-                            .ConfigureAwait(false);
-                    result[nodeId] = chunkedReadResult.ToArray();
-                }
-                else
+                // read values.
+                ReadResponse readResponse = await m_session
+                    .ReadAsync(null, 0, TimestampsToReturn.Neither, itemsToRead, ct)
+                    .ConfigureAwait(false);
+
+                ArrayOf<DataValue> values = readResponse.Results;
+                ArrayOf<DiagnosticInfo> diagnosticInfos = readResponse.DiagnosticInfos;
+                ResponseHeader response = readResponse.ResponseHeader;
+                ClientBase.ValidateResponse(values, itemsToRead);
+                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
+
+                int ii = 0;
+                foreach (NodeId nodeId in dictionaryIds.ToList())
                 {
-                    // return as a byte array.
-                    result[nodeId] = values[ii].WrappedValue.GetByteString().ToArray();
+                    // check for error.
+                    if (StatusCode.IsBad(values[ii].StatusCode))
+                    {
+                        if (values[ii].StatusCode == StatusCodes.BadEncodingLimitsExceeded)
+                        {
+                            // Fall back to reading the byte string in chunks.
+                            ByteString chunkedReadResult =
+                                await m_session.ReadByteStringInChunksAsync(nodeId, ct)
+                                    .ConfigureAwait(false);
+                            result[nodeId] = chunkedReadResult.ToArray();
+                        }
+                        else
+                        {
+                            m_logger.DictionaryLoadErrorDictionaryDitionaryIdErrorMessage(
+                                NodeId.ToExpandedNodeId(nodeId, NamespaceUris),
+                                values[ii].StatusCode.ToString());
+                        }
+                    }
+                    else
+                    {
+                        // return as a byte array.
+                        result[nodeId] = values[ii].WrappedValue.GetByteString().ToArray();
+                    }
+                    ii++;
                 }
-                ii++;
+                return result;
             }
-            return result;
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                foreach (NodeId nodeId in dictionaryIds.ToList())
+                {
+                    try
+                    {
+                        result[nodeId] = await ReadDictionaryAsync(nodeId, ct)
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception readEx)
+                    {
+                        m_logger.DictionaryLoadErrorDictionaryDitionaryIdErrorMessage(
+                            NodeId.ToExpandedNodeId(nodeId, NamespaceUris),
+                            readEx.Message);
+                    }
+                }
+                return result;
+            }
         }
 
         /// <summary>
@@ -805,7 +915,21 @@ namespace Opc.Ua.Client.ComplexTypes
                 ct);
         }
 
+        private static readonly string[] s_enumDefinitionPropertyNames =
+        [
+            "EnumValues",
+            "EnumStrings",
+            "OptionSetValues"
+        ];
+
         private readonly INodeCache m_nodeCache;
+
+        /// <summary>
+        /// True when <see cref="m_nodeCache"/> was created by one of this
+        /// type's convenience constructors and therefore has to be disposed
+        /// with the resolver.
+        /// </summary>
+        private readonly bool m_ownsNodeCache;
         private readonly ISession m_session;
         private readonly ILogger m_logger;
         private readonly TimeProvider m_timeProvider;
@@ -841,5 +965,4 @@ namespace Opc.Ua.Client.ComplexTypes
             int count,
             long duration);
     }
-
 }

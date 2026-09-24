@@ -73,6 +73,10 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the certificates in the trust list.
         /// </summary>
+        /// <returns>
+        /// An owning collection that the caller must dispose. Its certificates
+        /// are independent of the temporary resolver and store handles.
+        /// </returns>
         /// <exception cref="ServiceResultException"></exception>
         public async Task<CertificateCollection> GetCertificatesAsync(
             ITelemetryContext telemetry,
@@ -80,53 +84,105 @@ namespace Opc.Ua
         {
             CertificateCollection? collection = null;
 
-            if (!string.IsNullOrEmpty(StorePath))
+            try
             {
-                ICertificateStore? store = null;
-                try
-                {
-                    store = OpenStore(telemetry) ??
-                        throw ServiceResultException.ConfigurationError(
-                            "Failed to open certificate store.");
+                ct.ThrowIfCancellationRequested();
 
-                    collection = await store.EnumerateAsync(ct).ConfigureAwait(false);
-                }
-                catch (Exception)
+                if (!string.IsNullOrEmpty(StorePath))
                 {
-                    ILogger<CertificateTrustList> logger = telemetry.CreateLogger<CertificateTrustList>();
-                    if (logger.IsEnabled(LogLevel.Error))
+                    ICertificateStore? store = null;
+                    try
                     {
-                        logger.CertificateTrustListLogMessage0(StorePath);
+                        store = OpenStore(telemetry) ??
+                            throw ServiceResultException.ConfigurationError(
+                                "Failed to open certificate store.");
+
+                        collection = await store.EnumerateAsync(ct).ConfigureAwait(false);
+                    }
+                    catch (Exception exception) when (exception is not OperationCanceledException)
+                    {
+                        ILogger<CertificateTrustList> logger = telemetry.CreateLogger<CertificateTrustList>();
+                        if (logger.IsEnabled(LogLevel.Error))
+                        {
+                            logger.CertificateTrustListLogMessage0(StorePath);
+                        }
+                    }
+                    finally
+                    {
+                        store?.Dispose();
                     }
                 }
-                finally
+
+                collection ??= [];
+
+                for (int i = 0; i < TrustedCertificates.Count; i++)
                 {
-                    store?.Dispose();
+                    ct.ThrowIfCancellationRequested();
+                    CertificateIdentifier trustedCertificate = TrustedCertificates[i];
+                    using Certificate? certificate = await CertificateIdentifierResolver
+                        .ResolveAsync(
+                            trustedCertificate,
+                            registry: null,
+                            needPrivateKey: false,
+                            applicationUri: null,
+                            telemetry,
+                            ct)
+                        .ConfigureAwait(false);
+
+                    if (certificate != null)
+                    {
+                        collection.Add(certificate);
+                    }
                 }
+
+                CertificateCollection result = collection;
+                collection = null;
+                return result;
             }
-
-            collection ??= [];
-
-            for (int i = 0; i < TrustedCertificates.Count; i++)
+            finally
             {
-                CertificateIdentifier trustedCertificate = TrustedCertificates[i];
-                Certificate? certificate = await CertificateIdentifierResolver
-                    .ResolveAsync(
-                        trustedCertificate,
-                        registry: null,
-                        needPrivateKey: false,
-                        applicationUri: null,
-                        telemetry,
-                        ct)
-                    .ConfigureAwait(false);
+                collection?.Dispose();
+            }
+        }
 
-                if (certificate != null)
-                {
-                    collection.Add(certificate);
-                }
+        /// <summary>
+        /// Copies trust-list metadata and inline certificate data for a validator.
+        /// </summary>
+        internal static CertificateTrustList? CreateSnapshot(CertificateStoreIdentifier? store)
+        {
+            if (store == null)
+            {
+                return null;
             }
 
-            return collection;
+            ArrayOf<CertificateIdentifier> trustedCertificates = default;
+            if (store is CertificateTrustList trustList)
+            {
+                var entries = new CertificateIdentifier[trustList.TrustedCertificates.Count];
+                for (int i = 0; i < entries.Length; i++)
+                {
+                    CertificateIdentifier identifier = trustList.TrustedCertificates[i];
+                    entries[i] = new CertificateIdentifier
+                    {
+                        RawData = identifier.RawData != null ? identifier.RawData.AsSpan().ToArray() : null,
+                        StorePath = identifier.StorePath,
+                        StoreType = identifier.StoreType,
+                        SubjectName = identifier.SubjectName,
+                        Thumbprint = identifier.Thumbprint,
+                        CertificateType = identifier.CertificateType,
+                        ValidationOptions = identifier.ValidationOptions
+                    };
+                }
+                trustedCertificates = entries.ToArrayOf();
+            }
+
+            return new CertificateTrustList
+            {
+                StorePath = store.StorePath,
+                StoreType = store.StoreType,
+                ValidationOptions = store.ValidationOptions,
+                TrustedCertificates = trustedCertificates
+            };
         }
     }
 

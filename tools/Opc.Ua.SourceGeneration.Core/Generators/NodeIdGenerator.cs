@@ -145,6 +145,12 @@ namespace Opc.Ua.SourceGeneration
                     {
                         stringIds[item.StringId] = item;
                     }
+                    else if (item.HasNonConstantIdentifier())
+                    {
+                        // Guid and Opaque identifiers are not part of the
+                        // string keyed reflection tables.
+                        continue;
+                    }
                     else if (!string.IsNullOrEmpty(item.SymbolicId.Name))
                     {
                         stringIds[item.SymbolicId.Name] = item;
@@ -216,6 +222,9 @@ namespace Opc.Ua.SourceGeneration
 
             object id;
             string idType;
+            // Guid and Opaque identifiers have no C# constant form and are
+            // emitted as static readonly fields instead.
+            string idModifier = "const";
             if (node.NumericIdSpecified)
             {
                 id = node.NumericId;
@@ -223,12 +232,17 @@ namespace Opc.Ua.SourceGeneration
             }
             else if (!string.IsNullOrEmpty(node.StringId))
             {
-                id = $"\"{node.StringId}\""; // TODO: Make string resource
+                id = node.StringId.AsStringLiteral(); // TODO: Make string resource
                 idType = "string";
+            }
+            else if (node.HasNonConstantIdentifier())
+            {
+                id = ModelDesignExtensions.GetIdentifierAsCode(node.GetIdentifier(), out idType);
+                idModifier = "static readonly";
             }
             else
             {
-                id = $"\"{node.SymbolicId.Name}\""; // TODO: Make string resource
+                id = node.SymbolicId.Name.AsStringLiteral(); // TODO: Make string resource
                 idType = "string";
             }
 
@@ -244,6 +258,7 @@ namespace Opc.Ua.SourceGeneration
                 m_context.ModelDesign.Namespaces.GetNamespacePrefix(
                     node.SymbolicId.Namespace));
             context.Template.AddReplacement(Tokens.IdType, idType);
+            context.Template.AddReplacement(Tokens.IdModifier, idModifier);
 
             return context.Template.Render();
         }
@@ -450,9 +465,10 @@ namespace Opc.Ua.SourceGeneration
                         }
                     }
 
-                    if (current.Value.Instance.NumericIdSpecified ?
-                        current.Value.Instance.NumericId == 0 :
-                        current.Value.Instance.StringId == null)
+                    if (current.Value.Instance.NumericIdSpecified
+                        ? current.Value.Instance.NumericId == 0
+                        : current.Value.Instance.StringId == null &&
+                            !current.Value.Instance.HasNonConstantIdentifier())
                     {
                         continue;
                     }

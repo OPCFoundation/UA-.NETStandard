@@ -33,6 +33,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -136,7 +137,7 @@ namespace Opc.Ua
                 .ScanAsync(CertPrefix, ct)
                 .ConfigureAwait(false))
             {
-                if (TryDecodeCertificate(entry.Value, out Certificate? certificate))
+                if (TryDecodeCertificate(entry.Key, entry.Value, out Certificate? certificate))
                 {
                     // Add takes its own reference (AddRef); release the local one.
                     certificates.Add(certificate);
@@ -167,7 +168,7 @@ namespace Opc.Ua
             }
 
             await m_store
-                .SetAsync(key, EncodeCertificate(certificate), ct)
+                .SetAsync(key, EncodeCertificate(key, certificate), ct)
                 .ConfigureAwait(false);
             if (m_logger.IsEnabled(LogLevel.Debug))
             {
@@ -186,7 +187,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(certificates));
             }
 
-            // A negative maximum keeps no rejected history.
+            // A negative maximum disables new rejected-certificate storage.
             if (maxCertificates < 0)
             {
                 return;
@@ -195,7 +196,10 @@ namespace Opc.Ua
             foreach (Certificate certificate in certificates)
             {
                 await m_store
-                    .SetAsync(CertKey(certificate.Thumbprint), EncodeCertificate(certificate), ct)
+                    .SetAsync(
+                        CertKey(certificate.Thumbprint),
+                        EncodeCertificate(CertKey(certificate.Thumbprint), certificate),
+                        ct)
                     .ConfigureAwait(false);
             }
 
@@ -234,7 +238,7 @@ namespace Opc.Ua
             (bool found, ByteString value) = await m_store
                 .TryGetAsync(CertKey(thumbprint), ct)
                 .ConfigureAwait(false);
-            if (found && TryDecodeCertificate(value, out Certificate? certificate))
+            if (found && TryDecodeCertificate(CertKey(thumbprint), value, out Certificate? certificate))
             {
                 // Add takes its own reference (AddRef); release the local one.
                 certificates.Add(certificate);
@@ -311,7 +315,7 @@ namespace Opc.Ua
                 .ScanAsync(CrlPrefix, ct)
                 .ConfigureAwait(false))
             {
-                if (TryDecodeCrl(entry.Value, out X509CRL? crl))
+                if (TryDecodeCrl(entry.Key, entry.Value, out X509CRL? crl))
                 {
                     crls.Add(crl);
                 }
@@ -381,7 +385,12 @@ namespace Opc.Ua
             }
 
             await m_store
-                .SetAsync(CrlKey(crl.RawData), m_protector.Protect(new ByteString(crl.RawData)), ct)
+                .SetAsync(
+                    CrlKey(crl.RawData),
+                    m_protector.Protect(
+                        RecordProtectionContext.Create("certificate-store", CrlKey(crl.RawData)),
+                        new ByteString(crl.RawData)),
+                    ct)
                 .ConfigureAwait(false);
             if (m_logger.IsEnabled(LogLevel.Debug))
             {
@@ -425,7 +434,7 @@ namespace Opc.Ua
                 .ScanAsync(CertPrefix, ct)
                 .ConfigureAwait(false))
             {
-                if (TryUnprotect(entry.Value, out ByteString plaintext) &&
+                if (TryUnprotect(entry.Key, entry.Value, out ByteString plaintext) &&
                     plaintext.Span.Length >= TimestampLength)
                 {
                     long ticks = BinaryPrimitives.ReadInt64LittleEndian(plaintext.Span);
@@ -454,28 +463,48 @@ namespace Opc.Ua
             }
         }
 
-        private ByteString EncodeCertificate(Certificate certificate)
+        private ByteString EncodeCertificate(string recordKey, Certificate certificate)
         {
             byte[] der = certificate.RawData;
-            byte[] plaintext = new byte[TimestampLength + der.Length];
+            byte[] key = Encoding.UTF8.GetBytes(recordKey);
+            byte[] plaintext = new byte[TimestampLength + sizeof(int) + key.Length + der.Length];
             BinaryPrimitives.WriteInt64LittleEndian(plaintext, DateTime.UtcNow.Ticks);
-            der.CopyTo(plaintext.AsSpan(TimestampLength));
-            return m_protector.Protect(new ByteString(plaintext));
+            BinaryPrimitives.WriteInt32LittleEndian(plaintext.AsSpan(TimestampLength), key.Length);
+            key.CopyTo(plaintext.AsSpan(TimestampLength + sizeof(int)));
+            der.CopyTo(plaintext.AsSpan(TimestampLength + sizeof(int) + key.Length));
+            return m_protector.Protect(
+                RecordProtectionContext.Create("certificate-store", recordKey),
+                new ByteString(plaintext));
         }
 
-        private bool TryDecodeCertificate(ByteString value, [NotNullWhen(true)] out Certificate? certificate)
+        private bool TryDecodeCertificate(
+            string recordKey,
+            ByteString value,
+            [NotNullWhen(true)] out Certificate? certificate)
         {
             certificate = null;
-            if (!TryUnprotect(value, out ByteString plaintext) ||
-                plaintext.Span.Length <= TimestampLength)
+            if (!TryUnprotect(recordKey, value, out ByteString plaintext) ||
+                plaintext.Span.Length <= TimestampLength + sizeof(int))
             {
                 return false;
             }
 
             try
             {
+                ReadOnlySpan<byte> data = plaintext.Span;
+                int keyLength = BinaryPrimitives.ReadInt32LittleEndian(
+                    data[TimestampLength..]);
+                byte[] expectedKey = Encoding.UTF8.GetBytes(recordKey);
+                if (keyLength != expectedKey.Length ||
+                    !CryptoUtils.FixedTimeEquals(
+                        data.Slice(TimestampLength + sizeof(int), keyLength),
+                        expectedKey))
+                {
+                    return false;
+                }
+
                 certificate = Certificate.FromRawData(
-                    plaintext.Span[TimestampLength..].ToArray());
+                    data[(TimestampLength + sizeof(int) + keyLength)..].ToArray());
                 return true;
             }
             catch (Exception ex)
@@ -488,10 +517,13 @@ namespace Opc.Ua
             }
         }
 
-        private bool TryDecodeCrl(ByteString value, [NotNullWhen(true)] out X509CRL? crl)
+        private bool TryDecodeCrl(
+            string recordKey,
+            ByteString value,
+            [NotNullWhen(true)] out X509CRL? crl)
         {
             crl = null;
-            if (!TryUnprotect(value, out ByteString plaintext) || plaintext.Span.Length == 0)
+            if (!TryUnprotect(recordKey, value, out ByteString plaintext) || plaintext.Span.Length == 0)
             {
                 return false;
             }
@@ -511,9 +543,12 @@ namespace Opc.Ua
             }
         }
 
-        private bool TryUnprotect(ByteString value, out ByteString plaintext)
+        private bool TryUnprotect(string recordKey, ByteString value, out ByteString plaintext)
         {
-            if (m_protector.TryUnprotect(value, out plaintext))
+            if (m_protector.TryUnprotect(
+                RecordProtectionContext.Create("certificate-store", recordKey),
+                value,
+                out plaintext))
             {
                 return true;
             }
@@ -549,7 +584,7 @@ namespace Opc.Ua
 
         private static string ToHex(byte[] bytes)
         {
-            var builder = new System.Text.StringBuilder(bytes.Length * 2);
+            var builder = new StringBuilder(bytes.Length * 2);
             foreach (byte value in bytes)
             {
                 builder.Append(value.ToString("x2", CultureInfo.InvariantCulture));
@@ -588,19 +623,18 @@ namespace Opc.Ua
             Message = "Skipping an undecodable certificate record in shared store {StorePath}.")]
         public static partial void SharedKeyValueStoreLog2(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string? storePath);
 
         [LoggerMessage(EventId = CoreEventIds.SharedKeyValueCertificateStore + 3, Level = LogLevel.Warning,
             Message = "Skipping an undecodable CRL record in shared store {StorePath}.")]
         public static partial void SharedKeyValueStoreLog3(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string? storePath);
 
         [LoggerMessage(EventId = CoreEventIds.SharedKeyValueCertificateStore + 4, Level = LogLevel.Warning,
             Message = "Rejected a certificate record that failed integrity verification in shared store {StorePath}.")]
         public static partial void SharedKeyValueStoreLog4(this ILogger logger, string? storePath);
     }
-
 }

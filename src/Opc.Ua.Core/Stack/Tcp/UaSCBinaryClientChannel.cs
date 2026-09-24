@@ -220,7 +220,7 @@ namespace Opc.Ua.Bindings
                     {
                         m_logger.UaSCClientLog0(
                             url,
-                            (EndpointDescription.ProxyUrl).ToString(),
+                            EndpointDescription.ProxyUrl.ToString(),
                             ChannelId);
                     }
                     m_via = url = EndpointDescription.ProxyUrl;
@@ -738,6 +738,13 @@ namespace Opc.Ua.Bindings
 
             BufferCollection? chunksToProcess = null;
 
+            // The decrypted body lives in a buffer of its own, separate from the
+            // chunk it came from, and only the chunk collection returns it. Until
+            // it joins that collection it is this method's to return - the
+            // certificate and sequence-number checks below both reject messages a
+            // peer can send at will.
+            bool bodyOwned = true;
+
             try
             {
                 // verify server certificate.
@@ -752,11 +759,13 @@ namespace Opc.Ua.Bindings
                 // check if it is necessary to wait for more chunks.
                 if (!TcpMessageType.IsFinal(messageType))
                 {
+                    bodyOwned = false;
                     SaveIntermediateChunk(requestId, messageBody, false, gateHeld: true);
                     return false;
                 }
 
                 // get the chunks to process.
+                bodyOwned = false;
                 chunksToProcess = GetSavedChunks(requestId, messageBody, false, gateHeld: true);
 
                 // read message body.
@@ -844,6 +853,12 @@ namespace Opc.Ua.Bindings
 #pragma warning disable CA1508
                 serverCertificate?.Dispose();
 #pragma warning restore CA1508
+
+                if (bodyOwned)
+                {
+                    ReturnDecryptedBuffer(messageBody);
+                }
+
                 chunksToProcess?.Release(BufferManager, "ProcessOpenSecureChannelResponse");
             }
 
@@ -879,6 +894,27 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Starts reconnect only for failures from the currently attached, uncancelled transport.
+        /// </summary>
+        private protected override void OnTransportError(
+            IUaSCByteTransport transport,
+            ServiceResult result,
+            CancellationToken ct)
+        {
+            if (ct.IsCancellationRequested || !ReferenceEquals(Transport, transport))
+            {
+                return;
+            }
+            using (Gate.Enter())
+            {
+                if (!ct.IsCancellationRequested && ReferenceEquals(Transport, transport))
+                {
+                    ForceReconnectCore(result);
+                }
+            }
+        }
+
+        /// <summary>
         /// Called when a write operation completes.
         /// </summary>
         protected override void HandleWriteComplete(
@@ -891,7 +927,8 @@ namespace Opc.Ua.Bindings
             {
                 if (state is WriteOperation operation && ServiceResult.IsBad(result))
                 {
-                    operation.Fault(new ServiceResult(StatusCodes.BadSecurityChecksFailed, result));
+                    operation.Fault(result);
+                    ForceReconnectCore(result);
                 }
             }
 
@@ -1801,19 +1838,23 @@ namespace Opc.Ua.Bindings
             }
 
             // check if operation is still available.
-            if (!m_requests.TryGetValue(requestId, out WriteOperation? operation))
+            m_requests.TryGetValue(requestId, out WriteOperation? operation);
+
+            // check for replay attacks.
+            if (!VerifySequenceNumber(sequenceNumber, "ProcessResponseMessage"))
+            {
+                m_logger.InvalidResponseSequence(ChannelId, sequenceNumber);
+                var error = new ServiceResult(StatusCodes.BadSecurityChecksFailed);
+                operation?.Fault(true, error);
+                ForceReconnect(error);
+                return false;
+            }
+            if (operation == null)
             {
                 return false;
             }
 
             BufferCollection? chunksToProcess = null;
-
-            // check for replay attacks.
-            if (!VerifySequenceNumber(sequenceNumber, "ProcessResponseMessage"))
-            {
-                throw new ServiceResultException(StatusCodes.BadSequenceNumberInvalid);
-            }
-
             try
             {
                 // check for an abort.
@@ -1907,7 +1948,7 @@ namespace Opc.Ua.Bindings
             Message = "CLIENTCHANNEL SOCKET CONNECTING to {Url} via {Proxy}: ChannelId={ChannelId}")]
         public static partial void UaSCClientLog0(
             this ILogger logger,
-            global::System.Uri url,
+            Uri url,
             string? proxy,
             uint channelId);
 
@@ -1915,31 +1956,31 @@ namespace Opc.Ua.Bindings
             Message = "CLIENTCHANNEL SOCKET CONNECTING to {Url}: ChannelId={ChannelId}")]
         public static partial void UaSCClientLog1(
             this ILogger logger,
-            global::System.Uri url,
+            Uri url,
             uint channelId);
 
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryClientChannel + 2, Level = LogLevel.Information,
             Message = "CLIENTCHANNEL CONNECTED via {Url}: {RemoteEndpoint}, ChannelId={ChannelId}")]
         public static partial void UaSCClientLog2(
             this ILogger logger,
-            global::System.Uri url,
-            global::System.Net.EndPoint? remoteEndpoint,
+            Uri url,
+            System.Net.EndPoint? remoteEndpoint,
             uint channelId);
 
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryClientChannel + 3, Level = LogLevel.Error,
             Message = "CLIENTCHANNEL CONNECT FAILED via {Url}: {RemoteEndpoint}, ChannelId={ChannelId}")]
         public static partial void UaSCClientLog3(
             this ILogger logger,
-            global::System.Exception? exception,
-            global::System.Uri url,
-            global::System.Net.EndPoint? remoteEndpoint,
+            Exception? exception,
+            Uri url,
+            System.Net.EndPoint? remoteEndpoint,
             uint channelId);
 
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryClientChannel + 4, Level = LogLevel.Error,
             Message = "ChannelId {ChannelId}: Could not gracefully close the channel.")]
         public static partial void UaSCClientLog4(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             uint channelId);
 
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryClientChannel + 5, Level = LogLevel.Debug,
@@ -1962,14 +2003,14 @@ namespace Opc.Ua.Bindings
             Message = "ChannelId {ChannelId}: Could not verify security on OpenSecureChannel response")]
         public static partial void UaSCClientLog9(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             uint channelId);
 
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryClientChannel + 10, Level = LogLevel.Error,
             Message = "ChannelId {ChannelId}: Could not process OpenSecureChannelResponse")]
         public static partial void UaSCClientLog10(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             uint channelId);
 
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryClientChannel + 11, Level = LogLevel.Debug,
@@ -1997,7 +2038,7 @@ namespace Opc.Ua.Bindings
         public static partial void UaSCClientLog16(
             this ILogger logger,
             uint channelId,
-            global::Opc.Ua.ServiceResult serviceResult);
+            ServiceResult serviceResult);
 
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryClientChannel + 17, Level = LogLevel.Information,
             Message = "ChannelId {ChannelId}: Scheduled Handshake Starting: TokenId={TokenId}")]
@@ -2022,28 +2063,28 @@ namespace Opc.Ua.Bindings
         public static partial void UaSCClientLog20(
             this ILogger logger,
             uint channelId,
-            global::System.Net.EndPoint? remoteEndpoint);
+            System.Net.EndPoint? remoteEndpoint);
 
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryClientChannel + 21, Level = LogLevel.Information,
             Message = "CLIENTCHANNEL TRANSPORT RECONNECTED: {RemoteEndpoint}, ChannelId={ChannelId}")]
         public static partial void UaSCClientLog21(
             this ILogger logger,
-            global::System.Net.EndPoint? remoteEndpoint,
+            System.Net.EndPoint? remoteEndpoint,
             uint channelId);
 
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryClientChannel + 22, Level = LogLevel.Error,
             Message = "CLIENTCHANNEL TRANSPORT RECONNECT FAILED: {RemoteEndpoint}, ChannelId={ChannelId}")]
         public static partial void UaSCClientLog22(
             this ILogger logger,
-            global::System.Exception? exception,
-            global::System.Net.EndPoint? remoteEndpoint,
+            Exception? exception,
+            System.Net.EndPoint? remoteEndpoint,
             uint channelId);
 
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryClientChannel + 23, Level = LogLevel.Error,
             Message = "ChannelId {ChannelId}: Reconnect Failed.")]
         public static partial void UaSCClientLog23(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             uint channelId);
 
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryClientChannel + 24, Level = LogLevel.Debug,
@@ -2054,7 +2095,7 @@ namespace Opc.Ua.Bindings
             Message = "ChannelId {ChannelId}: Handshake Failed")]
         public static partial void UaSCClientLog25(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             uint channelId);
 
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryClientChannel + 26, Level = LogLevel.Error,
@@ -2066,14 +2107,14 @@ namespace Opc.Ua.Bindings
         public static partial void UaSCClientLog27(
             this ILogger logger,
             uint channelId,
-            global::System.Net.EndPoint? remoteEndpoint);
+            System.Net.EndPoint? remoteEndpoint);
 
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryClientChannel + 28, Level = LogLevel.Warning,
             Message = "ChannelId {ChannelId}: Force reconnect reason={ServiceResult}")]
         public static partial void UaSCClientLog28(
             this ILogger logger,
             uint channelId,
-            global::Opc.Ua.ServiceResult serviceResult);
+            ServiceResult serviceResult);
 
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryClientChannel + 29, Level = LogLevel.Information,
             Message = "ChannelId {ChannelId}: Attempting Reconnect in {Delay} ms. Reason: {ServiceResult}")]
@@ -2089,8 +2130,8 @@ namespace Opc.Ua.Bindings
         public static partial void UaSCClientLog30(
             this ILogger logger,
             uint channelId,
-            global::System.DateTime expiration,
-            global::System.DateTime renewal,
+            DateTime expiration,
+            DateTime renewal,
             int duration);
 
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryClientChannel + 31, Level = LogLevel.Debug,
@@ -2106,7 +2147,7 @@ namespace Opc.Ua.Bindings
         public static partial void UaSCClientLog33(
             this ILogger logger,
             uint channelId,
-            global::Opc.Ua.ServiceResult serviceResult);
+            ServiceResult serviceResult);
 
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryClientChannel + 34, Level = LogLevel.Debug,
             Message = "ChannelId {ChannelId}: SendCloseSecureChannelRequest()")]
@@ -2120,7 +2161,13 @@ namespace Opc.Ua.Bindings
             Message = "Unexpected error processing response.")]
         public static partial void UaSCClientLog36(
             this ILogger logger,
-            global::System.Exception? exception);
-    }
+            Exception? exception);
 
+        /// <summary>
+        /// Reports a response sequence number rejected by the secure-channel sequence checks.
+        /// </summary>
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryClientChannel + 37, Level = LogLevel.Error,
+            Message = "ChannelId {ChannelId}: BadSequenceNumberInvalid in response (sequence {SequenceNumber}).")]
+        public static partial void InvalidResponseSequence(this ILogger logger, uint channelId, uint sequenceNumber);
+    }
 }

@@ -35,6 +35,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Historian;
@@ -133,6 +134,61 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(ServiceResult.IsGood(staleError), Is.True);
             Assert.That(staleResult.StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
             Assert.That(staleResult.ContinuationPoint.IsEmpty, Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that data reads of a node the provider does not historize report
+        /// Bad_HistoryOperationUnsupported (Part 4 §5.11.3.4) instead of an empty result.
+        /// </summary>
+        [Test]
+        public async Task ReadsOfANodeTheProviderDoesNotHistorizeAreUnsupportedAsync()
+        {
+            HarnessFixture h = CreateHarness();
+            NodeId historized = h.SeedSamples(3);
+            var notHistorized = new NodeId(Guid.NewGuid());
+
+            async Task<ServiceResult> ReadRawAsync(NodeId nodeId, HistoryReadResult result)
+            {
+                return await HistorianDispatcher.DispatchRawReadAsync(
+                    h.SystemContext,
+                    h.Provider,
+                    new BaseDataVariableState(null)
+                    {
+                        NodeId = nodeId,
+                        BrowseName = new QualifiedName("Var"),
+                        AccessLevel = AccessLevels.HistoryRead
+                    },
+                    new HistoryReadValueId { NodeId = nodeId, ContinuationPoint = ByteString.Empty },
+                    new ReadRawModifiedDetails
+                    {
+                        StartTime = HarnessFixture.BaseTime,
+                        EndTime = HarnessFixture.BaseTime.AddMinutes(5),
+                        NumValuesPerNode = 10
+                    },
+                    TimestampsToReturn.Source,
+                    result,
+                    CancellationToken.None).ConfigureAwait(false);
+            }
+
+            Assert.That(await h.Provider.IsHistorizingAsync(notHistorized, CancellationToken.None).ConfigureAwait(false), Is.False);
+            Assert.That(
+                (await ReadRawAsync(notHistorized, new HistoryReadResult()).ConfigureAwait(false)).StatusCode,
+                Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported));
+
+            var historizedResult = new HistoryReadResult();
+            Assert.That(ServiceResult.IsGood(await ReadRawAsync(historized, historizedResult).ConfigureAwait(false)), Is.True);
+            Assert.That(historizedResult.HistoryData.IsNull, Is.False);
+
+            ServiceResult atTime = await HistorianDispatcher.DispatchAtTimeReadAsync(
+                h.SystemContext,
+                h.Provider,
+                new BaseDataVariableState(null) { NodeId = notHistorized, BrowseName = new QualifiedName("Var") },
+                new HistoryReadValueId { NodeId = notHistorized, ContinuationPoint = ByteString.Empty },
+                new ReadAtTimeDetails { ReqTimes = [HarnessFixture.BaseTime] },
+                TimestampsToReturn.Source,
+                new HistoryReadResult(),
+                CancellationToken.None).ConfigureAwait(false);
+            Assert.That(atTime.StatusCode, Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported));
         }
 
         /// <summary>
@@ -1049,7 +1105,9 @@ namespace Opc.Ua.Server.Tests.Historian
             public HarnessFixture(
                 ISessionContinuationPoints? continuationPoints = null)
             {
-                Provider = new InMemoryHistorianProvider();
+                Provider = new InMemoryHistorianProvider(
+                    new InMemoryHistorianOptions(),
+                    new FakeTimeProvider(BaseTime));
 
                 var mockTelemetry = new Mock<ITelemetryContext>();
 

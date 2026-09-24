@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -147,7 +148,15 @@ namespace Opc.Ua
             ArrayOf<ByteString> continuationPoints,
             CancellationToken ct)
         {
-            ushort operationLimit = ServerCapabilities.MaxBrowseContinuationPoints;
+            uint operationLimit = OperationLimits.MaxNodesPerBrowse;
+            ushort maxBrowseContinuationPoints = ServerCapabilities.MaxBrowseContinuationPoints;
+            if (maxBrowseContinuationPoints != 0)
+            {
+                operationLimit = operationLimit == 0
+                    ? maxBrowseContinuationPoints
+                    : Math.Min(operationLimit, maxBrowseContinuationPoints);
+            }
+
             if (operationLimit == 0 || operationLimit >= continuationPoints.Count)
             {
                 return base.BrowseNextAsync(
@@ -168,7 +177,7 @@ namespace Opc.Ua
                 RequestHeader? requestHeader,
                 bool releaseContinuationPoints,
                 ArrayOf<ByteString> continuationPoints,
-                ushort operationLimit,
+                uint operationLimit,
                 CancellationToken ct)
             {
                 using Activity? activity = m_telemetry.StartActivity();
@@ -180,7 +189,7 @@ namespace Opc.Ua
                     out List<string> stringTable,
                     continuationPoints.Count,
                     operationLimit);
-                foreach (ArrayOf<ByteString> continuationPointsBatch in continuationPoints.Batch(operationLimit))
+                foreach (ArrayOf<ByteString> continuationPointsBatch in continuationPoints.Batch((int)operationLimit))
                 {
                     requestHeader.RequestHandle = 0;
                     response = await base.BrowseNextAsync(
@@ -1013,7 +1022,10 @@ namespace Opc.Ua
                     }
                     else if (batchLinksToAdd.Count < operationLimit)
                     {
-                        batchLinksToRemove = linksToRemove[..((int)operationLimit - batchLinksToAdd.Count)];
+                        int removeCount = Math.Min(
+                            linksToRemove.Count,
+                            (int)operationLimit - batchLinksToAdd.Count);
+                        batchLinksToRemove = linksToRemove[..removeCount];
                         linksToRemove = linksToRemove[batchLinksToRemove.Count..];
                     }
                     else
@@ -1464,7 +1476,11 @@ namespace Opc.Ua
             int count,
             uint operationLimit)
         {
-            Debug.Assert(count > operationLimit);
+            // No assertion on count vs operationLimit: MaxMonitoredItemsPerCall
+            // bounds the sum of linksToAdd and linksToRemove for SetTriggering
+            // (Part 5 §6.3.11), so batching can be required while either
+            // individual list is shorter than the limit. This only presets the
+            // capacity.
             results = new List<T>(count);
             diagnosticInfos = new List<DiagnosticInfo>(count);
             stringTable = [];

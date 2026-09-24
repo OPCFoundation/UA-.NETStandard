@@ -31,6 +31,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 
@@ -92,10 +93,20 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="telemetry">The telemetry context to use</param>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static Meter CreateMeter(this ITelemetryContext? telemetry)
         {
             DebugCheck(telemetry);
-            return telemetry?.CreateMeter() ?? Default.CreateMeter();
+            Assembly assembly;
+            try
+            {
+                assembly = Assembly.GetCallingAssembly();
+            }
+            catch (PlatformNotSupportedException)
+            {
+                assembly = typeof(TelemetryExtensions).Assembly;
+            }
+            return telemetry?.CreateMeter(assembly) ?? Default.CreateMeter(assembly);
         }
 
         /// <summary>
@@ -103,10 +114,20 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="telemetry">The telemetry context to use</param>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static ActivitySource GetActivitySource(this ITelemetryContext? telemetry)
         {
             DebugCheck(telemetry);
-            return telemetry?.ActivitySource ?? Default.ActivitySource;
+            Assembly assembly;
+            try
+            {
+                assembly = Assembly.GetCallingAssembly();
+            }
+            catch (PlatformNotSupportedException)
+            {
+                assembly = typeof(TelemetryExtensions).Assembly;
+            }
+            return telemetry?.GetActivitySource(assembly) ?? Default.GetActivitySource(assembly);
         }
 
         /// <summary>
@@ -116,10 +137,23 @@ namespace Opc.Ua
         /// <param name="name">The name of the caller</param>
         /// <param name="kind">The activity kind</param>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static Activity? StartActivity(this ITelemetryContext? telemetry,
             [CallerMemberName] string name = "", ActivityKind kind = ActivityKind.Internal)
         {
-            return telemetry.GetActivitySource().StartActivity(name, kind);
+            DebugCheck(telemetry);
+            Assembly assembly;
+            try
+            {
+                assembly = Assembly.GetCallingAssembly();
+            }
+            catch (PlatformNotSupportedException)
+            {
+                assembly = typeof(TelemetryExtensions).Assembly;
+            }
+            ActivitySource activitySource =
+                telemetry?.GetActivitySource(assembly) ?? Default.GetActivitySource(assembly);
+            return activitySource.StartActivity(name, kind);
         }
 
         /// <summary>

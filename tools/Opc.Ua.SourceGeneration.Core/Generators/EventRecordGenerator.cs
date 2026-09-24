@@ -219,6 +219,22 @@ namespace Opc.Ua.SourceGeneration
                         typeName));
 
             List<FieldEntry> ownFields = CollectDeclaredFields(objectType);
+            if (string.Equals(
+                objectType.SymbolicName?.Name,
+                "ConditionType",
+                StringComparison.Ordinal))
+            {
+                ownFields.Add(new FieldEntry
+                {
+                    PropertyName = "ConditionId",
+                    DotNetType = "global::Opc.Ua.NodeId",
+                    Description = "The NodeId of the condition instance.",
+                    BrowseName = string.Empty,
+                    NamespaceUri = Namespaces.OpcUa,
+                    ReaderMethod = "GetNodeId",
+                    IsConditionId = true
+                });
+            }
             context.Template.AddReplacement(
                 Tokens.ListOfProperties,
                 EventRecordTemplates.FieldProperty,
@@ -229,6 +245,20 @@ namespace Opc.Ua.SourceGeneration
             // stable positions. Inherited fields come first, in
             // root-to-leaf order; own fields trail.
             List<FieldEntry> allFields = CollectAllFieldsInOrder(objectType);
+            if (IsConditionTypeOrSubtype(objectType) &&
+                !allFields.Exists(static field => field.IsConditionId))
+            {
+                allFields.Add(new FieldEntry
+                {
+                    PropertyName = "ConditionId",
+                    DotNetType = "global::Opc.Ua.NodeId",
+                    Description = "The NodeId of the condition instance.",
+                    BrowseName = string.Empty,
+                    NamespaceUri = Namespaces.OpcUa,
+                    ReaderMethod = "GetNodeId",
+                    IsConditionId = true
+                });
+            }
             // Assign stable positional indices for the decoder.
             for (int i = 0; i < allFields.Count; i++)
             {
@@ -275,6 +305,14 @@ namespace Opc.Ua.SourceGeneration
                 : CoreUtils.Format(
                     "global::{0}.BrowseNames",
                     m_context.ModelDesign.TargetNamespace.Prefix);
+            if (field.IsConditionId)
+            {
+                context.Template.AddReplacement(
+                    Tokens.ChildPath,
+                    "global::System.Array.Empty<global::Opc.Ua.QualifiedName>()");
+                return context.Template.Render();
+            }
+
             string path = field.IsTwoStateVariableId
                 ? CoreUtils.Format(
                     "global::Opc.Ua.QualifiedName.From({0}.{1}), " +
@@ -285,7 +323,9 @@ namespace Opc.Ua.SourceGeneration
                     "global::Opc.Ua.QualifiedName.From({0}.{1})",
                     browseNames,
                     field.BrowseName);
-            context.Template.AddReplacement(Tokens.ChildPath, path);
+            context.Template.AddReplacement(
+                Tokens.ChildPath,
+                CoreUtils.Format("new global::Opc.Ua.QualifiedName[] {{ {0} }}", path));
             return context.Template.Render();
         }
 
@@ -417,6 +457,23 @@ namespace Opc.Ua.SourceGeneration
                 }
             }
             return fields;
+        }
+
+        private static bool IsConditionTypeOrSubtype(ObjectTypeDesign type)
+        {
+            for (TypeDesign current = type;
+                current is ObjectTypeDesign objectType;
+                current = objectType.BaseTypeNode)
+            {
+                if (string.Equals(
+                    objectType.SymbolicName?.Name,
+                    "ConditionType",
+                    StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -583,6 +640,14 @@ namespace Opc.Ua.SourceGeneration
                 IsTypedXRegistrySourceUrl(declaringType, fieldName));
             if (rank == ValueRank.Array)
             {
+                // XmlElement keeps its element nullability: GetXmlElementArray
+                // cannot produce a non-null element for every slot, so the
+                // declared element type has to admit null.
+                if (string.Equals(
+                    baseType, "global::System.Xml.XmlElement?", StringComparison.Ordinal))
+                {
+                    return "global::System.Xml.XmlElement?[]?";
+                }
                 return CoreUtils.Format("{0}[]?", StripNullable(baseType));
             }
             return baseType;
@@ -640,8 +705,12 @@ namespace Opc.Ua.SourceGeneration
                 // type's own .IsNull instead of wrapping in Nullable<T>.
                 case "ByteString":
                     return "global::Opc.Ua.ByteString";
+                // Nullable, unlike its INullable-implementing siblings below:
+                // XmlElement has no null value of its own, so the reader hands
+                // back null for an absent or null field and the declared
+                // property has to say so.
                 case "XmlElement":
-                    return "global::System.Xml.XmlElement";
+                    return "global::System.Xml.XmlElement?";
                 case "NodeId":
                     return "global::Opc.Ua.NodeId";
                 case "ExpandedNodeId":
@@ -676,10 +745,10 @@ namespace Opc.Ua.SourceGeneration
         /// Maps the emitted .NET type to the corresponding
         /// <c>EventRecordFieldReaders</c> helper method name. Used
         /// by the decoder template to emit positional reads.
-        /// Returns <c>null</c> for types without a matching reader —
-        /// the generated decoder falls back to a no-op default for
-        /// those fields (and notably the <c>Variant</c> fallback for
-        /// unmapped data types is not populated).
+        /// Every type <see cref="MapScalarDataType"/> can produce has a reader,
+        /// including the <c>Variant</c> fallback for data types with no more
+        /// specific projection - a declared record property that the decoder
+        /// never populates would read as null for every event.
         /// </summary>
         private string MapReaderMethod(DataTypeDesign dataType, string dotnetType)
         {
@@ -687,38 +756,115 @@ namespace Opc.Ua.SourceGeneration
             {
                 case "bool?":
                     return "GetNullableBool";
+                case "sbyte?":
+                    return "GetNullableSByte";
+                case "byte?":
+                    return "GetNullableByte";
+                case "short?":
+                    return "GetNullableInt16";
+                case "ushort?":
+                    return "GetNullableUInt16";
+                case "int?":
+                    return "GetNullableInt32";
+                case "uint?":
+                    return "GetNullableUInt32";
+                case "long?":
+                    return "GetNullableInt64";
+                case "ulong?":
+                    return "GetNullableUInt64";
+                case "float?":
+                    return "GetNullableFloat";
                 case "double?":
                     return "GetNullableDouble";
                 case "global::System.DateTime?":
                     return "GetNullableDateTime";
+                case "global::System.Guid?":
+                    return "GetNullableGuid";
                 case "string?":
                     return "GetString";
-                case "ushort?":
-                    return "GetUInt16";
-                case "uint?":
-                    return "GetNullableUInt32";
-                case "string[]?":
-                    return "GetStringArray";
+                case "global::System.Xml.XmlElement?":
+                    return "GetXmlElement";
                 case "global::Opc.Ua.ByteString":
                     return "GetByteString";
                 case "global::Opc.Ua.NodeId":
                     return "GetNodeId";
-                case "global::Opc.Ua.NodeId[]?":
-                    return "GetNodeIdArray";
+                case "global::Opc.Ua.ExpandedNodeId":
+                    return "GetExpandedNodeId";
+                case "global::Opc.Ua.QualifiedName":
+                    return "GetQualifiedName";
                 case "global::Opc.Ua.LocalizedText":
                     return "GetLocalizedText";
                 case "global::Opc.Ua.StatusCode":
                     return "GetStatusCode";
+                case "global::Opc.Ua.Variant":
+                    return "GetVariant";
+                case "bool[]?":
+                    return "GetBoolArray";
+                case "sbyte[]?":
+                    return "GetSByteArray";
+                case "byte[]?":
+                    return "GetByteArray";
+                case "short[]?":
+                    return "GetInt16Array";
+                case "ushort[]?":
+                    return "GetUInt16Array";
+                case "int[]?":
+                    return "GetInt32Array";
+                case "uint[]?":
+                    return "GetUInt32Array";
+                case "long[]?":
+                    return "GetInt64Array";
+                case "ulong[]?":
+                    return "GetUInt64Array";
+                case "float[]?":
+                    return "GetFloatArray";
+                case "double[]?":
+                    return "GetDoubleArray";
+                case "global::System.DateTime[]?":
+                    return "GetDateTimeArray";
+                case "global::System.Guid[]?":
+                    return "GetGuidArray";
+                case "string[]?":
+                    return "GetStringArray";
+                case "global::System.Xml.XmlElement?[]?":
+                    return "GetXmlElementArray";
+                case "global::Opc.Ua.ByteString[]?":
+                    return "GetByteStringArray";
+                case "global::Opc.Ua.NodeId[]?":
+                    return "GetNodeIdArray";
+                case "global::Opc.Ua.ExpandedNodeId[]?":
+                    return "GetExpandedNodeIdArray";
+                case "global::Opc.Ua.QualifiedName[]?":
+                    return "GetQualifiedNameArray";
                 case "global::Opc.Ua.LocalizedText[]?":
                     return "GetLocalizedTextArray";
+                case "global::Opc.Ua.StatusCode[]?":
+                    return "GetStatusCodeArray";
+                case "global::Opc.Ua.Variant[]?":
+                    return "GetVariantArray";
                 default:
-                    if (!dataType.IsStructure ||
-                        string.Equals(
+                    if (string.Equals(
                             dataType.SymbolicId?.Namespace,
                             Namespaces.OpcUa,
                             StringComparison.Ordinal) ||
-                        dotnetType == "global::Opc.Ua.Variant" ||
-                        dotnetType == "global::Opc.Ua.Variant[]?")
+                        dotnetType == null ||
+                        !dotnetType.StartsWith("global::", StringComparison.Ordinal))
+                    {
+                        return null;
+                    }
+
+                    // A model-local enumeration is transferred as its underlying
+                    // Int32. Without a reader the property is declared on the
+                    // record but dropped from the decoder, so every event reports
+                    // it as the enum's default rather than what the server sent.
+                    if (dataType.IsEnumeration)
+                    {
+                        return dotnetType.EndsWith("[]?", StringComparison.Ordinal)
+                            ? CoreUtils.Format("GetEnumArray<{0}>", dotnetType[..^3])
+                            : CoreUtils.Format("GetEnum<{0}>", dotnetType);
+                    }
+
+                    if (!dataType.IsStructure)
                     {
                         return null;
                     }
@@ -910,6 +1056,7 @@ namespace Opc.Ua.SourceGeneration
             public string NamespaceUri { get; set; }
             public string ReaderMethod { get; set; }
             public bool IsTwoStateVariableId { get; set; }
+            public bool IsConditionId { get; set; }
             public int FieldIndex { get; set; }
         }
 
@@ -930,8 +1077,10 @@ namespace Opc.Ua.SourceGeneration
 
         private const string kStandardUaNamespaceUri = "http://opcfoundation.org/UA/";
         private const string kStandardUaRecordNamespace = "Opc.Ua";
+
         private const string kXRegistryNamespaceUri =
             "http://opcfoundation.org/UA/xRegistry/";
+
         private const string kRootBaseRecord = "global::Opc.Ua.EventRecord";
 
         private readonly IGeneratorContext m_context;

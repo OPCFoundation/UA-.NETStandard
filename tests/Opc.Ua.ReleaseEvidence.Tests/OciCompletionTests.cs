@@ -54,7 +54,7 @@ namespace Opc.Ua.ReleaseEvidence.Tests
         /// context.
         /// </summary>
         [TestCase("containers", 9, 18)]
-        [TestCase("pump", 1, 1)]
+        [TestCase("pump", 1, 2)]
         public async Task NativeGroupPreservesAllSubjectsAndOriginalStatementsAsync(
             string group, int expectedImages, int expectedPlatforms)
         {
@@ -139,7 +139,7 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             Assert.That(report.ExternalVerificationPerformed, Is.True);
             Assert.That(fixture.Envelope.Assurance.Completed, Is.EqualTo(7));
             Assert.That(fixture.Envelope.Artifacts.Count(a => a.Kind == "oci-manifest"),
-                Is.EqualTo(group == "containers" ? 18 : 1));
+                Is.EqualTo(group == "containers" ? 18 : 2));
         }
 
         /// <summary>
@@ -147,7 +147,7 @@ namespace Opc.Ua.ReleaseEvidence.Tests
         /// aliases.
         /// </summary>
         [TestCase("containers", 27)]
-        [TestCase("pump", 2)]
+        [TestCase("pump", 3)]
         public async Task SignedOciPromotionPreservesAllPlatformsAndDiscoverableProofsAsync(string group, int count)
         {
             using AuthenticatedFixture fixture = await AuthenticatedFixture.CreateAsync(group, "valid")
@@ -232,7 +232,7 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                 Assert.That(closure.Blobs.Select(b => b.MediaType), Does.Contain("application/vnd.in-toto+json"));
                 Assert.That(closure.Blobs.Select(b => b.MediaType),
                     Does.Contain("application/vnd.oci.image.layer.v1.tar"));
-                Assert.That(closure.Referrers, Has.Length.EqualTo(group == "containers" ? 3 : 2));
+                Assert.That(closure.Referrers, Has.Length.EqualTo(3));
                 foreach (OciBlobReference blob in closure.Blobs)
                 {
                     Assert.That(Digest(await File.ReadAllBytesAsync(
@@ -281,7 +281,8 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             OciImageClosure[] closures = await new OciClosureReader(new EvidenceFiles()).ReadAsync(
                 Path.Combine(fixture.Root, "request.json"), expected, referrers, CancellationToken.None)
                 .ConfigureAwait(false);
-            ArtifactRecord artifact = expected.Artifacts.Single(a => a.Kind == "oci-manifest");
+            ArtifactRecord artifact = expected.Artifacts.Single(a =>
+                a.Kind == "oci-manifest" && a.Scopes.Platforms.Contains("linux/amd64"));
             if (scenario == "foreign-subject")
             {
                 artifact = artifact with { Id = "ghcr.io/foreign/image" };
@@ -342,7 +343,7 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                 .ConfigureAwait(false);
             OciImageClosure[] closures = await fixture.ReadAuthenticatedClosureAsync("valid").ConfigureAwait(false);
             Assert.That(closures, Has.Length.EqualTo(1));
-            Assert.That(closures[0].Referrers, Has.Length.EqualTo(2));
+            Assert.That(closures[0].Referrers, Has.Length.EqualTo(3));
         }
 
         /// <summary>

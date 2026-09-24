@@ -103,6 +103,32 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             Assert.That(process.HasExited, Is.True);
         }
 
+        /// <summary>
+        /// Verifies captured output and bounded tail selection remain available after process disposal.
+        /// </summary>
+        [Test]
+        public async Task CapturedOutputRemainsAvailableAfterProcessDisposalAsync()
+        {
+            var process = new SampleAppProcess(
+                "retained-output-client",
+                "Redundancy/RedundantClient",
+                "RedundantClient",
+                ["--help"],
+                writeOutput: _ => { });
+            try
+            {
+                Assert.That(await process.WaitForExitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false), Is.True);
+            }
+            finally
+            {
+                await process.DisposeAsync().ConfigureAwait(false);
+            }
+
+            Assert.That(process.GetOutputTail(int.MaxValue), Does.Contain("--identity"));
+            Assert.That(process.GetOutputTail(1), Is.EqualTo(process.LastLineContaining(string.Empty)));
+            Assert.That(process.GetOutputTail(0), Is.Empty);
+        }
+
         [Test]
         public async Task CancelledLineWaitPropagatesCancellationAsync()
         {

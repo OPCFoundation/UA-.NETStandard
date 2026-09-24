@@ -35,12 +35,15 @@ Exit zero in collection mode; -Enforce requires completed execution. MTP console
 output, successful process exit, and a SARIF file without successful invocations
 are not result proof. SARIF completion is not a finding disposition or proof of
 the evaluated solution scope. No raw names, findings, input data or logs are emitted.
+StrictTrx additionally applies the shared VSTest gate, including its complete
+counter schema. MTP/native producers retain their supported optional counters.
 #>
 param(
     [Parameter(Mandatory)][string] $ResultsPath,
     [ValidateSet('trx', 'mtp-trx', 'sarif', 'fuzz-replay')][string] $Kind = 'trx',
     [Parameter(Mandatory)][string] $OutputPath,
     [switch] $RequireNoSkipped,
+    [switch] $StrictTrx,
     [switch] $Enforce
 )
 $ErrorActionPreference = 'Stop'
@@ -100,11 +103,18 @@ if ($files.Count -gt 0) {
             finally { $reader.Dispose() }
             $ns = [System.Xml.XmlNamespaceManager]::new($document.NameTable)
             $ns.AddNamespace('t', 'http://microsoft.com/schemas/VisualStudio/TeamTest/2010')
-            $runSummary = $document.SelectSingleNode('/t:TestRun/t:ResultSummary', $ns)
-            $counter = $document.SelectSingleNode('/t:TestRun/t:ResultSummary/t:Counters', $ns)
-            if ($null -eq $counter -or $null -eq $runSummary) { throw 'Missing TRX counters.' }
-            if ($runSummary.GetAttribute('outcome') -notin @('Completed', 'Passed')) {
+            $summaries = @($document.SelectNodes('/t:TestRun/t:ResultSummary', $ns))
+            $counters = @($document.SelectNodes('/t:TestRun/t:ResultSummary/t:Counters', $ns))
+            if ($summaries.Count -ne 1 -or $counters.Count -ne 1) { throw 'Missing or duplicate TRX counters.' }
+            $runSummary = $summaries[0]
+            $counter = $counters[0]
+            if ($runSummary.GetAttribute('outcome') -cnotin @('Completed', 'Passed')) {
                 throw 'Unsuccessful run outcome.'
+            }
+            foreach ($info in $runSummary.SelectNodes('t:RunInfos/t:RunInfo', $ns)) {
+                if ($info.GetAttribute('outcome') -cnotin @('Completed', 'Passed', 'Informational', 'Warning')) {
+                    throw 'Unsuccessful run-level result.'
+                }
             }
             $total = Read-Count $counter 'total' -Required
             $executed = Read-Count $counter 'executed' -Required
@@ -112,7 +122,8 @@ if ($files.Count -gt 0) {
             $failed = Read-Count $counter 'failed' -Required
             $skipped = Read-Count $counter 'notExecuted'
             $other = 0L
-            foreach ($name in @('error', 'timeout', 'aborted', 'passedButRunAborted', 'disconnected', 'warning', 'notRunnable', 'inconclusive')) {
+            foreach ($name in @('error', 'timeout', 'aborted', 'passedButRunAborted', 'disconnected',
+                'warning', 'notRunnable', 'inconclusive', 'completed', 'inProgress', 'pending')) {
                 $other += Read-Count $counter $name
             }
             $results = @($document.SelectNodes('/t:TestRun/t:Results/t:UnitTestResult', $ns))
@@ -138,6 +149,11 @@ if ($files.Count -gt 0) {
             }
         }
         $summary.counts = $counts
+        if ($StrictTrx -and $Kind -ne 'sarif') {
+            & (Join-Path $PSScriptRoot 'evaluate-test-results.ps1') `
+                -ResultsDirectory $ResultsPath -RequireTrx -Sanitize
+            if ($LASTEXITCODE -ne 0) { throw 'Incomplete TRX execution.' }
+        }
         if ($Kind -eq 'fuzz-replay') {
             $beforePath = Join-Path $ResultsPath 'public-inputs.json'
             $copyPath = Join-Path $ResultsPath 'copied-inputs.json'
@@ -195,8 +211,8 @@ if ($files.Count -gt 0) {
             if (-not $expected.SetEquals($executions)) { throw 'Incomplete target/input execution.' }
             foreach ($name in $skippedNames) {
                 $category = switch -Regex ($name) {
-                    '^FuzzTimeoutAssets(\(.*\))?$' { 'timeout'; break }
-                    '^FuzzSlowAssets(\(.*\))?$' { 'slow'; break }
+                    '^FuzzTimeoutAssets(?:Async)?(\(.*\))?$' { 'timeout'; break }
+                    '^FuzzSlowAssets(?:Async)?(\(.*\))?$' { 'slow'; break }
                     default { throw 'Unexplained skipped test.' }
                 }
                 if (@($before.inputs | Where-Object category -eq $category).Count -ne 0) {

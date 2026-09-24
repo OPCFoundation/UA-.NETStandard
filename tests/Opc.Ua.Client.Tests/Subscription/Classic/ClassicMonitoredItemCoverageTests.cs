@@ -583,6 +583,20 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
+        public void RestoreRaisesGlobalClientHandleCounter()
+        {
+            MonitoredItem initial = CreateItem();
+            MonitoredItem item = CreateItem();
+            uint restoredHandle = initial.ClientHandle + 1000;
+
+            item.Restore(new MonitoredItemState { ClientId = restoredHandle });
+
+            MonitoredItem next = CreateItem();
+
+            Assert.That(next.ClientHandle, Is.GreaterThan(restoredHandle));
+        }
+
+        [Test]
         public void RestoreClampsCacheQueueSizeToOne()
         {
             MonitoredItem item = CreateItem();
@@ -604,7 +618,13 @@ namespace Opc.Ua.Client.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(clone.DisplayName, Is.EqualTo("Sensor 0"));
+                // The suffix is the clone's own freshly minted client handle:
+                // it exists to tell clones of the same template apart, so it
+                // must never be the placeholder 0 every clone would share.
+                Assert.That(clone.ClientHandle, Is.Not.Zero);
+                Assert.That(
+                    clone.DisplayName,
+                    Is.EqualTo($"Sensor {clone.ClientHandle}"));
                 Assert.That(clone.ClientHandle, Is.Not.EqualTo(item.ClientHandle));
                 Assert.That(clone.Handle, Is.EqualTo("local"));
             });
@@ -631,7 +651,15 @@ namespace Opc.Ua.Client.Tests
 
             var clone = new MonitoredItem(item);
 
-            Assert.That(clone.DisplayName, Is.EqualTo("Tank Level 0"));
+            Assert.Multiple(() =>
+            {
+                // The template's trailing handle is dropped and replaced by the
+                // clone's own, not by the placeholder 0.
+                Assert.That(clone.ClientHandle, Is.Not.Zero);
+                Assert.That(
+                    clone.DisplayName,
+                    Is.EqualTo($"Tank Level {clone.ClientHandle}"));
+            });
         }
 
         [Test]
@@ -716,20 +744,18 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void GetEventTimeReturnsMinValueForUtcTimeField()
+        public void GetEventTimeReturnsUtcTimeField()
         {
             MonitoredItem item = CreateItem();
             item.NodeClass = NodeClass.Object;
             EventFieldList eventFields = BuildEventFields(
                 new DateTime(2024, 6, 7, 8, 9, 10, DateTimeKind.Utc));
 
-            // Characterization of a KNOWN DEFECT: GetEventTime reads the Time field via
-            // Variant.AsBoxedObject() (boxed as this fork's DateTimeUtc), so its 'as DateTime?'
-            // cast never matches and it always returns DateTime.MinValue even for a valid UTC
-            // time. Locked in here so a future GetEventTime fix (extract via TryGetValue) updates it.
             DateTime eventTime = item.GetEventTime(eventFields);
 
-            Assert.That(eventTime, Is.EqualTo(DateTime.MinValue));
+            Assert.That(
+                eventTime,
+                Is.EqualTo(new DateTime(2024, 6, 7, 8, 9, 10, DateTimeKind.Utc)));
         }
 
         [Test]

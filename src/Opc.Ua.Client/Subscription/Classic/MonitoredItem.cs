@@ -102,13 +102,8 @@ namespace Opc.Ua.Client
             }
 
             Handle = template.Handle;
-            DisplayName = Utils.Format("{0} {1}", displayName!, ClientHandle);
-            // copy state (except client handle logic handled below)
-            State = template.State with { DisplayName = DisplayName };
-            if (copyEventHandlers)
-            {
-                m_Notification = template.m_Notification;
-            }
+            // Assign the client handle before the display name is formatted,
+            // otherwise every clone is named "<template> 0".
             if (copyClientHandle)
             {
                 ClientHandle = template.ClientHandle;
@@ -116,6 +111,12 @@ namespace Opc.Ua.Client
             else
             {
                 ClientHandle = Utils.IncrementIdentifier(ref s_globalClientHandle);
+            }
+            DisplayName = Utils.Format("{0} {1}", displayName!, ClientHandle);
+            State = template.State with { DisplayName = DisplayName };
+            if (copyEventHandlers)
+            {
+                m_Notification = template.m_Notification;
             }
             // ensure state consistency with node class transitions
             NodeClass = State.NodeClass;
@@ -134,6 +135,7 @@ namespace Opc.Ua.Client
         public virtual void Restore(MonitoredItemState state)
         {
             State = state;
+            Utils.SetIdentifierToAtLeast(ref s_globalClientHandle, state.ClientId);
             ClientHandle = state.ClientId;
             ServerId = state.ServerId;
             TriggeringItemId = state.TriggeringItemId;
@@ -542,6 +544,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public void SaveValueInCache(IEncodeable newValue)
         {
+            MonitoredItemNotificationEventHandler? notification;
             lock (m_cache)
             {
                 EnsureCacheIsInitialized();
@@ -598,7 +601,16 @@ namespace Opc.Ua.Client
                 {
                     m_eventCache.OnNotification(eventchange);
                 }
-                m_Notification?.Invoke(this, new MonitoredItemNotificationEventArgs(newValue));
+                notification = m_Notification;
+            }
+
+            try
+            {
+                notification?.Invoke(this, new MonitoredItemNotificationEventArgs(newValue));
+            }
+            catch (Exception ex)
+            {
+                m_logger.ErrorWhileProcessingIncomingMessages(ex);
             }
         }
 
@@ -918,14 +930,12 @@ namespace Opc.Ua.Client
         public DateTime GetEventTime(EventFieldList eventFields)
         {
             // get event time.
-            var eventTime = GetFieldValue(
+            if (GetFieldValue(
                 eventFields,
                 ObjectTypeIds.BaseEventType,
-                QualifiedName.From(BrowseNames.Time)) as DateTime?;
-
-            if (eventTime != null)
+                QualifiedName.From(BrowseNames.Time)) is DateTimeUtc eventTime)
             {
-                return eventTime.Value;
+                return eventTime.ToDateTime();
             }
 
             // no event time in event field list.
@@ -1391,5 +1401,4 @@ namespace Opc.Ua.Client
             Variant value,
             DateTimeUtc sourceTime);
     }
-
 }

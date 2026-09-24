@@ -4,6 +4,8 @@ Here is a list of available documentation for different topics:
 
 > **New contributor?** Start with the **[Developer Guide](DeveloperGuide.md)** — prerequisites, building, testing, coding standards, and how-to recipes (including how to add logging).
 
+> **Cutting, backporting, or promoting a release?** See the **[Release process](ReleaseProcess.md)** — the authoritative, step-by-step procedures for every release operation, including the branch/version model, backports, and recovering from a failed release.
+
 * [Sample applications](samples.md) - Platform-independent reference, PubSub, minimal API, companion-model, robotics, Vision, AI, ISA-95, and OpenUSD demos included in this repository.
 
 ## Security stewardship and release assurance

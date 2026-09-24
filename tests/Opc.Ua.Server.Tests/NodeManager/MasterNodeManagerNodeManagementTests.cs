@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -585,7 +583,7 @@ namespace Opc.Ua.Server.Tests
 
             (ArrayOf<AddNodesResult> results, ArrayOf<DiagnosticInfo> diagnostics) = await sut.AddNodesAsync(
                 ctx,
-                System.Array.Empty<AddNodesItem>().ToArrayOf(),
+                Array.Empty<AddNodesItem>().ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results.Count, Is.Zero);
@@ -600,9 +598,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(
                 async () => await sut.AddNodesAsync(
                     null!,
-                    System.Array.Empty<AddNodesItem>().ToArrayOf(),
+                    Array.Empty<AddNodesItem>().ToArrayOf(),
                     CancellationToken.None).ConfigureAwait(false),
-                Throws.TypeOf<System.ArgumentNullException>());
+                Throws.TypeOf<ArgumentNullException>());
         }
 
         [Test]
@@ -613,9 +611,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(
                 async () => await sut.DeleteNodesAsync(
                     null!,
-                    System.Array.Empty<DeleteNodesItem>().ToArrayOf(),
+                    Array.Empty<DeleteNodesItem>().ToArrayOf(),
                     CancellationToken.None).ConfigureAwait(false),
-                Throws.TypeOf<System.ArgumentNullException>());
+                Throws.TypeOf<ArgumentNullException>());
         }
 
         [Test]
@@ -626,9 +624,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(
                 async () => await sut.AddReferencesAsync(
                     null!,
-                    System.Array.Empty<AddReferencesItem>().ToArrayOf(),
+                    Array.Empty<AddReferencesItem>().ToArrayOf(),
                     CancellationToken.None).ConfigureAwait(false),
-                Throws.TypeOf<System.ArgumentNullException>());
+                Throws.TypeOf<ArgumentNullException>());
         }
 
         [Test]
@@ -639,9 +637,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(
                 async () => await sut.DeleteReferencesAsync(
                     null!,
-                    System.Array.Empty<DeleteReferencesItem>().ToArrayOf(),
+                    Array.Empty<DeleteReferencesItem>().ToArrayOf(),
                     CancellationToken.None).ConfigureAwait(false),
-                Throws.TypeOf<System.ArgumentNullException>());
+                Throws.TypeOf<ArgumentNullException>());
         }
 
         [Test]
@@ -663,6 +661,50 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<AddNodesItem>(),
                     It.IsAny<CancellationToken>()),
                 Times.Never);
+        }
+
+        [TestCase(0, false)]
+        [TestCase(1, false)]
+        [TestCase(2, false)]
+        [TestCase(0, true)]
+        [TestCase(1, true)]
+        [TestCase(2, true)]
+        public async Task NamespaceAddNodePermissionsFollowIdentityNotSessionOrChannelAsync(int requestKind, bool allowed)
+        {
+            using var harness = new AuthorizationHarness();
+            harness.SetAddNodePermissions(allowed ? PermissionType.AddNode : PermissionType.Browse);
+            using OperationContext context = harness.CreateIdentityContext(RequestType.AddNodes, requestKind);
+
+            (ArrayOf<AddNodesResult> results, _) = await harness.Sut.AddNodesAsync(
+                context, [harness.CreateAddNodesItem()]).ConfigureAwait(false);
+
+            Assert.That(results[0].StatusCode,
+                Is.EqualTo(allowed ? StatusCodes.Good : StatusCodes.BadUserAccessDenied));
+            harness.SourceManager.Verify(
+                manager => manager.AddNodeAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<AddNodesItem>(), It.IsAny<CancellationToken>()),
+                allowed ? Times.Once() : Times.Never());
+        }
+
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        public async Task MethodPermissionsFollowIdentityNotSessionOrChannelAsync(int requestKind)
+        {
+            using var harness = new AuthorizationHarness();
+            harness.TargetMetadata.NodeClass = NodeClass.Method;
+            harness.SetTargetPermissions(PermissionType.None);
+            harness.SourceManager.Setup(manager => manager.FindMethodStateAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<CallMethodRequest>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<MethodState>(new MethodState(null) { NodeId = harness.TargetNodeId }));
+            using OperationContext context = harness.CreateIdentityContext(RequestType.Call, requestKind);
+
+            (ArrayOf<CallMethodResult> results, _) = await harness.Sut.CallAsync(
+                context,
+                [new CallMethodRequest { ObjectId = harness.SourceNodeId, MethodId = harness.TargetNodeId }])
+                .ConfigureAwait(false);
+
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -1111,7 +1153,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<AddReferencesItem>(),
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<ServiceResult>(
-                    new ServiceResult(StatusCodes.BadDuplicateReferenceNotAllowed)));
+                    new ServiceResult(StatusCodes.BadUnexpectedError)));
 
             (ArrayOf<StatusCode> results, _) = await harness.Sut.AddReferencesAsync(
                 harness.AddReferencesContext,
@@ -1120,7 +1162,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(
                 results[0],
-                Is.EqualTo(StatusCodes.BadDuplicateReferenceNotAllowed));
+                Is.EqualTo(StatusCodes.BadUnexpectedError));
             harness.SourceManager.Verify(
                 manager => manager.DeleteReferenceAsync(
                     harness.AddReferencesContext,
@@ -1132,6 +1174,46 @@ namespace Opc.Ua.Server.Tests
                         !rollback.DeleteBidirectional),
                     It.IsAny<CancellationToken>()),
                 Times.Once);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AddReferenceWithExistingInverseSucceedsWithoutRollbackAsync(bool throws)
+        {
+            using var harness = new AuthorizationHarness();
+            harness.TargetManager.Setup(manager => manager.AddReferenceAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<AddReferencesItem>(), It.IsAny<CancellationToken>()))
+                .Returns(() => throws
+                    ? throw new ServiceResultException(StatusCodes.BadDuplicateReferenceNotAllowed)
+                    : new ValueTask<ServiceResult>(StatusCodes.BadDuplicateReferenceNotAllowed));
+
+            (ArrayOf<StatusCode> results, _) = await harness.Sut.AddReferencesAsync(
+                harness.AddReferencesContext, [harness.CreateAddReferencesItem()]).ConfigureAwait(false);
+
+            Assert.That(results[0], Is.EqualTo(StatusCodes.Good));
+            harness.SourceManager.Verify(manager => manager.DeleteReferenceAsync(
+                It.IsAny<OperationContext>(), It.IsAny<DeleteReferencesItem>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DeleteReferenceWithMissingInverseSucceedsWithoutRollbackAsync(bool throws)
+        {
+            using var harness = new AuthorizationHarness();
+            harness.TargetManager.Setup(manager => manager.DeleteReferenceAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<DeleteReferencesItem>(), It.IsAny<CancellationToken>()))
+                .Returns(() => throws
+                    ? throw new ServiceResultException(StatusCodes.BadNoMatch)
+                    : new ValueTask<ServiceResult>(StatusCodes.BadNoMatch));
+
+            (ArrayOf<StatusCode> results, _) = await harness.Sut.DeleteReferencesAsync(
+                harness.DeleteReferencesContext, [harness.CreateDeleteReferencesItem()]).ConfigureAwait(false);
+
+            Assert.That(results[0], Is.EqualTo(StatusCodes.Good));
+            harness.SourceManager.Verify(manager => manager.AddReferenceAsync(
+                It.IsAny<OperationContext>(), It.IsAny<AddReferencesItem>(), It.IsAny<CancellationToken>()),
+                Times.Never);
         }
 
         [Test]
@@ -1341,14 +1423,14 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<DeleteReferencesItem>(),
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<ServiceResult>(
-                    new ServiceResult(StatusCodes.BadNoMatch)));
+                    new ServiceResult(StatusCodes.BadUnexpectedError)));
 
             (ArrayOf<StatusCode> results, _) = await harness.Sut.DeleteReferencesAsync(
                 harness.DeleteReferencesContext,
                 new DeleteReferencesItem[] { item }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(results[0], Is.EqualTo(StatusCodes.BadNoMatch));
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadUnexpectedError));
             harness.SourceManager.Verify(
                 manager => manager.AddReferenceAsync(
                     harness.DeleteReferencesContext,
@@ -1510,6 +1592,54 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task AddReferencesSameManagerLocalTargetMirrorsInverseEdgeAsync()
+        {
+            ushort namespaceIndex = GetTestNamespaceIndex();
+            var sourceNodeId = new NodeId("Source", namespaceIndex);
+            var targetNodeId = new NodeId("Target", namespaceIndex);
+            Mock<INodeManagerWithNodeManagement> manager = CreateSameManagerNodeManagementManager(
+                namespaceIndex,
+                sourceNodeId,
+                targetNodeId);
+
+            using MasterNodeManager sut = CreateMasterNodeManager(manager.Object);
+            OperationContext context = CreateContext();
+            var item = new AddReferencesItem
+            {
+                SourceNodeId = sourceNodeId,
+                ReferenceTypeId = ReferenceTypeIds.Organizes,
+                IsForward = true,
+                TargetNodeId = targetNodeId,
+                TargetNodeClass = NodeClass.Object
+            };
+
+            (ArrayOf<StatusCode> results, _) = await sut.AddReferencesAsync(
+                context,
+                new AddReferencesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0], Is.EqualTo(StatusCodes.Good));
+            manager.Verify(
+                m => m.AddReferenceAsync(
+                    context,
+                    It.Is<AddReferencesItem>(request =>
+                        request.SourceNodeId == sourceNodeId &&
+                        request.TargetNodeId == targetNodeId &&
+                        request.IsForward),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+            manager.Verify(
+                m => m.AddReferenceAsync(
+                    context,
+                    It.Is<AddReferencesItem>(request =>
+                        request.SourceNodeId == targetNodeId &&
+                        request.TargetNodeId == sourceNodeId &&
+                        !request.IsForward),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        [Test]
         public async Task AddReferencesTargetOwnerNotOptedInReturnsBadUserAccessDeniedAsync()
         {
             using var harness = new AuthorizationHarness();
@@ -1628,7 +1758,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<AddReferencesItem>(),
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<ServiceResult>(
-                    new ServiceResult(StatusCodes.BadDuplicateReferenceNotAllowed)));
+                    new ServiceResult(StatusCodes.BadUnexpectedError)));
             harness.SourceManager
                 .Setup(manager => manager.DeleteReferenceAsync(
                     It.IsAny<OperationContext>(),
@@ -1643,7 +1773,7 @@ namespace Opc.Ua.Server.Tests
                 CancellationToken.None).ConfigureAwait(false);
 
             // The original inverse failure is surfaced, not the rollback failure.
-            Assert.That(results[0], Is.EqualTo(StatusCodes.BadDuplicateReferenceNotAllowed));
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadUnexpectedError));
             harness.SourceManager.Verify(
                 manager => manager.DeleteReferenceAsync(
                     It.IsAny<OperationContext>(),
@@ -1663,7 +1793,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<AddReferencesItem>(),
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<ServiceResult>(
-                    new ServiceResult(StatusCodes.BadDuplicateReferenceNotAllowed)));
+                    new ServiceResult(StatusCodes.BadUnexpectedError)));
             harness.SourceManager
                 .Setup(manager => manager.DeleteReferenceAsync(
                     It.IsAny<OperationContext>(),
@@ -1677,7 +1807,7 @@ namespace Opc.Ua.Server.Tests
                 CancellationToken.None).ConfigureAwait(false);
 
             // The rollback exception is swallowed; the inverse failure is returned.
-            Assert.That(results[0], Is.EqualTo(StatusCodes.BadDuplicateReferenceNotAllowed));
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadUnexpectedError));
             harness.SourceManager.Verify(
                 manager => manager.DeleteReferenceAsync(
                     It.IsAny<OperationContext>(),
@@ -1735,6 +1865,56 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<DeleteReferencesItem>(),
                     It.IsAny<CancellationToken>()),
                 Times.Never);
+        }
+
+        [Test]
+        public async Task DeleteReferencesSameManagerLocalTargetDeletesInverseEdgeAsync()
+        {
+            ushort namespaceIndex = GetTestNamespaceIndex();
+            var sourceNodeId = new NodeId("Source", namespaceIndex);
+            var targetNodeId = new NodeId("Target", namespaceIndex);
+            Mock<INodeManagerWithNodeManagement> manager = CreateSameManagerNodeManagementManager(
+                namespaceIndex,
+                sourceNodeId,
+                targetNodeId);
+
+            using MasterNodeManager sut = CreateMasterNodeManager(manager.Object);
+            OperationContext context = CreateContext();
+            var item = new DeleteReferencesItem
+            {
+                SourceNodeId = sourceNodeId,
+                ReferenceTypeId = ReferenceTypeIds.Organizes,
+                IsForward = true,
+                TargetNodeId = targetNodeId,
+                DeleteBidirectional = true
+            };
+
+            (ArrayOf<StatusCode> results, _) = await sut.DeleteReferencesAsync(
+                context,
+                new DeleteReferencesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0], Is.EqualTo(StatusCodes.Good));
+            manager.Verify(
+                m => m.DeleteReferenceAsync(
+                    context,
+                    It.Is<DeleteReferencesItem>(request =>
+                        request.SourceNodeId == sourceNodeId &&
+                        request.TargetNodeId == targetNodeId &&
+                        request.IsForward &&
+                        !request.DeleteBidirectional),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+            manager.Verify(
+                m => m.DeleteReferenceAsync(
+                    context,
+                    It.Is<DeleteReferencesItem>(request =>
+                        request.SourceNodeId == targetNodeId &&
+                        request.TargetNodeId == sourceNodeId &&
+                        !request.IsForward &&
+                        !request.DeleteBidirectional),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
         }
 
         [Test]
@@ -1824,7 +2004,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<DeleteReferencesItem>(),
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<ServiceResult>(
-                    new ServiceResult(StatusCodes.BadNoMatch)));
+                    new ServiceResult(StatusCodes.BadUnexpectedError)));
             harness.SourceManager
                 .Setup(manager => manager.AddReferenceAsync(
                     It.IsAny<OperationContext>(),
@@ -1839,7 +2019,7 @@ namespace Opc.Ua.Server.Tests
                 CancellationToken.None).ConfigureAwait(false);
 
             // The original inverse failure is surfaced, not the restore failure.
-            Assert.That(results[0], Is.EqualTo(StatusCodes.BadNoMatch));
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadUnexpectedError));
             harness.SourceManager.Verify(
                 manager => manager.AddReferenceAsync(
                     It.IsAny<OperationContext>(),
@@ -1859,7 +2039,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<DeleteReferencesItem>(),
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<ServiceResult>(
-                    new ServiceResult(StatusCodes.BadNoMatch)));
+                    new ServiceResult(StatusCodes.BadUnexpectedError)));
             harness.SourceManager
                 .Setup(manager => manager.AddReferenceAsync(
                     It.IsAny<OperationContext>(),
@@ -1873,7 +2053,7 @@ namespace Opc.Ua.Server.Tests
                 CancellationToken.None).ConfigureAwait(false);
 
             // The restore exception is swallowed; the inverse failure is returned.
-            Assert.That(results[0], Is.EqualTo(StatusCodes.BadNoMatch));
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadUnexpectedError));
             harness.SourceManager.Verify(
                 manager => manager.AddReferenceAsync(
                     It.IsAny<OperationContext>(),
@@ -1892,7 +2072,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<Dictionary<NodeId, Variant[]>>(),
                     It.IsAny<bool>(),
                     It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<NodeMetadata?>((NodeMetadata?)null));
+                .Returns(new ValueTask<NodeMetadata>((NodeMetadata)null));
             manager
                 .Setup(nodeManager => nodeManager.GetNodeMetadataAsync(
                     It.IsAny<OperationContext>(),
@@ -1922,7 +2102,7 @@ namespace Opc.Ua.Server.Tests
                 Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance,
                 E2eNamespaceUri);
 #pragma warning restore CA2000
-            using MasterNodeManager sut = new MasterNodeManager(
+            using var sut = new MasterNodeManager(
                 m_server.CurrentInstance, m_fixture.Config, null, manager);
 
             ServerSystemContext ctx = manager.SystemContext;
@@ -2026,12 +2206,56 @@ namespace Opc.Ua.Server.Tests
             return manager;
         }
 
+        private static Mock<INodeManagerWithNodeManagement> CreateSameManagerNodeManagementManager(
+            ushort namespaceIndex,
+            NodeId sourceNodeId,
+            NodeId targetNodeId)
+        {
+            Mock<INodeManagerWithNodeManagement> manager = CreateNodeManagementManager(true);
+            object sourceHandle = new();
+            object targetHandle = new();
+
+            manager.Setup(m => m.GetManagerHandle(sourceNodeId)).Returns(sourceHandle);
+            manager.Setup(m => m.GetManagerHandle(targetNodeId)).Returns(targetHandle);
+            manager
+                .Setup(m => m.GetNodeMetadata(
+                    It.IsAny<OperationContext>(),
+                    sourceHandle,
+                    BrowseResultMask.NodeClass))
+                .Returns(new NodeMetadata(sourceHandle, sourceNodeId)
+                {
+                    NodeClass = NodeClass.Object
+                });
+            manager
+                .Setup(m => m.GetNodeMetadata(
+                    It.IsAny<OperationContext>(),
+                    targetHandle,
+                    BrowseResultMask.NodeClass))
+                .Returns(new NodeMetadata(targetHandle, targetNodeId)
+                {
+                    NodeClass = NodeClass.Object
+                });
+            manager
+                .Setup(m => m.AddReferenceAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<AddReferencesItem>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(ServiceResult.Good);
+            manager
+                .Setup(m => m.DeleteReferenceAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<DeleteReferencesItem>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(ServiceResult.Good);
+            return manager;
+        }
+
         private static NodeId ConfigureParent(
             Mock<INodeManagerWithNodeManagement> manager,
             ushort namespaceIndex)
         {
             var parentNodeId = new NodeId("Parent", namespaceIndex);
-            var parentHandle = new object();
+            object parentHandle = new();
             manager.Setup(m => m.GetManagerHandle(parentNodeId)).Returns(parentHandle);
             manager
                 .Setup(m => m.GetNodeMetadata(
@@ -2083,6 +2307,7 @@ namespace Opc.Ua.Server.Tests
         {
             private const string SourceNamespaceUri =
                 "urn:opcfoundation:server:tests:node-management-source";
+
             private const string TargetNamespaceUri =
                 "urn:opcfoundation:server:tests:node-management-target";
 
@@ -2215,7 +2440,7 @@ namespace Opc.Ua.Server.Tests
                         It.IsAny<ushort>(),
                         It.IsAny<CancellationToken>()))
                     .Returns((ushort namespaceIndex, CancellationToken _) =>
-                        new ValueTask<NamespaceMetadataState?>(
+                        new ValueTask<NamespaceMetadataState>(
                             namespaceIndex == SourceNamespaceIndex
                                 ? m_sourceNamespaceMetadata
                                 : namespaceIndex == TargetNamespaceIndex
@@ -2253,11 +2478,10 @@ namespace Opc.Ua.Server.Tests
                     server.Object,
                     configuration,
                     null,
-                    new IAsyncNodeManager[]
-                    {
+                    [
                         SourceManager.Object,
                         TargetManager.Object
-                    });
+                    ]);
             }
 
             public MasterNodeManager Sut { get; }
@@ -2420,6 +2644,18 @@ namespace Opc.Ua.Server.Tests
                 SetupOptimizedPermissionMetadata(TargetManager, TargetMetadata);
             }
 
+            public OperationContext CreateIdentityContext(RequestType requestType, int requestKind)
+            {
+                return requestKind == 0
+                    ? CreateContext(requestType, MessageSecurityMode.SignAndEncrypt)
+                    : new OperationContext(
+                        new RequestHeader(),
+                        requestKind == 1 ? AddNodesContext.ChannelContext : null,
+                        requestType,
+                        RequestLifetime.None,
+                        m_session.Object.EffectiveIdentity);
+            }
+
             public void Dispose()
             {
                 Sut.Dispose();
@@ -2449,7 +2685,7 @@ namespace Opc.Ua.Server.Tests
                         It.IsAny<Dictionary<NodeId, Variant[]>>(),
                         It.IsAny<bool>(),
                         It.IsAny<CancellationToken>()))
-                    .Returns(new ValueTask<NodeMetadata?>(permissionMetadata));
+                    .Returns(new ValueTask<NodeMetadata>(permissionMetadata));
             }
 
             private static Mock<IAsyncNodeManager> CreateNodeManager(
@@ -2459,7 +2695,7 @@ namespace Opc.Ua.Server.Tests
             {
                 var manager = new Mock<IAsyncNodeManager>();
                 manager.Setup(nodeManager => nodeManager.NamespaceUris)
-                    .Returns(new[] { namespaceUri });
+                    .Returns([namespaceUri]);
                 manager.Setup(nodeManager => nodeManager.AllowNodeManagement)
                     .Returns(true);
                 manager
@@ -2484,7 +2720,7 @@ namespace Opc.Ua.Server.Tests
                         Dictionary<NodeId, Variant[]> _,
                         bool _,
                         CancellationToken _) =>
-                        new ValueTask<NodeMetadata?>(metadata));
+                        new ValueTask<NodeMetadata>(metadata));
                 manager
                     .Setup(nodeManager => nodeManager.GetNodeMetadataAsync(
                         It.IsAny<OperationContext>(),

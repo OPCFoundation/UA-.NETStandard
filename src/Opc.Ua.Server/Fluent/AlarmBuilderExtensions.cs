@@ -48,7 +48,6 @@ namespace Opc.Ua.Server.Fluent
         /// <param name="alarm">The alarm to release.</param>
         /// <param name="context">The context to release it in.</param>
         /// <param name="eventSource">What registering the alarm changed.</param>
-        /// <param name="builder">The builder that owns the alarm.</param>
         /// <param name="enabledByUs">
         /// Whether attaching the alarm was what enabled it. False when it arrived
         /// already enabled, in which case its enable state was never ours to undo.
@@ -57,13 +56,11 @@ namespace Opc.Ua.Server.Fluent
             ConditionState alarm,
             ISystemContext context,
             AlarmEventSourceRegistration eventSource,
-            NodeManagerBuilder builder,
             bool enabledByUs)
         {
             m_alarm = alarm;
             m_context = context;
             m_eventSource = eventSource;
-            m_builder = builder;
             m_enabledByUs = enabledByUs;
         }
 
@@ -80,27 +77,13 @@ namespace Opc.Ua.Server.Fluent
             // operator otherwise gets no sign that teardown left registration state
             // behind. It is retained and rethrown once the rest has run.
             Exception? rootNotifierFailure = null;
-            if (m_eventSource.RootNotifier != null &&
-                m_builder.NodeManager is FluentNodeManagerBase manager)
+            try
             {
-                try
-                {
-                    await manager
-                        .RemoveRootNotifierFromFluentAsync(
-                            m_eventSource.RootNotifier,
-                            System.Threading.CancellationToken.None)
-                        .ConfigureAwait(false);
-                }
-                catch (Exception ex) when (ex is not OutOfMemoryException)
-                {
-                    rootNotifierFailure = ex;
-                }
+                await m_eventSource.DisposeAsync().ConfigureAwait(false);
             }
-
-            foreach (BaseObjectState notifier in m_eventSource.PromotedNotifiers)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
-                notifier.EventNotifier = (byte)(notifier.EventNotifier &
-                    unchecked((byte)~EventNotifiers.SubscribeToEvents));
+                rootNotifierFailure = ex;
             }
 
             // The OnAcknowledge/OnConfirm slots are plain delegates on a node that is
@@ -138,7 +121,6 @@ namespace Opc.Ua.Server.Fluent
         private readonly ConditionState m_alarm;
         private readonly ISystemContext m_context;
         private readonly AlarmEventSourceRegistration m_eventSource;
-        private readonly NodeManagerBuilder m_builder;
         private readonly bool m_enabledByUs;
         private bool m_released;
     }
@@ -185,6 +167,11 @@ namespace Opc.Ua.Server.Fluent
         /// a non-limit alarm. Pass <c>double.NaN</c> for any limit you
         /// don't want to set.
         /// </summary>
+        /// <param name="highHigh">The high-high limit, or NaN to leave it unchanged.</param>
+        /// <param name="high">The high limit, or NaN to leave it unchanged.</param>
+        /// <param name="low">The low limit, or NaN to leave it unchanged.</param>
+        /// <param name="lowLow">The low-low limit, or NaN to leave it unchanged.</param>
+        /// <returns>This builder for further alarm configuration.</returns>
         IAlarmBuilder<TState> WithLimits(
             double highHigh = double.NaN,
             double high = double.NaN,
@@ -196,6 +183,8 @@ namespace Opc.Ua.Server.Fluent
         /// <c>SourceName</c> to the supplied target. Equivalent to
         /// setting the alarm's "InputNode" semantics from the spec.
         /// </summary>
+        /// <param name="source">The source node monitored by the alarm.</param>
+        /// <returns>This builder for further alarm configuration.</returns>
         IAlarmBuilder<TState> MonitorVariable(NodeState source);
 
         /// <summary>
@@ -203,11 +192,15 @@ namespace Opc.Ua.Server.Fluent
         /// Return <see cref="ServiceResult.Good"/> from the handler to
         /// permit the acknowledge transition; any other code cancels it.
         /// </summary>
+        /// <param name="handler">The callback that accepts or rejects acknowledgement.</param>
+        /// <returns>This builder for further alarm configuration.</returns>
         IAlarmBuilder<TState> OnAcknowledge(ConditionAddCommentEventHandler handler);
 
         /// <summary>
         /// Wires <see cref="AcknowledgeableConditionState.OnConfirm"/>.
         /// </summary>
+        /// <param name="handler">The callback that accepts or rejects confirmation.</param>
+        /// <returns>This builder for further alarm configuration.</returns>
         IAlarmBuilder<TState> OnConfirm(ConditionAddCommentEventHandler handler);
     }
 
@@ -297,6 +290,12 @@ namespace Opc.Ua.Server.Fluent
             return builder.Builder;
         }
 
+        /// <summary>
+        /// Creates and registers an alarm beneath an object, assigning child identifiers and event-source ownership.
+        /// </summary>
+        /// <typeparam name="TState">The concrete alarm state created by the factory.</typeparam>
+        /// <exception cref="ArgumentNullException"><paramref name="parent"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         private static TState AttachAlarm<TState>(
             INodeBuilder parent,
             QualifiedName browseName,
@@ -339,6 +338,7 @@ namespace Opc.Ua.Server.Fluent
                 browseName,
                 displayName: new LocalizedText(symbolicName),
                 assignNodeIds: false);
+            parent.Builder.Context.AssignInstanceChildNodeIds(alarm);
 
             // Record whether enabling is ours to undo, before doing it. A freshly
             // created condition is disabled, so today this is always true; it is captured
@@ -390,7 +390,6 @@ namespace Opc.Ua.Server.Fluent
                         alarm,
                         parent.Builder.Context,
                         eventSource,
-                        concrete,
                         enabledByUs)));
 
             return alarm;
@@ -445,6 +444,7 @@ namespace Opc.Ua.Server.Fluent
         public TState Alarm { get; }
         public INodeBuilder Builder { get; }
 
+        /// <inheritdoc/>
         public IAlarmBuilder<TState> WithLimits(
             double highHigh = double.NaN,
             double high = double.NaN,
@@ -460,30 +460,42 @@ namespace Opc.Ua.Server.Fluent
                     Alarm.GetType().Name);
             }
 
-            _ = Builder.Builder.Context;
+            ISystemContext context = Builder.Builder.Context;
             if (!double.IsNaN(highHigh))
             {
-                limit.HighHighLimit ??=
-                    new PropertyState<double>.Implementation<VariantBuilder>(limit);
-                limit.HighHighLimit.Value = highHigh;
+                if (limit.HighHighLimit == null)
+                {
+                    FluentNodeRegistration.RegisterCreatedNode(
+                        Builder.Builder, limit.AddHighHighLimit(context).HighHighLimit!);
+                }
+                limit.HighHighLimit!.Value = highHigh;
             }
             if (!double.IsNaN(high))
             {
-                limit.HighLimit ??=
-                    new PropertyState<double>.Implementation<VariantBuilder>(limit);
-                limit.HighLimit.Value = high;
+                if (limit.HighLimit == null)
+                {
+                    FluentNodeRegistration.RegisterCreatedNode(
+                        Builder.Builder, limit.AddHighLimit(context).HighLimit!);
+                }
+                limit.HighLimit!.Value = high;
             }
             if (!double.IsNaN(low))
             {
-                limit.LowLimit ??=
-                    new PropertyState<double>.Implementation<VariantBuilder>(limit);
-                limit.LowLimit.Value = low;
+                if (limit.LowLimit == null)
+                {
+                    FluentNodeRegistration.RegisterCreatedNode(
+                        Builder.Builder, limit.AddLowLimit(context).LowLimit!);
+                }
+                limit.LowLimit!.Value = low;
             }
             if (!double.IsNaN(lowLow))
             {
-                limit.LowLowLimit ??=
-                    new PropertyState<double>.Implementation<VariantBuilder>(limit);
-                limit.LowLowLimit.Value = lowLow;
+                if (limit.LowLowLimit == null)
+                {
+                    FluentNodeRegistration.RegisterCreatedNode(
+                        Builder.Builder, limit.AddLowLowLimit(context).LowLowLimit!);
+                }
+                limit.LowLowLimit!.Value = lowLow;
             }
             return this;
         }

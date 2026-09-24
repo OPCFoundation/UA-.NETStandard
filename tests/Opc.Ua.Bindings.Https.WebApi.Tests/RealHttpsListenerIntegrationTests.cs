@@ -41,6 +41,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using Opc.Ua.Bindings.WebApi;
+using Opc.Ua.Client.WebApi;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings.Https.WebApi.Tests
@@ -167,6 +168,72 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             Assert.That(m_callback!.LastRequest, Is.InstanceOf(route.RequestType));
         }
 
+        [TestCase("https-binary")]
+        [TestCase("https-json")]
+        [TestCase("wss-binary")]
+        [TestCase("wss-json")]
+        [TestCase("webapi-https")]
+        [TestCase("webapi-wss")]
+        public async Task AllBindingsForwardObservedPeerAddressAsync(string binding)
+        {
+            string profile = binding switch
+            {
+                "https-json" => Profiles.HttpsJsonTransport,
+                "wss-binary" => Profiles.UaWssTransport,
+                "wss-json" => Profiles.UaWssJsonTransport,
+                "webapi-wss" => Profiles.WssOpenApiTransport,
+                _ => Profiles.HttpsBinaryTransport
+            };
+            var uri = new UriBuilder(m_listener!.EndpointUrl)
+            {
+                Host = "127.0.0.1",
+                Scheme = binding.Contains("wss", StringComparison.Ordinal) ? "wss" : "https"
+            };
+            using CertificateEntry entry = m_certificateRegistry!
+                .AcquireApplicationCertificateBySecurityPolicy(SecurityPolicies.None)!;
+            var messageContext = ServiceMessageContext.Create(m_telemetry);
+            var settings = new TransportChannelSettings
+            {
+                Description = new EndpointDescription
+                {
+                    EndpointUrl = uri.Uri.AbsoluteUri,
+                    SecurityMode = MessageSecurityMode.None,
+                    SecurityPolicyUri = SecurityPolicies.None,
+                    TransportProfileUri = profile,
+                    ServerCertificate = entry.Certificate.RawData.ToByteString()
+                },
+                Configuration = EndpointConfiguration.Create(),
+                CertificateValidator = new AcceptAllCertificateValidator(),
+                Factory = messageContext.Factory,
+                NamespaceUris = messageContext.NamespaceUris
+            };
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+            for (int connection = 0; connection < 2; connection++)
+            {
+                using ITransportChannel channel = binding switch
+                {
+                    "https-binary" or "https-json" => new HttpsTransportChannel(Utils.UriSchemeHttps, m_telemetry!),
+                    "wss-binary" => new WssTransportChannel(m_telemetry!),
+                    "wss-json" => new WssJsonTransportChannel(m_telemetry!),
+                    "webapi-https" => new WebApiTransportChannel(m_telemetry!),
+                    "webapi-wss" => new WebApiWssTransportChannel(m_telemetry!),
+                    _ => throw new ArgumentOutOfRangeException(nameof(binding))
+                };
+                await ((ISecureChannel)channel).OpenAsync(uri.Uri, settings, deadline.Token).ConfigureAwait(false);
+                IServiceResponse response = await channel.SendRequestAsync(
+                    new ReadRequest
+                    {
+                        RequestHeader = new RequestHeader { RequestHandle = (uint)(connection + 1) }
+                    }, deadline.Token).ConfigureAwait(false);
+
+                Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
+                Assert.That(m_callback!.LastChannelContext, Is.Not.Null);
+                Assert.That(m_callback.LastChannelContext!.PeerAddress, Is.Not.Null);
+                Assert.That(m_callback.LastChannelContext.PeerAddress!.MapToIPv4(), Is.EqualTo(IPAddress.Loopback));
+                await channel.CloseAsync(deadline.Token).ConfigureAwait(false);
+            }
+        }
+
         [Test]
         public async Task PublishLongPollAwaitsServerResponse()
         {
@@ -211,7 +278,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                     "urn:localhost:Opc.Ua.Bindings.WebApi.Tests",
                     "Opc.Ua.Bindings.WebApi.Tests",
                     "CN=localhost",
-                    ["localhost"])
+                    ["localhost", "127.0.0.1"])
                 .SetLifeTime(TimeSpan.FromDays(1))
                 .CreateForRSA();
         }
@@ -238,7 +305,16 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
 
             return new TransportListenerSettings
             {
-                Descriptions = [endpoint],
+                Descriptions = [.. s_peerProfiles.Select(profile =>
+                {
+                    var description = (EndpointDescription)endpoint.Clone();
+                    description.TransportProfileUri = profile;
+                    if (profile is Profiles.UaWssTransport or Profiles.UaWssJsonTransport or Profiles.WssOpenApiTransport)
+                    {
+                        description.EndpointUrl = $"wss://127.0.0.1:{port}/";
+                    }
+                    return description;
+                })],
                 Configuration = EndpointConfiguration.Create(),
                 ServerCertificates = certificateRegistry,
                 CertificateValidator = new AcceptAllCertificateValidator(),
@@ -351,6 +427,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         private sealed class StubTransportListenerCallback : ITransportListenerCallback
         {
             public IServiceRequest? LastRequest { get; private set; }
+            public SecureChannelContext? LastChannelContext { get; private set; }
             public uint NextFault { get; set; }
             public TimeSpan Delay { get; set; }
 
@@ -360,6 +437,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 CancellationToken cancellationToken = default)
             {
                 LastRequest = request;
+                LastChannelContext = secureChannelContext;
 
                 if (Delay > TimeSpan.Zero)
                 {
@@ -494,5 +572,14 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             {
             }
         }
+
+        private static readonly string[] s_peerProfiles =
+        [
+            Profiles.HttpsBinaryTransport,
+            Profiles.HttpsJsonTransport,
+            Profiles.UaWssTransport,
+            Profiles.UaWssJsonTransport,
+            Profiles.WssOpenApiTransport
+        ];
     }
 }

@@ -79,9 +79,9 @@ namespace Opc.Ua.Server.Historian
         /// </summary>
         public InMemoryHistorianProvider UseInMemory(InMemoryHistorianOptions? options = null)
         {
-            InMemoryHistorianProvider provider = options is null
-                ? new InMemoryHistorianProvider()
-                : new InMemoryHistorianProvider(options);
+            var provider = new InMemoryHistorianProvider(
+                options ?? new InMemoryHistorianOptions(),
+                (m_server as ITimeProviderProvider)?.TimeProvider ?? TimeProvider.System);
             Provider = provider;
             return provider;
         }

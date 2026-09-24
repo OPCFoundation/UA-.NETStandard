@@ -935,7 +935,8 @@ namespace Opc.Ua
             SupportedCertificateTypes = [ObjectTypeIds.EccNistP256ApplicationCertificateType, ObjectTypeIds.EccNistP384ApplicationCertificateType],
             CertificateCurve = ECCurve.NamedCurves.nistP256,
             IsDefaultEcc = true,
-            PlatformSupport = () => SecurityPolicies.SupportsCertificateType(ObjectTypeIds.EccNistP256ApplicationCertificateType)
+            PlatformSupport = () => SecurityPolicies.SupportsRawEccSecretAgreement() &&
+                SecurityPolicies.SupportsCertificateType(ObjectTypeIds.EccNistP256ApplicationCertificateType)
         };
 
         /// <summary>
@@ -966,7 +967,8 @@ namespace Opc.Ua
             CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256,
             SupportedCertificateTypes = [ObjectTypeIds.EccNistP256ApplicationCertificateType, ObjectTypeIds.EccNistP384ApplicationCertificateType],
             CertificateCurve = ECCurve.NamedCurves.nistP256,
-            PlatformSupport = () => SecurityPolicies.SupportsAesGcmPolicy() &&
+            PlatformSupport = () => SecurityPolicies.SupportsRawEccSecretAgreement() &&
+                SecurityPolicies.SupportsAesGcmPolicy() &&
                 SecurityPolicies.SupportsCertificateType(ObjectTypeIds.EccNistP256ApplicationCertificateType)
         };
 
@@ -998,7 +1000,8 @@ namespace Opc.Ua
             CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256,
             SupportedCertificateTypes = [ObjectTypeIds.EccNistP256ApplicationCertificateType, ObjectTypeIds.EccNistP384ApplicationCertificateType],
             CertificateCurve = ECCurve.NamedCurves.nistP256,
-            PlatformSupport = () => SecurityPolicies.SupportsChaCha20Poly1305Policy() &&
+            PlatformSupport = () => SecurityPolicies.SupportsRawEccSecretAgreement() &&
+                SecurityPolicies.SupportsChaCha20Poly1305Policy() &&
                 SecurityPolicies.SupportsCertificateType(ObjectTypeIds.EccNistP256ApplicationCertificateType)
         };
 
@@ -1031,7 +1034,8 @@ namespace Opc.Ua
             SupportedCertificateTypes = [ObjectTypeIds.EccNistP384ApplicationCertificateType],
             CertificateCurve = ECCurve.NamedCurves.nistP384,
             IsDefaultEcc = true,
-            PlatformSupport = () => SecurityPolicies.SupportsCertificateType(ObjectTypeIds.EccNistP384ApplicationCertificateType)
+            PlatformSupport = () => SecurityPolicies.SupportsRawEccSecretAgreement() &&
+                SecurityPolicies.SupportsCertificateType(ObjectTypeIds.EccNistP384ApplicationCertificateType)
         };
 
         /// <summary>
@@ -1062,7 +1066,8 @@ namespace Opc.Ua
             CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384,
             SupportedCertificateTypes = [ObjectTypeIds.EccNistP384ApplicationCertificateType],
             CertificateCurve = ECCurve.NamedCurves.nistP384,
-            PlatformSupport = () => SecurityPolicies.SupportsAesGcmPolicy() &&
+            PlatformSupport = () => SecurityPolicies.SupportsRawEccSecretAgreement() &&
+                SecurityPolicies.SupportsAesGcmPolicy() &&
                 SecurityPolicies.SupportsCertificateType(ObjectTypeIds.EccNistP384ApplicationCertificateType)
         };
 
@@ -1094,7 +1099,8 @@ namespace Opc.Ua
             CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384,
             SupportedCertificateTypes = [ObjectTypeIds.EccNistP384ApplicationCertificateType],
             CertificateCurve = ECCurve.NamedCurves.nistP384,
-            PlatformSupport = () => SecurityPolicies.SupportsChaCha20Poly1305Policy() &&
+            PlatformSupport = () => SecurityPolicies.SupportsRawEccSecretAgreement() &&
+                SecurityPolicies.SupportsChaCha20Poly1305Policy() &&
                 SecurityPolicies.SupportsCertificateType(ObjectTypeIds.EccNistP384ApplicationCertificateType)
         };
 
@@ -1114,7 +1120,7 @@ namespace Opc.Ua
             AsymmetricEncryptionAlgorithm = AsymmetricEncryptionAlgorithm.None,
             AsymmetricSignatureAlgorithm = AsymmetricSignatureAlgorithm.EcdsaSha256,
             CertificateKeyFamily = CertificateKeyFamily.ECC,
-            CertificateKeyAlgorithm = CertificateKeyAlgorithm.NistP256,
+            CertificateKeyAlgorithm = CertificateKeyAlgorithm.BrainpoolP256r1,
             CertificateSignatureAlgorithm = AsymmetricSignatureAlgorithm.EcdsaSha256,
             EphemeralKeyAlgorithm = CertificateKeyAlgorithm.BrainpoolP256r1,
             KeyDerivationAlgorithm = KeyDerivationAlgorithm.HKDFSha256,
@@ -1128,7 +1134,8 @@ namespace Opc.Ua
                 .EccBrainpoolP384r1ApplicationCertificateType],
             CertificateCurve = ECCurve.NamedCurves.brainpoolP256r1,
             IsDefaultEcc = true,
-            PlatformSupport = () => SecurityPolicies.SupportsCertificateType(ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType)
+            PlatformSupport = () => SecurityPolicies.SupportsRawEccSecretAgreement() &&
+                SecurityPolicies.SupportsCertificateType(ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType)
         };
 
         /// <summary>
@@ -1160,7 +1167,8 @@ namespace Opc.Ua
             SupportedCertificateTypes = [ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType, ObjectTypeIds
                 .EccBrainpoolP384r1ApplicationCertificateType],
             CertificateCurve = ECCurve.NamedCurves.brainpoolP256r1,
-            PlatformSupport = () => SecurityPolicies.SupportsAesGcmPolicy() &&
+            PlatformSupport = () => SecurityPolicies.SupportsRawEccSecretAgreement() &&
+                SecurityPolicies.SupportsAesGcmPolicy() &&
                 SecurityPolicies.SupportsCertificateType(ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType)
         };
 
@@ -1193,7 +1201,8 @@ namespace Opc.Ua
             SupportedCertificateTypes = [ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType, ObjectTypeIds
                 .EccBrainpoolP384r1ApplicationCertificateType],
             CertificateCurve = ECCurve.NamedCurves.brainpoolP256r1,
-            PlatformSupport = () => SecurityPolicies.SupportsChaCha20Poly1305Policy() &&
+            PlatformSupport = () => SecurityPolicies.SupportsRawEccSecretAgreement() &&
+                SecurityPolicies.SupportsChaCha20Poly1305Policy() &&
                 SecurityPolicies.SupportsCertificateType(ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType)
         };
 
@@ -1226,7 +1235,8 @@ namespace Opc.Ua
             SupportedCertificateTypes = [ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType],
             CertificateCurve = ECCurve.NamedCurves.brainpoolP384r1,
             IsDefaultEcc = true,
-            PlatformSupport = () => SecurityPolicies.SupportsCertificateType(ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType)
+            PlatformSupport = () => SecurityPolicies.SupportsRawEccSecretAgreement() &&
+                SecurityPolicies.SupportsCertificateType(ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType)
         };
 
         /// <summary>
@@ -1257,7 +1267,8 @@ namespace Opc.Ua
             CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384,
             SupportedCertificateTypes = [ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType],
             CertificateCurve = ECCurve.NamedCurves.brainpoolP384r1,
-            PlatformSupport = () => SecurityPolicies.SupportsAesGcmPolicy() &&
+            PlatformSupport = () => SecurityPolicies.SupportsRawEccSecretAgreement() &&
+                SecurityPolicies.SupportsAesGcmPolicy() &&
                 SecurityPolicies.SupportsCertificateType(ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType)
         };
 
@@ -1289,7 +1300,8 @@ namespace Opc.Ua
             CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384,
             SupportedCertificateTypes = [ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType],
             CertificateCurve = ECCurve.NamedCurves.brainpoolP384r1,
-            PlatformSupport = () => SecurityPolicies.SupportsChaCha20Poly1305Policy() &&
+            PlatformSupport = () => SecurityPolicies.SupportsRawEccSecretAgreement() &&
+                SecurityPolicies.SupportsChaCha20Poly1305Policy() &&
                 SecurityPolicies.SupportsCertificateType(ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType)
         };
 

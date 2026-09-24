@@ -114,6 +114,7 @@ namespace Opc.Ua.Client.Subscriptions
                     Comparer = Comparer<IncomingMessage>.Create(
                         IncomingMessage.Compare)
                 });
+            m_messageCapacity = new SemaphoreSlim(kIncomingMessageCapacity);
             m_messageWorkerTask = ProcessReceivedMessagesAsync(m_cts.Token);
         }
 
@@ -137,15 +138,25 @@ namespace Opc.Ua.Client.Subscriptions
             IReadOnlyList<uint>? availableSequenceNumbers,
             IReadOnlyList<string> stringTable)
         {
+            long generation = Volatile.Read(ref m_generation);
             if (availableSequenceNumbers != null)
             {
                 AvailableInRetransmissionQueue = availableSequenceNumbers;
             }
             LastNotificationTimestamp = TimeProvider.GetTimestamp();
-            await m_messages.Writer.WriteAsync(new IncomingMessage(message, stringTable,
-                TimeProvider.GetUtcNow(),
-                Volatile.Read(ref m_generation)))
-                .ConfigureAwait(false);
+            await m_messageCapacity.WaitAsync(m_cts.Token).ConfigureAwait(false);
+            try
+            {
+                await m_messages.Writer.WriteAsync(new IncomingMessage(message, stringTable,
+                    TimeProvider.GetUtcNow(),
+                    generation))
+                    .ConfigureAwait(false);
+            }
+            catch
+            {
+                m_messageCapacity.Release();
+                throw;
+            }
         }
 
         /// <summary>
@@ -166,6 +177,7 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     m_messageDispatchGate.Dispose();
                     m_cts.Dispose();
+                    m_messageCapacity.Dispose();
                     (m_messages as IDisposable)?.Dispose();
                     Disposed = true;
                 }
@@ -271,7 +283,14 @@ namespace Opc.Ua.Client.Subscriptions
                 IAsyncEnumerable<IncomingMessage> reader = m_messages.Reader.ReadAllAsync(ct);
                 await foreach (IncomingMessage incoming in reader.ConfigureAwait(false))
                 {
-                    await ProcessMessageAsync(incoming, ct).ConfigureAwait(false);
+                    try
+                    {
+                        await ProcessMessageAsync(incoming, ct).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        m_messageCapacity.Release();
+                    }
                 }
             }
             catch (OperationCanceledException)
@@ -328,16 +347,7 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     return;
                 }
-                bool wasDispatching = m_dispatchContext.Value;
-                m_dispatchContext.Value = true;
-                try
-                {
-                    await ProcessMessageCoreAsync(incoming, ct).ConfigureAwait(false);
-                }
-                finally
-                {
-                    m_dispatchContext.Value = wasDispatching;
-                }
+                await ProcessMessageCoreAsync(incoming, ct).ConfigureAwait(false);
             }
             finally
             {
@@ -367,6 +377,7 @@ namespace Opc.Ua.Client.Subscriptions
                 await OnNotificationReceivedAsync(
                     incoming.Message,
                     PublishState.KeepAlive,
+                    incoming.StringTable ?? [],
                     ct).ConfigureAwait(false);
                 return;
             }
@@ -395,18 +406,36 @@ namespace Opc.Ua.Client.Subscriptions
                     return;
                 }
 
-                // Walk the gap (prevDataSeq, curSeqNum) wrapping past
-                // uint.MaxValue to 1.
-                uint missing = prevDataSeq;
-                while (true)
+                // Account for the whole gap (prevDataSeq, curSeqNum), but only
+                // republish what the server still holds. A server that jumps
+                // from sequence 1 to 2,000,000,000 would otherwise keep the
+                // worker busy for hours issuing Republish for messages that
+                // cannot exist. Bounded by the retransmission queue size, as on
+                // the first-message path below.
+                uint gap = delta - 1;
+                if (gap != 0 && curSeqNum < prevDataSeq)
                 {
-                    missing = missing == uint.MaxValue ? 1u : missing + 1u;
-                    if (missing == curSeqNum)
+                    // The skipped range crosses the wrap point. Sequence
+                    // numbers roll over from uint.MaxValue straight to 1
+                    // (Part 4 §5.14.5.1), so zero is in the arithmetic range
+                    // but was never sent and is not a missing message.
+                    gap--;
+                }
+                if (gap != 0)
+                {
+                    Interlocked.Add(ref m_missingCount, gap);
+
+                    IReadOnlyList<uint> available = AvailableInRetransmissionQueue;
+                    for (int i = 0; i < available.Count; i++)
                     {
-                        break;
+                        uint seq = available[i];
+                        uint offset = unchecked(seq - prevDataSeq);
+                        if (offset != 0 && offset < delta)
+                        {
+                            await TryRepublishAsync(seq, curSeqNum, ct)
+                                .ConfigureAwait(false);
+                        }
                     }
-                    Interlocked.Increment(ref m_missingCount);
-                    await TryRepublishAsync(missing, curSeqNum, ct).ConfigureAwait(false);
                 }
             }
             else
@@ -435,6 +464,7 @@ namespace Opc.Ua.Client.Subscriptions
             await OnNotificationReceivedAsync(
                 incoming.Message,
                 PublishState.None,
+                incoming.StringTable ?? [],
                 ct).ConfigureAwait(false);
         }
 
@@ -469,13 +499,118 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// Recover the notification messages the server still holds in its
+        /// retransmission queue after a subscription was transferred to this
+        /// session.
+        /// </summary>
+        /// <remarks>
+        /// The gap-walking republish in <see cref="ProcessMessageCoreAsync"/>
+        /// only runs when a data message arrives, so a subscription that stays
+        /// quiet after the transfer - or that only emits keep-alives - would
+        /// never recover the messages the previous session left behind. Those
+        /// sequence numbers are known to be available the moment
+        /// <c>TransferSubscriptions</c> returns, so republish them right away.
+        /// The messages are recovered in ascending sequence order (wrap-aware
+        /// per Part 4 §7.30.5) and the dedup gate is advanced past them so the
+        /// first publish that follows is not mistaken for a gap.
+        /// </remarks>
+        /// <param name="availableSequenceNumbers">The sequence numbers the
+        /// server reported as available in its retransmission queue.</param>
+        /// <param name="ct">Cancellation token.</param>
+        protected async ValueTask RecoverTransferredMessagesAsync(
+            IReadOnlyList<uint> availableSequenceNumbers,
+            CancellationToken ct)
+        {
+            if (availableSequenceNumbers.Count == 0)
+            {
+                return;
+            }
+            await m_messageDispatchGate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                uint[] ordered = SortAscendingWrapAware(availableSequenceNumbers);
+                Logger.SubscriptionRecoveringTransferredMessages(Id, ordered.Length);
+
+                // Advance the dedup gate after each completed attempt so
+                // cancellation preserves progress already made and the
+                // next message is not treated as the first after create.
+                foreach (uint sequenceNumber in ordered)
+                {
+                    await RepublishKnownAvailableAsync(
+                        sequenceNumber,
+                        sequenceNumber,
+                        ct)
+                        .ConfigureAwait(false);
+                    if (IsNewerSequenceNumber(
+                        sequenceNumber,
+                        LastDataSequenceNumberProcessed))
+                    {
+                        LastDataSequenceNumberProcessed = sequenceNumber;
+                    }
+                    if (IsNewerSequenceNumber(
+                        sequenceNumber,
+                        LastSequenceNumberProcessed))
+                    {
+                        LastSequenceNumberProcessed = sequenceNumber;
+                    }
+                    ct.ThrowIfCancellationRequested();
+                }
+            }
+            finally
+            {
+                m_messageDispatchGate.Release();
+            }
+        }
+
+        /// <summary>
+        /// Order sequence numbers from oldest to newest, tolerating the
+        /// wraparound from <see cref="uint.MaxValue"/> to 1.
+        /// </summary>
+        /// <param name="sequenceNumbers">The unordered set of sequence numbers
+        /// the server reported as available in its retransmission queue.</param>
+        private static uint[] SortAscendingWrapAware(IReadOnlyList<uint> sequenceNumbers)
+        {
+            const uint kBackwardThreshold = 1u << 31;
+
+            // A retransmission queue always spans far less than half of the
+            // sequence-number space. Keep the oldest candidate, replacing it
+            // whenever the candidate is forward from the next entry.
+            uint anchor = sequenceNumbers[0];
+            for (int i = 1; i < sequenceNumbers.Count; i++)
+            {
+                if (unchecked(anchor - sequenceNumbers[i]) < kBackwardThreshold)
+                {
+                    anchor = sequenceNumbers[i];
+                }
+            }
+            uint[] ordered = [.. sequenceNumbers];
+            uint[] keys = new uint[ordered.Length];
+            for (int i = 0; i < ordered.Length; i++)
+            {
+                keys[i] = unchecked(ordered[i] - anchor);
+            }
+            Array.Sort(keys, ordered);
+            return ordered;
+        }
+
+        private static bool IsNewerSequenceNumber(uint sequenceNumber, uint currentSequenceNumber)
+        {
+            const uint kBackwardThreshold = 1u << 31;
+
+            return currentSequenceNumber == 0 ||
+                unchecked(sequenceNumber - currentSequenceNumber) is not 0 and < kBackwardThreshold;
+        }
+
+        /// <summary>
         /// Try republish a missing message
         /// </summary>
         /// <param name="missing"></param>
         /// <param name="curSeqNum"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        private async ValueTask TryRepublishAsync(uint missing, uint curSeqNum,
+        private async ValueTask TryRepublishAsync(
+            uint missing,
+            uint curSeqNum,
             CancellationToken ct)
         {
             Interlocked.Increment(ref m_republishCount);
@@ -486,6 +621,25 @@ namespace Opc.Ua.Client.Subscriptions
                     missing);
                 return;
             }
+            await RepublishAvailableAsync(missing, curSeqNum, ct)
+                .ConfigureAwait(false);
+        }
+
+        private async ValueTask RepublishKnownAvailableAsync(
+            uint missing,
+            uint curSeqNum,
+            CancellationToken ct)
+        {
+            Interlocked.Increment(ref m_republishCount);
+            await RepublishAvailableAsync(missing, curSeqNum, ct)
+                .ConfigureAwait(false);
+        }
+
+        private async ValueTask RepublishAvailableAsync(
+            uint missing,
+            uint curSeqNum,
+            CancellationToken ct)
+        {
             try
             {
                 Logger.SubscriptionRepublishingMissingMessageSequenceNumber(
@@ -503,6 +657,7 @@ namespace Opc.Ua.Client.Subscriptions
                     await OnNotificationReceivedAsync(
                         republish.NotificationMessage,
                         PublishState.Republish,
+                        republish.ResponseHeader.StringTable.ToArray() ?? [],
                         ct).ConfigureAwait(false);
                 }
                 else
@@ -511,6 +666,10 @@ namespace Opc.Ua.Client.Subscriptions
                         Id,
                         missing);
                 }
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -526,23 +685,27 @@ namespace Opc.Ua.Client.Subscriptions
         /// </summary>
         /// <param name="message"></param>
         /// <param name="publishStateMask"></param>
+        /// <param name="stringTable">The string table of the publish or
+        /// republish response the notification arrived in.</param>
         /// <param name="ct"></param>
         /// <returns></returns>
         private async ValueTask OnNotificationReceivedAsync(
             NotificationMessage message,
             PublishState publishStateMask,
+            IReadOnlyList<string> stringTable,
             CancellationToken ct)
         {
+            bool shouldAcknowledge = message.NotificationData.Count != 0;
             try
             {
-                bool shouldAcknowledge = message.NotificationData.Count != 0;
                 if (!shouldAcknowledge)
                 {
                     publishStateMask |= PublishState.KeepAlive;
-                    await OnKeepAliveNotificationAsync(
-                        message.SequenceNumber,
-                        (DateTime)message.PublishTime,
-                        publishStateMask).ConfigureAwait(false);
+                    await DispatchCallbackAsync(
+                        () => OnKeepAliveNotificationAsync(
+                            message.SequenceNumber,
+                            (DateTime)message.PublishTime,
+                            publishStateMask)).ConfigureAwait(false);
                 }
                 else
                 {
@@ -551,16 +714,9 @@ namespace Opc.Ua.Client.Subscriptions
                         await DispatchAsync(
                             message,
                             publishStateMask,
-                            message.NotificationData[i]).ConfigureAwait(false);
+                            message.NotificationData[i],
+                            stringTable).ConfigureAwait(false);
                     }
-                }
-                if (shouldAcknowledge)
-                {
-                    await AckQueue.QueueAsync(new SubscriptionAcknowledgement
-                    {
-                        SequenceNumber = message.SequenceNumber,
-                        SubscriptionId = Id
-                    }, ct).ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
@@ -568,6 +724,31 @@ namespace Opc.Ua.Client.Subscriptions
                 Logger.SubscriptionErrorDispatchingNotificationData(
                     ex,
                     Id);
+            }
+
+            // Acknowledge even when a handler threw. The acknowledgement only
+            // tells the server it may drop the message from its retransmission
+            // queue (Part 4 §5.14.5.2); it is not a claim that the client
+            // processed it. Withholding it does not redeliver anything - the
+            // dedup gate has already advanced, so the message would only be
+            // reachable via an explicit Republish and discarded as a duplicate
+            // - it just pins the entry until the queue overflows.
+            if (shouldAcknowledge)
+            {
+                try
+                {
+                    await AckQueue.QueueAsync(new SubscriptionAcknowledgement
+                    {
+                        SequenceNumber = message.SequenceNumber,
+                        SubscriptionId = Id
+                    }, ct).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    Logger.SubscriptionErrorDispatchingNotificationData(
+                        ex,
+                        Id);
+                }
             }
         }
 
@@ -577,9 +758,12 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="message"></param>
         /// <param name="publishStateMask"></param>
         /// <param name="notificationData"></param>
+        /// <param name="stringTable">The string table of the publish or
+        /// republish response the notification arrived in.</param>
         /// <returns></returns>
         private async ValueTask DispatchAsync(NotificationMessage message,
-            PublishState publishStateMask, ExtensionObject? notificationData)
+            PublishState publishStateMask, ExtensionObject? notificationData,
+            IReadOnlyList<string> stringTable)
         {
             if (notificationData == null)
             {
@@ -588,22 +772,24 @@ namespace Opc.Ua.Client.Subscriptions
             if (notificationData.Value.TryGetValue(
                 out DataChangeNotification? datachange))
             {
-                await OnDataChangeNotificationAsync(
-                    message.SequenceNumber,
-                    (DateTime)message.PublishTime,
-                    datachange,
-                    publishStateMask,
-                    message.StringTable.ToArray() ?? []).ConfigureAwait(false);
+                await DispatchCallbackAsync(
+                    () => OnDataChangeNotificationAsync(
+                        message.SequenceNumber,
+                        (DateTime)message.PublishTime,
+                        datachange,
+                        publishStateMask,
+                        stringTable)).ConfigureAwait(false);
             }
             else if (notificationData.Value.TryGetValue(
                 out EventNotificationList? events))
             {
-                await OnEventDataNotificationAsync(
-                    message.SequenceNumber,
-                    (DateTime)message.PublishTime,
-                    events,
-                    publishStateMask,
-                    message.StringTable.ToArray() ?? []).ConfigureAwait(false);
+                await DispatchCallbackAsync(
+                    () => OnEventDataNotificationAsync(
+                        message.SequenceNumber,
+                        (DateTime)message.PublishTime,
+                        events,
+                        publishStateMask,
+                        stringTable)).ConfigureAwait(false);
             }
             else if (notificationData.Value.TryGetValue(
                 out StatusChangeNotification? statusChanged))
@@ -621,13 +807,37 @@ namespace Opc.Ua.Client.Subscriptions
                     // TODO: Also complete this subscription
                     mask |= PublishState.Timeout;
                 }
-                await OnStatusChangeNotificationAsync(
-                    message.SequenceNumber,
-                    (DateTime)message.PublishTime,
-                    statusChanged,
-                    mask,
-                    message.StringTable.ToArray() ?? []).ConfigureAwait(false);
+                await DispatchCallbackAsync(
+                    () => OnStatusChangeNotificationAsync(
+                        message.SequenceNumber,
+                        (DateTime)message.PublishTime,
+                        statusChanged,
+                        mask,
+                        stringTable)).ConfigureAwait(false);
             }
+        }
+
+        private async ValueTask DispatchCallbackAsync(Func<ValueTask> callback)
+        {
+            DispatchScope? previous = s_dispatchScope.Value;
+            var scope = new DispatchScope(this);
+            s_dispatchScope.Value = scope;
+            try
+            {
+                await callback().ConfigureAwait(false);
+            }
+            finally
+            {
+                Volatile.Write(ref scope.Active, 0);
+                s_dispatchScope.Value = previous;
+            }
+        }
+
+        private sealed class DispatchScope(MessageProcessor processor)
+        {
+            public MessageProcessor Processor { get; } = processor;
+
+            public int Active = 1;
         }
 
         /// <summary>
@@ -678,19 +888,30 @@ namespace Opc.Ua.Client.Subscriptions
         /// Whether the current asynchronous flow is dispatching one of this
         /// processor's notification callbacks.
         /// </summary>
-        protected bool IsDispatchingNotification => m_dispatchContext.Value;
+        protected bool IsDispatchingNotification
+        {
+            get
+            {
+                DispatchScope? scope = s_dispatchScope.Value;
+                return scope != null &&
+                    ReferenceEquals(scope.Processor, this) &&
+                    Volatile.Read(ref scope.Active) != 0;
+            }
+        }
 
+        private static readonly AsyncLocal<DispatchScope?> s_dispatchScope = new();
         private readonly ISubscriptionServiceSetClientMethods m_services;
-        // CA2213: both fields are disposed in DisposeAsync(bool) — suppressed
+        // CA2213: fields are disposed in DisposeAsync(bool) — suppressed
         // because the analyzer does not track IAsyncDisposable disposal paths.
 #pragma warning disable CA2213
         private readonly SemaphoreSlim m_messageDispatchGate = new(1, 1);
         private readonly CancellationTokenSource m_cts = new();
+        private readonly SemaphoreSlim m_messageCapacity;
 #pragma warning restore CA2213
-        private readonly AsyncLocal<bool> m_dispatchContext = new();
         private long m_generation;
         private readonly Task m_messageWorkerTask;
         private readonly Channel<IncomingMessage> m_messages;
+        private const int kIncomingMessageCapacity = 1024;
     }
 
     /// <summary>
@@ -771,6 +992,13 @@ namespace Opc.Ua.Client.Subscriptions
             this ILogger logger,
             Exception? exception,
             uint subscriptionId);
-    }
 
+        [LoggerMessage(EventId = ClientEventIds.MessageProcessor + 11, Level = LogLevel.Information,
+            Message = "{SubscriptionId}: Recovering {Count} transferred message(s) from the server " +
+                "retransmission queue.")]
+        public static partial void SubscriptionRecoveringTransferredMessages(
+            this ILogger logger,
+            uint subscriptionId,
+            int count);
+    }
 }

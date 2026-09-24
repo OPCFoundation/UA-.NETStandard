@@ -37,6 +37,43 @@ emits the HTTPS twin as a discovery-only `EndpointDescription`
 alongside each `SecurityMode.None` HTTPS-binary endpoint so discovery
 clients see the OpenAPI route without hard-coding the URL.
 
+Discovery retains binary, JSON and OpenAPI endpoints even when their URL and
+security settings are identical. `GetEndpoints` profile filters select only
+the requested profiles, including when translating an alternate hostname.
+Managed client channels likewise include the effective transport profile in
+their sharing key: equal URLs do not allow different wire encodings to share
+an underlying channel.
+
+The managed channel manager retains its own client certificate and chain.
+Open attempts borrow independent snapshots, and each installed transport has
+separate references until it is closed. Closing or rotating one channel does
+not retire keys still used by another channel or an in-flight open.
+Managed sessions prefer the active certificate registry over an older configured
+store entry; unmanaged sessions retain explicit configured-store selection.
+A session opened on a managed transport uses that transport's
+owned certificate snapshot, including during recreation after rotation; a
+later registry update cannot substitute a different key into that handshake.
+Reconnects recheck certificate generations before reactivating sessions and
+reporting readiness. Publishing identical certificate/issuer material does not
+force another transport replacement; a changed issuer chain still does.
+Rotation that supersedes successful work does not consume the failed-attempt
+retry allowance. Reconnect time budgets and shutdown cancellation still apply.
+
+UA-TCP reconnect hands the new connection to the retained channel without
+closing it when the temporary handshake channel is retired. ECC and RSA-DH
+handoffs move the owned ephemeral nonce objects, including the private key;
+public nonce bytes cannot reconstruct them. The retained token's secret is
+used when deriving the replacement keys. Continued sequence numbers are
+checked against the retained channel, not treated as a new secure channel.
+A rejected or failed handoff closes the new connection and releases its
+unadopted token rather than restarting an orphaned receive loop. The peer
+certificate remains available through failure auditing. Receive loops
+have separate cancellation lifetimes; a retiring connection cannot stop its
+replacement. Connection admission reserves capacity before invoking channel
+callbacks, retires idle channels outside the listener lock, and closes rejected
+sockets. Invalid response sequences fail pending requests promptly with
+`BadSecurityChecksFailed`; diagnostics retain `BadSequenceNumberInvalid`.
+
 ## Assembly layout
 
 * **`Opc.Ua.Core`** (this is what every Server / Client application
@@ -130,6 +167,17 @@ sub-protocol) only accept `SecurityMode.None` regardless of the
 configured security policies — see Part 6 §7.4.5 / §7.5.2 for the
 spec rationale.
 
+All HTTPS and WSS client bindings, including WebApi, require the TLS certificate
+to match the endpoint hostname before invoking a configured OPC UA certificate
+validator. Trusting a certificate or its issuer does not bypass hostname
+verification. This also applies to TLS-only JSON bindings.
+
+All HTTP, WebSocket and WebApi dispatch paths forward the observed remote IP
+address for authentication lockout accounting. Unsecured clients cannot reset
+that bucket by opening a new connection or changing their ApplicationUri.
+When a transport cannot supply a peer address, the fallback bucket is
+session-local, never shared by every client of a listener.
+
 ## Client-side usage
 
 The client API is the standard `Session` + `EndpointDescription` flow;
@@ -187,6 +235,20 @@ A few notes:
 * The HTTPS client (binary or JSON) reuses a single `HttpClient` per
   channel; the encoding is selected from
   `EndpointDescription.TransportProfileUri` at request time.
+
+HTTPS binary, JSON, and OpenAPI clients obtain response headers before
+buffering the body. A positive `MaxMessageSize` limits the actual body bytes, including
+chunked responses or misleading `Content-Length` values. An oversized
+response fails with `BadResponseTooLarge`; the reader consumes at most one
+byte beyond the limit to detect the overflow. HTTP error responses are
+disposed without buffering their bodies.
+
+The request deadline and caller cancellation remain active while the
+response body is being read. The binary/JSON transport reports socket
+connection failures as `BadNotConnected`, socket or request timeouts as
+`BadRequestTimeout`, and other HTTP failures as `BadUnknownResponse`, while
+preserving the original exception for diagnostics. HTTP 429/503 retain
+their `BadServerTooBusy` and `Retry-After` handling.
 
 ## Discovery
 

@@ -12,11 +12,7 @@ There are multiple options to run the reference server in a Docker container:
 
 ## Other published sample images
 
-The `Docker Sample Images CI` workflow selects its images from the release
-catalog. The `containers` group contains nine images at
-`ghcr.io/opcfoundation/uanetstandard/<image>`. Each has `linux/amd64` and
-`linux/arm64/v8` runnable subjects and keeps its existing version/`latest`
-tagging scheme:
+In addition to the reference server (`refserver`), the [`Images CI`](../.github/workflows/docker-image.yml) workflow builds and publishes every other sample image — the sample servers, the device-integration pump server, the redundant client and both PubSub samples — to the GitHub container registry (`ghcr.io/opcfoundation/uanetstandard/<image>`). All are `linux/amd64` + `linux/arm64`, and all are built by that one workflow:
 
 | Image | Sample application |
 | --- | --- |
@@ -29,21 +25,26 @@ tagging scheme:
 | `redundantclient` | `samples/Redundancy/RedundantClient` |
 | `redundantpubsub` | `samples/Redundancy/RedundantPubSub` |
 | `pubsubclient` | `samples/PubSub/ConsoleReferencePubSubClient` |
+| `pumpserver` | `samples/DI/PumpDeviceIntegrationServer` |
 
-For example: `docker pull ghcr.io/opcfoundation/uanetstandard/ldsserver:latest`. Each image has a Dockerfile under its application folder that is built from the repository root as context (for example `docker build -f samples/Lds/ConsoleLdsServer/Dockerfile -t opcua-lds-server .`).
+Image tags follow the [release-branch-only publication model](ReleaseProcess.md):
+
+- **`<image>:latest`, `:release`, and the exact `<major>.<minor>` / `<major>.<minor>.<patch>` version tags** are updated only from a stable commit on a canonical `release/<major>.<minor>` branch (see [Release process](ReleaseProcess.md)). A build from that branch that is not yet stable (still `-preview.N`) does **not** move these tags.
+- **`<image>:latest-<branch>`** (for example `refserver:latest-master`) tracks the most recent development build on that branch. `Images CI` builds these from `master` and from `release/*` branches while they are pre-release.
+- **`<image>:<version>`** (for example `refserver:2.0.0-preview.6` or `refserver:2.0.0`) always identifies the exact package version the image was built with, on every branch.
+
+For example: `docker pull ghcr.io/opcfoundation/uanetstandard/ldsserver:latest` gets the most recently approved stable release; `docker pull ghcr.io/opcfoundation/uanetstandard/ldsserver:latest-master` gets the most recent development build. Each image has a Dockerfile under its application folder that is built from the repository root as context (for example `docker build -f samples/Lds/ConsoleLdsServer/Dockerfile -t opcua-lds-server .`).
 
 Pump is the **tenth image**, in the independent `pump` group:
-`ghcr.io/opcfoundation/pumpdeviceintegrationserver`, built by the same
+`ghcr.io/opcfoundation/uanetstandard/pumpserver`, built by the same
 `docker-image.yml` workflow from
-`samples/DI/PumpDeviceIntegrationServer/Dockerfile`, for `linux/amd64` only.
-There is no enrolled `uanetstandard/pumpserver` image. The two artifact groups
-can publish independently; the catalog contains **19 runnable platform subjects**.
+`samples/DI/PumpDeviceIntegrationServer/Dockerfile`, for both `linux/amd64` and
+`linux/arm64/v8`. The two evidence groups can be promoted independently;
+the catalog contains **20 runnable platform subjects**.
 
-Master pushes select both groups; release/docker branch pushes select only
-`containers`. Manual dispatch retains the Pump-only operation. Pull requests
-validate all ten images without publishing. Pump keeps its `latest`, full-version
-and `sha-<short-sha>` tags; the other images retain their existing branch and
-release aliases. Per-image jobs serialize overlapping manual and automatic runs,
+Master, release/docker pushes and manual dispatch select both groups. Pull requests
+validate all ten images without publishing. Pump uses the same version, branch and
+release-line alias rules as the other images. Per-image jobs serialize overlapping manual and automatic runs,
 and each group has its own status artifacts and membership manifest.
 
 ## Container release evidence
@@ -97,7 +98,7 @@ multi-platform availability; a tag is not an immutable base pin.
 | `VerifyLocal` | Checks local descriptor relationships, runnable platform membership, source/version labels and native predicate subjects; invokes the existing tool's `oci` command when available. |
 | `Sign` | Attempts public identity-bound cosign signing and verification of the recorded root and runnable subjects, retaining a separate proof result per subject. |
 | `Status` | Writes only fixed, sanitized fields and observed digests/platforms; never copies arbitrary capture fields or raw logs. |
-| `Aggregate` | Reconciles only the selected group: nine images/eighteen runnable subjects for `containers`, or one/one for `pump`. Other workflow artifacts are not required for that group's eligibility. |
+| `Aggregate` | Reconciles only the selected group: nine images/eighteen runnable subjects for `containers`, or one image/two runnable subjects for `pump`. Other workflow artifacts are not required for that group's eligibility. |
 | `Assemble` | Invokes `oci-assemble` to retain native documents and create a group v2 companion; accepts an optional referrer context. Assembly is not eligibility. |
 | `Evaluate` | Invokes the shared authenticated evaluator with the verification bundle and independently protected trust; the assessment remains runner-local. |
 
@@ -117,7 +118,7 @@ shape (use observed identities, not the synthetic documentation examples):
 
 ```powershell
 $helper = '.\.azurepipelines\containers\evidence.ps1'
-& $helper -Operation VerifyLocal -Group pump -Image pumpdeviceintegrationserver `
+& $helper -Operation VerifyLocal -Group pump -Image pumpserver `
   -Request .\staging\oci-inputs.json -Context .\staging\oci-context.json `
   -Version 2.0.0 -Work .\staging\container-work `
   -Tool .\tools\Opc.Ua.ReleaseEvidence\bin\Release\net10.0\Opc.Ua.ReleaseEvidence.dll `

@@ -27,7 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace Opc.Ua.ReleaseEvidence
@@ -831,6 +835,69 @@ namespace Opc.Ua.ReleaseEvidence
         int PackageCount,
         int SymbolPackageCount,
         int DebugPackageCount,
+        ArchiveRecord[] Archives)
+    {
+        /// <summary>
+        /// Reads either archive-manifest version without changing the signed source document.
+        /// </summary>
+        /// <exception cref="InvalidDataException"></exception>
+        internal static ArchiveManifest Read(JsonElement document)
+        {
+            int version = document.GetProperty("schemaVersion").GetInt32();
+            if (version == 1)
+            {
+                return document.Deserialize(EvidenceJsonContext.Default.ArchiveManifest)!;
+            }
+            if (version != 2)
+            {
+                throw new InvalidDataException("Unsupported archive manifest version.");
+            }
+            PackageSetManifest current = document.Deserialize(EvidenceJsonContext.Default.PackageSetManifest)!;
+            NuGet.Versioning.NuGetVersion rootVersion = Versions.Parse(current.BasePackageVersion);
+            string channel = !rootVersion.IsPrerelease && !rootVersion.HasMetadata ? "stable" : "preview";
+            string[] versions = [.. current.Archives.Select(a => a.Version).Distinct(StringComparer.Ordinal)
+                .Order(StringComparer.Ordinal)];
+            if (current.Channel != channel ||
+                !versions.SequenceEqual(current.PackageVersions.Order(StringComparer.Ordinal), StringComparer.Ordinal))
+            {
+                throw new InvalidDataException("Archive manifest channel or package-version inventory is inconsistent.");
+            }
+            return new ArchiveManifest(
+                2, current.Repository, current.Workflow, current.RunId, current.Ref, current.Commit,
+                current.BasePackageVersion, current.PackageCount, current.SymbolPackageCount,
+                current.DebugPackageCount, current.Archives);
+        }
+    }
+
+    /// <summary>
+    /// Describes a version-two archive set with an explicit root version and its actual package versions.
+    /// </summary>
+    /// <param name="SchemaVersion">The archive-manifest format version.</param>
+    /// <param name="Repository">The source repository.</param>
+    /// <param name="Workflow">The producing workflow path.</param>
+    /// <param name="RunId">The producing run identifier.</param>
+    /// <param name="Ref">The fully qualified source ref.</param>
+    /// <param name="Commit">The producing source commit.</param>
+    /// <param name="BasePackageVersion">The root version, distinct from preview-only package versions.</param>
+    /// <param name="Channel">The root package channel.</param>
+    /// <param name="PackageVersions">Every distinct version present in the archives.</param>
+    /// <param name="PackageCount">The number of ordinary archives.</param>
+    /// <param name="SymbolPackageCount">The number of symbol archives.</param>
+    /// <param name="DebugPackageCount">The number of Debug package archives.</param>
+    /// <param name="Archives">The immutable package identities and content digests.</param>
+    internal sealed record PackageSetManifest(
+        int SchemaVersion,
+        string Repository,
+        string Workflow,
+        string RunId,
+        string Ref,
+        string Commit,
+        string BasePackageVersion,
+        string Channel,
+        string[] PackageVersions,
+        int PackageCount,
+        int SymbolPackageCount,
+        int DebugPackageCount,
         ArchiveRecord[] Archives);
 
     /// <summary>
@@ -852,6 +919,7 @@ namespace Opc.Ua.ReleaseEvidence
     [JsonSerializable(typeof(FrozenBundle))]
     [JsonSerializable(typeof(PackageInventory))]
     [JsonSerializable(typeof(ArchiveManifest))]
+    [JsonSerializable(typeof(PackageSetManifest))]
     [JsonSerializable(typeof(ProducerRecord))]
     [JsonSerializable(typeof(SourceInputsRecord))]
     [JsonSerializable(typeof(OciRequest))]

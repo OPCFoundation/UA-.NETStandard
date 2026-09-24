@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -48,11 +49,22 @@ namespace Opc.Ua
         /// Create an instance of the certificate store.
         /// </summary>
         public X509CertificateStore(ITelemetryContext telemetry)
+            : this(telemetry, null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the platform store with an optional certificate-snapshot provider.
+        /// </summary>
+        internal X509CertificateStore(
+            ITelemetryContext telemetry,
+            Func<X509Store, X509Certificate2Collection>? getCertificates)
         {
             // defaults
             m_logger = telemetry.CreateLogger<X509CertificateStore>();
             m_storeName = "My";
             m_storeLocation = StoreLocation.CurrentUser;
+            m_getCertificates = getCertificates ?? (store => store.Certificates);
         }
 
         /// <inheritdoc/>
@@ -144,7 +156,7 @@ namespace Opc.Ua
         {
             using var store = new X509Store(m_storeName, m_storeLocation);
             store.Open(OpenFlags.ReadOnly);
-            return Task.FromResult(CertificateCollection.From([.. store.Certificates]));
+            return Task.FromResult(CertificateCollection.From(m_getCertificates(store)));
         }
 
         /// <inheritdoc/>
@@ -162,7 +174,8 @@ namespace Opc.Ua
             {
                 store.Open(OpenFlags.ReadWrite);
                 using X509Certificate2 x509ForCheck = X509CertificateLoader.LoadCertificate(certificate.RawData);
-                if (!store.Certificates.Contains(x509ForCheck))
+                using CertificateCollection snapshot = CertificateCollection.From(m_getCertificates(store));
+                if (!snapshot.Any(existing => Utils.IsEqual(existing.RawData, certificate.RawData)))
                 {
                     if (certificate.HasPrivateKey && !NoPrivateKeys)
                     {
@@ -239,11 +252,12 @@ namespace Opc.Ua
             {
                 store.Open(OpenFlags.ReadWrite);
 
-                foreach (X509Certificate2 certificate in store.Certificates)
+                using CertificateCollection snapshot = CertificateCollection.From(m_getCertificates(store));
+                foreach (Certificate certificate in snapshot)
                 {
                     if (certificate.Thumbprint == thumbprint)
                     {
-                        store.Remove(certificate);
+                        store.Remove(certificate.X509);
                     }
                 }
             }
@@ -260,14 +274,13 @@ namespace Opc.Ua
             store.Open(OpenFlags.ReadOnly);
 
             using var collection = new CertificateCollection();
+            using CertificateCollection snapshot = CertificateCollection.From(m_getCertificates(store));
 
-            foreach (X509Certificate2 certificate in store.Certificates)
+            foreach (Certificate certificate in snapshot)
             {
                 if (certificate.Thumbprint == thumbprint)
                 {
-                    var cert = Certificate.From(certificate);
-                    collection.Add(cert);
-                    cert.Dispose();
+                    collection.Add(certificate);
                 }
             }
 
@@ -303,7 +316,19 @@ namespace Opc.Ua
         {
             if (!SupportsCRLs)
             {
-                throw new ServiceResultException(StatusCodes.BadNotSupported);
+                // Reported, not thrown: a thrown ServiceResultException surfaces
+                // as an unsuppressible BadCertificateInvalid and fails every
+                // CA-issued certificate on the platforms without CRL support.
+                //
+                // And reported as unknown rather than unsupported. The status
+                // really is unknown - there is no list to consult - and this is
+                // what the Windows branch below and a directory store without a
+                // CRL both already return. The validator discards
+                // BadNotSupported outright, which would make revocation fail
+                // open even for an operator who set RejectUnknownRevocationStatus;
+                // BadCertificateRevocationUnknown is suppressible and lets that
+                // policy decide (OPC 10000-4 6.1.3, Find Revocation List).
+                return StatusCodes.BadCertificateRevocationUnknown;
             }
 
             if (issuer == null)
@@ -489,6 +514,10 @@ namespace Opc.Ua
             return Task.CompletedTask;
         }
 
+        /// <summary>
+        /// Retrieves certificate snapshots whose handles are released after each store operation.
+        /// </summary>
+        private readonly Func<X509Store, X509Certificate2Collection> m_getCertificates;
         private readonly ILogger m_logger;
         private string m_storeName;
         private StoreLocation m_storeLocation;

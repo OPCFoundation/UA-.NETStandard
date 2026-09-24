@@ -36,7 +36,7 @@ Completed and observed-failed jobs write <job-id>.proof.json beside the componen
 retain every referenced sidecar with its exact bytes.
 Requires gh on PATH and a runner-provided read token (actions:read, contents:read).
 Never logs credentials, API response bodies, findings, local paths or raw results.
-Only current master / major 2 policy is supported. No dispatch input can override
+Only master and canonical major-2 release policy refs are supported. No dispatch input can override
 identity, freshness, source, policy or producer checks. The default is one-shot:
 an absent/in-progress run remains missing (including a publish/CI race).
 WaitTimeoutSeconds optionally waits for the same run/attempt with a fixed overall
@@ -61,7 +61,7 @@ pwsh -NoProfile -File .azurepipelines\assurance\get-release.ps1 `
 param(
     [string] $RepositoryRoot = (Split-Path (Split-Path $PSScriptRoot)),
     [Parameter(Mandatory)][ValidatePattern('^[0-9a-f]{40}([0-9a-f]{24})?$')][string] $ExpectedSourceSha,
-    [ValidatePattern('^refs/heads/(master|release/2\.[0-9A-Za-z._/-]+)$')]
+    [ValidatePattern('(?-i)^refs/heads/(master|release/2\.(0|[1-9]\d*))$')]
     [string] $ExpectedSourceRef = 'refs/heads/master',
     [Parameter(Mandatory)][string] $OutputPath,
     [Parameter(Mandatory)][string] $WorkDirectory,
@@ -161,8 +161,8 @@ try {
             if ($policy.schemaVersion -ne 1 -or $policy.currentMajor -ne 2 -or
                 $policy.requiredChannel -cne 'stable' -or $policy.stage -notin @('pilot', 'required') -or
                 $profiles.schemaVersion -ne 1) { throw 'UNSUPPORTED_CURRENT_POLICY' }
-            $branch = Invoke-AssuranceApi "$prefix/branches/master"
-            if ($branch.name -cne 'master' -or $branch.protected -ne $true) { throw 'POLICY_REF_UNVERIFIED' }
+            $branch = Invoke-AssuranceApi "$prefix/branches/$queryBranch"
+            if ($branch.name -cne $sourceBranch -or $branch.protected -ne $true) { throw 'POLICY_REF_UNVERIFIED' }
             $policySha = [string] $branch.commit.sha
             if ($policySha -notmatch '^[0-9a-f]{40}([0-9a-f]{24})?$') { throw 'POLICY_REF_UNVERIFIED' }
             foreach ($file in @(
@@ -211,8 +211,9 @@ try {
                             $remaining = ($waitDeadline - [DateTimeOffset]::UtcNow).TotalMilliseconds
                             if ($remaining -le 0) { throw 'WAIT_DEADLINE_EXCEEDED' }
                             Start-Sleep -Milliseconds ([int] [Math]::Min($delay * 1000, $remaining))
-                            $currentPolicy = Invoke-AssuranceApi "$prefix/branches/master"
-                            if ($currentPolicy.commit.sha -cne $policySha -or $currentPolicy.protected -ne $true) {
+                            $currentPolicy = Invoke-AssuranceApi "$prefix/branches/$queryBranch"
+                            if ($currentPolicy.name -cne $sourceBranch -or
+                                $currentPolicy.commit.sha -cne $policySha -or $currentPolicy.protected -ne $true) {
                                 throw 'POLICY_CHANGED_DURING_WAIT'
                             }
                             $currentRuns = Invoke-AssuranceApi "$prefix/actions/workflows/$($workflow.id)/runs?head_sha=$ExpectedSourceSha&branch=$queryBranch&per_page=100"
@@ -402,8 +403,9 @@ try {
                     $entry.reasons += $(if ($code -cmatch '^[A-Z][A-Z_]+$') { $code } else { 'WORKFLOW_UNVERIFIED' })
                 }
             }
-            $current = Invoke-AssuranceApi "$prefix/branches/master"
-            if ($current.commit.sha -cne $policySha -or $current.protected -ne $true) {
+            $current = Invoke-AssuranceApi "$prefix/branches/$queryBranch"
+            if ($current.name -cne $sourceBranch -or
+                $current.commit.sha -cne $policySha -or $current.protected -ne $true) {
                 throw 'POLICY_CHANGED_DURING_COLLECTION'
             }
         }

@@ -88,6 +88,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         {
             try
             {
+                // Nothing will ever apply the queued triggering operations
+                // again, so complete their awaiters instead of leaving
+                // SetTriggeringAsync callers hanging forever.
+                FailPendingTriggeringOperations(StatusCodes.BadSubscriptionIdInvalid);
+
                 foreach (MonitoredItem? monitoredItem in m_monitoredItems.Values.ToList())
                 {
                     await monitoredItem.DisposeAsync().ConfigureAwait(false);
@@ -99,6 +104,21 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 m_monitoredItemsByName.Clear();
                 m_pendingByTriggeringName.Clear();
                 m_pendingTriggeringCount = 0;
+            }
+        }
+
+        /// <summary>
+        /// Completes every queued triggering operation with
+        /// <paramref name="status"/>. Used when the subscription can no longer
+        /// apply them (dispose), so awaiting callers observe a result rather
+        /// than waiting forever.
+        /// </summary>
+        /// <param name="status">The status reported to the awaiters.</param>
+        internal void FailPendingTriggeringOperations(StatusCode status)
+        {
+            while (m_triggeringOps.TryDequeue(out TriggeringOperation? op))
+            {
+                FailOperation(op, op.TriggeringItem, status);
             }
         }
 
@@ -549,13 +569,21 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                             await itemsToDelete[index].DisposeAsync().ConfigureAwait(false);
                             continue;
                         }
-                        m_deletedItems.Add(itemsToDelete[index]); // Retry this
+                        // Retry this. m_deletedItems is guarded by the manager
+                        // lock everywhere else, so take it here too.
                         // TODO: Give up after a while
+                        lock (m_monitoredItemsLock)
+                        {
+                            m_deletedItems.Add(itemsToDelete[index]);
+                        }
                     }
                 }
                 catch (Exception ex)
                 {
-                    m_deletedItems.AddRange(itemsToDelete);
+                    lock (m_monitoredItemsLock)
+                    {
+                        m_deletedItems.AddRange(itemsToDelete);
+                    }
                     m_logger.FailedDeleteMonitoredItems(ex);
                 }
             }
@@ -588,7 +616,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 .GroupBy(c => c.Timestamps))
             {
                 var monitoredItems = group.ToList();
-                var requests = new ArrayOf<MonitoredItemModifyRequest>(group.Select(c => c.Modify!).ToArray());
+                var requests = new ArrayOf<MonitoredItemModifyRequest>(
+                    group.Select(c => c.BindModifyRequest()!).ToArray());
                 if (requests.Count > 0)
                 {
                     ModifyMonitoredItemsResponse response = await m_context.MonitoredItemServiceSet.ModifyMonitoredItemsAsync(null, m_context.Id,
@@ -634,6 +663,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var creations = itemsToModify
                 .Where(c => !c.Item.Created)
                 .ToList();
+            var creationsNeedingTriggeringReplay = new HashSet<MonitoredItem.Change>(
+                itemsToModify.Where(c => c.RequiresTriggeringReplayAfterCreate));
             foreach (IGrouping<TimestampsToReturn, MonitoredItem.Change> group in creations
                 .Where(c => c.Create != null)
                 .GroupBy(c => c.Timestamps))
@@ -652,6 +683,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                         monitoredItems[index].SetCreateResult(requests[index],
                             response.Results[index], index, response.DiagnosticInfos,
                             response.ResponseHeader);
+                        if (creationsNeedingTriggeringReplay.Contains(monitoredItems[index]) &&
+                            StatusCode.IsGood(response.Results[index].StatusCode))
+                        {
+                            ReplayTriggeringLinksAfterRecreate(monitoredItems[index].Item);
+                        }
                     }
                 }
             }
@@ -669,6 +705,15 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         {
             get
             {
+                // A triggering operation that was re-queued (e.g. after
+                // BadSubscriptionIdInvalid) is pending work too: without it the
+                // subscription stops scheduling apply passes and the caller
+                // awaiting SetTriggeringAsync never completes.
+                if (!m_triggeringOps.IsEmpty)
+                {
+                    return true;
+                }
+
                 lock (m_monitoredItemsLock)
                 {
                     if (m_deletedItems.Count != 0)
@@ -1599,14 +1644,13 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                         else if (serviceResult ==
                             StatusCodes.BadSubscriptionIdInvalid)
                         {
-                            // Recoverable via subscription recreate:
-                            // KEEP the optimistic desired-state and
-                            // re-queue. Rolling back here would leave
-                            // snapshots/navigation showing no link
-                            // during recovery; the retry path will
-                            // re-issue against the recreated
-                            // subscription with the correct intent.
-                            toRequeue.AddRange(ops);
+                            RequeueAfterDeadSubscription(ops, toRequeue);
+                            continue;
+                        }
+                        else if (IsRetryableTriggeringFailure(serviceResult) &&
+                            ops.Any(static operation => operation.Completion == null))
+                        {
+                            RequeueAfterTransientFailure(ops, toRequeue);
                             continue;
                         }
                         else
@@ -1637,10 +1681,13 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                         if (failStatus ==
                             StatusCodes.BadSubscriptionIdInvalid)
                         {
-                            // Recoverable: KEEP desired-state and
-                            // re-queue. Same rationale as the
-                            // service-result path above.
-                            toRequeue.AddRange(ops);
+                            RequeueAfterDeadSubscription(ops, toRequeue);
+                            continue;
+                        }
+                        if (IsRetryableTriggeringFailure(failStatus) &&
+                            ops.Any(static operation => operation.Completion == null))
+                        {
+                            RequeueAfterTransientFailure(ops, toRequeue);
                             continue;
                         }
                         // Terminal: rollback the optimistic desired
@@ -1696,6 +1743,101 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 m_triggeringOps.Enqueue(o);
             }
             return anyApplied;
+
+            void RequeueAfterDeadSubscription(
+                List<TriggeringOperation> currentOps,
+                List<TriggeringOperation> queue)
+            {
+                m_context.RequestRecreate();
+                foreach (TriggeringOperation op in currentOps)
+                {
+                    op.RetryCount++;
+                    if (op.RetryCount > MaxTriggeringRetryCount)
+                    {
+                        FailOperation(op, op.TriggeringItem,
+                            StatusCodes.BadSubscriptionIdInvalid);
+                    }
+                    else
+                    {
+                        queue.Add(op);
+                    }
+                }
+            }
+
+            void RequeueAfterTransientFailure(
+                List<TriggeringOperation> currentOps,
+                List<TriggeringOperation> queue)
+            {
+                foreach (TriggeringOperation op in currentOps)
+                {
+                    op.RetryCount++;
+                    if (op.RetryCount > MaxTriggeringRetryCount)
+                    {
+                        RollbackDesired(
+                            op.Add,
+                            op.Remove,
+                            op.TriggeringItem.Name);
+                        FailOperation(
+                            op,
+                            op.TriggeringItem,
+                            StatusCodes.BadTooManyOperations);
+                    }
+                    else
+                    {
+                        queue.Add(op);
+                    }
+                }
+            }
+        }
+
+        private static bool IsRetryableTriggeringFailure(StatusCode statusCode)
+        {
+            return statusCode == StatusCodes.BadCommunicationError ||
+                statusCode == StatusCodes.BadConnectionClosed ||
+                statusCode == StatusCodes.BadNotConnected ||
+                statusCode == StatusCodes.BadRequestTimeout ||
+                statusCode == StatusCodes.BadTimeout ||
+                statusCode == StatusCodes.BadServerTooBusy ||
+                statusCode == StatusCodes.BadTcpServerTooBusy ||
+                statusCode == StatusCodes.BadTooManyOperations;
+        }
+
+        private void ReplayTriggeringLinksAfterRecreate(MonitoredItem item)
+        {
+            List<IMonitoredItem>? triggeredItems = null;
+            IReadOnlyList<string> desiredTriggeredByNames;
+            lock (m_monitoredItemsLock)
+            {
+                desiredTriggeredByNames = item.DesiredTriggeredByNames.Count == 0
+                    ? []
+                    : [.. item.DesiredTriggeredByNames];
+                foreach (MonitoredItem current in m_monitoredItems.Values)
+                {
+                    if (ReferenceEquals(current, item) ||
+                        !ContainsOrdinal(current.DesiredTriggeredByNames, item.Name))
+                    {
+                        continue;
+                    }
+                    triggeredItems ??= [];
+                    triggeredItems.Add(current);
+                }
+                if (triggeredItems != null)
+                {
+                    foreach (IMonitoredItem triggered in triggeredItems)
+                    {
+                        m_triggeringOps.Enqueue(new TriggeringOperation(
+                            item,
+                            [triggered],
+                            [],
+                            null));
+                    }
+                }
+            }
+
+            if (desiredTriggeredByNames.Count > 0)
+            {
+                EnqueueTriggeringDelta(item, desiredTriggeredByNames, []);
+            }
         }
 
         private static void FailOperation(
@@ -1720,8 +1862,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         }
 
         private void RollbackDesired(
-            List<IMonitoredItem> add,
-            List<IMonitoredItem> remove,
+            IReadOnlyList<IMonitoredItem> add,
+            IReadOnlyList<IMonitoredItem> remove,
             string trigName)
         {
             lock (m_monitoredItemsLock)
@@ -1828,5 +1970,4 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             uint subscriptionId,
             string name);
     }
-
 }

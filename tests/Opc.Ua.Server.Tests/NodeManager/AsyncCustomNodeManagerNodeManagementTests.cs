@@ -31,8 +31,6 @@
 // making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
 #pragma warning disable CA2000
 
-#nullable enable
-
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -127,6 +125,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 ReferenceTypeId = ReferenceTypeIds.Organizes,
                 BrowseName = new QualifiedName("Child", ns),
                 NodeClass = NodeClass.Object,
+                TypeDefinition = ObjectTypeIds.BaseObjectType,
                 RequestedNewNodeId = new NodeId("Foreign", 0) // ns=0 not in this manager
             };
 
@@ -134,6 +133,74 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .AddNodeAsync(h.OperationContext, item).ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdRejected));
+        }
+
+        [Test]
+        public async Task AddNodeAsync_NullTypeDefinition_ReturnsBadTypeDefinitionInvalidAsync()
+        {
+            using Harness h = CreateHarness(allowNodeManagement: true);
+            ushort ns = h.Manager.NamespaceIndexes[0];
+            NodeId parentId = await h.AddObjectAsync("Parent").ConfigureAwait(false);
+
+            var item = new AddNodesItem
+            {
+                ParentNodeId = parentId,
+                ReferenceTypeId = ReferenceTypeIds.Organizes,
+                BrowseName = new QualifiedName("Child", ns),
+                NodeClass = NodeClass.Object
+            };
+
+            (ServiceResult result, NodeId added) = await h.Manager
+                .AddNodeAsync(h.OperationContext, item).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTypeDefinitionInvalid));
+            Assert.That(added.IsNull, Is.True);
+        }
+
+        [Test]
+        public async Task AddNodeAsync_WrongTypeDefinitionClass_ReturnsBadTypeDefinitionInvalidAsync()
+        {
+            using Harness h = CreateHarness(allowNodeManagement: true);
+            ushort ns = h.Manager.NamespaceIndexes[0];
+            NodeId parentId = await h.AddObjectAsync("Parent").ConfigureAwait(false);
+
+            var item = new AddNodesItem
+            {
+                ParentNodeId = parentId,
+                ReferenceTypeId = ReferenceTypeIds.Organizes,
+                BrowseName = new QualifiedName("Child", ns),
+                NodeClass = NodeClass.Object,
+                TypeDefinition = VariableTypeIds.BaseVariableType
+            };
+
+            (ServiceResult result, NodeId added) = await h.Manager
+                .AddNodeAsync(h.OperationContext, item).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTypeDefinitionInvalid));
+            Assert.That(added.IsNull, Is.True);
+        }
+
+        [Test]
+        public async Task AddNodeAsync_UnknownTypeDefinition_ReturnsBadTypeDefinitionInvalidAsync()
+        {
+            using Harness h = CreateHarness(allowNodeManagement: true);
+            ushort ns = h.Manager.NamespaceIndexes[0];
+            NodeId parentId = await h.AddObjectAsync("Parent").ConfigureAwait(false);
+
+            var item = new AddNodesItem
+            {
+                ParentNodeId = parentId,
+                ReferenceTypeId = ReferenceTypeIds.Organizes,
+                BrowseName = new QualifiedName("Child", ns),
+                NodeClass = NodeClass.Object,
+                TypeDefinition = new NodeId("UnknownType", ns)
+            };
+
+            (ServiceResult result, NodeId added) = await h.Manager
+                .AddNodeAsync(h.OperationContext, item).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTypeDefinitionInvalid));
+            Assert.That(added.IsNull, Is.True);
         }
 
         [Test]
@@ -151,6 +218,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 ReferenceTypeId = ReferenceTypeIds.Organizes,
                 BrowseName = new QualifiedName("Child", ns),
                 NodeClass = NodeClass.Object,
+                TypeDefinition = ObjectTypeIds.BaseObjectType,
                 RequestedNewNodeId = existingId
             };
 
@@ -198,6 +266,99 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(secondId.IsNull, Is.True);
         }
 
+        /// <summary>
+        /// Verifies indexed browse-name reuse after renaming cannot overwrite the existing node's identifier.
+        /// </summary>
+        [Test]
+        public async Task IndexedBrowseNameReusePreservesExistingNodeIdentityAsync()
+        {
+            // The CTT (Node Management Delete Node Err-002.js) adds thousands of nodes
+            // below one parent; the duplicate check must stay correct for large parents.
+            using Harness h = CreateHarness(allowNodeManagement: true);
+            ushort ns = h.Manager.NamespaceIndexes[0];
+            NodeId parentId = await h.AddObjectAsync("Parent").ConfigureAwait(false);
+
+            NodeId renamedId = default;
+            for (int ii = 0; ii < 500; ii++)
+            {
+                (ServiceResult result, NodeId added) = await h.Manager
+                    .AddNodeAsync(h.OperationContext, new AddNodesItem
+                    {
+                        ParentNodeId = parentId,
+                        ReferenceTypeId = ReferenceTypeIds.Organizes,
+                        BrowseName = new QualifiedName("Child" + ii, ns),
+                        NodeClass = NodeClass.Variable,
+                        TypeDefinition = VariableTypeIds.BaseVariableType
+                    }).ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(result), Is.True, $"child {ii}: {result}");
+                if (ii == 42)
+                {
+                    renamedId = added;
+                }
+            }
+
+            (ServiceResult duplicate, NodeId duplicateId) = await h.Manager
+                .AddNodeAsync(h.OperationContext, new AddNodesItem
+                {
+                    ParentNodeId = parentId,
+                    ReferenceTypeId = ReferenceTypeIds.Organizes,
+                    BrowseName = new QualifiedName("Child250", ns),
+                    NodeClass = NodeClass.Variable,
+                    TypeDefinition = VariableTypeIds.BaseVariableType
+                }).ConfigureAwait(false);
+            Assert.That(duplicate.StatusCode, Is.EqualTo(StatusCodes.BadBrowseNameDuplicated));
+            Assert.That(duplicateId.IsNull, Is.True);
+
+            // a renamed child frees its old browse name and takes the new one.
+            NodeState renamedNode = h.Manager.PredefinedNodes[renamedId];
+            renamedNode.BrowseName = new QualifiedName("Renamed", ns);
+            int countBefore = h.Manager.PredefinedNodes.Count;
+
+            (ServiceResult collision, NodeId collisionId) = await h.Manager
+                .AddNodeAsync(h.OperationContext, new AddNodesItem
+                {
+                    ParentNodeId = parentId,
+                    ReferenceTypeId = ReferenceTypeIds.Organizes,
+                    RequestedNewNodeId = renamedId,
+                    BrowseName = new QualifiedName("Child42", ns),
+                    NodeClass = NodeClass.Variable,
+                    TypeDefinition = VariableTypeIds.BaseVariableType
+                }).ConfigureAwait(false);
+            Assert.That(collision.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdExists));
+            Assert.That(collisionId.IsNull, Is.True);
+            Assert.That(h.Manager.PredefinedNodes, Has.Count.EqualTo(countBefore));
+            Assert.That(h.Manager.PredefinedNodes[renamedId], Is.SameAs(renamedNode));
+            Assert.That(renamedNode.BrowseName, Is.EqualTo(new QualifiedName("Renamed", ns)));
+
+            // Renaming frees the BrowseName; automatic allocation must not reuse the still-owned NodeId.
+            (ServiceResult freed, NodeId freedId) = await h.Manager
+                .AddNodeAsync(h.OperationContext, new AddNodesItem
+                {
+                    ParentNodeId = parentId,
+                    ReferenceTypeId = ReferenceTypeIds.Organizes,
+                    BrowseName = new QualifiedName("Child42", ns),
+                    NodeClass = NodeClass.Variable,
+                    TypeDefinition = VariableTypeIds.BaseVariableType
+                }).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(freed), Is.True, $"expected Good result; got {freed}");
+            Assert.That(freedId.IsNull, Is.False);
+            Assert.That(freedId.NamespaceIndex, Is.EqualTo(ns));
+            Assert.That(freedId, Is.Not.EqualTo(renamedId));
+            Assert.That(h.Manager.PredefinedNodes[renamedId], Is.SameAs(renamedNode));
+            Assert.That(h.Manager.PredefinedNodes, Has.Count.EqualTo(countBefore + 1));
+
+            (ServiceResult taken, _) = await h.Manager
+                .AddNodeAsync(h.OperationContext, new AddNodesItem
+                {
+                    ParentNodeId = parentId,
+                    ReferenceTypeId = ReferenceTypeIds.Organizes,
+                    BrowseName = new QualifiedName("Renamed", ns),
+                    NodeClass = NodeClass.Variable,
+                    TypeDefinition = VariableTypeIds.BaseVariableType
+                }).ConfigureAwait(false);
+            Assert.That(taken.StatusCode, Is.EqualTo(StatusCodes.BadBrowseNameDuplicated));
+        }
+
         [Test]
         public async Task AddNodeAsync_AllocatesNewNodeIdWhenRequestedIsNullAsync()
         {
@@ -211,7 +372,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 ParentNodeId = parentId,
                 ReferenceTypeId = ReferenceTypeIds.Organizes,
                 BrowseName = new QualifiedName("AutoNode", ns),
-                NodeClass = NodeClass.Object
+                NodeClass = NodeClass.Object,
+                TypeDefinition = ObjectTypeIds.BaseObjectType
             };
 
             (ServiceResult result, NodeId added) = await h.Manager
@@ -238,6 +400,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 ReferenceTypeId = ReferenceTypeIds.Organizes,
                 BrowseName = new QualifiedName("ExplicitId", ns),
                 NodeClass = NodeClass.Object,
+                TypeDefinition = ObjectTypeIds.BaseObjectType,
                 RequestedNewNodeId = requested
             };
 
@@ -262,6 +425,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 ReferenceTypeId = ReferenceTypeIds.Organizes,
                 BrowseName = new QualifiedName("ExplicitUriId", namespaceIndex),
                 NodeClass = NodeClass.Object,
+                TypeDefinition = ObjectTypeIds.BaseObjectType,
                 RequestedNewNodeId = requestedNodeId
             };
 
@@ -301,6 +465,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 ReferenceTypeId = ReferenceTypeIds.HasComponent,
                 BrowseName = new QualifiedName("AttrVar", ns),
                 NodeClass = NodeClass.Variable,
+                TypeDefinition = VariableTypeIds.BaseVariableType,
                 NodeAttributes = new ExtensionObject(attributes)
             };
 
@@ -449,6 +614,32 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     It.IsAny<List<LocalReference>>(),
                     It.IsAny<CancellationToken>()),
                 Times.Never);
+        }
+
+        [Test]
+        public async Task AddNodeAsync_LocalParentDoesNotCreateExplicitForwardReferenceAsync()
+        {
+            using Harness h = CreateHarness(allowNodeManagement: true);
+            ushort ns = h.Manager.NamespaceIndexes[0];
+            NodeId parentId = await h.AddObjectAsync("Parent").ConfigureAwait(false);
+
+            (ServiceResult result, NodeId added) = await h.Manager
+                .AddNodeAsync(h.OperationContext, new AddNodesItem
+                {
+                    ParentNodeId = parentId,
+                    ReferenceTypeId = ReferenceTypeIds.Organizes,
+                    BrowseName = new QualifiedName("Child", ns),
+                    NodeClass = NodeClass.Object,
+                    TypeDefinition = ObjectTypeIds.BaseObjectType
+                }).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True, $"expected Good result; got {result}");
+            Assert.That(
+                h.Manager.PredefinedNodes[parentId].ReferenceExists(
+                    ReferenceTypeIds.Organizes,
+                    false,
+                    added),
+                Is.False);
         }
 
         [Test]

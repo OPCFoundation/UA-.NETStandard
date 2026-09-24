@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Historian;
@@ -376,7 +377,9 @@ namespace Opc.Ua.Server.Tests
         {
             public Harness()
             {
-                Provider = new InMemoryHistorianProvider();
+                Provider = new InMemoryHistorianProvider(
+                    new InMemoryHistorianOptions(),
+                    new FakeTimeProvider(s_baseTime.ToDateTime()));
                 Telemetry = NUnitTelemetryContext.Create();
 
                 var diagnostics = new Mock<IDiagnosticsNodeManager>();

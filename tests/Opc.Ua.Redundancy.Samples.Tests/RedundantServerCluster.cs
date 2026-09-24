@@ -35,6 +35,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
+using NUnit.Framework;
 
 namespace Opc.Ua.Redundancy.Samples.Tests
 {
@@ -173,8 +174,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             TimeSpan startupTimeout,
             CancellationToken cancellationToken = default)
         {
-            int[] ports = TestPorts.GetFreePorts(count);
-            int[] raftPorts = TestPorts.GetFreePorts(count);
+            (int[] ports, int[] raftPorts) = AllocateStrongPorts(count, TestPorts.GetFreePorts);
             string pkiRoot = CreateFreshPkiRoot();
             string[] nodeIds = new string[count];
             string[] raftBinds = new string[count];
@@ -229,6 +229,11 @@ namespace Opc.Ua.Redundancy.Samples.Tests
                 foreach (RedundantServerReplica replica in replicas)
                 {
                     await replica.Process.DisposeAsync().ConfigureAwait(false);
+                    TestContext.Out.WriteLine(
+                        "Sample server '{0}' startup output:{1}{2}",
+                        replica.NodeId,
+                        Environment.NewLine,
+                        replica.Process.GetOutputTail(40));
                 }
 
                 throw;
@@ -400,6 +405,24 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             {
                 // Best-effort cleanup of the throwaway per-run PKI store.
             }
+        }
+
+        /// <summary>
+        /// Allocates both endpoint groups together so released ports cannot repeat between protocols.
+        /// </summary>
+        /// <param name="count">The number of replicas.</param>
+        /// <param name="allocatePorts">Allocates one batch of distinct free ports.</param>
+        /// <returns>The disjoint OPC UA and Raft endpoint groups.</returns>
+        internal static (int[] ServerPorts, int[] RaftPorts) AllocateStrongPorts(
+            int count,
+            Func<int, int[]> allocatePorts)
+        {
+            int[] allocated = allocatePorts(checked(count * 2));
+            int[] serverPorts = new int[count];
+            int[] raftPorts = new int[count];
+            Array.Copy(allocated, 0, serverPorts, 0, count);
+            Array.Copy(allocated, count, raftPorts, 0, count);
+            return (serverPorts, raftPorts);
         }
 
         private static string CreateFreshPkiRoot()

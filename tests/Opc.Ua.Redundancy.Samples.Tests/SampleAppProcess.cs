@@ -346,6 +346,18 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             m_process.Dispose();
         }
 
+        /// <summary>
+        /// Returns the requested trailing captured lines without accessing the possibly disposed process.
+        /// </summary>
+        internal string GetOutputTail(int maximumLines)
+        {
+            lock (m_lock)
+            {
+                int start = Math.Max(0, m_lines.Count - maximumLines);
+                return string.Join(Environment.NewLine, m_lines.GetRange(start, m_lines.Count - start));
+            }
+        }
+
         private async Task<bool> WaitForExitAndOutputAsync(TimeSpan timeout, CancellationToken cancellationToken)
         {
             using var deadline = new CancellationTokenSource(timeout);
@@ -375,15 +387,6 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             }
 
             m_writeOutput($"[{Name}] {e.Data}");
-        }
-
-        private string GetOutputTail(int maximumLines)
-        {
-            lock (m_lock)
-            {
-                int start = Math.Max(0, m_lines.Count - maximumLines);
-                return string.Join(Environment.NewLine, m_lines.GetRange(start, m_lines.Count - start));
-            }
         }
 
         private static string LocateApplicationAssembly(string applicationDirectory, string assemblyName)

@@ -36,7 +36,7 @@ $responses = @{}
 $prefix = 'repos/OPCFoundation/UA-.NETStandard'
 $sha = 'a' * 40
 $definitionSha = $sha
-$sourceBranch = if ($Scenario -eq 'release-branch') { 'release/2.0.0' } else { 'master' }
+$sourceBranch = if ($Scenario.StartsWith('release-')) { 'release/2.0' } else { 'master' }
 $sourceRef = "refs/heads/$sourceBranch"
 $queryBranch = [Uri]::EscapeDataString($sourceBranch)
 $profilePath = Join-Path $root '.azurepipelines/assurance/profiles.json'
@@ -53,7 +53,11 @@ function Add-Response([string] $Endpoint, $Value) {
 }
 
 try {
-    Add-Response "$prefix/branches/master" @{name='master'; protected=$true; commit=@{sha=$sha}}
+    Add-Response "$prefix/branches/$queryBranch" @{
+        name = if ($Scenario -eq 'release-policy-wrong-ref') { 'master' } else { $sourceBranch }
+        protected = $Scenario -ne 'release-policy-unprotected'
+        commit = @{sha=$sha}
+    }
     foreach ($name in @('release/policy.json', 'assurance/profiles.json')) {
         Add-Response "$prefix/contents/.azurepipelines/${name}?ref=$sha" @{
             path=".azurepipelines/$name"; encoding='base64'
@@ -318,7 +322,7 @@ try {
     $completed = switch ($Scenario) {
         { $_ -in @('wrong-repository','wrong-sha','wrong-event','wrong-ref','wrong-workflow','wrong-attempt',
             'definition-unverified','push-definition-missing','push-definition-contradiction',
-            'run-in-progress','missing-current-run') } { 0; break }
+            'run-in-progress','missing-current-run','release-policy-wrong-ref','release-policy-unprotected') } { 0; break }
         'manifest-only-fuzz' { 2; break }
         { $_ -in @('complete', 'release-branch', 'push-definition') } { 5; break }
         'verified-seven' { 7; break }
@@ -330,6 +334,10 @@ try {
         default { 4 }
     }
     $failed = if ($Scenario -in @('failed-result', 'native-crash')) { 1 } else { 0 }
+    if ($Scenario -in @('release-policy-wrong-ref', 'release-policy-unprotected') -and
+        ('POLICY_REF_UNVERIFIED' -notin $receipt.reasons -or $actual.selected -ne 0)) {
+        throw 'Unprotected or misbound release policy received assurance credit.'
+    }
     if ($actual.expected -ne 7 -or $actual.completed -ne $completed -or
         $actual.missing -ne 7-$completed-$failed -or $actual.failed -ne $failed -or $actual.notApplicable -ne 0) {
         throw "Unexpected assurance result in $Scenario. Expected completed=$completed. Receipt: $receiptText"

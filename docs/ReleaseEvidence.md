@@ -72,10 +72,10 @@ artifact-format classification:
 | --- | --- | --- |
 | `nuget` | NuGet packages | Modern Release and applicable Debug packages, metapackages and corresponding symbol packages |
 | `containers` | Container images | Nine sample/tool images under `ghcr.io/opcfoundation/uanetstandard`, each with amd64 and arm64 runnable manifests |
-| `pump` | Container images | The Pump sample at `ghcr.io/opcfoundation/pumpdeviceintegrationserver`, with an amd64 runnable manifest |
+| `pump` | Container images | The Pump sample at `ghcr.io/opcfoundation/uanetstandard/pumpserver`, with amd64 and arm64 runnable manifests |
 
-**Pump is a container image.** Its separate group preserves its owner-level
-registry path, single-platform scope and independent promotion. Both container
+**Pump is a container image.** Its separate evidence group allows independent
+promotion while using the shared registry layout and dual-platform builds. Both container
 groups use the same Docker workflow; `pump` is not a separate artifact technology.
 
 For the group selected by the release maintainer, the controller expands expected
@@ -135,18 +135,17 @@ The shared Docker workflow's `containers` group publishes nine image repositorie
 and removes `-` and `.`.
 
 The same workflow preserves the independent `pump` group:
-`ghcr.io/opcfoundation/pumpdeviceintegrationserver`,
-`linux/amd64` only. Its transformation lowercases the owner and image, without
-the main group's repository segment. The catalog preserves both identities.
+`ghcr.io/opcfoundation/uanetstandard/pumpserver`,
+with `linux/amd64` and `linux/arm64/v8`. It uses the same repository normalization
+and release-line tag rules as the main group.
 Fork-derived names are not automatically authorized official destinations.
 
-The catalog-driven selector builds both groups on master pushes and pull requests
-(build-only for pull requests), only `containers` on release/docker branch pushes,
-and only `pump` on manual dispatch. Status artifacts and membership manifests
+The catalog-driven selector builds both groups on master and release/docker pushes,
+manual dispatch and pull requests (build-only for pull requests). Status artifacts and membership manifests
 are aggregated separately for each selected group; sharing a workflow does not
 combine their release eligibility or require an unrelated group's members.
 
-These are **19 runnable platform subjects**. Inspect actual OCI media types:
+These are **20 runnable platform subjects**. Inspect actual OCI media types:
 indexes, runnable manifests and attestation descriptors are different objects.
 An attestation descriptor is not a platform; even Pump may have a wrapping
 index. Verify every runnable subject, its native BuildKit SPDX inventory and
@@ -210,6 +209,13 @@ exact bytes are covered by the producer's authenticated index/record.
 Classifications in an unrelated scope cannot clear findings; legacy envelopes
 without this companion keep their unclassified findings. An observed failure
 cannot be relabelled pending or removed by subsequent verification.
+
+The archive manifest is an independent wire contract: readers retain v1 support,
+while new package sets use archive-manifest v2 with `basePackageVersion`, `channel`
+and distinct `packageVersions`. It is not the release-evidence v2 envelope.
+Each artifact keeps its exact nuspec version, including approved preview-only
+families in a stable root release. Verification matches that version to its
+evaluated package mapping; an arbitrary mixed-version set is not accepted.
 
 All digests are `sha256:` plus 64 lowercase hex characters. Git SHAs are
 separately typed full lowercase object IDs, not file digests. `source.actualSha`
@@ -445,8 +451,8 @@ only the selected public sidecars accompany the signed packages.
 The adapter's operations are `PrepareTool`, `Capture`, `Sidecars`, `Aggregate`,
 `Assurance`, `Preflight`, `Receipt`, `VerifyFeed` and `Attach`. Release and Debug
 sidecars are reconciled against the existing modern catalog, evaluated variant
-mappings and hand-authored metapackages. The existing v1 archive manifest is
-unchanged. Producer context, configuration provenance and the v2 index are
+mappings and hand-authored metapackages. Archive-manifest v1 and v2 bytes are
+retained unchanged. Producer context, configuration provenance and the v2 index are
 separate files; the workflow retains attestation bundles with their digests.
 `verification-bundle.json.nativeNuget` refers directly to the original Release
 and Debug SLSA v1 bundles and the native index bundle. Their signatures are never
@@ -460,8 +466,11 @@ workflow definition, run/attempt invocation, builder and source-material binding
 The signed index binds the package-specific inventories and BOMs transitively.
 Configuration-wide SLSA subjects do not claim to be per-package SBOM attestations.
 
-`release.yml` runs from the current master controller and obtains the selected
-producer run/attempt from the GitHub API. Preflight checks those observations
+`release.yml` is dispatched from the candidate's canonical `release/<major>.<minor>`
+branch. It obtains the selected producer run/attempt from the GitHub API before
+its first checkout, which is pinned to that candidate's exact commit.
+Independent protected trust and policy checkpoints remain outside candidate data.
+Preflight checks those observations
 against the manifest and expected context. Contradictory source/run expectations
 are blocking in every channel. A missing collector produces an explicit incomplete
 report that blocks required stable publication; preview/development channels retain
@@ -505,7 +514,9 @@ empty-regression skips. Unrelated skipped tests remain invalid.
 `.azurepipelines/assurance/get-release.ps1` uses authenticated, read-only GitHub API responses to
 select same-source workflow attempts and download bounded, explicitly named
 sanitized artifacts. `ExpectedSourceRef` supports master and current `release/2.*`
-branches; the policy floor still comes from protected master. It validates
+branches; policy/profile bytes are checked against the corresponding protected
+branch and revalidated throughout collection. Independent trust still establishes
+the approved current policy floor for release eligibility. It validates
 source, event, run/attempt, artifact digest and scope rather than falling back
 to an older successful run. A matching API-recorded workflow reference binds
 definition identity; for same-repository push events, the adapter additionally
@@ -518,7 +529,7 @@ offline-metadata option cannot grant credit and is rejected on CI.
 ```powershell
 .\.azurepipelines\assurance\get-release.ps1 `
     -ExpectedSourceSha $sourceSha `
-    -ExpectedSourceRef 'refs/heads/release/2.0.0' `
+    -ExpectedSourceRef 'refs/heads/release/2.0' `
     -OutputPath .\assurance\assurance.json `
     -WorkDirectory $runnerLocalWork
 ```
@@ -649,7 +660,7 @@ candidate cannot escape enforcement by labelling both supplied contexts
 
 ### Publication and recovery
 
-The configured `release.yml` controller separates read-only candidate verification
+The configured release-branch `release.yml` controller separates read-only candidate verification
 from the official writer operating under the protected `release` authority.
 Verification obtains the selected candidate through authenticated acquisition and
 produces an immutable assessment. The writer reacquires the same exact candidate,
@@ -724,7 +735,7 @@ publication. Writing diagnostic output is not release authorization:
   "source": {
     "repository": "OPCFoundation/UA-.NETStandard",
     "actualSha": "1111111111111111111111111111111111111111",
-    "actualRef": "refs/heads/master",
+    "actualRef": "refs/heads/release/2.0",
     "trackedClean": true
   },
   "producer": {
@@ -749,7 +760,8 @@ The two project paths are an illustration, **not complete release membership**.
 Pass all built packable projects for that configuration. The tool recursively
 follows evaluated `ProjectReference` items, including nonpackable generator
 variants, and evaluates each actual target framework. It runs only MSBuild
-property/item evaluation, **not restore/build/pack targets**. Capture must run
+property/item evaluation and, for preview-only families, the
+`ApplyPreviewPackageVersion` target, **not restore/build/pack targets**. Capture must run
 after the build's implicit restore as well as explicit restore, before another
 configuration can overwrite shared `project.assets.json` files.
 Only evaluate projects from the trusted source checkout: MSBuild property
@@ -787,7 +799,7 @@ job rather than substituting its build job:
   "source": {
     "repository": "OPCFoundation/UA-.NETStandard",
     "actualSha": "1111111111111111111111111111111111111111",
-    "actualRef": "refs/heads/master",
+    "actualRef": "refs/heads/release/2.0",
     "trackedClean": true
   },
   "producer": {
@@ -862,7 +874,7 @@ it is deliberately not the complete NuGet group:
   "source": {
     "repository": "OPCFoundation/UA-.NETStandard",
     "actualSha": "1111111111111111111111111111111111111111",
-    "actualRef": "refs/heads/master",
+    "actualRef": "refs/heads/release/2.0",
     "trackedClean": true
   },
   "producer": {
@@ -949,7 +961,7 @@ root digest, not a locally synthesized export `index.json` digest:
 {
   "images": [
     {
-      "id": "ghcr.io/opcfoundation/pumpdeviceintegrationserver",
+      "id": "ghcr.io/opcfoundation/uanetstandard/pumpserver",
       "layout": "pump-layout",
       "rootDigest": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
     }
@@ -968,7 +980,7 @@ For example, `oci-context.json` for the Pump group is:
   "source": {
     "repository": "OPCFoundation/UA-.NETStandard",
     "actualSha": "1111111111111111111111111111111111111111",
-    "actualRef": "refs/heads/master",
+    "actualRef": "refs/heads/release/2.0",
     "trackedClean": true
   },
   "producer": {
@@ -990,7 +1002,7 @@ The OCI reconciliation input may leave `artifacts` empty: discovered subjects
 are reconciled against the current catalog, not credited as an authenticated
 expected set. A later v2 evaluation needs independent expected `oci-index` and
 `oci-manifest` records, with actual digests and one platform per runnable
-manifest (`linux/amd64` for Pump); index platform scopes are empty.
+manifest (`linux/amd64` or `linux/arm64/v8`); index platform scopes are empty.
 
 ```powershell
 dotnet $evidenceTool oci --repository-root . `
@@ -1037,9 +1049,9 @@ authenticated producer expectations. Native SLSA predicates must match source,
 invocation, Dockerfile, materials and approved BuildKit/scanner identities.
 Per-subject signatures remain independent cryptographic checks.
 
-The main group has nine images/eighteen runnable subjects; Pump has one/one.
+The main group has nine images/eighteen runnable subjects; Pump has one/two.
 With one index per image, their exact promotion membership is respectively
-27 and 2 artifacts, preserving index versus runnable kind/platform identities.
+27 and 3 artifacts, preserving index versus runnable kind/platform identities.
 An authenticated referrer context binds image, subject, manifest and artifact
 type; the closure includes layers, configs, native attestations and signature
 material. Required referrers cannot be replaced by arbitrary present blobs.
@@ -1052,9 +1064,9 @@ engineering assessment.
 
 ## Reader compatibility and publication requirements
 
-1. Readers must understand the existing `release-manifest.json`
-   **schemaVersion 1** and the separate v2 companion. Preserve every existing
-   archive field and v1 validation rule. Never reinterpret v1 as v2 or change the
+1. Readers understand archive `release-manifest.json` **schemaVersion 1 and 2**
+   and the separate release-evidence v2 companion. Preserve every existing
+   archive field and validation rule. Never reinterpret an archive manifest as an evidence envelope or change the
    signed archive bytes.
 2. Absent or v1-only evidence is explicitly incomplete and blocks in-scope
    stable publication under the active required policy.

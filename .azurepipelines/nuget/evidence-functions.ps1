@@ -166,8 +166,27 @@ function Get-NugetChannel {
     if ($Version -notmatch '^(0|[1-9][0-9]*)\.[0-9]+\.[0-9]+(?:\.[0-9]+)?(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$') {
         Stop-NugetEvidence 'Invalid actual package version.' 2
     }
-    if ($Matches[2]) { return 'preview' }
+    if ($Matches[2] -or $Version.Contains('+')) { return 'preview' }
     return 'stable'
+}
+
+function Get-NugetManifestVersion {
+    param($Manifest)
+    if ($Manifest.schemaVersion -eq 1) {
+        $null = Get-NugetChannel $Manifest.packageVersion
+        return $Manifest.packageVersion
+    }
+    if ($Manifest.schemaVersion -ne 2) {
+        Stop-NugetEvidence 'Unsupported archive manifest schema.' 2
+    }
+    $channel = Get-NugetChannel $Manifest.basePackageVersion
+    $versions = @($Manifest.archives | ForEach-Object version | Sort-Object -Unique)
+    $declared = @($Manifest.packageVersions | Sort-Object)
+    if ($Manifest.channel -cne $channel -or $versions.Count -ne $declared.Count -or
+        @(Compare-Object -ReferenceObject $versions -DifferenceObject $declared -CaseSensitive).Count -ne 0) {
+        Stop-NugetEvidence 'Archive manifest channel or package-version inventory is inconsistent.' 2
+    }
+    return $Manifest.basePackageVersion
 }
 
 function New-NugetContext {
@@ -544,11 +563,12 @@ function Merge-NugetSidecars {
     param([string]$RepositoryRoot, [string]$Inputs, [string]$Packages, [string]$Output, $Context)
     $manifestPath = Join-Path $Packages 'release-manifest.json'
     $manifest = Read-NugetJson $manifestPath
-    if ($manifest.schemaVersion -ne 1 -or $manifest.commit -cne $Context.source.actualSha -or
+    $manifestVersion = Get-NugetManifestVersion $manifest
+    if ($manifest.commit -cne $Context.source.actualSha -or
         $manifest.repository -cne $Context.source.repository -or $manifest.runId -cne $Context.producer.runId -or
         $manifest.ref -cne $Context.source.actualRef -or $manifest.workflow -cne $Context.producer.workflow -or
-        $manifest.packageVersion -cne $Context.release.version) {
-        Stop-NugetEvidence 'V1/source/context identity mismatch.' 1
+        $manifestVersion -cne $Context.release.version) {
+        Stop-NugetEvidence 'Archive/source/context identity mismatch.' 1
     }
     $null = New-Item -ItemType Directory -Force -Path $Output
     if (@(Get-ChildItem -LiteralPath $Output -Force).Count -ne 0) { throw 'Aggregate output must be empty.' }
@@ -679,7 +699,7 @@ function Merge-NugetSidecars {
         digest = $sourceDigest; subject = $sourceSubject }
     Copy-Item -LiteralPath $manifestPath -Destination (Join-Path $Output 'release-manifest.json')
     $manifestDigest = Get-NugetDigest $manifestPath
-    $documents += @{ type = 'archive-manifest'; format = 'json'; version = '1'; path = 'release-manifest.json'
+    $documents += @{ type = 'archive-manifest'; format = 'json'; version = [string]$manifest.schemaVersion; path = 'release-manifest.json'
         digest = $manifestDigest; subject = @{ kind = 'artifact-set'; id = 'nuget'; digest = $manifestDigest } }
     $assessment = [ordered]@{ status = 'incomplete'; unmetControls = @($controls | Sort-Object -Unique) }
     if ($classifiedControls) {
@@ -814,6 +834,11 @@ function Write-NugetReceipt {
         [string]$DeliveredDigest, [string]$Verification = 'not-performed',
         [string]$PolicyDigest = 'unavailable', [string]$ContentReportDigest)
     $manifest = Read-NugetJson (Join-Path $Packages 'release-manifest.json')
+    $manifestVersion = Get-NugetManifestVersion $manifest
+    $deliveryArchives = @($manifest.archives | Where-Object {
+        $Destination -cne 'NugetOrg' -or -not $_.id.EndsWith('.Debug', [StringComparison]::OrdinalIgnoreCase)
+    })
+    $symbolCount = @($deliveryArchives | Where-Object type -CEQ 'symbols').Count
     $evidence = Join-Path $Packages 'evidence\release-evidence.json'
     $manifestDigest = Get-NugetDigest (Join-Path $Packages 'release-manifest.json')
     $evidenceDigest = if (Test-Path -LiteralPath $evidence) { Get-NugetDigest $evidence } else { 'unavailable' }
@@ -822,17 +847,17 @@ function Write-NugetReceipt {
     else {
         $receipt = [ordered]@{
             schemaVersion = 1; repository = $manifest.repository; sourceSha = $manifest.commit
-            version = $manifest.packageVersion; destination = $Destination; status = 'incomplete'
+            version = $manifestVersion; destination = $Destination; status = 'incomplete'
             evidenceDigest = $evidenceDigest; manifestDigest = $manifestDigest
             producerRunId = $manifest.runId
             producerAttempt = if ($env:SOURCE_ATTEMPT) { $env:SOURCE_ATTEMPT } else { $env:GITHUB_RUN_ATTEMPT }
             deliveryRunId = $env:GITHUB_RUN_ID; deliveryAttempt = $env:GITHUB_RUN_ATTEMPT
             symbols = @{
-                expected = $manifest.symbolPackageCount
-                status = if ($manifest.symbolPackageCount -gt 0) { 'unresolved' } else { 'not-present' }
+                expected = $symbolCount
+                status = if ($symbolCount -gt 0) { 'unresolved' } else { 'not-present' }
                 verification = 'not-performed'
             }
-            packages = @($manifest.archives | Where-Object type -CEQ 'package' | ForEach-Object {
+            packages = @($deliveryArchives | Where-Object type -CEQ 'package' | ForEach-Object {
                 @{ file = $_.file; id = $_.id; version = $_.version; authorDigest = "sha256:$($_.sha256)"
                     state = 'not-attempted'; verification = 'not-performed' }
             })

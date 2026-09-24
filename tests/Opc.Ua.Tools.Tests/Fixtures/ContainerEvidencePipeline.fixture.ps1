@@ -64,10 +64,8 @@ try {
     $group = if ($Scenario -in @('missing-platform', 'valid-dual-platform', 'catalog-membership')) {
         'containers'
     } else { 'pump' }
-    $image = if ($group -eq 'containers') { 'refserver' } else { 'pumpdeviceintegrationserver' }
-    $id = if ($group -eq 'containers') {
-        "ghcr.io/opcfoundation/uanetstandard/$image"
-    } else { "ghcr.io/opcfoundation/$image" }
+    $image = if ($group -eq 'containers') { 'refserver' } else { 'pumpserver' }
+    $id = "ghcr.io/opcfoundation/uanetstandard/$image"
     $sha = 'a' * 40
     $version = if ($Scenario -eq 'required-preview') { '2.0.0-preview.1' }
         elseif ($Scenario -eq 'required-four-part-version') { '2.0.0.42' } else { '2.0.0' }
@@ -120,7 +118,7 @@ try {
     }
     if ($Scenario -eq 'attestation-descriptor') { $attestation.platform = @{ os = 'linux'; architecture = 'amd64' } }
     $children = @($runnable, $attestation)
-    if ($Scenario -eq 'valid-dual-platform') {
+    if ($Scenario -eq 'valid-dual-platform' -or $group -eq 'pump') {
         $armConfig = Add-Blob @{
             architecture = 'arm64'; os = 'linux'
             config = @{ Labels = @{ 'org.opencontainers.image.revision' = $sha; 'org.opencontainers.image.version' = $version } }
@@ -207,8 +205,8 @@ try {
     Assert-True ($status.status -ceq 'incomplete') 'No fixture can establish complete release evidence.'
     Assert-True (-not $status.externalAuthorizationVerified) 'Offline fixtures cannot verify authorization.'
     if ($Scenario -eq 'valid-pump') {
-        Assert-True ($status.observedSubjects.Count -eq 2) 'Expected root index and one runnable manifest.'
-        Assert-True (@($status.observedSubjects | Where-Object kind -EQ 'oci-manifest').Count -eq 1) 'Attestation counted as platform.'
+        Assert-True ($status.observedSubjects.Count -eq 3) 'Expected root index and both runnable manifests.'
+        Assert-True (@($status.observedSubjects | Where-Object kind -EQ 'oci-manifest').Count -eq 2) 'Attestation counted as platform.'
         Assert-True ($status.observedAttestations.Count -eq 1) 'Native SBOM descriptor not recorded.'
         Assert-True ($status.observedAttestations[0].subjectDigest -ceq $runnable.digest) 'SBOM subject is not the runnable digest.'
         Assert-True ($nativeBefore -ceq (Get-FileHash -LiteralPath $nativePath).Hash) 'Native SPDX bytes were modified.'
@@ -246,7 +244,7 @@ try {
         $aggregate = Get-Content -LiteralPath (Join-Path $fixture 'aggregate.json') -Raw | ConvertFrom-Json
         $observed = @($aggregate.images | Where-Object observation -EQ 'reported')
         Assert-True ($observed.Count -eq 1 -and $observed[0].image -ceq $id -and
-            $observed[0].observedSubjects.Count -eq 2) 'Aggregate lost the observed Pump subjects.'
+            $observed[0].observedSubjects.Count -eq 3) 'Aggregate lost the observed Pump subjects.'
     }
     if ($Scenario -in @('private-path-filter', 'private-field-filter')) {
         Assert-True ($text -notmatch 'confidential|secret\.log|restrictedDigest|rawLog|dddddddd') 'Private capture leaked.'
@@ -260,7 +258,7 @@ try {
             'Absent outputs fabricated platforms.'
     }
     if ($Scenario -eq 'pump-membership') {
-        Assert-True ($status.expectedImages -eq 1 -and $status.expectedRunnablePlatforms -eq 1) 'Pump is not independent.'
+        Assert-True ($status.expectedImages -eq 1 -and $status.expectedRunnablePlatforms -eq 2) 'Pump is not independent.'
         Assert-True ($status.images.Count -eq 1 -and $status.images[0].group -ceq 'pump') 'Pump depends on main images.'
     }
     if ($Scenario -in @('required-stable', 'required-four-part-version', 'required-context-version')) {

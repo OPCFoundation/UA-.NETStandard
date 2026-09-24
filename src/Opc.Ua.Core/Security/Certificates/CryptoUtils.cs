@@ -340,7 +340,9 @@ namespace Opc.Ua
                     "No public key for certificate.");
             }
 
-            if (signingCertificate.GetRSAPublicKey() != null)
+            using RSA? rsa = signingCertificate.GetRSAPublicKey();
+
+            if (rsa != null)
             {
                 return RsaUtils.GetSignatureLength(signingCertificate);
             }
@@ -756,7 +758,7 @@ namespace Opc.Ua
 
             if (blockSize > byte.MaxValue)
             {
-                dataArray[endOfData + paddingSize + 1] = (byte)((paddingSize & 0xFF) >> 8);
+                dataArray[endOfData + paddingSize + 1] = (byte)(paddingSize >> 8);
             }
 
             return new ArraySegment<byte>(dataArray, data.Offset, data.Count + paddingSize + paddingByteSize);
@@ -778,27 +780,30 @@ namespace Opc.Ua
             byte[] dataArray = data.Array ??
                 throw new ArgumentNullException(nameof(data), "Data array must not be null.");
 
-            int paddingSize = dataArray[data.Offset + data.Count - 1];
-            int paddingByteSize = 1;
+            int paddingByteSize = blockSize > byte.MaxValue ? 2 : 1;
 
-            if (blockSize > byte.MaxValue)
+            if (data.Count < paddingByteSize)
             {
-                paddingSize <<= 8;
-                paddingSize += dataArray[data.Offset + data.Count - 2];
-                paddingByteSize = 2;
+                throw new CryptographicException("Invalid padding.");
             }
 
-            int notvalid = paddingSize < data.Count ? 0 : 1;
-            int start = data.Offset + data.Count - paddingSize - paddingByteSize;
-
-            for (int ii = data.Offset; ii < data.Count - paddingByteSize && ii < paddingSize; ii++)
+            int end = data.Offset + data.Count;
+            int paddingSize = dataArray[end - 1];
+            if (paddingByteSize == 2)
             {
-                if (start < 0 || start + ii >= data.Count)
-                {
-                    notvalid |= 1;
-                    continue;
-                }
+                paddingSize <<= 8;
+                paddingSize += dataArray[end - 2];
+            }
 
+            if (paddingSize > data.Count - paddingByteSize)
+            {
+                throw new CryptographicException("Invalid padding.");
+            }
+            int notvalid = 0;
+            int start = end - paddingSize - paddingByteSize;
+
+            for (int ii = 0; ii < paddingSize; ii++)
+            {
                 notvalid |= dataArray[start + ii] ^ (paddingSize & 0xFF);
             }
 
@@ -807,7 +812,7 @@ namespace Opc.Ua
                 throw new CryptographicException("Invalid padding.");
             }
 
-            return new ArraySegment<byte>(dataArray, 0, data.Offset + data.Count - paddingSize - paddingByteSize);
+            return new ArraySegment<byte>(dataArray, 0, start);
         }
 
         /// <summary>
@@ -1728,14 +1733,17 @@ namespace Opc.Ua
                 }
             }
 
-            if (!signOnly)
-            {
-                data = RemovePadding(data, iv.Length);
-            }
-
+            // Checked before the padding is inspected: padding on a message that
+            // failed its signature is attacker-chosen, and reporting the two
+            // failures apart would make the padding check an oracle.
             if (isNotValid != 0)
             {
                 throw new CryptographicException("Invalid signature.");
+            }
+
+            if (!signOnly)
+            {
+                data = RemovePadding(data, iv.Length);
             }
 
             return new ArraySegment<byte>(dataArray, 0, data.Offset + data.Count);

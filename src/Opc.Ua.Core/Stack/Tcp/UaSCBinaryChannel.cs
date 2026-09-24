@@ -306,12 +306,29 @@ namespace Opc.Ua.Bindings
                 // accepted immediately and any in flight are cancelled.
                 m_backgroundWork.Dispose();
 
-                m_receiveLoopCts?.Cancel();
-                IUaSCByteTransport? transport = Interlocked.Exchange(ref m_transport, null);
+                IUaSCByteTransport? transport = DetachTransport();
                 transport?.Close();
                 DiscardTokens();
-                m_receiveLoopCts?.Dispose();
-                m_receiveLoopCts = null;
+
+                // A message the peer never finished sending leaves its chunks
+                // queued here. Nothing else returns them, so a client that sends
+                // one intermediate chunk and disconnects would cost the pool a
+                // receive buffer per channel.
+                //
+                // Dispose runs alongside the receive loop, which may be saving a
+                // chunk at this moment, so the collection is detached under the
+                // same lock every partial message operation takes, and closed so
+                // a chunk saved afterwards is not queued into a new collection
+                // nothing would ever release.
+                BufferCollection? partialChunks;
+
+                lock (m_partialMessageLock)
+                {
+                    m_partialMessageClosed = true;
+                    partialChunks = m_partialMessageChunks;
+                    m_partialMessageChunks = null;
+                }
+                partialChunks?.Release(BufferManager, "Dispose");
 
                 ServerCertificateChain?.Dispose();
                 ServerCertificateChain = null;
@@ -327,11 +344,14 @@ namespace Opc.Ua.Bindings
                 ClientCertificate?.Dispose();
                 ClientCertificate = null;
 
-                m_localNonce?.Dispose();
-                m_localNonce = null;
-
-                m_remoteNonce?.Dispose();
-                m_remoteNonce = null;
+                lock (m_nonceLock)
+                {
+                    m_noncesDisposed = true;
+                    m_localNonce?.Dispose();
+                    m_localNonce = null;
+                    m_remoteNonce?.Dispose();
+                    m_remoteNonce = null;
+                }
             }
         }
 
@@ -425,9 +445,7 @@ namespace Opc.Ua.Bindings
             bool isLegacy = SecurityPolicy!.LegacySequenceNumbers;
 
             long newSeqNumber = Interlocked.Increment(ref m_sequenceNumber);
-            bool maxValueOverflow = isLegacy
-                ? newSeqNumber > kMaxValueLegacyTrue
-                : newSeqNumber > kMaxValueLegacyFalse;
+            bool maxValueOverflow = newSeqNumber > uint.MaxValue;
 
             // LegacySequenceNumbers are TRUE for non ECC profiles
             // https://reference.opcfoundation.org/Core/Part6/v105/docs/6.7.2.4
@@ -468,11 +486,19 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected bool VerifySequenceNumber(uint sequenceNumber, string context)
         {
+            return VerifySequenceNumberCore(sequenceNumber, context, false);
+        }
+
+        /// <summary>
+        /// Tracks a reconnect's continued sequence until the retained channel can validate it.
+        /// </summary>
+        private protected bool VerifySequenceNumberCore(uint sequenceNumber, string context, bool reconnecting)
+        {
             // Accept the first sequence number depending on security policy
             bool usesLegacySequenceNumbers = SecurityPolicy?.LegacySequenceNumbers ?? true;
             if (m_firstReceivedSequenceNumber)
             {
-                if (usesLegacySequenceNumbers || sequenceNumber == 0)
+                if (usesLegacySequenceNumbers || sequenceNumber == 0 || reconnecting)
                 {
                     m_remoteSequenceNumber = sequenceNumber;
                     m_firstReceivedSequenceNumber = false;
@@ -483,13 +509,24 @@ namespace Opc.Ua.Bindings
             {
                 // everything ok if new number is greater.
                 m_remoteSequenceNumber = sequenceNumber;
+                if (m_sequenceRollover &&
+                    sequenceNumber >= TcpMessageLimits.MaxRolloverSequenceNumber &&
+                    sequenceNumber <= TcpMessageLimits.MinSequenceNumber)
+                {
+                    // The counter traversed the normal range, so the guard against repeated
+                    // low numbers right after a wrap has served its purpose. Part 6 does not
+                    // cap a channel at a single wrap, and a long-lived busy channel reaches
+                    // the next legal one.
+                    m_sequenceRollover = false;
+                }
                 return true;
             }
             else if (m_remoteSequenceNumber > TcpMessageLimits.MinSequenceNumber &&
                 sequenceNumber < TcpMessageLimits.MaxRolloverSequenceNumber)
             {
                 // check for a valid rollover.
-                // only one rollover per token is allowed and with valid values depending on security policy
+                // only one rollover per rollover window is allowed and with valid values
+                // depending on security policy
                 if (!m_sequenceRollover &&
                     (usesLegacySequenceNumbers || sequenceNumber == 0))
                 {
@@ -521,47 +558,104 @@ namespace Opc.Ua.Bindings
         /// <see cref="DoMessageLimitsExceeded(bool)"/>, which tears the channel
         /// down and must know whether it may take the gate.
         /// </param>
+        /// <remarks>
+        /// Always takes ownership of <paramref name="chunk"/>: it is either added
+        /// to the partial message, or returned to the <see cref="BufferManager"/>
+        /// straight away. A caller must therefore never pass a chunk it has
+        /// already handed over — use <see cref="TakeSavedChunks"/> when the body
+        /// is saved and only the collection is wanted.
+        /// </remarks>
         protected bool SaveIntermediateChunk(
             uint requestId,
             ArraySegment<byte> chunk,
             bool isServerContext,
             bool gateHeld)
         {
-            bool firstChunk = false;
-            if (m_partialMessageChunks == null)
-            {
-                firstChunk = true;
-                m_partialMessageChunks = [];
-            }
+            bool firstChunk;
+            bool chunkOrSizeLimitsExceeded;
 
-            bool chunkOrSizeLimitsExceeded = MessageLimitsExceeded(
-                isServerContext,
-                m_partialMessageChunks.TotalSize,
-                m_partialMessageChunks.Count);
-
-            if ((m_partialRequestId != requestId) || chunkOrSizeLimitsExceeded)
+            lock (m_partialMessageLock)
             {
-                if (m_partialMessageChunks.Count > 0)
+                // Disposal has already released the partial message and nothing
+                // will release it again, so a chunk arriving after that goes
+                // straight back to the pool rather than into a new collection.
+                if (m_partialMessageClosed)
                 {
-                    m_logger.UaSCChannelLog4(m_partialRequestId);
+                    ReturnBuffer(chunk, "SaveIntermediateChunk");
+                    return false;
                 }
 
-                m_partialMessageChunks.Release(BufferManager, "SaveIntermediateChunk");
+                firstChunk = m_partialMessageChunks == null;
+                m_partialMessageChunks ??= [];
+
+                chunkOrSizeLimitsExceeded = MessageLimitsExceeded(
+                    isServerContext,
+                    m_partialMessageChunks.TotalSize,
+                    m_partialMessageChunks.Count);
+
+                if ((m_partialRequestId != requestId) || chunkOrSizeLimitsExceeded)
+                {
+                    if (m_partialMessageChunks.Count > 0)
+                    {
+                        m_logger.UaSCChannelLog4(m_partialRequestId);
+                    }
+
+                    m_partialMessageChunks.Release(BufferManager, "SaveIntermediateChunk");
+                }
+
+                if (!chunkOrSizeLimitsExceeded && requestId != 0 && chunk.Array != null)
+                {
+                    m_partialRequestId = requestId;
+                    m_partialMessageChunks.Add(chunk);
+                }
+                else
+                {
+                    ReturnBuffer(chunk, "SaveIntermediateChunk");
+                }
             }
 
+            // Outside the lock: tearing the channel down can take the gate, and
+            // the partial message lock must stay a leaf.
             if (chunkOrSizeLimitsExceeded)
             {
                 DoMessageLimitsExceeded(gateHeld);
-                return firstChunk;
-            }
-
-            if (requestId != 0)
-            {
-                m_partialRequestId = requestId;
-                m_partialMessageChunks.Add(chunk);
             }
 
             return firstChunk;
+        }
+
+        /// <summary>
+        /// Whether chunks of a message are already waiting for the rest of it,
+        /// so that the next chunk continues a message rather than starting one.
+        /// </summary>
+        /// <remarks>
+        /// A caller that has to inspect the first chunk of a message checks this
+        /// before handing the chunk to <see cref="SaveIntermediateChunk"/>: that
+        /// call takes ownership and can return the buffer to the pool at once,
+        /// so the body is only safe to read beforehand.
+        /// </remarks>
+        protected bool HasPartialMessage
+        {
+            get
+            {
+                lock (m_partialMessageLock)
+                {
+                    return m_partialMessageChunks != null;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Returns a pooled buffer nothing downstream took ownership of.
+        /// </summary>
+        /// <param name="buffer">The segment whose array goes back to the pool.</param>
+        /// <param name="owner">The owner name the buffer manager tracks it under.</param>
+        protected void ReturnBuffer(ArraySegment<byte> buffer, string owner)
+        {
+            if (buffer.Array != null)
+            {
+                BufferManager.ReturnBuffer(buffer.Array, owner);
+            }
         }
 
         /// <summary>
@@ -575,9 +669,23 @@ namespace Opc.Ua.Bindings
             bool gateHeld)
         {
             SaveIntermediateChunk(requestId, chunk, isServerContext, gateHeld);
-            BufferCollection savedChunks = m_partialMessageChunks!;
-            m_partialMessageChunks = null;
-            return savedChunks;
+            return TakeSavedChunks();
+        }
+
+        /// <summary>
+        /// Detaches the chunks saved so far without offering another one. Used
+        /// where the final chunk has already been saved and only the collection
+        /// is needed; passing it to <see cref="GetSavedChunks"/> a second time
+        /// would either queue the same buffer twice or release it early.
+        /// </summary>
+        protected BufferCollection TakeSavedChunks()
+        {
+            lock (m_partialMessageLock)
+            {
+                BufferCollection savedChunks = m_partialMessageChunks ?? [];
+                m_partialMessageChunks = null;
+                return savedChunks;
+            }
         }
 
         /// <summary>
@@ -585,7 +693,10 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected int GetSavedChunksTotalSize()
         {
-            return m_partialMessageChunks?.TotalSize ?? 0;
+            lock (m_partialMessageLock)
+            {
+                return m_partialMessageChunks?.TotalSize ?? 0;
+            }
         }
 
         /// <summary>
@@ -642,6 +753,10 @@ namespace Opc.Ua.Bindings
                     BufferManager.ReturnBuffer(message.GetArray(), "OnChunkReceived");
                 }
             }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                BufferManager.ReturnBuffer(message.Array, "OnChunkReceived");
+            }
             catch (Exception e)
             {
                 HandleMessageProcessingError(
@@ -693,8 +808,14 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Handles an error parsing or verifying a message.
         /// </summary>
+        /// <remarks>
+        /// The default reports the error to the log. A channel that has to act
+        /// on it — fault, reconnect, fail the pending operation — does so at the
+        /// point the error is detected rather than relying on this.
+        /// </remarks>
         protected virtual void HandleMessageProcessingError(ServiceResult result)
         {
+            m_logger.UaSCChannelMessageProcessingError(ChannelId, result);
         }
 
         /// <summary>
@@ -710,6 +831,20 @@ namespace Opc.Ua.Bindings
         protected virtual void OnTransportError(ServiceResult result)
         {
             HandleSocketError(result);
+        }
+
+        /// <summary>
+        /// Reports a receive failure only if its transport and cancellation lifetime still belong to this channel.
+        /// </summary>
+        private protected virtual void OnTransportError(
+            IUaSCByteTransport transport,
+            ServiceResult result,
+            CancellationToken ct)
+        {
+            if (!ct.IsCancellationRequested && ReferenceEquals(Transport, transport))
+            {
+                OnTransportError(result);
+            }
         }
 
         /// <summary>
@@ -732,7 +867,7 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Sets up the receive-loop state (CTS, task, running flag) and
+        /// Installs the transport and its cancellation lifetime together and
         /// runs the supplied <paramref name="loopBody"/> on a background
         /// task. Used by <see cref="StartReceiveLoop"/> for the default
         /// long-running loop and by derived classes (e.g.
@@ -746,31 +881,62 @@ namespace Opc.Ua.Bindings
         protected void StartReceiveLoopWithBody(
             Func<IUaSCByteTransport, CancellationToken, Task> loopBody)
         {
-            IUaSCByteTransport? transport = m_transport;
-            if (transport == null)
+            ReceiveLoop? previous;
+            lock (m_receiveLoopLock)
             {
-                return;
-            }
-            if (Interlocked.CompareExchange(ref m_receiveLoopRunning, 1, 0) != 0)
-            {
-                return;
-            }
-            m_receiveLoopCts?.Dispose();
-            m_receiveLoopCts = new CancellationTokenSource();
-            CancellationToken ct = m_receiveLoopCts.Token;
-            m_receiveLoopTask = Task.Run(
-                async () =>
+                IUaSCByteTransport? transport = Transport;
+                if (transport == null ||
+                    (m_receiveLoop is { IsCompleted: false } current &&
+                        ReferenceEquals(current.Transport, transport)))
                 {
-                    try
+                    return;
+                }
+                previous = m_receiveLoop;
+                var loop = new ReceiveLoop(transport);
+                m_receiveLoop = loop;
+                if (!m_backgroundWork.Run(
+                    nameof(StartReceiveLoop),
+                    async shutdown =>
                     {
-                        await loopBody(transport, ct).ConfigureAwait(false);
-                    }
-                    finally
-                    {
-                        Interlocked.Exchange(ref m_receiveLoopRunning, 0);
-                    }
-                },
-                ct);
+                        using CancellationTokenRegistration registration = shutdown.Register(loop.Cancel);
+                        try
+                        {
+                            await loopBody(transport, loop.Token).ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            lock (m_receiveLoopLock)
+                            {
+                                if (ReferenceEquals(m_receiveLoop, loop))
+                                {
+                                    m_receiveLoop = null;
+                                }
+                            }
+                            loop.Complete();
+                        }
+                    }))
+                {
+                    m_receiveLoop = null;
+                    loop.Complete();
+                }
+            }
+            previous?.Cancel();
+        }
+
+        /// <summary>
+        /// Detaches the current <see cref="Transport"/> and signals the receive
+        /// loop reading from it to stop, without waiting for it to finish. The
+        /// returned transport is the caller's responsibility — the channel's own
+        /// <see cref="Dispose(bool)"/> will no longer close it.
+        /// </summary>
+        /// <remarks>
+        /// The synchronous counterpart to <see cref="DetachTransportAsync"/>,
+        /// for the handover in <c>TcpServerChannel</c> that runs on the very
+        /// receive loop being stopped and so cannot await it.
+        /// </remarks>
+        protected internal IUaSCByteTransport? DetachTransport()
+        {
+            return DetachTransport(out _);
         }
 
         /// <summary>
@@ -787,32 +953,45 @@ namespace Opc.Ua.Bindings
         /// </remarks>
         internal async ValueTask<IUaSCByteTransport?> DetachTransportAsync()
         {
-            IUaSCByteTransport? transport = Interlocked.Exchange(ref m_transport, null);
-
-            CancellationTokenSource? cts = m_receiveLoopCts;
-            cts?.Cancel();
-
-            Task? loop = m_receiveLoopTask;
+            IUaSCByteTransport? transport = DetachTransport(out ReceiveLoop? loop);
             if (loop != null)
             {
-                try
-                {
-                    await loop.ConfigureAwait(false);
-                }
-                catch
-                {
-                    // The loop's exit path catches its own exceptions; any escapes
-                    // here are last-resort and must not block the handoff.
-                }
-                m_receiveLoopTask = null;
+                await loop.Completion.ConfigureAwait(false);
             }
 
             return transport;
         }
 
+        /// <summary>
+        /// Detaches the transport and cancels its receive loop without waiting for that loop to finish.
+        /// </summary>
+        internal IUaSCByteTransport? DetachTransportForHandoff()
+        {
+            return DetachTransport(out _);
+        }
+
+        /// <summary>
+        /// Removes the transport and its receive-loop registration together, then requests loop cancellation.
+        /// </summary>
+        private IUaSCByteTransport? DetachTransport(out ReceiveLoop? loop)
+        {
+            IUaSCByteTransport? transport;
+            lock (m_receiveLoopLock)
+            {
+                transport = Interlocked.Exchange(ref m_transport, null);
+                loop = m_receiveLoop;
+                m_receiveLoop = null;
+            }
+            loop?.Dispose();
+            return transport;
+        }
+
+        /// <summary>
+        /// Receives and dispatches chunks while the transport remains current, reporting receive and dispatch failures.
+        /// </summary>
         private async Task RunReceiveLoopAsync(IUaSCByteTransport transport, CancellationToken ct)
         {
-            while (!ct.IsCancellationRequested)
+            while (!ct.IsCancellationRequested && ReferenceEquals(Transport, transport))
             {
                 ArraySegment<byte> chunk;
                 try
@@ -825,15 +1004,21 @@ namespace Opc.Ua.Bindings
                 }
                 catch (ServiceResultException sre)
                 {
-                    OnTransportError(sre.Result);
+                    OnTransportError(transport, sre.Result, ct);
                     return;
                 }
                 catch (Exception ex)
                 {
-                    OnTransportError(ServiceResult.Create(
+                    OnTransportError(transport, ServiceResult.Create(
                         ex,
                         StatusCodes.BadTcpInternalError,
-                        ex.Message));
+                        ex.Message), ct);
+                    return;
+                }
+
+                if (ct.IsCancellationRequested || !ReferenceEquals(Transport, transport))
+                {
+                    BufferManager.ReturnBuffer(chunk.Array, nameof(RunReceiveLoopAsync));
                     return;
                 }
 
@@ -851,10 +1036,10 @@ namespace Opc.Ua.Bindings
                     // task this runs on is fire-and-forget, so an escaping
                     // exception would otherwise stop the channel receiving with no
                     // report at all, and the peer would simply time out.
-                    OnTransportError(ServiceResult.Create(
+                    OnTransportError(transport, ServiceResult.Create(
                         ex,
                         StatusCodes.BadTcpInternalError,
-                        "An error occurred dispatching a received message."));
+                        "An error occurred dispatching a received message."), ct);
                     return;
                 }
             }
@@ -955,7 +1140,7 @@ namespace Opc.Ua.Bindings
                         static completed => _ = completed.Exception,
                         CancellationToken.None,
                         TaskContinuationOptions.ExecuteSynchronously |
-                            TaskContinuationOptions.DenyChildAttach,
+                        TaskContinuationOptions.DenyChildAttach,
                         TaskScheduler.Default);
             }
         }
@@ -1286,8 +1471,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected internal IUaSCByteTransport? Transport
         {
-            get => m_transport;
-            set => m_transport = value;
+            get => Volatile.Read(ref m_transport);
+            set => Volatile.Write(ref m_transport, value);
         }
 
         /// <summary>
@@ -1487,15 +1672,146 @@ namespace Opc.Ua.Bindings
         private uint m_partialRequestId;
         private BufferCollection? m_partialMessageChunks;
 
+        /// <summary>
+        /// Guards <see cref="m_partialMessageChunks"/>,
+        /// <see cref="m_partialRequestId"/> and
+        /// <see cref="m_partialMessageClosed"/>. The channel gate cannot serve:
+        /// it is not re-entrant, the client saves response chunks without it,
+        /// and disposal does not take it. Nothing is acquired while this is held.
+        /// </summary>
+        private readonly Lock m_partialMessageLock = new();
+
+        /// <summary>
+        /// Set once disposal has released the partial message.
+        /// </summary>
+        private bool m_partialMessageClosed;
+
         private IUaSCByteTransport? m_transport;
         private readonly BackgroundTaskScope m_backgroundWork;
-        private CancellationTokenSource? m_receiveLoopCts;
-        private Task? m_receiveLoopTask;
-        private int m_receiveLoopRunning;
+
+        /// <summary>
+        /// Coordinates cancellation and completion of one receive loop without disposing an active cancellation source.
+        /// </summary>
+        private sealed class ReceiveLoop : IDisposable
+        {
+            /// <summary>
+            /// Associates a transport with a stable cancellation token and completion signal.
+            /// </summary>
+            public ReceiveLoop(IUaSCByteTransport transport)
+            {
+                Transport = transport;
+                Token = m_cancellation.Token;
+            }
+
+            /// <summary>
+            /// Gets the transport exclusively read by this receive-loop instance.
+            /// </summary>
+            public IUaSCByteTransport Transport { get; }
+
+            /// <summary>
+            /// Gets the token captured before the loop's cancellation source can be disposed.
+            /// </summary>
+            public CancellationToken Token { get; }
+
+            /// <summary>
+            /// Gets the signal that the receive-loop body has finished.
+            /// </summary>
+            public Task Completion => m_completion.Task;
+
+            /// <summary>
+            /// Gets whether the receive-loop body has reported completion.
+            /// </summary>
+            public bool IsCompleted => m_completion.Task.IsCompleted;
+
+            /// <summary>
+            /// Requests cancellation while keeping the source alive through any reentrant completion callback.
+            /// </summary>
+            public void Cancel()
+            {
+                lock (m_lock)
+                {
+                    if (m_finished)
+                    {
+                        return;
+                    }
+                    m_cancelling++;
+                    try
+                    {
+                        m_cancellation.Cancel();
+                    }
+                    finally
+                    {
+                        m_cancelling--;
+                        if (m_finished && m_cancelling == 0)
+                        {
+                            m_cancellation.Dispose();
+                        }
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Requests loop cancellation; source disposal is deferred until completion is safe.
+            /// </summary>
+            public void Dispose()
+            {
+                Cancel();
+            }
+
+            /// <summary>
+            /// Marks the loop finished and releases the cancellation source when no cancellation call is active.
+            /// </summary>
+            public void Complete()
+            {
+                lock (m_lock)
+                {
+                    m_finished = true;
+                    if (m_cancelling == 0)
+                    {
+                        m_cancellation.Dispose();
+                    }
+                }
+                m_completion.TrySetResult(true);
+            }
+
+            /// <summary>
+            /// Serializes cancellation-source disposal with cancellation and loop completion.
+            /// </summary>
+            private readonly Lock m_lock = new();
+
+            /// <summary>
+            /// Cancels pending receives for this loop without affecting a replacement loop.
+            /// </summary>
+            private readonly CancellationTokenSource m_cancellation = new();
+
+            /// <summary>
+            /// Signals that the receive-loop body no longer owns any pending receive work.
+            /// </summary>
+            private readonly TaskCompletionSource<bool> m_completion =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>
+            /// Records that completion has begun, preventing further cancellation requests.
+            /// </summary>
+            private bool m_finished;
+
+            /// <summary>
+            /// Counts active cancellation calls whose callbacks may reenter completion.
+            /// </summary>
+            private int m_cancelling;
+        }
+
+        /// <summary>
+        /// Serializes transport replacement with receive-loop registration and detachment.
+        /// </summary>
+        private readonly Lock m_receiveLoopLock = new();
+
+        /// <summary>
+        /// Holds the receive-loop lifetime associated with the currently attached transport.
+        /// </summary>
+        private ReceiveLoop? m_receiveLoop;
 
         private volatile TcpChannelStateEventHandler? m_stateChanged;
-        private const uint kMaxValueLegacyTrue = TcpMessageLimits.MinSequenceNumber;
-        private const uint kMaxValueLegacyFalse = uint.MaxValue;
     }
 
     /// <summary>
@@ -1559,7 +1875,7 @@ namespace Opc.Ua.Bindings
             Message = "Sender Certificate {Certificate}")]
         public static partial void UaSCChannelLog2(
             this ILogger logger,
-            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+            Certificate? certificate);
 
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryChannel + 3, Level = LogLevel.Error,
             Message = "ChannelId {ChannelId}: {Context} - Duplicate sequence number: {SequenceNumber} " +
@@ -1585,7 +1901,7 @@ namespace Opc.Ua.Bindings
         public static partial void UaSCChannelLog6(
             this ILogger logger,
             uint channelId,
-            global::Opc.Ua.Bindings.TcpChannelState state);
+            TcpChannelState state);
 
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryChannel + 7, Level = LogLevel.Warning,
             Message = "Message is not an integral multiple of the block size. Length = {Length}, " +
@@ -1609,7 +1925,7 @@ namespace Opc.Ua.Bindings
         public static partial void UaSCChannelLog9(
             this ILogger logger,
             uint channelId,
-            global::System.DateTime createdAt,
+            DateTime createdAt,
             long createdAtTimestamp,
             int lifetime);
 
@@ -1620,7 +1936,7 @@ namespace Opc.Ua.Bindings
             this ILogger logger,
             uint id,
             uint tokenId,
-            global::System.DateTime createdAt,
+            DateTime createdAt,
             long createdAtTimestamp,
             int lifetime);
 
@@ -1631,7 +1947,7 @@ namespace Opc.Ua.Bindings
             this ILogger logger,
             uint id,
             uint tokenId,
-            global::System.DateTime createdAt,
+            DateTime createdAt,
             long createdAtTimestamp,
             int lifetime);
 
@@ -1656,6 +1972,18 @@ namespace Opc.Ua.Bindings
             this ILogger logger,
             Exception exception,
             uint channelId);
-    }
 
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryChannel + 15, Level = LogLevel.Error,
+            Message = "ChannelId {ChannelId}: Could not process an incoming message. {ServiceResult}")]
+        public static partial void UaSCChannelMessageProcessingError(
+            this ILogger logger,
+            uint channelId,
+            ServiceResult serviceResult);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryChannel + 16, Level = LogLevel.Debug,
+            Message = "The nonce supplied by the peer was rejected.")]
+        public static partial void UaSCChannelNonceRejected(
+            this ILogger logger,
+            Exception exception);
+    }
 }

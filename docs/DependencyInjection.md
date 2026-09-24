@@ -147,6 +147,10 @@ services.AddOpcUa()
 
 When `MaxOutstandingBytesPerProcess` is positive, the singleton factory wraps every manager it creates with `LimitingBufferManager` and shares one `BufferManagerMemoryLimiter` across them. A synchronous rent blocks without holding a manager lock until another buffer is returned. A single rent whose conservative expected size exceeds the budget fails immediately instead of waiting forever.
 
+Capacity changes notify only currently registered renters; idle buffer returns
+do not accumulate wakeups. Cancellation removes any unclaimed wakeup, and
+disposal wakes all blocked renters before releasing the wait primitive.
+
 Applications can replace the complete policy by registering an `IBufferManagerFactory` before `AddOpcUa()`:
 
 ```csharp
@@ -236,7 +240,7 @@ Prefer the first-class properties for their common settings and use
 | Method | Purpose and secure default |
 |--------|----------------------------|
 | `SetApplicationCertificates(...)` | Replaces the generated application-certificate identifiers. Prefer `SubjectName` and `PkiRoot` for the normal generated layout. |
-| `SetMaxRejectedCertificates(...)` | Sets rejected-certificate retention; default `5`, `0` keeps all, and a negative value keeps no history. |
+| `SetMaxRejectedCertificates(...)` | Sets rejected-certificate retention; default `5`. Zero keeps unlimited history; a negative value disables new storage. Directory prunes prior history at a negative limit; the shared key/value store retains it. |
 | `SetAutoAcceptUntrustedCertificates(...)` | Accepts otherwise-valid unknown peer certificates; default `false`. Prefer `AutoAcceptUntrustedCertificates`. Use `true` only in an isolated lab. |
 | `SetAddAppCertToTrustedStore(...)` | Adds a newly created application certificate to a shared trusted store; default `false`. |
 | `SetRejectSHA1SignedCertificates(...)` | Rejects SHA-1-signed certificates; default `true`. Prefer `RejectSHA1SignedCertificates`. |
@@ -536,6 +540,9 @@ overriding the published capabilities in a task.
 
 `AddAliasNameStore(store)` and `AddAliasNameStoreRegistry(registry)`
 make registered stores available before address-space startup.
+Application `IServerPreStartupTask` registrations run first, in their
+registration order, so they can initialize source registries before the
+stores are copied into the server's registry.
 `ConfigureAliasNames(Action<AliasNameServerOptions>)` controls whether
 the normal `ConfigurationNodeManager` also materializes their aliases
 and declared optional capabilities under the standard `TagVariables`
@@ -549,7 +556,10 @@ serverBuilder
 
 `AliasNameServerOptions` is in `Opc.Ua.Server.AliasNames`; its
 `MaterializeAliasNodes` defaults to `false`. Materialized browse nodes
-are a startup snapshot, not a live mirror of store mutations.
+are a startup snapshot by default. Also set `RefreshAliasNodesOnChange = true`
+to opt a materialized host into bounded, coalesced live refresh. This second
+option does not enable materialization by itself; query-only servers remain
+query-only.
 This setting is independent of `AliasNameNodeManagerOptions` for custom
 categories, whose `MaterializeAliasNodes` default remains `true`.
 See [Alias Names](AliasNames.md#browsable-alias-nodes) for capabilities,
@@ -583,6 +593,10 @@ The server creates, retains, and disposes its own resource manager.
 These callbacks do not register a live `Opc.Ua.Server.ResourceManager`
 service for injection. Resolve supporting services from `sp` and use the
 manager passed to the callback.
+
+Translated text retains its original `TranslationInfo` fallback locale,
+template, and arguments. A retained result can therefore be translated for
+another session without losing its original fallback.
 
 ### Migrating with an existing configuration XML file
 

@@ -39,6 +39,20 @@ UserIdentity userIdentity = await UserIdentity.CreateAsync(
 
 ## Certificate Management
 
+### ECC security policies require .NET 8 or later
+
+The built-in ECC SecureChannel and user-token policies are unavailable in the
+.NET Framework 4.7.2/4.8 and .NET Standard 2.1 builds. OPC UA Part 6 requires
+raw ECDH shared-secret agreement before HKDF; the older `DeriveKeyMaterial`
+API applies an additional hash and cannot interoperate with compliant peers.
+`SecurityPolicies.GetInfo` returns `null` for these policies on downlevel builds.
+
+**Migration:** target .NET 8 or later and use its matching stack assets for ECC,
+or configure a supported RSA security policy on both peers. Loading downlevel
+stack assets on a newer runtime does not restore raw-secret support.
+ECC certificate parsing and signing alone do not imply ECC policy support.
+See [ECC platform requirements](../../EccProfiles.md#known-limitations).
+
 ### Certificates with an empty distinguished name are always rejected
 
 A certificate whose **subject or issuer is an empty distinguished name** is now rejected with the non-suppressible `Bad_CertificateInvalid`, on every target framework. An empty name is an empty `RDNSequence`: it identifies nothing, and two unrelated issuers become indistinguishable, so the certificate can never take part in a trust decision. RFC 5280 §4.1.2.4 requires a non-empty issuer, and §4.1.2.6 only permits an empty subject for an end entity carrying a critical `subjectAltName`, which a CA may never do.
@@ -147,7 +161,7 @@ See [CertificateManager.md](../../CertificateManager.md) for the full API refere
 | `using var id = new CertificateIdentifier(...);` | `var id = new CertificateIdentifier(...);` (no `using`) |
 | `IList<CertificateIdentifier> issuers = ...; var cert = issuers[i].Certificate;` | `IList<CertificateIssuerReference> issuers = ...; var cert = issuers[i].Certificate;` |
 
-See [CertificateManager.md](../../CertificateManager.md#migration-certificateidentifier-is-metadata-only) for the full migration walkthrough.
+See [CertificateManager.md](../../CertificateManager.md#materializing-a-certificate-from-a-certificateidentifier) for the resolver API this migration targets.
 
 ### CertificateStoreIdentifier is a store description — `OpenStore` returns a caller-owned store
 
@@ -338,4 +352,3 @@ To suppress `CS0618` warnings while migrating, add at the top of affected files:
 - Related: [identity.md](identity.md), [configuration.md](configuration.md), [sessions-subscriptions.md](sessions-subscriptions.md).
 - [2.0 migration index](README.md) — analyzer quick-start + symptom → sub-doc table.
 - [Migration Guide](../../MigrationGuide.md) — landing page across versions.
-

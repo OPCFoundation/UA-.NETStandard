@@ -38,6 +38,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Historian;
@@ -60,7 +61,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task ReadRawReverseTimeReturnsValuesNewestFirstAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("rev.var", NamespaceIndex);
             provider.Register(nodeId);
 
@@ -95,7 +98,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task ReadModifiedReturnsReplacedEntriesAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("mod.var", NamespaceIndex);
             provider.Register(nodeId);
 

@@ -89,6 +89,89 @@ namespace Opc.Ua.AI.Tests
         }
 
         [Test]
+        public async Task AnOversizeInvokePreservesParametersForTransferExecutionAsync()
+        {
+            var backend = new FakeInferenceBackend("primary");
+            using AINodeManager nm = await AIServerTestHarness
+                .CreateAsync(
+                    new InferenceBackends(backend),
+                    new AIOptions { EnableFallback = false },
+                    new InferenceBackendOptions { MaxInlinePayloadSize = InlineLimit })
+                .ConfigureAwait(false);
+            DeploymentState deployment = nm.FindPredefinedNode<DeploymentState>(nm.PrimaryDeploymentId);
+            ArrayOf<Opc.Ua.KeyValuePair> parameters =
+            [
+                new Opc.Ua.KeyValuePair
+                {
+                    Key = new QualifiedName("max_tokens"),
+                    Value = Variant.From(64)
+                }
+            ];
+
+            InvokeMethodStateResult invoked = await deployment.Invoke!.OnCallAsync!(
+                nm.SystemContext,
+                deployment.Invoke,
+                nm.PrimaryDeploymentId,
+                ByteString.From(new byte[InlineLimit + 1]),
+                string.Empty,
+                "application/json",
+                parameters,
+                5000,
+                CancellationToken.None).ConfigureAwait(false);
+            InferenceTransferState transfer = nm.FindPredefinedNode<InferenceTransferState>(invoked.Transfer);
+
+            WriteRequest(nm, transfer, "{}");
+            await transfer.Execute!.OnCallAsync!(
+                nm.SystemContext,
+                transfer.Execute,
+                transfer.NodeId,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(invoked.TransferRequired, Is.True);
+                Assert.That(backend.Requests, Has.Count.EqualTo(1));
+                Assert.That(backend.Requests[0].Parameters["max_tokens"], Is.EqualTo("64"));
+            });
+        }
+
+        [Test]
+        public async Task ATransferWithInvalidBackendParametersFailsExplicitlyAsync()
+        {
+            using AINodeManager nm = await AIServerTestHarness
+                .CreateAsync(
+                    new InferenceBackends(new InvalidParameterBackend()),
+                    new AIOptions { EnableFallback = false },
+                    new InferenceBackendOptions { MaxInlinePayloadSize = InlineLimit })
+                .ConfigureAwait(false);
+            DeploymentState deployment = nm.FindPredefinedNode<DeploymentState>(nm.PrimaryDeploymentId);
+
+            BeginTransferMethodStateResult begun = await deployment.BeginTransfer!.OnCallAsync!(
+                nm.SystemContext,
+                deployment.BeginTransfer,
+                nm.PrimaryDeploymentId,
+                "application/json",
+                2,
+                CancellationToken.None).ConfigureAwait(false);
+            InferenceTransferState transfer = nm.FindPredefinedNode<InferenceTransferState>(begun.Transfer);
+
+            WriteRequest(nm, transfer, "{}");
+            ExecuteMethodStateResult executed = await transfer.Execute!.OnCallAsync!(
+                nm.SystemContext,
+                transfer.Execute,
+                transfer.NodeId,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(executed.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+                Assert.That(executed.Accepted, Is.False);
+                Assert.That(transfer.State!.Value, Is.EqualTo(TransferStateEnum.Failed));
+                Assert.That(transfer.LastError!.Value.Text, Does.Contain("invalid"));
+            });
+        }
+
+        [Test]
         public async Task ATransferCarriesThePayloadAndReportsTheModelUsedAsync()
         {
             using AINodeManager nm = await CreateAsync().ConfigureAwait(false);
@@ -284,6 +367,31 @@ namespace Opc.Ua.AI.Tests
                     Payload = Encoding.UTF8.GetBytes("{\"ok\":true}"),
                     ContentType = "application/json"
                 };
+            }
+
+            public ValueTask<BackendProbe> ProbeAsync(CancellationToken ct)
+            {
+                return ValueTask.FromResult(new BackendProbe { Reachable = true });
+            }
+        }
+
+        private sealed class InvalidParameterBackend : IInferenceBackend
+        {
+            public InferenceSite Site => InferenceSite.OnServer;
+
+            public ValueTask<IReadOnlyList<BackendModel>> ListModelsAsync(
+                string? filter,
+                uint maxResults,
+                CancellationToken ct)
+            {
+                return ValueTask.FromResult<IReadOnlyList<BackendModel>>([]);
+            }
+
+            public ValueTask<InferenceResult> InvokeAsync(
+                InferenceRequest request,
+                CancellationToken ct)
+            {
+                throw new ArgumentException("The parameter is invalid.", nameof(request));
             }
 
             public ValueTask<BackendProbe> ProbeAsync(CancellationToken ct)

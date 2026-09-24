@@ -21,6 +21,7 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 - **Key solutions**:
   - `UA.slnx` - Contains all projects
 - **Contributor guide**: see [`docs/DeveloperGuide.md`](../docs/DeveloperGuide.md) for prerequisites, building (including per-TFM), testing, coding standards, and how-to recipes.
+- **Release operations**: before changing a release version (`version.json`, `preview-version.props`), cutting or advancing a release branch, backporting or forward-porting a fix to a release branch, or running/recovering `nuget-publish.yml`/`release.yml`, read [`docs/ReleaseProcess.md`](../docs/ReleaseProcess.md) and follow the matching procedure exactly. Releases are only ever produced from a canonical `release/<major>.<minor>` branch, never from `master`.
 
 ### Project Structure
 - `src/` - Core OPC UA libraries (Client, Server, Configuration, etc.)

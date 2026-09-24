@@ -400,8 +400,14 @@ Key design notes:
   existing reactivation lock and binds the new token to the current
   server nonce.
 * **Use `ManagedSessionOptions.IdentityProvider` for managed clients.**
-  `ManagedSession` calls `UpdateIdentityAsync` after connect, then
-  schedules proactive refresh at `provider.ExpiresAt - 60s` using the
+  `ManagedSession` refreshes discovery metadata before acquiring the initial
+  identity when endpoint refresh is enabled. Selection uses the configured
+  security policies, instance-certificate algorithm and policy registry, just
+  like `UpdateIdentityAsync`. The first activation uses that identity; it does
+  not require an anonymous session. A supplied single-use reverse connection
+  without a reverse-connect manager must already have endpoint metadata, as
+  on the direct session-factory path.
+  The session then schedules proactive refresh at `provider.ExpiresAt - 60s` using the
   configured `TimeProvider`. Refresh failures are logged and retried
   with backoff; they do not close the session.
 
@@ -571,6 +577,18 @@ tokens; a SAML or Kerberos authenticator on the same channel is left
 to handle the rest. Register with `IssuedTokenProfileUri = null` for a
 catch-all (useful when bridging to a legacy `ITokenValidator`).
 
+`Register` replaces the existing registration with the same token type and
+profile, so application authenticators replace hosted defaults rather than
+being shadowed by them. Issuer-backed `JwtAuthenticator` instances implement
+`IIssuerTokenAuthenticator`: distinct issuers coexist, while re-registering the
+same issuer replaces its old verifier. Issuer matching is ordinal and never
+substitutes for signature, audience, or lifetime validation. A custom,
+unqualified authenticator replaces every issuer for its type/profile; a later
+issuer-qualified registration replaces any unqualified registration.
+Rejections stop dispatch and preserve their status and diagnostic message.
+If neither the registry nor the legacy callback handles a non-anonymous token,
+session activation fails closed.
+
 ### Identity augmenters
 
 `IIdentityAugmenter` is a post-authentication hook. It runs only after
@@ -697,8 +715,12 @@ or a custom issuer with `WithAuthorizationService<TIssuer>(...)`; see
 
 Server-side JWT validation in the GDS `JwtAuthenticator` resolves
 verification keys through `IIssuerKeyResolver`. Consumers receive each
-key as a non-disposable `IIssuerVerificationKey` view (the resolver
-owns and disposes the concrete `IssuerVerificationKey`). The helper
+key as a non-disposable `IIssuerVerificationKey` view. `JwksIssuerKeyResolver`
+retains only its current snapshot; retired keys and their native handles are
+collected when their last reader releases them. Refresh and resolver disposal
+do not invalidate already returned JWKS keys. Other resolver owners dispose
+their concrete `IssuerVerificationKey` instances according to their lifetime.
+The helper
 deliberately uses
 `byte[]` overloads (no `System.IdentityModel.Tokens.Jwt`) so it works
 on netstandard2.1 / net472 / net48 / net8+/net9+/net10+ and is

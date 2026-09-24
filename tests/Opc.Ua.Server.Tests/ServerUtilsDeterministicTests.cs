@@ -451,10 +451,8 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void CreateStatusCodeCollectionAllGoodWithOperationAllReturnsNonNullDiagnostics()
+        public void CreateStatusCodeCollectionAllGoodWithOperationAllLeavesDiagnosticsNull()
         {
-            // Pins current behavior; ServerUtils.CreateStatusCodeCollection has a known inverted
-            // noErrors condition (see repo findings) — do not assert the corrected behavior here.
             OperationContext context = CreateContext(DiagnosticsMasks.OperationAll);
             var errors = new List<ServiceResult> { ServiceResult.Good, ServiceResult.Good };
 
@@ -463,15 +461,12 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(result[0], Is.EqualTo(StatusCodes.Good));
             Assert.That(result[1], Is.EqualTo(StatusCodes.Good));
-            Assert.That(diagnosticInfos, Is.Not.Null);
-            Assert.That(diagnosticInfos, Has.Count.EqualTo(2));
+            Assert.That(diagnosticInfos, Is.Null);
         }
 
         [Test]
-        public void CreateStatusCodeCollectionWithBadErrorLeavesDiagnosticsNull()
+        public void CreateStatusCodeCollectionWithBadErrorIncludesOperationDiagnostics()
         {
-            // Pins current behavior; ServerUtils.CreateStatusCodeCollection has a known inverted
-            // noErrors condition (see repo findings) — do not assert the corrected behavior here.
             OperationContext context = CreateContext(DiagnosticsMasks.OperationAll);
             var errors = new List<ServiceResult>
             {
@@ -483,7 +478,10 @@ namespace Opc.Ua.Server.Tests
                 context, errors, out List<DiagnosticInfo> diagnosticInfos, m_logger);
 
             Assert.That(result[1], Is.EqualTo(StatusCodes.BadNodeIdUnknown));
-            Assert.That(diagnosticInfos, Is.Null);
+            Assert.That(diagnosticInfos, Is.Not.Null);
+            Assert.That(diagnosticInfos, Has.Count.EqualTo(errors.Count));
+            Assert.That(diagnosticInfos[0], Is.Null);
+            Assert.That(diagnosticInfos[1], Is.Not.Null);
         }
 
         [Test]

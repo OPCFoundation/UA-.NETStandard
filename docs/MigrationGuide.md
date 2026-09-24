@@ -888,6 +888,50 @@ parameters, which an asynchronous method cannot have. Use
 `WriteAsymmetricMessageAsync` in place of the removed synchronous
 overload.
 
+## Migrating custom IUserDatabase implementations
+
+`IUserDatabase` gained four members. A store now persists user metadata
+alongside credentials, so disabled and `MustChangePassword` decisions survive a
+restart and an administrative password reset is a single transaction rather than
+a delete followed by a create:
+
+```csharp
+IReadOnlyList<UserManagementDataType> GetUsers();
+
+bool CreateUser(
+    string userName,
+    ReadOnlySpan<byte> password,
+    ArrayOf<Role> roles,
+    UserConfigurationMask userConfiguration,
+    string description);
+
+bool ResetPassword(
+    string userName,
+    ReadOnlySpan<byte> newPassword,
+    UserConfigurationMask userConfiguration,
+    string description);
+
+bool UpdateUserMetadata(
+    string userName,
+    UserConfigurationMask userConfiguration,
+    string description);
+```
+
+The five 1.5.378 members are unchanged. Implement the new ones on your store, or
+derive from `LinqUserDatabase` / `JsonUserDatabase`, which provide in-memory and
+atomic file-backed transactions respectively.
+
+Each mutation must commit as one transaction, and a rejected or failed write must
+leave both the live and the persisted record unchanged. `ChangePassword` must
+clear `UserConfigurationMask.MustChangePassword` in the same transaction as the
+password it commits. `ResetPassword` must preserve the user's identity and roles
+and must not delete and recreate the user.
+
+There is no optional-capability fallback: `UserManagement` requires these members
+and no longer keeps metadata only in memory, so a store that cannot persist
+metadata should reject the write by returning `false` rather than silently
+accepting it.
+
 ## Migrating from 1.05.377 to 1.05.378
 
 ### Asynchronous as default

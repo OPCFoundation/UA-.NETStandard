@@ -86,6 +86,10 @@ namespace Opc.Ua
             {
                 m_value = instance.m_value;
                 m_timestamp = instance.m_timestamp;
+                // The status code has to travel with the value: copying
+                // m_valueTouched without it left the copy reporting
+                // BadWaitingForInitialData forever.
+                m_statusCode = instance.m_statusCode;
                 m_dataType = instance.m_dataType;
                 m_valueRank = instance.m_valueRank;
                 m_arrayDimensions = instance.m_arrayDimensions;
@@ -2026,6 +2030,17 @@ namespace Opc.Ua
                 Variant valueToWrite = value.WrappedValue;
                 StatusCode statusCode = value.StatusCode;
                 DateTimeUtc sourceTimestamp = value.SourceTimestamp;
+
+                var typeInfo = TypeInfo.IsInstanceOfDataType(
+                    valueToWrite,
+                    m_dataType,
+                    m_valueRank,
+                    context.NamespaceUris,
+                    context.TypeTable);
+                if (typeInfo.IsUnknown && (!m_dataType.IsNull || !valueToWrite.IsNull))
+                {
+                    return StatusCodes.BadTypeMismatch;
+                }
 
                 if (onWriteValueAsync != null)
                 {

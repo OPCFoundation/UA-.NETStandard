@@ -48,6 +48,7 @@ namespace Opc.Ua.ReleaseEvidence
         /// <summary>
         /// Generates package inventories, bills of materials, source mappings, and a release-evidence envelope.
         /// </summary>
+        /// <exception cref="InvalidDataException"></exception>
         public async Task<int> GenerateAsync(
             string repositoryRoot,
             string packages,
@@ -196,11 +197,10 @@ namespace Opc.Ua.ReleaseEvidence
             }
             if (manifestPath != null)
             {
-                ArchiveManifest manifest = await files.ReadModelAsync(
-                    manifestPath, EvidenceJsonContext.Default.ArchiveManifest, cancellationToken)
-                    .ConfigureAwait(false);
-                if (manifest.SchemaVersion != 1 ||
-                    manifest.Repository != context.Source.Repository ||
+                using System.Text.Json.JsonDocument manifestDocument = await files.ReadJsonAsync(
+                    manifestPath, cancellationToken).ConfigureAwait(false);
+                var manifest = ArchiveManifest.Read(manifestDocument.RootElement);
+                if (manifest.Repository != context.Source.Repository ||
                     manifest.Commit != context.Source.ActualSha ||
                     manifest.RunId != context.Producer.RunId ||
                     manifest.Workflow != context.Producer.Workflow ||
@@ -214,14 +214,14 @@ namespace Opc.Ua.ReleaseEvidence
                         archives.OrderBy(a => a.File, StringComparer.Ordinal)))
                 {
                     throw new InvalidDataException(
-                        "Existing v1 manifest does not match source, producer or actual archives.");
+                        "Archive manifest does not match source, producer or actual archives.");
                 }
                 byte[] bytes = await files.ReadAsync(manifestPath, cancellationToken).ConfigureAwait(false);
                 string path = Path.Combine(output, "release-manifest.json");
                 await File.WriteAllBytesAsync(path, bytes, cancellationToken).ConfigureAwait(false);
                 string digest = EvidenceFiles.Digest(bytes);
                 documents.Add(new DocumentRecord(
-                    "archive-manifest", "json", "1", "release-manifest.json", digest,
+                    "archive-manifest", "json", manifest.SchemaVersion == 1 ? "1" : "2", "release-manifest.json", digest,
                     new SubjectRecord("artifact-set", "nuget", digest)));
             }
             else

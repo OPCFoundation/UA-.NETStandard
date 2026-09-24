@@ -60,9 +60,11 @@ namespace FlatTagServer
         /// </summary>
         /// <param name="context">The system context used to create the nodes.</param>
         /// <param name="telemetry">The telemetry context of the owning server.</param>
-        /// <param name="parent">The supervision Object that owns the signal.</param>
-        /// <param name="namespaceIndex">The namespace the nodes belong to.</param>
-        /// <param name="tagPath">The node identifier of the boolean tag.</param>
+        /// <param name="parent">
+        /// The supervision Object that owns the signal. Both nodes take their
+        /// namespace and the leading part of their identifier from it, so the
+        /// signal follows wherever the supervision Object was staged.
+        /// </param>
         /// <param name="name">The browse name of the boolean tag.</param>
         /// <param name="conditionName">The browse name of the alarm condition.</param>
         /// <param name="severity">The severity reported while the alarm is active.</param>
@@ -74,8 +76,6 @@ namespace FlatTagServer
             ISystemContext context,
             ITelemetryContext telemetry,
             BaseObjectState parent,
-            ushort namespaceIndex,
-            string tagPath,
             string name,
             string conditionName,
             ushort severity,
@@ -85,6 +85,9 @@ namespace FlatTagServer
             {
                 throw new ArgumentNullException(nameof(parent));
             }
+
+            ushort namespaceIndex = parent.NodeId.NamespaceIndex;
+            string tagPath = parent.NodeId.IdentifierAsString + "." + name;
 
             m_severity = severity;
             m_active = initiallyActive;

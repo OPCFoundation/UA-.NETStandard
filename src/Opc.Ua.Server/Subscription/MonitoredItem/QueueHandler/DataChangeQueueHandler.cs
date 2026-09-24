@@ -35,41 +35,45 @@ using Microsoft.Extensions.Logging;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Mangages a data value queue for a data change monitoredItem
+    /// Manages the data-value queue of a data-change monitored item.
     /// </summary>
     public interface IDataChangeQueueHandler : IDisposable
     {
         /// <summary>
         /// Sets the queue size.
         /// </summary>
-        /// <param name="queueSize">The new queue size.</param>
+        /// <param name="queueSize">The maximum number of values retained in the queue.</param>
         /// <param name="discardOldest">Whether to discard the oldest values if the queue overflows.</param>
-        /// <param name="diagnosticsMasks">Specifies which diagnostics which should be kept in the queue.</param>
+        /// <param name="diagnosticsMasks">The diagnostic information to retain with queued values.</param>
         void SetQueueSize(uint queueSize, bool discardOldest, DiagnosticsMasks diagnosticsMasks);
 
         /// <summary>
-        /// Set the sampling interval of the queue
+        /// Sets the sampling interval used to coalesce incoming values.
         /// </summary>
-        /// <param name="samplingInterval">the sampling interval</param>
+        /// <param name="samplingInterval">The interval in milliseconds, or zero to disable coalescing.</param>
         void SetSamplingInterval(double samplingInterval);
 
         /// <summary>
-        /// Number of DataValues in the queue
+        /// Gets the number of retained data values.
         /// </summary>
+        /// <value>The number of values currently in the queue.</value>
         int ItemsInQueue { get; }
 
         /// <summary>
-        /// Queues a value
+        /// Queues a sampled value and its associated diagnostic result.
         /// </summary>
-        /// <param name="value">the dataValue</param>
-        /// <param name="error">the error</param>
-        /// <returns>true of overflow occured</returns>
+        /// <param name="value">The sampled data value.</param>
+        /// <param name="error">The diagnostic result associated with the value.</param>
+        /// <returns><c>true</c> if queue overflow discarded a value; otherwise, <c>false</c>.</returns>
         bool QueueValue(in DataValue value, ServiceResult error);
 
         /// <summary>
-        /// Dequeues the last item
+        /// Dequeues the next data value for publication.
         /// </summary>
-        /// <returns>true if an item was dequeued</returns>
+        /// <param name="value">Receives the dequeued value, or its default value when the queue is empty.</param>
+        /// <param name="error">Receives the value's diagnostic result, or <c>null</c> when none is available.</param>
+        /// <param name="noEventLog"><c>true</c> to suppress the dequeue trace; otherwise, <c>false</c>.</param>
+        /// <returns><c>true</c> if a value was dequeued; otherwise, <c>false</c>.</returns>
         bool PublishSingleValue(
             out DataValue value,
             out ServiceResult error,
@@ -288,7 +292,18 @@ namespace Opc.Ua.Server
                         now,
                         m_nextSampleTime);
 
-                    m_dataValueQueue.OverwriteLastValue(value, error);
+                    DataValue replacement = value;
+                    bool overwritesOverflow = m_overflowPending && m_overflow == overwrittenValue;
+                    if (overwritesOverflow || overwrittenValue.StatusCode.Overflow)
+                    {
+                        SetOverflowBit(ref replacement, ref error);
+                    }
+                    if (overwritesOverflow)
+                    {
+                        m_overflow = default;
+                        m_overflowPending = false;
+                    }
+                    m_dataValueQueue.OverwriteLastValue(replacement, error);
 
                     m_discardedValueHandler?.Invoke();
 

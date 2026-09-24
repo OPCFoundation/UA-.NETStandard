@@ -213,8 +213,8 @@ namespace Opc.Ua.Server
                 while (secondBeforeIndex >= 0 &&
                     (StatusCode.IsBad(
                         orderedValues[secondBeforeIndex].StatusCode) ||
-                    orderedValues[secondBeforeIndex].SourceTimestamp ==
-                        nonBadBefore.SourceTimestamp))
+                        orderedValues[secondBeforeIndex].SourceTimestamp ==
+                            nonBadBefore.SourceTimestamp))
                 {
                     secondBeforeIndex--;
                 }
@@ -251,15 +251,6 @@ namespace Opc.Ua.Server
                 return true;
             }
 
-            // check for start of data.
-            if (m_startOfData == DateTimeUtc.MinValue)
-            {
-                m_startOfData = value.SourceTimestamp;
-            }
-
-            // update end of data.
-            m_endOfData = value.SourceTimestamp;
-
             // ensure values are being queued in the right order.
             if (TimeFlowsBackward)
             {
@@ -271,6 +262,19 @@ namespace Opc.Ua.Server
             else if (m_values.Last != null && CompareTimestamps(value, m_values.Last) < 0)
             {
                 return false;
+            }
+
+            // track the chronological start and end of the queued data. Values arrive
+            // newest-first when time flows backward, so the queue order cannot be used for
+            // either; rejected out-of-order values must not move the data edges.
+            if (m_startOfData == DateTimeUtc.MinValue || value.SourceTimestamp < m_startOfData)
+            {
+                m_startOfData = value.SourceTimestamp;
+            }
+
+            if (value.SourceTimestamp > m_endOfData)
+            {
+                m_endOfData = value.SourceTimestamp;
             }
 
             // ensure value list is always ordered from past to future.
@@ -331,9 +335,30 @@ namespace Opc.Ua.Server
             m_logger.ComputingAggregateStartTimeHHMmSsFff(CurrentSlice.StartTime);
 
             // compute the value.
-            DataValue computed = ComputeValue(CurrentSlice);
+            DataValue computed;
+            try
+            {
+                computed = ComputeValue(CurrentSlice);
+            }
+            catch (OverflowException)
+            {
+                computed = new DataValue(
+                    Variant.Null,
+                    StatusCodes.BadTypeMismatch,
+                    GetTimestamp(CurrentSlice),
+                    GetTimestamp(CurrentSlice));
+            }
+            catch (InvalidCastException)
+            {
+                computed = new DataValue(
+                    Variant.Null,
+                    StatusCodes.BadTypeMismatch,
+                    GetTimestamp(CurrentSlice),
+                    GetTimestamp(CurrentSlice));
+            }
 
-            // check if overlapping the start of data.
+            // check if overlapping the start or end of data (Part 13 §5.3.3.2). Both checks
+            // use the chronological interval, so they apply in either time direction.
             if (SetPartialBit)
             {
                 if (m_startOfData > earlyTime && m_startOfData < lateTime)
@@ -343,7 +368,6 @@ namespace Opc.Ua.Server
                 }
 
                 if (!UsingExtrapolation &&
-                    !TimeFlowsBackward &&
                     m_endOfData >= earlyTime &&
                     m_endOfData < lateTime)
                 {
@@ -1107,9 +1131,9 @@ namespace Opc.Ua.Server
                 double lateValue = CastToDouble(lateBound);
 
                 // do interpolation.
-                DateTime earlyTimestamp =
+                var earlyTimestamp =
                     earlyBound.SourceTimestamp.ToDateTime();
-                DateTime lateTimestamp =
+                var lateTimestamp =
                     lateBound.SourceTimestamp.ToDateTime();
                 double range =
                     (lateTimestamp - earlyTimestamp).TotalMilliseconds;
@@ -1240,6 +1264,31 @@ namespace Opc.Ua.Server
             }
 
             return value;
+        }
+
+        /// <summary>
+        /// Finds the latest raw value with a timestamp at or before the specified time.
+        /// </summary>
+        /// <param name="timestamp">The time to search from.</param>
+        /// <param name="value">The raw value when this method returns <c>true</c>.</param>
+        /// <returns><c>true</c> if a raw value exists at or before the timestamp.</returns>
+        protected bool TryGetRawValueAtOrBefore(DateTimeUtc timestamp, out DataValue value)
+        {
+            value = default;
+            bool found = false;
+
+            for (LinkedListNode<DataValue>? ii = m_values.First; ii != null; ii = ii.Next)
+            {
+                if (CompareTimestamps(timestamp, ii) < 0)
+                {
+                    break;
+                }
+
+                value = ii.Value;
+                found = true;
+            }
+
+            return found;
         }
 
         /// <summary>
@@ -1583,9 +1632,16 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (StatusCode.IsGood(values[ii].StatusCode))
+                if (StatusCode.IsGood(values[ii].StatusCode) ||
+                    (!Configuration.TreatUncertainAsBad &&
+                        StatusCode.IsUncertain(values[ii].StatusCode)))
                 {
                     goodCount++;
+                }
+                else if (Configuration.TreatUncertainAsBad &&
+                    StatusCode.IsUncertain(values[ii].StatusCode))
+                {
+                    badCount++;
                 }
             }
 
@@ -1597,7 +1653,7 @@ namespace Opc.Ua.Server
             else if (badCount / totalCount * 100 >= Configuration.PercentDataBad)
             {
                 // bad if the bad count is greater than or equal to the configured threshold.
-                return StatusCodes.Bad;
+                return statusCode.WithCodeBits(StatusCodes.Bad);
             }
             else
             {
@@ -1645,31 +1701,36 @@ namespace Opc.Ua.Server
             {
                 totalDuration += region.Duration;
 
-                if (StatusCode.IsBad(region.StatusCode))
+                // Part 13 §5.4.3.2.1: Uncertain regions count as Bad when TreatUncertainAsBad
+                // is true and as Good otherwise.
+                if (StatusCode.IsBad(region.StatusCode) ||
+                    (Configuration.TreatUncertainAsBad &&
+                        StatusCode.IsUncertain(region.StatusCode)))
                 {
                     badDuration += region.Duration;
-                    continue;
                 }
-
-                // Take into account the Uncertain status code
-                if (StatusCode.IsGood(region.StatusCode) ||
-                    (!Configuration.TreatUncertainAsBad &&
-                        StatusCode.IsUncertain(region.StatusCode)))
+                else
                 {
                     goodDuration += region.Duration;
                 }
             }
 
-            if (totalDuration == 0 ||
-                goodDuration / totalDuration * 100 >= Configuration.PercentDataGood)
+            if (totalDuration == 0)
+            {
+                return statusCode.WithCodeBits(StatusCodes.Good);
+            }
+            else if (badDuration > 0 &&
+                badDuration / totalDuration * 100 >= Configuration.PercentDataBad)
+            {
+                // bad if the bad duration is greater than or equal to the configured threshold.
+                // Part 13 §5.4.3.2.1 evaluates the Bad ratio (when Bad regions exist) before
+                // the Good ratio. Keep the aggregate bits like the Good and Uncertain results.
+                return statusCode.WithCodeBits(StatusCodes.Bad);
+            }
+            else if (goodDuration / totalDuration * 100 >= Configuration.PercentDataGood)
             {
                 // good if the good duration is greater than or equal to the configured threshold.
                 return statusCode.WithCodeBits(StatusCodes.Good);
-            }
-            else if (badDuration / totalDuration * 100 >= Configuration.PercentDataBad)
-            {
-                // bad if the bad duration is greater than or equal to the configured threshold.
-                return StatusCodes.Bad;
             }
             else
             {
@@ -1735,5 +1796,4 @@ namespace Opc.Ua.Server
             Message = "Computing Aggregate {StartTime:HH:mm:ss.fff}")]
         public static partial void ComputingAggregateStartTimeHHMmSsFff(this ILogger logger, DateTimeUtc startTime);
     }
-
 }

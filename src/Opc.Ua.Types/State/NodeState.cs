@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -163,14 +164,15 @@ namespace Opc.Ua
             target.SymbolicName = SymbolicName;
             target.NodeClass = NodeClass;
             target.m_nodeId = m_nodeId;
-            target.m_browseName = m_browseName;
+            target.SetBrowseNameAndInvalidateParentIndex(m_browseName);
             target.m_displayName = m_displayName;
             target.m_description = m_description;
             target.m_writeMask = m_writeMask;
-            target.m_changeMasks = m_changeMasks;
+            target.m_userWriteMask = m_userWriteMask;
 
             target.RolePermissions = RolePermissions;
             target.UserRolePermissions = UserRolePermissions;
+            target.AccessRestrictions = AccessRestrictions;
 
             lock (m_referencesLock)
             {
@@ -202,6 +204,11 @@ namespace Opc.Ua
             target.ReleaseStatus = ReleaseStatus;
             target.NodeSetDocumentation = NodeSetDocumentation;
             target.Extensions = Extensions;
+
+            // Assigned last so that the copy reports the same change mask as
+            // the source instead of the bits the property setters and
+            // AddReferences above raise.
+            target.m_changeMasks = m_changeMasks;
         }
 
         /// <summary>
@@ -325,13 +332,23 @@ namespace Opc.Ua
             SymbolicName = source.SymbolicName;
             m_nodeId = source.m_nodeId;
             NodeClass = source.NodeClass;
-            m_browseName = source.m_browseName;
+            SetBrowseNameAndInvalidateParentIndex(source.m_browseName);
             m_displayName = source.m_displayName;
             m_description = source.m_description;
             m_writeMask = source.m_writeMask;
             m_children = null;
             m_references = null;
             m_changeMasks = NodeStateChangeMasks.None;
+
+            // Note: unlike CopyTo, this deliberately does not carry over
+            // m_userWriteMask, RolePermissions, UserRolePermissions or
+            // AccessRestrictions. Initialize instantiates a node from a
+            // prototype rather than cloning it, and propagating the prototype's
+            // access control makes the instance inherit restrictions it never
+            // had - the GDS certificate group nodes become unreadable for the
+            // users that could read them before. Whether an instance should
+            // inherit its prototype's permissions is a security decision for
+            // the address space to make, not a copy detail.
 
             var children = new List<BaseInstanceState>();
             source.GetChildren(context, children);
@@ -467,7 +484,7 @@ namespace Opc.Ua
                     m_changeMasks |= NodeStateChangeMasks.NonValue;
                 }
 
-                m_browseName = value;
+                SetBrowseNameAndInvalidateParentIndex(value);
             }
         }
 
@@ -1222,7 +1239,7 @@ namespace Opc.Ua
 
             if ((attributesToLoad & AttributesToSave.BrowseName) != 0)
             {
-                m_browseName = decoder.ReadQualifiedName(null);
+                SetBrowseNameAndInvalidateParentIndex(decoder.ReadQualifiedName(null));
             }
 
             if (string.IsNullOrEmpty(SymbolicName) && !m_browseName.IsNull)
@@ -1342,7 +1359,9 @@ namespace Opc.Ua
 
             if (string.IsNullOrEmpty(symbolicName) && !browseName.IsNull)
             {
-                SymbolicName = browseName.Name!;
+                // This defaults the CHILD's symbolic name. Assigning the
+                // property would rename this node after its last child.
+                symbolicName = browseName.Name!;
             }
 
             // check for children defined by the type.
@@ -4835,7 +4854,9 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsGood(result))
                     {
-                        m_nodeId = nodeId;
+                        // Through the property so the change mask is raised and
+                        // monitored items on the attribute are notified.
+                        NodeId = nodeId;
                     }
 
                     return result;
@@ -4883,7 +4904,7 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsGood(result))
                     {
-                        m_browseName = browseName;
+                        BrowseName = browseName;
                     }
 
                     return result;
@@ -4908,7 +4929,7 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsGood(result))
                     {
-                        m_displayName = displayName;
+                        DisplayName = displayName;
                     }
 
                     return result;
@@ -4937,7 +4958,7 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsGood(result))
                     {
-                        m_description = description;
+                        Description = description;
                     }
 
                     return result;
@@ -4990,7 +5011,7 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsGood(result))
                     {
-                        m_userWriteMask = userWriteMask;
+                        UserWriteMask = userWriteMask;
                     }
 
                     return result;
@@ -5062,6 +5083,7 @@ namespace Opc.Ua
                     if (ServiceResult.IsGood(result))
                     {
                         SetAccessRestrictions(accessRestrictions);
+                        m_changeMasks |= NodeStateChangeMasks.NonValue;
                     }
 
                     return result;
@@ -5184,6 +5206,46 @@ namespace Opc.Ua
         public virtual BaseInstanceState? FindChild(ISystemContext context, QualifiedName browseName)
         {
             return FindChild(context, browseName, false, null);
+        }
+
+        /// <summary>
+        /// Finds the child whose browse name equals <paramref name="browseName"/>, namespace
+        /// index included.
+        /// </summary>
+        /// <remarks>
+        /// Types with generated child slots override <see cref="FindChild(ISystemContext, QualifiedName)"/>
+        /// and resolve those slots by <see cref="QualifiedName.Name"/> only, and do not search the
+        /// child list for such a name. This method accepts a slot only when its full browse name
+        /// matches and otherwise searches the child list, so it finds the same children as
+        /// comparing the browse names of <see cref="GetChildren"/>.
+        /// </remarks>
+        /// <param name="context">The context to use.</param>
+        /// <param name="browseName">The browse name.</param>
+        /// <returns>The child if found. Null otherwise.</returns>
+        public BaseInstanceState? FindChildWithQualifiedName(ISystemContext context, QualifiedName browseName)
+        {
+            if (browseName.IsNull)
+            {
+                return null;
+            }
+
+            BaseInstanceState? child = FindChild(context, browseName, false, null);
+            if (child != null && child.BrowseName == browseName)
+            {
+                return child;
+            }
+
+            lock (m_childrenLock)
+            {
+                if (m_children == null)
+                {
+                    return null;
+                }
+
+                return m_children.Count >= kChildNameIndexThreshold
+                    ? FindIndexedChild(m_children, browseName)
+                    : FindFirstChild(m_children, browseName);
+            }
         }
 
         /// <summary>
@@ -5404,6 +5466,12 @@ namespace Opc.Ua
             {
                 (m_children ??= []).Add(child);
                 m_changeMasks |= NodeStateChangeMasks.Children;
+
+                if (m_children.Count > kChildNameIndexThreshold &&
+                    s_childNameIndexes.TryGetValue(m_children, out ChildNameIndex? index))
+                {
+                    index.OnAdded(m_children, child);
+                }
             }
         }
 
@@ -5466,6 +5534,11 @@ namespace Opc.Ua
                             child.Parent = null;
                             m_children.RemoveAt(ii);
                             m_changeMasks |= NodeStateChangeMasks.Children;
+
+                            if (s_childNameIndexes.TryGetValue(m_children, out ChildNameIndex? index))
+                            {
+                                index.OnRemoved(m_children, child);
+                            }
                             return;
                         }
                     }
@@ -5743,7 +5816,9 @@ namespace Opc.Ua
             uint attributeId,
             DataValue value)
         {
-            if (componentPath.Count >= index)
+            // check if writing attributes of the current node. The condition was
+            // inverted, so the path was never followed into the children.
+            if (index >= componentPath.Count)
             {
                 return WriteAttribute(context, attributeId, default, value);
             }
@@ -6124,25 +6199,55 @@ namespace Opc.Ua
             // that are not assigned to a sub type's properties. Unlike the sub
             // type implementations we do not create a new instance here if
             // replacement is null. TODO: should this be reconsidered?
+            BaseInstanceState? found = null;
+            bool adopted = false;
+
             lock (m_childrenLock)
             {
                 if (m_children != null)
                 {
-                    for (int ii = 0; ii < m_children.Count; ii++)
-                    {
-                        BaseInstanceState child = m_children[ii];
+                    BaseInstanceState? child = m_children.Count >= kChildNameIndexThreshold
+                        ? FindIndexedChild(m_children, browseName)
+                        : FindFirstChild(m_children, browseName);
 
-                        if (browseName == child.BrowseName)
+                    if (child != null)
+                    {
+                        if (createOrReplace && replacement != null)
                         {
-                            if (createOrReplace && replacement != null)
+                            for (int ii = 0; ii < m_children.Count; ii++)
                             {
-                                m_children[ii] = child = replacement;
+                                if (ReferenceEquals(m_children[ii], child))
+                                {
+                                    m_children[ii] = child = replacement;
+                                    break;
+                                }
                             }
 
-                            return child;
+                            m_changeMasks |= NodeStateChangeMasks.Children;
+                            adopted = true;
+                            s_childNameIndexes.Remove(m_children);
                         }
+
+                        found = child;
                     }
                 }
+            }
+
+            if (found != null)
+            {
+                // A replacement has to be adopted the same way AddChild adopts
+                // a new child, otherwise it keeps pointing at its old parent.
+                if (adopted && !ReferenceEquals(found.Parent, this))
+                {
+                    found.Parent = this;
+
+                    if (found.ReferenceTypeId.IsNull)
+                    {
+                        found.ReferenceTypeId = ReferenceTypeIds.HasComponent;
+                    }
+                }
+
+                return found;
             }
 
             if (createOrReplace && replacement != null)
@@ -6153,6 +6258,212 @@ namespace Opc.Ua
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Returns the first child in <paramref name="children"/> with the browse name.
+        /// </summary>
+        private static BaseInstanceState? FindFirstChild(
+            List<BaseInstanceState> children,
+            QualifiedName browseName)
+        {
+            for (int ii = 0; ii < children.Count; ii++)
+            {
+                if (browseName == children[ii].BrowseName)
+                {
+                    return children[ii];
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Returns the first child with the browse name using the browse name index of
+        /// the children list, building the index when it is missing or out of date.
+        /// Must be called while holding <see cref="m_childrenLock"/>.
+        /// </summary>
+        private BaseInstanceState? FindIndexedChild(
+            List<BaseInstanceState> children,
+            QualifiedName browseName)
+        {
+            if (!s_childNameIndexes.TryGetValue(children, out ChildNameIndex? index) ||
+                !index.IsCurrent(children))
+            {
+                s_childNameIndexes.Remove(children);
+                index = new ChildNameIndex(this, children);
+                s_childNameIndexes.Add(children, index);
+            }
+
+            if (!index.IsIndexed)
+            {
+                return FindFirstChild(children, browseName);
+            }
+
+            if (!index.TryFind(browseName, out BaseInstanceState? child))
+            {
+                return null;
+            }
+
+            if (browseName == child.BrowseName && ReferenceEquals(child.Parent, this))
+            {
+                return child;
+            }
+
+            // the index missed a change; fall back to the list and rebuild on next use.
+            s_childNameIndexes.Remove(children);
+            return FindFirstChild(children, browseName);
+        }
+
+        /// <summary>
+        /// Sets the browse name and drops the browse name index of the parent, which
+        /// may hold the child under its previous browse name.
+        /// </summary>
+        /// <remarks>
+        /// Both happen under the parent's children lock, so a concurrent
+        /// <see cref="FindChild(ISystemContext, QualifiedName)"/> never sees the new
+        /// name together with an index that still maps the old one, and misses the child.
+        /// </remarks>
+        private void SetBrowseNameAndInvalidateParentIndex(QualifiedName browseName)
+        {
+            if (m_browseName == browseName)
+            {
+                m_browseName = browseName;
+                return;
+            }
+
+            if (this is not BaseInstanceState { Parent: NodeState parent })
+            {
+                m_browseName = browseName;
+                return;
+            }
+
+            lock (parent.m_childrenLock)
+            {
+                m_browseName = browseName;
+
+                if (parent.m_children != null)
+                {
+                    s_childNameIndexes.Remove(parent.m_children);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Drops the browse name index of the children list so it is rebuilt on next use.
+        /// </summary>
+        internal void InvalidateChildNameIndex()
+        {
+            lock (m_childrenLock)
+            {
+                if (m_children != null)
+                {
+                    s_childNameIndexes.Remove(m_children);
+                }
+            }
+        }
+
+        /// <summary>
+        /// A browse name index over a large children list. It keeps the first child
+        /// for each browse name, like the linear search it replaces. The index is
+        /// only used for lists whose children all have the owner as parent, because
+        /// the owner is told about renamed or re-parented children through
+        /// <see cref="BaseInstanceState.Parent"/>. All members are accessed while
+        /// holding the owner's children lock.
+        /// </summary>
+        private sealed class ChildNameIndex
+        {
+            public ChildNameIndex(NodeState owner, List<BaseInstanceState> children)
+            {
+                m_count = children.Count;
+
+                var byName = new Dictionary<QualifiedName, BaseInstanceState>(children.Count);
+                for (int ii = 0; ii < children.Count; ii++)
+                {
+                    BaseInstanceState child = children[ii];
+
+                    if (!ReferenceEquals(child.Parent, owner))
+                    {
+                        // e.g. cloned children still point at the original parent.
+                        return;
+                    }
+
+                    if (!byName.TryAdd(child.BrowseName, child))
+                    {
+                        m_hasDuplicates = true;
+                    }
+                }
+
+                m_byName = byName;
+            }
+
+            /// <summary>
+            /// Whether lookups can use the index; otherwise the list must be searched.
+            /// </summary>
+            public bool IsIndexed => m_byName != null;
+
+            /// <summary>
+            /// Whether the index still describes the children list.
+            /// </summary>
+            public bool IsCurrent(List<BaseInstanceState> children)
+            {
+                return m_byName == null || m_count == children.Count;
+            }
+
+            public bool TryFind(QualifiedName browseName, [NotNullWhen(true)] out BaseInstanceState? child)
+            {
+                child = null;
+                return m_byName != null && m_byName.TryGetValue(browseName, out child);
+            }
+
+            /// <summary>
+            /// Records a child appended to the list.
+            /// </summary>
+            public void OnAdded(List<BaseInstanceState> children, BaseInstanceState child)
+            {
+                if (m_byName == null || m_count + 1 != children.Count)
+                {
+                    m_count = -1;
+                    return;
+                }
+
+                m_count++;
+                if (!m_byName.TryAdd(child.BrowseName, child))
+                {
+                    m_hasDuplicates = true;
+                }
+            }
+
+            /// <summary>
+            /// Records a child removed from the list.
+            /// </summary>
+            public void OnRemoved(List<BaseInstanceState> children, BaseInstanceState child)
+            {
+                if (m_byName == null || m_count - 1 != children.Count)
+                {
+                    m_count = -1;
+                    return;
+                }
+
+                m_count--;
+                if (m_byName.TryGetValue(child.BrowseName, out BaseInstanceState? indexed) &&
+                    ReferenceEquals(indexed, child))
+                {
+                    if (m_hasDuplicates)
+                    {
+                        // another child with the same browse name may now come first.
+                        m_count = -1;
+                    }
+                    else
+                    {
+                        m_byName.Remove(child.BrowseName);
+                    }
+                }
+            }
+
+            private readonly Dictionary<QualifiedName, BaseInstanceState>? m_byName;
+            private int m_count;
+            private bool m_hasDuplicates;
         }
 
         private static Task ScheduleReportEventAsync(
@@ -6281,6 +6592,18 @@ namespace Opc.Ua
         /// A list of children of the node.
         /// </summary>
         protected List<BaseInstanceState>? m_children;
+
+        /// <summary>
+        /// Children lists with at least this many entries are searched by browse name
+        /// through a <see cref="ChildNameIndex"/> instead of a linear scan.
+        /// </summary>
+        private const int kChildNameIndexThreshold = 64;
+
+        /// <summary>
+        /// Browse name indexes of large children lists. Kept outside the node so that
+        /// nodes with few children do not pay for the index.
+        /// </summary>
+        private static readonly ConditionalWeakTable<List<BaseInstanceState>, ChildNameIndex> s_childNameIndexes = new();
 
         /// <summary>
         /// Indicates what has changed in the node.

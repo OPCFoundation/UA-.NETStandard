@@ -41,9 +41,9 @@ try {
     $env:OPCUA_RELEASE_TRUST_POLICY = ''
     $env:OPCUA_RELEASE_TRUST_POLICY_SHA256 = ''
     $env:GITHUB_REPOSITORY = 'OPCFoundation/UA-.NETStandard'
-    $env:GITHUB_REF = 'refs/heads/master'
+    $env:GITHUB_REF = 'refs/heads/release/2.0'
     $env:GITHUB_EVENT_NAME = 'workflow_dispatch'
-    $env:GITHUB_WORKFLOW_REF = 'OPCFoundation/UA-.NETStandard/.github/workflows/release.yml@refs/heads/master'
+    $env:GITHUB_WORKFLOW_REF = 'OPCFoundation/UA-.NETStandard/.github/workflows/release.yml@refs/heads/release/2.0'
     $parameters = @{
         Operation = 'Write'; ControllerRoot = $root; CandidateRoot = $candidate
         Evidence = (Join-Path $candidate 'evidence.json'); Expected = (Join-Path $candidate 'expected.json')

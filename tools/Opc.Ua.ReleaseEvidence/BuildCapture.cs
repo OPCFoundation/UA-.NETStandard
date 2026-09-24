@@ -48,6 +48,7 @@ namespace Opc.Ua.ReleaseEvidence
         /// <summary>
         /// Freezes validated checkout and build inputs for the requested projects and their project-reference closure.
         /// </summary>
+        /// <exception cref="InvalidDataException"></exception>
         public async Task<int> CaptureAsync(
             string repositoryRoot,
             string requestPath,
@@ -84,8 +85,11 @@ namespace Opc.Ua.ReleaseEvidence
                 using JsonDocument evaluation = await EvaluateAsync(
                     repositoryRoot, project, request.Configuration, null, cancellationToken).ConfigureAwait(false);
                 JsonElement properties = evaluation.RootElement.GetProperty("Properties");
+                string packageVersion = Property(properties, "PackageVersion");
+                string rootVersion = Property(properties, "_PreviewSourceVersion");
                 if (IsTrue(properties, "IsPackable") &&
-                    !Versions.Equal(Property(properties, "PackageVersion"), request.Version))
+                    (!Versions.Equal(string.IsNullOrEmpty(rootVersion) ? packageVersion : rootVersion, request.Version) ||
+                        !Versions.IsPackageVersionForRelease(packageVersion, request.Version)))
                 {
                     throw new InvalidDataException("Evaluated package version differs from the capture request.");
                 }
@@ -141,7 +145,7 @@ namespace Opc.Ua.ReleaseEvidence
                             candidates.Add(new PayloadCandidate(
                                 Path.GetFileName(fullBinary),
                                 await files.DigestAsync(fullBinary, cancellationToken).ConfigureAwait(false),
-                                Property(targetProperties, "AssemblyName"), request.Version,
+                                Property(targetProperties, "AssemblyName"), Property(targetProperties, "PackageVersion"),
                                 "project:" + relative, tfm,
                                 NullIfEmpty(Property(targetProperties, "RoslynApiVersion"))));
                             string pdb = Path.ChangeExtension(fullBinary, ".pdb");
@@ -150,7 +154,8 @@ namespace Opc.Ua.ReleaseEvidence
                                 candidates.Add(new PayloadCandidate(
                                     Path.GetFileName(pdb),
                                     await files.DigestAsync(pdb, cancellationToken).ConfigureAwait(false),
-                                    Property(targetProperties, "AssemblyName"), request.Version, "project:" + relative,
+                                    Property(targetProperties, "AssemblyName"), Property(targetProperties, "PackageVersion"),
+                                    "project:" + relative,
                                     tfm, NullIfEmpty(Property(targetProperties, "RoslynApiVersion"))));
                             }
                         }
@@ -221,22 +226,36 @@ namespace Opc.Ua.ReleaseEvidence
         }
 
         private async Task<JsonDocument> EvaluateAsync(
-            string root, string project, string configuration, string? tfm, CancellationToken cancellationToken)
+            string root, string project, string configuration, string? tfm, CancellationToken cancellationToken,
+            bool resolvePreviewVersion = false)
         {
             var arguments = new List<string>
             {
                 "msbuild", project, "-nologo",
                 "-getProperty:PackageId,PackageVersion,IsPackable,IncludeSymbols,SymbolPackageFormat," +
-                "TargetFramework,TargetFrameworks,ProjectAssetsFile,TargetPath,AssemblyName,RoslynApiVersion",
+                "TargetFramework,TargetFrameworks,ProjectAssetsFile,TargetPath,AssemblyName,RoslynApiVersion," +
+                "_IsPreviewPackage,_PreviewSourceVersion",
                 "-getItem:ProjectReference", "-property:Configuration=" + configuration
             };
             if (tfm != null)
             {
                 arguments.Add("-property:TargetFramework=" + tfm);
             }
+            if (resolvePreviewVersion)
+            {
+                arguments.Add("-target:ApplyPreviewPackageVersion");
+            }
             string result = await runner.RunAsync(root, "dotnet", [.. arguments], cancellationToken)
                 .ConfigureAwait(false);
-            return JsonDocument.Parse(result);
+            var document = JsonDocument.Parse(result);
+            if (!resolvePreviewVersion &&
+                IsTrue(document.RootElement.GetProperty("Properties"), "_IsPreviewPackage"))
+            {
+                document.Dispose();
+                return await EvaluateAsync(root, project, configuration, tfm, cancellationToken, true)
+                    .ConfigureAwait(false);
+            }
+            return document;
         }
 
         private async Task<(ResolvedComponent[] Components, PayloadCandidate[] Payloads)> ReadAssetsAsync(

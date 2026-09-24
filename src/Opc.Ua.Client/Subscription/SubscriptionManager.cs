@@ -261,32 +261,40 @@ namespace Opc.Ua.Client.Subscriptions
 
                 List<LogicalSubscription>? logicals;
                 List<IManagedSubscription>? orphans;
+                List<IManagedSubscription> registered;
                 lock (m_subscriptionLock)
                 {
                     logicals = [.. m_logicals];
                     m_logicals.Clear();
-                    // Drop the dispatch registry entries owned by the
-                    // wrappers we are about to dispose so any partition
-                    // not currently bound to a wrapper (transient
-                    // pre-registration window) can still be cleaned up
-                    // below.
-                    var ownedByLogicals = new HashSet<IManagedSubscription>();
-                    foreach (LogicalSubscription wrapper in logicals)
-                    {
-                        foreach (IManagedSubscription partition in wrapper.Partitions)
-                        {
-                            ownedByLogicals.Add(partition);
-                        }
-                    }
-                    orphans = [];
-                    foreach (IManagedSubscription partition in m_subscriptions)
-                    {
-                        if (!ownedByLogicals.Contains(partition))
-                        {
-                            orphans.Add(partition);
-                        }
-                    }
+                    registered = [.. m_subscriptions];
                     m_subscriptions.Clear();
+                }
+
+                // Reading LogicalSubscription.Partitions acquires the
+                // composite's partition lock, which must never be taken while
+                // the registry lock is held: the partition factory runs the
+                // other way round (partition lock -> registry lock) and the
+                // pair would deadlock.
+                //
+                // Drop the dispatch registry entries owned by the wrappers we
+                // are about to dispose so any partition not currently bound to
+                // a wrapper (transient pre-registration window) can still be
+                // cleaned up below.
+                var ownedByLogicals = new HashSet<IManagedSubscription>();
+                foreach (LogicalSubscription wrapper in logicals)
+                {
+                    foreach (IManagedSubscription partition in wrapper.Partitions)
+                    {
+                        ownedByLogicals.Add(partition);
+                    }
+                }
+                orphans = [];
+                foreach (IManagedSubscription partition in registered)
+                {
+                    if (!ownedByLogicals.Contains(partition))
+                    {
+                        orphans.Add(partition);
+                    }
                 }
                 foreach (LogicalSubscription wrapper in logicals)
                 {
@@ -374,6 +382,33 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <inheritdoc/>
+        public bool OwnsSubscriptionId(
+            IMessageProcessor subscription,
+            uint subscriptionId)
+        {
+            if (subscriptionId == 0)
+            {
+                return false;
+            }
+            lock (m_subscriptionLock)
+            {
+                // The asker itself is still registered under its retired id,
+                // so a match on it proves nothing; only a match on a sibling
+                // does. Hence the full walk rather than a first-hit lookup.
+                foreach (IManagedSubscription registered in m_subscriptions)
+                {
+                    if (registered.Id == subscriptionId &&
+                        !ReferenceEquals(registered, subscription))
+                    {
+                        return false;
+                    }
+                }
+            }
+            // No sibling claims the id, so the caller is still the last owner.
+            return true;
+        }
+
+        /// <inheritdoc/>
         public int DropPendingForSubscription(uint subscriptionId)
         {
             // Drain the prioritised channel into a local buffer,
@@ -412,6 +447,7 @@ namespace Opc.Ua.Client.Subscriptions
             }
 
             LogicalSubscription? logical = null;
+            LogicalSubscription[] wrappers;
             lock (m_subscriptionLock)
             {
                 // Drop the partition from the dispatch registry by
@@ -430,24 +466,32 @@ namespace Opc.Ua.Client.Subscriptions
                 // orphaned server side subscription.
                 RetireSubscriptionId(subscriptionId);
 
-                // If the removed partition was the primary of any
-                // logical wrapper, the wrapper has no usable
-                // partitions left — drop it from the public registry
-                // so ISubscriptionManager.Items / Count reflect the
-                // deletion. Secondary partitions (added on demand by
-                // the composite collection) do not remove the
-                // wrapper; the wrapper keeps living as long as the
-                // primary is registered.
-                foreach (LogicalSubscription wrapper in m_logicals)
+                wrappers = [.. m_logicals];
+            }
+
+            // If the removed partition was the primary of any logical
+            // wrapper, the wrapper has no usable partitions left — drop it
+            // from the public registry so ISubscriptionManager.Items / Count
+            // reflect the deletion. Secondary partitions (added on demand by
+            // the composite collection) do not remove the wrapper; the
+            // wrapper keeps living as long as the primary is registered.
+            //
+            // Reading Partitions takes the composite's partition lock, so it
+            // has to happen outside the registry lock: the partition factory
+            // acquires the two in the opposite order and the pair would
+            // otherwise deadlock the whole publish pipeline.
+            foreach (LogicalSubscription wrapper in wrappers)
+            {
+                IReadOnlyList<IManagedSubscription> parts = wrapper.Partitions;
+                if (parts.Count > 0 && ReferenceEquals(parts[0], partition))
                 {
-                    IReadOnlyList<IManagedSubscription> parts = wrapper.Partitions;
-                    if (parts.Count > 0 && ReferenceEquals(parts[0], partition))
-                    {
-                        logical = wrapper;
-                        break;
-                    }
+                    logical = wrapper;
+                    break;
                 }
-                if (logical != null)
+            }
+            if (logical != null)
+            {
+                lock (m_subscriptionLock)
                 {
                     m_logicals.Remove(logical);
                 }
@@ -483,7 +527,7 @@ namespace Opc.Ua.Client.Subscriptions
             if (!snapshot.DisableUnboundedItemMode)
             {
 #pragma warning disable CA2000 // ownership transfers to wrapper.AttachForwardingHandler
-                forwardingHandler = new PartitionForwardingHandler(handler);
+                forwardingHandler = new PartitionForwardingHandler(handler, m_logger);
 #pragma warning restore CA2000
                 effectiveHandler = forwardingHandler;
             }
@@ -671,7 +715,7 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 foreach (IManagedSubscription subscription in m_subscriptions)
                 {
-                    if (subscription.Id == 0)
+                    if (subscription.IsCreationInProgress)
                     {
                         return true;
                     }
@@ -846,7 +890,7 @@ namespace Opc.Ua.Client.Subscriptions
             if (!options.DisableUnboundedItemMode)
             {
 #pragma warning disable CA2000 // ownership transfers to wrapper.AttachForwardingHandler
-                forwardingHandler = new PartitionForwardingHandler(handler);
+                forwardingHandler = new PartitionForwardingHandler(handler, m_logger);
 #pragma warning restore CA2000
                 effectiveHandler = forwardingHandler;
             }
@@ -908,70 +952,109 @@ namespace Opc.Ua.Client.Subscriptions
                 m_logger.SubscriptionAddedTransferPending(subscription.Id, state.ServerId);
             }
 
-            // Issue TransferSubscriptions for the saved server id.
-            // sendInitialValues honors SubscriptionOptions.SendInitialValuesOnTransfer
-            // (default false) — the snapshot captured the last server-
-            // emitted values, so requesting initial values is only
-            // useful when the caller wants the server to re-emit them
-            // to a fresh notification handler.
-            uint[] ids = [state.ServerId];
-            TransferSubscriptionsResponse response = await m_session
-                .TransferSubscriptionsAsync(
-                    null,
-                    ids.ToArrayOf(),
-                    sendInitialValues: options.SendInitialValuesOnTransfer,
-                    ct)
-                .ConfigureAwait(false);
-
-            bool transferred = false;
-            ResponseHeader responseHeader = response.ResponseHeader;
-            if (StatusCode.IsGood(responseHeader.ServiceResult))
+            try
             {
-                ArrayOf<TransferResult> results = response.Results;
-                ClientBase.ValidateResponse(results, ids.ToArrayOf());
-                if (results.Count > 0 && StatusCode.IsGood(results[0].StatusCode))
-                {
-                    transferred = await subscription.TryCompleteTransferAsync(
-                        results[0].AvailableSequenceNumbers.IsNull
-                            ? []
-                            : [.. results[0].AvailableSequenceNumbers],
-                        ct).ConfigureAwait(false);
-                }
-                else if (results.Count > 0)
-                {
-                    m_logger.TransferPerItemResultBad(subscription.Id, results[0].StatusCode);
-                }
-            }
-            else if (responseHeader.ServiceResult == StatusCodes.BadServiceUnsupported)
-            {
-                m_logger.ServerDoesNotSupportTransfer(subscription.Id);
-            }
-            else
-            {
-                m_logger.TransferServiceLevelResultBad(subscription.Id, responseHeader.ServiceResult);
-            }
-
-            if (!transferred && subscription is Subscription loaded)
-            {
-                await loaded.ResetToRecreateAsync(ct).ConfigureAwait(false);
-                // Await re-creation under a bounded timeout so LoadAsync
-                // only returns after the server has assigned a fresh
-                // SubscriptionId. Items still need ApplyChangesAsync to
-                // round-trip but that runs in the same state-manager
-                // iteration as CreateAsync.
-                using CancellationTokenSource timeoutCts = m_timeProvider
-                    .CreateCancellationTokenSource(TimeSpan.FromSeconds(15));
-                using var linkedCts = CancellationTokenSource
-                    .CreateLinkedTokenSource(ct, timeoutCts.Token);
+                // Issue TransferSubscriptions for the saved server id.
+                // sendInitialValues honors SubscriptionOptions.SendInitialValuesOnTransfer
+                // (default false) — the snapshot captured the last server-
+                // emitted values, so requesting initial values is only
+                // useful when the caller wants the server to re-emit them
+                // to a fresh notification handler.
+                ArrayOf<uint> subscriptionIds = [state.ServerId];
+                bool transferred = false;
                 try
                 {
-                    await loaded.WaitForCreatedAsync(linkedCts.Token)
+                    TransferSubscriptionsResponse response = await m_session.TransferSubscriptionsAsync(
+                        null,
+                        subscriptionIds,
+                        sendInitialValues: options.SendInitialValuesOnTransfer,
+                        ct)
                         .ConfigureAwait(false);
+
+                    ResponseHeader responseHeader = response.ResponseHeader;
+                    if (StatusCode.IsGood(responseHeader.ServiceResult))
+                    {
+                        ArrayOf<TransferResult> results = response.Results;
+                        ClientBase.ValidateResponse(results, subscriptionIds);
+                        if (results.Count > 0 && StatusCode.IsGood(results[0].StatusCode))
+                        {
+                            transferred = await subscription.TryCompleteTransferAsync(
+                                results[0].AvailableSequenceNumbers.IsNull
+                                    ? []
+                                    : [.. results[0].AvailableSequenceNumbers],
+                                ct).ConfigureAwait(false);
+                        }
+                        else if (results.Count > 0)
+                        {
+                            m_logger.TransferPerItemResultBad(subscription.Id, results[0].StatusCode);
+                        }
+                    }
+                    else if (responseHeader.ServiceResult == StatusCodes.BadServiceUnsupported)
+                    {
+                        m_logger.ServerDoesNotSupportTransfer(subscription.Id);
+                    }
+                    else
+                    {
+                        m_logger.TransferServiceLevelResultBad(
+                            subscription.Id,
+                            responseHeader.ServiceResult);
+                    }
                 }
-                catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes.BadServiceUnsupported)
+                {
+                    m_logger.ServerDoesNotSupportTransfer(subscription.Id);
+                }
+                catch (ServiceResultException ex)
+                {
+                    m_logger.TransferServiceLevelResultBad(
+                        subscription.Id,
+                        ex.StatusCode);
+                }
+
+                if (!transferred && subscription is Subscription loaded)
+                {
+                    await loaded.ResetToRecreateAsync(ct).ConfigureAwait(false);
+                    // Await re-creation under a bounded timeout so LoadAsync
+                    // only returns after the server has assigned a fresh
+                    // SubscriptionId. Items still need ApplyChangesAsync to
+                    // round-trip but that runs in the same state-manager
+                    // iteration as CreateAsync.
+                    using CancellationTokenSource timeoutCts = m_timeProvider
+                        .CreateCancellationTokenSource(TimeSpan.FromSeconds(15));
+                    using var linkedCts = CancellationTokenSource
+                        .CreateLinkedTokenSource(ct, timeoutCts.Token);
+                    try
+                    {
+                        await loaded.WaitForCreatedAsync(linkedCts.Token)
+                            .ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                    {
+                        m_logger.ReCreationDidNotComplete(subscription.Id);
+                    }
+                }
+            }
+            catch
+            {
+                // The subscription and its wrapper are already registered.
+                // Leaving them behind on a failed transfer would register a
+                // zombie that the publish loop keeps dispatching to and that
+                // no caller ever gets a handle to.
+                lock (m_subscriptionLock)
+                {
+                    m_logicals.Remove(wrapper);
+                    m_subscriptions.Remove(subscription);
+                }
+                try
+                {
+                    await wrapper.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception disposeException)
+                    when (disposeException is not OutOfMemoryException)
                 {
                     m_logger.ReCreationDidNotComplete(subscription.Id);
                 }
+                throw;
             }
 
             m_publishControl.Set();
@@ -1097,40 +1180,51 @@ namespace Opc.Ua.Client.Subscriptions
 
             // Best-effort transfer: when the saved ServerId is
             // non-zero AND the caller asked for transfer, issue
-            // TransferSubscriptions; on failure fall back to recreate
-            // via the partition's own state machine.
-            if (transferSubscriptions &&
-                snap.ServerId != 0 &&
-                partition is Subscription concrete)
+            // TransferSubscriptions; on failure - and when no transfer was
+            // requested at all - fall back to recreate via the partition's own
+            // state machine.
+            if (partition is not Subscription concrete)
             {
-                bool transferred = false;
-                try
+                return;
+            }
+
+            if (!transferSubscriptions || snap.ServerId == 0)
+            {
+                // Without a transfer the saved server-side subscription does
+                // not belong to this session: the partition would keep the
+                // stale identifier, never be created, and silently deliver
+                // nothing. Drive it through the recreate path instead.
+                await concrete.ResetToRecreateAsync(ct).ConfigureAwait(false);
+                return;
+            }
+
+            bool transferred = false;
+            try
+            {
+                TransferSubscriptionsResponse response =
+                    await m_session.TransferSubscriptionsAsync(
+                        null,
+                        new uint[] { snap.ServerId }.ToArrayOf(),
+                        sendInitialValues: optionsMonitor.CurrentValue.SendInitialValuesOnTransfer,
+                        ct).ConfigureAwait(false);
+                if (StatusCode.IsGood(response.ResponseHeader.ServiceResult) &&
+                    response.Results.Count > 0 &&
+                    StatusCode.IsGood(response.Results[0].StatusCode))
                 {
-                    TransferSubscriptionsResponse response =
-                        await m_session.TransferSubscriptionsAsync(
-                            null,
-                            new uint[] { snap.ServerId }.ToArrayOf(),
-                            sendInitialValues: optionsMonitor.CurrentValue.SendInitialValuesOnTransfer,
-                            ct).ConfigureAwait(false);
-                    if (StatusCode.IsGood(response.ResponseHeader.ServiceResult) &&
-                        response.Results.Count > 0 &&
-                        StatusCode.IsGood(response.Results[0].StatusCode))
-                    {
-                        transferred = await concrete.TryCompleteTransferAsync(
-                            response.Results[0].AvailableSequenceNumbers.IsNull
-                                ? []
-                                : [.. response.Results[0].AvailableSequenceNumbers],
-                            ct).ConfigureAwait(false);
-                    }
+                    transferred = await concrete.TryCompleteTransferAsync(
+                        response.Results[0].AvailableSequenceNumbers.IsNull
+                            ? []
+                            : [.. response.Results[0].AvailableSequenceNumbers],
+                        ct).ConfigureAwait(false);
                 }
-                catch (Exception ex)
-                {
-                    m_logger.TransferThrewSecondaryPartitionRestore(ex, partition.Id);
-                }
-                if (!transferred)
-                {
-                    await concrete.ResetToRecreateAsync(ct).ConfigureAwait(false);
-                }
+            }
+            catch (Exception ex)
+            {
+                m_logger.TransferThrewSecondaryPartitionRestore(ex, partition.Id);
+            }
+            if (!transferred)
+            {
+                await concrete.ResetToRecreateAsync(ct).ConfigureAwait(false);
             }
         }
 
@@ -1258,6 +1352,15 @@ namespace Opc.Ua.Client.Subscriptions
         /// soft signal — workers complete their current cycle before
         /// observing the pause.
         /// </summary>
+        /// <remarks>
+        /// A worker that began its request before the quiesce can be parked
+        /// inside the service call waiting for the channel to become ready.
+        /// That wait cannot finish while the caller draining here is the very
+        /// operation that makes the channel ready, so the attempts are aborted
+        /// first. Aborting only cancels the client-side attempt: the worker
+        /// rolls its acknowledgements back and returns to the paused park, so
+        /// publish ingress stays quiesced for the caller's operation.
+        /// </remarks>
         /// <param name="ct">Cancellation token.</param>
         internal Task DrainAsync(CancellationToken ct)
         {
@@ -1265,7 +1368,58 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 return Task.CompletedTask;
             }
+            AbortActivePublishRequests();
             return m_drainSignal.WaitAsync(ct);
+        }
+
+        /// <summary>
+        /// Cancels the publish attempts that are currently in flight without
+        /// stopping their workers.
+        /// </summary>
+        private void AbortActivePublishRequests()
+        {
+            CancellationTokenSource[] attempts;
+            lock (m_publishStateLock)
+            {
+                if (m_activePublishAttempts.Count == 0)
+                {
+                    return;
+                }
+                attempts = [.. m_activePublishAttempts];
+            }
+            foreach (CancellationTokenSource attempt in attempts)
+            {
+                try
+                {
+                    attempt.Cancel();
+                }
+                catch (ObjectDisposedException)
+                {
+                    // The worker completed its attempt and released the source.
+                }
+            }
+        }
+
+        /// <summary>
+        /// Registers a publish attempt so a quiesce can abort it.
+        /// </summary>
+        private void RegisterPublishAttempt(CancellationTokenSource attempt)
+        {
+            lock (m_publishStateLock)
+            {
+                m_activePublishAttempts.Add(attempt);
+            }
+        }
+
+        /// <summary>
+        /// Removes a completed publish attempt from the abortable set.
+        /// </summary>
+        private void UnregisterPublishAttempt(CancellationTokenSource attempt)
+        {
+            lock (m_publishStateLock)
+            {
+                m_activePublishAttempts.Remove(attempt);
+            }
         }
 
         private bool TryBeginPublishRequest()
@@ -1341,11 +1495,35 @@ namespace Opc.Ua.Client.Subscriptions
                     return remaining;
                 }
                 var subscriptionIds = subscriptions.Select(s => s.Id).ToArrayOf();
-                TransferSubscriptionsResponse response = await m_session.TransferSubscriptionsAsync(
-                    null,
-                    subscriptionIds,
-                    sendInitialValues,
-                    ct).ConfigureAwait(false);
+                TransferSubscriptionsResponse response;
+                try
+                {
+                    response = await m_session.TransferSubscriptionsAsync(
+                        null,
+                        subscriptionIds,
+                        sendInitialValues,
+                        ct).ConfigureAwait(false);
+                }
+                catch (ServiceResultException sre)
+                {
+                    // The generated client validates the response header and
+                    // throws, so a service fault never reaches the header check
+                    // below. Treat every subscription as remaining and let the
+                    // recreate loop rebuild them instead of aborting the whole
+                    // session recreate (which would also leak the server side
+                    // session on every reconnect).
+                    if (sre.StatusCode == StatusCodes.BadServiceUnsupported)
+                    {
+                        TransferSubscriptionsOnRecreate = false;
+                        m_logger.TransferSubscriptionUnsupported();
+                    }
+                    else
+                    {
+                        m_logger.TransferSubscriptionsFailed(sre.StatusCode);
+                    }
+                    remaining.AddRange(subscriptions);
+                    return remaining;
+                }
 
                 ResponseHeader responseHeader = response.ResponseHeader;
                 if (!StatusCode.IsGood(responseHeader.ServiceResult))
@@ -1486,13 +1664,23 @@ namespace Opc.Ua.Client.Subscriptions
                     }
 
                     // Now lower the max publish request if we got any too
-                    // many requests errors
-                    if (publishWorkers.Any(w => w.TooManyPublishRequests))
+                    // many requests errors. Consume the flags while doing so:
+                    // the MaxPublishWorkerCount setter signals this controller
+                    // again, and a flag that is only cleared by the worker's
+                    // next successful publish would make every one of those
+                    // wake-ups decrement the cap until it collapses to 1.
+                    bool tooManyPublishRequests = false;
+                    foreach (PublishWorker worker in publishWorkers)
                     {
-                        if (MaxPublishWorkerCount > 1)
+                        if (worker.TooManyPublishRequests)
                         {
-                            MaxPublishWorkerCount--;
+                            tooManyPublishRequests = true;
+                            worker.TooManyPublishRequests = false;
                         }
+                    }
+                    if (tooManyPublishRequests && MaxPublishWorkerCount > 1)
+                    {
+                        MaxPublishWorkerCount--;
                     }
 
                     int desiredWorkerCount = GetDesiredPublishWorkerCount();
@@ -1587,7 +1775,7 @@ namespace Opc.Ua.Client.Subscriptions
             /// <summary>
             /// Signal too many publish requests running
             /// </summary>
-            public bool TooManyPublishRequests { get; private set; }
+            public bool TooManyPublishRequests { get; set; }
 
             /// <summary>
             /// Create worker
@@ -1691,6 +1879,10 @@ namespace Opc.Ua.Client.Subscriptions
                     ArrayOf<SubscriptionAcknowledgement> acks = [];
                     uint handle = 0;
                     bool publishActive = true;
+                    // A quiesce can abort this attempt without stopping the worker.
+                    var attempt = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    CancellationToken attemptToken = attempt.Token;
+                    m_outer.RegisterPublishAttempt(attempt);
                     try
                     {
                         acks = GetAcksReadyToSend();
@@ -1699,7 +1891,7 @@ namespace Opc.Ua.Client.Subscriptions
                         if (acks.Count == 0 && !moreNotifications && ackWaitTimeout != 0)
                         {
                             // Throttle publishing as we wait for acks to arrive
-                            acks = await WaitForAcksAsync(ackWaitTimeout, ct).ConfigureAwait(false);
+                            acks = await WaitForAcksAsync(ackWaitTimeout, attemptToken).ConfigureAwait(false);
                         }
                         if (!m_outer.m_running.IsSet)
                         {
@@ -1714,7 +1906,7 @@ namespace Opc.Ua.Client.Subscriptions
                                 TimeoutHint = timeoutHint,
                                 ReturnDiagnostics = (uint)(int)m_outer.ReturnDiagnostics,
                                 RequestHandle = handle
-                            }, acks, ct).ConfigureAwait(false);
+                            }, acks, attemptToken).ConfigureAwait(false);
 
                         moreNotifications = response.MoreNotifications;
                         uint subscriptionId = response.SubscriptionId;
@@ -1727,7 +1919,6 @@ namespace Opc.Ua.Client.Subscriptions
                             response.DiagnosticInfos;
                         ClientBase.ValidateResponse(acknowledgeResults, acks);
                         ClientBase.ValidateDiagnosticInfos(acknowledgeDiagnosticInfos, acks);
-                        TooManyPublishRequests = false;
 
                         // A publish completed, so the channel is healthy:
                         // clear the consecutive-error backoff state.
@@ -1741,12 +1932,16 @@ namespace Opc.Ua.Client.Subscriptions
                         publishLatencyRunning = false;
                         if (subscription != null)
                         {
-                            // deliver to subscription
-                            await subscription.OnPublishReceivedAsync(
+                            // Capture the delivery generation before draining can retire it.
+                            ValueTask delivery = subscription.OnPublishReceivedAsync(
                                 notificationMessage,
                                 availableSequenceNumbers.ToList(),
-                                response.ResponseHeader.StringTable.ToList())
-                                .ConfigureAwait(false);
+                                response.ResponseHeader.StringTable.ToList());
+                            m_outer.EndPublishRequest();
+                            publishActive = false;
+                            // A callback may await the service reader while recreation owns
+                            // the writer. Ingress backpressure is not an in-flight request.
+                            await delivery.ConfigureAwait(false);
                             Interlocked.Increment(ref m_outer.m_goodPublishRequestCount);
                             m_lastUnknownSubscriptionId = 0;
                             m_consecutiveUnresolvedResponses = 0;
@@ -1835,6 +2030,21 @@ namespace Opc.Ua.Client.Subscriptions
                     }
                     catch (OperationCanceledException)
                     {
+                        // Put the collected acknowledgements back: another
+                        // worker (or this one after a reconnect) still has to
+                        // send them, otherwise the server retransmits those
+                        // messages until its retransmission queue overflows.
+                        if (publishActive)
+                        {
+                            acks.ForEach(ack => m_outer.m_acks.Writer.TryWrite(ack));
+                        }
+                        if (!ct.IsCancellationRequested)
+                        {
+                            // A quiesce aborted this attempt, not the worker. Release
+                            // the request so the drain completes, then return to the
+                            // paused park and resume once the caller finishes.
+                            continue;
+                        }
                         break;
                     }
                     catch (Exception e)
@@ -1847,14 +2057,21 @@ namespace Opc.Ua.Client.Subscriptions
                         if (error.Code == StatusCodes.BadRequestInterrupted &&
                             ct.IsCancellationRequested)
                         {
+                            if (publishActive)
+                            {
+                                acks.ForEach(ack => m_outer.m_acks.Writer.TryWrite(ack));
+                            }
                             break;
                         }
 
                         Interlocked.Increment(ref m_outer.m_badPublishRequestCount);
-                        // Rollback acks we collected
-                        acks.ForEach(ack => m_outer.m_acks.Writer.TryWrite(ack));
-                        m_outer.EndPublishRequest();
-                        publishActive = false;
+                        if (publishActive)
+                        {
+                            // Only a failed service request needs acknowledgement rollback.
+                            acks.ForEach(ack => m_outer.m_acks.Writer.TryWrite(ack));
+                            m_outer.EndPublishRequest();
+                            publishActive = false;
+                        }
 
                         // ignore errors if paused.
                         if (!m_outer.m_running.IsSet)
@@ -1869,6 +2086,7 @@ namespace Opc.Ua.Client.Subscriptions
                         if (statusCode == StatusCodes.BadTooManyPublishRequests)
                         {
                             TooManyPublishRequests = true;
+                            m_outer.m_publishControl.Set();
                         }
                         else if (statusCode == StatusCodes.BadNoSubscription ||
                             statusCode == StatusCodes.BadSessionClosed ||
@@ -1951,10 +2169,18 @@ namespace Opc.Ua.Client.Subscriptions
                     }
                     finally
                     {
+                        // Ordering matters: the acknowledgement rollback above has
+                        // already run, and EndPublishRequest is what releases the
+                        // drain. Releasing the count first would let a quiesced
+                        // caller observe a zero count while acknowledgements from
+                        // this attempt were still unwinding, breaking the guarantee
+                        // DropPendingForSubscription relies on.
                         if (publishActive)
                         {
                             m_outer.EndPublishRequest();
                         }
+                        m_outer.UnregisterPublishAttempt(attempt);
+                        attempt.Dispose();
                     }
                 }
                 m_logger.PublishWorkerStopped(Index);
@@ -2199,6 +2425,7 @@ namespace Opc.Ua.Client.Subscriptions
         private readonly AsyncManualResetEvent m_drainSignal = new(true);
         private readonly SemaphoreSlim m_publishQuiescenceGate = new(1, 1);
         private readonly Lock m_publishStateLock = new();
+        private readonly HashSet<CancellationTokenSource> m_activePublishAttempts = [];
         private readonly CancellationToken m_disposeToken;
         private int m_activePublishRequests;
         private int m_disposed;

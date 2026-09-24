@@ -1,0 +1,95 @@
+<Project>
+  <PropertyGroup>
+    <!--
+      A Debug-configuration pack renames every package to "<id>.Debug" (see
+      the per-project PackageId overrides), so classify on the base ID: the
+      Debug variant of a preview family must be pinned exactly like its
+      Release counterpart. Test-PreviewPackageId in
+      .azurepipelines/nuget/package-version-policy.ps1 strips the same suffix, and
+      validate-nuget-package-set.ps1 fails the build if the two classifiers
+      ever disagree.
+    -->
+    <_PreviewPackageBaseId>$([System.Text.RegularExpressions.Regex]::Replace('$(PackageId)', '\.Debug$', ''))</_PreviewPackageBaseId>
+    <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.XRegistry' OR $([System.String]::Copy('$(_PreviewPackageBaseId)').StartsWith('$(PackagePrefix).Opc.Ua.XRegistry.'))">true</_IsPreviewPackage>
+    <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.WotCon' OR $([System.String]::Copy('$(_PreviewPackageBaseId)').StartsWith('$(PackagePrefix).Opc.Ua.WotCon.'))">true</_IsPreviewPackage>
+    <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.Vision' OR $([System.String]::Copy('$(_PreviewPackageBaseId)').StartsWith('$(PackagePrefix).Opc.Ua.Vision.'))">true</_IsPreviewPackage>
+    <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.Robotics' OR $([System.String]::Copy('$(_PreviewPackageBaseId)').StartsWith('$(PackagePrefix).Opc.Ua.Robotics.'))">true</_IsPreviewPackage>
+    <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.Redundancy' OR $([System.String]::Copy('$(_PreviewPackageBaseId)').StartsWith('$(PackagePrefix).Opc.Ua.Redundancy.'))">true</_IsPreviewPackage>
+    <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.Positioning' OR $([System.String]::Copy('$(_PreviewPackageBaseId)').StartsWith('$(PackagePrefix).Opc.Ua.Positioning.'))">true</_IsPreviewPackage>
+    <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.OpenUsd' OR $([System.String]::Copy('$(_PreviewPackageBaseId)').StartsWith('$(PackagePrefix).Opc.Ua.OpenUsd.'))">true</_IsPreviewPackage>
+    <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.ISA95' OR $([System.String]::Copy('$(_PreviewPackageBaseId)').StartsWith('$(PackagePrefix).Opc.Ua.ISA95.'))">true</_IsPreviewPackage>
+    <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.AI' OR $([System.String]::Copy('$(_PreviewPackageBaseId)').StartsWith('$(PackagePrefix).Opc.Ua.AI.'))">true</_IsPreviewPackage>
+    <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.Di' OR $([System.String]::Copy('$(_PreviewPackageBaseId)').StartsWith('$(PackagePrefix).Opc.Ua.Di.'))">true</_IsPreviewPackage>
+    <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.Mcp.Robotics' OR '$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.Mcp.Vision' OR '$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.OpenUsd.Connector' OR '$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.OpenUsd.Connector.Viewer'">true</_IsPreviewPackage>
+    <!--
+      On a canonical release/M.m branch build (NBGV_PublicRelease == 'True'),
+      common.props/version.props deliberately do NOT reference the
+      Nerdbank.GitVersioning package (Version/PackageVersion instead come from
+      NBGV_* environment variables set once per pipeline run by
+      .azurepipelines/set-version.ps1), so the GetBuildVersion target this
+      target would otherwise depend on does not exist in that build and a
+      literal "GetBuildVersion" DependsOnTargets would fail every release
+      build with MSB4057. Depend on it only in the local/dev path, where the
+      package IS referenced and Version/PackageVersion are computed
+      dynamically at build time rather than already resolved at evaluation
+      time.
+    -->
+    <_PreviewVersionDependsOn Condition="'$(NBGV_PublicRelease)' != 'True'">GetBuildVersion</_PreviewVersionDependsOn>
+    <GetPackageVersionDependsOn>
+      ApplyPreviewPackageVersion;
+      $(GetPackageVersionDependsOn)
+    </GetPackageVersionDependsOn>
+    <GenerateNuspecDependsOn>
+      ApplyPreviewPackageVersion;
+      $(GenerateNuspecDependsOn)
+    </GenerateNuspecDependsOn>
+  </PropertyGroup>
+
+  <!--
+    Keeps the package families listed above ("_IsPreviewPackage") on the
+    preview channel even once the root version.json commit is an exact
+    stable release such as "2.0.0" on release/2.0. See
+    docs/ReleaseProcess.md for the release-branch/version model this
+    implements and preview-version.props for how the numbered suffix below
+    is chosen.
+  -->
+  <Target Name="ApplyPreviewPackageVersion"
+          DependsOnTargets="$(_PreviewVersionDependsOn)"
+          Condition="'$(_IsPreviewPackage)' == 'true' AND '$(IsPackable)' == 'true'">
+    <PropertyGroup>
+      <_PreviewSourceVersion Condition="'$(PackageVersion)' != ''">$(PackageVersion)</_PreviewSourceVersion>
+      <_PreviewSourceVersion Condition="'$(_PreviewSourceVersion)' == '' AND '$(NuGetPackageVersion)' != ''">$(NuGetPackageVersion)</_PreviewSourceVersion>
+      <_PreviewSourceVersion Condition="'$(_PreviewSourceVersion)' == ''">$(Version)</_PreviewSourceVersion>
+      <!-- Case 1: the root version is already an in-development preview
+           (e.g. "2.0.0-preview.42" or "2.0.1-preview.7+gabcdef" while
+           master or a release branch is not yet at a stable commit) - every
+           package, selected or not, already carries that same tag. Nothing
+           to do. -->
+      <_PreviewPackageVersion
+          Condition="$([System.String]::Copy('$(_PreviewSourceVersion)').Contains('-preview'))">$(_PreviewSourceVersion)</_PreviewPackageVersion>
+      <!-- Case 2: the root version carries some other prerelease label
+           (for example a hypothetical "-rc.1"). Preserve that label but
+           mark the selected families as preview under it too. -->
+      <_PreviewPackageVersion
+          Condition="'$(_PreviewPackageVersion)' == '' AND $([System.String]::Copy('$(_PreviewSourceVersion)').Contains('-'))">$([System.String]::Copy('$(_PreviewSourceVersion)').Replace('-', '-preview.'))</_PreviewPackageVersion>
+      <!-- Case 3: the root version has build metadata but no prerelease
+           label at all (e.g. "2.0.0+gabcdef"). SemVer requires build
+           metadata to stay last, so insert the tag before the "+" rather
+           than appending after it. -->
+      <_PreviewPackageVersion
+          Condition="'$(_PreviewPackageVersion)' == '' AND $([System.String]::Copy('$(_PreviewSourceVersion)').Contains('+'))">$([System.String]::Copy('$(_PreviewSourceVersion)').Replace('+', '-preview.$(PreviewPackageBuildNumber)+'))</_PreviewPackageVersion>
+      <!-- Case 4: the root version is an exact stable release (no
+           prerelease label or build metadata at all, e.g. "2.0.0" once
+           release/2.0 has been stabilized) - synthesize the numbered
+           preview suffix explicitly, since there is no git-height
+           placeholder left in the string to reuse. See
+           preview-version.props for how the number is chosen. -->
+      <_PreviewPackageVersion
+          Condition="'$(_PreviewPackageVersion)' == ''">$(_PreviewSourceVersion)-preview.$(PreviewPackageBuildNumber)</_PreviewPackageVersion>
+      <Version>$(_PreviewPackageVersion)</Version>
+      <PackageVersion>$(_PreviewPackageVersion)</PackageVersion>
+      <NuGetPackageVersion>$(_PreviewPackageVersion)</NuGetPackageVersion>
+      <NBGV_NuGetPackageVersion>$(_PreviewPackageVersion)</NBGV_NuGetPackageVersion>
+    </PropertyGroup>
+  </Target>
+</Project>

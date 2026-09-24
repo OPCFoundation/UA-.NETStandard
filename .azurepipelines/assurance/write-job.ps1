@@ -44,6 +44,8 @@ param(
     [string] $LibraryTfm = 'net10.0',
     [string] $Configuration = 'Release',
     [AllowEmptyString()][string] $Filter = '',
+    [switch] $StrictTrx,
+    [switch] $ExecutionFailed,
     [ValidateSet('trx', 'mtp-trx', 'sarif', 'fuzz-replay', 'native-aot', 'codeql')][string] $Kind = 'trx'
 )
 $ErrorActionPreference = 'Stop'
@@ -96,10 +98,17 @@ if ($Kind -in @('native-aot', 'codeql')) {
     Copy-Item -LiteralPath $ResultsPath -Destination $proofPath
 }
 else {
-    & (Join-Path $PSScriptRoot 'results.ps1') -ResultsPath $ResultsPath -Kind $Kind -OutputPath $proofPath
+    & (Join-Path $PSScriptRoot 'results.ps1') -ResultsPath $ResultsPath -Kind $Kind `
+        -OutputPath $proofPath -StrictTrx:$StrictTrx
     if ($LASTEXITCODE -ne 0) { throw 'Result producer failed.' }
 }
 $proof = Get-Content $proofPath -Raw | ConvertFrom-Json
+# A known runner failure can veto document completion, never establish it.
+# In particular, a killed host must not credit a TRX it wrote before the kill.
+if ($ExecutionFailed -and $proof.status -ceq 'completed') {
+    $proof.status = 'failed'
+    $proof | ConvertTo-Json -Depth 15 | Set-Content -LiteralPath $proofPath -Encoding utf8
+}
 if ($Kind -eq 'native-aot' -and $proof.native.tools) {
     $producer.tools += @{
         id = 'dotnet'; version = $proof.native.tools.sdkVersion

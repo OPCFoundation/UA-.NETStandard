@@ -58,10 +58,10 @@ try {
     $invalid = $false
     switch ($Scenario) {
         'master' { }
-        'release' { $ref = 'refs/heads/release/2.0'; $expectedGroups = @('containers') }
-        'docker-branch' { $ref = 'refs/heads/docker-fix'; $expectedGroups = @('containers') }
+        'release' { $ref = 'refs/heads/release/2.0' }
+        'docker-branch' { $ref = 'refs/heads/docker-fix' }
         'pull-request' { $eventName = 'pull_request'; $ref = 'refs/pull/1/merge' }
-        'manual-pump' { $eventName = 'workflow_dispatch'; $expectedGroups = @('pump') }
+        'manual-pump' { $eventName = 'workflow_dispatch' }
         'fork' { $repository = 'Example-Org/UA-.NETStandard' }
         'invalid-push-ref' { $ref = 'refs/heads/unrelated'; $invalid = $true }
         'invalid-event' { $eventName = 'schedule'; $invalid = $true }
@@ -113,12 +113,12 @@ try {
     foreach ($group in $groups) {
         $members = @($images | Where-Object group -CEQ $group.id)
         if ($group.id -ceq 'pump') {
-            Assert-True ($members.Count -eq 1 -and $members[0].image -ceq 'pumpdeviceintegrationserver') `
+            Assert-True ($members.Count -eq 1 -and $members[0].image -ceq 'pumpserver') `
                 'Pump selection must contain exactly its one image.'
-            Assert-True ($members[0].platforms -ceq 'linux/amd64') 'Pump platform scope changed.'
-            $owner = if ($Scenario -eq 'fork') { 'example-org' } else { 'opcfoundation' }
-            Assert-True ($members[0].repository -ceq "ghcr.io/$owner/pumpdeviceintegrationserver") `
-                'Pump owner-level registry path changed.'
+            Assert-True ($members[0].platforms -ceq 'linux/amd64,linux/arm64/v8') 'Pump platforms are incomplete.'
+            $owner = if ($Scenario -eq 'fork') { 'exampleorg' } else { 'opcfoundation' }
+            Assert-True ($members[0].repository -ceq "ghcr.io/$owner/uanetstandard/pumpserver") `
+                'Pump does not use the shared registry layout.'
             Assert-True ($group.manifestArtifact -ceq 'pump-artifact-group-manifest') 'Pump evidence is not independent.'
         }
         else {
@@ -150,9 +150,9 @@ try {
             'push: ${{ github.event_name != ''pull_request'' }}',
             'pattern: container-status-${{ matrix.id }}-*',
             'name: ${{ matrix.manifestArtifact }}',
-            'type=raw,value=latest',
-            'type=raw,value=${{ env.IMAGE_VERSION }}',
-            'type=sha',
+            'name: images summary',
+            'tags: ${{ env.TAG_BRANCH }},${{ env.TAG_LATEST }}${{ env.TAG_RELEASE }}',
+            'IS_NEWEST_RELEASE_LINE',
             '-Operation Preflight -Group $env:IMAGE_GROUP',
             'workflow_dispatch:'
         )) {

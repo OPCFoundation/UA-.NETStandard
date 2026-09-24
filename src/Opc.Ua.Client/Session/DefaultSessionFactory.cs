@@ -68,7 +68,14 @@ namespace Opc.Ua.Client
         /// engine (<see cref="DefaultSubscriptionEngineFactory"/>) via
         /// the <c>ManagedSessionBuilder</c>.
         /// </summary>
-        public ISubscriptionEngineFactory? SubscriptionEngineFactory { get; init; }
+        // MemberwiseClone updates these fields without making the public settings mutable.
+        // TODO: remove this suppression when RCS1085 preserves init-only clone updates.
+#pragma warning disable RCS1085
+        public ISubscriptionEngineFactory? SubscriptionEngineFactory
+        {
+            get => m_subscriptionEngineFactory;
+            init => m_subscriptionEngineFactory = value;
+        }
 
         /// <summary>
         /// Optional <see cref="TimeProvider"/> forwarded to every
@@ -76,7 +83,12 @@ namespace Opc.Ua.Client
         /// <see langword="null"/>, the session uses
         /// <see cref="TimeProvider.System"/>.
         /// </summary>
-        public TimeProvider? TimeProvider { get; init; }
+        public TimeProvider? TimeProvider
+        {
+            get => m_timeProvider;
+            init => m_timeProvider = value;
+        }
+#pragma warning restore RCS1085
 
         /// <summary>
         /// Optional security policy registry forwarded to every channel and
@@ -105,6 +117,26 @@ namespace Opc.Ua.Client
         public DefaultSessionFactory(ITelemetryContext telemetry)
         {
             Telemetry = telemetry;
+        }
+
+        /// <inheritdoc/>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="engineFactory"/> is <see langword="null"/>.
+        /// </exception>
+        public virtual ISessionFactory WithSubscriptionEngine(
+            ISubscriptionEngineFactory engineFactory,
+            TimeProvider? timeProvider = null)
+        {
+            // A shallow copy keeps the runtime type, so a subclass keeps its
+            // overrides and every setting, and it leaves this instance -
+            // possibly the shared Instance - untouched.
+            var copy = (DefaultSessionFactory)MemberwiseClone();
+            copy.m_subscriptionEngineFactory = engineFactory ?? throw new ArgumentNullException(nameof(engineFactory));
+            if (timeProvider != null)
+            {
+                copy.m_timeProvider = timeProvider;
+            }
+            return copy;
         }
 
         /// <inheritdoc/>
@@ -295,16 +327,7 @@ namespace Opc.Ua.Client
                     !ct.IsCancellationRequested &&
                     IsStaleReverseConnectionStatus(sre.StatusCode))
                 {
-                    if (logger != null)
-                    {
-                        logger.LogWarning(
-                            "Reverse connection to {EndpointUrl} was stale ({StatusCode}); " +
-                            "retrying with a fresh connection (attempt {Attempt} of {Max}).",
-                            endpointUrl,
-                            sre.StatusCode,
-                            attempt,
-                            maxAttempts);
-                    }
+                    logger?.RetryStaleReverseConnection(endpointUrl, sre.StatusCode, attempt, maxAttempts);
 
                     connection = await resolveFreshConnectionAsync(ct).ConfigureAwait(false);
                 }
@@ -324,9 +347,9 @@ namespace Opc.Ua.Client
         /// </summary>
         private static bool IsStaleReverseConnectionStatus(StatusCode statusCode)
         {
-            return statusCode == StatusCodes.BadConnectionClosed
-                || statusCode == StatusCodes.BadNotConnected
-                || statusCode == StatusCodes.BadSecureChannelClosed;
+            return statusCode == StatusCodes.BadConnectionClosed ||
+                statusCode == StatusCodes.BadNotConnected ||
+                statusCode == StatusCodes.BadSecureChannelClosed;
         }
 
         /// <inheritdoc/>
@@ -553,7 +576,13 @@ namespace Opc.Ua.Client
                 .ConfigureAwait(false);
 
             // create the session object.
-            ISession session = Create(channel, configuration, endpoint, null);
+            ISession session = Create(
+                channel,
+                configuration,
+                endpoint,
+                null,
+                null,
+                endpoint.DiscoveryEndpoints);
             session.ReturnDiagnostics = returnDiagnostics;
 
             // create the session.
@@ -581,5 +610,21 @@ namespace Opc.Ua.Client
 
             return session;
         }
+
+        private ISubscriptionEngineFactory? m_subscriptionEngineFactory;
+        private TimeProvider? m_timeProvider;
+    }
+
+    internal static partial class DefaultSessionFactoryLog
+    {
+        [LoggerMessage(EventId = ClientEventIds.DefaultSessionFactory, Level = LogLevel.Warning,
+            Message = "Reverse connection to {EndpointUrl} was stale ({StatusCode}); " +
+                "retrying with a fresh connection (attempt {Attempt} of {Max}).")]
+        public static partial void RetryStaleReverseConnection(
+            this ILogger logger,
+            Uri? endpointUrl,
+            StatusCode statusCode,
+            int attempt,
+            int max);
     }
 }

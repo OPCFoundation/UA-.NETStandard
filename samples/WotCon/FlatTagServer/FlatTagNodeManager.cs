@@ -33,6 +33,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua;
 using Opc.Ua.Server;
+using Opc.Ua.Server.Fluent;
 
 namespace FlatTagServer
 {
@@ -75,7 +76,7 @@ namespace FlatTagServer
     /// <summary>
     /// Minimal async address space exposing one half of the aggregate Pump tags.
     /// </summary>
-    public sealed class FlatTagNodeManager : AsyncCustomNodeManager
+    public sealed class FlatTagNodeManager : FluentNodeManagerBase
     {
         /// <summary>
         /// Initializes the node manager.
@@ -88,6 +89,53 @@ namespace FlatTagServer
             m_options = options ?? throw new ArgumentNullException(nameof(options));
         }
 
+        /// <summary>
+        /// Mints the dotted tag paths this sample is addressed by.
+        /// </summary>
+        /// <remarks>
+        /// The identifiers are part of the sample's contract rather than an
+        /// implementation detail: the aggregating client's Thing Descriptions
+        /// spell out <c>s=Pump1.Identification.Manufacturer</c>, so a staged
+        /// node keeps its browse path as its identifier instead of taking the
+        /// hashed one the default factory would mint.
+        /// </remarks>
+        public override NodeId New(ISystemContext context, NodeState node)
+        {
+            ushort namespaceIndex = NamespaceIndexes[0];
+
+            // An identifier the caller has already chosen here is kept, on the
+            // same terms as the default factory: the supervision signals name
+            // their tag and their condition explicitly, and NodeState.Create
+            // runs its assignment pass over a subtree that already carries
+            // them. A staged node arrives with its NodeId cleared, so it falls
+            // through to the browse path below.
+            if (node is not null &&
+                !node.NodeId.IsNull &&
+                (node.NodeId.NamespaceIndex == namespaceIndex ||
+                    node is not BaseInstanceState { Parent: not null }))
+            {
+                return node.NodeId;
+            }
+
+            string? browseName = node?.BrowseName.Name;
+            if (string.IsNullOrEmpty(browseName))
+            {
+                return base.New(context, node!);
+            }
+
+            if (node is BaseInstanceState instance &&
+                instance.Parent is NodeState parent &&
+                parent.NodeId.NamespaceIndex == namespaceIndex &&
+                parent.NodeId.IdType == IdType.String)
+            {
+                return new NodeId(
+                    parent.NodeId.IdentifierAsString + "." + browseName,
+                    namespaceIndex);
+            }
+
+            return new NodeId(browseName!, namespaceIndex);
+        }
+
         /// <inheritdoc/>
         public override async ValueTask CreateAddressSpaceAsync(
             IDictionary<NodeId, IList<IReference>> externalReferences,
@@ -98,161 +146,97 @@ namespace FlatTagServer
                 throw new ArgumentNullException(nameof(externalReferences));
             }
 
-            if (!externalReferences.TryGetValue(
-                    ObjectIds.ObjectsFolder,
-                    out IList<IReference>? references))
-            {
-                externalReferences[ObjectIds.ObjectsFolder] = references = [];
-            }
+            NodeManagerBuilder builder = CreateFluentBuilder(NamespaceIndexes[0]);
+            await AddPumpAsync(builder, "Pump1", m_options.Values, cancellationToken)
+                .ConfigureAwait(false);
+            await AddPumpAsync(builder, "Pump2", m_options.Pump2Values, cancellationToken)
+                .ConfigureAwait(false);
 
-            ushort namespaceIndex = NamespaceIndexes[0];
-            await AddPumpAsync(
-                references,
-                namespaceIndex,
-                "Pump1",
-                m_options.Values,
-                cancellationToken).ConfigureAwait(false);
-            await AddPumpAsync(
-                references,
-                namespaceIndex,
-                "Pump2",
-                m_options.Pump2Values,
-                cancellationToken).ConfigureAwait(false);
+            // Registering the staged pumps and then re-running the reverse
+            // reference pass is what puts each pump's inverse Organizes
+            // reference into externalReferences[ObjectsFolder]; the manager used
+            // to maintain that entry by hand.
+            await RegisterAuthoredNodesAsync(builder, cancellationToken).ConfigureAwait(false);
+            await CompleteConfigureAsync(externalReferences, cancellationToken)
+                .ConfigureAwait(false);
+            await SealConfigurationAsync(builder, cancellationToken).ConfigureAwait(false);
         }
 
         private async ValueTask AddPumpAsync(
-            IList<IReference> externalReferences,
-            ushort namespaceIndex,
-            string pumpNodeId,
+            INodeManagerBuilder builder,
+            string pumpName,
             FlatTagValues values,
             CancellationToken cancellationToken)
         {
-            BaseObjectState pump = CreateObject(
-                null,
-                namespaceIndex,
-                pumpNodeId,
-                pumpNodeId,
-                ReferenceTypeIds.Organizes);
-            pump.AddReference(ReferenceTypeIds.Organizes, true, ObjectIds.ObjectsFolder);
-            externalReferences.Add(new NodeStateReference(
-                ReferenceTypeIds.Organizes,
-                false,
-                pump.NodeId));
+            // Unparented, so the staged node organises itself under the Objects
+            // folder and its NodeId comes out as the bare pump name.
+            INodeBuilder<BaseObjectState> pump = AddGroup(builder, pumpName);
+            NodeId pumpId = pump.Node.NodeId;
 
-            BaseObjectState identification = CreateObject(
-                pump, namespaceIndex, pumpNodeId + ".Identification", "Identification");
-            CreateVariable(
-                identification, namespaceIndex, pumpNodeId + ".Identification.Manufacturer", "Manufacturer",
-                DataTypeIds.LocalizedText, Variant.From(new LocalizedText(values.Manufacturer)), property: true);
-            CreateVariable(
-                identification, namespaceIndex, pumpNodeId + ".Identification.SerialNumber", "SerialNumber",
-                DataTypeIds.String, Variant.From(values.SerialNumber), property: true);
-            CreateVariable(
-                identification, namespaceIndex, pumpNodeId + ".Identification.ProductInstanceUri", "ProductInstanceUri",
-                DataTypeIds.String, Variant.From(values.ProductInstanceUri), property: true);
+            NodeId identification = AddGroup(builder, "Identification", pumpId).Node.NodeId;
+            AddTag<LocalizedText>(
+                builder, identification, "Manufacturer",
+                Variant.From(new LocalizedText(values.Manufacturer)), property: true);
+            AddTag<string>(
+                builder, identification, "SerialNumber",
+                Variant.From(values.SerialNumber), property: true);
+            AddTag<string>(
+                builder, identification, "ProductInstanceUri",
+                Variant.From(values.ProductInstanceUri), property: true);
 
-            BaseObjectState operational = CreateObject(
-                pump,
-                namespaceIndex,
-                pumpNodeId + ".Operational",
-                "Operational");
-            BaseObjectState measurements = CreateObject(
-                operational,
-                namespaceIndex,
-                pumpNodeId + ".Operational.Measurements",
-                "Measurements");
-            BaseObjectState events = CreateObject(
-                pump,
-                namespaceIndex,
-                pumpNodeId + ".Events",
-                "Events");
+            NodeId operational = AddGroup(builder, "Operational", pumpId).Node.NodeId;
+            NodeId measurements = AddGroup(builder, "Measurements", operational).Node.NodeId;
+            INodeBuilder<BaseObjectState> events = AddGroup(builder, "Events", pumpId);
 
             // The pump is the notifier an aggregating server subscribes to. Its
             // conditions live under the supervision Objects below it, and OPC
             // 10000-3 only delivers their events to a client that can reach a
             // notifier, so the pump both carries the bit and is registered as a
             // root notifier with the server.
-            pump.EventNotifier = EventNotifiers.SubscribeToEvents;
-            events.EventNotifier = EventNotifiers.SubscribeToEvents;
-            await AddRootNotifierAsync(pump, cancellationToken).ConfigureAwait(false);
+            pump.Node.EventNotifier = EventNotifiers.SubscribeToEvents;
+            events.Node.EventNotifier = EventNotifiers.SubscribeToEvents;
+            await AddRootNotifierAsync(pump.Node, cancellationToken).ConfigureAwait(false);
 
             var signals = new List<SupervisionSignal>();
-            AddManagementMethods(namespaceIndex, pump, pumpNodeId, signals);
+            AddManagementMethods(builder, pumpId, signals);
 
             if (m_options.SourceNamespaceUri == FlatTagServerOptions.SourceANamespaceUri)
             {
-                AddSourceAVariables(
-                    namespaceIndex,
-                    pumpNodeId,
-                    measurements,
-                    events,
-                    values,
-                    signals);
+                AddSourceAVariables(builder, measurements, events.Node.NodeId, values, signals);
             }
             else
             {
-                AddSourceBVariables(
-                    namespaceIndex,
-                    pumpNodeId,
-                    measurements,
-                    events,
-                    values,
-                    signals);
+                AddSourceBVariables(builder, measurements, events.Node.NodeId, values, signals);
             }
-
-            await AddPredefinedNodeAsync(SystemContext, pump, cancellationToken)
-                .ConfigureAwait(false);
         }
 
         private void AddSourceAVariables(
-            ushort namespaceIndex,
-            string pumpNodeId,
-            BaseObjectState measurements,
-            BaseObjectState events,
+            INodeManagerBuilder builder,
+            NodeId measurements,
+            NodeId events,
             FlatTagValues values,
             List<SupervisionSignal> signals)
         {
-            CreateVariable(
-                measurements,
-                namespaceIndex,
-                pumpNodeId + ".Operational.Measurements.DifferentialPressure",
-                "DifferentialPressure",
-                DataTypeIds.Double,
+            AddTag<double>(
+                builder, measurements, "DifferentialPressure",
                 Variant.From(values.DifferentialPressure));
-            CreateVariable(
-                measurements,
-                namespaceIndex,
-                pumpNodeId + ".Operational.Measurements.FluidTemperature",
-                "FluidTemperature",
-                DataTypeIds.Double,
+            AddTag<double>(
+                builder, measurements, "FluidTemperature",
                 Variant.From(values.FluidTemperature));
-            CreateVariable(
-                measurements,
-                namespaceIndex,
-                pumpNodeId + ".Operational.Measurements.MassFlow",
-                "MassFlow",
-                DataTypeIds.Double,
+            AddTag<double>(
+                builder, measurements, "MassFlow",
                 Variant.From(values.MassFlow));
-            CreateVariable(
-                measurements,
-                namespaceIndex,
-                pumpNodeId + ".Operational.Measurements.Level",
-                "Level",
-                DataTypeIds.Double,
+            AddTag<double>(
+                builder, measurements, "Level",
                 Variant.From(values.Level));
 
-            BaseObjectState supervision = CreateObject(
-                events,
-                namespaceIndex,
-                pumpNodeId + ".Events.SupervisionProcessFluid",
-                "SupervisionProcessFluid");
+            BaseObjectState supervision = AddGroup(
+                builder, "SupervisionProcessFluid", events).Node;
             supervision.EventNotifier = EventNotifiers.SubscribeToEvents;
             signals.Add(new SupervisionSignal(
                 SystemContext,
                 Server.Telemetry,
                 supervision,
-                namespaceIndex,
-                pumpNodeId + ".Events.SupervisionProcessFluid.Cavitation",
                 "Cavitation",
                 "CavitationAlarm",
                 severity: 700,
@@ -260,54 +244,32 @@ namespace FlatTagServer
         }
 
         private void AddSourceBVariables(
-            ushort namespaceIndex,
-            string pumpNodeId,
-            BaseObjectState measurements,
-            BaseObjectState events,
+            INodeManagerBuilder builder,
+            NodeId measurements,
+            NodeId events,
             FlatTagValues values,
             List<SupervisionSignal> signals)
         {
-            CreateVariable(
-                measurements,
-                namespaceIndex,
-                pumpNodeId + ".Operational.Measurements.BearingTemperature",
-                "BearingTemperature",
-                DataTypeIds.Double,
+            AddTag<double>(
+                builder, measurements, "BearingTemperature",
                 Variant.From(values.BearingTemperature));
-            CreateVariable(
-                measurements,
-                namespaceIndex,
-                pumpNodeId + ".Operational.Measurements.PumpPowerInput",
-                "PumpPowerInput",
-                DataTypeIds.Double,
+            AddTag<double>(
+                builder, measurements, "PumpPowerInput",
                 Variant.From(values.PumpPowerInput));
-            CreateVariable(
-                measurements,
-                namespaceIndex,
-                pumpNodeId + ".Operational.Measurements.PumpEfficiency",
-                "PumpEfficiency",
-                DataTypeIds.Double,
+            AddTag<double>(
+                builder, measurements, "PumpEfficiency",
                 Variant.From(values.PumpEfficiency));
-            CreateVariable(
-                measurements,
-                namespaceIndex,
-                pumpNodeId + ".Operational.Measurements.NumberOfStarts",
-                "NumberOfStarts",
-                DataTypeIds.UInt32,
+            AddTag<uint>(
+                builder, measurements, "NumberOfStarts",
                 Variant.From(values.NumberOfStarts));
 
-            BaseObjectState supervision = CreateObject(
-                events,
-                namespaceIndex,
-                pumpNodeId + ".Events.SupervisionPumpOperation",
-                "SupervisionPumpOperation");
+            BaseObjectState supervision = AddGroup(
+                builder, "SupervisionPumpOperation", events).Node;
             supervision.EventNotifier = EventNotifiers.SubscribeToEvents;
             signals.Add(new SupervisionSignal(
                 SystemContext,
                 Server.Telemetry,
                 supervision,
-                namespaceIndex,
-                pumpNodeId + ".Events.SupervisionPumpOperation.MotorOverheat",
                 "MotorOverheat",
                 "MotorOverheatAlarm",
                 severity: 800,
@@ -320,54 +282,34 @@ namespace FlatTagServer
         /// also what returns a tripped supervision signal to normal.
         /// </summary>
         private static void AddManagementMethods(
-            ushort namespaceIndex,
-            BaseObjectState pump,
-            string pumpNodeId,
+            INodeManagerBuilder builder,
+            NodeId pumpId,
             List<SupervisionSignal> signals)
         {
-            var running = new BaseDataVariableState(pump)
-            {
-                SymbolicName = "Running",
-                ReferenceTypeId = ReferenceTypeIds.HasComponent,
-                TypeDefinitionId = VariableTypeIds.BaseDataVariableType,
-                NodeId = new NodeId(pumpNodeId + ".Running", namespaceIndex),
-                BrowseName = new QualifiedName("Running", namespaceIndex),
-                DisplayName = new LocalizedText("en", "Running"),
-                DataType = DataTypeIds.Boolean,
-                ValueRank = ValueRanks.Scalar,
-                AccessLevel = AccessLevels.CurrentRead,
-                UserAccessLevel = AccessLevels.CurrentRead,
-                Historizing = false,
-                Value = Variant.From(true),
-                StatusCode = StatusCodes.Good,
-                Timestamp = DateTime.UtcNow
-            };
-            pump.AddChild(running);
+            BaseVariableState running = AddTag<bool>(
+                builder, pumpId, "Running", Variant.From(true), readBack: false);
 
-            CreateMethod(
-                pump,
-                namespaceIndex,
-                pumpNodeId + ".Start",
+            AddCommand(
+                builder,
+                pumpId,
                 "Start",
                 (context, _, _, _, _, _) =>
                 {
                     SetRunning(context, running, value: true);
                     return new ValueTask<ServiceResult>(ServiceResult.Good);
                 });
-            CreateMethod(
-                pump,
-                namespaceIndex,
-                pumpNodeId + ".Stop",
+            AddCommand(
+                builder,
+                pumpId,
                 "Stop",
                 (context, _, _, _, _, _) =>
                 {
                     SetRunning(context, running, value: false);
                     return new ValueTask<ServiceResult>(ServiceResult.Good);
                 });
-            CreateMethod(
-                pump,
-                namespaceIndex,
-                pumpNodeId + ".Reset",
+            AddCommand(
+                builder,
+                pumpId,
                 "Reset",
                 (context, _, _, _, _, _) =>
                 {
@@ -384,7 +326,7 @@ namespace FlatTagServer
 
         private static void SetRunning(
             ISystemContext context,
-            BaseDataVariableState running,
+            BaseVariableState running,
             bool value)
         {
             running.Value = Variant.From(value);
@@ -392,84 +334,85 @@ namespace FlatTagServer
             running.ClearChangeMasks(context, includeChildren: false);
         }
 
-        private static void CreateMethod(
-            NodeState parent,
-            ushort namespaceIndex,
-            string nodeId,
+        /// <summary>
+        /// Stages one of the grouping Objects a pump is browsed through.
+        /// </summary>
+        /// <remarks>
+        /// Only the display name is set here: the staged node already carries
+        /// the browse name, the type definition and - through
+        /// <see cref="New"/> - the dotted NodeId this sample publishes. The
+        /// sample tags its display names with a locale, which the fluent
+        /// default does not.
+        /// </remarks>
+        private static INodeBuilder<BaseObjectState> AddGroup(
+            INodeManagerBuilder builder,
             string browseName,
-            GenericMethodCalledEventHandler2Async onCall)
+            NodeId parentId = default)
         {
-            var method = new MethodState(parent)
-            {
-                SymbolicName = browseName,
-                ReferenceTypeId = ReferenceTypeIds.HasComponent,
-                NodeId = new NodeId(nodeId, namespaceIndex),
-                BrowseName = new QualifiedName(browseName, namespaceIndex),
-                DisplayName = new LocalizedText("en", browseName),
-                WriteMask = AttributeWriteMask.None,
-                UserWriteMask = AttributeWriteMask.None,
-                Executable = true,
-                UserExecutable = true,
-                OnCallMethod2Async = onCall
-            };
-            parent.AddChild(method);
-        }
-
-        private static BaseObjectState CreateObject(
-            NodeState? parent,
-            ushort namespaceIndex,
-            string nodeId,
-            string browseName,
-            NodeId referenceTypeId = default)
-        {
-            var node = new BaseObjectState(parent)
-            {
-                SymbolicName = browseName,
-                ReferenceTypeId = referenceTypeId.IsNull
-                    ? ReferenceTypeIds.HasComponent
-                    : referenceTypeId,
-                TypeDefinitionId = ObjectTypeIds.BaseObjectType,
-                NodeId = new NodeId(nodeId, namespaceIndex),
-                BrowseName = new QualifiedName(browseName, namespaceIndex),
-                DisplayName = new LocalizedText("en", browseName),
-                WriteMask = AttributeWriteMask.None,
-                UserWriteMask = AttributeWriteMask.None,
-                EventNotifier = EventNotifiers.None
-            };
-            parent?.AddChild(node);
+            INodeBuilder<BaseObjectState> node = builder.AddObject(browseName, parentId);
+            node.Node.DisplayName = new LocalizedText("en", browseName);
             return node;
         }
 
-        private static void CreateVariable(
-            NodeState parent,
-            ushort namespaceIndex,
-            string nodeId,
+        /// <summary>
+        /// Stages one flat tag holding a constant value.
+        /// </summary>
+        /// <typeparam name="TValue">
+        /// CLR type the tag carries; the staged variable takes its DataType
+        /// and ValueRank from it.
+        /// </typeparam>
+        /// <param name="builder">The fluent builder staging the pump.</param>
+        /// <param name="parentId">The Object the tag hangs off.</param>
+        /// <param name="browseName">Browse name of the tag.</param>
+        /// <param name="value">The value the tag reports.</param>
+        /// <param name="property">
+        /// Whether the tag is a Property rather than a data variable.
+        /// </param>
+        /// <param name="readBack">
+        /// Whether reads are answered from <paramref name="value"/> through an
+        /// async callback. Tags the server itself drives - the pump's
+        /// <c>Running</c> flag - pass <c>false</c> so a write from the
+        /// simulation is what a client sees.
+        /// </param>
+        private static BaseVariableState AddTag<TValue>(
+            INodeManagerBuilder builder,
+            NodeId parentId,
             string browseName,
-            NodeId dataType,
             Variant value,
-            bool property = false)
+            bool property = false,
+            bool readBack = true)
         {
-            var variable = new BaseDataVariableState(parent)
+            IVariableBuilder<TValue> tag = builder.AddVariable<TValue>(browseName, parentId);
+            BaseVariableState node = tag.Node;
+            node.DisplayName = new LocalizedText("en", browseName);
+            if (property)
             {
-                SymbolicName = browseName,
-                ReferenceTypeId = property ? ReferenceTypeIds.HasProperty : ReferenceTypeIds.HasComponent,
-                TypeDefinitionId = property ? VariableTypeIds.PropertyType : VariableTypeIds.BaseDataVariableType,
-                NodeId = new NodeId(nodeId, namespaceIndex),
-                BrowseName = new QualifiedName(browseName, namespaceIndex),
-                DisplayName = new LocalizedText("en", browseName),
-                WriteMask = AttributeWriteMask.None,
-                UserWriteMask = AttributeWriteMask.None,
-                DataType = dataType,
-                ValueRank = ValueRanks.Scalar,
-                AccessLevel = AccessLevels.CurrentRead,
-                UserAccessLevel = AccessLevels.CurrentRead,
-                Historizing = false,
-                Value = value,
-                StatusCode = StatusCodes.Good,
-                Timestamp = DateTime.UtcNow,
-                OnSimpleReadValueAsync = (_, _, ct) => ReadValueAsync(value, ct)
-            };
-            parent.AddChild(variable);
+                node.ReferenceTypeId = ReferenceTypeIds.HasProperty;
+                node.TypeDefinitionId = VariableTypeIds.PropertyType;
+            }
+            node.Value = value;
+            node.StatusCode = StatusCodes.Good;
+            node.Timestamp = DateTime.UtcNow;
+            if (readBack)
+            {
+                tag.OnRead((_, _, ct) => ReadValueAsync(value, ct));
+            }
+            return node;
+        }
+
+        /// <summary>
+        /// Stages one of the argument-less Methods an operator manages the
+        /// pump with.
+        /// </summary>
+        private static void AddCommand(
+            INodeManagerBuilder builder,
+            NodeId parentId,
+            string browseName,
+            GenericMethodCalledEventHandler2Async onCall)
+        {
+            INodeBuilder<MethodState> method = builder.AddMethod(browseName, parentId);
+            method.Node.DisplayName = new LocalizedText("en", browseName);
+            method.OnCall(onCall);
         }
 
         private static async ValueTask<AttributeSimpleReadResult> ReadValueAsync(

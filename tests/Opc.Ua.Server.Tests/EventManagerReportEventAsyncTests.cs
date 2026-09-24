@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -49,6 +50,51 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable]
     public class EventManagerReportEventAsyncTests
     {
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task OneFailingReceiverDoesNotDiscardLaterEventsAsync(bool permissionFailure)
+        {
+            var owner = new Mock<IAsyncNodeManager>();
+            owner.Setup(value => value.ValidateEventRolePermissionsAsync(
+                    It.IsAny<IEventMonitoredItem>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
+            var failing = new Mock<IEventMonitoredItem>();
+            var following = new Mock<IEventMonitoredItem>();
+            if (permissionFailure)
+            {
+                owner.Setup(value => value.ValidateEventRolePermissionsAsync(
+                        failing.Object, It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
+                    .ThrowsAsync(new InvalidOperationException("permission lookup failed"));
+            }
+            else
+            {
+                failing.Setup(value => value.QueueEvent(It.IsAny<IFilterTarget>()))
+                    .Callback<IFilterTarget>(filter => throw new ArgumentNullException(nameof(filter)));
+            }
+            var occurrence = new BaseEventState(null);
+
+            await EventManager.ReportEventAsync(occurrence, owner.Object, [failing.Object, following.Object])
+                .ConfigureAwait(false);
+
+            following.Verify(value => value.QueueEvent(occurrence), Times.Once);
+        }
+
+        [Test]
+        public void ReportEventCancellationStillStopsDispatch()
+        {
+            var owner = new Mock<IAsyncNodeManager>();
+            var receiver = new Mock<IEventMonitoredItem>();
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+
+            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await EventManager.ReportEventAsync(
+                    new BaseEventState(null), owner.Object, [receiver.Object], cancellation.Token)
+                    .ConfigureAwait(false));
+
+            receiver.Verify(value => value.QueueEvent(It.IsAny<IFilterTarget>()), Times.Never);
+        }
+
         /// <summary>
         /// When the node manager grants <c>ReceiveEvents</c>, the event is
         /// queued on every supplied item.
@@ -138,5 +184,38 @@ namespace Opc.Ua.Server.Tests
             permittedItem.Verify(m => m.QueueEvent(ev), Times.Once);
             deniedItem.Verify(m => m.QueueEvent(It.IsAny<IFilterTarget>()), Times.Never);
         }
+
+        /// <summary>
+        /// An Uncertain verdict is not a denial, so the event must still be delivered.
+        /// </summary>
+        [Test]
+        public async Task ReportEventAsync_WithUncertainPermission_StillQueuesEventAsync(
+            [ValueSource(nameof(UncertainStatusCodes))] StatusCode statusCode)
+        {
+            var nodeManagerMock = new Mock<IAsyncNodeManager>();
+            nodeManagerMock
+                .Setup(m => m.ValidateEventRolePermissionsAsync(
+                    It.IsAny<IEventMonitoredItem>(),
+                    It.IsAny<IFilterTarget>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ServiceResult>(new ServiceResult(statusCode)));
+
+            var item = new Mock<IEventMonitoredItem>();
+            item.Setup(m => m.Id).Returns(1u);
+
+            IList<IEventMonitoredItem> receivers = [item.Object];
+            var ev = new BaseEventState(null);
+
+            await EventManager.ReportEventAsync(ev, nodeManagerMock.Object, receivers).ConfigureAwait(false);
+
+            Assert.That(StatusCode.IsUncertain(statusCode), Is.True);
+            item.Verify(m => m.QueueEvent(ev), Times.Once);
+        }
+
+        private static StatusCode[] UncertainStatusCodes =>
+        [
+            StatusCodes.UncertainNotAllNodesAvailable,
+            StatusCodes.UncertainReferenceOutOfServer
+        ];
     }
 }

@@ -502,8 +502,11 @@ namespace Opc.Ua.Client.WebApi
                     ? baseAddress.AbsoluteUri
                     : OpcUaHttpClientDefaults.ClientName;
                 HttpClient httpClient = m_httpClientFactory!.CreateClient(clientName);
-                httpClient.BaseAddress = NormalizeHttpUrl(baseAddress);
-                return new WebApiClient(httpClient, options);
+                // Do not write onto the factory's client: it is pooled and
+                // shared, and BaseAddress/Timeout/DefaultRequestHeaders all
+                // throw once it has sent its first request. The client applies
+                // the base address per request instead.
+                return new WebApiClient(httpClient, NormalizeHttpUrl(baseAddress), options);
             }
 
             return WebApiClient.Create(baseAddress, options);
@@ -584,6 +587,12 @@ namespace Opc.Ua.Client.WebApi
         {
             try
             {
+                if ((sslPolicyErrors & SslPolicyErrors.RemoteCertificateNameMismatch) != 0)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadCertificateHostNameInvalid,
+                        "The TLS certificate host name does not match the endpoint.");
+                }
                 using CertificateCollection validationCollection = CertificateValidationHelpers
                     .BuildValidationCertificateCollection(certificate, chain);
                 ICertificateValidatorEx? validator = m_quotas?.CertificateValidator;
@@ -630,7 +639,6 @@ namespace Opc.Ua.Client.WebApi
                 return false;
             }
         }
-
 
         private static Uri NormalizeUrl(Uri url)
         {
@@ -679,5 +687,4 @@ namespace Opc.Ua.Client.WebApi
             this ILogger logger,
             string channelType);
     }
-
 }

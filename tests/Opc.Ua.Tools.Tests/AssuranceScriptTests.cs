@@ -321,6 +321,8 @@ namespace Opc.Ua.Tools.Tests
         [TestCase("hash-mismatch")]
         [TestCase("failed-result")]
         [TestCase("release-branch")]
+        [TestCase("release-policy-wrong-ref")]
+        [TestCase("release-policy-unprotected")]
         [TestCase("native-positive")]
         [TestCase("native-image-mismatch")]
         [TestCase("native-dynamic-code")]

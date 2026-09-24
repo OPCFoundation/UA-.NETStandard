@@ -150,6 +150,10 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected override void Dispose(bool disposing)
         {
+            if (disposing)
+            {
+                Volatile.Write(ref m_disposed, 1);
+            }
             base.Dispose(disposing);
         }
 
@@ -222,15 +226,39 @@ namespace Opc.Ua.Bindings
         /// <exception cref="InvalidOperationException"></exception>
         public void Attach(uint channelId, Socket socket)
         {
+            using (Gate.Enter())
+            {
+                AttachCore(channelId, socket);
+            }
+        }
+
+        /// <summary>
+        /// Wraps an accepted socket in its decorated byte transport and releases both wrappers if attachment fails.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="socket"/> is <c>null</c>.</exception>
+        internal void AttachCore(uint channelId, Socket socket)
+        {
             if (socket == null)
             {
                 throw new ArgumentNullException(nameof(socket));
             }
-#pragma warning disable CA2000 // transport ownership is transferred to Attach below
-            IUaSCByteTransport transport = new TcpByteTransport(socket, BufferManager, ReceiveBufferSize, Telemetry);
-            transport = TransportDecorator?.Invoke(transport) ?? transport;
-            Attach(channelId, transport);
-#pragma warning restore CA2000
+            TcpByteTransport? socketTransport = new(socket, BufferManager, ReceiveBufferSize, Telemetry);
+            IUaSCByteTransport? transport = null;
+            try
+            {
+                transport = TransportDecorator?.Invoke(socketTransport) ?? socketTransport;
+                AttachCore(channelId, transport);
+                transport = null;
+                socketTransport = null;
+            }
+            finally
+            {
+                if (!ReferenceEquals(transport, socketTransport))
+                {
+                    transport?.Close();
+                }
+                socketTransport?.Dispose();
+            }
         }
 
         /// <summary>
@@ -249,23 +277,56 @@ namespace Opc.Ua.Bindings
 
             using (Gate.Enter())
             {
-                if (Transport != null)
-                {
-                    throw new InvalidOperationException("Channel is already attached to a transport.");
-                }
-
-                ChannelId = channelId;
-                State = TcpChannelState.Connecting;
-
-                Transport = transport;
-
-                m_logger.TcpListenChannelLog0(
-                    ChannelName,
-                    Transport.RemoteEndpoint,
-                    ChannelId);
-
-                StartReceiveLoop();
+                AttachCore(channelId, transport);
             }
+        }
+
+        /// <summary>
+        /// Installs a transport on an undisposed channel and starts receiving its messages.
+        /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
+        private void AttachCore(uint channelId, IUaSCByteTransport transport)
+        {
+            if (Volatile.Read(ref m_disposed) != 0)
+            {
+                throw new ObjectDisposedException(nameof(TcpListenerChannel));
+            }
+            if (Transport != null)
+            {
+                throw new InvalidOperationException("Channel is already attached to a transport.");
+            }
+            ChannelId = channelId;
+            State = TcpChannelState.Connecting;
+            Transport = transport;
+            if (Volatile.Read(ref m_disposed) != 0)
+            {
+                DetachTransportForHandoff()?.Close();
+                throw new ObjectDisposedException(nameof(TcpListenerChannel));
+            }
+            m_logger.TcpListenChannelLog0(ChannelName, transport.RemoteEndpoint, ChannelId);
+            StartReceiveLoop();
+        }
+
+        /// <summary>
+        /// Closes an unused channel to make room for admission unless it is disposed, closing, or serving a session.
+        /// </summary>
+        internal bool TryIdleCleanupForAdmission()
+        {
+            using (Gate.Enter())
+            {
+                if (Volatile.Read(ref m_disposed) != 0 ||
+                    UsedBySession ||
+                    State is TcpChannelState.Closed or TcpChannelState.Closing)
+                {
+                    return false;
+                }
+                State = TcpChannelState.Closing;
+            }
+            OnCleanup(new ServiceResult(
+                StatusCodes.BadNoCommunication,
+                LocalizedText.From("Channel closed due to inactivity.")));
+            return true;
         }
 
         /// <summary>
@@ -519,6 +580,35 @@ namespace Opc.Ua.Bindings
             using (Gate.Enter())
             {
                 ChannelClosed();
+            }
+        }
+
+        /// <summary>
+        /// Applies a receive failure or clean closure only while the reporting transport is still attached.
+        /// </summary>
+        private protected override void OnTransportError(
+            IUaSCByteTransport transport,
+            ServiceResult result,
+            CancellationToken ct)
+        {
+            if (ct.IsCancellationRequested || !ReferenceEquals(Transport, transport))
+            {
+                return;
+            }
+            using (Gate.Enter())
+            {
+                if (ct.IsCancellationRequested || !ReferenceEquals(Transport, transport))
+                {
+                    return;
+                }
+                if (ServiceResult.IsBad(result))
+                {
+                    ForceChannelFaultCore(result);
+                }
+                else
+                {
+                    ChannelClosed();
+                }
             }
         }
 
@@ -794,6 +884,23 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void SendServiceFault(ChannelToken token, uint requestId, ServiceResult fault)
         {
+            SendServiceFault(token, requestId, fault, requestHandle: 0);
+        }
+
+        /// <summary>
+        /// Sends a fault response secured with the symmetric keys.
+        /// </summary>
+        /// <param name="token">The token that secures the fault.</param>
+        /// <param name="requestId">The request id of the failed request.</param>
+        /// <param name="fault">The fault to report.</param>
+        /// <param name="requestHandle">The RequestHandle of the failed request, echoed in
+        /// the ResponseHeader as OPC 10000-4 §7.33 recommends; 0 if it is unknown.</param>
+        protected void SendServiceFault(
+            ChannelToken token,
+            uint requestId,
+            ServiceResult fault,
+            uint requestHandle)
+        {
             m_logger.TcpListenChannelLog7(ChannelId, requestId, fault.StatusCode);
 
             BufferCollection? buffers = null;
@@ -804,6 +911,8 @@ namespace Opc.Ua.Bindings
                 var response = new ServiceFault();
 
                 response.ResponseHeader.ServiceResult = fault.Code;
+                response.ResponseHeader.RequestHandle = requestHandle;
+                response.ResponseHeader.Timestamp = DateTime.UtcNow;
 
                 var stringTable = new StringTable();
 
@@ -883,6 +992,52 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Validates that this channel can accept a reconnect handoff from the
+        /// supplied source channel.
+        /// </summary>
+        /// <param name="reconnectingChannel">The channel offering the transport.</param>
+        /// <param name="requestedChannelId">The target id named by the request.</param>
+        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="ArgumentNullException"><paramref name="reconnectingChannel"/> is <c>null</c>.</exception>
+        internal void ValidateReconnectTarget(
+            TcpListenerChannel reconnectingChannel,
+            uint requestedChannelId)
+        {
+            if (reconnectingChannel == null)
+            {
+                throw new ArgumentNullException(nameof(reconnectingChannel));
+            }
+
+            if (requestedChannelId == 0 ||
+                ReferenceEquals(this, reconnectingChannel))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTcpSecureChannelUnknown,
+                    "Could not find secure channel referenced in the OpenSecureChannel request.");
+            }
+
+            if (State is not TcpChannelState.Open and not TcpChannelState.Faulted)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTcpSecureChannelUnknown,
+                    "The secure channel referenced in the OpenSecureChannel request cannot accept a reconnect.");
+            }
+
+            if (SecurityMode == MessageSecurityMode.None ||
+                reconnectingChannel.DiscoveryOnly ||
+                reconnectingChannel.SecurityMode != SecurityMode ||
+                !string.Equals(
+                    reconnectingChannel.SecurityPolicyUri,
+                    SecurityPolicyUri,
+                    StringComparison.Ordinal))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTcpSecureChannelUnknown,
+                    "The secure channel referenced in the OpenSecureChannel request does not match the reconnecting channel security.");
+            }
+        }
+
+        /// <summary>
         /// Set the flag if a response is required for the use case of reverse connect.
         /// </summary>
         protected void SetResponseRequired(bool responseRequired)
@@ -935,6 +1090,11 @@ namespace Opc.Ua.Bindings
         }
 
         private readonly ILogger m_logger;
+
+        /// <summary>
+        /// Prevents new transport attachment or admission cleanup after disposal begins.
+        /// </summary>
+        private int m_disposed;
         private volatile TcpChannelRequestEventHandler? m_requestReceived;
         private volatile ReportAuditOpenSecureChannelEventHandler? m_reportAuditOpenSecureChannelEvent;
         private volatile ReportAuditCloseSecureChannelEventHandler? m_reportAuditCloseSecureChannelEvent;
@@ -994,7 +1154,7 @@ namespace Opc.Ua.Bindings
         public static partial void TcpListenChannelLog0(
             this ILogger logger,
             string channel,
-            global::System.Net.EndPoint? remoteEndpoint,
+            EndPoint? remoteEndpoint,
             uint channelId);
 
         [LoggerMessage(EventId = CoreEventIds.TcpListenerChannel + 1, Level = LogLevel.Information,
@@ -1016,7 +1176,7 @@ namespace Opc.Ua.Bindings
             Message = "ChannelId {Id}: ForceChannelFault due to {Message}.")]
         public static partial void TcpListenChannelLog3(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             uint id,
             string message);
 
@@ -1026,10 +1186,10 @@ namespace Opc.Ua.Bindings
         public static partial void TcpListenChannelLog4(
             this ILogger logger,
             string channel,
-            global::System.Net.EndPoint? remoteEndpoint,
+            EndPoint? remoteEndpoint,
             uint channelId,
             uint tokenId,
-            global::Opc.Ua.ServiceResult reason);
+            ServiceResult reason);
 
         [LoggerMessage(EventId = CoreEventIds.TcpListenerChannel + 5, Level = LogLevel.Information,
             Message = "{Channel} Cleanup Transport={RemoteEndpoint}, ChannelId={ChannelId}, " +
@@ -1037,7 +1197,7 @@ namespace Opc.Ua.Bindings
         public static partial void TcpListenChannelLog5(
             this ILogger logger,
             string channel,
-            global::System.Net.EndPoint? remoteEndpoint,
+            EndPoint? remoteEndpoint,
             uint channelId,
             uint tokenId,
             string reason);
@@ -1047,7 +1207,7 @@ namespace Opc.Ua.Bindings
         public static partial void TcpListenChannelLog6(
             this ILogger logger,
             uint channelId,
-            global::Opc.Ua.StatusCode status);
+            StatusCode status);
 
         [LoggerMessage(EventId = CoreEventIds.TcpListenerChannel + 7, Level = LogLevel.Debug,
             Message = "ChannelId {Id}: Request {RequestId}: SendServiceFault={ServiceFault}")]
@@ -1055,16 +1215,16 @@ namespace Opc.Ua.Bindings
             this ILogger logger,
             uint id,
             uint requestId,
-            global::Opc.Ua.StatusCode serviceFault);
+            StatusCode serviceFault);
 
         [LoggerMessage(EventId = CoreEventIds.TcpListenerChannel + 8, Level = LogLevel.Error,
             Message = "ChannelId {Id}: Request {RequestId}: SendServiceFault={ServiceFault}: Unexpected error.")]
         public static partial void TcpListenChannelLog8(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             uint id,
             uint requestId,
-            global::Opc.Ua.StatusCode serviceFault);
+            StatusCode serviceFault);
 
         [LoggerMessage(EventId = CoreEventIds.TcpListenerChannel + 9, Level = LogLevel.Information,
             Message = "{Channel} ChannelId={ChannelId}: closing because the peer certificate is no longer trusted.")]
@@ -1073,5 +1233,4 @@ namespace Opc.Ua.Bindings
             string channel,
             uint channelId);
     }
-
 }

@@ -83,10 +83,12 @@ namespace Opc.Ua.ReleaseEvidence
             foreach (ArtifactRecord artifact in envelope.Artifacts)
             {
                 DocumentRecord[] inventories = [.. envelope.Documents.Where(d => d.Type == "inventory" &&
-                    d.Subject.Kind == artifact.Kind && d.Subject.Id == artifact.Id &&
+                    d.Subject.Kind == artifact.Kind &&
+                    d.Subject.Id == artifact.Id &&
                     d.Subject.Digest == artifact.Digest)];
                 DocumentRecord[] boms = [.. envelope.Documents.Where(d => d.Type == "sbom" &&
-                    d.Subject.Kind == artifact.Kind && d.Subject.Id == artifact.Id &&
+                    d.Subject.Kind == artifact.Kind &&
+                    d.Subject.Id == artifact.Id &&
                     d.Subject.Digest == artifact.Digest)];
                 if (inventories.Length != 1 || boms.Length != 1)
                 {
@@ -111,7 +113,7 @@ namespace Opc.Ua.ReleaseEvidence
                 {
                     findings.Add(new Finding("INVENTORY_COMPLETE", "Shipped component licenses remain unknown."));
                 }
-                using JsonDocument expectedBom = JsonDocument.Parse(CycloneDxInventory.Serialize(inventory));
+                using var expectedBom = JsonDocument.Parse(CycloneDxInventory.Serialize(inventory));
                 using JsonDocument actualBom = await files.ReadJsonAsync(
                     EvidenceFiles.Confined(bundleRoot, boms[0].Path), cancellationToken).ConfigureAwait(false);
                 if (!JsonElement.DeepEquals(expectedBom.RootElement, actualBom.RootElement))
@@ -144,15 +146,19 @@ namespace Opc.Ua.ReleaseEvidence
                 {
                     InventoryPayload? payload = inventory.Payloads.SingleOrDefault(p => p.Path == entry.FullName);
                     using Stream content = entry.Open();
-                    string digest = "sha256:" + Convert.ToHexStringLower(
-                        await SHA256.HashDataAsync(content, cancellationToken).ConfigureAwait(false));
+                    string digest = "sha256:" +
+                        Convert.ToHexStringLower(
+                            await SHA256.HashDataAsync(content, cancellationToken).ConfigureAwait(false));
                     bool metadataEntry = PackageReconciler.IsMetadata(entry.FullName, metadata);
-                    if (payload == null || payload.Digest != digest ||
-                        (payload.Classification == "metadata") != metadataEntry ||
-                        (!metadataEntry && (payload.Owner == null || payload.Version == null ||
-                            !inventory.ResolvedGraphs.Any(g =>
-                                g.Id == payload.Owner && g.Version == payload.Version) &&
-                                payload.Owner != artifact.Id)))
+                    if (payload == null ||
+                        payload.Digest != digest ||
+                        payload.Classification == "metadata" != metadataEntry ||
+                        (!metadataEntry &&
+                            (payload.Owner == null ||
+                                payload.Version == null ||
+                                (!inventory.ResolvedGraphs.Any(g =>
+                                    g.Id == payload.Owner && g.Version == payload.Version) &&
+                                    payload.Owner != artifact.Id))))
                     {
                         findings.Add(new Finding(
                             "INVENTORY_COMPLETE", "Actual payload content/ownership is missing or misclassified."));
@@ -172,17 +178,20 @@ namespace Opc.Ua.ReleaseEvidence
             string[] modern = [.. (await File.ReadAllLinesAsync(
                 EvidenceFiles.Confined(root, group.ModernCatalog!), cancellationToken).ConfigureAwait(false))
                 .Select(s => s.Trim()).Where(s => s.Length > 0 && !s.StartsWith('#'))];
-            if (inputs.SchemaVersion != 1 || inputs.Source != envelope.Source ||
+            if (inputs.SchemaVersion != 1 ||
+                inputs.Source != envelope.Source ||
                 inputs.BuildInputDigests.Length == 0 ||
                 inputs.BuildInputDigests.Any(d => !VerificationControls.IsDigest(d)) ||
                 inputs.Mappings.Any(m => !VerificationControls.IsDigest(m.GraphDigest) ||
-                    !Versions.Equal(m.Version, envelope.Release.Version)) ||
+                    !Versions.IsPackageVersionForRelease(m.Version, envelope.Release.Version)) ||
                 inputs.Mappings.Select(m => m.Project + "|" + m.Configuration)
                     .Distinct(StringComparer.OrdinalIgnoreCase).Count() != inputs.Mappings.Length ||
                 inputs.CapturedProducers?.Any(p =>
-                    p.System != envelope.Producer.System || p.Workflow != envelope.Producer.Workflow ||
+                    p.System != envelope.Producer.System ||
+                    p.Workflow != envelope.Producer.Workflow ||
                     p.DefinitionSha != envelope.Producer.DefinitionSha ||
-                    p.RunId != envelope.Producer.RunId || p.Attempt != envelope.Producer.Attempt) == true)
+                    p.RunId != envelope.Producer.RunId ||
+                    p.Attempt != envelope.Producer.Attempt) == true)
             {
                 findings.Add(new Finding("INPUT_IDENTITY", "Frozen source/configuration/graph mappings are invalid."));
             }
@@ -209,6 +218,13 @@ namespace Opc.Ua.ReleaseEvidence
                 if (!release && !debug)
                 {
                     continue;
+                }
+                if (envelope.Artifacts.Any(a => a.Id == mapping.PackageId &&
+                    a.Configuration == mapping.Configuration &&
+                    !Versions.Equal(a.Version, mapping.Version)))
+                {
+                    findings.Add(new Finding("ARTIFACT_MEMBERSHIP",
+                        "An artifact version differs from its evaluated source mapping."));
                 }
                 expected.Add("nuget-package|" + mapping.Configuration + "|" + mapping.PackageId);
                 if (mapping.IncludeSymbols && mapping.SymbolPackageFormat == "snupkg" && mapping.HasPdb)

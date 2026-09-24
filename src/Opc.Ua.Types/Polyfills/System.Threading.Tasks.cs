@@ -58,24 +58,17 @@ namespace System.Threading.Tasks
             }
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             cts.CancelAfter(timeout);
-            try
+            var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using (cts.Token.Register(() => tcs.TrySetCanceled(), useSynchronizationContext: false))
             {
-                var tcs = new TaskCompletionSource<bool>();
-                using (cts.Token.Register(() => tcs.TrySetCanceled(), useSynchronizationContext: false))
+                Task completedTask = await Task.WhenAny(task, tcs.Task).ConfigureAwait(false);
+                if (task != completedTask)
                 {
-                    Task completedTask = await Task.WhenAny(task, tcs.Task).ConfigureAwait(false);
-                    if (task != completedTask)
-                    {
-                        ct.ThrowIfCancellationRequested();
-                        throw new TimeoutException("The operation has timed out.");
-                    }
+                    ct.ThrowIfCancellationRequested();
+                    throw new TimeoutException("The operation has timed out.");
                 }
-                return await task.ConfigureAwait(false);
             }
-            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-            {
-                throw new TimeoutException("The operation has timed out.");
-            }
+            return await task.ConfigureAwait(false);
         }
 
         /// <summary>
@@ -100,24 +93,17 @@ namespace System.Threading.Tasks
             }
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             cts.CancelAfter(timeout);
-            try
+            var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using (cts.Token.Register(() => tcs.TrySetCanceled(), useSynchronizationContext: false))
             {
-                var tcs = new TaskCompletionSource<bool>();
-                using (cts.Token.Register(() => tcs.TrySetCanceled(), useSynchronizationContext: false))
+                Task completedTask = await Task.WhenAny(task, tcs.Task).ConfigureAwait(false);
+                if (task != completedTask)
                 {
-                    Task completedTask = await Task.WhenAny(task, tcs.Task).ConfigureAwait(false);
-                    if (task != completedTask)
-                    {
-                        ct.ThrowIfCancellationRequested();
-                        throw new TimeoutException("The operation has timed out.");
-                    }
+                    ct.ThrowIfCancellationRequested();
+                    throw new TimeoutException("The operation has timed out.");
                 }
-                await task.ConfigureAwait(false);
             }
-            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-            {
-                throw new TimeoutException("The operation has timed out.");
-            }
+            await task.ConfigureAwait(false);
         }
 #endif
 
@@ -140,6 +126,15 @@ namespace System.Threading.Tasks
             if (task == null)
             {
                 throw new ArgumentNullException(nameof(task));
+            }
+
+            // Matches the BCL overload this stands in for: a task that has
+            // already completed is returned as it is, even for a token that
+            // is already cancelled. Without this the same call reports
+            // cancellation here and a result on net8.0+.
+            if (task.IsCompleted)
+            {
+                return task;
             }
 
             if (!cancellationToken.CanBeCanceled)
@@ -184,6 +179,13 @@ namespace System.Threading.Tasks
             if (task == null)
             {
                 throw new ArgumentNullException(nameof(task));
+            }
+
+            // See the non-generic overload: an already completed task wins
+            // over an already cancelled token, as it does in the BCL.
+            if (task.IsCompleted)
+            {
+                return task;
             }
 
             if (!cancellationToken.CanBeCanceled)

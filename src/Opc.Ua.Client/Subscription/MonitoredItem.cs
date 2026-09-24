@@ -317,6 +317,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         internal void ApplyTransferState(uint clientHandle, uint serverId)
         {
             ClientHandle = clientHandle;
+            Utils.SetIdentifierToAtLeast(ref GlobalClientHandleUint, clientHandle);
             ServerId = serverId;
         }
 
@@ -353,7 +354,17 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // treats the item as "configured to the loaded values" and
             // skips the create path until a real change arrives.
             m_currentOptions = m_options.CurrentValue;
+            // Abandoning the ctor change stamped BadOperationAbandoned on the
+            // item and left the monitoring mode at its default. The loaded item
+            // is healthy and already established on the server, so restore the
+            // loaded state - otherwise TryRequeue force-recreates it.
+            Error = ServiceResult.Good;
+            CurrentMonitoringMode = m_currentOptions.MonitoringMode;
             ClientHandle = state.ClientHandle;
+            // Raise the global counter past the loaded handle, otherwise a
+            // freshly started process mints handles from 1 again and the first
+            // collision throws out of Dictionary.Add in MonitoredItemManager.
+            Utils.SetIdentifierToAtLeast(ref GlobalClientHandleUint, state.ClientHandle);
             ServerId = state.ServerId;
             // Install the saved desired triggering set as the runtime
             // canonical state. For TransferSubscriptions this restores
@@ -520,9 +531,16 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             {
                 return;
             }
-            queueSize = Math.Max(queueSize, (uint)Math.Ceiling(
-                publishingInterval.TotalMilliseconds / samplingInterval.TotalMilliseconds)) +
+            // The samples that can accumulate within one publishing cycle plus
+            // one for the value published at the cycle boundary. The +1 belongs
+            // inside the required size, not on top of the running maximum -
+            // otherwise every Created/Modified notification ratchets the queue
+            // size up by one and the item is modified forever.
+            uint required = (uint)Math.Ceiling(
+                publishingInterval.TotalMilliseconds /
+                samplingInterval.TotalMilliseconds) +
                 1;
+            queueSize = Math.Max(queueSize, required);
             if (queueSize == options.QueueSize)
             {
                 return;
@@ -880,6 +898,13 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             public int RetryCount { get; private set; }
 
             /// <summary>
+            /// Returns true when a successful create must replay
+            /// triggering links because the item existed on the
+            /// server before this change deleted and recreated it.
+            /// </summary>
+            public bool RequiresTriggeringReplayAfterCreate { get; }
+
+            /// <summary>
             /// Options that are the source of the change
             /// </summary>
             public MonitoredItemOptions Options { get; }
@@ -890,12 +915,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             /// <param name="item"></param>
             /// <param name="options"></param>
             /// <param name="currentOptions"></param>
-            public Change(MonitoredItem item, MonitoredItemOptions options,
-                MonitoredItemOptions? currentOptions)
+            public Change(MonitoredItem item, MonitoredItemOptions options, MonitoredItemOptions? currentOptions)
             {
                 Debug.Assert(!options.StartNodeId.IsNull);
                 Options = options;
                 Item = item;
+                RequiresTriggeringReplayAfterCreate = currentOptions != null && item.Created;
 
                 var parameters = new MonitoringParameters
                 {
@@ -934,7 +959,6 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 {
                     Modify = new MonitoredItemModifyRequest
                     {
-                        MonitoredItemId = item.ServerId,
                         RequestedParameters = parameters
                     };
 
@@ -959,6 +983,16 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             }
 
             /// <summary>
+            /// Binds the current server-assigned monitored-item id to
+            /// the pending modify request.
+            /// </summary>
+            internal MonitoredItemModifyRequest? BindModifyRequest()
+            {
+                Modify?.MonitoredItemId = Item.ServerId;
+                return Modify;
+            }
+
+            /// <summary>
             /// Updates the object with the results of a create monitored item request.
             /// </summary>
             /// <param name="request"></param>
@@ -979,13 +1013,13 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                         diagnosticInfos, responseHeader);
                 }
 
-                Item.CurrentMonitoringMode = request.MonitoringMode;
-                Item.CurrentSamplingInterval = TimeSpan.FromMilliseconds(
-                    request.RequestedParameters.SamplingInterval);
-                Item.CurrentQueueSize = request.RequestedParameters.QueueSize;
-
                 if (ServiceResult.IsGood(error))
                 {
+                    // Only a successful create establishes server side state,
+                    // so publish the requested values only in that case -
+                    // otherwise the item advertises a monitoring mode, sampling
+                    // interval and queue size the server never accepted.
+                    Item.CurrentMonitoringMode = request.MonitoringMode;
                     Item.ServerId = result.MonitoredItemId;
                     Item.CurrentSamplingInterval =
                         TimeSpan.FromMilliseconds(result.RevisedSamplingInterval);
@@ -1305,5 +1339,4 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             Message = "{Item}: {Action} with desired configuration.")]
         public static partial void ItemActionDesiredConfiguration(this ILogger logger, MonitoredItem item, string action);
     }
-
 }

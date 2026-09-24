@@ -4,8 +4,8 @@ This checklist tracks the implementation, platform configuration and qualificati
 needed to deploy the configured workflow described in
 [Release Evidence](../docs/ReleaseEvidence.md). It applies to current
 `master`/major 2 and its `nuget`, `containers` and `pump` release groups.
-Pump is a container image; its separate group preserves its registry path and
-single-platform release scope.
+Pump is a container image at `ghcr.io/opcfoundation/uanetstandard/pumpserver`;
+its independent evidence group uses the same dual-platform and image-selection rules.
 
 All items start unchecked. Completion is recorded only after the indicated
 evidence exists and is reviewed. This document does not authorize credential
@@ -106,16 +106,17 @@ cannot be completed solely through a GitHub settings page.
 - [ ] **GitHub administration:** configure the `release` environment under
   **Settings > Environments**. Review required reviewers, self-review prevention,
   deployment branch restrictions and bypass permissions. The official controller
-  is `.github/workflows/release.yml` at `refs/heads/master` in
+  is `.github/workflows/release.yml` on the selected canonical `release/<major>.<minor>` branch in
   `OPCFoundation/UA-.NETStandard`; denied refs and forks do not obtain its authority.
   **Completion evidence:** exported effective settings and allowed/denied deployment
   tests. An environment name alone is insufficient.
 - [ ] **Repository administration:** protect the controller, policy, catalog and
   verification code through the applicable branch/ruleset and review requirements.
-  Build controller binaries from the protected checkout before acquiring candidate
-  data; do not execute candidate scripts or candidate-provided verifier binaries.
-  **Completion evidence:** a reviewed controller revision and a denied
-  candidate-code execution test.
+  Bind the first source checkout to the authenticated candidate SHA after API-only
+  run validation. Provision the current trust snapshot, verifier tools and policy
+  checkpoint independently; a candidate's historical policy cannot lower that floor.
+  **Completion evidence:** a reviewed source-bound controller revision and rejection
+  of a moved branch tip, unapproved definition or substituted verifier binary.
 - [ ] **NuGet administration:** configure the trusted publishing policy for owner
   `OPCFoundation`, repository `UA-.NETStandard`, workflow file `release.yml`,
   environment `release`. Provision the existing `NUGET_USER` setting and verify
@@ -183,7 +184,7 @@ cannot be completed solely through a GitHub settings page.
   for a skipped job, zero tests, missing seed/input, wrong TFM and mixed attempts.
 - [ ] **Release assurance:** qualify complete NuGet and both container groups in
   approved non-production destinations. Check Release/Debug/metapackage/symbol
-  membership, per-package ownership and inventories, all 19 runnable container
+  membership, per-package ownership and inventories, all 20 runnable container
   subjects, their indexes and complete referrer/content graphs.
   **Completion evidence:** accepted complete groups and refusals for missing
   members, platforms, signatures, layers, referrers and altered bytes.

@@ -308,8 +308,192 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             uint messageType = BinaryPrimitives.ReadUInt32LittleEndian(captured.AsSpan(0));
             Assert.That(messageType & 0x00FFFFFFu, Is.EqualTo(TcpMessageType.Open));
             Assert.That(
-                DecodeServiceFaultStatusCode(captured),
+                DecodeServiceFault(captured).ResponseHeader.ServiceResult.Code,
                 Is.EqualTo((uint)StatusCodes.BadCertificateUntrusted));
+        }
+
+        /// <summary>
+        /// The asymmetric (OpenSecureChannel) fault echoes the RequestHandle it is
+        /// given and carries a response Timestamp (OPC 10000-4 §7.33).
+        /// </summary>
+        [Test]
+        public async Task SendServiceFaultWithRequestHandleEchoesItAsync()
+        {
+            Mock<ITcpChannelListener> listenerMock = CreateListenerMock();
+            var transport = new RecordingByteTransport();
+            using TestServerChannel channel = BuildChannel(listenerMock);
+            channel.SetTransport(transport);
+            channel.CurrentState = TcpChannelState.Opening;
+
+            channel.CallSendServiceFault(
+                requestId: 42u,
+                renew: false,
+                fault: new ServiceResult(StatusCodes.BadSecurityChecksFailed),
+                requestHandle: 99u);
+
+            Assert.That(
+                await CompletesWithinAsync(transport.FirstSendTask, 30).ConfigureAwait(false),
+                Is.True,
+                "channel never emitted the service fault message");
+            ServiceFault fault = DecodeServiceFault(transport.LastSent);
+            Assert.That(fault.ResponseHeader.ServiceResult.Code, Is.EqualTo((uint)StatusCodes.BadSecurityChecksFailed));
+            Assert.That(fault.ResponseHeader.RequestHandle, Is.EqualTo(99u));
+            Assert.That(
+                (DateTime)fault.ResponseHeader.Timestamp,
+                Is.GreaterThan(DateTime.UtcNow.AddMinutes(-1)));
+        }
+
+        /// <summary>
+        /// A reconnect binds a new socket to an existing channel, and the receive
+        /// loop has to follow it. The loop used to be guarded by a plain running
+        /// flag, so the second start was a no-op and the channel kept reading
+        /// from the socket the client had already dropped - nothing sent on the
+        /// new one was ever seen.
+        /// </summary>
+        [Test]
+        public async Task StartReceiveLoopFollowsAReplacedTransportAsync()
+        {
+            Mock<ITcpChannelListener> listenerMock = CreateListenerMock();
+            using TestServerChannel channel = BuildChannel(listenerMock);
+
+            (InProcessTransport first, InProcessTransport firstPeer) =
+                InProcessTransport.CreatePair(m_buffers, 8192, m_telemetry);
+            (InProcessTransport second, InProcessTransport secondPeer) =
+                InProcessTransport.CreatePair(m_buffers, 8192, m_telemetry);
+
+            try
+            {
+                channel.SetTransport(first);
+                channel.StartReceiveLoopForTest();
+
+                // the reconnect: a new socket for the same channel.
+                channel.SetTransport(second);
+                channel.StartReceiveLoopForTest();
+
+                await secondPeer
+                    .SendChunkAsync(CreateHelloChunk(), CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                Assert.That(
+                    await WaitForChunkAsync(channel, 1).ConfigureAwait(false),
+                    Is.True,
+                    "the receive loop never read from the transport that replaced the first.");
+            }
+            finally
+            {
+                firstPeer.Close();
+                secondPeer.Close();
+                first.Close();
+                second.Close();
+            }
+        }
+
+        /// <summary>
+        /// Starting the loop again on the transport it is already serving is a
+        /// no-op, so a caller cannot put two readers on one socket.
+        /// </summary>
+        [Test]
+        public async Task StartReceiveLoopIsIdempotentForTheSameTransportAsync()
+        {
+            Mock<ITcpChannelListener> listenerMock = CreateListenerMock();
+            using TestServerChannel channel = BuildChannel(listenerMock);
+
+            (InProcessTransport transport, InProcessTransport peer) =
+                InProcessTransport.CreatePair(m_buffers, 8192, m_telemetry);
+
+            try
+            {
+                channel.SetTransport(transport);
+                channel.StartReceiveLoopForTest();
+                channel.StartReceiveLoopForTest();
+                channel.StartReceiveLoopForTest();
+
+                await peer
+                    .SendChunkAsync(CreateHelloChunk(), CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                Assert.That(
+                    await WaitForChunkAsync(channel, 1).ConfigureAwait(false), Is.True);
+
+                // a second reader would have consumed a chunk of its own.
+                await Task.Delay(100).ConfigureAwait(false);
+                Assert.That(channel.ChunksReceived, Is.EqualTo(1));
+            }
+            finally
+            {
+                peer.Close();
+                transport.Close();
+            }
+        }
+
+        /// <summary>
+        /// Detaching the transport retires the loop, so a later start on a
+        /// reattached transport is not mistaken for one already serving it.
+        /// </summary>
+        [Test]
+        public async Task DetachTransportRetiresTheLoopAsync()
+        {
+            Mock<ITcpChannelListener> listenerMock = CreateListenerMock();
+            using TestServerChannel channel = BuildChannel(listenerMock);
+
+            (InProcessTransport transport, InProcessTransport peer) =
+                InProcessTransport.CreatePair(m_buffers, 8192, m_telemetry);
+
+            try
+            {
+                channel.SetTransport(transport);
+                channel.StartReceiveLoopForTest();
+
+                // Reusing the same transport requires its cancelled reader to finish first.
+                Assert.That(
+                    await channel.DetachTransportAsync().ConfigureAwait(false),
+                    Is.SameAs(transport));
+
+                channel.SetTransport(transport);
+                channel.StartReceiveLoopForTest();
+
+                await peer
+                    .SendChunkAsync(CreateHelloChunk(), CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                Assert.That(
+                    await WaitForChunkAsync(channel, 1).ConfigureAwait(false),
+                    Is.True,
+                    "the loop did not restart on the reattached transport.");
+            }
+            finally
+            {
+                peer.Close();
+                transport.Close();
+            }
+        }
+
+        private static byte[] CreateHelloChunk()
+        {
+            byte[] chunk = new byte[32];
+            BinaryPrimitives.WriteUInt32LittleEndian(
+                chunk.AsSpan(0), TcpMessageType.Hello | TcpMessageType.Final);
+            BinaryPrimitives.WriteUInt32LittleEndian(chunk.AsSpan(4), (uint)chunk.Length);
+            return chunk;
+        }
+
+        private static async Task<bool> WaitForChunkAsync(
+            TestServerChannel channel,
+            int expected)
+        {
+            DateTime deadline = DateTime.UtcNow.AddSeconds(10);
+
+            while (DateTime.UtcNow < deadline)
+            {
+                if (channel.ChunksReceived >= expected)
+                {
+                    return true;
+                }
+
+                await Task.Delay(10).ConfigureAwait(false);
+            }
+
+            return false;
         }
 
         private TestServerChannel BuildChannel(Mock<ITcpChannelListener> listenerMock)
@@ -384,7 +568,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             return error.StatusCode;
         }
 
-        private uint DecodeServiceFaultStatusCode(byte[] chunk)
+        private ServiceFault DecodeServiceFault(byte[] chunk)
         {
             using var decoder = new BinaryDecoder(
                 new ArraySegment<byte>(chunk, 8, chunk.Length - 8), m_context);
@@ -394,8 +578,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             _ = decoder.ReadByteString(null); // receiver certificate thumbprint
             _ = decoder.ReadUInt32(null); // sequence number
             _ = decoder.ReadUInt32(null); // request id
-            ServiceFault fault = decoder.DecodeMessage<ServiceFault>();
-            return fault.ResponseHeader.ServiceResult.Code;
+            return decoder.DecodeMessage<ServiceFault>();
         }
 
         private static Certificate CreateSmallCertificate()
@@ -452,6 +635,23 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 Transport = transport;
             }
 
+            public int ChunksReceived => Volatile.Read(ref m_chunksReceived);
+
+            public void StartReceiveLoopForTest()
+            {
+                StartReceiveLoop();
+            }
+
+            protected override ValueTask OnChunkReceivedAsync(
+                ArraySegment<byte> message,
+                CancellationToken ct)
+            {
+                Interlocked.Increment(ref m_chunksReceived);
+                return base.OnChunkReceivedAsync(message, ct);
+            }
+
+            private int m_chunksReceived;
+
             public ValueTask<bool> FeedIncomingMessageAsync(
                 uint messageType,
                 ArraySegment<byte> chunk)
@@ -467,6 +667,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             public void CallSendServiceFault(uint requestId, bool renew, ServiceResult fault)
             {
                 SendServiceFault(requestId, renew, fault);
+            }
+
+            public void CallSendServiceFault(uint requestId, bool renew, ServiceResult fault, uint requestHandle)
+            {
+                SendServiceFault(requestId, renew, fault, requestHandle);
             }
         }
 

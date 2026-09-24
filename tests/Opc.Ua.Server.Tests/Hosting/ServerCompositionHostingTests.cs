@@ -32,6 +32,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -154,8 +155,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(calls, Is.Zero);
 
             using ServiceProvider provider = builder.Services.BuildServiceProvider();
-            OpcUaServerNodeManagerRegistration[] registrations = provider
-                .GetServices<OpcUaServerNodeManagerRegistration>().ToArray();
+            OpcUaServerNodeManagerRegistration[] registrations = [.. provider.GetServices<OpcUaServerNodeManagerRegistration>()];
             Assert.That(registrations, Has.Length.EqualTo(3));
             Assert.That(registrations[0].AsyncFactory, Is.SameAs(asyncFactory));
             Assert.That(registrations[0].SyncFactory, Is.Null);
@@ -195,7 +195,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             {
                 OpcUaServerIdentityAuthenticatorRegistration registration = provider
                     .GetServices<OpcUaServerIdentityAuthenticatorRegistration>().Last();
-                IUserTokenAuthenticator[] created = registration.CreateAuthenticators(provider, null).ToArray();
+                IUserTokenAuthenticator[] created = [.. registration.CreateAuthenticators(provider, null)];
 
                 Assert.That(created, Has.Length.EqualTo(1));
                 Assert.That(created[0], Is.SameAs(authenticator.Object));
@@ -209,8 +209,8 @@ namespace Opc.Ua.Server.Tests.Hosting
         {
             IOpcUaServerBuilder builder = CreateBuilder();
             var dependency = new CompositionObservations();
-            var release = NewSignal<bool>();
-            var entered = NewSignal<bool>();
+            TaskCompletionSource<bool> release = NewSignal<bool>();
+            TaskCompletionSource<bool> entered = NewSignal<bool>();
             IServerContext context = Mock.Of<IServerContext>();
             using var cancellation = new CancellationTokenSource();
             builder.Services.AddSingleton(dependency);
@@ -245,9 +245,9 @@ namespace Opc.Ua.Server.Tests.Hosting
         public async Task HostedStartupTasksAreAwaitedInOrderAndGenericRegistrationIsIdempotentAsync()
         {
             var observations = new CompositionObservations();
-            var entered = NewSignal<bool>();
-            var release = NewSignal<bool>();
-            HostedFixture fixture = HostedFixture.Create(builder =>
+            TaskCompletionSource<bool> entered = NewSignal<bool>();
+            TaskCompletionSource<bool> release = NewSignal<bool>();
+            var fixture = HostedFixture.Create(builder =>
             {
                 builder.Services.AddSingleton(observations);
                 builder.Services.AddSingleton<IServerStartupTask>(new ExistingStartupTask(observations));
@@ -268,7 +268,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                     return default;
                 });
             });
-            await using var cleanup = fixture.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable cleanup = fixture.ConfigureAwait(false);
 
             Task starting = fixture.StartAsync();
             try
@@ -312,7 +312,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                 }
                 return builder.AddServer(options => ConfigureOptions(options, root));
             });
-            await using var cleanup = fixture.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable cleanup = fixture.ConfigureAwait(false);
             await fixture.StartAsync().ConfigureAwait(false);
 
             BuildInfo info = ReadBuildInfo(fixture.Context);
@@ -332,7 +332,7 @@ namespace Opc.Ua.Server.Tests.Hosting
         public async Task ConfiguredServerPropertiesPopulateRuntimeBuildInfoWithoutChangingConfigurationAsync()
         {
             var buildDate = new DateTime(2025, 11, 23, 14, 15, 16, DateTimeKind.Utc);
-            HostedFixture fixture = HostedFixture.Create(builder =>
+            var fixture = HostedFixture.Create(builder =>
                 builder.ConfigureServerProperties(properties =>
                 {
                     properties.ProductName = "Composition Product";
@@ -342,7 +342,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                     properties.BuildNumber = "build-123";
                     properties.BuildDate = buildDate;
                 }));
-            await using var cleanup = fixture.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable cleanup = fixture.ConfigureAwait(false);
             await fixture.StartAsync().ConfigureAwait(false);
 
             BuildInfo info = ReadBuildInfo(fixture.Context);
@@ -368,7 +368,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                 ManufacturerName = "Instance Manufacturer",
                 BuildNumber = "instance-build"
             };
-            HostedFixture fixture = HostedFixture.Create(builder =>
+            var fixture = HostedFixture.Create(builder =>
             {
                 builder.ConfigureServerProperties(properties =>
                 {
@@ -379,7 +379,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                 });
                 builder.Services.AddSingleton(direct);
             });
-            await using var cleanup = fixture.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable cleanup = fixture.ConfigureAwait(false);
             await fixture.StartAsync().ConfigureAwait(false);
 
             BuildInfo info = ReadBuildInfo(fixture.Context);
@@ -442,7 +442,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                     return [factory];
                 });
             });
-            await using var cleanup = fixture.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable cleanup = fixture.ConfigureAwait(false);
 
             Assert.That(callbackCount, Is.Zero);
             Assert.That(factory.CreateCount, Is.Zero);
@@ -476,11 +476,10 @@ namespace Opc.Ua.Server.Tests.Hosting
             int count,
             bool returnNullArray)
         {
-            MarkerNodeManagerFactory[] factories = Enumerable.Range(0, count)
-                .Select(index => new MarkerNodeManagerFactory("urn:composition:factory:" + index, 100 + index))
-                .ToArray();
+            MarkerNodeManagerFactory[] factories = [.. Enumerable.Range(0, count)
+                .Select(index => new MarkerNodeManagerFactory("urn:composition:factory:" + index, 100 + index))];
             int callbackCount = 0;
-            HostedFixture fixture = HostedFixture.Create(builder =>
+            var fixture = HostedFixture.Create(builder =>
                 builder.AddNodeManagers((services, configuration) =>
                 {
                     Assert.That(configuration.ApplicationName, Is.EqualTo("CompositionServer"));
@@ -490,7 +489,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                         ? default
                         : factories.Cast<IAsyncNodeManagerFactory>().ToArray().ToArrayOf();
                 }));
-            await using var cleanup = fixture.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable cleanup = fixture.ConfigureAwait(false);
 
             Assert.That(callbackCount, Is.Zero);
             await fixture.StartAsync().ConfigureAwait(false);
@@ -525,7 +524,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                         _ => observations.ConfigurationLoaded = true)
                     .AddNodeManager<DelayedNodeManagerFactory>();
             });
-            await using var cleanup = fixture.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable cleanup = fixture.ConfigureAwait(false);
 
             Assert.That(observations.FactoryConstructions, Is.Zero);
             Assert.That(observations.ConfigurationLoaded, Is.False);
@@ -555,7 +554,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                     legacyManager = new LegacyMarkerNodeManager(server, configuration);
                     return legacyManager;
                 });
-            HostedFixture fixture = HostedFixture.Create(builder => builder
+            var fixture = HostedFixture.Create(builder => builder
                 .AddNodeManager(asyncFactory)
                 .AddNodeManager(syncFactory.Object));
             await using (fixture.ConfigureAwait(false))
@@ -578,7 +577,7 @@ namespace Opc.Ua.Server.Tests.Hosting
         public async Task NullFactoryElementAbortsBeforeAnyAddressSpaceOrStartupTaskAsync()
         {
             int starts = 0;
-            HostedFixture fixture = HostedFixture.Create(builder => builder
+            var fixture = HostedFixture.Create(builder => builder
                 .AddNodeManagers((_, _) => new ArrayOf<IAsyncNodeManagerFactory>(
                     new IAsyncNodeManagerFactory[] { null! }))
                 .AddStartupTask((_, _, _) =>
@@ -586,7 +585,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                     starts++;
                     return default;
                 }));
-            await using var cleanup = fixture.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable cleanup = fixture.ConfigureAwait(false);
 
             Exception failure = await fixture.StartAndCaptureFailureAsync().ConfigureAwait(false);
 
@@ -603,13 +602,14 @@ namespace Opc.Ua.Server.Tests.Hosting
             var failure = new InvalidOperationException("composition-startup-failure");
             var observations = new CompositionObservations();
             using var factory = new MarkerNodeManagerFactory("urn:composition:failing-startup", 18);
-            HostedFixture fixture = HostedFixture.Create(builder =>
+            var fixture = HostedFixture.Create(builder =>
             {
                 builder.Services.AddSingleton(observations);
                 builder.AddNodeManager(factory);
                 builder.AddStartupTask((_, context, _) =>
                 {
                     observations.Context = context;
+                    Assert.That(context.CurrentState, Is.EqualTo(ServerState.Running));
                     AssertMarker(context, factory.NamespacesUris[0], 18);
                     throw failure;
                 });
@@ -619,7 +619,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                     return default;
                 });
             });
-            await using var cleanup = fixture.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable cleanup = fixture.ConfigureAwait(false);
 
             Exception actual = await fixture.StartAndCaptureFailureAsync().ConfigureAwait(false);
 
@@ -636,12 +636,12 @@ namespace Opc.Ua.Server.Tests.Hosting
         [Test]
         public async Task StoppingDuringStartupCancelsTheCallbackAndDisposesTheServerAsync()
         {
-            var entered = NewSignal<bool>();
-            var cancelled = NewSignal<bool>();
+            TaskCompletionSource<bool> entered = NewSignal<bool>();
+            TaskCompletionSource<bool> cancelled = NewSignal<bool>();
             using var factory = new MarkerNodeManagerFactory("urn:composition:cancelled-startup", 26);
             int laterCalls = 0;
             CancellationToken observedToken = default;
-            HostedFixture fixture = HostedFixture.Create(builder => builder
+            var fixture = HostedFixture.Create(builder => builder
                 .AddNodeManager(factory)
                 .AddStartupTask(async (_, context, ct) =>
                 {
@@ -657,7 +657,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                     laterCalls++;
                     return default;
                 }));
-            await using var cleanup = fixture.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable cleanup = fixture.ConfigureAwait(false);
             Task starting = fixture.StartAsync();
             await AwaitBoundedAsync(entered.Task).ConfigureAwait(false);
 
@@ -683,34 +683,53 @@ namespace Opc.Ua.Server.Tests.Hosting
         }
 
         [Test]
-        public async Task NullAuthenticatorResultFaultsHostedStartupAndCleansUpRunningServerAsync()
+        public async Task NullAuthenticatorResultFaultsBeforeOpeningTransportAndDisposesServerAsync()
         {
+            using var server = new DisposalTrackingServer(NUnitTelemetryContext.Create(isServer: true));
+            var serverFactory = new Mock<IOpcUaServerFactory>();
+            serverFactory.Setup(factory => factory.CreateServer(
+                It.IsAny<ITelemetryContext>(), It.IsAny<TimeProvider>())).Returns(server);
+            int authenticatorCalls = 0;
             int starts = 0;
-            HostedFixture fixture = HostedFixture.Create(builder => builder
-                .AddIdentityAuthenticator((_, _) => null!)
-                .AddStartupTask((_, _, _) =>
-                {
-                    starts++;
-                    return default;
-                }));
-            await using var cleanup = fixture.ConfigureAwait(false);
+            var fixture = HostedFixture.Create(builder =>
+            {
+                builder.Services.AddSingleton(serverFactory.Object);
+                builder.AddIdentityAuthenticator((_, _) =>
+                    {
+                        authenticatorCalls++;
+                        return null!;
+                    })
+                    .AddStartupTask((_, _, _) =>
+                    {
+                        starts++;
+                        return default;
+                    });
+            });
+            await using ConfiguredAsyncDisposable cleanup = fixture.ConfigureAwait(false);
 
             Exception failure = await fixture.StartAndCaptureFailureAsync().ConfigureAwait(false);
 
             Assert.That(failure, Is.TypeOf<InvalidOperationException>());
             Assert.That(failure.Message, Does.Contain("authenticator factory returned null"));
+            Assert.That(fixture.ExecuteTask.IsFaulted, Is.True);
+            Assert.That(authenticatorCalls, Is.EqualTo(1));
             Assert.That(starts, Is.Zero);
-            fixture.Transport.Listener.Verify(listener => listener.CloseAsync(
-                It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+            serverFactory.Verify(factory => factory.CreateServer(
+                It.IsAny<ITelemetryContext>(), It.IsAny<TimeProvider>()), Times.Once);
+            Assert.That(fixture.Transport.Server, Is.Null,
+                "Authentication registration must succeed before transport startup.");
+            fixture.Transport.Listener.VerifyNoOtherCalls();
+            Assert.That(server.DisposeCount, Is.EqualTo(1),
+                "The constructed server must be disposed before ExecuteTask reports the startup failure.");
         }
 
         [Test]
         public async Task CancelledHostStopWaitsForServerCleanupAsync()
         {
-            var stoppingEntered = NewSignal<bool>();
-            var releaseCleanup = NewSignal<bool>();
-            HostedFixture fixture = HostedFixture.Create();
-            await using var cleanup = fixture.ConfigureAwait(false);
+            TaskCompletionSource<bool> stoppingEntered = NewSignal<bool>();
+            TaskCompletionSource<bool> releaseCleanup = NewSignal<bool>();
+            var fixture = HostedFixture.Create();
+            await using ConfiguredAsyncDisposable cleanup = fixture.ConfigureAwait(false);
             fixture.Transport.Listener.Setup(listener => listener.CloseAsync(It.IsAny<CancellationToken>()))
                 .Returns(() =>
                 {
@@ -741,8 +760,8 @@ namespace Opc.Ua.Server.Tests.Hosting
         [Test]
         public async Task CancelledStartupCanStopWithoutExecutingServerAsync()
         {
-            HostedFixture fixture = HostedFixture.Create();
-            await using var cleanup = fixture.ConfigureAwait(false);
+            var fixture = HostedFixture.Create();
+            await using ConfiguredAsyncDisposable cleanup = fixture.ConfigureAwait(false);
             IHostedService hostedService = fixture.Services.GetServices<IHostedService>().Single();
             using var cancellation = new CancellationTokenSource();
             cancellation.Cancel();
@@ -782,7 +801,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                 return new ValueTask<IUserIdentity>(userIdentity);
             });
             var dependency = new CompositionObservations();
-            HostedFixture fixture = HostedFixture.Create(builder =>
+            var fixture = HostedFixture.Create(builder =>
             {
                 builder.Services.AddSingleton(dependency);
                 builder.AddIdentityAuthenticator(instance);
@@ -800,7 +819,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                     });
                 });
             });
-            await using var cleanup = fixture.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable cleanup = fixture.ConfigureAwait(false);
 
             Assert.That(factoryCalls, Is.Zero);
             await fixture.StartAsync().ConfigureAwait(false);
@@ -826,11 +845,34 @@ namespace Opc.Ua.Server.Tests.Hosting
         }
 
         [Test]
+        public async Task CustomAnonymousAuthenticatorOverridesHostedDefaultAsync()
+        {
+            var rejection = new ServiceResult(
+                StatusCodes.BadUserAccessDenied, new LocalizedText("Anonymous access is disabled."));
+            var authenticator = new Mock<IUserTokenAuthenticator>();
+            authenticator.Setup(value => value.TokenType).Returns(UserTokenType.Anonymous);
+            authenticator.Setup(value => value.AuthenticateAsync(
+                It.IsAny<AuthenticationContext>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<AuthenticationResult>(AuthenticationResult.Reject(rejection)));
+            var fixture = HostedFixture.Create(builder =>
+                builder.AddIdentityAuthenticator(authenticator.Object));
+            await using ConfiguredAsyncDisposable cleanup = fixture.ConfigureAwait(false);
+            await fixture.StartAsync().ConfigureAwait(false);
+
+            AuthenticationResult result = await fixture.Server.CurrentInstance.IdentityRegistry.AuthenticateAsync(
+                CreateAuthenticationContext(fixture.Context, new AnonymousIdentityTokenHandler()))
+                .ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
+            Assert.That(result.Error, Is.SameAs(rejection));
+        }
+
+        [Test]
         public async Task ResourceCallbacksRunAfterDefaultsInOrderOnTheLiveResourceManagerAsync()
         {
             var seen = new List<ResourceManager>();
             var observations = new CompositionObservations();
-            HostedFixture fixture = HostedFixture.Create(builder =>
+            var fixture = HostedFixture.Create(builder =>
             {
                 builder.Services.AddSingleton(observations);
                 builder.ConfigureResources(resources =>
@@ -854,7 +896,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                     observations.Events.Enqueue("second");
                 });
             });
-            await using var cleanup = fixture.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable cleanup = fixture.ConfigureAwait(false);
             await fixture.StartAsync().ConfigureAwait(false);
 
             ResourceManager resources = fixture.Server.CurrentInstance.ResourceManager;
@@ -906,7 +948,7 @@ namespace Opc.Ua.Server.Tests.Hosting
         {
             int starts = 0;
             int resourceCalls = 0;
-            HostedFixture fixture = HostedFixture.Create(builder => builder
+            var fixture = HostedFixture.Create(builder => builder
                 .ConfigureResources(_ =>
                 {
                     resourceCalls++;
@@ -917,7 +959,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                     starts++;
                     return default;
                 }));
-            await using var cleanup = fixture.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable cleanup = fixture.ConfigureAwait(false);
 
             Exception failure = await fixture.StartAndCaptureFailureAsync().ConfigureAwait(false);
 
@@ -984,7 +1026,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                     .AddIdentityAuthenticator(new AnonymousAuthenticator())
                     .AddStartupTask<CompositionStartupTask>();
             });
-            await using var cleanup = fixture.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable cleanup = fixture.ConfigureAwait(false);
 
             await fixture.StartAsync().ConfigureAwait(false);
             AuthenticationResult identity = await fixture.Server.CurrentInstance.IdentityRegistry.AuthenticateAsync(
@@ -996,6 +1038,177 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(observations.StartupCount, Is.EqualTo(1));
             Assert.That(identity.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
             Assert.That(identity.Identity.TokenType, Is.EqualTo(UserTokenType.Anonymous));
+        }
+
+        [TestCase(false, false, false)]
+        [TestCase(true, false, false)]
+        [TestCase(false, true, false)]
+        [TestCase(true, true, false)]
+        [TestCase(false, false, true)]
+        [TestCase(false, true, true)]
+        public async Task PreStartupInitializedAliasesAreRegisteredBeforeAddressSpaceAsync(
+            bool materialize,
+            bool topics,
+            bool plainServer)
+        {
+            NodeId categoryId = topics ? ObjectIds.Topics : ObjectIds.TagVariables;
+            using var store = new InMemoryAliasNameStore(
+                [new AliasNameCategoryDescriptor(
+                    categoryId,
+                    QualifiedName.From(topics ? BrowseNames.Topics : BrowseNames.TagVariables),
+                    AliasNameCapabilities.All)]);
+            using var registry = new AliasNameStoreRegistry();
+            TaskCompletionSource<bool> entered = NewSignal<bool>();
+            TaskCompletionSource<bool> release = NewSignal<bool>();
+            int initializerResolutions = 0;
+            var initializer = new Mock<IServerPreStartupTask>(MockBehavior.Strict);
+            initializer.Setup(task => task.OnServerStartingAsync(
+                It.IsAny<IServerContext>(), It.IsAny<CancellationToken>()))
+                .Returns((IServerContext _, CancellationToken ct) => InitializeAsync(ct));
+            var followingTask = new Mock<IServerPreStartupTask>(MockBehavior.Strict);
+            followingTask.Setup(task => task.OnServerStartingAsync(
+                It.IsAny<IServerContext>(), It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    Assert.That(registry.Stores, Does.Contain(store));
+                    return default;
+                });
+            var fixture = new HostedFixture((services, root) =>
+            {
+                services.AddTransient(_ =>
+                {
+                    initializerResolutions++;
+                    return initializer.Object;
+                });
+                services.AddSingleton(followingTask.Object);
+                IOpcUaBuilder builder = services.AddOpcUa();
+                IOpcUaServerBuilder server = plainServer
+                    ? builder.AddServer<StandardServer>(options => ConfigureOptions(options, root))
+                    : builder.AddServer(options => ConfigureOptions(options, root));
+                server.AddAliasNameStoreRegistry(registry);
+                if (materialize)
+                {
+                    server.ConfigureAliasNames(options => options.MaterializeAliasNodes = true);
+                }
+                return server;
+            });
+            await using ConfiguredAsyncDisposable cleanup = fixture.ConfigureAwait(false);
+
+            Task starting = fixture.StartAsync();
+            try
+            {
+                await AwaitBoundedAsync(entered.Task).ConfigureAwait(false);
+                Assert.That(starting.IsCompleted, Is.False);
+                Assert.That(registry.Stores, Is.Empty);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+            await AwaitBoundedAsync(starting).ConfigureAwait(false);
+
+            Assert.That(initializerResolutions, Is.EqualTo(1));
+            initializer.Verify(task => task.OnServerStartingAsync(
+                It.IsAny<IServerContext>(), It.IsAny<CancellationToken>()), Times.Once);
+            followingTask.Verify(task => task.OnServerStartingAsync(
+                It.IsAny<IServerContext>(), It.IsAny<CancellationToken>()), Times.Once);
+            AliasNameCategoryState category = fixture.Context
+                .FindPredefinedNode<AliasNameCategoryState>(categoryId);
+            ArrayOf<AliasNameDataType> aliases = await FindAliasesAsync(fixture.Context, category)
+                .ConfigureAwait(false);
+            Assert.That(aliases.Count, Is.EqualTo(1));
+            Assert.That(aliases[0].AliasName.Name, Is.EqualTo("InitializedAlias"));
+            Assert.That(aliases[0].ReferencedNodes[0],
+                Is.EqualTo((ExpandedNodeId)VariableIds.Server_ServerStatus_BuildInfo_ProductName));
+
+            var references = new List<IReference>();
+            category.GetReferences(fixture.Context.DefaultSystemContext, references);
+            IReference[] browseAliases = [.. references.Where(reference =>
+                reference.ReferenceTypeId == ReferenceTypeIds.Organizes && !reference.IsInverse)];
+            Assert.That(browseAliases, Has.Length.EqualTo(materialize ? 1 : 0));
+            if (materialize)
+            {
+                var aliasId = ExpandedNodeId.ToNodeId(
+                    browseAliases[0].TargetId, fixture.Context.DefaultSystemContext.NamespaceUris);
+                AliasNameState alias = fixture.Context.FindPredefinedNode<AliasNameState>(aliasId);
+                Assert.That(alias.BrowseName.Name, Is.EqualTo("InitializedAlias"));
+                Assert.That(alias.ReferenceExists(ReferenceTypeIds.AliasFor, false,
+                    VariableIds.Server_ServerStatus_BuildInfo_ProductName), Is.True);
+                Assert.That(category.FindAliasVerbose, Is.Not.Null);
+            }
+
+            async ValueTask InitializeAsync(CancellationToken ct)
+            {
+                Assert.That(ct.CanBeCanceled, Is.True);
+                entered.TrySetResult(true);
+                await release.Task.ConfigureAwait(false);
+                ct.ThrowIfCancellationRequested();
+                store.Seed(categoryId, "InitializedAlias",
+                    VariableIds.Server_ServerStatus_BuildInfo_ProductName, null, ReferenceTypeIds.AliasFor);
+                registry.Register(store);
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task FailedPreStartupInitializationDoesNotCopyAliasStoresAsync(bool cancel)
+        {
+            using var store = new InMemoryAliasNameStore(
+                [new AliasNameCategoryDescriptor(
+                    ObjectIds.TagVariables,
+                    QualifiedName.From(BrowseNames.TagVariables),
+                    AliasNameCapabilities.All)]);
+            var registry = new Mock<IAliasNameStoreRegistry>(MockBehavior.Strict);
+            registry.SetupGet(source => source.Stores).Returns([store]);
+            TaskCompletionSource<bool> entered = NewSignal<bool>();
+            var initializer = new Mock<IServerPreStartupTask>(MockBehavior.Strict);
+            initializer.Setup(task => task.OnServerStartingAsync(
+                It.IsAny<IServerContext>(), It.IsAny<CancellationToken>()))
+                .Returns((IServerContext _, CancellationToken ct) => InitializeAsync(ct));
+            var followingTask = new Mock<IServerPreStartupTask>(MockBehavior.Strict);
+            var fixture = HostedFixture.Create(builder =>
+            {
+                builder.Services.AddSingleton(initializer.Object);
+                builder.Services.AddSingleton(followingTask.Object);
+                builder.AddAliasNameStoreRegistry(registry.Object);
+                builder.ConfigureAliasNames(options => options.MaterializeAliasNodes = true);
+            });
+            await using ConfiguredAsyncDisposable cleanup = fixture.ConfigureAwait(false);
+
+            Task<Exception> failure = fixture.StartAndCaptureFailureAsync();
+            await AwaitBoundedAsync(entered.Task).ConfigureAwait(false);
+            if (cancel)
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+            await AwaitBoundedAsync(failure).ConfigureAwait(false);
+            Exception actual = await failure.ConfigureAwait(false);
+
+            Assert.That(fixture.ExecuteTask.IsCanceled, Is.EqualTo(cancel));
+            Assert.That(fixture.ExecuteTask.IsFaulted, Is.EqualTo(!cancel));
+            if (cancel)
+            {
+                Assert.That(actual, Is.InstanceOf<OperationCanceledException>());
+            }
+            else
+            {
+                Assert.That(actual, Is.InstanceOf<ServiceResultException>());
+            }
+            initializer.Verify(task => task.OnServerStartingAsync(
+                It.IsAny<IServerContext>(), It.IsAny<CancellationToken>()), Times.Once);
+            followingTask.Verify(task => task.OnServerStartingAsync(
+                It.IsAny<IServerContext>(), It.IsAny<CancellationToken>()), Times.Never);
+            registry.VerifyGet(source => source.Stores, Times.Never);
+
+            async ValueTask InitializeAsync(CancellationToken ct)
+            {
+                entered.TrySetResult(true);
+                if (cancel)
+                {
+                    await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false);
+                }
+                throw new InvalidOperationException("Alias initialization failed.");
+            }
         }
 
         [TestCase(false, false)]
@@ -1013,7 +1226,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             using var registry = new AliasNameStoreRegistry();
             store.Seed(categoryId, "BuildName",
                 VariableIds.Server_ServerStatus_BuildInfo_ProductName, null, ReferenceTypeIds.AliasFor);
-            HostedFixture fixture = HostedFixture.Create(builder =>
+            var fixture = HostedFixture.Create(builder =>
             {
                 builder.AddAliasNameStore(store);
                 if (materialize)
@@ -1023,7 +1236,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                     builder.AddAliasNameStoreRegistry(registry);
                 }
             });
-            await using var cleanup = fixture.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable cleanup = fixture.ConfigureAwait(false);
             await fixture.StartAsync().ConfigureAwait(false);
 
             AliasNameCategoryState category = fixture.Context
@@ -1039,12 +1252,11 @@ namespace Opc.Ua.Server.Tests.Hosting
             NodeId aliasId = default;
             var references = new List<IReference>();
             category.GetReferences(fixture.Context.DefaultSystemContext, references);
-            AliasNameState[] aliases = references
+            AliasNameState[] aliases = [.. references
                 .Where(reference => reference.ReferenceTypeId == ReferenceTypeIds.Organizes && !reference.IsInverse)
                 .Select(reference => fixture.Context.FindPredefinedNode<AliasNameState>(
                     ExpandedNodeId.ToNodeId(reference.TargetId, fixture.Context.DefaultSystemContext.NamespaceUris)))
-                .Where(node => node != null)
-                .ToArray();
+                .Where(node => node != null)];
             Assert.That(aliases, Has.Length.EqualTo(materialize ? 1 : 0));
             if (materialize)
             {
@@ -1094,6 +1306,72 @@ namespace Opc.Ua.Server.Tests.Hosting
             }
         }
 
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task StandardLiveAliasRefreshRequiresBothOptInsAsync(bool materialize, bool topics)
+        {
+            NodeId categoryId = topics ? ObjectIds.Topics : ObjectIds.TagVariables;
+            using var store = new InMemoryAliasNameStore(
+                [new AliasNameCategoryDescriptor(categoryId,
+                    QualifiedName.From(topics ? BrowseNames.Topics : BrowseNames.TagVariables),
+                    AliasNameCapabilities.All)]);
+            store.Seed(categoryId, "BuildName",
+                VariableIds.Server_ServerStatus_BuildInfo_ProductName, null, ReferenceTypeIds.AliasFor);
+            var fixture = HostedFixture.Create(builder =>
+            {
+                builder.AddAliasNameStore(store);
+                builder.ConfigureAliasNames(options =>
+                {
+                    options.MaterializeAliasNodes = materialize;
+                    options.RefreshAliasNodesOnChange = true;
+                });
+            });
+            await using ConfiguredAsyncDisposable cleanup = fixture.ConfigureAwait(false);
+            await fixture.StartAsync().ConfigureAwait(false);
+            AliasNameCategoryState category = fixture.Context.FindPredefinedNode<AliasNameCategoryState>(categoryId);
+            ushort ns = fixture.Context.DefaultSystemContext.NamespaceUris.GetIndexOrAppend(
+                Ua.Namespaces.OpcUa + "Diagnostics");
+            var originalId = new NodeId(Utils.Format("{0}.{1}", categoryId, "BuildName"), ns);
+            var addedId = new NodeId(Utils.Format("{0}.{1}", categoryId, "BuildNumber"), ns);
+            AliasNameState original = fixture.Context.FindPredefinedNode<AliasNameState>(originalId);
+            var published = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            if (materialize)
+            {
+                Assert.That(original, Is.Not.Null);
+                category.OnStateChanged += (_, _, _) =>
+                {
+                    if (fixture.Context.FindPredefinedNode<AliasNameState>(addedId) != null)
+                    {
+                        published.TrySetResult(true);
+                    }
+                };
+            }
+
+            await store.AddAliasesAsync(categoryId,
+                [new AliasAddRequest("BuildNumber", VariableIds.Server_ServerStatus_BuildInfo_BuildNumber,
+                    null, ReferenceTypeIds.AliasFor)]).ConfigureAwait(false);
+            if (materialize)
+            {
+                await published.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                Assert.That(fixture.Context.FindPredefinedNode<AliasNameState>(originalId), Is.SameAs(original));
+                BaseVariableState target = fixture.Context.FindPredefinedNode<BaseVariableState>(
+                    VariableIds.Server_ServerStatus_BuildInfo_BuildNumber);
+                Assert.That(target.ReferenceExists(ReferenceTypeIds.AliasFor, true, addedId), Is.True);
+            }
+            else
+            {
+                Assert.That(fixture.Context.FindPredefinedNode<AliasNameState>(addedId), Is.Null);
+                Assert.That(category.FindAliasVerbose, Is.Null);
+                Assert.That(category.AddAliasesToCategory, Is.Null);
+                Assert.That(category.DeleteAliasesFromCategory, Is.Null);
+            }
+            ArrayOf<AliasNameDataType> current = await FindAliasesAsync(fixture.Context, category)
+                .ConfigureAwait(false);
+            Assert.That(current.ToArray().Select(alias => alias.AliasName.Name), Is.EquivalentTo(s_mutatedAliases));
+        }
+
         [Test]
         public async Task DefaultHostedReverseConnectUsesInjectedSessionHookAndStopsItsTimerAsync()
         {
@@ -1101,7 +1379,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             var enabled = new Uri("opc.tcp://localhost:4841/enabled");
             var disabled = new Uri("opc.tcp://localhost:4842/disabled");
             SessionManager sessionManager = null!;
-            HostedFixture fixture = HostedFixture.Create(
+            var fixture = HostedFixture.Create(
                 builder =>
                 {
                     builder.Services.AddSingleton<TimeProvider>(clock);
@@ -1126,7 +1404,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                         Enabled = false
                     });
                 });
-            await using var cleanup = fixture.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable cleanup = fixture.ConfigureAwait(false);
             await fixture.StartAsync().ConfigureAwait(false);
 
             Assert.That(fixture.Server, Is.InstanceOf<ReverseConnectServer>());
@@ -1157,9 +1435,9 @@ namespace Opc.Ua.Server.Tests.Hosting
         public async Task DefaultHostedServerWithoutReverseClientsNeverDialsAsync()
         {
             var clock = new FakeTimeProvider();
-            HostedFixture fixture = HostedFixture.Create(
+            var fixture = HostedFixture.Create(
                 builder => builder.Services.AddSingleton<TimeProvider>(clock));
-            await using var cleanup = fixture.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable cleanup = fixture.ConfigureAwait(false);
             await fixture.StartAsync().ConfigureAwait(false);
 
             clock.Advance(TimeSpan.FromMinutes(1));
@@ -1186,7 +1464,7 @@ namespace Opc.Ua.Server.Tests.Hosting
         private static async Task AwaitBoundedAsync(Task task)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
-            var expired = NewSignal<bool>();
+            TaskCompletionSource<bool> expired = NewSignal<bool>();
             using CancellationTokenRegistration registration =
                 timeout.Token.Register(() => expired.TrySetResult(true));
             if (await Task.WhenAny(task, expired.Task).ConfigureAwait(false) != task)
@@ -1459,7 +1737,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                 variable.AddReference(ReferenceTypeIds.Organizes, true, ObjectIds.ObjectsFolder);
                 if (!externalReferences.TryGetValue(ObjectIds.ObjectsFolder, out IList<IReference> references))
                 {
-                    references = new List<IReference>();
+                    references = [];
                     externalReferences[ObjectIds.ObjectsFolder] = references;
                 }
                 references.Add(new NodeStateReference(ReferenceTypeIds.Organizes, false, variable.NodeId));
@@ -1519,6 +1797,20 @@ namespace Opc.Ua.Server.Tests.Hosting
             }
         }
 
+        private sealed class DisposalTrackingServer(ITelemetryContext telemetry) : StandardServer(telemetry)
+        {
+            public int DisposeCount { get; private set; }
+
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing)
+                {
+                    DisposeCount++;
+                }
+                base.Dispose(disposing);
+            }
+        }
+
         private sealed class HostedFixture : IAsyncDisposable
         {
             public HostedFixture(Func<IServiceCollection, string, IOpcUaServerBuilder> configure)
@@ -1527,7 +1819,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                 Directory.CreateDirectory(m_root);
                 var services = new ServiceCollection();
                 services.AddLogging(builder => builder.AddProvider(Logs));
-                services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create(isServer: true));
+                services.AddSingleton(NUnitTelemetryContext.Create(isServer: true));
                 IOpcUaServerBuilder builder = configure(services, m_root);
                 builder.AddStartupTask((_, context, _) =>
                 {
@@ -1565,6 +1857,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             public StandardServer Server => Transport.Server;
             public ApplicationConfiguration Configuration => Transport.Configuration;
             public Task ExecuteTask => HostedService.ExecuteTask!;
+
             private BackgroundService HostedService => m_provider.GetServices<IHostedService>()
                 .OfType<BackgroundService>().Single();
 
@@ -1742,7 +2035,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(calls, Is.Zero);
 
             IUserTokenAuthenticator[] authenticators =
-                registration.CreateAuthenticators(provider, validator).ToArray();
+                [.. registration.CreateAuthenticators(provider, validator)];
 
             Assert.That(authenticators, Has.Length.EqualTo(1));
             Assert.That(authenticators[0], Is.SameAs(authenticator));
@@ -1756,7 +2049,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             int calls = 0;
             int laterFactoryCalls = 0;
             int startupCalls = 0;
-            HostedFixture fixture = HostedFixture.Create(builder => builder
+            var fixture = HostedFixture.Create(builder => builder
                 .AddNodeManagers((_, configuration) =>
                 {
                     using CertificateEntryCollection certificates = configuration.CertificateManager
@@ -1776,7 +2069,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                     startupCalls++;
                     return default;
                 }));
-            await using var cleanup = fixture.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable cleanup = fixture.ConfigureAwait(false);
 
             Exception actual = await fixture.StartAndCaptureFailureAsync().ConfigureAwait(false);
 
@@ -1794,7 +2087,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             var expected = new InvalidOperationException("reverse-startup-failure");
             var clock = new FakeTimeProvider();
             var client = new Uri("opc.tcp://localhost:0/startup-failure");
-            HostedFixture fixture = HostedFixture.Create(
+            var fixture = HostedFixture.Create(
                 builder =>
                 {
                     builder.Services.AddSingleton<TimeProvider>(clock);
@@ -1814,7 +2107,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                         MaxSessionCount = 0
                     });
                 });
-            await using var cleanup = fixture.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable cleanup = fixture.ConfigureAwait(false);
 
             Exception actual = await fixture.StartAndCaptureFailureAsync().ConfigureAwait(false);
             Assert.That(actual, Is.SameAs(expected));
@@ -1871,13 +2164,13 @@ namespace Opc.Ua.Server.Tests.Hosting
                 });
                 return server;
             });
-            await using var cleanup = fixture.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable cleanup = fixture.ConfigureAwait(false);
             await fixture.StartAsync().ConfigureAwait(false);
 
             Assert.That(overrides, Is.EqualTo(1));
             Assert.That(fixture.Server, Is.InstanceOf<ReverseConnectServer>());
             var reverse = (ReverseConnectServer)fixture.Server;
-            Assert.That(reverse.GetReverseConnections().Keys, Is.EquivalentTo(new[] { enabled, disabled }));
+            Assert.That(reverse.GetReverseConnections().Keys, Is.EquivalentTo([enabled, disabled]));
             Assert.That(reverse.GetReverseConnections()[enabled].ConfigEntry, Is.True);
             Assert.That(reverse.GetReverseConnections()[enabled].Timeout, Is.EqualTo(2345));
             Assert.That(reverse.GetReverseConnections()[disabled].Enabled, Is.False);
@@ -1936,8 +2229,10 @@ namespace Opc.Ua.Server.Tests.Hosting
 
         private static readonly string[] s_completedEvents = ["completed"];
         private static readonly string[] s_enteredEvents = ["existing", "generic", "delegate-entered"];
+
         private static readonly string[] s_startupEvents =
             ["existing", "generic", "delegate-entered", "delegate-completed", "last"];
+
         private static readonly string[] s_resourceEvents = ["first", "second"];
         private static readonly string[] s_mutatedAliases = ["BuildName", "BuildNumber"];
         private static readonly UserTokenType[] s_anonymousTokens = [UserTokenType.Anonymous];

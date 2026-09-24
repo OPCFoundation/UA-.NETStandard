@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -164,8 +165,8 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
 
         [Test]
         [Order(100)]
-        [TestCase(900, 100u, 100u, 10000u, 3600u, 83442u, TestName = "Test Lifetime Over Maximum")]
-        [TestCase(900, 100u, 100u, 0u, 3600u, 83442u, TestName = "Test Lifetime Zero")]
+        [TestCase(900, 100u, 100u, 10000u, 3600u, 14_400_000u, TestName = "Test Lifetime Over Maximum")]
+        [TestCase(900, 100u, 100u, 0u, 3600u, 14_400_000u, TestName = "Test Lifetime Zero")]
         [TestCase(1200, 100u, 100u, 1u, 1u, 3000u, TestName = "Test Lifetime One")]
         [TestCase(
             60000,
@@ -221,7 +222,9 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
         [TestCase(0u, 1u, 1u, false, TestName = "QueueSize 0")]
         [TestCase(101u, 101u, 102u, false, TestName = "QueueSize over standard subscripion limit")]
         [TestCase(9999u, 1000u, 1000u, false, TestName = "QueueSize over durable limit")]
-        [TestCase(0u, 1000u, 1u, true, TestName = "QueueSize 0 Event MI")]
+        // Part 4 §7.21: event queueSize 0 is the server default and 1 the
+        // server minimum, so neither is returned literally.
+        [TestCase(0u, 1000u, 1000u, true, TestName = "QueueSize 0 Event MI")]
         [TestCase(
             1001u,
             1001u,
@@ -369,11 +372,16 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
             {
                 if (transferSession != null)
                 {
-                    transferSession.DeleteSubscriptionsOnClose = true;
-
-                    TestContext.Out.WriteLine("------- Transfer session closing --------");
-                    await transferSession.CloseAsync().ConfigureAwait(false);
-                    transferSession.Dispose();
+                    try
+                    {
+                        transferSession.DeleteSubscriptionsOnClose = true;
+                        TestContext.Out.WriteLine("------- Transfer session closing --------");
+                        await transferSession.CloseAsync().ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        transferSession.Dispose();
+                    }
                 }
             }
         }
@@ -430,6 +438,10 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
             var testSet = new List<NodeId>();
             testSet.AddRange(GetTestSetFullSimulation(Session.NamespaceUris));
             var valueTimeStamps = new Dictionary<NodeId, List<DateTimeUtc>>();
+            TaskCompletionSource<bool>? restartDataReceived = restartServer
+                ? new(TaskCreationOptions.RunContinuationsAsynchronously)
+                : null;
+            bool awaitingRestartData = false;
 
             var monitoredItemsList = new List<MonitoredItem>();
             foreach (NodeId nodeId in testSet)
@@ -450,6 +462,10 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
                         foreach (DataValue value in item.DequeueValues())
                         {
                             list.Add(value.SourceTimestamp);
+                            if (awaitingRestartData)
+                            {
+                                restartDataReceived?.TrySetResult(true);
+                            }
                         }
                     };
 
@@ -532,6 +548,8 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
                 }
             }
 #endif
+            awaitingRestartData = restartServer && setSubscriptionDurable;
+            Task restartData = restartDataReceived?.Task ?? Task.CompletedTask;
             bool result = await transferSession.TransferSubscriptionsAsync(subscriptions, true)
                 .ConfigureAwait(false);
 
@@ -544,6 +562,15 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
                 result,
                 Is.EqualTo(expected),
                 $"SetSubscriptionDurable = {setSubscriptionDurable} => Transfer Result: {result} != Expected {expected}");
+
+            if (restartServer && setSubscriptionDurable)
+            {
+                await restartData.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                Assert.That(
+                    valueTimeStamps.Values.Any(values => values.Count > 0),
+                    Is.True,
+                    "A transferred subscription did not deliver queued data after restart.");
+            }
 
             if (setSubscriptionDurable && !restartServer)
             {

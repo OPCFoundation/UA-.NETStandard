@@ -168,9 +168,14 @@ namespace Opc.Ua
                 // no op.
             }
 
+            /// <summary>
+            /// Enables non-None levels when an event listener or configured trace output can receive messages.
+            /// </summary>
             public bool IsEnabled(LogLevel logLevel)
             {
-                return Tracing.IsEnabled();
+                // Explicit legacy categories can differ from the level; Log applies the exact mask.
+                return logLevel != LogLevel.None &&
+                    (Tracing.IsEnabled() || m_provider.HasEnabledTraceOutput());
             }
 
             public void Log<TState>(
@@ -192,37 +197,95 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// To determine a mask from the log level.
+        /// Checks whether the trace mask and output settings permit file output or the debug-build fallback.
+        /// </summary>
+        private bool HasEnabledTraceOutput()
+        {
+            if (TraceMask == Utils.TraceMasks.None)
+            {
+                return false;
+            }
+            lock (m_traceFileLock)
+            {
+                if (m_traceOutput == (int)Utils.TraceOutput.Off)
+                {
+                    return false;
+                }
+                if (!string.IsNullOrEmpty(m_traceFileName))
+                {
+                    return true;
+                }
+#if DEBUG
+                return m_traceOutput == (int)Utils.TraceOutput.DebugAndFile;
+#else
+                return false;
+#endif
+            }
+        }
+
+        /// <summary>
+        /// Marks a legacy mask explicitly, including masks combining multiple categories.
+        /// </summary>
+        internal static EventId CreateLegacyTraceEventId(int traceMask)
+        {
+            return new EventId(traceMask, kLegacyTraceMaskEventName);
+        }
+
+        /// <summary>
+        /// Determines the mask from the level unless the caller explicitly selects a legacy category.
         /// </summary>
         /// <param name="eventId">The event id.</param>
         /// <param name="logLevel">The log level.</param>
         internal static int GetTraceMask(EventId eventId, LogLevel logLevel)
         {
-            int mask = eventId.Id & Utils.TraceMasks.All;
-            if (mask == 0)
+            if (eventId.Name == kLegacyTraceMaskEventName)
             {
-                switch (logLevel)
-                {
-                    case LogLevel.Critical:
-                    case LogLevel.Warning:
-                    case LogLevel.Error:
-                        mask = Utils.TraceMasks.Error;
-                        break;
-                    case LogLevel.Information:
-                        mask = Utils.TraceMasks.Information;
-                        break;
+                return eventId.Id;
+            }
+
+            int legacyMask = eventId.Name switch
+            {
+                nameof(Utils.TraceMasks.None) => Utils.TraceMasks.None,
+                nameof(Utils.TraceMasks.Error) => Utils.TraceMasks.Error,
+                nameof(Utils.TraceMasks.Information) => Utils.TraceMasks.Information,
+                nameof(Utils.TraceMasks.StackTrace) => Utils.TraceMasks.StackTrace,
+                nameof(Utils.TraceMasks.Service) => Utils.TraceMasks.Service,
+                nameof(Utils.TraceMasks.ServiceDetail) => Utils.TraceMasks.ServiceDetail,
+                nameof(Utils.TraceMasks.Operation) => Utils.TraceMasks.Operation,
+                nameof(Utils.TraceMasks.OperationDetail) => Utils.TraceMasks.OperationDetail,
+                nameof(Utils.TraceMasks.StartStop) => Utils.TraceMasks.StartStop,
+                nameof(Utils.TraceMasks.ExternalSystem) => Utils.TraceMasks.ExternalSystem,
+                nameof(Utils.TraceMasks.Security) => Utils.TraceMasks.Security,
+                nameof(Utils.TraceMasks.All) => Utils.TraceMasks.All,
+                _ => -1
+            };
+            if (legacyMask >= 0 && eventId.Id == legacyMask)
+            {
+                return legacyMask;
+            }
+
+            int mask = 0;
+            switch (logLevel)
+            {
+                case LogLevel.Critical:
+                case LogLevel.Warning:
+                case LogLevel.Error:
+                    mask = Utils.TraceMasks.Error;
+                    break;
+                case LogLevel.Information:
+                    mask = Utils.TraceMasks.Information;
+                    break;
 #if DEBUG
-                    case LogLevel.Debug:
+                case LogLevel.Debug:
 #endif
-                    case LogLevel.Trace:
-                        mask = Utils.TraceMasks.Operation;
-                        break;
-                    case LogLevel.None:
-                        break;
-                    default:
-                        Debug.Fail($"Unexpected log level {logLevel}.");
-                        break;
-                }
+                case LogLevel.Trace:
+                    mask = Utils.TraceMasks.Operation;
+                    break;
+                case LogLevel.None:
+                    break;
+                default:
+                    Debug.Fail($"Unexpected log level {logLevel}.");
+                    break;
             }
             return mask;
         }
@@ -416,12 +479,18 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        Debug.WriteLine("Could not write to trace file. Error={0}", e.Message);
-                        Debug.WriteLine("FilePath={1}", traceFileName);
+                        // Interpolated, not a format string: WriteLine(string,
+                        // string) is the better overload for two string
+                        // arguments, so the second would be taken as a category
+                        // and the placeholder printed verbatim.
+                        Debug.WriteLine($"Could not write to trace file. Error={e.Message}");
+                        Debug.WriteLine($"FilePath={traceFileName}");
                     }
                 }
             }
         }
+
+        private const string kLegacyTraceMaskEventName = "Opc.Ua.TraceMask";
 
 #if DEBUG
         private int m_traceOutput = (int)Utils.TraceOutput.DebugAndFile;

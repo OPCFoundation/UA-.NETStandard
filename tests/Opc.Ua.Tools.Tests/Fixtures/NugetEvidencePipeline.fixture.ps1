@@ -69,6 +69,7 @@ function global:dotnet {
         $matches = $Scenario -ne 'feed-content-mismatch'
         Write-Json @{
             schemaVersion = 1; status = if ($matches) { 'content-matched' } else { 'content-mismatch' }
+            packageId = 'Example'; version = '2.0.0'
             contentPreserved = $matches; authorSignaturePreserved = $matches
             authorArchiveDigest = 'sha256:' + (Get-FileHash $author -Algorithm SHA256).Hash.ToLowerInvariant()
             deliveredArchiveDigest = 'sha256:' + (Get-FileHash $delivered -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -134,7 +135,7 @@ try {
         elseif ($Scenario -eq 'deferred-major') { '1.5.378.1' } else { '2.0.0' }
     $source = @{
         repository = 'OPCFoundation/UA-.NETStandard'; actualSha = ('a' * 40)
-        actualRef = 'refs/heads/release/2.0.0'; trackedClean = $true
+        actualRef = 'refs/heads/release/2.0'; trackedClean = $true
     }
     $context = @{
         source = $source
@@ -152,6 +153,13 @@ try {
         packageVersion = $version; packageCount = 1; symbolPackageCount = 0; debugPackageCount = 0
         archives = @(@{ id = 'Example'; version = $version; type = 'package'
             file = "Example.$version.nupkg"; sha256 = ('c' * 64) })
+    }
+    if ($Scenario.StartsWith('version2-')) {
+        $manifest.schemaVersion = 2
+        $manifest.basePackageVersion = $manifest.packageVersion
+        $manifest.Remove('packageVersion')
+        $manifest.channel = if ($Scenario -eq 'version2-invalid-channel') { 'preview' } else { 'stable' }
+        $manifest.packageVersions = if ($Scenario -eq 'version2-invalid-versions') { @('2.0.1') } else { @($version) }
     }
     Write-Json $manifest (Join-Path $packages 'release-manifest.json')
     Write-Json @{ schemaVersion = 1; artifacts = @() } (Join-Path $packages 'archive-metadata.json')
@@ -424,11 +432,34 @@ try {
         }
     }
     elseif ($Scenario.StartsWith('receipt-')) {
+        if ($Scenario -eq 'receipt-debug-destination') {
+            $manifest.archives += @(
+                @{ id = 'Example.Debug'; version = $version; type = 'package'
+                    file = "Example.Debug.$version.nupkg"; sha256 = 'd' * 64 },
+                @{ id = 'Example.Debug'; version = $version; type = 'symbols'
+                    file = "Example.Debug.$version.snupkg"; sha256 = 'e' * 64 }
+            )
+            $manifest.packageCount = 2
+            $manifest.debugPackageCount = 1
+            $manifest.symbolPackageCount = 1
+            Write-Json $manifest (Join-Path $packages 'release-manifest.json')
+        }
         if ($Scenario -eq 'receipt-symbols-unresolved') {
             $manifest.symbolPackageCount = 1
             $manifest.archives += @{
                 id = 'Example'; version = $version; type = 'symbols'
                 file = "Example.$version.snupkg"; sha256 = 'd' * 64
+            }
+            if ($Scenario -eq 'receipt-debug-destination') {
+                Assert-True ($receipt.packages.Count -eq 1 -and $receipt.packages[0].id -ceq 'Example' -and
+                    $receipt.symbols.expected -eq 0) 'NuGet.org receipt included excluded Debug package identities.'
+                $githubReceipt = Join-Path $fixture 'github-receipt.json'
+                & $script -Operation Receipt -RepositoryRoot $fixture -Packages $packages -Output $githubReceipt `
+                    -Work (Join-Path $fixture 'github-work') -Destination GitHubPackages
+                Assert-True ($LASTEXITCODE -eq 0) 'GitHub Packages receipt failed.'
+                $github = Get-Content -LiteralPath $githubReceipt -Raw | ConvertFrom-Json
+                Assert-True ($github.packages.Count -eq 2 -and $github.symbols.expected -eq 1) `
+                    'Full GitHub Packages receipt lost Debug identities.'
             }
             Write-Json $manifest (Join-Path $packages 'release-manifest.json')
         }
@@ -476,11 +507,13 @@ try {
             Assert-True (-not $global:ReaderInvoked) 'Do not evaluate with contradicted source expectations.'
         }
         else {
-            $expectedCode = if ($Scenario -in @('invalid-reader', 'malformed-expected', 'malformed-manifest')) { 2 }
+            $expectedCode = if ($Scenario -in @('invalid-reader', 'malformed-expected', 'malformed-manifest',
+                'version2-invalid-versions', 'version2-invalid-channel')) { 2 }
                 elseif ($Scenario -in @('active-incomplete', 'saved-bundle-forwarded',
-                    'required-incomplete', 'baseline-failed')) { 1 } else { 0 }
+                    'required-incomplete', 'baseline-failed', 'version2-incomplete')) { 1 } else { 0 }
             Assert-True ($code -eq $expectedCode) "Expected exit $expectedCode, received $code."
-            if ($Scenario -notin @('malformed-expected', 'malformed-manifest')) {
+            if ($Scenario -notin @('malformed-expected', 'malformed-manifest',
+                'version2-invalid-versions', 'version2-invalid-channel')) {
                 Assert-True $global:ReaderInvoked 'The offline reader was not invoked.'
             }
             Assert-True ($report.status -ceq $(if ($Scenario -eq 'required-complete-reader') {
