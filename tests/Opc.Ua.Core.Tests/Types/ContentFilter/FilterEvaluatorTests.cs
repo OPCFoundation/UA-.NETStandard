@@ -168,6 +168,26 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadContentFilterInvalid));
         }
 
+        /// <summary>
+        /// Part 4 7.7.2: an unrecognized operator decoded from the wire is reported per element
+        /// as Bad_FilterOperatorInvalid instead of faulting the whole validation.
+        /// </summary>
+        [Test]
+        public void ValidateReportsUnknownOperatorPerElement()
+        {
+            var element = new ContentFilterElement { FilterOperator = (FilterOperator)99 };
+            element.SetOperands([new LiteralOperand(Variant.From(1))]);
+            var filter = new Ua.ContentFilter { Elements = [element] };
+
+            Ua.ContentFilter.Result result = null;
+            Assert.DoesNotThrow(() => result = filter.Validate(m_filterContext));
+
+            Assert.That(result.Status.StatusCode, Is.EqualTo(StatusCodes.BadContentFilterInvalid));
+            Assert.That(result.ElementResults[0].Status.StatusCode,
+                Is.EqualTo(StatusCodes.BadFilterOperatorInvalid));
+            Assert.DoesNotThrow(() => element.ToString((INodeTable)null!));
+        }
+
         [Test]
         public void SharedDependenciesAreEvaluatedOnceAndUnlinkedElementsAreNotEvaluated()
         {
