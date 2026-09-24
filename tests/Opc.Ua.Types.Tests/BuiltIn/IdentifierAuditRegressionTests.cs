@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
@@ -146,6 +147,46 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 Assert.That(middle.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadIndexRangeInvalid));
                 Assert.That(other.IsNull, Is.True);
             });
+        }
+
+        [Test]
+        public void AmbientScopeRestoresAMissingPreviousContext()
+        {
+            ServiceMessageContext scoped = CreateContext();
+            IServiceMessageContext inScope = null;
+            IServiceMessageContext afterScope = null;
+
+            // run on a thread without any ambient context flowing into it.
+            Thread thread;
+            using (ExecutionContext.SuppressFlow())
+            {
+                thread = new Thread(() =>
+                {
+                    using (AmbientMessageContext.SetScopedContext(scoped))
+                    {
+                        inScope = AmbientMessageContext.CurrentContext;
+                    }
+                    afterScope = AmbientMessageContext.CurrentContext;
+                });
+                thread.Start();
+            }
+            thread.Join();
+
+            Assert.That(inScope, Is.SameAs(scoped));
+            Assert.That(afterScope, Is.Not.Null);
+            Assert.That(afterScope, Is.Not.SameAs(scoped));
+        }
+
+        [TestCase("1:2,3:4,")]
+        [TestCase("0,1,")]
+        [TestCase("1:2,")]
+        public void ValidateRejectsATrailingEmptyDimension(string text)
+        {
+            // Part 4 A.3: <numeric-range> ::= <dimension> [',' <numeric-range>]
+            // does not allow a trailing ','.
+            ServiceResult result = NumericRange.Validate(text, out NumericRange range);
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadIndexRangeInvalid));
+            Assert.That(range.IsNull, Is.True);
         }
 
         [Test]

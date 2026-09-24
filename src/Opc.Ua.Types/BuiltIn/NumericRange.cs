@@ -415,6 +415,17 @@ namespace Opc.Ua
 
             if (index >= 0)
             {
+                // A trailing ',' ("1:2,") is an empty last dimension, which the
+                // loop below never visits.
+                if (textToParse[^1] == ',')
+                {
+                    range = Null;
+                    return ServiceResult.Create(
+                        StatusCodes.BadIndexRangeInvalid,
+                        "NumericRange has an empty dimension ({0}).",
+                        textToParse);
+                }
+
                 int start = 0;
                 var subranges = new List<NumericRange>();
 
