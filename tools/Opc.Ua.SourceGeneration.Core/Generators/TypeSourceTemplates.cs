@@ -438,6 +438,18 @@ namespace Opc.Ua.SourceGeneration
             """);
 
         /// <summary>
+        /// Partial declaration of a type that contains a nested
+        /// source-annotated type. Nested once per containing level.
+        /// </summary>
+        public static readonly TemplateString ContainingType = TemplateString.Parse(
+            $$"""
+            {{Tokens.TypeName}}
+            {
+                {{Tokens.ListOfTypes}}
+            }
+            """);
+
+        /// <summary>
         /// Clone/MemberwiseClone methods for a class. Clone delegates to
         /// MemberwiseClone, which starts from a shallow copy of the whole
         /// object - carrying every field, including inherited ones - and
@@ -514,7 +526,7 @@ namespace Opc.Ua.SourceGeneration
             #if !OPCUA_FUZZING_COVERAGE
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
             #endif
-            public sealed class {{Tokens.ClassName}}Activator : global::Opc.Ua.EncodeableType<{{Tokens.ClassName}}>
+            public sealed class {{Tokens.ClassName}}Activator : global::Opc.Ua.EncodeableType<{{Tokens.TypeName}}>
             {
                 /// <summary>
                 /// The singleton instance of the activator.
@@ -524,12 +536,12 @@ namespace Opc.Ua.SourceGeneration
 
                 /// <inheritdoc/>
                 public override global::System.Xml.XmlQualifiedName XmlName { get; } =
-                    new global::System.Xml.XmlQualifiedName("{{Tokens.ClassName}}", {{Tokens.XmlNamespaceUri}});
+                    new global::System.Xml.XmlQualifiedName("{{Tokens.BrowseNameLiteral}}", {{Tokens.XmlNamespaceUri}});
 
                 /// <inheritdoc/>
                 public override global::Opc.Ua.IEncodeable CreateInstance()
                 {
-                    return new {{Tokens.ClassName}}();
+                    return new {{Tokens.TypeName}}();
                 }
 
                 /// <inheritdoc/>
@@ -553,7 +565,7 @@ namespace Opc.Ua.SourceGeneration
             #if !OPCUA_FUZZING_COVERAGE
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
             #endif
-            public sealed class {{Tokens.ClassName}}Activator : global::Opc.Ua.EnumeratedType<{{Tokens.ClassName}}>
+            public sealed class {{Tokens.ClassName}}Activator : global::Opc.Ua.EnumeratedType<{{Tokens.TypeName}}>
             {
                 /// <summary>
                 /// The singleton instance of the activator.
@@ -563,7 +575,7 @@ namespace Opc.Ua.SourceGeneration
 
                 /// <inheritdoc/>
                 public override global::System.Xml.XmlQualifiedName XmlName { get; } =
-                    new global::System.Xml.XmlQualifiedName("{{Tokens.ClassName}}", {{Tokens.XmlNamespaceUri}});
+                    new global::System.Xml.XmlQualifiedName("{{Tokens.BrowseNameLiteral}}", {{Tokens.XmlNamespaceUri}});
 
                 /// <inheritdoc/>
                 public override global::Opc.Ua.DataTypeDefinition GetDataTypeDefinition(

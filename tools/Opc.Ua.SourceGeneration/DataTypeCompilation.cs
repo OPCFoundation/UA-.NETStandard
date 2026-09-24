@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Globalization;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Threading;
@@ -46,6 +47,13 @@ namespace Opc.Ua.SourceGeneration
     /// emitted as a batch (one file per namespace) by
     /// <see cref="EmitBatch"/> to avoid conflicting extension methods.
     /// </summary>
+    /// <remarks>
+    /// This is the output of a <c>ForAttributeWithMetadataName</c> transform,
+    /// which runs again on every compilation change. Every member compares by
+    /// value (lists are <see cref="EquatableArray{T}"/>, the location is a
+    /// <see cref="LocationInfo"/>) so an unchanged type leaves the emitted
+    /// sources cached and does not pin old syntax trees.
+    /// </remarks>
     internal sealed record class DataTypeCompilation
     {
         /// <summary>
@@ -56,17 +64,24 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// The validated fields (empty for enums or on error).
         /// </summary>
-        public IReadOnlyList<TypeFieldModel> ValidFields { get; }
+        public EquatableArray<TypeFieldModel> ValidFields { get; }
 
         /// <summary>
         /// Diagnostics from field validation.
         /// </summary>
-        public IReadOnlyList<TypeSourceGeneratorDiagnostic> Diagnostics { get; }
+        public EquatableArray<(bool IsError, string Message)> Diagnostics { get; }
 
         /// <summary>
         /// Location for diagnostic reporting.
         /// </summary>
-        public Location Location { get; }
+        public LocationInfo Location { get; }
+
+        /// <summary>
+        /// Why the annotated type cannot be generated (a struct, a generic
+        /// type, a non-partial or inaccessible containing type), or
+        /// <c>null</c>.
+        /// </summary>
+        public string UnsupportedReason { get; }
 
         /// <summary>
         /// True if the model has fatal errors.
@@ -110,19 +125,26 @@ namespace Opc.Ua.SourceGeneration
         {
             var symbol = (INamedTypeSymbol)context.TargetSymbol;
             TypeName = symbol.ToDisplayString();
-            Location = symbol.Locations.FirstOrDefault();
+            Location = LocationInfo.From(symbol.Locations.FirstOrDefault());
+            ValidFields = EquatableArray<TypeFieldModel>.Empty;
+            Diagnostics = EquatableArray<(bool, string)>.Empty;
+
+            UnsupportedReason = GetUnsupportedReason(symbol, cancellationToken);
+            if (UnsupportedReason != null)
+            {
+                HasErrors = true;
+                return;
+            }
 
             AttributeData dataTypeAttr = context.Attributes.FirstOrDefault();
             AttributeArgumentSyntax unresolvedNamespaceArgument =
                 GetUnresolvedNamespaceArgument(dataTypeAttr, cancellationToken);
             if (unresolvedNamespaceArgument != null)
             {
-                Location = unresolvedNamespaceArgument.GetLocation();
+                Location = LocationInfo.From(unresolvedNamespaceArgument.GetLocation());
                 UnresolvedNamespaceExpression =
                     unresolvedNamespaceArgument.Expression.ToString();
                 HasErrors = true;
-                ValidFields = [];
-                Diagnostics = [];
                 return;
             }
 
@@ -143,24 +165,14 @@ namespace Opc.Ua.SourceGeneration
                     Model = BuildEnumModel(
                         symbol, dataTypeNamespace, dataTypeId,
                         binaryEncodingId, xmlEncodingId);
-                    ValidFields = [];
-                    Diagnostics =
-                        [];
                     return;
                 }
 
-                bool isPartial = symbol.DeclaringSyntaxReferences
-                    .Any(r => r.GetSyntax(cancellationToken)
-                        is TypeDeclarationSyntax tds &&
-                        tds.Modifiers.Any(SyntaxKind.PartialKeyword));
-                if (!isPartial)
+                if (!IsPartial(symbol, cancellationToken))
                 {
                     HasErrors = true;
                     ErrorMessage =
                         "[DataType] class must be declared as partial.";
-                    ValidFields = [];
-                    Diagnostics =
-                        [];
                     return;
                 }
 
@@ -171,9 +183,6 @@ namespace Opc.Ua.SourceGeneration
                     HasErrors = true;
                     ErrorMessage =
                         "[DataType] class must have a parameterless ctor.";
-                    ValidFields = [];
-                    Diagnostics =
-                        [];
                     return;
                 }
 
@@ -186,20 +195,146 @@ namespace Opc.Ua.SourceGeneration
                     TypeSourceGenerator.ValidateAndFilter(
                         Model, out IReadOnlyList<TypeFieldModel> valid);
 
-                ValidFields = valid;
-                Diagnostics = diags;
+                ValidFields = EquatableArray<TypeFieldModel>.From(valid);
+                Diagnostics = EquatableArray<(bool, string)>.From(
+                    diags.Select(d => (d.IsError, d.Message)));
                 HasErrors = diags.Any(d => d.IsError);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
+                // Cancellation must reach the driver; caching it as a model
+                // error would keep reporting it until an input changes.
                 HasErrors = true;
                 // The annotated type is reported as the diagnostic's first
                 // argument, so the message itself carries only the failure.
                 ErrorMessage = $"{ex.GetType().Name}: {ex.Message}";
-                ValidFields ??= [];
-                Diagnostics ??=
-                    [];
             }
+        }
+
+        private static bool IsPartial(INamedTypeSymbol symbol, CancellationToken cancellationToken)
+        {
+            return symbol.DeclaringSyntaxReferences
+                .Any(r => r.GetSyntax(cancellationToken)
+                    is TypeDeclarationSyntax tds &&
+                    tds.Modifiers.Any(SyntaxKind.PartialKeyword));
+        }
+
+        /// <summary>
+        /// Returns why the generated members cannot be attached to the
+        /// annotated type, or <c>null</c> when they can.
+        /// </summary>
+        /// <remarks>
+        /// The generated declaration is a <c>partial class</c> or
+        /// <c>partial record class</c>, so a struct cannot be completed. The
+        /// activator and registration are emitted at namespace level, so a
+        /// generic type (or a type nested in one) has no closed type to
+        /// activate, and a nested type must be reachable from its namespace.
+        /// A nested type is emitted inside partial declarations of its
+        /// containing types, which therefore must be partial themselves.
+        /// </remarks>
+        private static string GetUnsupportedReason(
+            INamedTypeSymbol symbol,
+            CancellationToken cancellationToken)
+        {
+            if (symbol.TypeKind == TypeKind.Struct)
+            {
+                return "[DataType] is not supported on a struct; declare the type as a " +
+                    "partial class or partial record class";
+            }
+            if (symbol.IsGenericType)
+            {
+                return "[DataType] is not supported on a generic type or a type nested in a " +
+                    "generic type";
+            }
+            for (INamedTypeSymbol type = symbol; type != null; type = type.ContainingType)
+            {
+                if (type.DeclaredAccessibility is Accessibility.Private or
+                    Accessibility.Protected or
+                    Accessibility.ProtectedAndInternal)
+                {
+                    return "'" + type.ToDisplayString() + "' must be public or internal so " +
+                        "the generated activator can reach the [DataType] type";
+                }
+                // An enum gets no generated declaration, so only a class
+                // needs its containing types to be partial.
+                if (!ReferenceEquals(type, symbol) &&
+                    symbol.TypeKind != TypeKind.Enum &&
+                    !IsPartial(type, cancellationToken))
+                {
+                    return "the containing type '" + type.ToDisplayString() +
+                        "' must be declared partial";
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Fill in the nesting of a nested type: the partial declarations of
+        /// its containing types, its qualified name and a unique identifier
+        /// for the namespace-level activator.
+        /// </summary>
+        private static TypeSourceModel WithNesting(
+            TypeSourceModel model,
+            INamedTypeSymbol symbol)
+        {
+            if (symbol.ContainingType == null)
+            {
+                return model;
+            }
+            var declarations = new List<string>();
+            var names = new List<string>();
+            for (INamedTypeSymbol type = symbol.ContainingType;
+                type != null;
+                type = type.ContainingType)
+            {
+                declarations.Insert(0, GetPartialDeclaration(type));
+                names.Insert(0, type.Name);
+            }
+            names.Add(symbol.Name);
+            return model with
+            {
+                ContainingTypeDeclarations = new EquatableArray<string>([.. declarations]),
+                TypeReference = symbol.GetFullyQualifiedTypeName(),
+                SymbolName = string.Join("_", names),
+                AccessModifier = symbol.DeclaredAccessibility switch
+                {
+                    Accessibility.Internal => "internal",
+                    Accessibility.ProtectedOrInternal => "protected internal",
+                    _ => "public"
+                }
+            };
+        }
+
+        /// <summary>
+        /// A partial declaration of a containing type, without accessibility
+        /// (a partial part may omit it) and without base list.
+        /// </summary>
+        private static string GetPartialDeclaration(INamedTypeSymbol type)
+        {
+            var modifiers = new List<string>();
+            if (type.IsStatic)
+            {
+                modifiers.Add("static");
+            }
+            if (type.TypeKind == TypeKind.Struct && type.IsReadOnly)
+            {
+                modifiers.Add("readonly");
+            }
+            if (type.IsRefLikeType)
+            {
+                modifiers.Add("ref");
+            }
+            modifiers.Add("partial");
+            modifiers.Add(type.TypeKind switch
+            {
+                TypeKind.Struct when type.IsRecord => "record struct",
+                TypeKind.Struct => "struct",
+                TypeKind.Interface => "interface",
+                _ when type.IsRecord => "record class",
+                _ => "class"
+            });
+            modifiers.Add(type.Name);
+            return string.Join(" ", modifiers);
         }
 
         /// <summary>
@@ -212,12 +347,24 @@ namespace Opc.Ua.SourceGeneration
         {
             foreach (DataTypeCompilation comp in compilations)
             {
+                Location location = comp.Location.ToLocation();
+                if (comp.UnsupportedReason != null)
+                {
+                    sourceContext.ReportDiagnostic(
+                        Diagnostic.Create(
+                            SourceGenerator.DataTypeUnsupportedTarget,
+                            location,
+                            comp.TypeName,
+                            comp.UnsupportedReason));
+                    continue;
+                }
+
                 if (comp.UnresolvedNamespaceExpression.Length > 0)
                 {
                     sourceContext.ReportDiagnostic(
                         Diagnostic.Create(
                             SourceGenerator.DataTypeNamespaceUnresolved,
-                            comp.Location,
+                            location,
                             comp.TypeName,
                             comp.UnresolvedNamespaceExpression));
                     continue;
@@ -230,26 +377,31 @@ namespace Opc.Ua.SourceGeneration
                     sourceContext.ReportDiagnostic(
                         Diagnostic.Create(
                             SourceGenerator.Exception,
-                            comp.Location,
+                            location,
                             comp.TypeName,
                             comp.ErrorMessage));
                 }
 
-                foreach (TypeSourceGeneratorDiagnostic diag in comp.Diagnostics)
+                foreach ((bool isError, string message) in comp.Diagnostics)
                 {
                     sourceContext.ReportDiagnostic(
-                        diag.IsError
+                        isError
                             ? Diagnostic.Create(
                                 SourceGenerator.Exception,
-                                comp.Location,
+                                location,
                                 comp.TypeName,
-                                diag.Message)
+                                message)
                             : Diagnostic.Create(
                                 SourceGenerator.GenericWarning,
-                                comp.Location,
-                                diag.Message));
+                                location,
+                                message));
                 }
             }
+
+            // Roslyn compares hint names case-insensitively, so namespaces
+            // differing only in case ("Acme.Types" and "Acme.types") would
+            // claim the same hint name and the second AddSource would throw.
+            var hintNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             IEnumerable<IGrouping<string, DataTypeCompilation>> validByNamespace =
                 compilations
@@ -294,8 +446,13 @@ namespace Opc.Ua.SourceGeneration
                 // latter has the dots stripped to form a C# identifier, so
                 // "A.BC" and "AB.C" would claim the same hint name and the
                 // second AddSource would fail the generator.
-                sourceContext.AddSource(
-                    first.Namespace + ".Types.g.cs", source);
+                string hintName = first.Namespace + ".Types.g.cs";
+                for (int ii = 2; !hintNames.Add(hintName); ii++)
+                {
+                    hintName = first.Namespace + ".Types" +
+                        ii.ToString(CultureInfo.InvariantCulture) + ".g.cs";
+                }
+                sourceContext.AddSource(hintName, source);
             }
         }
 
@@ -312,7 +469,7 @@ namespace Opc.Ua.SourceGeneration
                 symbol.BaseType.Name != "Object" &&
                 (symbol.BaseType.ImplementsInterface("IEncodeable") ||
                     symbol.BaseType.HasAttribute("DataTypeAttribute"));
-            return new TypeSourceModel
+            return WithNesting(new TypeSourceModel
             {
                 ClassName = symbol.Name,
                 Namespace = ns,
@@ -322,6 +479,8 @@ namespace Opc.Ua.SourceGeneration
                 DataTypeId = dataTypeId,
                 BinaryEncodingId = binaryEncodingId,
                 XmlEncodingId = xmlEncodingId,
+                ContainingTypeDeclarations = EquatableArray<string>.Empty,
+                EnumMembers = EquatableArray<TypeEnumMember>.Empty,
                 IsRecord = symbol.IsRecord,
                 IsEnum = false,
                 IsSealed = symbol.IsSealed,
@@ -334,10 +493,10 @@ namespace Opc.Ua.SourceGeneration
                     .OfType<IMethodSymbol>()
                     .Any(m => m.Name is "Clone" or "MemberwiseClone" &&
                         !m.IsImplicitlyDeclared),
-                Fields = CollectFields(symbol, ct),
+                Fields = EquatableArray<TypeFieldModel>.From(CollectFields(symbol, ct)),
                 BaseClassName = symbol.BaseType?.Name == "Object"
                     ? null : symbol.BaseType?.Name
-            };
+            }, symbol);
         }
 
         private static TypeSourceModel BuildEnumModel(
@@ -361,7 +520,7 @@ namespace Opc.Ua.SourceGeneration
                 }
             }
 
-            return new TypeSourceModel
+            return WithNesting(new TypeSourceModel
             {
                 ClassName = symbol.Name,
                 Namespace = ns,
@@ -371,11 +530,13 @@ namespace Opc.Ua.SourceGeneration
                 DataTypeId = dataTypeId,
                 BinaryEncodingId = binaryEncodingId,
                 XmlEncodingId = xmlEncodingId,
+                ContainingTypeDeclarations = EquatableArray<string>.Empty,
+                Fields = EquatableArray<TypeFieldModel>.Empty,
                 IsEnum = true,
                 IsFlags = symbol.GetAttributes().Any(a =>
                     a.AttributeClass?.Name == "FlagsAttribute"),
-                EnumMembers = members
-            };
+                EnumMembers = EquatableArray<TypeEnumMember>.From(members)
+            }, symbol);
         }
 
         private static List<TypeFieldModel> CollectFields(

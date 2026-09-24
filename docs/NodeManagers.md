@@ -2467,9 +2467,8 @@ points at those NodeSet2 types:
     <AdditionalFiles Include="Model\EquipmentTypes.NodeSet2.xml">
       <ModelSourceGeneratorModelUri>http://example.org/EquipmentTypes</ModelSourceGeneratorModelUri>
     </AdditionalFiles>
-    <AdditionalFiles Include="Model\Instances.ModelDesign.xml">
-      <ModelSourceGeneratorModelUri>http://example.org/EquipmentInstances</ModelSourceGeneratorModelUri>
-    </AdditionalFiles>
+    <!-- A ModelDesign declares its own model URI (TargetNamespace). -->
+    <AdditionalFiles Include="Model\Instances.ModelDesign.xml" />
   </ItemGroup>
 </Project>
 ```

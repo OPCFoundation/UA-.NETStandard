@@ -273,6 +273,188 @@ namespace TestApp.NotPartial
                 "Should not generate code for non-partial class");
         }
 
+        /// <summary>
+        /// Regression: [DataType] on a struct generated a <c>partial class</c>
+        /// companion (CS0261) with no generator diagnostic explaining it.
+        /// </summary>
+        [TestCase("partial struct")]
+        [TestCase("partial record struct")]
+        public void StructReportsUnsupportedTargetAndGeneratesNothing(string declaration)
+        {
+            string source = $@"
+using Opc.Ua;
+
+namespace TestApp.Structs
+{{
+    [DataType]
+    public {declaration} Point
+    {{
+        public double X {{ get; set; }}
+    }}
+}}";
+            GeneratorRunResult result = RunGenerator(
+                source, out Compilation output, expectErrors: true);
+
+            Assert.That(result.GeneratedSources, Is.Empty);
+            Diagnostic[] unsupported = [.. result.Diagnostics
+                .Where(d => d.Id == "MODELGEN037")];
+            Assert.That(unsupported, Has.Length.EqualTo(1));
+            Assert.That(
+                unsupported[0].GetMessage(CultureInfo.InvariantCulture),
+                Does.Contain("struct"));
+            Assert.That(
+                output.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error),
+                Is.Empty,
+                "the user's struct must compile untouched");
+        }
+
+        /// <summary>
+        /// Regression: a nested [DataType] was completed by an unrelated
+        /// top-level type of the same name. It is now emitted inside partial
+        /// declarations of its containing types, and the namespace-level
+        /// activators are named after the nesting so two nested types of the
+        /// same name do not collide.
+        /// </summary>
+        [Test]
+        public void NestedTypesAreGeneratedInsideTheirContainingTypes()
+        {
+            const string source = @"
+using Opc.Ua;
+
+namespace TestApp.Nested
+{
+    public static partial class Models
+    {
+        [DataType]
+        public partial class Foo
+        {
+            public string Name { get; set; }
+            public int Count { get; set; }
+        }
+
+        [DataType]
+        public enum Kind
+        {
+            First = 0,
+            Second = 1
+        }
+    }
+
+    public partial class Other
+    {
+        public partial record class Inner
+        {
+            [DataType]
+            public partial class Foo
+            {
+                public double Value { get; set; }
+            }
+        }
+    }
+}";
+            GeneratorRunResult result = RunGenerator(source, out Compilation output);
+
+            Assert.That(result.GeneratedSources, Has.Length.EqualTo(1));
+            string generated = result.GeneratedSources[0].SourceText.ToString();
+            Assert.That(generated, Does.Contain("static partial class Models"));
+            Assert.That(generated, Does.Contain("partial record class Inner"));
+            Assert.That(generated, Does.Contain("Models_FooActivator"));
+            Assert.That(generated, Does.Contain("Other_Inner_FooActivator"));
+            Assert.That(generated, Does.Contain("Models_KindActivator"));
+            Assert.That(
+                generated,
+                Does.Contain("EncodeableType<global::TestApp.Nested.Models.Foo>"));
+
+            INamedTypeSymbol nested = output.GetTypeByMetadataName(
+                "TestApp.Nested.Models+Foo");
+            Assert.That(nested, Is.Not.Null);
+            Assert.That(
+                nested.AllInterfaces.Select(i => i.Name),
+                Does.Contain("IEncodeable"),
+                "the generated members must complete the nested type");
+            Assert.That(
+                output.GetTypeByMetadataName("TestApp.Nested.Foo"),
+                Is.Null,
+                "no unrelated top-level type may be generated");
+        }
+
+        [TestCase(
+            "public partial class Box<T> { public int Value { get; set; } }",
+            "generic",
+            TestName = "GenericDataTypeReportsUnsupportedTarget")]
+        [TestCase(
+            "public class Outer { [DataType] public partial class Foo { public int Value { get; set; } } }",
+            "must be declared partial",
+            TestName = "DataTypeInNonPartialContainingTypeReportsUnsupportedTarget")]
+        [TestCase(
+            "public partial class Outer { [DataType] private partial class Foo { public int Value { get; set; } } }",
+            "public or internal",
+            TestName = "PrivateNestedDataTypeReportsUnsupportedTarget")]
+        public void UnsupportedDataTypeTargetReportsDiagnostic(string declaration, string reason)
+        {
+            // A top-level declaration carries its own [DataType]; the nested
+            // ones apply it on the inner type.
+            string attribute = declaration.Contains("[DataType]", StringComparison.Ordinal)
+                ? string.Empty
+                : "[DataType]";
+            string source = $@"
+using Opc.Ua;
+
+namespace TestApp.Unsupported
+{{
+    {attribute}
+    {declaration}
+}}";
+            GeneratorRunResult result = RunGenerator(source, expectErrors: true);
+
+            Assert.That(result.GeneratedSources, Is.Empty);
+            Diagnostic[] unsupported = [.. result.Diagnostics
+                .Where(d => d.Id == "MODELGEN037")];
+            Assert.That(unsupported, Has.Length.EqualTo(1));
+            Assert.That(
+                unsupported[0].GetMessage(CultureInfo.InvariantCulture),
+                Does.Contain(reason));
+        }
+
+        /// <summary>
+        /// Regression: Roslyn compares hint names case-insensitively, so two
+        /// namespaces differing only in case claimed the same hint name, the
+        /// second AddSource threw and the remaining files were dropped.
+        /// </summary>
+        [Test]
+        public void NamespacesDifferingOnlyInCaseGetDistinctHintNames()
+        {
+            const string source = @"
+using Opc.Ua;
+
+namespace Acme.Types
+{
+    [DataType]
+    public partial class First
+    {
+        public int Value { get; set; }
+    }
+}
+
+namespace Acme.types
+{
+    [DataType]
+    public partial class Second
+    {
+        public int Value { get; set; }
+    }
+}";
+            GeneratorRunResult result = RunGenerator(source);
+
+            Assert.That(result.Exception, Is.Null);
+            Assert.That(result.Diagnostics.Where(d => d.Id == "MODELGEN003"), Is.Empty);
+            Assert.That(result.GeneratedSources, Has.Length.EqualTo(2));
+            string[] hintNames = [.. result.GeneratedSources.Select(s => s.HintName)];
+            Assert.That(
+                hintNames.Distinct(StringComparer.OrdinalIgnoreCase).Count(),
+                Is.EqualTo(2));
+        }
+
         [Test]
         public void ClassWithOpcUaBuiltInTypesCompiles()
         {

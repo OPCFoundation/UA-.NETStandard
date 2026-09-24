@@ -117,7 +117,8 @@ namespace Opc.Ua.SourceGeneration
                     .Collect();
             IncrementalValueProvider<ModelCompilationOptions> options =
                 context.AnalyzerConfigOptionsProvider
-                    .Select((p, _) => ModelCompilationOptions.From(p));
+                    .Select((p, _) => ModelCompilationOptions.From(p))
+                    .WithTrackingName(TrackingNames.ModelCompilationOptions);
             IncrementalValueProvider<CompilationOptions> settings =
                 context.CompilationProvider
                     .Select((c, _) => CompilationOptions.From(c));
@@ -147,6 +148,7 @@ namespace Opc.Ua.SourceGeneration
                     static (node, ct) => NodeManagerAttributeDiscovery.Handles(node, ct),
                     static (ctx, ct) => NodeManagerAttributeDiscovery.Create(ctx, ct))
                 .Where(static m => m is not null)
+                .WithTrackingName(TrackingNames.NodeManagerBindings)
                 .Collect();
 
             IncrementalValueProvider<
@@ -220,7 +222,8 @@ namespace Opc.Ua.SourceGeneration
                         pair.Right.ReferencedModels,
                         pair.Right.ReferencedAccessorProviders,
                         pair.Right.NodeManagerBindings,
-                        pair.Right.AvailableStateTypeNames));
+                        pair.Right.AvailableStateTypeNames))
+                    .WithTrackingName(TrackingNames.ModelCompilationInput);
 
             context.RegisterSourceOutput(
                 modelCompilationInput,
@@ -248,12 +251,24 @@ namespace Opc.Ua.SourceGeneration
                     static (node, ct) => DataTypeCompilation.Handles(node, ct),
                     static (context, ct) => new DataTypeCompilation(context, ct))
                 .Where(static m => m is not null)
+                .WithTrackingName(TrackingNames.DataTypeCompilations)
                 .Collect()
                 .Combine(publicDataTypeExtensions),
                 static (spc, pair) => SourceGenerator.Guard(
                     spc,
                     () => DataTypeCompilation.EmitBatch(
                         spc, pair.Left, pair.Right)));
+        }
+
+        /// <summary>
+        /// Names of the pipeline steps whose caching the tests verify.
+        /// </summary>
+        internal static class TrackingNames
+        {
+            public const string ModelCompilationOptions = nameof(ModelCompilationOptions);
+            public const string NodeManagerBindings = nameof(NodeManagerBindings);
+            public const string ModelCompilationInput = nameof(ModelCompilationInput);
+            public const string DataTypeCompilations = nameof(DataTypeCompilations);
         }
 
         private readonly record struct ModelCompilationInput(

@@ -142,7 +142,7 @@ namespace Opc.Ua.SourceGeneration
                     {
                         continue;
                     }
-                    if (!discovery.InvalidExpressions.IsDefaultOrEmpty)
+                    if (discovery.InvalidExpressions.Count > 0)
                     {
                         string targetType = string.IsNullOrEmpty(
                             discovery.Binding.TargetNamespace)
@@ -156,11 +156,23 @@ namespace Opc.Ua.SourceGeneration
                             m_context.ReportDiagnostic(
                                 Diagnostic.Create(
                                     SourceGenerator.NodeManagerArgumentUnresolved,
-                                    error.Location,
+                                    error.Location.ToLocation(),
                                     error.ArgumentName,
                                     error.Expression,
                                     targetType));
                         }
+                        continue;
+                    }
+                    if (discovery.UnsupportedReason != null)
+                    {
+                        m_context.ReportDiagnostic(
+                            Diagnostic.Create(
+                                SourceGenerator.NodeManagerUnsupportedTarget,
+                                discovery.Location.ToLocation(),
+                                discovery.Binding.TargetNamespace +
+                                "." +
+                                discovery.Binding.TargetClassName,
+                                discovery.UnsupportedReason));
                         continue;
                     }
                     if (!discovery.IsPartial)
@@ -168,7 +180,7 @@ namespace Opc.Ua.SourceGeneration
                         m_context.ReportDiagnostic(
                             Diagnostic.Create(
                                 SourceGenerator.NodeManagerNotPartial,
-                                discovery.Location,
+                                discovery.Location.ToLocation(),
                                 discovery.Binding.TargetNamespace +
                                 "." +
                                 discovery.Binding.TargetClassName));
@@ -183,7 +195,7 @@ namespace Opc.Ua.SourceGeneration
                     Location loc =
                         bindingByPayload.TryGetValue(binding, out NodeManagerAttributeDiscovery d) &&
                         d != null
-                            ? d.Location
+                            ? d.Location.ToLocation()
                             : Location.None;
                     m_context.ReportDiagnostic(
                         Diagnostic.Create(
@@ -236,13 +248,23 @@ namespace Opc.Ua.SourceGeneration
                 // generated twice and the second AddSource throws on the
                 // duplicate hint name - and it also inflates totalModelCount,
                 // which decides the single-model [NodeManager] fallback.
-                List<string> designTargets = [.. m_input
+                List<string> designInputs = [.. m_input
                     .Where(f => !nodesetPaths.Contains(f.Item1.Path))
                     .Select(f => f.Item1.Path)
                     .Distinct(StringComparer.Ordinal)];
+                // A design marked ModelSourceGeneratorIgnore is, like an
+                // ignored NodeSet2 input, only there to resolve references
+                // of the other inputs: it stays a dependency but is not
+                // generated, or its types would be emitted a second time
+                // next to the assembly that already provides them.
+                var ignoredDesigns = new HashSet<string>(
+                    m_input.Where(f => f.Item2?.Ignore == true).Select(f => f.Item1.Path),
+                    StringComparer.Ordinal);
+                List<string> designTargets = [.. designInputs
+                    .Where(path => !ignoredDesigns.Contains(path))];
 
                 var designDependencies = new List<string>(nodesets.DesignFileEntries);
-                designDependencies.AddRange(designTargets);
+                designDependencies.AddRange(designInputs);
 
                 // A CSV that a NodeSet claims through its IdentifierFile metadata
                 // is that NodeSet's sidecar. Left in the list, the ModelDesign
@@ -337,6 +359,12 @@ namespace Opc.Ua.SourceGeneration
                     string content = Encoding.UTF8.GetString(vfs.Get(file));
                     m_context.AddSource(file, content);
                 }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // A cancelled run is not a generator failure: let the driver
+                // see the cancellation instead of caching an error diagnostic.
+                throw;
             }
             catch (Exception ex)
             {

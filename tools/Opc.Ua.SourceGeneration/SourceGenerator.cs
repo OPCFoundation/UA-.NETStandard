@@ -372,6 +372,36 @@ namespace Opc.Ua.SourceGeneration
             customTags: ["opcua"]);
 
         /// <summary>
+        /// A <c>[NodeManager]</c> is applied to a class the generated
+        /// manager cannot be attached to (a nested or generic class).
+        /// </summary>
+        public static readonly DiagnosticDescriptor NodeManagerUnsupportedTarget = new(
+            id: "MODELGEN036",
+            title: "[NodeManager] class is not supported",
+            messageFormat: (LocalizableString)("[NodeManager] cannot be applied to class '{0}' " +
+                "because {1}. Declare the node manager as a top-level, non-generic partial class."),
+            category: Name,
+            DiagnosticSeverity.Error,
+            isEnabledByDefault: true,
+            helpLinkUri: "www.opcfoundation.org",
+            customTags: ["opcua"]);
+
+        /// <summary>
+        /// A <c>[DataType]</c> is applied to a type the generated encodeable
+        /// members cannot be attached to (a struct, a generic type, or a nested
+        /// type in a non-partial or inaccessible containing type).
+        /// </summary>
+        public static readonly DiagnosticDescriptor DataTypeUnsupportedTarget = new(
+            id: "MODELGEN037",
+            title: "[DataType] type is not supported",
+            messageFormat: (LocalizableString)"[DataType] type '{0}' is not supported: {1}",
+            category: Name,
+            DiagnosticSeverity.Error,
+            isEnabledByDefault: true,
+            helpLinkUri: "www.opcfoundation.org",
+            customTags: ["opcua"]);
+
+        /// <summary>
         /// Get diagnostic descriptor for event id
         /// </summary>
         public static bool TryGetDiagnostic(

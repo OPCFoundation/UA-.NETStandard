@@ -206,6 +206,13 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
+            // A nested type is emitted inside partial declarations of its
+            // containing types, one wrapper per level, outermost first.
+            if (ctx.ContainingTypeDeclarations is { Count: > 0 })
+            {
+                return TypeSourceTemplates.ContainingType;
+            }
+
             if (ctx.IsRecord)
             {
                 if (ctx.IsDerived)
@@ -234,6 +241,22 @@ namespace Opc.Ua.SourceGeneration
                 return false;
             }
 
+            if (model.ContainingTypeDeclarations is { Count: > 0 })
+            {
+                context.Template.AddReplacement(
+                    Tokens.TypeName,
+                    model.ContainingTypeDeclarations[0]);
+                context.Template.AddReplacement(
+                    Tokens.ListOfTypes,
+                    [model with
+                    {
+                        ContainingTypeDeclarations = [.. model.ContainingTypeDeclarations.Skip(1)]
+                    }],
+                    LoadTemplate_ListOfPartialClasses,
+                    WriteTemplate_ListOfPartialClasses);
+                return context.Template.Render();
+            }
+
             string typeIdExpr = FormatExpandedNodeIdExpression(
                 model.DataTypeId, model.ClassName, model.NamespaceUri);
             string binaryIdExpr = FormatOptionalExpandedNodeIdExpression(
@@ -252,7 +275,7 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(Tokens.XmlNamespaceUri,
                 $"\"{model.NamespaceUri.Escape()}\"");
             context.Template.AddReplacement(Tokens.AccessModifier,
-                model.IsInternal ? "internal" : "public");
+                model.AccessModifier ?? (model.IsInternal ? "internal" : "public"));
 
             context.Template.AddReplacement(
                 Tokens.ListOfEncodedFields,
@@ -676,7 +699,10 @@ namespace Opc.Ua.SourceGeneration
                 model.XmlEncodingId,
                 model.NamespaceUri);
 
-            context.Template.AddReplacement(Tokens.ClassName, model.ClassName);
+            // The activator lives at namespace level: it is named after the
+            // symbol name and refers to a nested type by its qualified name.
+            context.Template.AddReplacement(Tokens.ClassName, model.SymbolName ?? model.ClassName);
+            context.Template.AddReplacement(Tokens.TypeName, model.TypeReference ?? model.ClassName);
             context.Template.AddBrowseNameReplacement(
                 Tokens.BrowseName,
                 Tokens.BrowseNameLiteral,
@@ -712,7 +738,7 @@ namespace Opc.Ua.SourceGeneration
                 return false;
             }
 
-            context.Template.AddReplacement(Tokens.ClassName, model.ClassName);
+            context.Template.AddReplacement(Tokens.ClassName, model.SymbolName ?? model.ClassName);
             context.Template.AddBrowseNameReplacement(
                 Tokens.BrowseName,
                 Tokens.BrowseNameLiteral,

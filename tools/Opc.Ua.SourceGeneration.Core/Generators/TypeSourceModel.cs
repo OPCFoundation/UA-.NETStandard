@@ -44,6 +44,37 @@ namespace Opc.Ua.SourceGeneration
         public string ClassName { get; set; }
 
         /// <summary>
+        /// Declarations of the types the annotated type is nested in,
+        /// outermost first (for example <c>static partial class Models</c>).
+        /// Empty for a top-level type.
+        /// </summary>
+        public IReadOnlyList<string> ContainingTypeDeclarations { get; set; }
+            = [];
+
+        /// <summary>
+        /// The name of the type as referenced from the namespace level, or
+        /// <c>null</c> to use <see cref="ClassName"/>. Set for a nested type
+        /// (for example <c>global::N.Models.Foo</c>).
+        /// </summary>
+        public string TypeReference { get; set; }
+
+        /// <summary>
+        /// The identifier the activator class and definition factory method
+        /// are named after, or <c>null</c> to use <see cref="ClassName"/>. Set
+        /// for a nested type so two nested types of the same name in one
+        /// namespace do not collide (for example <c>Models_Foo</c>).
+        /// </summary>
+        public string SymbolName { get; set; }
+
+        /// <summary>
+        /// The accessibility modifier of the generated partial declaration,
+        /// or <c>null</c> to derive it from <see cref="IsInternal"/>. Set for
+        /// a nested type, whose accessibility can be
+        /// <c>protected internal</c>.
+        /// </summary>
+        public string AccessModifier { get; set; }
+
+        /// <summary>
         /// Fully qualified .NET namespace (e.g. "Opc.Ua.Gds.Server").
         /// </summary>
         public string Namespace { get; set; }
