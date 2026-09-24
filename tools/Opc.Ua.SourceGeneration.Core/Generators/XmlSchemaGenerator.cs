@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Xml;
 using Opc.Ua.Schema.Model;
 using Opc.Ua.Types;
@@ -225,8 +226,12 @@ namespace Opc.Ua.SourceGeneration
                 {
                     return XmlSchemaTemplates.Union;
                 }
-                else if (dataType.BaseTypeNode.SymbolicName.Name == "Structure")
+                else if (dataType.BaseTypeNode.SymbolicName.Name == "Structure" ||
+                    WritesEncodingMaskBeforeBaseFields(dataType))
                 {
+                    // A derived type that introduces optional fields writes
+                    // the encoding mask before the base fields, which an
+                    // xs:extension cannot express: it is flattened.
                     return XmlSchemaTemplates.ComplexType;
                 }
                 else
@@ -298,14 +303,102 @@ namespace Opc.Ua.SourceGeneration
 
             context.Template.AddReplacement(
                 Tokens.ListOfFields,
-                dataType.Fields,
+                GetXmlTypeFields(dataType),
                 LoadTemplate_XmlTypeFields);
 
             return context.Template.Render();
         }
 
+        /// <summary>
+        /// The elements of a data type's content model. A structure that
+        /// writes the encoding mask (XmlEncoder emits it as the first child
+        /// element) starts with an EncodingMask element; a flattened derived
+        /// structure also lists the fields of its ancestors.
+        /// </summary>
+        private List<object> GetXmlTypeFields(DataTypeDesign dataType)
+        {
+            var fields = new List<object>();
+            if (dataType.BasicDataType != BasicDataType.UserDefined || dataType.IsUnion)
+            {
+                fields.AddRange(dataType.Fields ?? []);
+                return fields;
+            }
+
+            bool flattened = WritesEncodingMaskBeforeBaseFields(dataType);
+            if (HasOptionalFields(dataType) && !HasAncestorWithOptionalFields(dataType))
+            {
+                fields.Add(kEncodingMaskElement);
+            }
+            if (flattened)
+            {
+                var ancestors = new Stack<DataTypeDesign>();
+                for (var parent = dataType.BaseTypeNode as DataTypeDesign;
+                    parent != null && parent.BasicDataType == BasicDataType.UserDefined;
+                    parent = parent.BaseTypeNode as DataTypeDesign)
+                {
+                    ancestors.Push(parent);
+                }
+                while (ancestors.Count > 0)
+                {
+                    DataTypeDesign ancestor = ancestors.Pop();
+                    foreach (Parameter field in ancestor.Fields ?? [])
+                    {
+                        if (!m_context.ModelDesign.IsExcluded(field))
+                        {
+                            fields.Add(field);
+                        }
+                    }
+                }
+            }
+            fields.AddRange(dataType.Fields ?? []);
+            return fields;
+        }
+
+        /// <summary>
+        /// True if the generated Encode writes the encoding mask ahead of
+        /// the fields of a base structure (DerivedClassWithOptionalFields
+        /// without an ancestor that has optional fields).
+        /// </summary>
+        private static bool WritesEncodingMaskBeforeBaseFields(DataTypeDesign dataType)
+        {
+            return dataType.BasicDataType == BasicDataType.UserDefined &&
+                !dataType.IsUnion &&
+                dataType.BaseTypeNode is DataTypeDesign baseType &&
+                baseType.BasicDataType == BasicDataType.UserDefined &&
+                HasOptionalFields(dataType) &&
+                !HasAncestorWithOptionalFields(dataType);
+        }
+
+        private static bool HasOptionalFields(DataTypeDesign dataType)
+        {
+            return dataType.Fields != null && dataType.Fields.Any(f => f.IsOptional);
+        }
+
+        private static bool HasAncestorWithOptionalFields(DataTypeDesign dataType)
+        {
+            for (var parent = dataType.BaseTypeNode as DataTypeDesign;
+                parent != null && parent.BasicDataType == BasicDataType.UserDefined;
+                parent = parent.BaseTypeNode as DataTypeDesign)
+            {
+                if (HasOptionalFields(parent))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private const string kEncodingMaskElement =
+            "<xs:element name=\"EncodingMask\" type=\"xs:unsignedInt\" minOccurs=\"0\" />";
+
         private TemplateString LoadTemplate_XmlTypeFields(ILoadContext context)
         {
+            if (context.Target is string element)
+            {
+                context.Out.WriteLine(element);
+                return null;
+            }
+
             if (context.Target is not Parameter field)
             {
                 return null;

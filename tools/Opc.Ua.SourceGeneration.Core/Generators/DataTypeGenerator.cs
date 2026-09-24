@@ -1272,7 +1272,7 @@ namespace Opc.Ua.SourceGeneration
         /// <c>OptionSet</c> whose base type is the abstract
         /// <c>OptionSet</c> structure).
         /// </summary>
-        private static bool IsConcreteEncodeableMatrix(Parameter field)
+        internal static bool IsConcreteEncodeableMatrix(Parameter field)
         {
             DataTypeDesign type = field.DataTypeNode;
             if (field.AllowSubTypes)

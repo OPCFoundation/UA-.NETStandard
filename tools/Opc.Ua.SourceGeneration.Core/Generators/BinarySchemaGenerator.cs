@@ -30,6 +30,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Xml;
 using Opc.Ua.Schema.Model;
 using Opc.Ua.Types;
 
@@ -197,8 +199,12 @@ namespace Opc.Ua.SourceGeneration
 
             BasicDataType basicType = dataType.BasicDataType;
 
-            if (basicType == BasicDataType.UserDefined)
+            if (basicType == BasicDataType.UserDefined ||
+                IsStructureOptionSet(dataType))
             {
+                // A subtype of the OptionSet structure is encoded as that
+                // structure (Value and ValidBits ByteStrings), not as an
+                // integer.
                 return BinarySchemaTemplates.ComplexType;
             }
 
@@ -229,7 +235,10 @@ namespace Opc.Ua.SourceGeneration
 
             context.Template.AddReplacement(Tokens.TypeName, dataType.SymbolicName.Name);
 
-            if (dataType.BasicDataType == BasicDataType.UserDefined)
+            bool isStructure =
+                dataType.BasicDataType == BasicDataType.UserDefined ||
+                IsStructureOptionSet(dataType);
+            if (isStructure)
             {
                 context.Template.AddReplacement(Tokens.BaseType,
                     (dataType.BaseTypeNode as DataTypeDesign).GetBinaryDataType(
@@ -244,7 +253,10 @@ namespace Opc.Ua.SourceGeneration
                 parent != null;
                 parent = parent.BaseTypeNode as DataTypeDesign)
             {
-                if (parent.Fields != null)
+                // The fields of an OptionSet name its bits; a structure
+                // based OptionSet only carries the fields of the structure.
+                if (parent.Fields != null &&
+                    (!isStructure || !parent.IsOptionSet))
                 {
                     parents.Push(parent);
                 }
@@ -289,7 +301,7 @@ namespace Opc.Ua.SourceGeneration
                 }
             }
 
-            if (dataType.BasicDataType == BasicDataType.Enumeration)
+            if (!isStructure && dataType.BasicDataType == BasicDataType.Enumeration)
             {
                 uint lengthInBits = 32;
                 bool isOptionSet = false;
@@ -297,36 +309,20 @@ namespace Opc.Ua.SourceGeneration
                 if (dataType.IsOptionSet)
                 {
                     isOptionSet = true;
+                    lengthInBits = GetOptionSetLengthInBits(dataType);
 
-                    switch (dataType.BaseType.Name)
+                    if (fields.Count > 0 && !fields.Any(f => f.Identifier == 0))
                     {
-                        case "SByte":
-                        case "Byte":
-                            lengthInBits = 8;
-                            break;
-                        case "Int16":
-                        case "UInt16":
-                            lengthInBits = 16;
-                            break;
-                        case "Int32":
-                        case "UInt32":
-                            lengthInBits = 32;
-                            break;
-                        case "Int64":
-                        case "UInt64":
-                            lengthInBits = 64;
-                            break;
+                        fields.Insert(0, new Parameter
+                        {
+                            Name = "None",
+                            Identifier = 0,
+                            IdentifierSpecified = true,
+                            DataType = fields[0].DataType,
+                            DataTypeNode = fields[0].DataTypeNode,
+                            Parent = fields[0].Parent
+                        });
                     }
-
-                    fields.Insert(0, new Parameter
-                    {
-                        Name = "None",
-                        Identifier = 0,
-                        IdentifierSpecified = true,
-                        DataType = fields[0].DataType,
-                        DataTypeNode = fields[0].DataTypeNode,
-                        Parent = fields[0].Parent
-                    });
                 }
 
                 context.Template.AddReplacement(Tokens.LengthInBits, lengthInBits);
@@ -342,12 +338,67 @@ namespace Opc.Ua.SourceGeneration
 
             context.Template.AddReplacement(
                 Tokens.ListOfFields,
-                dataType.BasicDataType == BasicDataType.UserDefined
+                isStructure
                     ? BuildStructureFields(dataType, fields)
                     : fields,
                 LoadTemplate_Field);
 
             return context.Template.Render();
+        }
+
+        /// <summary>
+        /// True if the data type is a subtype of the OptionSet structure
+        /// (as opposed to an OptionSet based on an unsigned integer).
+        /// </summary>
+        private static bool IsStructureOptionSet(DataTypeDesign dataType)
+        {
+            if (!dataType.IsOptionSet)
+            {
+                return false;
+            }
+            for (var type = dataType.BaseTypeNode as DataTypeDesign;
+                type != null;
+                type = type.BaseTypeNode as DataTypeDesign)
+            {
+                if (type.SymbolicId == new XmlQualifiedName("OptionSet", Namespaces.OpcUa))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// The size of an integer based OptionSet is the size of the built-in
+        /// integer it derives from, possibly through other OptionSets.
+        /// </summary>
+        private static uint GetOptionSetLengthInBits(DataTypeDesign dataType)
+        {
+            for (var type = dataType.BaseTypeNode as DataTypeDesign;
+                type != null;
+                type = type.BaseTypeNode as DataTypeDesign)
+            {
+                if (type.SymbolicId?.Namespace != Namespaces.OpcUa)
+                {
+                    continue;
+                }
+                switch (type.SymbolicId.Name)
+                {
+                    case "SByte":
+                    case "Byte":
+                        return 8;
+                    case "Int16":
+                    case "UInt16":
+                        return 16;
+                    case "Int32":
+                    case "UInt32":
+                        return 32;
+                    case "Int64":
+                    case "UInt64":
+                        return 64;
+                }
+            }
+            return 32;
         }
 
         /// <summary>
@@ -507,6 +558,33 @@ namespace Opc.Ua.SourceGeneration
                         " SwitchValue=\"{0}\"",
                         binaryField.SwitchValue.Value);
                 }
+            }
+
+            if (field.ValueRank == ValueRank.OneOrMoreDimensions &&
+                field.DataTypeNode.SupportsMatrixOf() &&
+                DataTypeGenerator.IsConcreteEncodeableMatrix(field))
+            {
+                // WriteEncodeableMatrix: the Int32 dimensions array followed
+                // by the flattened elements (OPC 10000-6 5.2.5).
+                context.Out.WriteLine(
+                    "<opc:Field Name=\"NoOf{0}Dimensions\" TypeName=\"opc:Int32\"{1} />",
+                    fieldName,
+                    switchAttributes);
+                context.Out.WriteLine(
+                    "<opc:Field Name=\"{0}Dimensions\" TypeName=\"opc:Int32\" LengthField=\"NoOf{0}Dimensions\"{1} />",
+                    fieldName,
+                    switchAttributes);
+            }
+            else if (field.ValueRank is not ValueRank.Scalar and not ValueRank.Array)
+            {
+                // Every other rank is written by the generated Encode as a
+                // Variant (ScalarOrArray, Any, ... and matrices of built-in
+                // types, enumerations and subtyped structures).
+                context.Out.WriteLine(
+                    "<opc:Field Name=\"{0}\" TypeName=\"ua:Variant\"{1} />",
+                    fieldName,
+                    switchAttributes);
+                return;
             }
 
             if (field.ValueRank != ValueRank.Scalar)

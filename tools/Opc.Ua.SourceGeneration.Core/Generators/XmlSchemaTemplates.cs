@@ -535,7 +535,7 @@ namespace Opc.Ua.SourceGeneration
               {{Tokens.Documentation}}
               <xs:sequence>
                 <xs:element name="SwitchField" type="xs:unsignedInt" minOccurs="0" />
-                <xs:choice>
+                <xs:choice minOccurs="0">
                   {{Tokens.ListOfFields}}
                 </xs:choice>
               </xs:sequence>
