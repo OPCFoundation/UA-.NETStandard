@@ -260,6 +260,11 @@ namespace Opc.Ua.Gds.Server.Hosting
 
             m_authorizationServiceManager?.Initialize(m_application.ApplicationConfiguration!);
 
+            if (m_options.AutoApprove)
+            {
+                m_logger.CertificateRequestAutoApprovalEnabled();
+            }
+
             m_server = new GdsHostedServer(
                 m_database,
                 m_certificateRequest,
@@ -383,14 +388,32 @@ namespace Opc.Ua.Gds.Server.Hosting
                 ? ",O=OPC Foundation,DC=localhost"
                 : m_options.DefaultSubjectNameContext;
 
+            // OPC 10000-12 §7.8.3.3: the DefaultApplicationGroup is mandatory,
+            // without a certificate group the GDS cannot issue certificates.
+            ArrayOf<CertificateGroupConfiguration> certificateGroups = m_options.CertificateGroups.Count > 0
+                ? m_options.CertificateGroups.ToArrayOf()
+                : [CreateDefaultApplicationGroup(baseCertificateGroupStorePath)];
+
             return new GlobalDiscoveryServerConfiguration
             {
                 AuthoritiesStorePath = authoritiesStorePath,
                 ApplicationCertificatesStorePath = applicationCertificatesStorePath,
                 BaseCertificateGroupStorePath = baseCertificateGroupStorePath,
                 DefaultSubjectNameContext = defaultSubjectNameContext,
-                CertificateGroups = [],
+                CertificateGroups = certificateGroups,
                 KnownHostNames = []
+            };
+        }
+
+        private CertificateGroupConfiguration CreateDefaultApplicationGroup(
+            string baseCertificateGroupStorePath)
+        {
+            return new CertificateGroupConfiguration
+            {
+                Id = "Default",
+                CertificateTypes = [nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)],
+                SubjectName = $"CN={m_options.ApplicationName} CA, O=OPC Foundation",
+                BaseStorePath = Path.Combine(baseCertificateGroupStorePath, "default")
             };
         }
 
@@ -520,5 +543,9 @@ namespace Opc.Ua.Gds.Server.Hosting
         [LoggerMessage(EventId = GdsServerCommonEventIds.GdsServerHostedService + 2, Level = LogLevel.Warning,
             Message = "Error while stopping GDS server.")]
         public static partial void ErrorWhileStoppingGdsServer(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.GdsServerHostedService + 3, Level = LogLevel.Warning,
+            Message = "GDS certificate requests are approved automatically (AutoApprove); do not enable in production.")]
+        public static partial void CertificateRequestAutoApprovalEnabled(this ILogger logger);
     }
 }
