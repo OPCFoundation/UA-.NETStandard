@@ -1144,11 +1144,21 @@ namespace Opc.Ua.Client
         {
             ByteString serverCertificate = m_endpoint.Description?.ServerCertificate ?? default;
             m_sessionName = sessionConfiguration.SessionName ?? "SessionName";
+
+            // The endpoint may carry the full server certificate chain
+            // (leaf + issuers); only the leaf is the server certificate.
+            Certificate? restoredServerCertificate = null;
+            if (!serverCertificate.IsEmpty)
+            {
+                using CertificateCollection serverCertificateChain =
+                    Utils.ParseCertificateChainBlob(serverCertificate, m_telemetry);
+                if (serverCertificateChain.Count > 0)
+                {
+                    restoredServerCertificate = serverCertificateChain[0].AddRef();
+                }
+            }
             m_serverCertificate?.Dispose();
-            m_serverCertificate =
-                !serverCertificate.IsEmpty
-                    ? Certificate.FromRawData(serverCertificate)
-                    : null;
+            m_serverCertificate = restoredServerCertificate;
             m_identity = sessionConfiguration.Identity ?? new UserIdentity();
             m_checkDomain = sessionConfiguration.CheckDomain;
             m_serverNonce = sessionConfiguration.ServerNonce;
