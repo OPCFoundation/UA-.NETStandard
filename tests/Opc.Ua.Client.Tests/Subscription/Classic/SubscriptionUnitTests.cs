@@ -783,6 +783,42 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
+        /// A negative MaxMessageCount must not make every worker pass throw
+        /// (L7-10): the notification is still delivered and cached.
+        /// </summary>
+        [Test]
+        [CancelAfter(5000)]
+        public async Task NegativeMaxMessageCountStillDeliversNotificationsAsync(CancellationToken ct)
+        {
+            var delivered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var received = new ConcurrentQueue<uint>();
+            using var subscription = new Subscription(
+                NUnitTelemetryContext.Create(),
+                new() { MaxMessageCount = -1 })
+            {
+                Session = BuildSessionMock(),
+                FastDataChangeCallback = (_, notification, _) =>
+                {
+                    received.Enqueue(notification.SequenceNumber);
+                    if (received.Count == 2)
+                    {
+                        delivered.TrySetResult(true);
+                    }
+                }
+            };
+            await subscription.CreateAsync(ct).ConfigureAwait(false);
+
+            NotificationMessage[] messages = BuildMessages(2);
+            subscription.SaveMessageInCache([], messages[1]);
+            subscription.SaveMessageInCache([], messages[2]);
+            await Task.WhenAny(delivered.Task, Task.Delay(Timeout.Infinite, ct)).ConfigureAwait(false);
+
+            Assert.That(delivered.Task.IsCompleted, Is.True, "No notification was delivered.");
+            Assert.That(received, Is.EqualTo(new uint[] { 1, 2 }));
+            Assert.That(subscription.Notifications, Is.EqualTo(new[] { messages[2] }));
+        }
+
+        /// <summary>
         /// Very long keep-alive intervals must not overflow the publish
         /// timeout or the publishing-stopped check (L7-9).
         /// </summary>

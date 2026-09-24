@@ -2793,8 +2793,10 @@ namespace Opc.Ua.Client
                         {
                             (messagesToProcess ??= []).Add(ii.Value.Message);
 
-                            // remove the oldest items.
-                            while (m_messageCache.Count > MaxMessageCount)
+                            // remove the oldest items. The emptiness check keeps a
+                            // negative MaxMessageCount from throwing on RemoveFirst.
+                            while (m_messageCache.Count > 0 &&
+                                m_messageCache.Count > MaxMessageCount)
                             {
                                 m_messageCache.RemoveFirst();
                             }
