@@ -45,6 +45,38 @@ namespace Opc.Ua.Server.Tests
     [Category("DiagnosticsNodeManager")]
     public sealed class DiagnosticsMonitoringRegressionTests
     {
+        [Test]
+        public async Task AdmittedCreationCannotRestartSamplingAfterDisposalAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var timers = new TimerTracker();
+                using var manager = new DiagnosticHooks(server.Object, timers.Provider);
+                NodeHandle handle = CreateHandle(1, VariableTypeIds.BaseDataVariableType);
+                ((BaseVariableState)handle.Node).MinimumSamplingInterval = 1000;
+                using MonitoredItem item = CreateItem(server.Object, manager, handle, 1);
+                var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                Task creation = manager.WithAdmittedOperationAsync(
+                    () => manager.Created(handle, item), entered, release.Task);
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Task disposal = manager.DisposeAsync().AsTask();
+                try
+                {
+                    Assert.That(disposal.IsCompleted, Is.False);
+                }
+                finally
+                {
+                    release.TrySetResult(true);
+                    await creation.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    await disposal.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                }
+                Assert.That(timers.Created, Is.Zero);
+                Assert.That(timers.Active, Is.Zero);
+            }
+        }
+
         /// <summary>
         /// Verifies that each standard diagnostic structure enables unconditional reporting and one sampling timer.
         /// </summary>
@@ -388,6 +420,17 @@ namespace Opc.Ua.Server.Tests
             public void Created(NodeHandle handle, MonitoredItem item)
             {
                 OnMonitoredItemCreated(m_context, handle, item);
+            }
+
+            public async Task WithAdmittedOperationAsync(
+                Action callback,
+                TaskCompletionSource<bool> entered,
+                Task release)
+            {
+                using NodeManagerOperation operation = BeginNodeManagerOperation();
+                entered.TrySetResult(true);
+                await release.ConfigureAwait(false);
+                callback();
             }
 
             /// <summary>

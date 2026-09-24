@@ -589,6 +589,9 @@ sub-SM transitions:
 Under the hood all discovered sub-SMs are subscribed once up-front and
 their notifications are multiplexed through a `Channel<T>`; sub-SM
 events are filtered against the parent's currently-active state.
+If any source fails (including a follow-up state read), the combined stream
+surfaces that exception and cancels the other sources immediately. A healthy
+sub-state-machine stream does not keep a failed parent stream silently alive.
 
 ### Client side — typed sub-SM accessors (generated)
 

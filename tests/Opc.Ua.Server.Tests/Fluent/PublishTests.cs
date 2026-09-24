@@ -927,6 +927,46 @@ namespace Opc.Ua.Server.Tests.Fluent
             await slowSubscription.WaitAsync(s_signalTimeout).ConfigureAwait(false);
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SlowSourceShutdownDoesNotBlockAnotherSourcesReadinessAsync(bool infinite)
+        {
+            using TestablePublishManager manager = CreateManager();
+            BaseObjectState slow = await MakeReadinessNotifierAsync(manager, "SlowStop").ConfigureAwait(false);
+            BaseObjectState fast = await MakeReadinessNotifierAsync(manager, "FastStart").ConfigureAwait(false);
+            var slowStream = new ControlledReadyStream { BlockStop = true };
+            var fastStream = new ControlledReadyStream();
+            slowStream.Ready.TrySetResult(true);
+            fastStream.Ready.TrySetResult(true);
+            manager.EventSources.Register(slow, (_, _, _) => slowStream,
+                new EventPublishOptions
+                {
+                    CancellationTimeout = infinite ? Timeout.InfiniteTimeSpan : TimeSpan.FromMinutes(1)
+                });
+            manager.EventSources.Register(fast, (_, _, _) => fastStream, null);
+            slow.SetAreEventsMonitored(manager.SystemContext, true, false);
+            await manager.EventSources.WaitUntilReadyAsync(slow, CancellationToken.None).AsTask()
+                .WaitAsync(s_signalTimeout).ConfigureAwait(false);
+            try
+            {
+                slow.SetAreEventsMonitored(manager.SystemContext, false, false);
+                manager.EventSources.SignalReconcile();
+                await slowStream.StopRequested.Task.WaitAsync(s_signalTimeout).ConfigureAwait(false);
+                fast.SetAreEventsMonitored(manager.SystemContext, true, false);
+
+                await manager.EventSources.WaitUntilReadyAsync(fast, CancellationToken.None).AsTask()
+                    .WaitAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+
+                Assert.That(fastStream.Entered.Task.IsCompleted, Is.True);
+                Assert.That(slowStream.Stopped.Task.IsCompleted, Is.False);
+            }
+            finally
+            {
+                slowStream.ReleaseStop.TrySetResult(true);
+                await slowStream.Stopped.Task.WaitAsync(s_signalTimeout).ConfigureAwait(false);
+            }
+        }
+
         [Test]
         public async Task EachSourceReactivationHasItsOwnReadinessBoundary()
         {
@@ -954,6 +994,53 @@ namespace Opc.Ua.Server.Tests.Fluent
             second.Ready.TrySetResult(true);
             await secondSubscription.WaitAsync(s_signalTimeout).ConfigureAwait(false);
             Assert.That(activations, Is.EqualTo(2));
+        }
+
+        [Test]
+        public async Task SourceReactivationWaitsForItsOwnDrainAndFreshReadinessAsync()
+        {
+            using TestablePublishManager manager = CreateManager();
+            BaseObjectState notifier = await MakeReadinessNotifierAsync(manager, "Restarting").ConfigureAwait(false);
+            BaseObjectState control = await MakeReadinessNotifierAsync(manager, "Control").ConfigureAwait(false);
+            var first = new ControlledReadyStream { BlockStop = true };
+            var second = new ControlledReadyStream();
+            var independent = new ControlledReadyStream();
+            first.Ready.TrySetResult(true);
+            independent.Ready.TrySetResult(true);
+            int starts = 0;
+            manager.EventSources.Register(notifier,
+                (_, _, _) => Interlocked.Increment(ref starts) == 1 ? first : second,
+                new EventPublishOptions { CancellationTimeout = Timeout.InfiniteTimeSpan });
+            manager.EventSources.Register(control, (_, _, _) => independent, null);
+            notifier.SetAreEventsMonitored(manager.SystemContext, true, false);
+            await manager.EventSources.WaitUntilReadyAsync(notifier, CancellationToken.None).AsTask()
+                .WaitAsync(s_signalTimeout).ConfigureAwait(false);
+            notifier.SetAreEventsMonitored(manager.SystemContext, false, false);
+            manager.EventSources.SignalReconcile();
+            await first.StopRequested.Task.WaitAsync(s_signalTimeout).ConfigureAwait(false);
+            notifier.SetAreEventsMonitored(manager.SystemContext, true, false);
+            Task restarted = manager.EventSources.WaitUntilReadyAsync(notifier, CancellationToken.None).AsTask();
+            try
+            {
+                control.SetAreEventsMonitored(manager.SystemContext, true, false);
+                await manager.EventSources.WaitUntilReadyAsync(control, CancellationToken.None).AsTask()
+                    .WaitAsync(s_signalTimeout).ConfigureAwait(false);
+                Assert.That(starts, Is.EqualTo(1));
+                Assert.That(restarted.IsCompleted, Is.False);
+
+                first.ReleaseStop.TrySetResult(true);
+                await second.Entered.Task.WaitAsync(s_signalTimeout).ConfigureAwait(false);
+                Assert.That(starts, Is.EqualTo(2));
+                Assert.That(restarted.IsCompleted, Is.False);
+                second.Ready.TrySetResult(true);
+                await restarted.WaitAsync(s_signalTimeout).ConfigureAwait(false);
+            }
+            finally
+            {
+                first.ReleaseStop.TrySetResult(true);
+                second.Ready.TrySetResult(true);
+                await first.Stopped.Task.WaitAsync(s_signalTimeout).ConfigureAwait(false);
+            }
         }
 
         [Test]
@@ -1205,6 +1292,8 @@ namespace Opc.Ua.Server.Tests.Fluent
 
         private sealed class ControlledReadyStream : IAsyncEnumerable<BaseEventState>, IEventSourceReadiness
         {
+            public bool BlockStop { get; init; }
+
             public TaskCompletionSource<bool> Entered { get; } =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -1212,6 +1301,12 @@ namespace Opc.Ua.Server.Tests.Fluent
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
             public TaskCompletionSource<bool> Stopped { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public TaskCompletionSource<bool> StopRequested { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public TaskCompletionSource<bool> ReleaseStop { get; } =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
             public Channel<BaseEventState> Events { get; } = Channel.CreateUnbounded<BaseEventState>();
@@ -1240,6 +1335,11 @@ namespace Opc.Ua.Server.Tests.Fluent
                 }
                 finally
                 {
+                    StopRequested.TrySetResult(true);
+                    if (BlockStop)
+                    {
+                        await ReleaseStop.Task.ConfigureAwait(false);
+                    }
                     Stopped.TrySetResult(true);
                 }
             }

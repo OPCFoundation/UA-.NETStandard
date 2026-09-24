@@ -1169,7 +1169,7 @@ namespace Opc.Ua.Server
                         ct: cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception e)
-                    when (e is not ServiceResultException and not OperationCanceledException)
+                    when (e is not OperationCanceledException)
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadIdentityTokenInvalid,

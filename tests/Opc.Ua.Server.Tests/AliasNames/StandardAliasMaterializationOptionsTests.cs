@@ -95,6 +95,59 @@ namespace Opc.Ua.Server.Tests.AliasNames
             Assert.That(options.MaterializeAliasNodes, Is.False);
         }
 
+        [Test]
+        public async Task MaterializedStandardAliasesRefreshByDefaultAsync()
+        {
+            await using var manager = new ConfigurationNodeManager(
+                m_server,
+                m_configuration,
+                NullLogger.Instance,
+                timeProvider: null,
+                coordinator: null,
+                pendingKeyStore: null,
+                keyGenerator: null,
+                trustListEffectHandler: null,
+                serverConfigurationOptions: null,
+                aliasNameOptions: new AliasNameServerOptions { MaterializeAliasNodes = true });
+            await AssertMaterializationAsync(manager, enabled: true).ConfigureAwait(false);
+            AliasNameCategoryState category =
+                manager.FindPredefinedNode<AliasNameCategoryState>(ObjectIds.TagVariables);
+            ushort ns = m_server.NamespaceUris.GetIndexOrAppend(Ua.Namespaces.OpcUa + "Diagnostics");
+            var aliasId = new NodeId(Utils.Format("{0}.Added", ObjectIds.TagVariables), ns);
+            var published = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            category.OnStateChanged += (_, _, _) =>
+            {
+                if (manager.FindPredefinedNode<AliasNameState>(aliasId) != null)
+                {
+                    published.TrySetResult(true);
+                }
+            };
+
+            await m_store.AddAliasesAsync(ObjectIds.TagVariables,
+                [new AliasAddRequest("Added", new ExpandedNodeId(kTargetName, 1), null, ReferenceTypeIds.AliasFor)])
+                .ConfigureAwait(false);
+            await published.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            Assert.That(category.ReferenceExists(ReferenceTypeIds.Organizes, false, aliasId), Is.True);
+            AliasNameState alias = manager.FindPredefinedNode<AliasNameState>(aliasId);
+            Assert.That(alias.ReferenceExists(
+                ReferenceTypeIds.AliasFor, false, new NodeId(kTargetName, 1)), Is.True);
+
+            var removed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            category.OnStateChanged += (_, _, _) =>
+            {
+                if (manager.FindPredefinedNode<AliasNameState>(aliasId) == null)
+                {
+                    removed.TrySetResult(true);
+                }
+            };
+            await m_store.DeleteAliasesAsync(ObjectIds.TagVariables,
+                [new AliasDeleteRequest("Added", new ExpandedNodeId(kTargetName, 1))]).ConfigureAwait(false);
+            await removed.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+
+            Assert.That(manager.FindPredefinedNode<AliasNameState>(aliasId), Is.Null);
+            Assert.That(category.ReferenceExists(ReferenceTypeIds.Organizes, false, aliasId), Is.False);
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public async Task ConfigurationManagerHonorsMaterializationOptionAsync(bool enabled)

@@ -334,6 +334,12 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
 
             public ConfiguredEndpoint Endpoint { get; }
 
+            /// <inheritdoc/>
+            public IRetryBudget? CreateReconnectBudget(TimeProvider timeProvider)
+            {
+                return null;
+            }
+
             public ValueTask<ParticipantReconnectResult> OnReconnectAsync(
                 IManagedTransportChannel channel,
                 int reconnectAttempt,

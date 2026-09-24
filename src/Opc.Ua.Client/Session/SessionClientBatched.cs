@@ -603,7 +603,9 @@ namespace Opc.Ua
             uint operationLimit = OperationLimits.MaxNodesPerHistoryUpdateData;
             if (historyUpdateDetails.Count > 0 &&
                 (historyUpdateDetails[0].TypeId == DataTypeIds.UpdateEventDetails ||
-                    historyUpdateDetails[0].TryGetValue(out UpdateEventDetails? _)))
+                    historyUpdateDetails[0].TypeId == DataTypeIds.DeleteEventDetails ||
+                    historyUpdateDetails[0].TryGetValue(out UpdateEventDetails? _) ||
+                    historyUpdateDetails[0].TryGetValue(out DeleteEventDetails? _)))
             {
                 operationLimit = OperationLimits.MaxNodesPerHistoryUpdateEvents;
             }

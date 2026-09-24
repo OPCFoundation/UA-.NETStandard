@@ -46,6 +46,9 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.Subscriptions
 {
+    /// <summary>
+    /// Covers subscription management, Publish workers, and acknowledgement handling.
+    /// </summary>
     [TestFixture]
     [Category("Client")]
     [Category("SubscriptionManager")]
@@ -357,6 +360,106 @@ namespace Opc.Ua.Client.Subscriptions
         {
             m_subscriptionManager.ReturnDiagnostics = DiagnosticsMasks.All;
             Assert.That(m_subscriptionManager.ReturnDiagnostics, Is.EqualTo(DiagnosticsMasks.All));
+        }
+
+        /// <summary>
+        /// Temporary server-identifier loss retains workers without bypassing pool limits or actual removals.
+        /// Initial uncreated subscriptions do not start workers.
+        /// </summary>
+        [Test]
+        public async Task PublishWorkersSurviveUncreatedSubscriptionsAndStillHonorPoolLimitsAsync()
+        {
+            var session = new FakeSubscriptionManagerContext();
+            OptionsMonitor<SubscriptionOptions> firstOptions = OptionsFactory.Create<SubscriptionOptions>();
+            OptionsMonitor<SubscriptionOptions> secondOptions = OptionsFactory.Create<SubscriptionOptions>();
+            var first = new FakeManagedSubscription { Id = 1 };
+            var second = new FakeManagedSubscription { Id = 2 };
+            session.CreateSubscriptionFactory = (_, options, _) => ReferenceEquals(options, firstOptions)
+                ? first
+                : second;
+            await using var manager = new SubscriptionManager(session, m_telemetry.LoggerFactory, DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 0,
+                MaxPublishWorkerCount = 4
+            };
+            manager.Add(m_mockNotificationDataHandler.Object, firstOptions);
+            manager.Add(m_mockNotificationDataHandler.Object, secondOptions);
+            Assert.That(manager.CreatedCount, Is.Zero);
+            Assert.That(manager.PublishWorkerCount, Is.Zero);
+
+            first.Created = true;
+            second.Created = true;
+            manager.Update();
+            await WaitForPublishWorkerCountAsync(manager, 2).ConfigureAwait(false);
+
+            first.Created = false;
+            second.Created = false;
+            manager.MinPublishWorkerCount = 3;
+            await WaitForPublishWorkerCountAsync(manager, 3).ConfigureAwait(false);
+            Assert.That(manager.CreatedCount, Is.Zero);
+            Assert.That(manager.Count, Is.EqualTo(2));
+
+            manager.MinPublishWorkerCount = 0;
+            manager.MaxPublishWorkerCount = 1;
+            await WaitForPublishWorkerCountAsync(manager, 1).ConfigureAwait(false);
+
+            first.Created = true;
+            second.Created = true;
+            manager.MaxPublishWorkerCount = 2;
+            manager.Update();
+            await WaitForPublishWorkerCountAsync(manager, 2).ConfigureAwait(false);
+            await manager.CompleteAsync(first, 1, CancellationToken.None).ConfigureAwait(false);
+            await WaitForPublishWorkerCountAsync(manager, 1).ConfigureAwait(false);
+            await manager.CompleteAsync(second, 2, CancellationToken.None).ConfigureAwait(false);
+            await WaitForPublishWorkerCountAsync(manager, 0).ConfigureAwait(false);
+            Assert.That(manager.Count, Is.Zero);
+        }
+
+        /// <summary>
+        /// A never-created subscription cannot retain the workers of a different, removed subscription.
+        /// </summary>
+        /// <param name="classic">Whether the established subscription belongs to the classic session API.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PublishWorkersDoNotTreatPendingSubscriptionsAsRecoveredAsync(bool classic)
+        {
+            var session = new FakeSubscriptionManagerContext();
+            OptionsMonitor<SubscriptionOptions> establishedOptions = OptionsFactory.Create<SubscriptionOptions>();
+            OptionsMonitor<SubscriptionOptions> pendingOptions = OptionsFactory.Create<SubscriptionOptions>();
+            var established = new FakeManagedSubscription { Id = 1, Created = true };
+            var pending = new FakeManagedSubscription();
+            session.CreateSubscriptionFactory = (_, options, _) => ReferenceEquals(options, establishedOptions)
+                ? established
+                : pending;
+            await using var manager = new SubscriptionManager(session, m_telemetry.LoggerFactory, DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 0,
+                MaxPublishWorkerCount = 4
+            };
+            if (classic)
+            {
+                session.SessionOwnedSubscriptionIds.Add(1);
+                manager.Update();
+            }
+            else
+            {
+                manager.Add(m_mockNotificationDataHandler.Object, establishedOptions);
+            }
+            await WaitForPublishWorkerCountAsync(manager, 1).ConfigureAwait(false);
+            ISubscription remaining = manager.Add(m_mockNotificationDataHandler.Object, pendingOptions);
+            if (classic)
+            {
+                session.SessionOwnedSubscriptionIds.Clear();
+                manager.Update();
+            }
+            else
+            {
+                await manager.CompleteAsync(established, 1, CancellationToken.None).ConfigureAwait(false);
+            }
+
+            await WaitForPublishWorkerCountAsync(manager, 0).ConfigureAwait(false);
+            Assert.That(manager.CreatedCount, Is.Zero);
+            Assert.That(manager.Items, Is.EquivalentTo([remaining]));
         }
 
         [Test]

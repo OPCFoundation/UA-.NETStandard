@@ -2416,13 +2416,14 @@ namespace Opc.Ua.Client.Tests
             sut.Channel.Verify();
         }
 
-        [Test]
-        public async Task RecreateInPlaceAsyncReusesTokenWhenEnabledAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RecreateInPlaceAsyncReusesTokenWhenEnabledOrRequiredAsync(bool requireTokenReuse)
         {
             EndpointDescription failoverDescription = CreateSessionEndpointDescription("opc.tcp://failover:4840");
             using var sut = SessionMock.Create();
             sut.SetConnected();
-            sut.EnableTokenReuseFailover = true;
+            sut.EnableTokenReuseFailover = !requireTokenReuse;
             SetServerNonce(sut, [1, 2, 3, 4]);
 
             Mock<ITransportChannel> failoverChannel = CreateReconnectChannelMock(sut, failoverDescription);
@@ -2443,8 +2444,9 @@ namespace Opc.Ua.Client.Tests
                 sut,
                 new ConfiguredEndpoint(null, failoverDescription),
                 failoverChannel.Object,
-                requireTokenReuse: false).ConfigureAwait(false);
+                requireTokenReuse).ConfigureAwait(false);
 
+            Assert.That(sut.SessionId, Is.EqualTo(NodeId.Parse("s=connected")));
             failoverChannel.Verify();
             failoverChannel.Verify(
                 c => c.SendRequestAsync(
@@ -2509,13 +2511,11 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void ReactivateMirroredSessionAsyncThrowsWhenTokenReuseIsRequiredButDisabled()
+        public void ReactivateMirroredSessionAsyncRequiresExistingSession()
         {
             EndpointDescription failoverDescription = CreateSessionEndpointDescription("opc.tcp://failover:4840");
             using var sut = SessionMock.Create();
-            sut.SetConnected();
             sut.EnableTokenReuseFailover = false;
-            SetServerNonce(sut, [1, 2, 3, 4]);
 
             Mock<ITransportChannel> failoverChannel = CreateReconnectChannelMock(sut, failoverDescription);
 
@@ -2527,6 +2527,11 @@ namespace Opc.Ua.Client.Tests
                     requireTokenReuse: true).ConfigureAwait(false))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            failoverChannel.Verify(
+                c => c.SendRequestAsync(
+                    It.IsAny<ActivateSessionRequest>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
             failoverChannel.Verify(
                 c => c.SendRequestAsync(
                     It.IsAny<CreateSessionRequest>(),
@@ -2739,7 +2744,8 @@ namespace Opc.Ua.Client.Tests
                     typeof(CancellationToken),
                     typeof(bool),
                     typeof(bool),
-                    typeof(SessionClient)
+                    typeof(SessionClient),
+                    typeof(bool)
                 ],
                 null);
 
@@ -2747,7 +2753,7 @@ namespace Opc.Ua.Client.Tests
 
             var task = (Task?)method!.Invoke(
                 session,
-                [endpoint, null, channel, null, CancellationToken.None, false, requireTokenReuse, null]);
+                [endpoint, null, channel, null, CancellationToken.None, false, requireTokenReuse, null, false]);
 
             Assert.That(task, Is.Not.Null);
             return task!;

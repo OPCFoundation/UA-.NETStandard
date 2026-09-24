@@ -183,7 +183,8 @@ namespace Opc.Ua.Client
                 : FindAsyncCore(nodeId, ct);
             ValueTask<INode> FindAsyncCore(NodeId nodeId, CancellationToken ct)
             {
-                return m_nodes.GetOrAddAsync(
+                ct.ThrowIfCancellationRequested();
+                return new ValueTask<INode>(m_nodes.GetOrAddAsync(
                     nodeId,
                     async key =>
                     {
@@ -191,15 +192,15 @@ namespace Opc.Ua.Client
                             null,
                             key,
                             NodeClass.Unspecified,
-                            ct: ct)
+                            ct: CancellationToken.None)
                             .ConfigureAwait(false);
                         // Populate the node's ReferenceTable so callers can
                         // introspect references without an extra round trip.
                         // Mirrors legacy NodeCache behavior.
-                        await PopulateReferenceTableAsync(key, node, ct)
+                        await PopulateReferenceTableAsync(key, node, CancellationToken.None)
                             .ConfigureAwait(false);
                         return node;
-                    });
+                    }).AsTask().WaitAsync(ct));
             }
         }
 
@@ -240,11 +241,12 @@ namespace Opc.Ua.Client
                 : FindAsyncCore(nodeId, ct);
             ValueTask<DataValue> FindAsyncCore(NodeId nodeId, CancellationToken ct)
             {
+                ct.ThrowIfCancellationRequested();
                 INodeCacheContext context = m_context;
-                return m_values.GetOrAddAsync(
+                return new ValueTask<DataValue>(m_values.GetOrAddAsync(
                     nodeId,
-                    async key => await context.FetchValueAsync(null, key, ct)
-                        .ConfigureAwait(false));
+                    async key => await context.FetchValueAsync(null, key, CancellationToken.None)
+                        .ConfigureAwait(false)).AsTask().WaitAsync(ct));
             }
         }
 
@@ -1164,13 +1166,14 @@ namespace Opc.Ua.Client
             CancellationToken ct)
         {
             Debug.Assert(!nodeId.IsNull);
+            ct.ThrowIfCancellationRequested();
             INodeCacheContext context = m_context;
-            return m_refs.GetOrAddAsync(
+            return new ValueTask<ArrayOf<ReferenceDescription>>(m_refs.GetOrAddAsync(
                 nodeId,
                 async key =>
                 {
                     ArrayOf<ReferenceDescription> references =
-                        await context.FetchReferencesAsync(null, key, ct)
+                        await context.FetchReferencesAsync(null, key, CancellationToken.None)
                             .ConfigureAwait(false);
                     foreach (ReferenceDescription? reference in references)
                     {
@@ -1183,7 +1186,7 @@ namespace Opc.Ua.Client
                         }
                     }
                     return references;
-                });
+                }).AsTask().WaitAsync(ct));
         }
 
         /// <summary>

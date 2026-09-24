@@ -394,6 +394,11 @@ The redundancy samples exercise both guarantees: the client writes and reads a d
 
 OPC UA client redundancy is implemented with `TransferSubscriptions` plus server diagnostics. `ClientFailoverCoordinator` helps a backup client find the active client's session by `ActiveSessionId` or `ActiveSessionName`, discover subscription ids from diagnostics, verify the backup uses the same user display name when configured, and call `TransferSubscriptionsAsync` with `SendInitialValues` defaulting to `true`.
 
+Name-based discovery excludes the backup's own session and rejects multiple
+matching active sessions rather than selecting an arbitrary client. Supply
+`ActiveSessionId` when names are not unique; that explicit identity bypasses
+name-based discovery.
+
 ```csharp
 var coordinator = new ClientFailoverCoordinator();
 ArrayOf<TransferResult> results = await coordinator.TransferActiveSubscriptionsAsync(

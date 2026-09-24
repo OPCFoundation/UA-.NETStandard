@@ -33,6 +33,9 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
+    /// <summary>
+    /// Keeps a participant attached to a shared channel and routes its requests through the ready gate.
+    /// </summary>
     internal sealed class ManagedTransportChannelLease : IManagedTransportChannel
     {
         internal ManagedTransportChannelLease(
@@ -41,7 +44,6 @@ namespace Opc.Ua
             m_entry = entry ?? throw new ArgumentNullException(nameof(entry));
             Key = entry.Key;
             Endpoint = entry.Endpoint;
-            ReverseConnection = entry.ReverseConnection;
             m_participant = participant ?? throw new ArgumentNullException(nameof(participant));
             ParticipantFactory = _ => Participant;
             m_active = 1;
@@ -59,7 +61,6 @@ namespace Opc.Ua
             m_entry = entry ?? throw new ArgumentNullException(nameof(entry));
             Key = entry.Key;
             Endpoint = entry.Endpoint;
-            ReverseConnection = entry.ReverseConnection;
             m_active = 1;
             m_participant = participantFactory(this)
                 ?? throw new InvalidOperationException("Participant factory returned null.");
@@ -70,7 +71,7 @@ namespace Opc.Ua
 
         internal ConfiguredEndpoint Endpoint { get; }
 
-        internal ITransportWaitingConnection? ReverseConnection { get; }
+        internal ITransportWaitingConnection? ReverseConnection => Entry.ReverseConnection;
 
         internal Func<IManagedTransportChannel, IReconnectParticipant> ParticipantFactory { get; }
 
@@ -228,11 +229,19 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public async ValueTask ReconnectAsync(
+        public ValueTask ReconnectAsync(
             ITransportWaitingConnection? connection,
             CancellationToken ct = default)
         {
-            bool reconnected = await Entry.RequestReconnectAsync(connection, budget: null, ct).ConfigureAwait(false);
+            return ReconnectAsync(connection, budget: null, ct);
+        }
+
+        internal async ValueTask ReconnectAsync(
+            ITransportWaitingConnection? connection,
+            IRetryBudget? budget,
+            CancellationToken ct)
+        {
+            bool reconnected = await Entry.RequestReconnectAsync(connection, budget, ct).ConfigureAwait(false);
             if (!reconnected)
             {
                 throw ServiceResultException.Create(
@@ -241,6 +250,7 @@ namespace Opc.Ua
             }
         }
 
+        /// <inheritdoc/>
         /// <inheritdoc/>
         public async ValueTask<IServiceResponse> SendRequestAsync(
             IServiceRequest request, CancellationToken ct = default)
@@ -258,7 +268,7 @@ namespace Opc.Ua
                         "Channel has no underlying transport.");
                 try
                 {
-                    return await underlying.SendRequestAsync(request, ct).ConfigureAwait(false);
+                    return await SendTransportRequestAsync(underlying, request, ct).ConfigureAwait(false);
                 }
                 catch (ServiceResultException sre) when (
                     IsActive &&
@@ -312,6 +322,23 @@ namespace Opc.Ua
                     }
                 }
             }
+        }
+
+        private static async ValueTask<IServiceResponse> SendTransportRequestAsync(
+            ITransportChannel transport,
+            IServiceRequest request,
+            CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (!ct.CanBeCanceled)
+            {
+                return await transport.SendRequestAsync(request, ct).ConfigureAwait(false);
+            }
+            Task<IServiceResponse> work = transport.SendRequestAsync(request, ct).AsTask();
+            ChannelEntry.ObserveRecoveryTask(work);
+            IServiceResponse response = await work.WaitAsync(ct).ConfigureAwait(false);
+            ct.ThrowIfCancellationRequested();
+            return response;
         }
 
         private static bool IsIdempotentRequest(IServiceRequest request)
@@ -437,6 +464,7 @@ namespace Opc.Ua
                     StatusCodes.BadInvalidState, "A recovery send channel cannot start another reconnect.");
             }
 
+            /// <inheritdoc/>
             public async ValueTask<IServiceResponse> SendRequestAsync(
                 IServiceRequest request,
                 CancellationToken ct = default)
@@ -450,11 +478,7 @@ namespace Opc.Ua
                         StatusCodes.BadInvalidState, "The recovery send channel has expired.");
                 }
                 using var linked = CancellationTokenSource.CreateLinkedTokenSource(scopeToken, ct);
-                linked.Token.ThrowIfCancellationRequested();
-                IServiceResponse response = await transport.SendRequestAsync(request, linked.Token)
-                    .ConfigureAwait(false);
-                linked.Token.ThrowIfCancellationRequested();
-                return response;
+                return await SendTransportRequestAsync(transport, request, linked.Token).ConfigureAwait(false);
             }
 
             public ValueTask CloseAsync(CancellationToken ct = default)

@@ -111,6 +111,12 @@ namespace Opc.Ua.Stress.Tests.Channels.Fakes
         /// </summary>
         public IManagedTransportChannel? LastChannel => Volatile.Read(ref m_lastChannel);
 
+        /// <inheritdoc/>
+        public IRetryBudget? CreateReconnectBudget(TimeProvider timeProvider)
+        {
+            return null;
+        }
+
         /// <summary>
         /// Configures the behavior returned from <see cref="OnReconnectAsync"/>.
         /// </summary>

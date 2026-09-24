@@ -282,6 +282,10 @@ NodeId newRoleId = await client.AddRoleAsync(
 await client.RemoveRoleAsync(newRoleId);
 ```
 
+`ListRolesAsync` includes both `RoleType` instances and instances of its
+subtypes, resolving derived types through the session's node cache. Other
+object types under the RoleSet are excluded.
+
 All mutator methods require the calling session to hold the `SecurityAdmin` role and use a `SignAndEncrypt` secure channel; otherwise the server returns `Bad_UserAccessDenied` / `Bad_SecurityModeInsufficient` which surfaces as a `ServiceResultException`.
 
 ## GDS

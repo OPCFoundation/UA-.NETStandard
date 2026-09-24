@@ -356,6 +356,11 @@ namespace Opc.Ua.Client
                     ct.ThrowIfCancellationRequested();
                     m_logger.ManagedSessionRedundancyDiscoveryFailed(exception);
                 }
+                finally
+                {
+                    // The bounded wait can finish before linked cancellation is delivered.
+                    await linked.CancelAsync().ConfigureAwait(false);
+                }
             }
             return WithEndpoint(server, endpoint);
         }

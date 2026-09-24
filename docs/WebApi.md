@@ -143,6 +143,10 @@ endpoint description with all of these fields pre-populated.
 > bearer validator the listener fail-closed rejects every
 > bearer-prefix upgrade rather than echo the token back.
 
+The persistent WSS client multiplexes requests with connection-local wire
+handles while preserving caller-visible handles. See [Transports](Transports.md)
+for cancellation, late-response routing and connection-lifetime behavior.
+
 ## Wire format
 
 The body is the bare `<Service>Request` / `<Service>Response` object —

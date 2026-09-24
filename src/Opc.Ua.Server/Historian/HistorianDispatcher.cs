@@ -317,28 +317,7 @@ namespace Opc.Ua.Server.Historian
 
             ArrayOf<DataValue> values = details.UpdateValues;
             HistorianUpdateOutcome<DataValue> outcome =
-                provider is IHistorianTransactionalProvider transactional
-                ? details.PerformInsertReplace switch
-                {
-                    PerformUpdateType.Insert => await transactional.InsertAtomicAsync(
-                        opContext,
-                        node.NodeId,
-                        values,
-                        cancellationToken).ConfigureAwait(false),
-                    PerformUpdateType.Replace => await transactional.ReplaceAtomicAsync(
-                        opContext,
-                        node.NodeId,
-                        values,
-                        cancellationToken).ConfigureAwait(false),
-                    PerformUpdateType.Update => await transactional.UpdateAtomicAsync(
-                        opContext,
-                        node.NodeId,
-                        values,
-                        cancellationToken).ConfigureAwait(false),
-                    _ => new HistorianUpdateOutcome<DataValue>(
-                        RepeatStatus(StatusCodes.BadInvalidArgument, values.Count).ToArrayOf())
-                }
-                : details.PerformInsertReplace switch
+                details.PerformInsertReplace switch
                 {
                     PerformUpdateType.Insert => await data.InsertAsync(
                         opContext,

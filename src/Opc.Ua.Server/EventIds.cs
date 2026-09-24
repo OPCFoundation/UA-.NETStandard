@@ -289,9 +289,9 @@ namespace Opc.Ua
         public const int KeyCredentialPushSubject = 640;
 
         /// <summary>
-        /// Event identifier offset for deferred node-manager cleanup.
+        /// Event identifier offset for asynchronous node-manager diagnostics.
         /// </summary>
-        public const int NodeManagerDisposal = 650;
+        public const int AsyncCustomNodeManager = 650;
 
         /// <summary>
         /// Event identifier offset for pending certificate-key compensation.

@@ -118,7 +118,8 @@ namespace Opc.Ua.Redundancy
                     throw new ObjectDisposedException(nameof(SharedStoreLeaseElection));
                 }
                 ExpireLeaseIfNeeded();
-                attempt = ++m_attempt;
+                // Concurrent callers share authority; only revocation invalidates their replies.
+                attempt = m_attempt;
                 lifetime = m_cts.Token;
             }
             DispatchNotifications();
@@ -323,6 +324,14 @@ namespace Opc.Ua.Redundancy
                 ExpireLeaseIfNeeded();
                 if (!m_disposed && attempt == m_attempt)
                 {
+                    if (acquired &&
+                        m_isLeader &&
+                        timestamp < m_confirmedTimestamp &&
+                        expiryTicks < m_confirmedExpiryTicks)
+                    {
+                        // A delayed successful reply must not shorten a newer confirmed renewal.
+                        return true;
+                    }
                     // Reconfirming unchanged storage must not restart its monotonic lifetime.
                     long confirmedTimestamp = m_isLeader && expiryTicks == m_confirmedExpiryTicks
                         ? m_confirmedTimestamp

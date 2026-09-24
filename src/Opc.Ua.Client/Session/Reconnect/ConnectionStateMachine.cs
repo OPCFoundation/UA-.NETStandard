@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -100,6 +101,8 @@ namespace Opc.Ua.Client
         private bool m_hasConnected;
         private readonly ITimer m_recoveryTimer;
         private ConnectionStateBudgetOperation? m_requestedReconnect;
+        private readonly Queue<ConnectionStateChangedEventArgs> m_stateChanges = new();
+        private bool m_dispatchingStateChanges;
 
         /// <summary>
         /// Delegate invoked to perform the actual session connect.
@@ -332,6 +335,7 @@ namespace Opc.Ua.Client
             }
 
             m_trigger.Set();
+            DispatchStateChanges();
             return true;
         }
 
@@ -363,6 +367,7 @@ namespace Opc.Ua.Client
             CancelCloseRequested();
 
             m_trigger.Set();
+            DispatchStateChanges();
         }
 
         /// <summary>
@@ -389,6 +394,7 @@ namespace Opc.Ua.Client
             }
 
             m_trigger.Set();
+            DispatchStateChanges();
         }
 
         /// <inheritdoc/>
@@ -564,6 +570,7 @@ namespace Opc.Ua.Client
                     m_closed.Set();
                 }
 
+                DispatchStateChanges();
                 m_logger.ConnectionStateMachineWorkerExiting();
             }
         }
@@ -620,6 +627,7 @@ namespace Opc.Ua.Client
                     m_trigger.Set();
                 }
             }
+            DispatchStateChanges();
         }
 
         /// <summary>
@@ -710,6 +718,7 @@ namespace Opc.Ua.Client
                             m_settled.Set();
                         }
 
+                        DispatchStateChanges();
                         return;
                     }
 
@@ -725,7 +734,7 @@ namespace Opc.Ua.Client
                             return;
                         }
 
-                        OnStateChanged(new ConnectionStateChangedEventArgs
+                        m_stateChanges.Enqueue(new ConnectionStateChangedEventArgs
                         {
                             PreviousState = ConnectionState.Reconnecting,
                             NewState = ConnectionState.Reconnecting,
@@ -733,6 +742,7 @@ namespace Opc.Ua.Client
                             ReconnectAttempt = attempt
                         });
                     }
+                    DispatchStateChanges();
                 }
             }
             catch (OperationCanceledException) when (!ct.IsCancellationRequested)
@@ -823,6 +833,7 @@ namespace Opc.Ua.Client
             }
 
             m_trigger.Set();
+            DispatchStateChanges();
         }
 
         /// <summary>
@@ -902,6 +913,7 @@ namespace Opc.Ua.Client
                     m_settled.Set();
                 }
             }
+            DispatchStateChanges();
         }
 
         /// <summary>
@@ -934,6 +946,7 @@ namespace Opc.Ua.Client
                 m_settled.Set();
                 m_closed.Set();
             }
+            DispatchStateChanges();
         }
 
         /// <summary>
@@ -1085,7 +1098,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Transition to a new state and raise the <see cref="StateChanged"/> event.
+        /// Transition to a new state and enqueue the <see cref="StateChanged"/> event.
         /// Must be called under <see cref="m_lock"/>.
         /// </summary>
         private void TransitionTo(
@@ -1120,7 +1133,7 @@ namespace Opc.Ua.Client
                 previous,
                 newState);
 
-            OnStateChanged(new ConnectionStateChangedEventArgs
+            m_stateChanges.Enqueue(new ConnectionStateChangedEventArgs
             {
                 PreviousState = previous,
                 NewState = newState,
@@ -1128,6 +1141,36 @@ namespace Opc.Ua.Client
                 ReconnectAttempt = reconnectAttempt,
                 UnderlyingChannelState = underlyingChannelState
             });
+        }
+
+        /// <summary>
+        /// Delivers ordered notifications outside the state lock. Reentrant transitions enqueue
+        /// behind the current notification rather than interrupting its remaining observers.
+        /// </summary>
+        private void DispatchStateChanges()
+        {
+            lock (m_lock)
+            {
+                if (m_dispatchingStateChanges)
+                {
+                    return;
+                }
+                m_dispatchingStateChanges = true;
+            }
+            while (true)
+            {
+                ConnectionStateChangedEventArgs change;
+                lock (m_lock)
+                {
+                    if (m_stateChanges.Count == 0)
+                    {
+                        m_dispatchingStateChanges = false;
+                        return;
+                    }
+                    change = m_stateChanges.Dequeue();
+                }
+                OnStateChanged(change);
+            }
         }
 
         /// <summary>

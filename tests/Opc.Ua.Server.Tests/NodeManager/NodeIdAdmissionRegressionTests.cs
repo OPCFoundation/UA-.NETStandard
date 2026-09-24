@@ -44,6 +44,92 @@ namespace Opc.Ua.Server.Tests.NodeManager
     [Category("NodeManagement")]
     public sealed class NodeIdAdmissionRegressionTests
     {
+        [TestCase("recovery", true, "service")]
+        [TestCase("recovery", true, "exception")]
+        [TestCase("recovery", true, "cancelled")]
+        [TestCase("recovery", false, "service")]
+        [TestCase("recovery", false, "exception")]
+        [TestCase("recovery", false, "cancelled")]
+        [TestCase("references", false, "service")]
+        [TestCase("references", false, "exception")]
+        [TestCase("references", false, "cancelled")]
+        public async Task FailedAddNodeRemovesIndexedNodeAndAllowsRetry(
+            string stage,
+            bool localParent,
+            string failureKind)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (var manager = new AdmissionHooks(server.Object))
+            using (OperationContext context = CreateContext())
+            using (var cancellation = new CancellationTokenSource())
+            {
+                ushort ns = manager.NamespaceIndexes[0];
+                var parent = new BaseObjectState(null)
+                {
+                    NodeId = localParent ? new NodeId("Parent", ns) : ObjectIds.ObjectsFolder,
+                    BrowseName = new QualifiedName("Parent", ns)
+                };
+                if (localParent)
+                {
+                    await manager.RegisterAsync(parent).ConfigureAwait(false);
+                }
+                var master = new Mock<IMasterNodeManager>();
+                Mock<IDynamicNodeManagerHost> recovery = master.As<IDynamicNodeManagerHost>();
+                server.Setup(value => value.NodeManager).Returns(master.Object);
+                bool fail = true;
+                Exception Failure()
+                {
+                    if (failureKind == "cancelled")
+                    {
+                        cancellation.Cancel();
+                        return new OperationCanceledException(cancellation.Token);
+                    }
+                    return failureKind == "service"
+                        ? new ServiceResultException(StatusCodes.BadResourceUnavailable)
+                        : new InvalidOperationException("Registration failed after indexing.");
+                }
+                recovery.Setup(value => value.RecoverDetachedMonitoredItemsAsync(
+                        It.IsAny<IAsyncNodeManager>(),
+                        It.IsAny<IReadOnlyCollection<NodeId>>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns(() => fail && stage == "recovery" ? throw Failure() : default);
+                master.Setup(value => value.AddReferencesAsync(
+                        It.IsAny<NodeId>(), It.IsAny<IList<IReference>>(), It.IsAny<CancellationToken>()))
+                    .Returns(() => fail && stage == "references" ? throw Failure() : default);
+                AddNodesItem item = manager.CreateItem("Child", ReferenceTypeIds.HasComponent);
+                item.ParentNodeId = parent.NodeId;
+                item.RequestedNewNodeId = new NodeId("Child", ns);
+
+                if (failureKind == "service")
+                {
+                    (ServiceResult result, NodeId addedId) = await manager.AddNodeAsync(
+                        context, item, cancellation.Token).ConfigureAwait(false);
+                    Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadResourceUnavailable));
+                    Assert.That(addedId.IsNull, Is.True);
+                }
+                else if (failureKind == "cancelled")
+                {
+                    Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                        await manager.AddNodeAsync(context, item, cancellation.Token).ConfigureAwait(false));
+                }
+                else
+                {
+                    Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                        await manager.AddNodeAsync(context, item, cancellation.Token).ConfigureAwait(false));
+                }
+
+                Assert.That(manager.NodeCount, Is.EqualTo(localParent ? 1 : 0));
+                Assert.That(parent.FindChildWithQualifiedName(manager.SystemContext, item.BrowseName), Is.Null);
+                fail = false;
+                (ServiceResult retry, NodeId retryId) = await manager.AddNodeAsync(context, item)
+                    .ConfigureAwait(false);
+                Assert.That(retry.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(retryId, Is.EqualTo(new NodeId("Child", ns)));
+                Assert.That(manager.GetNode(retryId).BrowseName, Is.EqualTo(item.BrowseName));
+            }
+        }
+
         /// <summary>
         /// Verifies automatic allocation chooses another identifier without replacing the original
         /// node or its references.

@@ -47,6 +47,92 @@ namespace Opc.Ua.Core.Tests.Security
     [NonParallelizable]
     public class SecurityPoliciesTests
     {
+        /// <summary>
+        /// Verifies provider-facing algorithm identifiers match the policy's specified key strength.
+        /// </summary>
+        [TestCase(SecurityPolicies.Aes128_Sha256_RsaOaep, SymmetricEncryptionAlgorithm.Aes128Cbc,
+            SymmetricSignatureAlgorithm.HmacSha256, 16)]
+        [TestCase(SecurityPolicies.ECC_nistP384_AesGcm, SymmetricEncryptionAlgorithm.Aes256Gcm,
+            SymmetricSignatureAlgorithm.Aes256Gcm, 32)]
+        [TestCase(SecurityPolicies.ECC_curve448_AesGcm, SymmetricEncryptionAlgorithm.Aes256Gcm,
+            SymmetricSignatureAlgorithm.Aes256Gcm, 32)]
+        public void SecurityPolicySymmetricAlgorithmsMatchKeyLengths(
+            string uri,
+            SymmetricEncryptionAlgorithm encryption,
+            SymmetricSignatureAlgorithm signature,
+            int keyLength)
+        {
+            SecurityPolicyInfo policy = uri switch
+            {
+                SecurityPolicies.Aes128_Sha256_RsaOaep => SecurityPolicyInfo.Aes128_Sha256_RsaOaep,
+                SecurityPolicies.ECC_nistP384_AesGcm => SecurityPolicyInfo.ECC_nistP384_AesGcm,
+                _ => SecurityPolicyInfo.ECC_curve448_AesGcm
+            };
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(policy.SymmetricEncryptionAlgorithm, Is.EqualTo(encryption));
+                Assert.That(policy.SymmetricSignatureAlgorithm, Is.EqualTo(signature));
+                Assert.That(policy.SymmetricEncryptionKeyLength, Is.EqualTo(keyLength));
+            }
+        }
+
+        /// <summary>
+        /// Verifies an unknown URI cannot borrow support from a recognized policy name.
+        /// </summary>
+        [TestCase(SecurityPolicies.Basic256Sha256 + "Foo")]
+        [TestCase(SecurityPolicies.None + "Unknown")]
+        [TestCase("urn:unsupported:Basic256Sha256")]
+        [TestCase(nameof(SecurityPolicies.Basic256Sha256))]
+        public void ValidateSecurityPoliciesRejectsUnknownUriSubstrings(string uri)
+        {
+            var configuration = new ServerConfiguration
+            {
+                SecurityPolicies =
+                [
+                    new ServerSecurityPolicy
+                    {
+                        SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                        SecurityPolicyUri = uri
+                    },
+                    new ServerSecurityPolicy
+                    {
+                        SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                        SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+                    }
+                ]
+            };
+            configuration.ValidateSecurityPolicies();
+            Assert.That(configuration.SecurityPolicies, Has.Count.EqualTo(1));
+            Assert.That(configuration.SecurityPolicies[0].SecurityPolicyUri,
+                Is.EqualTo(SecurityPolicies.Basic256Sha256));
+        }
+
+        /// <summary>
+        /// Verifies a registered but platform-disabled variant is not advertised through its supported base name.
+        /// </summary>
+        [Test]
+        public void ValidateSecurityPoliciesRejectsPlatformDisabledVariant()
+        {
+            const string uri = SecurityPolicies.Basic256Sha256 + "_AuditUnsupported";
+            using IDisposable registration = SecurityPolicies.Default.Register(new SecurityPolicyInfo(uri)
+            {
+                PlatformSupport = () => false
+            });
+            var configuration = new ServerConfiguration
+            {
+                SecurityPolicies =
+                [
+                    new ServerSecurityPolicy
+                    {
+                        SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                        SecurityPolicyUri = uri
+                    }
+                ]
+            };
+            configuration.ValidateSecurityPolicies();
+            Assert.That(configuration.SecurityPolicies, Is.Empty);
+        }
+
         [Test]
         public void LookupHelpersHandleKnownShortFullAndUnknownPolicies()
         {

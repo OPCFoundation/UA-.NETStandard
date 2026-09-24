@@ -64,6 +64,7 @@ namespace Opc.Ua.Server.FileSystem
         public override async ValueTask<IReference?> NextAsync(
             CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             IReference? reference = base.Next();
             if (reference != null)
             {
@@ -112,9 +113,22 @@ namespace Opc.Ua.Server.FileSystem
             return NextPendingChild();
         }
 
+        /// <inheritdoc/>
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                m_pending = null;
+                m_stage = Stage.Done;
+            }
+            base.Dispose(disposing);
+        }
+
         private bool NeedsProviderEntries()
         {
-            return !InternalOnly && IsRequired(ReferenceTypeIds.HasComponent, false);
+            return !InternalOnly &&
+                IsRequired(ReferenceTypeIds.HasComponent, false) &&
+                (BrowseName.IsNull || BrowseName.NamespaceIndex == m_source.BrowseName.NamespaceIndex);
         }
 
         private IReference? NextPendingChild()
@@ -136,6 +150,8 @@ namespace Opc.Ua.Server.FileSystem
             CancellationToken cancellationToken)
         {
             var list = new List<FileSystemEntry>();
+            bool limitExceeded = false;
+            bool namedChild = !BrowseName.IsNull;
             try
             {
                 await foreach (FileSystemEntry entry in m_host.Provider
@@ -143,7 +159,21 @@ namespace Opc.Ua.Server.FileSystem
                     .WithCancellation(cancellationToken)
                     .ConfigureAwait(false))
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (namedChild && entry.Name != BrowseName.Name)
+                    {
+                        continue;
+                    }
+                    if (list.Count >= FileDirectoryBindingOptions.DefaultMaxEntries)
+                    {
+                        limitExceeded = true;
+                        break;
+                    }
                     list.Add(entry);
+                    if (namedChild)
+                    {
+                        break;
+                    }
                 }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -157,6 +187,13 @@ namespace Opc.Ua.Server.FileSystem
                 // Browse continues without children when the provider
                 // can't enumerate (e.g. permission denied).
             }
+            cancellationToken.ThrowIfCancellationRequested();
+            if (limitExceeded)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "The directory contains more entries than the browse limit.");
+            }
             return list;
         }
 
@@ -167,28 +204,9 @@ namespace Opc.Ua.Server.FileSystem
                 return null;
             }
 
-            // Named child requested — scan once and stop.
-            if (!BrowseName.IsNull)
-            {
-                if (m_source.BrowseName.NamespaceIndex != BrowseName.NamespaceIndex)
-                {
-                    m_pending = null;
-                    return null;
-                }
-                foreach (FileSystemEntry entry in m_pending)
-                {
-                    if (entry.Name == BrowseName.Name)
-                    {
-                        m_pending = null;
-                        return CreateReference(entry);
-                    }
-                }
-                m_pending = null;
-                return null;
-            }
-
             if (m_pendingIndex >= m_pending.Count)
             {
+                m_pending = null;
                 return null;
             }
             return CreateReference(m_pending[m_pendingIndex++]);

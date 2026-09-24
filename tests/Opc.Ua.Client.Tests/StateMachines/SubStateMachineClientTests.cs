@@ -33,6 +33,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
@@ -240,6 +241,182 @@ namespace Opc.Ua.Client.Tests.StateMachines
                     }
                 },
                 Throws.InstanceOf<OperationCanceledException>());
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task ObserveEffectiveStatePropagatesPumpFaultAndStopsSiblingAsync(bool parentFails)
+        {
+            var session = new Mock<ISessionClient>(MockBehavior.Strict);
+            FiniteStateMachineTypeClient client = CreateClient(session);
+            var childMachine = new NodeId(12u, 2);
+            var parentState = new NodeId(20u, 2);
+            var childState = new NodeId(21u, 2);
+            var availableStates = new NodeId(30u, 2);
+            var parentValue = new NodeId(31u, 2);
+            var parentId = new NodeId(32u, 2);
+            var childValue = new NodeId(41u, 2);
+            var childId = new NodeId(42u, 2);
+            var failure = new ServiceResultException(StatusCodes.BadRequestTimeout);
+            bool failRead = false;
+            session.Setup(value => value.TranslateBrowsePathsToNodeIdsAsync(
+                    null, It.IsAny<ArrayOf<BrowsePath>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((RequestHeader _, ArrayOf<BrowsePath> paths, CancellationToken _) =>
+                {
+                    var results = new List<BrowsePathResult>();
+                    foreach (BrowsePath path in paths)
+                    {
+                        string name = path.RelativePath.Elements[0].TargetName.Name!;
+                        NodeId target = NodeId.Null;
+                        if (name == BrowseNames.AvailableStates)
+                        {
+                            target = availableStates;
+                        }
+                        else if (name == BrowseNames.CurrentState)
+                        {
+                            bool parent = path.StartingNode == client.ObjectId;
+                            target = path.RelativePath.Elements.Count == 2
+                                ? (parent ? parentId : childId)
+                                : (parent ? parentValue : childValue);
+                        }
+                        results.Add(target.IsNull
+                            ? new BrowsePathResult { StatusCode = StatusCodes.BadNoMatch }
+                            : new BrowsePathResult
+                            {
+                                Targets = [new BrowsePathTarget { TargetId = target }]
+                            });
+                    }
+                    return new TranslateBrowsePathsToNodeIdsResponse { Results = results };
+                });
+            session.Setup(value => value.ReadAsync(
+                    null, 0, It.IsAny<TimestampsToReturn>(),
+                    It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((RequestHeader _, double _, TimestampsToReturn _,
+                    ArrayOf<ReadValueId> reads, CancellationToken _) =>
+                {
+                    if (failRead && reads[0].NodeId == (parentFails ? parentValue : childValue))
+                    {
+                        throw failure;
+                    }
+                    var values = new List<DataValue>();
+                    foreach (ReadValueId read in reads)
+                    {
+                        Variant value;
+                        if (read.NodeId == availableStates)
+                        {
+                            ArrayOf<NodeId> states = [parentState];
+                            value = Variant.From(states);
+                        }
+                        else if (read.NodeId == parentState)
+                        {
+                            value = Variant.From(new QualifiedName("Active", 2));
+                        }
+                        else if (read.NodeId == parentId || read.NodeId == childId)
+                        {
+                            value = Variant.From(read.NodeId == parentId ? parentState : childState);
+                        }
+                        else
+                        {
+                            value = Variant.From(new LocalizedText(read.NodeId == parentValue ? "Active" : "Idle"));
+                        }
+                        values.Add(new DataValue(value));
+                    }
+                    return new ReadResponse { Results = values };
+                });
+            session.Setup(value => value.BrowseAsync(
+                    null, null, 0,
+                    It.Is<ArrayOf<BrowseDescription>>(nodes => nodes.Count == 1 && nodes[0].NodeId == parentState),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new BrowseResponse
+                {
+                    Results = [new BrowseResult
+                    {
+                        References = [new ReferenceDescription { NodeId = childMachine }]
+                    }]
+                });
+            var parentChanges = Channel.CreateUnbounded<DataValueChange>();
+            var childChanges = Channel.CreateUnbounded<DataValueChange>();
+            var parentReady = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var childReady = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var parentStopped = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var childStopped = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var streaming = new Mock<IStreamingSubscription>();
+            streaming.Setup(value => value.SubscribeDataChangesAsync(
+                    parentId, It.IsAny<MonitoringOptions>(), It.IsAny<CancellationToken>()))
+                .Returns((NodeId _, MonitoringOptions _, CancellationToken ct) =>
+                    ObserveChangesAsync(parentChanges.Reader, parentReady, parentStopped, ct));
+            streaming.Setup(value => value.SubscribeDataChangesAsync(
+                    childId, It.IsAny<MonitoringOptions>(), It.IsAny<CancellationToken>()))
+                .Returns((NodeId _, MonitoringOptions _, CancellationToken ct) =>
+                    ObserveChangesAsync(childChanges.Reader, childReady, childStopped, ct));
+            using var cancellation = new CancellationTokenSource();
+            await using IAsyncEnumerator<FiniteStateSnapshot> enumerator = client
+                .ObserveEffectiveStateAsync(
+                    streaming.Object, NUnitTelemetryContext.Create(), ct: cancellation.Token)
+                .GetAsyncEnumerator();
+            Task<bool> move = enumerator.MoveNextAsync().AsTask();
+            try
+            {
+                await Task.WhenAll(parentReady.Task, childReady.Task)
+                    .WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                parentChanges.Writer.TryWrite(default);
+                Assert.That(await move.ConfigureAwait(false), Is.True);
+                Assert.That(enumerator.Current.CurrentStateId, Is.EqualTo(parentState));
+                Assert.That(enumerator.Current.SubMachine, Is.Null);
+                move = enumerator.MoveNextAsync().AsTask();
+                childChanges.Writer.TryWrite(default);
+                Assert.That(await move.ConfigureAwait(false), Is.True);
+                Assert.That(enumerator.Current.SubMachine!.CurrentStateId, Is.EqualTo(childState));
+
+                failRead = true;
+                move = enumerator.MoveNextAsync().AsTask();
+                (parentFails ? parentChanges : childChanges).Writer.TryWrite(default);
+                ServiceResultException actual = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await move.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false))!;
+
+                Assert.That(actual, Is.SameAs(failure));
+                Assert.That(await (parentFails ? childStopped : parentStopped).Task.ConfigureAwait(false), Is.True);
+                Assert.That(parentStopped.Task.IsCompleted, Is.True);
+                Assert.That(childStopped.Task.IsCompleted, Is.True);
+            }
+            finally
+            {
+                cancellation.Cancel();
+                parentChanges.Writer.TryComplete();
+                childChanges.Writer.TryComplete();
+                try
+                {
+                    await move.ConfigureAwait(false);
+                }
+                catch (ServiceResultException)
+                {
+                    // Observe the failed move before disposing the enumerator, including on the red path.
+                }
+                catch (OperationCanceledException)
+                {
+                    // The cleanup cancellation also releases a reader when an assertion fails.
+                }
+            }
+        }
+
+        private static async IAsyncEnumerable<DataValueChange> ObserveChangesAsync(
+            ChannelReader<DataValueChange> reader,
+            TaskCompletionSource<bool> ready,
+            TaskCompletionSource<bool> stopped,
+            [EnumeratorCancellation] CancellationToken ct)
+        {
+            ready.TrySetResult(true);
+            try
+            {
+                await foreach (DataValueChange change in reader.ReadAllAsync(ct).ConfigureAwait(false))
+                {
+                    yield return change;
+                }
+            }
+            finally
+            {
+                stopped.TrySetResult(ct.IsCancellationRequested);
+            }
         }
 
         private static void SetupTranslateAllEmpty(Mock<ISessionClient> sessionMock)

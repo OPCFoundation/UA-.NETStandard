@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Server.StateMachines;
 
@@ -53,6 +55,82 @@ namespace Opc.Ua.Server.Tests.StateMachines
         public void SetUp()
         {
             m_context = StateMachineTestFixtures.CreateContext();
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ConcurrentParentAndChildTransitionsDoNotDeadlockAsync(bool useCause)
+        {
+            var childEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var parentEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var releaseChild = new ManualResetEventSlim();
+            using var releaseParent = new ManualResetEventSlim();
+            ServiceResult nestedResult = StatusCodes.BadUnexpectedError;
+            FluentFiniteStateMachineState parent = null;
+            parent = BuildParent()
+                .AddTransition(11, "ReenterA", 1, 1)
+                .OnCause(110, 1, 11)
+                .OnCause(120, 1, 12)
+                .WithInitialState(1)
+                .WithSubStateMachine(1, new QualifiedName("ChildSm", 1), child => child
+                    .AddState(10, "ChildIdle", isInitial: true)
+                    .AddState(11, "ChildDone")
+                    .AddTransition(100, "Finish", 10, 11)
+                    .OnEnterState(11, (context, _) =>
+                    {
+                        childEntered.TrySetResult(true);
+                        if (!releaseChild.Wait(TimeSpan.FromSeconds(10)))
+                        {
+                            throw new TimeoutException("The child callback was not released.");
+                        }
+                        nestedResult = useCause
+                            ? parent.DoCause(context, null, 120, default, [])
+                            : parent.DoTransition(context, 12, 0, default, []);
+                    }))
+                .StateMachine;
+            var child = (FluentFiniteStateMachineState)GetChild(parent, "ChildSm");
+            parent.OnBeforeTransition = (_, _, transition, _, _, _) =>
+            {
+                if (transition == 11)
+                {
+                    parentEntered.TrySetResult(true);
+                    if (!releaseParent.Wait(TimeSpan.FromSeconds(10)))
+                    {
+                        throw new TimeoutException("The parent transition was not released.");
+                    }
+                }
+                return ServiceResult.Good;
+            };
+
+            Task<ServiceResult> childTransition = Task.Run(() =>
+                child.DoTransition(m_context, 100, 0, default, []));
+            try
+            {
+                await childEntered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                Task<ServiceResult> parentTransition = Task.Run(() => useCause
+                    ? parent.DoCause(m_context, null, 110, default, [])
+                    : parent.DoTransition(m_context, 11, 0, default, []));
+                await parentEntered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                releaseParent.Set();
+                releaseChild.Set();
+
+                ServiceResult[] results = await Task.WhenAll(childTransition, parentTransition)
+                    .WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                Assert.That(results, Has.All.Property(nameof(ServiceResult.StatusCode)).EqualTo(StatusCodes.Good));
+                Assert.That(nestedResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(CurrentStateId(parent), Is.EqualTo(2));
+                Assert.That(child.IsSuspended, Is.True);
+
+                Assert.That(parent.DoTransition(m_context, 21, 0, default, []).StatusCode,
+                    Is.EqualTo(StatusCodes.Good));
+                Assert.That(CurrentStateId(child), Is.EqualTo(10));
+                Assert.That(child.IsSuspended, Is.False);
+            }
+            finally
+            {
+                releaseParent.Set();
+                releaseChild.Set();
+            }
         }
 
         [Test]

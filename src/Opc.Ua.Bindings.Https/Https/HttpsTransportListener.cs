@@ -2075,6 +2075,9 @@ namespace Opc.Ua.Bindings
                 ServerChannelCertificate,
                 peerAddress: context.Connection.RemoteIpAddress);
 
+            using var sendGate = new SemaphoreSlim(1, 1);
+            var requests = new BackgroundTaskScope(
+                nameof(AcceptWebSocketOpenApiAsync), m_telemetry);
             byte[]? receiveBuffer = null;
             try
             {
@@ -2099,10 +2102,6 @@ namespace Opc.Ua.Bindings
                             .ConfigureAwait(false);
                         if (result.MessageType == WebSocketMessageType.Close)
                         {
-                            await ws.CloseAsync(
-                                WebSocketCloseStatus.NormalClosure,
-                                "Client requested close.",
-                                ct).ConfigureAwait(false);
                             return;
                         }
                         totalRead += result.Count;
@@ -2131,46 +2130,17 @@ namespace Opc.Ua.Bindings
                     }
                     while (!completed);
 
-                    IServiceResponse responseToSend;
                     byte[] messageBytes = new byte[totalRead];
                     Buffer.BlockCopy(receiveBuffer, 0, messageBytes, 0, totalRead);
-                    try
+                    if (!requests.Run(nameof(ProcessOpenApiWebSocketRequestAsync), async shutdown =>
                     {
-                        IServiceRequest request = JsonDecoder.DecodeMessage<IServiceRequest>(
-                            messageBytes,
-                            m_quotas.MessageContext);
-                        request.RequestHeader ??= new RequestHeader();
-
-                        responseToSend = await m_callback!
-                            .ProcessRequestAsync(channelContext, request, ct)
-                            .ConfigureAwait(false);
-                    }
-                    catch (ServiceResultException sre)
+                        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, shutdown);
+                        await ProcessOpenApiWebSocketRequestAsync(
+                            ws, sendGate, channelContext, messageBytes, linked.Token).ConfigureAwait(false);
+                    }))
                     {
-                        responseToSend = JsonRequestMapper.CreateFault(m_logger, messageBytes, sre);
+                        return;
                     }
-                    catch (Exception ex)
-                    {
-                        m_logger.ErrorProcessingOpenApiRequest(ex);
-                        responseToSend = JsonRequestMapper.CreateFault(m_logger, messageBytes, ex);
-                    }
-
-                    byte[] responseBytes = JsonRequestMapper.EncodeResponse(
-                        responseToSend,
-                        m_quotas.MessageContext);
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
-                    await ws.SendAsync(
-                        new ReadOnlyMemory<byte>(responseBytes, 0, responseBytes.Length),
-                        WebSocketMessageType.Text,
-                        endOfMessage: true,
-                        ct).ConfigureAwait(false);
-#else
-                    await ws.SendAsync(
-                        new ArraySegment<byte>(responseBytes, 0, responseBytes.Length),
-                        WebSocketMessageType.Text,
-                        endOfMessage: true,
-                        ct).ConfigureAwait(false);
-#endif
                 }
             }
             catch (OperationCanceledException)
@@ -2183,6 +2153,7 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
+                await requests.DisposeAsync().ConfigureAwait(false);
                 if (receiveBuffer != null)
                 {
                     m_bufferManager.ReturnBuffer(receiveBuffer, nameof(AcceptWebSocketOpenApiAsync));
@@ -2191,7 +2162,7 @@ namespace Opc.Ua.Bindings
                 {
                     if (ws.State is WebSocketState.Open or WebSocketState.CloseReceived)
                     {
-                        await ws.CloseAsync(
+                        await ws.CloseOutputAsync(
                             WebSocketCloseStatus.NormalClosure,
                             string.Empty,
                             CancellationToken.None).ConfigureAwait(false);
@@ -2202,6 +2173,53 @@ namespace Opc.Ua.Bindings
                     // Best-effort.
                 }
                 ws.Dispose();
+            }
+        }
+
+        private async ValueTask ProcessOpenApiWebSocketRequestAsync(
+            WebSocket socket,
+            SemaphoreSlim sendGate,
+            SecureChannelContext channelContext,
+            byte[] messageBytes,
+            CancellationToken ct)
+        {
+            IServiceResponse response;
+            try
+            {
+                IServiceRequest request = JsonDecoder.DecodeMessage<IServiceRequest>(
+                    messageBytes, m_quotas.MessageContext);
+                request.RequestHeader ??= new RequestHeader();
+                response = await m_callback!.ProcessRequestAsync(channelContext, request, ct).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (ServiceResultException exception)
+            {
+                response = JsonRequestMapper.CreateFault(m_logger, messageBytes, exception);
+            }
+            catch (Exception exception)
+            {
+                m_logger.ErrorProcessingOpenApiRequest(exception);
+                response = JsonRequestMapper.CreateFault(m_logger, messageBytes, exception);
+            }
+            ct.ThrowIfCancellationRequested();
+            byte[] payload = JsonRequestMapper.EncodeResponse(response, m_quotas.MessageContext);
+            await sendGate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                await socket.SendAsync(new ArraySegment<byte>(payload), WebSocketMessageType.Text,
+                    endOfMessage: true, ct).ConfigureAwait(false);
+            }
+            catch (WebSocketException exception)
+            {
+                m_logger.UnexpectedOpenApiWebSocketError(exception);
+                socket.Abort();
+            }
+            finally
+            {
+                sendGate.Release();
             }
         }
 
@@ -2327,7 +2345,8 @@ namespace Opc.Ua.Bindings
                 ServerBase.SetServerCertificateInEndpointDescription(
                     description,
                     serverCertificates,
-                    false);
+                    false,
+                    m_quotas.SecurityPolicyRegistry);
             }
         }
 

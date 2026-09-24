@@ -143,6 +143,12 @@ Registration atomically admits the new root without replacing an existing
 node. This add-only rule does not change the explicit runtime
 replacement/re-registration APIs.
 
+Variable admission also checks the supplied value against its datatype, rank
+and array dimensions. Each nonzero `ArrayDimensions` entry is a maximum length:
+shorter values are valid, while exceeding any dimension returns
+`BadNodeAttributesInvalid` without registering the node. Zero denotes an
+unknown maximum; null and empty arrays remain valid for compatible array types.
+
 The master node manager builds a routing table keyed by namespace index. During construction it ensures the configured dynamic namespace URI is present, registers the configuration/diagnostics manager first, registers the core node manager second, and then registers application managers. For a service request, `GetManagerHandleAsync` uses the `NodeId.NamespaceIndex` to find the candidate manager list and asks each candidate for a handle until one claims the node. If no explicit route exists for the namespace, it falls back to the core node manager. This means a namespace route is a candidate list, not a single-owner map.
 
 Multiple managers can serve the same namespace. `RegisterNamespaceManager(string namespaceUri, IAsyncNodeManager nodeManager)` appends a manager to the namespace route instead of replacing the existing route; the routing table also preserves manager order during lifecycle replacement. This is important for namespace 0 and for generated or runtime models that add nodes in namespaces already used by another manager.
@@ -169,6 +175,18 @@ already completed. Guarded helpers remain available within the active
 Subclasses must await their teardown operations before the callback returns.
 Operation lifetime extends through post-processing callbacks even after their
 semaphore scope has ended.
+
+`CustomNodeManager2` also closes admission before releasing its monitored-item
+manager. Its synchronous service and lifecycle calls, and its optional
+asynchronous method callbacks, retain operation leases until they return.
+Cleanup waits for those leases without holding the node lock or the admission
+lock, so a sampling worker can observe closed admission and finish. New calls
+after admission closes throw `ObjectDisposedException`. `Dispose()` initiates
+this shutdown; `DisposeAsync()` awaits the shared completion and propagates
+cleanup failures. `AsyncNodeManagerAdapter` forwards asynchronous disposal, so
+the master and server also await cleanup for adapted synchronous managers.
+An admitted callback may initiate shutdown with `Dispose()`, but must return
+before its caller awaits `DisposeAsync()`.
 
 Before serializing address-space deletion or disposal, the master drains
 configuration work that can call back into the server. Session-closing
@@ -1358,8 +1376,15 @@ normal node validation. Overlapping predicates fail with
 
 The resolver may return `null` for a syntactically valid id whose backing
 object does not exist. A returned node with `NodeId.Null` receives the
-requested id; a conflicting non-null id is rejected. The stack caches the
-result only in its existing per-operation and monitored-component caches:
+requested id; a conflicting non-null id is rejected with `BadNodeIdInvalid`.
+Resolver `ServiceResultException` failures and callback-template validation
+errors retain their exact status and are not cached as missing nodes.
+Batched operations report these errors only for the affected item and
+continue processing other items. During stored monitored-item restoration,
+a validation failure is logged and that item is skipped without aborting
+the remaining items. Request cancellation still stops the operation.
+
+The stack caches results only in its existing per-operation and monitored-component caches:
 virtual nodes are never inserted into `PredefinedNodes`.
 
 The returned `IVirtualNodeBuilder` applies one callback template to every
@@ -1855,6 +1880,13 @@ must not wait for the first event. Failures are returned to the subscribing
 client, reported through `OnError`, and stop that activation. For reactivatable
 producers, return a new readiness-aware stream from the `Publish` factory on
 each activation.
+
+Lifecycle attachment, recovery and compensating reattachment await the same
+readiness contract without holding admission for unrelated monitored-item
+services. Callback failure compensates only that operation's binding and
+notifier count, preserving a newer binding. Cleanup remains available after
+request cancellation, and compensation errors are reported with the original
+failure.
 
 Failed factories, iterators, and readiness checks are reported to the caller
 and `OnError`. While a source is still wanted, retries use an exponential delay
