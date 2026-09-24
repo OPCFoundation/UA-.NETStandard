@@ -163,6 +163,61 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             }
         }
 
+        /// <summary>
+        /// A transient per-item create failure must not be retried
+        /// back-to-back inside one apply pass: that would exhaust the retry
+        /// budget within milliseconds and leave the item un-created with no
+        /// pending change for the owner's backoff to reschedule.
+        /// </summary>
+        [Test]
+        public async Task ApplyChangesDoesNotRetryFailedCreateWithinOnePassAsync()
+        {
+            var services = new Mock<IMonitoredItemServiceSetClientMethods>();
+            int createCalls = 0;
+            services
+                .Setup(s => s.CreateMonitoredItemsAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<TimestampsToReturn>(),
+                    It.IsAny<ArrayOf<MonitoredItemCreateRequest>>(),
+                    It.IsAny<System.Threading.CancellationToken>()))
+                .ReturnsAsync(() =>
+                {
+                    createCalls++;
+                    return new CreateMonitoredItemsResponse
+                    {
+                        Results =
+                        [
+                            new MonitoredItemCreateResult
+                            {
+                                StatusCode = StatusCodes.BadResourceUnavailable
+                            }
+                        ]
+                    };
+                });
+            m_context.MonitoredItemServiceSet = services.Object;
+
+            var sut = new MonitoredItemManager(m_context, m_telemetry);
+            await using (sut.ConfigureAwait(false))
+            {
+                Assert.That(sut.TryAdd("Item", OptionsFactory.Create<MonitoredItemOptions>(),
+                    out IMonitoredItem monitoredItem), Is.True);
+                var item = (TestMonitoredItem)monitoredItem;
+
+                await sut.ApplyChangesAsync(false, false, default).ConfigureAwait(false);
+
+                Assert.That(createCalls, Is.EqualTo(1));
+                Assert.That(item.Created, Is.False);
+                Assert.That(item.HasPendingChanges, Is.True,
+                    "the failed create must stay queued for the next pass");
+                Assert.That(sut.HasPendingChanges, Is.True);
+
+                // The next pass (after the owner's backoff) retries it.
+                await sut.ApplyChangesAsync(false, false, default).ConfigureAwait(false);
+                Assert.That(createCalls, Is.EqualTo(2));
+            }
+        }
+
         [Test]
         public async Task PauseAndUnpauseMonitoredItemsAsync()
         {

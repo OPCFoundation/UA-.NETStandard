@@ -470,10 +470,32 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             CancellationToken ct)
         {
             bool modified = false;
+            var attemptedChanges = new HashSet<MonitoredItem.Change>();
+            var attemptedDeletes = new HashSet<MonitoredItem>();
             while (!ct.IsCancellationRequested &&
                 TryGetMonitoredItemChanges(
                     out List<MonitoredItem>? itemsToDelete, out List<MonitoredItem.Change>? itemsToModify, resetAll))
             {
+                if (modified &&
+                    itemsToDelete.TrueForAll(attemptedDeletes.Contains) &&
+                    itemsToModify.TrueForAll(attemptedChanges.Contains))
+                {
+                    // Everything still pending already failed once in this
+                    // call. Retrying it back-to-back would burn the per-item
+                    // retry budget within milliseconds (and spin forever on
+                    // a delete that keeps failing), so hand the leftovers back
+                    // and let the owner's backoff schedule the next attempt.
+                    if (itemsToDelete.Count != 0)
+                    {
+                        lock (m_monitoredItemsLock)
+                        {
+                            m_deletedItems.AddRange(itemsToDelete);
+                        }
+                    }
+                    break;
+                }
+                attemptedChanges.UnionWith(itemsToModify);
+                attemptedDeletes.UnionWith(itemsToDelete);
                 await ApplyMonitoredItemChangesAsync(itemsToDelete,
                     itemsToModify, ct).ConfigureAwait(false);
                 // While there are changes pending to be applied apply them
