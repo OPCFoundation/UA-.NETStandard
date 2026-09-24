@@ -148,10 +148,11 @@ namespace Opc.Ua.Server
                 RemoveCompletedRequests();
 
                 // A requeued request is the one currently being processed, not a new
-                // Publish request, so it never exceeds the limit. For a new request that
-                // exceeds the limit the oldest queued request is failed instead
-                // (OPC 10000-4, 5.14.5.1). Completion retires admission before exposing
-                // the completed task.
+                // Publish request, so it skips the admission check and never evicts a
+                // queued request; the pending count may briefly exceed the limit by the
+                // requeued requests. For a new request that exceeds the limit the oldest
+                // queued request is failed instead (OPC 10000-4, 5.14.5.1). Completion
+                // retires admission before exposing the completed task.
                 if (!requeue &&
                     Volatile.Read(ref m_pendingRequestCount) >= GetMaxRequestCount())
                 {
