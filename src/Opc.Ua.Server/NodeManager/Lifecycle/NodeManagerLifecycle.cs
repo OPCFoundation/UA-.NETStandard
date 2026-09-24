@@ -680,6 +680,16 @@ namespace Opc.Ua.Server
                             InvalidateContinuationPoints(
                                 server,
                                 state.Prepared.NodeManager);
+
+                            // A request routed before the unpublish can still have created a
+                            // monitored item on this manager while the drain waited for it.
+                            if (HasActiveMonitoredItems(server, state.Prepared.NodeManager))
+                            {
+                                await DetachActiveMonitoredItemsAsync(
+                                        server,
+                                        state.Prepared.NodeManager)
+                                    .ConfigureAwait(false);
+                            }
                             await UnbindFromServerAsync(
                                 server,
                                 state.Prepared.NodeManager,
@@ -1334,24 +1344,44 @@ namespace Opc.Ua.Server
                         retired.NotificationsSuspended = true;
                     }
                     retired.DrainPending = true;
-                    await WaitForNotificationDispatchesOutsideLifecycleSemaphoreAsync(
-                            server,
-                            host,
-                            retired.NodeManager)
-                        .ConfigureAwait(false);
-                    if (deferForActiveMonitoredItems &&
-                        HasActiveMonitoredItems(server, retired.NodeManager))
+                    try
                     {
-                        host.SetRetiredGenerationNotifications(
-                            retired.NodeManager,
-                            enabled: true);
-                        retired.NotificationsSuspended = false;
-                        retired.DrainPending = false;
-                        retiredDrainReady = false;
+                        await WaitForNotificationDispatchesOutsideLifecycleSemaphoreAsync(
+                                server,
+                                host,
+                                retired.NodeManager)
+                            .ConfigureAwait(false);
+                        if (deferForActiveMonitoredItems &&
+                            HasActiveMonitoredItems(server, retired.NodeManager))
+                        {
+                            host.SetRetiredGenerationNotifications(
+                                retired.NodeManager,
+                                enabled: true);
+                            retired.NotificationsSuspended = false;
+                            retired.DrainPending = false;
+                            retiredDrainReady = false;
+                        }
+                        else
+                        {
+                            InvalidateContinuationPoints(server, retired.NodeManager);
+                        }
                     }
-                    else
+                    catch
                     {
-                        InvalidateContinuationPoints(server, retired.NodeManager);
+                        // A pending drain blocks all retired-generation cleanup, so release
+                        // the claim before the committed-reload failure is reported.
+                        try
+                        {
+                            RestoreRetiredNotificationsForActiveItems(
+                                server,
+                                host,
+                                retired);
+                        }
+                        finally
+                        {
+                            retired.DrainPending = false;
+                        }
+                        throw;
                     }
                 }
 
@@ -1373,6 +1403,13 @@ namespace Opc.Ua.Server
                             replacementManager,
                             bindings,
                             CancellationToken.None).ConfigureAwait(false);
+                        if (!allowActiveMonitoredItems)
+                        {
+                            await MigrateLateMonitoredItemsAsync(
+                                server,
+                                retired.NodeManager,
+                                replacementManager).ConfigureAwait(false);
+                        }
                     }
 
                     if (retiredDrainReady)
@@ -2111,6 +2148,41 @@ namespace Opc.Ua.Server
                 .DetachCurrentAsync(CancellationToken.None)
                 .ConfigureAwait(false);
             monitoredItemTransition.MarkDeletedItems();
+        }
+
+        /// <summary>
+        /// Moves monitored items that in-flight requests created on a migrated generation
+        /// after its commit (their routing snapshot still contained it) to the replacement.
+        /// </summary>
+        private static async ValueTask MigrateLateMonitoredItemsAsync(
+            IServerInternal server,
+            IAsyncNodeManager retired,
+            IAsyncNodeManager replacement)
+        {
+            if (!HasActiveMonitoredItems(server, retired))
+            {
+                return;
+            }
+
+            MonitoredItemTransition monitoredItemTransition =
+                await PrepareMonitoredItemTransitionAsync(
+                    server,
+                    retired,
+                    replacement,
+                    CancellationToken.None).ConfigureAwait(false);
+            await monitoredItemTransition
+                .DetachCurrentAsync(CancellationToken.None)
+                .ConfigureAwait(false);
+            List<Exception> failures =
+                await monitoredItemTransition.AttachCompatibleAsync(
+                    CancellationToken.None).ConfigureAwait(false);
+            monitoredItemTransition.MarkDeletedItems();
+            if (failures.Count > 0)
+            {
+                throw new AggregateException(
+                    "Monitored items created during the reload could not be migrated.",
+                    failures);
+            }
         }
 
         private static async ValueTask<MonitoredItemTransition>
@@ -3307,10 +3379,11 @@ namespace Opc.Ua.Server
                     ExecutionContext.SuppressFlow();
                     restoreFlow = true;
                 }
-                m_backgroundWork.Run(
+                // Run refuses the work once the scope shuts down; the operation count
+                // must then be released here because the drain never runs.
+                scheduled = m_backgroundWork.Run(
                     nameof(DrainRetiredGenerationsAsync),
                     async _ => await DrainRetiredGenerationsAsync().ConfigureAwait(false));
-                scheduled = true;
             }
             finally
             {
@@ -3665,7 +3738,13 @@ namespace Opc.Ua.Server
                         "A retired NodeManager cannot be detached before its requests drain.");
                 }
                 InvalidateContinuationPoints(server, retired.NodeManager);
-                if (retired.DetachActiveMonitoredItems)
+
+                // A migrating reload moves its items at commit, but a request routed before
+                // the commit can still create one on the retired generation afterwards. If
+                // it could not be migrated it is invalidated instead of blocking cleanup.
+                if (retired.DetachActiveMonitoredItems ||
+                    (!retired.AllowActiveMonitoredItems &&
+                        HasActiveMonitoredItems(server, retired.NodeManager)))
                 {
                     await DetachActiveMonitoredItemsAsync(
                             server,
