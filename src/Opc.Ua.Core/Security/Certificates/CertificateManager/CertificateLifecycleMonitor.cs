@@ -85,16 +85,37 @@ namespace Opc.Ua
             m_timer = m_timeProvider.CreateTimer(CheckExpiry, null, TimeSpan.Zero, checkInterval);
         }
 
+        /// <summary>
+        /// Inspects an owned certificate snapshot and emits expiry notices only for the current monitor generation.
+        /// </summary>
         private void CheckExpiry(object? state)
         {
+            long generation;
+            lock (m_lock)
+            {
+                if (m_disposed)
+                {
+                    return;
+                }
+                generation = m_generation;
+            }
             try
             {
                 DateTime now = m_timeProvider.GetUtcNow().UtcDateTime;
                 using CertificateEntryCollection certificates = m_getCertificates();
                 foreach (CertificateEntry entry in certificates)
                 {
-                    if (now.Add(m_expiryThreshold) >= entry.NotAfter &&
-                        m_alreadyNotified.Add(entry.Certificate.Thumbprint))
+                    bool notify;
+                    lock (m_lock)
+                    {
+                        if (m_disposed || generation != m_generation)
+                        {
+                            return;
+                        }
+                        notify = now.Add(m_expiryThreshold) >= entry.NotAfter.ToUniversalTime() &&
+                            m_alreadyNotified.Add(entry.Certificate.Thumbprint);
+                    }
+                    if (notify)
                     {
                         if (m_logger.IsEnabled(LogLevel.Warning))
                         {
@@ -125,12 +146,28 @@ namespace Opc.Ua
         /// </summary>
         public void Reset()
         {
-            m_alreadyNotified.Clear();
+            lock (m_lock)
+            {
+                if (!m_disposed)
+                {
+                    m_generation++;
+                    m_alreadyNotified.Clear();
+                }
+            }
         }
 
         /// <inheritdoc/>
         public void Dispose()
         {
+            lock (m_lock)
+            {
+                if (m_disposed)
+                {
+                    return;
+                }
+                m_disposed = true;
+                m_generation++;
+            }
             m_timer.Dispose();
         }
 
@@ -141,6 +178,21 @@ namespace Opc.Ua
         private readonly ITimer m_timer;
         private readonly ILogger m_logger;
         private readonly HashSet<string> m_alreadyNotified = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Serializes notification bookkeeping with monitor reset and disposal.
+        /// </summary>
+        private readonly Lock m_lock = new();
+
+        /// <summary>
+        /// Invalidates callbacks that started before the latest reset or disposal.
+        /// </summary>
+        private long m_generation;
+
+        /// <summary>
+        /// Prevents further expiry notifications after the monitor is disposed.
+        /// </summary>
+        private bool m_disposed;
     }
 
     /// <summary>

@@ -541,7 +541,7 @@ namespace Opc.Ua.Bindings
                         sendBufferSize,
                         "WriteSymmetricMessage");
 
-                    chunksToProcess.Add(new ArraySegment<byte>(buffer, 0, 0));
+                    chunksToProcess.Add(new ArraySegment<byte>(buffer, headerSize, 0));
                 }
 
                 var chunksToSend = new BufferCollection(chunksToProcess.Capacity);

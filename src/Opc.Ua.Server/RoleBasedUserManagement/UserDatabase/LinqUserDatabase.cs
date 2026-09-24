@@ -34,11 +34,12 @@ using System.Globalization;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Security.Cryptography;
+using System.Threading;
 
 namespace Opc.Ua.Server.UserDatabase
 {
     /// <summary>
-    /// Implementation of a serializable user database using a concurrent dictionary for users.
+    /// An in-memory user database with serializable snapshots and transactional user updates.
     /// </summary>
     [DataContract(Namespace = Namespaces.UserDatabase)]
     public class LinqUserDatabase : IUserDatabase
@@ -94,13 +95,34 @@ namespace Opc.Ua.Server.UserDatabase
             /// </summary>
             [DataMember(Name = "Roles", IsRequired = false, Order = 40)]
             public ICollection<Role> Roles { get; set; } = null!;
+
+            /// <summary>
+            /// The persisted user configuration flags.
+            /// </summary>
+            [DataMember(Name = "UserConfiguration", IsRequired = false, Order = 50)]
+            public uint UserConfiguration { get; set; }
+
+            /// <summary>
+            /// The persisted user description.
+            /// </summary>
+            [DataMember(Name = "Description", IsRequired = false, Order = 60)]
+            public string Description { get; set; } = string.Empty;
         }
 
         /// <summary>
         /// The constructor.
         /// </summary>
         public LinqUserDatabase()
+            : this(null)
         {
+        }
+
+        /// <summary>
+        /// Creates an empty database with an optional observer for verifying derived-key cleanup.
+        /// </summary>
+        internal LinqUserDatabase(Action<byte[]>? keyDerived)
+        {
+            m_keyDerived = keyDerived;
             Initialize();
         }
 
@@ -118,27 +140,63 @@ namespace Opc.Ua.Server.UserDatabase
             }
 
             string hash = Hash(password);
+            Role[]? assignedRoles = roles?.ToArray();
 
-            bool added = true;
-            User newUser = m_users.AddOrUpdate(userName,
-                (key) => new User
+            lock (m_updateLock)
+            {
+                bool added = !m_users.TryGetValue(userName, out User? previous);
+                var replacement = new User
+                {
+                    ID = previous?.ID ?? Guid.NewGuid(),
+                    UserName = userName,
+                    Hash = hash,
+                    Roles = assignedRoles!,
+                    UserConfiguration = previous?.UserConfiguration ?? 0,
+                    Description = previous?.Description ?? string.Empty
+                };
+                SaveUserChange(userName, replacement);
+                return added;
+            }
+        }
+
+        /// <inheritdoc/>
+        public bool CreateUser(
+            string userName,
+            ReadOnlySpan<byte> password,
+            ArrayOf<Role> roles,
+            UserConfigurationMask userConfiguration,
+            string description)
+        {
+            if (string.IsNullOrEmpty(userName))
+            {
+                throw new ArgumentException("UserName cannot be empty.", nameof(userName));
+            }
+
+            if (Utils.Utf8IsNullOrEmpty(password))
+            {
+                throw new ArgumentException("Password cannot be empty.", nameof(password));
+            }
+
+            string hash = Hash(password);
+            lock (m_updateLock)
+            {
+                if (m_users.ContainsKey(userName))
+                {
+                    return false;
+                }
+
+                var user = new User
                 {
                     ID = Guid.NewGuid(),
                     UserName = userName,
                     Hash = hash,
-                    Roles = roles
-                },
-                (key, value) =>
-                {
-                    added = false;
-                    value.Hash = hash;
-                    value.Roles = roles;
-                    return value;
-                });
-
-            SaveChanges();
-
-            return added;
+                    Roles = [.. roles],
+                    UserConfiguration = (uint)userConfiguration,
+                    Description = description ?? string.Empty
+                };
+                SaveUserChange(userName, user);
+                return true;
+            }
         }
 
         /// <inheritdoc/>
@@ -149,7 +207,16 @@ namespace Opc.Ua.Server.UserDatabase
                 throw new ArgumentException("UserName cannot be empty.", nameof(userName));
             }
 
-            return m_users.TryRemove(userName, out _);
+            lock (m_updateLock)
+            {
+                if (!m_users.TryGetValue(userName, out _))
+                {
+                    return false;
+                }
+
+                SaveUserChange(userName, null);
+                return true;
+            }
         }
 
         /// <inheritdoc/>
@@ -165,12 +232,9 @@ namespace Opc.Ua.Server.UserDatabase
                 throw new ArgumentException("Password cannot be empty.", nameof(password));
             }
 
-            if (!m_users.TryGetValue(userName, out User? user))
-            {
-                return false;
-            }
-
-            return Check(user!.Hash, password);
+            bool known = m_users.TryGetValue(userName, out User? user);
+            bool valid = Check(known ? user!.Hash : s_unknownUserHash, password);
+            return known && valid;
         }
 
         /// <inheritdoc/>
@@ -185,22 +249,84 @@ namespace Opc.Ua.Server.UserDatabase
             {
                 throw new ArgumentException("No user found with the UserName " + userName);
             }
-
-            return user!.Roles;
+            return user.Roles?.ToArray()!;
         }
 
         /// <inheritdoc/>
         public IReadOnlyList<UserManagementDataType> GetUsers()
         {
-            return
-            [
-                .. m_users.Values.Select(user => new UserManagementDataType
+            lock (m_updateLock)
+            {
+                return
+                [
+                    .. GetSnapshotUsers().Select(user => new UserManagementDataType
+                    {
+                        UserName = user.UserName,
+                        UserConfiguration = user.UserConfiguration,
+                        Description = user.Description
+                    })
+                ];
+            }
+        }
+
+        /// <inheritdoc/>
+        public bool UpdateUserMetadata(
+            string userName,
+            UserConfigurationMask userConfiguration,
+            string description)
+        {
+            if (string.IsNullOrEmpty(userName))
+            {
+                throw new ArgumentException("UserName cannot be empty.", nameof(userName));
+            }
+
+            lock (m_updateLock)
+            {
+                if (!m_users.TryGetValue(userName, out User? user))
                 {
-                    UserName = user.UserName,
-                    UserConfiguration = (uint)UserConfigurationMask.None,
-                    Description = string.Empty
-                })
-            ];
+                    return false;
+                }
+
+                User replacement = SnapshotUser(user);
+                replacement.UserConfiguration = (uint)userConfiguration;
+                replacement.Description = description ?? string.Empty;
+                SaveUserChange(userName, replacement);
+                return true;
+            }
+        }
+
+        /// <inheritdoc/>
+        public bool ResetPassword(
+            string userName,
+            ReadOnlySpan<byte> newPassword,
+            UserConfigurationMask userConfiguration,
+            string description)
+        {
+            if (string.IsNullOrEmpty(userName))
+            {
+                throw new ArgumentException("UserName cannot be empty.", nameof(userName));
+            }
+
+            if (Utils.Utf8IsNullOrEmpty(newPassword))
+            {
+                throw new ArgumentException("New Password cannot be empty.", nameof(newPassword));
+            }
+
+            string hash = Hash(newPassword);
+            lock (m_updateLock)
+            {
+                if (!m_users.TryGetValue(userName, out User? user))
+                {
+                    return false;
+                }
+
+                User replacement = SnapshotUser(user);
+                replacement.Hash = hash;
+                replacement.UserConfiguration = (uint)userConfiguration;
+                replacement.Description = description ?? string.Empty;
+                SaveUserChange(userName, replacement);
+                return true;
+            }
         }
 
         /// <inheritdoc/>
@@ -223,23 +349,38 @@ namespace Opc.Ua.Server.UserDatabase
                 throw new ArgumentException("New Password cannot be empty.", nameof(newPassword));
             }
 
-            if (!m_users.TryGetValue(userName, out User? user))
+            if (!m_users.TryGetValue(userName, out User? captured) || !Check(captured.Hash, oldPassword))
             {
                 return false;
             }
 
-            if (Check(user!.Hash, oldPassword))
+            string hash = Hash(newPassword);
+            lock (m_updateLock)
             {
-                user.Hash = Hash(newPassword);
+                if (!m_users.TryGetValue(userName, out User? user) ||
+                    user.ID != captured.ID ||
+                    !string.Equals(user.Hash, captured.Hash, StringComparison.Ordinal))
+                {
+                    return false;
+                }
+
+                User replacement = SnapshotUser(user);
+                replacement.Hash = hash;
+                replacement.UserConfiguration &= ~(uint)UserConfigurationMask.MustChangePassword;
+                SaveUserChange(userName, replacement);
                 return true;
             }
-
-            return false;
         }
 
         /// <summary>
-        /// Persists the changes to the users database.
+        /// Persists the current database snapshot when a subclass provides storage.
         /// </summary>
+        /// <remarks>
+        /// This base implementation keeps records only in memory.
+        /// An override must commit one complete snapshot or leave the previous stored snapshot unchanged and throw.
+        /// <see cref="Users"/> and <see cref="GetUsers"/> include the pending change during this call.
+        /// Authentication continues to use the committed record until persistence succeeds.
+        /// </remarks>
         protected virtual void Save()
         {
         }
@@ -250,12 +391,21 @@ namespace Opc.Ua.Server.UserDatabase
         [DataMember(Name = "Users", IsRequired = true, Order = 10)]
         public User[] Users
         {
-            get => [.. m_users.Values];
+            get
+            {
+                lock (m_updateLock)
+                {
+                    return [.. GetSnapshotUsers().Select(SnapshotUser)];
+                }
+            }
             set
             {
-                foreach (User user in value)
+                lock (m_updateLock)
                 {
-                    m_users.TryAdd(user.UserName, user);
+                    foreach (User user in value)
+                    {
+                        m_users.TryAdd(user.UserName, SnapshotUser(user));
+                    }
                 }
             }
         }
@@ -268,11 +418,47 @@ namespace Opc.Ua.Server.UserDatabase
             m_users = new ConcurrentDictionary<string, User>();
         }
 
-        private void SaveChanges()
+        private IEnumerable<User> GetSnapshotUsers()
         {
-            Save();
+            foreach (User user in m_users.Values)
+            {
+                if (!string.Equals(user.UserName, m_pendingUserName, StringComparison.Ordinal))
+                {
+                    yield return user;
+                }
+            }
+            if (m_pendingUser != null)
+            {
+                yield return m_pendingUser;
+            }
         }
 
+        private void SaveUserChange(string userName, User? replacement)
+        {
+            m_pendingUserName = userName;
+            m_pendingUser = replacement;
+            try
+            {
+                Save();
+                if (replacement == null)
+                {
+                    m_users.TryRemove(userName, out _);
+                }
+                else
+                {
+                    m_users[userName] = replacement;
+                }
+            }
+            finally
+            {
+                m_pendingUserName = null;
+                m_pendingUser = null;
+            }
+        }
+
+        /// <summary>
+        /// Creates a salted PBKDF2-SHA512 password verifier and clears temporary key material.
+        /// </summary>
         private static string Hash(ReadOnlySpan<byte> password)
         {
 #if NET10_0_OR_GREATER // Use span and non obsoleted APIs
@@ -280,15 +466,19 @@ namespace Opc.Ua.Server.UserDatabase
             Span<byte> keyBytes = stackalloc byte[kKeySize];
             Span<byte> saltBytes = stackalloc byte[kSaltSize + sizeof(uint)];
             RandomNumberGenerator.Fill(saltBytes);
-            Rfc2898DeriveBytes.Pbkdf2(
-                password,
-                saltBytes,
-                keyBytes,
-                kIterations,
-                HashAlgorithmName.SHA512);
-            string keyBase64 = Convert.ToBase64String(keyBytes);
-            string saltBase64 = Convert.ToBase64String(saltBytes);
-            return $"{kIterations}.{saltBase64}.{keyBase64}";
+            try
+            {
+                Rfc2898DeriveBytes.Pbkdf2(
+                    password, saltBytes, keyBytes, kIterations, HashAlgorithmName.SHA512);
+                string keyBase64 = Convert.ToBase64String(keyBytes);
+                string saltBase64 = Convert.ToBase64String(saltBytes);
+                return $"{kIterations}.{saltBase64}.{keyBase64}";
+            }
+            finally
+            {
+                CryptoUtils.ZeroMemory(keyBytes);
+                CryptoUtils.ZeroMemory(saltBytes);
+            }
 
 #else // !NET10_0_OR_GREATER
             byte[] tmpPassword = password.ToArray();
@@ -308,9 +498,17 @@ namespace Opc.Ua.Server.UserDatabase
                     salt,
                     kIterations,
                     HashAlgorithmName.SHA512);
-                string keyBase64 = Convert.ToBase64String(algorithm.GetBytes(kKeySize));
-                string saltBase64 = Convert.ToBase64String(algorithm.Salt);
-                return $"{kIterations}.{saltBase64}.{keyBase64}";
+                byte[] key = algorithm.GetBytes(kKeySize);
+                try
+                {
+                    string keyBase64 = Convert.ToBase64String(key);
+                    string saltBase64 = Convert.ToBase64String(algorithm.Salt);
+                    return $"{kIterations}.{saltBase64}.{keyBase64}";
+                }
+                finally
+                {
+                    CryptoUtils.ZeroMemory(key);
+                }
             }
             finally
             {
@@ -319,7 +517,11 @@ namespace Opc.Ua.Server.UserDatabase
 #endif // !NET10_0_OR_GREATER
         }
 
-        private static bool Check(string hash, ReadOnlySpan<byte> password)
+        /// <summary>
+        /// Checks a stored password verifier with a fixed-time key comparison and clears the derived key afterward.
+        /// </summary>
+        /// <exception cref="FormatException"></exception>
+        private bool Check(string hash, ReadOnlySpan<byte> password)
         {
 #if NET6_0_OR_GREATER
             string[] parts = hash.Split('.', 3, StringSplitOptions.TrimEntries);
@@ -348,38 +550,75 @@ namespace Opc.Ua.Server.UserDatabase
 
             byte[] salt = Convert.FromBase64String(parts[1]);
             byte[] key = Convert.FromBase64String(parts[2]);
-            if (key.Length == 0)
+            if (key.Length != kKeySize)
             {
-                // An empty derived key cannot come from Hash() and would make the
-                // net10 span overload derive zero bytes; reject it explicitly.
+                CryptoUtils.ZeroMemory(key);
                 return false;
             }
-#if NET10_0_OR_GREATER
-            // Use span overloads
-            byte[] keyToCheck = Rfc2898DeriveBytes.Pbkdf2(
-                password,
-                salt,
-                iterations,
-                HashAlgorithmName.SHA512,
-                key.Length);
-            return keyToCheck.SequenceEqual(key);
-#else
-            byte[] tmpPassword = password.ToArray();
+            byte[]? keyToCheck = null;
             try
             {
-                using var algorithm = new Rfc2898DeriveBytes(
-                    tmpPassword,
-                    salt,
-                    iterations,
-                    HashAlgorithmName.SHA512);
-                byte[] keyToCheck = algorithm.GetBytes(kKeySize);
-                return keyToCheck.SequenceEqual(key);
+#if NET10_0_OR_GREATER
+                keyToCheck = Rfc2898DeriveBytes.Pbkdf2(
+                    password, salt, iterations, HashAlgorithmName.SHA512, kKeySize);
+#else
+                byte[] tmpPassword = password.ToArray();
+                try
+                {
+                    using var algorithm = new Rfc2898DeriveBytes(
+                        tmpPassword, salt, iterations, HashAlgorithmName.SHA512);
+                    keyToCheck = algorithm.GetBytes(kKeySize);
+                }
+                finally
+                {
+                    CryptoUtils.ZeroMemory(tmpPassword);
+                }
+#endif
+                m_keyDerived?.Invoke(keyToCheck);
+                return CryptoUtils.FixedTimeEquals(keyToCheck, key);
             }
             finally
             {
-                Array.Clear(tmpPassword, 0, tmpPassword.Length);
+                if (keyToCheck != null)
+                {
+                    CryptoUtils.ZeroMemory(keyToCheck);
+                }
+                CryptoUtils.ZeroMemory(key);
             }
-#endif
+        }
+
+        /// <summary>
+        /// Copies a user and its role collection so callers cannot mutate the stored record.
+        /// </summary>
+        private static User SnapshotUser(User user)
+        {
+            return new User
+            {
+                ID = user.ID,
+                UserName = user.UserName,
+                Hash = user.Hash,
+                Roles = user.Roles?.ToArray()!,
+                UserConfiguration = user.UserConfiguration,
+                Description = user.Description
+            };
+        }
+
+        /// <summary>
+        /// Creates a random password verifier for performing equivalent derivation work on unknown-user checks.
+        /// </summary>
+        private static string CreateUnknownUserHash()
+        {
+            byte[] secret = new byte[kKeySize];
+            try
+            {
+                using var random = RandomNumberGenerator.Create();
+                random.GetBytes(secret);
+                return Hash(secret);
+            }
+            finally
+            {
+                CryptoUtils.ZeroMemory(secret);
+            }
         }
 
         [OnDeserialized]
@@ -388,6 +627,19 @@ namespace Opc.Ua.Server.UserDatabase
             Initialize();
         }
 
+        /// <summary>
+        /// Observes the derived key before cleanup so tests can verify that the buffer is cleared.
+        /// </summary>
+        private readonly Action<byte[]>? m_keyDerived;
+
+        private readonly Lock m_updateLock = new();
+        private string? m_pendingUserName;
+        private User? m_pendingUser;
+
+        /// <summary>
+        /// Supplies a real verifier for credential checks that do not find a stored user.
+        /// </summary>
+        private static readonly string s_unknownUserHash = CreateUnknownUserHash();
         private ConcurrentDictionary<string, User> m_users = new();
     }
 

@@ -101,6 +101,29 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
+        public void PublishResponsePreservesServerSequenceAvailability()
+        {
+            using var subscription = new Subscription(m_telemetry);
+            m_mockContext.Setup(context => context.Subscriptions).Returns([subscription]);
+            using var engine = new ClassicSubscriptionEngine(m_mockContext.Object);
+            ArrayOf<uint> available = new uint[] { 9, 10, 11 }.ToArrayOf();
+
+            engine.ProcessPublishResponse(
+                new ResponseHeader { Timestamp = DateTimeUtc.Now },
+                subscription.Id,
+                available,
+                false,
+                new NotificationMessage
+                {
+                    SequenceNumber = 11,
+                    PublishTime = DateTimeUtc.Now,
+                    NotificationData = [new ExtensionObject(new DataChangeNotification())]
+                });
+
+            Assert.That(subscription.AvailableSequenceNumbers.ToArray(), Is.EquivalentTo(available.ToArray()));
+        }
+
+        [Test]
         public void StartPublishingWithNoSubscriptionsDoesNothing()
         {
             m_mockContext.Setup(c => c.Subscriptions)

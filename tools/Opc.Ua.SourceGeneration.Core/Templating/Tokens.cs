@@ -84,6 +84,7 @@ namespace Opc.Ua.SourceGeneration
         public static string Historizing => nameof(Historizing);
         public static string Identifier => nameof(Identifier);
         public static string IdType => nameof(IdType);
+        public static string IdModifier => nameof(IdModifier);
         public static string Imports => nameof(Imports);
         public static string InitializeOptionalChildren => nameof(InitializeOptionalChildren);
         public static string InvokeServiceAsync => nameof(InvokeServiceAsync);

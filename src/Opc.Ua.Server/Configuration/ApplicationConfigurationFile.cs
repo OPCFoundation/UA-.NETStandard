@@ -246,7 +246,7 @@ namespace Opc.Ua.Server
                 m_readAccess(context);
                 isWriteMode = false;
             }
-            else if (mode == (byte)(OpenFileMode.Read | OpenFileMode.Write))
+            else if (mode == ((byte)OpenFileMode.Read | (byte)OpenFileMode.Write))
             {
                 m_writeAccess(context);
 
@@ -639,7 +639,7 @@ namespace Opc.Ua.Server
             if (m_provider.RequiresConfirmation)
             {
                 updateId = Uuid.NewUuid();
-                ScheduleRevert(updateId, restartDelayTime, revertAfterTime);
+                ScheduleRevert(updateId, restartDelayTime, revertAfterTime, context);
             }
 
             RefreshVersionNodes(context);
@@ -685,6 +685,7 @@ namespace Opc.Ua.Server
             CancelPendingRevert();
 
             await m_provider.ConfirmUpdateAsync(cancellationToken).ConfigureAwait(false);
+            RefreshVersionNodes(context);
 
             m_logger.ConfigurationFileUpdateConfirmed(updateId.Guid);
 
@@ -782,18 +783,16 @@ namespace Opc.Ua.Server
 
         private void RefreshVersionNodes(ISystemContext context)
         {
-            if (m_node.CurrentVersion != null)
-            {
-                m_node.CurrentVersion.Value = m_provider.CurrentVersion;
-            }
-            if (m_node.LastUpdateTime != null)
-            {
-                m_node.LastUpdateTime.Value = new DateTimeUtc(m_provider.LastUpdateTime);
-            }
+            m_node.CurrentVersion?.Value = m_provider.CurrentVersion;
+            m_node.LastUpdateTime?.Value = new DateTimeUtc(m_provider.LastUpdateTime);
             m_node.ClearChangeMasks(context, includeChildren: true);
         }
 
-        private void ScheduleRevert(Uuid updateId, double restartDelayTime, double revertAfterTime)
+        private void ScheduleRevert(
+            Uuid updateId,
+            double restartDelayTime,
+            double revertAfterTime,
+            ISystemContext context)
         {
             CancelPendingRevert();
 
@@ -842,6 +841,7 @@ namespace Opc.Ua.Server
                 try
                 {
                     await m_provider.RevertUpdateAsync(CancellationToken.None).ConfigureAwait(false);
+                    RefreshVersionNodes(context);
                     m_logger.ConfigurationFileUpdateNotConfirmedReverted(updateId.Guid);
                 }
                 catch (Exception ex)
@@ -891,7 +891,7 @@ namespace Opc.Ua.Server
         {
             if (targets.Count == 0)
             {
-                return ArrayOf<StatusCode>.Empty;
+                return [];
             }
 
             var results = new StatusCode[targets.Count];
@@ -908,7 +908,7 @@ namespace Opc.Ua.Server
         {
             if (targets.Count == 0)
             {
-                return ArrayOf<StatusCode>.Empty;
+                return [];
             }
 
             var results = new StatusCode[targets.Count];

@@ -34,7 +34,9 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Time.Testing;
+using Moq;
 using NUnit.Framework;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
@@ -141,6 +143,91 @@ namespace Opc.Ua.Server.Tests
                     trustListId.ModellingRuleId,
                     Is.EqualTo(ObjectIds.ModellingRule_Mandatory));
             });
+        }
+
+        /// <summary>
+        /// Verifies certificate alarm roots support both direct and Server-wide subscriptions without leaking items.
+        /// </summary>
+        [Test]
+        public async Task CertificateAlarmRootNotifiersAcceptServerAndDirectEventSubscriptionsAsync()
+        {
+            IServerInternal server = m_server.CurrentInstance;
+            CertificateGroupState group = m_configManager.FindPredefinedNode<CertificateGroupState>(
+                ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup);
+            NodeId[] sourceIds = [ObjectIds.Server, group.CertificateExpired!.NodeId, group.TrustListOutOfDate!.NodeId];
+            var requests = new MonitoredItemCreateRequest[sourceIds.Length];
+            var filter = new EventFilter();
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, BrowseNames.EventId, Attributes.Value);
+            for (int i = 0; i < requests.Length; i++)
+            {
+                requests[i] = new MonitoredItemCreateRequest
+                {
+                    ItemToMonitor = new ReadValueId
+                    {
+                        NodeId = sourceIds[i],
+                        AttributeId = Attributes.EventNotifier
+                    },
+                    MonitoringMode = MonitoringMode.Reporting,
+                    RequestedParameters = new MonitoringParameters
+                    {
+                        ClientHandle = (uint)i + 1,
+                        QueueSize = 10,
+                        Filter = new ExtensionObject(filter)
+                    }
+                };
+            }
+            var identity = new Mock<IUserIdentity>();
+            identity.SetupGet(value => value.GrantedRoleIds).Returns([ObjectIds.WellKnownRole_Anonymous]);
+            using var context = new OperationContext(
+                new RequestHeader(), null, RequestType.CreateMonitoredItems, RequestLifetime.None, identity.Object);
+            var errors = new ServiceResult[requests.Length];
+            var filterErrors = new MonitoringFilterResult[requests.Length];
+            var monitoredItems = new IMonitoredItem[requests.Length];
+            int originalCount = server.EventManager.GetMonitoredItems().Count;
+            try
+            {
+                await server.NodeManager.CreateMonitoredItemsAsync(
+                    context, 1, 1000, TimestampsToReturn.Both,
+                    requests.ToArrayOf(), errors, filterErrors, monitoredItems, false).ConfigureAwait(false);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(errors, Has.All.Matches<ServiceResult>(ServiceResult.IsGood));
+                    Assert.That(monitoredItems, Has.All.Not.Null);
+                    Assert.That(
+                        server.EventManager.GetMonitoredItems(),
+                        Has.Count.EqualTo(originalCount + sourceIds.Length));
+                    Assert.That(
+                        group.CertificateExpired.EventNotifier & EventNotifiers.SubscribeToEvents,
+                        Is.EqualTo(EventNotifiers.SubscribeToEvents));
+                    Assert.That(
+                        group.TrustListOutOfDate.EventNotifier & EventNotifiers.SubscribeToEvents,
+                        Is.EqualTo(EventNotifiers.SubscribeToEvents));
+                    Assert.That(group.CertificateExpired.ReferenceExists(
+                        ReferenceTypeIds.HasNotifier, true, ObjectIds.Server), Is.True);
+                    Assert.That(group.TrustListOutOfDate.ReferenceExists(
+                        ReferenceTypeIds.HasNotifier, true, ObjectIds.Server), Is.True);
+                });
+            }
+            finally
+            {
+                var createdItems = new List<IMonitoredItem>();
+                foreach (IMonitoredItem? item in monitoredItems)
+                {
+                    if (item != null)
+                    {
+                        createdItems.Add(item);
+                    }
+                }
+                if (createdItems.Count != 0)
+                {
+                    var deleteErrors = new ServiceResult[createdItems.Count];
+                    await server.NodeManager.DeleteMonitoredItemsAsync(
+                        context, 1, createdItems, deleteErrors).ConfigureAwait(false);
+                    Assert.That(deleteErrors, Has.All.Matches<ServiceResult>(ServiceResult.IsGood));
+                }
+                Assert.That(server.EventManager.GetMonitoredItems(), Has.Count.EqualTo(originalCount));
+            }
         }
 
         [Test]
@@ -607,6 +694,78 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(manager.AlarmScheduler.IsActive, Is.False,
                 "server shutdown must stop alarm monitoring");
+        }
+
+        /// <summary>
+        /// Verifies that expiration alarms track the active registry's earliest certificate and observe replacements.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task StoreBackedCertificatesDriveExpirationAndReplacementFromActiveRegistryAsync(bool inline)
+        {
+            AlarmHarness harness = CreateHarness();
+            using var registry = new CertificateManager(s_telemetry);
+            using Certificate earliest = DefaultCertificateFactory.Instance
+                .CreateCertificate("CN=Earliest Alarm Certificate")
+                .SetNotBefore(s_now.AddDays(-1)).SetNotAfter(s_now.AddDays(1)).CreateForRSA();
+            using Certificate later = DefaultCertificateFactory.Instance
+                .CreateCertificate("CN=Later Alarm Certificate")
+                .SetNotBefore(s_now.AddDays(-1)).SetNotAfter(s_now.AddDays(30)).CreateForRSA();
+            using Certificate renewed = DefaultCertificateFactory.Instance
+                .CreateCertificate("CN=Renewed Alarm Certificate")
+                .SetNotBefore(s_now.AddDays(-1)).SetNotAfter(s_now.AddDays(60)).CreateForRSA();
+            using var chain = new CertificateCollection();
+            await registry.UpdateApplicationCertificateAsync(
+                ObjectTypeIds.RsaSha256ApplicationCertificateType, earliest, chain).ConfigureAwait(false);
+            await registry.UpdateApplicationCertificateAsync(
+                ObjectTypeIds.RsaMinApplicationCertificateType, later, chain).ConfigureAwait(false);
+            var configuration = new ApplicationConfiguration(m_fixture.Config) { CertificateManager = registry };
+            using var manager = new ConfigurationNodeManager(
+                m_server.CurrentInstance, configuration, s_telemetry.CreateLogger<ConfigurationNodeManager>(),
+                harness.Time);
+            var group = new ServerCertificateGroup
+            {
+                BrowseName = "RegistryAlarm",
+                Node = harness.Group,
+                ApplicationCertificates =
+                [
+                    new CertificateIdentifier
+                    {
+                        RawData = inline ? earliest.RawData : null,
+                        CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                        StoreType = CertificateStoreType.Directory,
+                        StorePath = "registry-resolved-only"
+                    },
+                    new CertificateIdentifier
+                    {
+                        RawData = inline ? later.RawData : null,
+                        CertificateType = ObjectTypeIds.RsaMinApplicationCertificateType,
+                        StoreType = CertificateStoreType.Directory,
+                        StorePath = "registry-resolved-only"
+                    }
+                ]
+            };
+            manager.AlarmScheduler.Add(harness.Monitor, group);
+            manager.AlarmScheduler.UpdateAndEvaluate(harness.Context, emitEvents: true);
+            CertificateExpirationAlarmState alarm = harness.Monitor.CertificateExpired!;
+            Assert.That(alarm.ActiveState!.Id!.Value, Is.True);
+            Assert.That(alarm.ExpirationDate!.Value, Is.EqualTo((DateTimeUtc)earliest.NotAfter));
+            Assert.That(alarm.Certificate!.Value.ToArray(), Is.EqualTo(earliest.RawData));
+            Assert.That(alarm.CertificateType!.Value, Is.EqualTo(ObjectTypeIds.RsaSha256ApplicationCertificateType));
+            Assert.That(harness.CertificateExpiredEvents, Is.EqualTo(1));
+            manager.AlarmScheduler.UpdateAndEvaluate(harness.Context, emitEvents: true);
+            Assert.That(harness.CertificateExpiredEvents, Is.EqualTo(1));
+            await registry.UpdateApplicationCertificateAsync(
+                ObjectTypeIds.RsaSha256ApplicationCertificateType, renewed, chain).ConfigureAwait(false);
+            manager.AlarmScheduler.UpdateAndEvaluate(harness.Context, emitEvents: true);
+            Assert.That(alarm.ActiveState.Id.Value, Is.False);
+            Assert.That(alarm.ExpirationDate.Value, Is.EqualTo((DateTimeUtc)later.NotAfter));
+            Assert.That(alarm.Certificate.Value.ToArray(), Is.EqualTo(later.RawData));
+            Assert.That(alarm.CertificateType.Value, Is.EqualTo(ObjectTypeIds.RsaMinApplicationCertificateType));
+            Assert.That(harness.CertificateExpiredEvents, Is.EqualTo(2));
+            using CertificateEntry retained =
+                registry.AcquireApplicationCertificateByType(ObjectTypeIds.RsaSha256ApplicationCertificateType)!;
+            Assert.That(retained.Certificate.RawData, Is.EqualTo(renewed.RawData));
         }
 
         private AlarmHarness CreateHarness()

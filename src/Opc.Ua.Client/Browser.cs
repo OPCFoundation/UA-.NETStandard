@@ -452,10 +452,11 @@ namespace Opc.Ua.Client
                 if (ContinuationPointPolicy == ContinuationPointPolicy.Balanced &&
                     MaxBrowseContinuationPoints > 0)
                 {
-                    maxNodesPerBrowse =
-                        MaxBrowseContinuationPoints < maxNodesPerBrowse
-                            ? MaxBrowseContinuationPoints
-                            : maxNodesPerBrowse;
+                    if (maxNodesPerBrowse == 0 ||
+                        MaxBrowseContinuationPoints < maxNodesPerBrowse)
+                    {
+                        maxNodesPerBrowse = MaxBrowseContinuationPoints;
+                    }
                 }
 
                 // split input into batches
@@ -566,7 +567,7 @@ namespace Opc.Ua.Client
                         passCount,
                         otherErrorsPerPass,
                         $"different from {nameof(StatusCodes.BadNoContinuationPoints)} or " +
-                            $"{nameof(StatusCodes.BadContinuationPointInvalid)}");
+                        nameof(StatusCodes.BadContinuationPointInvalid));
                 }
                 if (otherErrorsPerPass == 0 &&
                     badCPInvalidErrorsPerPass == 0 &&
@@ -1030,5 +1031,4 @@ namespace Opc.Ua.Client
             Message = "Browser: Failed to release continuation points.")]
         public static partial void BrowserFailedReleaseContinuationPoints(this ILogger logger, Exception? exception);
     }
-
 }

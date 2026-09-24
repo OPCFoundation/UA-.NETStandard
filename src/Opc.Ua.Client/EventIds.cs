@@ -62,6 +62,8 @@ namespace Opc.Ua
         public const int WebApiTransportChannel = 480;
         public const int WebApiWssTransportChannel = 490;
         public const int SessionClientExtensions = 500;
+        public const int ManagedSessionPool = 510;
+        public const int DefaultSessionFactory = 520;
 
         /// <summary>
         /// The <see cref="Microsoft.Extensions.Logging.ILogger"/> category name that

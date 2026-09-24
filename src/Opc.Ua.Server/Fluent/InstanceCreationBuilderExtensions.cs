@@ -444,89 +444,89 @@ namespace Opc.Ua.Server.Fluent
             return SetMethod(m => m.OnCallMethod2Async = handler);
         }
 
+        /// <inheritdoc/>
         public INodeBuilder OnNodeAdded(NodeLifecycleHandler handler)
         {
+            FluentNodeRegistration.EnsureGraphAuthoringOpen(Builder);
             handler(Builder.Context, Node);
             return this;
         }
 
+        /// <inheritdoc/>
         public INodeBuilder OnNodeRemoved(NodeLifecycleHandler handler)
         {
+            FluentNodeRegistration.GetHandlerBuilder(Builder, Node).OnNodeRemoved(handler);
             return this;
         }
 
+        /// <inheritdoc/>
         public INodeBuilder OnHistoryRead(HistoryReadHandler handler)
         {
+            FluentNodeRegistration.GetHandlerBuilder(Builder, Node).OnHistoryRead(handler);
             return this;
         }
 
+        /// <inheritdoc/>
         public INodeBuilder OnHistoryUpdate(HistoryUpdateHandler handler)
         {
+            FluentNodeRegistration.GetHandlerBuilder(Builder, Node).OnHistoryUpdate(handler);
             return this;
         }
 
+        /// <inheritdoc/>
         public INodeBuilder OnConditionRefresh(ConditionRefreshHandler handler)
         {
+            FluentNodeRegistration.GetHandlerBuilder(Builder, Node).OnConditionRefresh(handler);
             return this;
         }
 
+        /// <inheritdoc/>
         public INodeBuilder OnMonitoredItemCreated(MonitoredItemCreatedHandler handler)
         {
-            if (Builder is NodeManagerBuilder nodeManagerBuilder)
-            {
-                nodeManagerBuilder.RegisterMonitoredItemCreated(Node, handler);
-            }
+            FluentNodeRegistration.GetHandlerBuilder(Builder, Node).OnMonitoredItemCreated(handler);
             return this;
         }
 
+        /// <inheritdoc/>
         public INodeBuilder OnCreateMonitoredItem(MonitoredItemCreatingHandler handler)
         {
-            if (Builder is NodeManagerBuilder nodeManagerBuilder)
-            {
-                nodeManagerBuilder.RegisterMonitoredItemCreating(Node, handler);
-            }
+            FluentNodeRegistration.GetHandlerBuilder(Builder, Node).OnCreateMonitoredItem(handler);
             return this;
         }
 
+        /// <inheritdoc/>
         public INodeBuilder OnMonitoredItemModified(MonitoredItemModifiedHandler handler)
         {
-            if (Builder is NodeManagerBuilder nodeManagerBuilder)
-            {
-                nodeManagerBuilder.RegisterMonitoredItemModified(Node, handler);
-            }
+            FluentNodeRegistration.GetHandlerBuilder(Builder, Node).OnMonitoredItemModified(handler);
             return this;
         }
 
+        /// <inheritdoc/>
         public INodeBuilder OnMonitoredItemDeleted(MonitoredItemDeletedHandler handler)
         {
-            if (Builder is NodeManagerBuilder nodeManagerBuilder)
-            {
-                nodeManagerBuilder.RegisterMonitoredItemDeleted(Node, handler);
-            }
+            FluentNodeRegistration.GetHandlerBuilder(Builder, Node).OnMonitoredItemDeleted(handler);
             return this;
         }
 
+        /// <inheritdoc/>
         public INodeBuilder OnMonitoringModeChanged(MonitoringModeChangedHandler handler)
         {
-            if (Builder is NodeManagerBuilder nodeManagerBuilder)
-            {
-                nodeManagerBuilder.RegisterMonitoringModeChanged(Node, handler);
-            }
+            FluentNodeRegistration.GetHandlerBuilder(Builder, Node).OnMonitoringModeChanged(handler);
             return this;
         }
 
+        /// <inheritdoc/>
         public INodeBuilder OnEvent(EventNotificationHandler handler)
         {
+            FluentNodeRegistration.EnsureGraphAuthoringOpen(Builder);
             Node.OnReportEvent = (ctx, n, ev) => handler(ctx, n, ev);
             return this;
         }
 
+        /// <inheritdoc/>
         public INodeBuilder AllowMultipleEventConsumers(bool enable = true)
         {
-            if (Builder is NodeManagerBuilder nodeManagerBuilder)
-            {
-                nodeManagerBuilder.RegisterMultiConsumerNode(Node, enable);
-            }
+            FluentNodeRegistration.GetHandlerBuilder(Builder, Node).AllowMultipleEventConsumers(enable);
             return this;
         }
 
@@ -567,8 +567,12 @@ namespace Opc.Ua.Server.Fluent
             return new VariableBuilder<TValue>(Builder, variable);
         }
 
+        /// <summary>
+        /// Wires a variable callback after checking that graph authoring is open and the node is a variable.
+        /// </summary>
         private AdHocInstanceNodeBuilder<TState> SetVariable(Action<BaseVariableState> wire)
         {
+            FluentNodeRegistration.EnsureGraphAuthoringOpen(Builder);
             if (Node is not BaseVariableState v)
             {
                 throw ServiceResultException.Create(
@@ -580,8 +584,12 @@ namespace Opc.Ua.Server.Fluent
             return this;
         }
 
+        /// <summary>
+        /// Wires a method callback after checking that graph authoring is open and the node is a method.
+        /// </summary>
         private AdHocInstanceNodeBuilder<TState> SetMethod(Action<MethodState> wire)
         {
+            FluentNodeRegistration.EnsureGraphAuthoringOpen(Builder);
             if (Node is not MethodState m)
             {
                 throw ServiceResultException.Create(

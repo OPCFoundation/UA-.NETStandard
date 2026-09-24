@@ -71,19 +71,38 @@ namespace Opc.Ua
         {
             EventRecordDecoderRegistry r = registry ?? EventRecordDecoderRegistry.Default;
             var filter = new EventFilter();
+            bool hasConditionIdClause = false;
 
             foreach (QualifiedName[] path in r.StandardFields)
             {
+                if (path.Length == 0)
+                {
+                    hasConditionIdClause = true;
+                }
                 var clause = new SimpleAttributeOperand
                 {
-                    TypeDefinitionId = ObjectTypeIds.BaseEventType,
-                    AttributeId = Attributes.Value
+                    TypeDefinitionId = path.Length == 0
+                        ? ObjectTypeIds.ConditionType
+                        : ObjectTypeIds.BaseEventType,
+                    AttributeId = path.Length == 0
+                        ? Attributes.NodeId
+                        : Attributes.Value
                 };
                 foreach (QualifiedName segment in path)
                 {
                     clause.BrowsePath = clause.BrowsePath.AddItem(segment);
                 }
                 filter.SelectClauses = filter.SelectClauses.AddItem(clause);
+            }
+
+            if (eventTypeId == ObjectTypeIds.ConditionType && !hasConditionIdClause)
+            {
+                filter.SelectClauses = filter.SelectClauses.AddItem(
+                    new SimpleAttributeOperand
+                    {
+                        TypeDefinitionId = ObjectTypeIds.ConditionType,
+                        AttributeId = Attributes.NodeId
+                    });
             }
 
             if (!eventTypeId.IsNull && eventTypeId != ObjectTypeIds.BaseEventType)

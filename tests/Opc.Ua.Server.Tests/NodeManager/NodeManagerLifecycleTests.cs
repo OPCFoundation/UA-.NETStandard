@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -42,7 +41,6 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.RuntimeNodeSet;
 using Opc.Ua.Server.TestFramework;
-using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
 
@@ -261,9 +259,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(replacement.Id, Is.EqualTo(original.Id));
                 Assert.That(replacement.Generation, Is.EqualTo(2));
                 Assert.That(
-                    m_server.CurrentInstance.NodeManager.AsyncNodeManagers.Contains(
-                        replacementManager.Object),
-                    Is.True);
+                    m_server.CurrentInstance.NodeManager.AsyncNodeManagers.ToArray(),
+                    Does.Contain(replacementManager.Object));
             });
 
             await m_server.NodeManagerLifecycle
@@ -271,9 +268,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .ConfigureAwait(false);
 
             Assert.That(
-                m_server.CurrentInstance.NodeManager.AsyncNodeManagers.Contains(
-                    replacementManager.Object),
-                Is.False);
+                m_server.CurrentInstance.NodeManager.AsyncNodeManagers.ToArray(),
+                Does.Not.Contain(replacementManager.Object));
         }
 
         /// <summary>
@@ -1299,7 +1295,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Reload waits for an in-flight monitored-item mutation before transferring ownership.
         /// </summary>
-
         /// <summary>
         /// Reload detaches a dropped NodeId, publishes BadNodeIdUnknown once, and recovers
         /// the same monitored item when a later generation restores the compatible node.
@@ -1551,6 +1546,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         RequestedNewNodeId = valueNodeId,
                         BrowseName = new QualifiedName(kValueBrowseName, ns),
                         NodeClass = NodeClass.Variable,
+                        TypeDefinition = VariableTypeIds.BaseDataVariableType,
                         NodeAttributes = new ExtensionObject(attributes)
                     }],
                     RequestLifetime.None).ConfigureAwait(false);
@@ -1569,6 +1565,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         subscriptionId,
                         acknowledgements).ConfigureAwait(false);
                 Assert.That(current.Value.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(current.Value.WrappedValue.GetInt32(), Is.EqualTo(kGeneration2Value));
             }
             finally
             {
@@ -1583,10 +1580,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// replacement generation, while the existing monitored item keeps being serviced
         /// by the retired (but not yet destroyed) current generation, including for a
         /// fresh value pushed directly on that retired generation's own node after the
-        /// switch. Once the owning subscription is deleted, a later lifecycle operation
-        /// opportunistically completes retired-generation cleanup and disposes the old
-        /// generation's address space, without the lifecycle provider ever deleting the
-        /// client's subscription itself.
+        /// switch. Once the owning subscription is deleted, retirement cleanup disposes
+        /// the old generation's address space asynchronously, without the lifecycle
+        /// provider ever deleting the client's subscription itself.
         /// </summary>
         [Test]
         public async Task ShadowReloadAsyncKeepsActiveMonitoredItemAliveThenDisposesRetiredGenerationAfterDrainAsync()
@@ -1682,20 +1678,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
             }
 
-            // With the owning subscription gone, a later lifecycle operation
-            // opportunistically finishes retired-generation cleanup: the old generation's
-            // own address space is torn down (DeleteAddressSpaceAsync empties its
-            // PredefinedNodes) without the lifecycle provider ever deleting the client's
-            // (already independently deleted) subscription itself.
+            // Removing the replacement can race an already-claimed background retirement
+            // drain. Its completion does not join that independent cleanup operation.
             NodeManagerRegistration current = m_server.NodeManagerLifecycle.Registrations
                 .Find(r => r.Id == original.Id);
             Assert.That(current, Is.Not.Null);
             await m_server.NodeManagerLifecycle.RemoveAsync(current, null).ConfigureAwait(false);
 
-            Assert.That(originalManager.Find(valueNodeId), Is.Null);
             Assert.That(
                 CountMatches(m_server.NodeManagerLifecycle.Registrations, r => r.Id == original.Id),
                 Is.Zero);
+            await AssertRetiredGenerationDisposedAsync(originalManager, valueNodeId).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -2240,6 +2233,78 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Event deletion releases a retired generation's notification snapshot even when
+        /// its unsubscribe reports a failure; the deleted item is never replayed at finalization.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RetiredAllEventsDeletionCompletesBookkeepingAndReleasesGenerationAsync(
+            bool unsubscribeFails)
+        {
+            StatusCode unsubscribeStatus = unsubscribeFails ? StatusCodes.BadCommunicationError : StatusCodes.Good;
+            TrackingLifecycleNodeManager retiredManager = null;
+            NodeManagerRegistration original = await m_server.NodeManagerLifecycle
+                .AddAsync(CreateTrackingNodeManagementFactory(
+                    kGeneration1Value,
+                    manager => retiredManager = manager), null)
+                .ConfigureAwait(false);
+
+            IServerInternal server = m_server.CurrentInstance;
+            var master = (MasterNodeManager)server.NodeManager;
+            ushort ns = (ushort)server.NamespaceUris.GetIndex(kModelNamespaceUri);
+            var valueNodeId = new NodeId(kValueNodeId, ns);
+            var services = new ServerTestServices(m_server, m_secureChannelContext);
+            (uint dataSubscriptionId, uint dataMonitoredItemId) =
+                await CreateSubscriptionAndMonitoredItemAsync(
+                    services, valueNodeId, clientHandle: 1).ConfigureAwait(false);
+            (uint eventSubscriptionId, uint eventMonitoredItemId) =
+                await CreateSubscriptionAndEventMonitoredItemAsync(
+                    services, ObjectIds.Server).ConfigureAwait(false);
+            IEventMonitoredItem eventItem = server.EventManager.GetMonitoredItems()
+                .Single(item => item.Id == eventMonitoredItemId);
+            ISubscription eventSubscription = server.SubscriptionManager.GetSubscriptions()
+                .Single(subscription => subscription.Id == eventSubscriptionId);
+            NodeManagerRegistration replacement = await m_server.NodeManagerLifecycle
+                .ShadowReloadAsync(original, CreateNodeManagementFactory(kGeneration2Value, includeEuRange: false))
+                .ConfigureAwait(false);
+            retiredManager.AllEventsUnsubscribeResult = new ServiceResult(unsubscribeStatus);
+
+            RequestHeader header = m_requestHeader;
+            header.Timestamp = DateTimeUtc.Now;
+            DeleteMonitoredItemsResponse response = await services
+                .DeleteMonitoredItemsAsync(header, eventSubscriptionId, [eventMonitoredItemId])
+                .ConfigureAwait(false);
+
+            Assert.That(response.Results, Has.Count.EqualTo(1));
+            Assert.That(response.Results[0], Is.EqualTo(unsubscribeStatus));
+            Assert.That(eventSubscription.MonitoredItemCount, Is.Zero);
+            Assert.That(server.EventManager.GetMonitoredItems().Any(item => item.Id == eventMonitoredItemId), Is.False);
+            MasterNodeManager.NotificationDispatchLease[] remaining =
+                master.GetAllEventUnsubscribeDispatches(eventItem);
+            bool retainsDeletedEvent;
+            try
+            {
+                retainsDeletedEvent = remaining.Any(dispatch =>
+                    ReferenceEquals(dispatch.NodeManager, retiredManager));
+            }
+            finally
+            {
+                MasterNodeManager.DisposeNotificationDispatches(remaining);
+            }
+
+            await DeleteMonitoredItemAsync(services, dataSubscriptionId, dataMonitoredItemId).ConfigureAwait(false);
+            await retiredManager.DisposalCompleted.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+
+            Assert.That(retiredManager.Find(valueNodeId), Is.Null);
+            Assert.That(retainsDeletedEvent, Is.False, "Deleted event items must leave the retired snapshot.");
+            Assert.That(retiredManager.AllEventsUnsubscribeCount, Is.EqualTo(1),
+                "Finalization must not replay an unsubscribe for an already deleted item.");
+            await DeleteSubscriptionAsync(services, dataSubscriptionId).ConfigureAwait(false);
+            await DeleteSubscriptionAsync(services, eventSubscriptionId).ConfigureAwait(false);
+            await m_server.NodeManagerLifecycle.RemoveAsync(replacement, null).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// If prompt cleanup suspends a graceful retiree and its request drain fails, a
         /// monitored item that appears during the drain keeps the retiree alive. Its session
         /// and retained all-events notifications must be restored until the item drains.
@@ -2743,9 +2808,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 new TaskCompletionSource<bool>(
                     TaskCreationOptions.RunContinuationsAsynchronously);
             retiredManager.AllEventsCallback = async (
-                IEventMonitoredItem monitoredItem,
-                bool unsubscribe,
-                CancellationToken cancellationToken) =>
+                monitoredItem,
+                unsubscribe,
+                cancellationToken) =>
             {
                 if (unsubscribe && monitoredItem.Id == eventMonitoredItemId)
                 {
@@ -2772,12 +2837,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     original,
                     CreateTrackingNodeManagementFactory(
                         kGeneration2Value,
-                        manager =>
-                        {
-                            manager.AllEventsCallback = (
-                                IEventMonitoredItem monitoredItem,
-                                bool unsubscribe,
-                                CancellationToken _) =>
+                        manager => manager.AllEventsCallback = (
+                                monitoredItem,
+                                unsubscribe,
+                                _) =>
                             {
                                 if (!unsubscribe &&
                                     monitoredItem.Id == eventMonitoredItemId)
@@ -2785,8 +2848,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                                     replacementBound.TrySetResult(true);
                                 }
                                 return default;
-                            };
-                        }))
+                            }))
                 .AsTask();
             try
             {
@@ -2901,7 +2963,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(retiredManager.ConditionRefreshCount, Is.EqualTo(1));
             Assert.That(
                 retiredManager.LastConditionRefreshMonitoredItemIds,
-                Is.EqualTo(new[] { existingMonitoredItemId }),
+                Is.EqualTo([existingMonitoredItemId]),
                 "ConditionRefresh must use the retired manager's exact item snapshot.");
 
             await DeleteMonitoredItemAsync(
@@ -3642,7 +3704,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             Assert.That(
                 retiredManager.LastConditionRefreshMonitoredItemIds,
-                Is.EqualTo(new[] { retiredMonitoredItemId }),
+                Is.EqualTo([retiredMonitoredItemId]),
                 "The retired generation must receive its owned item, but not the " +
                 "replacement generation's post-retirement item.");
 
@@ -6030,7 +6092,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 () => host.Release(null!));
             Assert.That(exception.ParamName, Is.EqualTo("nodeManager"));
 
-
             Assert.That(
                 async () => await host
                     .CommitAsync(prepared)
@@ -6172,7 +6233,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Is.False);
             disposable.Verify(value => value.Dispose(), Times.Once);
         }
-
 
         [Test]
         public Task AddAsyncCleansFailedSessionActivationAsync()
@@ -6690,16 +6750,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
             });
         }
 
-        private static async Task AssertLifecycleOperationStopsForShutdownAsync(
+        private static Task AssertLifecycleOperationStopsForShutdownAsync(
             Task<NodeManagerRegistration> operation)
         {
-            InvalidOperationException exception = Assert.ThrowsAsync<InvalidOperationException>(
-                async () => await operation
-                    .WaitAsync(TimeSpan.FromSeconds(10))
-                    .ConfigureAwait(false));
-            Assert.That(
-                exception.ToString(),
-                Does.Contain("shutting down"));
+            return Assert.ThatAsync(
+                () => operation.WaitAsync(TimeSpan.FromSeconds(10)),
+                Throws.TypeOf<InvalidOperationException>()
+                    .And
+                    .Matches<InvalidOperationException>(
+                        exception => exception.ToString().Contains("shutting down", StringComparison.Ordinal)));
         }
 
         private static async Task WaitForRetiredNotificationsSuspendedAsync(
@@ -7641,6 +7700,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 ApplicationConfiguration,
                 CancellationToken,
                 ValueTask<IAsyncNodeManager>> m_create;
+
             private int m_createCount;
         }
 
@@ -7718,7 +7778,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         UserAccessLevel = AccessLevels.CurrentRead,
                         Value = new Variant(
                             new ExtensionObject(
-                                new Opc.Ua.Range
+                                new Range
                                 {
                                     Low = 0,
                                     High = 100
@@ -7758,7 +7818,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             public ValueTask ShutdownInternalsAsync(
                 CancellationToken cancellationToken = default)
             {
-                return base.OnServerStoppingAsync(cancellationToken);
+                return OnServerStoppingAsync(cancellationToken);
             }
         }
 
@@ -7776,6 +7836,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             private int m_disposeFailuresRemaining;
             private uint[] m_lastConditionRefreshMonitoredItemIds = [];
 
+            /// <summary>
+            /// Creates a live generation with observable lifecycle callbacks and configurable cleanup failures.
+            /// </summary>
             public TrackingLifecycleNodeManager(
                 IServerInternal server,
                 ApplicationConfiguration configuration,
@@ -7794,57 +7857,114 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
             }
 
+            /// <summary>
+            /// Gets the number of session-activation callbacks received by this generation.
+            /// </summary>
             public int SessionActivatedCount =>
                 Volatile.Read(ref m_sessionActivatedCount);
 
+            /// <summary>
+            /// Gets the number of all-events subscriptions dispatched to this generation.
+            /// </summary>
             public int AllEventsSubscribeCount =>
                 Volatile.Read(ref m_allEventsSubscribeCount);
 
+            /// <summary>
+            /// Gets all-events unsubscribe calls, including any erroneous finalization replay.
+            /// </summary>
             public int AllEventsUnsubscribeCount =>
                 Volatile.Read(ref m_allEventsUnsubscribeCount);
 
+            /// <summary>
+            /// Gets the number of condition-refresh callbacks received.
+            /// </summary>
             public int ConditionRefreshCount =>
                 Volatile.Read(ref m_conditionRefreshCount);
 
+            /// <summary>
+            /// Gets the number of read batches dispatched to this generation.
+            /// </summary>
             public int ReadCount =>
                 Volatile.Read(ref m_readCount);
 
+            /// <summary>
+            /// Gets address-space deletion attempts, including injected failures.
+            /// </summary>
             public int DeleteAddressSpaceCount =>
                 Volatile.Read(ref m_deleteAddressSpaceCount);
 
+            /// <summary>
+            /// Gets managed-disposal attempts, including injected failures.
+            /// </summary>
             public int DisposeCount =>
                 Volatile.Read(ref m_disposeCount);
 
+            /// <summary>
+            /// Gets the completion signal raised after asynchronous disposal of the retired manager finishes.
+            /// </summary>
+            public Task DisposalCompleted => m_disposalCompleted.Task;
+
+            /// <summary>
+            /// Gets or sets the result returned after a successful all-events unsubscribe to simulate cleanup failure.
+            /// </summary>
+            public ServiceResult AllEventsUnsubscribeResult { get; set; } = ServiceResult.Good;
+
+            /// <summary>
+            /// Gets or sets how many address-space deletion attempts must fail before cleanup succeeds.
+            /// </summary>
             public int DeleteAddressSpaceFailuresRemaining
             {
                 get => Volatile.Read(ref m_deleteAddressSpaceFailuresRemaining);
                 set => Volatile.Write(ref m_deleteAddressSpaceFailuresRemaining, value);
             }
 
+            /// <summary>
+            /// Gets or sets how many managed-disposal attempts must fail before cleanup succeeds.
+            /// </summary>
             public int DisposeFailuresRemaining
             {
                 get => Volatile.Read(ref m_disposeFailuresRemaining);
                 set => Volatile.Write(ref m_disposeFailuresRemaining, value);
             }
 
+            /// <summary>
+            /// Gets a snapshot of the item identifiers supplied to the last condition refresh.
+            /// </summary>
             public uint[] LastConditionRefreshMonitoredItemIds =>
                 Volatile.Read(ref m_lastConditionRefreshMonitoredItemIds);
 
+            /// <summary>
+            /// Gets or sets a barrier or observation callback for all-events subscription changes.
+            /// </summary>
             public Func<
                 IEventMonitoredItem,
                 bool,
                 CancellationToken,
-                ValueTask> AllEventsCallback { get; set; }
+                ValueTask> AllEventsCallback
+            { get; set; }
 
+            /// <summary>
+            /// Gets or sets a callback executed before forwarding session activation.
+            /// </summary>
             public Func<CancellationToken, ValueTask> SessionActivatedCallback { get; set; }
 
+            /// <summary>
+            /// Gets or sets a callback observing or delaying the condition-refresh item batch.
+            /// </summary>
             public Func<
                 IList<IEventMonitoredItem>,
                 CancellationToken,
-                ValueTask> ConditionRefreshCallback { get; set; }
+                ValueTask> ConditionRefreshCallback
+            { get; set; }
 
+            /// <summary>
+            /// Gets or sets a callback executed before the underlying read batch.
+            /// </summary>
             public Func<CancellationToken, ValueTask> ReadCallback { get; set; }
 
+            /// <summary>
+            /// Counts reads and runs the configured observation callback before normal node-manager dispatch.
+            /// </summary>
             public override async ValueTask ReadAsync(
                 OperationContext context,
                 double maxAge,
@@ -7868,6 +7988,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .ConfigureAwait(false);
             }
 
+            /// <summary>
+            /// Counts session activation and runs its configured callback before forwarding to the base manager.
+            /// </summary>
             public override async ValueTask SessionActivatedAsync(
                 OperationContext context,
                 NodeId sessionId,
@@ -7885,6 +8008,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .ConfigureAwait(false);
             }
 
+            /// <summary>
+            /// Tracks all-events subscription callbacks and can report a failure after completing an unsubscribe.
+            /// </summary>
             public override async ValueTask<ServiceResult> SubscribeToAllEventsAsync(
                 OperationContext context,
                 uint subscriptionId,
@@ -7909,7 +8035,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         cancellationToken).ConfigureAwait(false);
                 }
 
-                return await base
+                ServiceResult result = await base
                     .SubscribeToAllEventsAsync(
                         context,
                         subscriptionId,
@@ -7917,8 +8043,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         unsubscribe,
                         cancellationToken)
                     .ConfigureAwait(false);
+                return unsubscribe && ServiceResult.IsGood(result) ? AllEventsUnsubscribeResult : result;
             }
 
+            /// <summary>
+            /// Records refreshed item identities and invokes the optional barrier before base refresh handling.
+            /// </summary>
             public override async ValueTask<ServiceResult> ConditionRefreshAsync(
                 OperationContext context,
                 IList<IEventMonitoredItem> monitoredItems,
@@ -7940,6 +8070,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .ConfigureAwait(false);
             }
 
+            /// <summary>
+            /// Counts deletion attempts and injects configured failures before normal address-space teardown.
+            /// </summary>
+            /// <exception cref="SentinelException"></exception>
             public override async ValueTask DeleteAddressSpaceAsync(
                 CancellationToken cancellationToken = default)
             {
@@ -7949,6 +8083,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     throw new SentinelException("DeleteAddressSpaceAsync failed.");
                 }
                 await base.DeleteAddressSpaceAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            /// <summary>
+            /// Completes base disposal before signaling that the retired generation has released its resources.
+            /// </summary>
+            public override async ValueTask DisposeAsync()
+            {
+                await base.DisposeAsync().ConfigureAwait(false);
+                m_disposalCompleted.TrySetResult(true);
             }
 
             protected override void Dispose(bool disposing)
@@ -7981,6 +8124,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
                 return false;
             }
+
+            /// <summary>
+            /// Signals when asynchronous disposal has completed for deterministic retirement assertions.
+            /// </summary>
+            private readonly TaskCompletionSource<bool> m_disposalCompleted =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
         }
 
         /// <summary>

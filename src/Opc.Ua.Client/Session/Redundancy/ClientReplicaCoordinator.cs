@@ -81,7 +81,10 @@ namespace Opc.Ua.Client.Redundancy
 
             m_logger = telemetry.CreateLogger<ClientReplicaCoordinator>();
             m_telemetry = telemetry;
-            m_backgroundWork = new BackgroundTaskScope(nameof(ClientReplicaCoordinator), telemetry);
+            m_backgroundWork = new BackgroundTaskScope(
+                nameof(ClientReplicaCoordinator),
+                telemetry,
+                maxConcurrency: 1);
             m_election.LeadershipChanged += OnLeadershipChanged;
         }
 
@@ -123,6 +126,7 @@ namespace Opc.Ua.Client.Redundancy
         {
             try
             {
+                isLeader = m_election.IsLeader;
                 if (isLeader)
                 {
                     await PromoteToLeaderAsync(m_cts.Token).ConfigureAwait(false);
@@ -131,9 +135,13 @@ namespace Opc.Ua.Client.Redundancy
                 {
                     ManagedSession demoted = m_session;
                     m_session = null;
+                    demoted.SessionConfigurationChanged -= OnSessionConfigurationChanged;
                     await demoted.DisposeAsync().ConfigureAwait(false);
                 }
-                RoleChanged?.Invoke(isLeader);
+                if (isLeader == m_election.IsLeader)
+                {
+                    RoleChanged?.Invoke(isLeader);
+                }
             }
             catch (Exception ex)
             {
@@ -156,6 +164,11 @@ namespace Opc.Ua.Client.Redundancy
                     {
                         await m_options.ConfigureLeaderAsync(m_session, fastActivated, ct)
                             .ConfigureAwait(false);
+                    }
+                    SubscribeToSessionConfigurationChanges();
+                    if (!m_election.IsLeader)
+                    {
+                        return;
                     }
                     await PublishSecretsAsync(ct).ConfigureAwait(false);
                     return;
@@ -186,7 +199,12 @@ namespace Opc.Ua.Client.Redundancy
             {
                 (bool found, ByteString stored) = await m_store
                     .TryGetAsync(m_options.SessionRecordKey, ct).ConfigureAwait(false);
-                if (found && m_protector.TryUnprotect(stored, out ByteString plaintext) && !plaintext.IsNull)
+                if (found &&
+                    m_protector.TryUnprotect(
+                        RecordProtectionContext.Create("client-replica-session", m_options.SessionRecordKey),
+                        stored,
+                        out ByteString plaintext) &&
+                    !plaintext.IsNull)
                 {
                     using var stream = new System.IO.MemoryStream(plaintext.ToArray(), writable: false);
                     var config = SessionConfiguration.Create(stream, m_telemetry);
@@ -248,8 +266,36 @@ namespace Opc.Ua.Client.Redundancy
             }
             using var stream = new System.IO.MemoryStream();
             m_session.SaveSessionConfiguration(stream);
-            ByteString protectedRecord = m_protector.Protect(new ByteString(stream.ToArray()));
+            ByteString protectedRecord = m_protector.Protect(
+                RecordProtectionContext.Create("client-replica-session", m_options.SessionRecordKey),
+                new ByteString(stream.ToArray()));
             await m_store.SetAsync(m_options.SessionRecordKey, protectedRecord, ct).ConfigureAwait(false);
+        }
+
+        private void SubscribeToSessionConfigurationChanges()
+        {
+            if (ReferenceEquals(m_publishedSession, m_session))
+            {
+                return;
+            }
+
+            m_publishedSession?.SessionConfigurationChanged -= OnSessionConfigurationChanged;
+
+            m_publishedSession = m_session;
+            m_publishedSession?.SessionConfigurationChanged += OnSessionConfigurationChanged;
+        }
+
+        private void OnSessionConfigurationChanged(object? sender, EventArgs e)
+        {
+            m_backgroundWork.Run(
+                nameof(PublishSecretsAsync),
+                async _ =>
+                {
+                    if (m_election.IsLeader && ReferenceEquals(sender, m_session))
+                    {
+                        await PublishSecretsAsync(m_cts.Token).ConfigureAwait(false);
+                    }
+                });
         }
 
         /// <inheritdoc/>
@@ -265,6 +311,7 @@ namespace Opc.Ua.Client.Redundancy
             await m_election.DisposeAsync().ConfigureAwait(false);
             if (m_session != null)
             {
+                m_session.SessionConfigurationChanged -= OnSessionConfigurationChanged;
                 await m_session.DisposeAsync().ConfigureAwait(false);
                 m_session = null;
             }
@@ -280,6 +327,7 @@ namespace Opc.Ua.Client.Redundancy
         private readonly CancellationTokenSource m_cts = new();
         private readonly BackgroundTaskScope m_backgroundWork;
         private ManagedSession? m_session;
+        private ManagedSession? m_publishedSession;
     }
 
     /// <summary>
@@ -310,5 +358,4 @@ namespace Opc.Ua.Client.Redundancy
             Message = "Disposing a token-reuse session that failed to reactivate threw; ignoring.")]
         public static partial void DisposingTokenReuseSessionThatFailed(this ILogger logger, Exception? exception);
     }
-
 }

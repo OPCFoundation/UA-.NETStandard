@@ -9,9 +9,7 @@ The OPC UA .NET Standard Stack is a reference implementation that targets
 compliance through an OPC Foundation Certification Test Lab and is
 continuously tested for compliance using the latest Compliance Test Tool (CTT).
 
-Version 2.0 substantially extends companion-spec coverage over the
-previous 1.5.378 version. The stack now
-ships full server- and client-side support for: Part 9 (Alarms &
+The stack ships full server- and client-side support for: Part 9 (Alarms &
 Conditions), Part 11 (Historical Access) + Part 13 (Aggregates), Part 16
 (State Machines), Part 17 (Alias Names), Part 18 (Role Management), Part 20
 (File Transfer), Part 100 (Device Integration / Software Update), OPC 10100-1

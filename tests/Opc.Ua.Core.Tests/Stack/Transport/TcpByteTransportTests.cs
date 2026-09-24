@@ -33,6 +33,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -109,7 +110,43 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     Assert.That(n, Is.GreaterThan(0));
                     total += n;
                 }
+
                 Assert.That(received, Is.EqualTo(payload));
+            }
+        }
+
+        [Test]
+        public async Task ClosingTransportCompletesAQueuedSendWaiterAsync()
+        {
+            (TcpByteTransport client, Socket serverSocket, TcpListener listener) =
+                await CreateConnectedPairAsync().ConfigureAwait(false);
+            using var _l = new ListenerScope(listener);
+            using Socket _s = serverSocket;
+            using (client)
+            {
+                var sendLock = (SemaphoreSlim)typeof(TcpByteTransport)
+                    .GetField("m_sendLock", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .GetValue(client)!;
+                sendLock.Wait();
+                try
+                {
+                    Task send = client.SendChunkAsync(
+                        BuildValidChunk(TcpMessageType.Hello, 64),
+                        CancellationToken.None).AsTask();
+
+                    await Task.Delay(25).ConfigureAwait(false);
+                    client.Close();
+
+                    Assert.That(
+                        await Task.WhenAny(send, Task.Delay(TimeSpan.FromSeconds(1)))
+                            .ConfigureAwait(false),
+                        Is.SameAs(send));
+                    Assert.That(send.IsCompleted, Is.True);
+                }
+                finally
+                {
+                    sendLock.Release();
+                }
             }
         }
 

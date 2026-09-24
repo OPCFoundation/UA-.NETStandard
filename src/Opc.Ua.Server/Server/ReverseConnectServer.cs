@@ -202,7 +202,11 @@ namespace Opc.Ua.Server
         {
             await base.OnUpdateConfigurationAsync(configuration, cancellationToken)
                 .ConfigureAwait(false);
-            UpdateConfiguration(configuration);
+            lock (m_connectionsLock)
+            {
+                UpdateConfiguration(configuration);
+                StartTimer(false);
+            }
         }
 
         /// <inheritdoc />
@@ -468,11 +472,12 @@ namespace Opc.Ua.Server
         {
             lock (m_connectionsLock)
             {
-                foreach (
-                    KeyValuePair<Uri, ReverseConnectProperty> entry in m_connections.Where(r =>
-                        r.Value.ConfigEntry == configEntry))
+                Uri[] urls = [.. m_connections
+                    .Where(entry => entry.Value.ConfigEntry == configEntry)
+                    .Select(entry => entry.Key)];
+                foreach (Uri url in urls)
                 {
-                    m_connections.Remove(entry.Key);
+                    m_connections.Remove(url);
                 }
             }
         }
@@ -482,8 +487,6 @@ namespace Opc.Ua.Server
         /// </summary>
         private void UpdateConfiguration(ApplicationConfiguration configuration)
         {
-            ClearConnections(true);
-
             // get the configuration for the reverse connections.
             ReverseConnectServerConfiguration? reverseConnect = configuration?.ServerConfiguration?
                 .ReverseConnect;
@@ -505,6 +508,7 @@ namespace Opc.Ua.Server
                         reverseConnect.RejectTimeout > 0
                             ? reverseConnect.RejectTimeout
                             : DefaultReverseConnectRejectTimeout;
+                    HashSet<Uri> configuredUrls = [];
                     if (!reverseConnect.Clients.IsEmpty)
                     {
                         foreach (ReverseConnectClient client in reverseConnect.Clients)
@@ -512,9 +516,22 @@ namespace Opc.Ua.Server
                             Uri? uri = Utils.ParseUri(client.EndpointUrl);
                             if (uri != null)
                             {
-                                if (m_connections.ContainsKey(uri))
+                                if (!configuredUrls.Add(uri))
                                 {
                                     m_logger.WarningServerConfigurationReverseConnectContains(uri);
+                                    continue;
+                                }
+                                if (m_connections.TryGetValue(uri, out ReverseConnectProperty? existing))
+                                {
+                                    if (existing.ConfigEntry)
+                                    {
+                                        existing.MaxSessionCount = client.MaxSessionCount;
+                                        existing.Enabled = client.Enabled;
+                                    }
+                                    else
+                                    {
+                                        m_logger.WarningServerConfigurationReverseConnectContains(uri);
+                                    }
                                 }
                                 else
                                 {
@@ -528,8 +545,24 @@ namespace Opc.Ua.Server
                                 }
                             }
                         }
+
+                        Uri[] removedUrls = [.. m_connections
+                            .Where(entry => entry.Value.ConfigEntry && !configuredUrls.Contains(entry.Key))
+                            .Select(entry => entry.Key)];
+                        foreach (Uri uri in removedUrls)
+                        {
+                            m_connections.Remove(uri);
+                        }
                     }
                 }
+                if (reverseConnect.Clients.IsEmpty)
+                {
+                    ClearConnections(true);
+                }
+            }
+            else
+            {
+                ClearConnections(true);
             }
         }
 
@@ -610,5 +643,4 @@ namespace Opc.Ua.Server
             Message = "Reverse Connection added for EndpointUrl: {Uri}.")]
         public static partial void ReverseConnectionAddedForEndpointUrlUri(this ILogger logger, Uri uri);
     }
-
 }

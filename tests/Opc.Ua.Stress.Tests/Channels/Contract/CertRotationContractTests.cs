@@ -128,6 +128,9 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
                 ct).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies rotation joins an active reconnect and installs one replacement transport for all shared leases.
+        /// </summary>
         [Test]
         [CancelAfter(30_000)]
         [Description("L1-CERT2: certificate rotation during an active reconnect coalesces with the in-flight cycle.")]
@@ -185,10 +188,14 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
                     DefaultWait,
                     ct: ct).ConfigureAwait(false);
 
-                Assert.That(environment.Bindings.Created, Has.Count.EqualTo(1));
+                Assert.That(environment.Bindings.Created, Has.Count.EqualTo(2));
+                FakeTransport replacement = environment.Bindings.Created[1];
+                Assert.That(replacement.ClientCertificateThumbprint, Is.EqualTo(newCertificate.Thumbprint));
                 Assert.That(transport.ReconnectCount, Is.EqualTo(1));
-                Assert.That(transport.CloseCount, Is.Zero);
-                Assert.That(transport.DisposeCount, Is.Zero);
+                Assert.That(transport.CloseCount, Is.EqualTo(1));
+                Assert.That(transport.DisposeCount, Is.EqualTo(1));
+                Assert.That(replacement.CloseCount, Is.Zero);
+                Assert.That(replacement.DisposeCount, Is.Zero);
                 Assert.That(
                     participants.Select(participant => participant.NotificationCount),
                     Is.All.EqualTo(1));
@@ -204,6 +211,8 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
 
                 Assert.That(transport.CloseCount, Is.EqualTo(1));
                 Assert.That(transport.DisposeCount, Is.EqualTo(1));
+                Assert.That(replacement.CloseCount, Is.EqualTo(1));
+                Assert.That(replacement.DisposeCount, Is.EqualTo(1));
             }
             finally
             {

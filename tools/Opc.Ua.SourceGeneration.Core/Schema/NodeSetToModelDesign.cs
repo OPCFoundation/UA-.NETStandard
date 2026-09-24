@@ -35,7 +35,6 @@ using System.Linq;
 using System.Text;
 using System.Xml;
 using System.Xml.Serialization;
-using Microsoft.Extensions.Logging;
 using Opc.Ua.Export;
 using Opc.Ua.SourceGeneration;
 using Opc.Ua.Types;
@@ -112,7 +111,6 @@ namespace Opc.Ua.Schema.Model
             m_settings = settings ?? throw new ArgumentNullException(nameof(settings));
             m_fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
             m_telemetry = telemetry;
-            m_logger = telemetry.CreateLogger<NodeSetToModelDesign>();
             m_index = [];
             m_symbolicIds = [];
 
@@ -559,11 +557,7 @@ namespace Opc.Ua.Schema.Model
             };
             output.SymbolicId = output.SymbolicName;
 
-            if (nodeId.TryGetValue(out uint id))
-            {
-                output.NumericId = id;
-                output.NumericIdSpecified = true;
-            }
+            output.SetIdentifier(ImportIdentifier(nodeId));
 
             // <References> is optional in the schema.
             foreach (Export.Reference ii in input.References ?? [])
@@ -1423,24 +1417,8 @@ namespace Opc.Ua.Schema.Model
             output.ReleaseStatus = ImportReleaseStatus(input.ReleaseStatus);
             output.Category = ImportCategories(input.Category);
 
-            if (nodeId.TryGetValue(out uint id))
-            {
-                output.NumericId = id;
-                output.NumericIdSpecified = true;
-            }
-            else if (nodeId.TryGetValue(out string stringId))
-            {
-                output.StringId = stringId;
-                output.NumericIdSpecified = false;
-            }
-            else if (nodeId.IsNull)
-            {
-                m_logger.LogInformation("NodeId is not specified.");
-            }
-            else if (m_logger.IsEnabled(LogLevel.Information))
-            {
-                m_logger.LogInformation("NodeId {NodeId} is not supported.", nodeId);
-            }
+            // All four identifier types of OPC 10000-3 5.2.2 are carried over.
+            output.SetIdentifier(ImportIdentifier(nodeId));
 
             m_settings.NodesByQName[output.SymbolicId] = output;
             m_settings.NodesById[nodeId] = output;
@@ -1605,7 +1583,6 @@ namespace Opc.Ua.Schema.Model
             var references = new List<Reference>();
 
             if (existing.References != null)
-
             {
                 references.AddRange(existing.References);
             }
@@ -1617,7 +1594,6 @@ namespace Opc.Ua.Schema.Model
                     NodeDesign referenceType = FindNode<NodeDesign>(referenceTypeId);
 
                     if (referenceType == null)
-
                     {
                         continue;
                     }
@@ -1625,7 +1601,6 @@ namespace Opc.Ua.Schema.Model
                     NodeDesign target = FindNode<NodeDesign>(targetId);
 
                     if (target == null)
-
                     {
                         continue;
                     }
@@ -1636,58 +1611,39 @@ namespace Opc.Ua.Schema.Model
                         continue;
                     }
 
-                    if ((ii.IsForward &&
+                    bool explicitReference = (ii.IsForward &&
                             referenceTypeId == ReferenceTypeIds.Organizes &&
                             target is ViewDesign) ||
                         targetId.NamespaceIndex != nodeId.NamespaceIndex ||
-                        IsTypeOf(referenceTypeId, ReferenceTypeIds.NonHierarchicalReferences))
+                        IsTypeOf(referenceTypeId, ReferenceTypeIds.NonHierarchicalReferences);
+                    if (!explicitReference)
                     {
-                        references.Add(new Reference
+                        if (ii.IsForward &&
+                            !IsTypeOf(referenceTypeId, ReferenceTypeIds.HierarchicalReferences))
                         {
-                            ReferenceType = referenceType.SymbolicId,
-                            IsInverse = !ii.IsForward,
-                            TargetId = target.SymbolicId,
-                            TargetNode = target,
-                            SourceNode = existing
-                        });
-
-                        continue;
-                    }
-
-                    // A forward same-namespace hierarchical reference is already
-                    // expressed by the parent/child relationship the importer
-                    // builds, so it is not kept as an explicit reference.
-                    // (Keeping the ones whose target is not modelled as a child
-                    // was tried and regressed the OpenUsd/Robotics address space,
-                    // which then fails to start - see the audit note on this.)
-                    if (!ii.IsForward)
-                    {
-                        bool found = false;
-
-                        if (target.Children?.Items != null)
-                        {
-                            foreach (InstanceDesign child in target.Children.Items)
-                            {
-                                if (existing.SymbolicId == child.SymbolicId)
-                                {
-                                    found = true;
-                                    break;
-                                }
-                            }
+                            continue;
                         }
 
-                        if (!found)
+                        // Ownership represents only the selected reference type, not
+                        // every hierarchical link between these nodes.
+                        NodeDesign parent = ii.IsForward ? existing : target;
+                        NodeDesign child = ii.IsForward ? target : existing;
+                        if (child is InstanceDesign instance &&
+                            instance.Parent == parent &&
+                            instance.ReferenceType == referenceType.SymbolicId)
                         {
-                            references.Add(new Reference
-                            {
-                                ReferenceType = referenceType.SymbolicId,
-                                IsInverse = !ii.IsForward,
-                                TargetId = target.SymbolicId,
-                                TargetNode = target,
-                                SourceNode = existing
-                            });
+                            continue;
                         }
                     }
+
+                    references.Add(new Reference
+                    {
+                        ReferenceType = referenceType.SymbolicId,
+                        IsInverse = !ii.IsForward,
+                        TargetId = target.SymbolicId,
+                        TargetNode = target,
+                        SourceNode = existing
+                    });
                 }
             }
 
@@ -2740,6 +2696,32 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <summary>
+        /// Returns the identifier of a NodeId in the representation used by
+        /// <see cref="NodeDesign"/>. All four identifier types defined by
+        /// OPC 10000-3 5.2.2 are supported.
+        /// </summary>
+        private static object ImportIdentifier(NodeId nodeId)
+        {
+            if (nodeId.TryGetValue(out uint numericId))
+            {
+                return numericId;
+            }
+            if (nodeId.TryGetValue(out string stringId))
+            {
+                return stringId;
+            }
+            if (nodeId.TryGetValue(out Guid guidId))
+            {
+                return guidId;
+            }
+            if (nodeId.TryGetValue(out ByteString opaqueId))
+            {
+                return opaqueId;
+            }
+            return null;
+        }
+
+        /// <summary>
         ///  Imports a NodeId
         /// </summary>
         private NodeId ImportNodeId(string source, bool lookupAlias = true)
@@ -3009,7 +2991,6 @@ namespace Opc.Ua.Schema.Model
 
         private readonly NodeSetReaderSettings m_settings;
         private readonly ITelemetryContext m_telemetry;
-        private readonly ILogger m_logger;
         private readonly IFileSystem m_fileSystem;
         private readonly StringTable m_serverUris = new();
         private readonly UANodeSet m_nodeset;

@@ -372,6 +372,38 @@ namespace Opc.Ua.Encoders
                     variant = decoder.ReadVariantValue(name, property.TypeInfo);
                     break;
             }
+            if (!variant.IsNull &&
+                property.TypeInfo.BuiltInType == BuiltInType.Enumeration &&
+                decoder.Context.Factory.TryGetEnumeratedType(
+                    NodeId.ToExpandedNodeId(property.Definition.DataType, decoder.Context.NamespaceUris),
+                    out IEnumeratedType? enumeratedType))
+            {
+                if (property.TypeInfo.IsScalar)
+                {
+                    variant = Variant.From(new EnumValue(variant.GetEnumeration().Value, enumeratedType));
+                }
+                else if (property.TypeInfo.IsArray && variant.TypeInfo.BuiltInType == BuiltInType.Int32)
+                {
+                    ArrayOf<int> integerValues = variant.GetInt32Array();
+                    if (!integerValues.IsNull)
+                    {
+                        variant = Variant.From(integerValues.ConvertAll(value => new EnumValue(value, enumeratedType)));
+                    }
+                }
+                else if (property.TypeInfo.IsArray)
+                {
+                    ArrayOf<EnumValue> values = variant.GetEnumerationArray();
+                    if (!values.IsNull)
+                    {
+                        variant = Variant.From(values.ConvertAll(value => new EnumValue(value.Value, enumeratedType)));
+                    }
+                }
+                else
+                {
+                    variant = Variant.From(variant.GetEnumerationMatrix()
+                        .ConvertAll(value => new EnumValue(value.Value, enumeratedType)));
+                }
+            }
             property.Value = variant;
         }
 

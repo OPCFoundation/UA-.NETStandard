@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -131,10 +132,10 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
         }
 
         /// <summary>
-        /// Verifies that legacy continuation envelopes remain readable after a format upgrade.
+        /// Verifies that version-one payloads authenticate the same required store context as current payloads.
         /// </summary>
         [Test]
-        public async Task LegacyEnvelopeLoadsAfterFormatUpgradeAsync()
+        public async Task VersionOneEnvelopeAuthenticatesRequiredStoreContextAsync()
         {
             using var keyValueStore = new StrongTestStore();
             using AesCbcHmacRecordProtector protector = CreateProtector();
@@ -154,7 +155,7 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
                 SharedKeyValueHistoryContinuationStore.KeyFor(
                     sessionId,
                     expected.Id),
-                EncodeLegacyEnvelope(
+                EncodeVersionOneEnvelope(
                     expected,
                     context,
                     protector,
@@ -166,6 +167,75 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
 
             Assert.That(loaded, Has.Count.EqualTo(1));
             Assert.That(loaded[0], Is.EqualTo(expected));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ContinuationRejectsEmptyContextEnvelopeAsync(bool load)
+        {
+            using var keyValueStore = new StrongTestStore();
+            using AesCbcHmacRecordProtector protector = CreateProtector();
+            IServiceMessageContext context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
+            await using var store = new SharedKeyValueHistoryContinuationStore(keyValueStore, context, protector);
+            var sessionId = new NodeId(Guid.NewGuid(), 1);
+            HistoryContinuationPointEnvelope envelope = CreateEnvelope(sessionId);
+            await store.StoreAsync(envelope).ConfigureAwait(false);
+            string key = SharedKeyValueHistoryContinuationStore.KeyFor(sessionId, envelope.Id);
+            (_, ByteString original) = await keyValueStore.TryGetAsync(key).ConfigureAwait(false);
+            Assert.That(protector.TryUnprotect(
+                RecordProtectionContext.Create("history-continuation", key), original, out ByteString plaintext),
+                Is.True);
+            await keyValueStore.SetAsync(key, protector.Protect(default, plaintext)).ConfigureAwait(false);
+
+            if (load)
+            {
+                Assert.That(await store.LoadAsync(sessionId).ConfigureAwait(false), Is.Empty);
+            }
+            else
+            {
+                Assert.That(await store.TryTakeAsync(sessionId, envelope.Id).ConfigureAwait(false), Is.False);
+            }
+
+            await keyValueStore.SetAsync(key, original).ConfigureAwait(false);
+            ArrayOf<HistoryContinuationPointEnvelope> restored = await store.LoadAsync(sessionId).ConfigureAwait(false);
+            Assert.That(restored, Has.Count.EqualTo(1));
+            Assert.That(restored[0], Is.EqualTo(envelope));
+        }
+
+        [Test]
+        public async Task ContinuationClaimMarkerIsBoundToItsOwnKeyAsync()
+        {
+            using var keyValueStore = new StrongTestStore();
+            using AesCbcHmacRecordProtector protector = CreateProtector();
+            IServiceMessageContext context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
+            await using var store = new SharedKeyValueHistoryContinuationStore(keyValueStore, context, protector);
+            var sessionId = new NodeId(Guid.NewGuid(), 1);
+            HistoryContinuationPointEnvelope source = CreateEnvelope(sessionId);
+            HistoryContinuationPointEnvelope target = CreateEnvelope(sessionId);
+            await store.StoreAsync(source).ConfigureAwait(false);
+            keyValueStore.BlockNextCleanup();
+            try
+            {
+                Assert.That(await store.TryTakeAsync(sessionId, source.Id).ConfigureAwait(false), Is.True);
+                await keyValueStore.WaitForCleanupBlockedAsync().ConfigureAwait(false);
+                (bool found, ByteString marker) = await keyValueStore.TryGetAsync(
+                    SharedKeyValueHistoryContinuationStore.KeyFor(sessionId, source.Id)).ConfigureAwait(false);
+                Assert.That(found, Is.True);
+                string targetKey = SharedKeyValueHistoryContinuationStore.KeyFor(sessionId, target.Id);
+                await keyValueStore.SetAsync(targetKey, marker).ConfigureAwait(false);
+
+                Assert.That(
+                    async () => await store.StoreAsync(target).ConfigureAwait(false),
+                    Throws.TypeOf<ServiceResultException>()
+                        .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadEntryExists));
+                (_, ByteString retained) = await keyValueStore.TryGetAsync(targetKey).ConfigureAwait(false);
+                Assert.That(retained, Is.EqualTo(marker));
+            }
+            finally
+            {
+                keyValueStore.ReleaseCleanup();
+                await keyValueStore.WaitForCleanupCompletionAsync().ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -995,7 +1065,7 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             };
         }
 
-        private static ByteString EncodeLegacyEnvelope(
+        private static ByteString EncodeVersionOneEnvelope(
             HistoryContinuationPointEnvelope envelope,
             IServiceMessageContext context,
             AesCbcHmacRecordProtector protector,
@@ -1013,8 +1083,12 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             encoder.WriteByteString(null, envelope.Payload);
             byte[] payload = encoder.CloseAndReturnBuffer() ??
                 throw new InvalidOperationException(
-                    "The legacy continuation payload was not encoded.");
-            return protector.Protect(ByteString.From(payload));
+                    "The version-one continuation payload was not encoded.");
+            return protector.Protect(
+                RecordProtectionContext.Create(
+                    "history-continuation",
+                    SharedKeyValueHistoryContinuationStore.KeyFor(envelope.OwnerSessionId, envelope.Id)),
+                ByteString.From(payload));
         }
 
         private static AesCbcHmacRecordProtector CreateProtector()
@@ -1320,26 +1394,33 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
 
         private sealed class DeterministicRecordProtector : IRecordProtector
         {
-            public ByteString Protect(ByteString plaintext)
+            public ByteString Protect(ByteString context, ByteString plaintext)
             {
-                byte[] protectedRecord = new byte[plaintext.Length + 1];
+                int headerLength = 1 + sizeof(int) + context.Length;
+                byte[] protectedRecord = new byte[headerLength + plaintext.Length];
                 protectedRecord[0] = 0x5A;
-                plaintext.Span.CopyTo(protectedRecord.AsSpan(1));
+                BinaryPrimitives.WriteInt32LittleEndian(protectedRecord.AsSpan(1), context.Length);
+                context.Span.CopyTo(protectedRecord.AsSpan(1 + sizeof(int)));
+                plaintext.Span.CopyTo(protectedRecord.AsSpan(headerLength));
                 return ByteString.From(protectedRecord);
             }
 
             public bool TryUnprotect(
+                ByteString context,
                 ByteString protectedRecord,
                 out ByteString plaintext)
             {
-                if (protectedRecord.Length < 1 ||
-                    protectedRecord[0] != 0x5A)
+                int headerLength = 1 + sizeof(int) + context.Length;
+                if (protectedRecord.Length < headerLength ||
+                    protectedRecord[0] != 0x5A ||
+                    BinaryPrimitives.ReadInt32LittleEndian(protectedRecord.Span[1..]) != context.Length ||
+                    !protectedRecord.Span.Slice(1 + sizeof(int), context.Length).SequenceEqual(context.Span))
                 {
                     plaintext = default;
                     return false;
                 }
-                byte[] value = new byte[protectedRecord.Length - 1];
-                protectedRecord.Span[1..].CopyTo(value);
+                byte[] value = new byte[protectedRecord.Length - headerLength];
+                protectedRecord.Span[headerLength..].CopyTo(value);
                 plaintext = ByteString.From(value);
                 return true;
             }

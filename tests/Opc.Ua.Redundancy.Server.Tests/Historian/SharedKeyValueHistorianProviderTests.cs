@@ -144,6 +144,107 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             Assert.That(page.Values[0].Value.WrappedValue, Is.EqualTo(Variant.From(7)));
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task HistorianManifestRejectsAnotherKeyOrEmptyContextAsync(bool emptyContext)
+        {
+            using var store = new StrongTestStore();
+            using AesCbcHmacRecordProtector protector = CreateProtector();
+            await using SharedKeyValueHistorianProvider provider = CreateProvider(
+                store, protector, new TestElection(true));
+            var nodeId = new NodeId("bound-manifest", 2);
+            await provider.InsertAsync(CreateOperationContext(), nodeId, [ValueAt(7, 1)], default)
+                .ConfigureAwait(false);
+            string key = SharedKeyValueHistorianProvider.CurrentManifestKey;
+            (_, ByteString original) = await store.TryGetAsync(key).ConfigureAwait(false);
+            ByteString invalid;
+            if (emptyContext)
+            {
+                Assert.That(protector.TryUnprotect(
+                    RecordProtectionContext.Create("historian-record", key), original, out ByteString plaintext),
+                    Is.True);
+                invalid = protector.Protect(default, plaintext);
+            }
+            else
+            {
+                KeyValuePair<string, ByteString> generation =
+                    await store.FirstEntryAsync("historian/v1/manifest/generations/").ConfigureAwait(false);
+                invalid = generation.Value;
+            }
+            await store.SetAsync(key, invalid).ConfigureAwait(false);
+
+            Assert.That(
+                async () => await provider.ReadRawAsync(
+                    CreateOperationContext(), ReadRequest(nodeId, 0), default, default).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadSecurityChecksFailed));
+            await store.SetAsync(key, original).ConfigureAwait(false);
+            HistorianPage<HistoricalDataValue> restored = await provider.ReadRawAsync(
+                CreateOperationContext(), ReadRequest(nodeId, 0), default, default).ConfigureAwait(false);
+            Assert.That(restored.Values, Has.Count.EqualTo(1));
+            Assert.That(restored.Values[0].Value.WrappedValue, Is.EqualTo(Variant.From(7)));
+        }
+
+        [Test]
+        public async Task HistorianSegmentCannotMoveBetweenStoreKeysAsync()
+        {
+            using var store = new StrongTestStore();
+            using AesCbcHmacRecordProtector protector = CreateProtector();
+            var options = new SharedKeyValueHistorianOptions { MaxRecordsPerSegment = 1 };
+            await using SharedKeyValueHistorianProvider provider = CreateProvider(
+                store, protector, new TestElection(true), options);
+            var nodeId = new NodeId("bound-segment", 2);
+            await provider.InsertAsync(CreateOperationContext(), nodeId, [ValueAt(1, 1), ValueAt(2, 2)], default)
+                .ConfigureAwait(false);
+            HistorianPage<HistoricalDataValue> valid = await provider.ReadRawAsync(
+                CreateOperationContext(), ReadRequest(nodeId, 0), default, default).ConfigureAwait(false);
+            Assert.That(valid.Values, Has.Count.EqualTo(2));
+            Assert.That(valid.Values[0].Value.WrappedValue, Is.EqualTo(Variant.From(1)));
+            Assert.That(valid.Values[1].Value.WrappedValue, Is.EqualTo(Variant.From(2)));
+            var segments = new List<KeyValuePair<string, ByteString>>();
+            await foreach (KeyValuePair<string, ByteString> entry in store.ScanAsync("historian/v1/segments/")
+                .ConfigureAwait(false))
+            {
+                segments.Add(entry);
+            }
+            Assert.That(segments, Has.Count.EqualTo(2));
+            await store.SetAsync(segments[1].Key, segments[0].Value).ConfigureAwait(false);
+
+            Assert.That(
+                async () => await provider.ReadRawAsync(
+                    CreateOperationContext(), ReadRequest(nodeId, 0), default, default).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadSecurityChecksFailed));
+        }
+
+        [Test]
+        public async Task HistorianGenerationPinCannotMoveBetweenKeysAsync()
+        {
+            using var store = new StrongTestStore();
+            using AesCbcHmacRecordProtector protector = CreateProtector();
+            await using SharedKeyValueHistorianProvider provider = CreateProvider(
+                store, protector, new TestElection(true));
+            var nodeId = new NodeId("bound-pin", 2);
+            await provider.InsertAsync(CreateOperationContext(), nodeId, [ValueAt(1, 1), ValueAt(2, 2)], default)
+                .ConfigureAwait(false);
+            HistorianPage<HistoricalDataValue> firstPage = await provider.ReadRawAsync(
+                CreateOperationContext(), ReadRequest(nodeId, 1), default, default).ConfigureAwait(false);
+            Assert.That(firstPage.IsFinal, Is.False);
+            KeyValuePair<string, ByteString> pin = await store.FirstEntryAsync("historian/v1/pins/")
+                .ConfigureAwait(false);
+            string otherKey = "historian/v1/pins/" + Guid.NewGuid().ToString("N");
+            await store.SetAsync(otherKey, pin.Value).ConfigureAwait(false);
+
+            Assert.That(
+                async () => await provider.RecoverGarbageCollectionAsync(default).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadSecurityChecksFailed));
+            Assert.That(provider.GarbageCollectionFailure, Is.TypeOf<ServiceResultException>());
+        }
+
         /// <summary>
         /// Verifies that concurrent leaders cannot write without the current fencing authority.
         /// </summary>
@@ -628,7 +729,7 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
                     "historian/v1/segments/").ConfigureAwait(false);
             string orphanKey = "historian/v1/segments/" +
                 Guid.NewGuid().ToString("N");
-            await store.SetAsync(orphanKey, segment.Value)
+            await store.SetAsync(orphanKey, ReprotectRecord(protector, segment.Key, segment.Value, orphanKey))
                 .ConfigureAwait(false);
             store.DeleteFailuresRemaining = 1;
 
@@ -669,7 +770,7 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
                     "historian/v1/segments/").ConfigureAwait(false);
             string orphanKey = "historian/v1/segments/" +
                 Guid.NewGuid().ToString("N");
-            await store.SetAsync(orphanKey, segment.Value)
+            await store.SetAsync(orphanKey, ReprotectRecord(protector, segment.Key, segment.Value, orphanKey))
                 .ConfigureAwait(false);
             store.DeleteFailuresRemaining = 3;
 
@@ -719,7 +820,8 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
                 Guid.NewGuid().ToString("N");
             await store.SetAsync(
                 corruptKey,
-                protector.Protect(ByteString.From([0x01, 0x02])))
+                protector.Protect(
+                    RecordProtectionContext.Create("historian-record", corruptKey), ByteString.From([0x01, 0x02])))
                 .ConfigureAwait(false);
 
             Assert.That(
@@ -1949,6 +2051,19 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
         {
             return ServiceMessageContext.CreateEmpty(
                 NUnitTelemetryContext.Create());
+        }
+
+        private static ByteString ReprotectRecord(
+            AesCbcHmacRecordProtector protector,
+            string sourceKey,
+            ByteString record,
+            string targetKey)
+        {
+            Assert.That(protector.TryUnprotect(
+                RecordProtectionContext.Create("historian-record", sourceKey),
+                record,
+                out ByteString plaintext), Is.True);
+            return protector.Protect(RecordProtectionContext.Create("historian-record", targetKey), plaintext);
         }
 
         private static AesCbcHmacRecordProtector CreateProtector()

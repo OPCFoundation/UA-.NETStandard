@@ -65,8 +65,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var protector = new AesCbcHmacRecordProtector(MakeKey(1));
             var plaintext = ByteString.From(new byte[] { 10, 20, 30, 40, 50 });
 
-            ByteString sealed1 = protector.Protect(plaintext);
-            bool ok = protector.TryUnprotect(sealed1, out ByteString recovered);
+            ByteString sealed1 = protector.Protect(default, plaintext);
+            bool ok = protector.TryUnprotect(default, sealed1, out ByteString recovered);
 
             Assert.That(ok, Is.True);
             Assert.That(recovered.ToArray(), Is.EqualTo(plaintext.ToArray()));
@@ -79,8 +79,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var protector = new AesCbcHmacRecordProtector(MakeKey(2));
             var plaintext = ByteString.From(Array.Empty<byte>());
 
-            ByteString sealed1 = protector.Protect(plaintext);
-            bool ok = protector.TryUnprotect(sealed1, out ByteString recovered);
+            ByteString sealed1 = protector.Protect(default, plaintext);
+            bool ok = protector.TryUnprotect(default, sealed1, out ByteString recovered);
 
             Assert.That(ok, Is.True);
             Assert.That(recovered.ToArray(), Is.Empty);
@@ -92,8 +92,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var protector = new AesCbcHmacRecordProtector(MakeKey(3));
             var plaintext = ByteString.From(new byte[] { 1, 2, 3 });
 
-            ByteString a = protector.Protect(plaintext);
-            ByteString b = protector.Protect(plaintext);
+            ByteString a = protector.Protect(default, plaintext);
+            ByteString b = protector.Protect(default, plaintext);
 
             // Random IV per call => different envelopes for identical plaintext.
             Assert.That(a.ToArray(), Is.Not.EqualTo(b.ToArray()));
@@ -103,13 +103,13 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public void TamperedCiphertextIsRejected()
         {
             using var protector = new AesCbcHmacRecordProtector(MakeKey(4));
-            ByteString sealed1 = protector.Protect(ByteString.From(new byte[] { 7, 7, 7, 7 }));
+            ByteString sealed1 = protector.Protect(default, ByteString.From(new byte[] { 7, 7, 7, 7 }));
 
             byte[] tampered = sealed1.ToArray();
             // Flip a byte inside the ciphertext region (after the 21-byte header).
             tampered[25] ^= 0xFF;
 
-            bool ok = protector.TryUnprotect(ByteString.From(tampered), out ByteString recovered);
+            bool ok = protector.TryUnprotect(default, ByteString.From(tampered), out ByteString recovered);
 
             Assert.That(ok, Is.False);
             Assert.That(recovered.IsNull, Is.True);
@@ -119,12 +119,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public void TamperedTagIsRejected()
         {
             using var protector = new AesCbcHmacRecordProtector(MakeKey(5));
-            ByteString sealed1 = protector.Protect(ByteString.From(new byte[] { 9, 9 }));
+            ByteString sealed1 = protector.Protect(default, ByteString.From(new byte[] { 9, 9 }));
 
             byte[] tampered = sealed1.ToArray();
             tampered[^1] ^= 0x01;
 
-            bool ok = protector.TryUnprotect(ByteString.From(tampered), out _);
+            bool ok = protector.TryUnprotect(default, ByteString.From(tampered), out _);
 
             Assert.That(ok, Is.False);
         }
@@ -133,13 +133,13 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public void TamperedIvIsRejected()
         {
             using var protector = new AesCbcHmacRecordProtector(MakeKey(6));
-            ByteString sealed1 = protector.Protect(ByteString.From(new byte[] { 4, 5, 6 }));
+            ByteString sealed1 = protector.Protect(default, ByteString.From(new byte[] { 4, 5, 6 }));
 
             byte[] tampered = sealed1.ToArray();
             // IV occupies bytes [5, 21); the MAC covers it, so a flip is caught.
             tampered[6] ^= 0x80;
 
-            bool ok = protector.TryUnprotect(ByteString.From(tampered), out _);
+            bool ok = protector.TryUnprotect(default, ByteString.From(tampered), out _);
 
             Assert.That(ok, Is.False);
         }
@@ -149,11 +149,28 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             using var writer = new AesCbcHmacRecordProtector(MakeKey(7));
             using var reader = new AesCbcHmacRecordProtector(MakeKey(8));
-            ByteString sealed1 = writer.Protect(ByteString.From(new byte[] { 1, 1, 1, 1 }));
+            ByteString sealed1 = writer.Protect(default, ByteString.From(new byte[] { 1, 1, 1, 1 }));
 
-            bool ok = reader.TryUnprotect(sealed1, out _);
+            bool ok = reader.TryUnprotect(default, sealed1, out _);
 
             Assert.That(ok, Is.False);
+        }
+
+        [Test]
+        public void ContextBindingRejectsCutAndPasteAcrossStoreKeys()
+        {
+            using var protector = new AesCbcHmacRecordProtector(MakeKey(11));
+            ByteString record = protector.Protect(
+                "trusted/cert/a",
+                ByteString.From(new byte[] { 8, 6, 7, 5 }));
+
+            Assert.That(
+                protector.TryUnprotect("rejected/cert/a", record, out _),
+                Is.False);
+            Assert.That(
+                protector.TryUnprotect("trusted/cert/a", record, out ByteString plaintext),
+                Is.True);
+            Assert.That(plaintext.ToArray(), Is.EqualTo(new byte[] { 8, 6, 7, 5 }));
         }
 
         [Test]
@@ -162,9 +179,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             byte[] key = MakeKey(9);
             using var writer = new AesCbcHmacRecordProtector(key, keyId: 1);
             using var reader = new AesCbcHmacRecordProtector(key, keyId: 2);
-            ByteString sealed1 = writer.Protect(ByteString.From(new byte[] { 2, 2 }));
+            ByteString sealed1 = writer.Protect(default, ByteString.From(new byte[] { 2, 2 }));
 
-            bool ok = reader.TryUnprotect(sealed1, out _);
+            bool ok = reader.TryUnprotect(default, sealed1, out _);
 
             Assert.That(ok, Is.False);
         }
@@ -174,8 +191,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             using var protector = new AesCbcHmacRecordProtector(MakeKey(10));
 
-            Assert.That(protector.TryUnprotect(default, out _), Is.False);
-            Assert.That(protector.TryUnprotect(ByteString.From(new byte[] { 1, 2, 3 }), out _), Is.False);
+            Assert.That(protector.TryUnprotect(default, default, out _), Is.False);
+            Assert.That(
+                protector.TryUnprotect(default, ByteString.From(new byte[] { 1, 2, 3 }), out _), Is.False);
         }
 
         [Test]
@@ -192,8 +210,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
             NullRecordProtector protector = NullRecordProtector.Instance;
             var plaintext = ByteString.From(new byte[] { 3, 1, 4, 1, 5 });
 
-            ByteString sealed1 = protector.Protect(plaintext);
-            bool ok = protector.TryUnprotect(sealed1, out ByteString recovered);
+            ByteString sealed1 = protector.Protect(default, plaintext);
+            bool ok = protector.TryUnprotect(default, sealed1, out ByteString recovered);
 
             Assert.That(ok, Is.True);
             Assert.That(sealed1.ToArray(), Is.EqualTo(plaintext.ToArray()));
@@ -228,8 +246,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var ring = new KeyRingRecordProtector(active);
             var plaintext = ByteString.From(new byte[] { 1, 2, 3 });
 
-            ByteString sealed1 = ring.Protect(plaintext);
-            bool ok = ring.TryUnprotect(sealed1, out ByteString recovered);
+            ByteString sealed1 = ring.Protect(default, plaintext);
+            bool ok = ring.TryUnprotect(default, sealed1, out ByteString recovered);
 
             Assert.That(ok, Is.True);
             Assert.That(recovered.ToArray(), Is.EqualTo(plaintext.ToArray()));
@@ -243,12 +261,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var plaintext = ByteString.From(new byte[] { 9, 9, 9 });
 
             // A record written before rotation, under the old key.
-            ByteString legacyRecord = oldKey.Protect(plaintext);
+            ByteString legacyRecord = oldKey.Protect(default, plaintext);
 
             // After rotation the ring writes under the new key but still reads
             // records produced under the retired key.
             using var ring = new KeyRingRecordProtector(newKey, oldKey);
-            bool ok = ring.TryUnprotect(legacyRecord, out ByteString recovered);
+            bool ok = ring.TryUnprotect(default, legacyRecord, out ByteString recovered);
 
             Assert.That(ok, Is.True);
             Assert.That(recovered.ToArray(), Is.EqualTo(plaintext.ToArray()));
@@ -261,11 +279,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var newKey = new AesCbcHmacRecordProtector(MakeKey(34), keyId: 2);
             using var ring = new KeyRingRecordProtector(newKey, oldKey);
 
-            ByteString sealed1 = ring.Protect(ByteString.From(new byte[] { 5 }));
+            ByteString sealed1 = ring.Protect(default, ByteString.From(new byte[] { 5 }));
 
             // The retired key alone must not be able to read a post-rotation record.
-            Assert.That(oldKey.TryUnprotect(sealed1, out _), Is.False);
-            Assert.That(newKey.TryUnprotect(sealed1, out _), Is.True);
+            Assert.That(oldKey.TryUnprotect(default, sealed1, out _), Is.False);
+            Assert.That(newKey.TryUnprotect(default, sealed1, out _), Is.True);
         }
 
         [Test]
@@ -275,9 +293,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var stranger = new AesCbcHmacRecordProtector(MakeKey(36), keyId: 9);
             using var ring = new KeyRingRecordProtector(member);
 
-            ByteString foreignRecord = stranger.Protect(ByteString.From(new byte[] { 7, 7 }));
+            ByteString foreignRecord = stranger.Protect(default, ByteString.From(new byte[] { 7, 7 }));
 
-            Assert.That(ring.TryUnprotect(foreignRecord, out _), Is.False);
+            Assert.That(ring.TryUnprotect(default, foreignRecord, out _), Is.False);
         }
 
         [Test]

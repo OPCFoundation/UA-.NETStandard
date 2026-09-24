@@ -245,8 +245,11 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             Assert.That(Filter(element).Evaluate(m_context, m_target), Is.True);
         }
 
+        /// <summary>
+        /// Verifies a leading string mismatch does not prevent InList from finding a later matching operand.
+        /// </summary>
         [Test]
-        public void InListWithStringMemberAfterMismatchYieldsTrue()
+        public void InListWithStringMemberAfterLeadingMismatchYieldsTrue()
         {
             // A leading mismatch only rules out that operand; the remaining
             // list entries are still compared.
@@ -267,6 +270,23 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
                 new LiteralOperand(Variant.From("a")),
                 new LiteralOperand(Variant.From("b")));
             Assert.That(Filter(element).Evaluate(m_context, m_target), Is.False);
+        }
+
+        /// <summary>
+        /// Verifies InList evaluates every string operand position.
+        /// </summary>
+        [TestCase("a")]
+        [TestCase("b")]
+        [TestCase("c")]
+        public void InListMatchesEveryStringOperandPosition(string value)
+        {
+            ContentFilterElement element = Element(
+                FilterOperator.InList,
+                new LiteralOperand(Variant.From(value)),
+                new LiteralOperand(Variant.From("a")),
+                new LiteralOperand(Variant.From("b")),
+                new LiteralOperand(Variant.From("c")));
+            Assert.That(Filter(element).Evaluate(m_context, m_target), Is.True);
         }
 
         [Test]
@@ -449,6 +469,68 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             Assert.That(Filter(element).Evaluate(m_context, advanced), Is.True);
         }
 
+        [TestCase(3)]
+        [TestCase(4)]
+        [TestCase(5)]
+        public void RelatedToNullStringParameterDoesNotMatch(int parameter)
+        {
+            var advanced = new AdvancedCoverageFilterTarget { IsRelatedToResult = true };
+            FilterOperand[] operands =
+            [
+                new LiteralOperand(Variant.From(new NodeId(1))),
+                new LiteralOperand(Variant.From(new NodeId(2))),
+                new LiteralOperand(Variant.From(new NodeId(3))),
+                new LiteralOperand(Variant.From(1)),
+                new LiteralOperand(Variant.From(false)),
+                new LiteralOperand(Variant.From(false))
+            ];
+            operands[parameter] = new LiteralOperand(Variant.From((string)null));
+            Assert.That(Filter(Element(FilterOperator.RelatedTo, operands)).Evaluate(m_context, advanced), Is.False);
+        }
+
+        [Test]
+        public void RelatedToWithOmittedSubtypeOperandsIncludesSubtypes()
+        {
+            var advanced = new AdvancedCoverageFilterTarget { IsRelatedToResult = true };
+            ContentFilterElement element = RelatedToElement(
+                new LiteralOperand(Variant.From(new NodeId(1))),
+                new LiteralOperand(Variant.From(new NodeId(2))));
+
+            Assert.That(Filter(element).Evaluate(m_context, advanced), Is.True);
+            Assert.Multiple(() =>
+            {
+                // Part 4 7.7.4: both optional subtype operands default to true.
+                Assert.That(advanced.LastIncludeTypeDefinitionSubtypes, Is.True);
+                Assert.That(advanced.LastIncludeReferenceSubtypes, Is.True);
+            });
+        }
+
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public void RelatedToWithSuppliedSubtypeOperandsForwardsThem(
+            bool includeTypeSubtypes,
+            bool includeReferenceSubtypes)
+        {
+            var advanced = new AdvancedCoverageFilterTarget { IsRelatedToResult = true };
+            ContentFilterElement element = Element(
+                FilterOperator.RelatedTo,
+                new LiteralOperand(Variant.From(new NodeId(1))),
+                new LiteralOperand(Variant.From(new NodeId(2))),
+                new LiteralOperand(Variant.From(new NodeId(3))),
+                new LiteralOperand(Variant.Null),
+                new LiteralOperand(Variant.From(includeTypeSubtypes)),
+                new LiteralOperand(Variant.From(includeReferenceSubtypes)));
+
+            Assert.That(Filter(element).Evaluate(m_context, advanced), Is.True);
+            Assert.Multiple(() =>
+            {
+                Assert.That(advanced.LastIncludeTypeDefinitionSubtypes, Is.EqualTo(includeTypeSubtypes));
+                Assert.That(advanced.LastIncludeReferenceSubtypes, Is.EqualTo(includeReferenceSubtypes));
+            });
+        }
+
         [Test]
         public void RelatedToWithNonNodeIdSourceYieldsFalse()
         {
@@ -514,6 +596,28 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
                 new LiteralOperand(Variant.From(new NodeId(4))),
                 new LiteralOperand(Variant.From(new NodeId(2))));
             Assert.That(Filter(root, chained).Evaluate(m_context, advanced), Is.True);
+        }
+
+        [Test]
+        public void DeepRelatedToChainEvaluatesEachLinkOnce()
+        {
+            var advanced = new AdvancedCoverageFilterTarget
+            {
+                IsRelatedToResult = true,
+                RelatedNodes = [new NodeId(100)]
+            };
+            var elements = new ContentFilterElement[1024];
+            for (int ii = 0; ii < elements.Length; ii++)
+            {
+                elements[ii] = RelatedToElement(
+                    new LiteralOperand(Variant.From(new NodeId(1))),
+                    ii + 1 < elements.Length
+                        ? new ElementOperand((uint)(ii + 1))
+                        : new LiteralOperand(Variant.From(new NodeId(2))));
+            }
+
+            Assert.That(Filter(elements).Evaluate(m_context, advanced), Is.True);
+            Assert.That(advanced.RelatedNodeReads, Is.EqualTo(1023));
         }
 
         [Test]
@@ -641,6 +745,9 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             public bool ThrowOnIsRelatedTo { get; set; }
             public Variant RelatedAttributeValue { get; set; } = Variant.Null;
             public IList<NodeId> RelatedNodes { get; set; } = [];
+            public int RelatedNodeReads { get; private set; }
+            public bool? LastIncludeTypeDefinitionSubtypes { get; private set; }
+            public bool? LastIncludeReferenceSubtypes { get; private set; }
 
             public bool IsTypeOf(IFilterContext context, NodeId typeDefinitionId)
             {
@@ -680,6 +787,8 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
                 {
                     throw new InvalidOperationException("IsRelatedTo failed.");
                 }
+                LastIncludeTypeDefinitionSubtypes = includeTypeDefintionSubtypes;
+                LastIncludeReferenceSubtypes = includeReferenceSubtypes;
                 return IsRelatedToResult;
             }
 
@@ -693,6 +802,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
                 bool includeTypeDefintionSubtypes,
                 bool includeReferenceSubtypes)
             {
+                RelatedNodeReads++;
                 return RelatedNodes;
             }
 

@@ -42,7 +42,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Validates JWT issued identity tokens without a JWT library dependency.
     /// </summary>
-    public sealed class JwtAuthenticator : IUserTokenAuthenticator
+    public sealed class JwtAuthenticator : IIssuerTokenAuthenticator
     {
         private readonly IIssuerKeyResolver? m_keyResolver;
         private readonly string? m_expectedAudience;
@@ -83,6 +83,9 @@ namespace Opc.Ua.Server
 
         /// <inheritdoc/>
         public string? IssuedTokenProfileUri => Profiles.JwtUserToken;
+
+        /// <inheritdoc/>
+        public string? IssuerUri => m_keyResolver?.IssuerUri;
 
         /// <inheritdoc/>
         public async ValueTask<AuthenticationResult> AuthenticateAsync(
@@ -147,6 +150,20 @@ namespace Opc.Ua.Server
             if (string.IsNullOrEmpty(algorithm))
             {
                 return Reject(StatusCodes.BadIdentityTokenInvalid, "JWT header does not specify an algorithm.");
+            }
+
+            try
+            {
+                using var payloadDocument = JsonDocument.Parse(payloadBytes);
+                string? issuer = GetOptionalString(payloadDocument.RootElement, "iss");
+                if (!string.Equals(issuer, m_keyResolver!.IssuerUri, StringComparison.Ordinal))
+                {
+                    return AuthenticationResult.NotHandled;
+                }
+            }
+            catch (JsonException)
+            {
+                return Reject(StatusCodes.BadIdentityTokenInvalid, "JWT payload is not valid JSON.");
             }
 
             byte[] signingInputBytes = Encoding.ASCII.GetBytes(segments[0] + "." + segments[1]);

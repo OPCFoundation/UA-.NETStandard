@@ -653,17 +653,18 @@ namespace Opc.Ua
                 TraceMasks.StartStop |
                 TraceMasks.Security;
             const int errorMask = TraceMasks.Error | TraceMasks.StackTrace;
+            EventId eventId = TraceLoggerProvider.CreateLegacyTraceEventId(traceMask);
             if ((traceMask & errorMask) != 0)
             {
-                LogError(traceMask, format, args);
+                LogError(eventId, format, args);
             }
             else if ((traceMask & informationMask) != 0)
             {
-                LogInfo(traceMask, format, args);
+                LogInfo(eventId, format, args);
             }
             else
             {
-                LogTrace(traceMask, format, args);
+                LogTrace(eventId, format, args);
             }
         }
 
@@ -920,15 +921,14 @@ namespace Opc.Ua
             Message = "Could not get absolute path for {FileName}")]
         public static partial void UtilsObsoleteLogMessage0(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string fileName);
 
         [LoggerMessage(EventId = CoreEventIds.UtilsObsolete + 1, Level = LogLevel.Debug,
             Message = "Could not find installed file: {FileName}")]
         public static partial void UtilsObsoleteLogMessage1(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string fileName);
     }
-
 }

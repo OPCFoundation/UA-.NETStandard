@@ -31,6 +31,7 @@
 #pragma warning disable CA2000
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
@@ -179,7 +180,7 @@ namespace Opc.Ua.Core.Tests.Security
 
             using (ServiceProvider provider = services.BuildServiceProvider())
             {
-                var registry = provider.GetRequiredService<ISecurityPolicyRegistry>();
+                ISecurityPolicyRegistry registry = provider.GetRequiredService<ISecurityPolicyRegistry>();
 
                 Assert.That(registry, Is.Not.Null);
                 Assert.That(registry.GetInfo(policy.Uri), Is.SameAs(policy));
@@ -217,7 +218,7 @@ namespace Opc.Ua.Core.Tests.Security
         [Test]
         public void EmptyPolicyEncryptDecryptAndSignAreNoOps()
         {
-            ILogger logger = NUnitTelemetryContext.Create().CreateLogger<SecurityPoliciesTests>();
+            _ = NUnitTelemetryContext.Create().CreateLogger<SecurityPoliciesTests>();
             byte[] plainText = [1, 2, 3];
 
             EncryptedData encrypted = SecurityPolicies.Default.Encrypt(null, string.Empty, plainText);
@@ -250,6 +251,55 @@ namespace Opc.Ua.Core.Tests.Security
             Assert.That(noneSignature.Algorithm, Is.Null);
             Assert.That(noneSignature.Signature.IsNull, Is.True);
             Assert.That(SecurityPolicies.Default.VerifySignatureData(noneSignature, SecurityPolicyInfo.None, certificate, plainText), Is.True);
+        }
+
+        [Test]
+        public async Task NoSecurityEncryptAndDecryptAreNoOpsAsync(
+            [Values(null, "", SecurityPolicies.None, "None")] string policyUri,
+            [Values] bool empty)
+        {
+            byte[] plainText = empty ? [] : [1, 2, 3];
+
+            EncryptedData encrypted = SecurityPolicies.Default.Encrypt(null, policyUri, plainText);
+            Assert.That(encrypted.Algorithm, Is.Null);
+            Assert.That(encrypted.Data, Is.EqualTo(plainText));
+            Assert.That(SecurityPolicies.Default.Decrypt(null, policyUri, encrypted), Is.SameAs(encrypted.Data));
+            Assert.That(SecurityPolicies.Default.Decrypt(null, policyUri, null), Is.Null);
+            Assert.That(
+                await SecurityPolicies.Default.DecryptAsync(null, policyUri, encrypted).ConfigureAwait(false),
+                Is.SameAs(encrypted.Data));
+            Assert.That(
+                await SecurityPolicies.Default.DecryptAsync(null, policyUri, null).ConfigureAwait(false),
+                Is.Null);
+        }
+
+        /// <summary>
+        /// Verifies absent or empty signatures are accepted only by the policy that does not require signing.
+        /// </summary>
+        [Test]
+        public void MissingSignatureIsAcceptedOnlyWithoutSigning(
+            [Values(SecurityPolicies.None, SecurityPolicies.Basic256Sha256,
+                SecurityPolicies.Aes128_Sha256_RsaOaep, SecurityPolicies.Aes256_Sha256_RsaPss)] string policyUri,
+            [Values("null", "missing", "empty")] string signatureKind)
+        {
+            using Certificate certificate = CertificateBuilder
+                .Create("CN=Missing Signature")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            SignatureData signature = signatureKind switch
+            {
+                "null" => null,
+                "missing" => new SignatureData(),
+                _ => new SignatureData
+                {
+                    Algorithm = SecurityAlgorithms.RsaSha256,
+                    Signature = ByteString.Empty
+                }
+            };
+
+            Assert.That(SecurityPolicies.Default.VerifySignatureData(
+                signature, policyUri, certificate, [1, 2, 3]),
+                Is.EqualTo(policyUri == SecurityPolicies.None));
         }
 
         [Test]
@@ -291,7 +341,7 @@ namespace Opc.Ua.Core.Tests.Security
                 Assert.Ignore("Policy is not supported by this platform.");
             }
 
-            ILogger logger = NUnitTelemetryContext.Create().CreateLogger<SecurityPoliciesTests>();
+            _ = NUnitTelemetryContext.Create().CreateLogger<SecurityPoliciesTests>();
             using Certificate certificate = CertificateBuilder
                 .Create("CN=SecurityPolicies Encrypt")
                 .SetRSAKeySize(2048)

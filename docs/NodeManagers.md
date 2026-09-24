@@ -1,5 +1,32 @@
 # Node Managers
 
+Event delivery for a node follows enqueue order. The Server node and
+nodes opting into parallel event consumers deliver each event concurrently
+to independent monitored items, then complete that event before advancing
+the shared queue. A slow permission check cannot let a later event overtake
+an earlier one; the bounded queue still applies backpressure.
+
+Monitored-item deletion and mode changes isolate failures by owner.
+Already completed results are retained, remaining items for a failed
+owner receive an explicit error, and other owners still run. Event
+unsubscribe failures likewise do not skip later owners or monitored items.
+Request cancellation continues to stop the operation rather than being
+converted into an ordinary per-item failure.
+
+Fluent node builders reject new handler registration once graph authoring
+is sealed, including callbacks wired directly to node slots. History,
+removal, condition-refresh, and monitored-item callbacks on ad-hoc child
+and instance builders use the same dispatcher as regular node builders.
+A manager without that dispatcher rejects those registrations explicitly.
+
+Monitored-source lifecycle ownership is rechecked after a worker stops.
+A superseded deactivate/reactivate cycle keeps its live source rather than
+reacquiring it and releasing the replacement. Callback invocation is
+coordinated without holding a gate across its asynchronous completion, so
+first-subscriber callbacks can still reenter monitoring operations.
+Virtual monitored sources register the same shutdown behavior as concrete
+sources; every live materialized instance is released at teardown.
+
 ## Table of contents
 
 - [Overview](#overview)
@@ -110,6 +137,12 @@ Every `StandardServer` creates a `MasterNodeManager` and asks the server's `IMai
 
 Internally, service-call dispatch and lifecycle coordination are separated. The session-service implementations live in the internal `NodeManagerServiceDispatcher`, which depends only on the lock-free routing-table snapshot and never acquires lifecycle semaphores; `MasterNodeManager` keeps the public service surface (every virtual entry point and protected helper delegates to the dispatcher, so derived classes are unaffected) together with NodeManager lifecycle coordination. The node-management services (AddNodes, DeleteNodes, AddReferences, DeleteReferences) sit between the two: they dispatch per item like other services but serialize address-space mutation with runtime NodeManager lifecycle operations.
 
+`AddNodes` rejects colliding identifiers whether supplied by the client,
+derived from a parent and browse name, or returned by a custom allocator.
+Registration atomically admits the new root without replacing an existing
+node. This add-only rule does not change the explicit runtime
+replacement/re-registration APIs.
+
 The master node manager builds a routing table keyed by namespace index. During construction it ensures the configured dynamic namespace URI is present, registers the configuration/diagnostics manager first, registers the core node manager second, and then registers application managers. For a service request, `GetManagerHandleAsync` uses the `NodeId.NamespaceIndex` to find the candidate manager list and asks each candidate for a handle until one claims the node. If no explicit route exists for the namespace, it falls back to the core node manager. This means a namespace route is a candidate list, not a single-owner map.
 
 Multiple managers can serve the same namespace. `RegisterNamespaceManager(string namespaceUri, IAsyncNodeManager nodeManager)` appends a manager to the namespace route instead of replacing the existing route; the routing table also preserves manager order during lifecycle replacement. This is important for namespace 0 and for generated or runtime models that add nodes in namespaces already used by another manager.
@@ -121,6 +154,26 @@ At runtime, the same reference handling is used for lifecycle-managed managers. 
 ### Core node manager
 
 `CoreNodeManager` is the always-present manager for the core address-space infrastructure. The default master-node-manager constructor registers it for namespace index 0 and for the built-in server namespace route, and it also uses it as the fallback when a namespace has no explicit route. `CoreNodeManager` derives from `AsyncCustomNodeManager`, implements `ICoreNodeManager`, and uses sampling groups for monitored items.
+
+`AsyncCustomNodeManager.Dispose()` stops admission to gate-backed operations and
+starts cleanup without blocking on outstanding work. `DisposeAsync()` also waits
+for admitted operations and semaphore owners to finish before releasing the
+address space, monitored-item manager and synchronization resources. Diagnostics
+mutations participate in the same lifetime. `MasterNodeManager` and the server's
+asynchronous teardown await this cleanup; prefer `await using` when directly
+owning a manager. Subclasses release deferred resources in `DisposeAsyncCore`,
+which runs after admitted operations drain, and await its base implementation.
+Cleanup starts outside the admission lock, including when all operations have
+already completed. Guarded helpers remain available within the active
+`DisposeAsyncCore` async context, but new caller operations remain rejected.
+Subclasses must await their teardown operations before the callback returns.
+Operation lifetime extends through post-processing callbacks even after their
+semaphore scope has ended.
+
+Before serializing address-space deletion or disposal, the master drains
+configuration work that can call back into the server. Session-closing
+notifications and the address space remain available until accepted user
+deactivations and deferred configuration effects complete.
 
 The core manager owns and imports built-in nodes that other server components need to expose as part of the standard server address space. It is also the target for nodes loaded by the diagnostics/configuration manager from generated model output: `DiagnosticsNodeManager.CreateAddressSpaceAsync` loads predefined diagnostics/configuration nodes and then imports them into the core manager with `ImportNodesAsync(..., isInternal: true)`. When application nodes are imported with `isInternal: false`, the core manager updates the diagnostics manager so diagnostics metadata stays in sync.
 
@@ -180,12 +233,30 @@ This document outlines the key differences in behavior and implementation betwee
 
 #### Method Calls
 
+`CustomNodeManager2.Call` completes synchronously through its synchronous
+`Call` override and `MethodState.Call`. It does not launch asynchronous
+overrides or discard their results. An unhandled dispatch exception is
+returned to the caller as an exception, while errors translated by
+`MethodState` retain their normal `ServiceResult` status.
+
+Use `CallAsync` and the asynchronous overrides for work that can suspend.
+The awaitable path completes only after that work finishes. Both paths
+share node ownership, method resolution, role-permission checks, and
+argument-result handling.
+
 * **CoreNodeManager**:
   * **Browse**: Iterates over references stored in `ILocalNode`. Basic masking and filtering.
   * **Translate**: Basic search through internal references.
 * **CustomNodeManager2**:
   * **Browse**: Uses `NodeState.CreateBrowser`. Explicitly validates `PermissionType.Browse`. Supports Views (`IsNodeInView`).
   * **Translate**: Uses `CreateBrowser` to navigate path. Supports resolving targets in other node managers via `unresolvedTargetIds`.
+
+Browse continuation ownership transfers explicitly between the dispatcher,
+node manager, and session store. Permission rejection, metadata/fetch
+failure, and cancellation release the claimed point. If a batch is
+canceled, any earlier retained pages that were not returned to the client
+are released too. Successful continuation pages remain owned by the
+session until resumed, released, or expired.
 
 #### Runtime subtype replacement (`IPredefinedNodeSubtypeReplacer`)
 
@@ -255,10 +326,9 @@ The rule applied by `SubscriptionManager.CalculateRevisedSamplingInterval` is:
 
 1. A requested interval below zero is resolved to the default sampling interval:
    the **publishing interval of the subscription** when the item is created, and
-   the item's **current sampling interval** when it is modified. (The modify case
-   preserves the behaviour of 1.5.378 and earlier, so a `ModifyMonitoredItems`
-   call that leaves the sampling interval unspecified does not silently retune
-   the item.)
+   the item's **current sampling interval** when it is modified. A
+   `ModifyMonitoredItems` call that leaves the sampling interval unspecified
+   therefore does not silently retune the item.
 2. If the node declares `MinimumSamplingIntervals.Continuous` (`0`) for the
    `Value` Attribute, it reports by exception and **no** lower bound is applied —
    the requested interval is returned unchanged.
@@ -1343,6 +1413,24 @@ handle modify, monitoring-mode, delete, and manager-lifecycle operations
 normally. `Use(factory, queueInitialValue: true)` additionally performs
 the standard initial attribute read; push-style items omit it by default.
 
+An initial read that rejects the attribute or data encoding removes the
+unaccepted monitored item from registration, sampling, and any newly
+acquired component-cache entry. Existing items on that node remain valid.
+Recoverable bad data values do not prevent creating the monitored item.
+
+`AsyncCustomNodeManager` acquires current values through
+`NodeState.ReadAttributeAsync`, including initial creation, aggregate-filter
+validation and current-value fallbacks, lifecycle compatibility checks,
+reattachment/recovery, and re-enabling monitoring. Async `OnReadValueAsync`
+bindings therefore supply the first sample rather than the node's stored
+placeholder (OPC UA Part 4 [5.13.1.3](https://reference.opcfoundation.org/Core/Part4/v105/docs/5.13.1.3)).
+Provider awaits run outside the monitored-item registry semaphore; registration
+and cleanup remain serialized, and the operation lifetime prevents disposal
+from releasing owned resources before the read completes. Request cancellation
+removes unaccepted registrations instead of publishing a cancelled read as a
+successful initial sample. Override `ReadInitialValueAsync` for custom initial
+acquisition.
+
 Manager-level asynchronous batch hooks receive only successful items and
 run after the monitored-item manager has applied its changes:
 
@@ -1744,6 +1832,21 @@ builder.Boilers.Boiler__1.DrumX001
 
 #### Hand-written node managers
 
+The `Server` Object (`i=2253`) is the aggregate event subscription point
+(OPC UA Part 5 [8.3.2](https://reference.opcfoundation.org/Core/Part5/v105/docs/8.3.2)).
+Server-wide fan-out treats an individual root or manager's `BadNotSupported` as
+non-participation, not as a failure of every other source. Root registration
+does not silently set `EventNotifier.SubscribeToEvents`; declare the capability
+on actual notifiers as required by Part 3
+[7.18](https://reference.opcfoundation.org/Core/Part3/v105/docs/7.18).
+A direct subscription to an unsupported root still fails with `BadNotSupported`.
+Legacy `null` success results are normalized to `Good` before per-root or
+per-manager status inspection.
+Other startup errors fail the item and roll back attempted registrations.
+Unsubscription continues across independent roots and managers while reporting
+genuine cleanup errors; unsupported participants do not turn successful deletion
+into an error.
+
 An event stream that connects an asynchronous upstream producer can also
 implement `IEventSourceReadiness`. The registry enumerates the stream while
 awaiting `WaitUntilReadyAsync`; creation of a corresponding event monitored
@@ -1752,6 +1855,13 @@ must not wait for the first event. Failures are returned to the subscribing
 client, reported through `OnError`, and stop that activation. For reactivatable
 producers, return a new readiness-aware stream from the `Publish` factory on
 each activation.
+
+Failed factories, iterators, and readiness checks are reported to the caller
+and `OnError`. While a source is still wanted, retries use an exponential delay
+from one second up to thirty seconds rather than an immediate restart loop.
+Only the current activation can request a retry; a late failure from a cancelled
+activation cannot retire its replacement. A failed event subscription rolls back
+its monitored-node registration and notifier count before returning the error.
 
 Managers that don't use the source generator can opt in by deriving
 from `Opc.Ua.Server.Fluent.FluentNodeManagerBase` and calling
@@ -2312,6 +2422,15 @@ input is supplied to the others as a resolution dependency (both
 > NodeSet2's generated types — set the per-file MSBuild metadata on the
 > NodeSet2 entry to control it.
 
+NodeSet2 `ParentNodeId` identifies a node's ownership relationship, not every
+hierarchical reference to it. The generator preserves additional hierarchical
+links, such as `HasComponent`, `HasOrderedComponent`, or `HasAddIn` to a node
+owned by another parent, without moving that node. Only the exact reference
+represented by the parent/child relationship is implicit. Address-space
+registration completes reverse references, and generation deduplicates links
+by their resolved reference type, direction, and target NodeId. Rebuild the
+consuming project to regenerate its address-space code.
+
 #### Importing a NodeSet2 overlay at runtime — `builder.Import`
 
 The models above are compiled into the assembly. A NodeSet2 document
@@ -2494,10 +2613,9 @@ argument, every type — generated or hand-written — sees the real
 `ISystemContext` during a copy; nothing wraps the context to hide the
 `NodeIdFactory`.
 
-> **Breaking change in 2.0.** The four argument `FindChild` and the two
-> argument `CreateChild` are gone. An override written against 1.5.378 fails
-> to compile until the parameter is added; see the
-> [migration guide](migrate/2.0.x/node-states.md#nodestate-findchild-and-createchild-state-nodeid-assignment).
+`NodeState.FindChild` takes the request as an argument and `CreateChild` takes
+the state NodeId; migrating an override written against 1.5.378 is covered by the
+[migration guide](migrate/2.0.x/node-states.md#nodestate-findchild-and-createchild-state-nodeid-assignment).
 
 ### Current limitations
 

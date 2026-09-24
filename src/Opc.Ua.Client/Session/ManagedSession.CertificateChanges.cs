@@ -265,10 +265,8 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Cancels the revalidation loop without awaiting its exit.
-        /// Used by the synchronous <see cref="Dispose(bool)"/>
-        /// path which cannot await asynchronously. Mirrors
-        /// <see cref="CancelIdentityRefreshLoop"/>.
+        /// Signals cancellation without losing the worker and token source
+        /// that <see cref="StopRevalidationLoopAsync"/> must drain and dispose.
         /// </summary>
         private void CancelRevalidationLoop()
         {
@@ -276,8 +274,6 @@ namespace Opc.Ua.Client
             lock (m_revalidationLock)
             {
                 cts = m_revalidationCancellation;
-                m_revalidationCancellation = null;
-                m_revalidationTask = null;
             }
             cts?.Cancel();
         }
@@ -619,5 +615,4 @@ namespace Opc.Ua.Client
             this ILogger logger,
             Exception? exception);
     }
-
 }

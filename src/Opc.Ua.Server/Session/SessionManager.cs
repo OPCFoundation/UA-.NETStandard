@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -357,7 +356,7 @@ namespace Opc.Ua.Server
                     new SessionActivationState(
                         channelContext.ClientChannelCertificate.ToByteString(),
                         channelContext.EndpointDescription!.SecurityPolicyUri ??
-                            SecurityPolicies.None,
+                        SecurityPolicies.None,
                         channelContext.EndpointDescription.SecurityMode));
 
                 // Reserve the session slot while holding the lock so the session
@@ -460,8 +459,7 @@ namespace Opc.Ua.Server
             Nonce? serverNonceObject = null;
             try
             {
-                bool expired = false;
-
+                bool sessionExpired;
                 // The global lock guards the session-manager dictionary and
                 // session lifecycle (lookup, lockout, expiry). It is deliberately
                 // released before the client-signature verification below:
@@ -498,7 +496,7 @@ namespace Opc.Ua.Server
                     }
 
                     // get client lockout key.
-                    clientKey = GetClientLockoutKey(session);
+                    clientKey = GetClientLockoutKey(session, context.ChannelContext);
 
                     // check if client is locked out due to too many failed authentication attempts.
                     if (IsClientLockedOut(clientKey, out long remainingLockoutTicks))
@@ -510,24 +508,18 @@ namespace Opc.Ua.Server
                             $"Too many failed authentication attempts. Try again in {remainingSeconds} seconds.");
                     }
 
-                    // check if session timeout has expired.
-                    expired = session.HasExpired;
+                    sessionExpired = session.HasExpired;
                 }
                 finally
                 {
                     m_semaphoreSlim.Release();
                 }
 
-                if (expired)
+                if (sessionExpired)
                 {
-                    // Close outside the session-manager lock: CloseSessionAsync acquires
-                    // that lock itself and SemaphoreSlim is not reentrant, so closing
-                    // while holding it deadlocks this and every later
-                    // CreateSession/ActivateSession (OPC 10000-4 §5.7.2). When another
-                    // activation or the session monitor already claimed the timeout, it
-                    // is closing the session.
+                    // Close re-enters this manager, so it must run outside the global gate.
+                    // The shared timeout claim also prevents duplicate audit and diagnostic updates.
                     await CloseTimedOutSessionAsync(session).ConfigureAwait(false);
-
                     throw new ServiceResultException(StatusCodes.BadSessionClosed);
                 }
 
@@ -557,15 +549,18 @@ namespace Opc.Ua.Server
 
                     EndpointDescription currentEndpoint =
                         channelContext.EndpointDescription!;
-                    if (isNewChannel &&
-                        (!string.Equals(
+                    if (!string.Equals(
                             activationState.SecurityPolicyUri,
                             currentEndpoint.SecurityPolicyUri,
                             StringComparison.Ordinal) ||
-                        activationState.SecurityMode != currentEndpoint.SecurityMode))
+                        activationState.SecurityMode != currentEndpoint.SecurityMode)
                     {
                         throw new ServiceResultException(
                             StatusCodes.BadSecurityPolicyRejected);
+                    }
+                    if (!session.Activated && !session.IsSecureChannelValid(channelContext.SecureChannelId))
+                    {
+                        throw new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid);
                     }
 
                     bool requiresClientCertificate =
@@ -577,8 +572,8 @@ namespace Opc.Ua.Server
                     if (isNewChannel &&
                         ((requiresClientCertificate &&
                             activationState.OriginalClientChannelCertificate.IsEmpty) ||
-                        activationState.OriginalClientChannelCertificate !=
-                            channelContext.ClientChannelCertificate.ToByteString()))
+                            activationState.OriginalClientChannelCertificate !=
+                                channelContext.ClientChannelCertificate.ToByteString()))
                     {
                         throw new ServiceResultException(
                             StatusCodes.BadSecurityChecksFailed,
@@ -643,12 +638,22 @@ namespace Opc.Ua.Server
                                 cancellationToken)
                             .ConfigureAwait(false);
 
+                        if (ServiceResult.IsBad(error))
+                        {
+                            throw new ServiceResultException(error!);
+                        }
+
                         // parse the token manually if the identity is not provided.
                         if (identity == null)
                         {
-                            tempIdentity = newIdentity != null
-                                ? new UserIdentity(newIdentity)
-                                : new UserIdentity();
+                            if (newIdentity == null ||
+                                newIdentity.TokenType != UserTokenType.Anonymous)
+                            {
+                                throw new ServiceResultException(
+                                    StatusCodes.BadIdentityTokenRejected);
+                            }
+
+                            tempIdentity = new UserIdentity(newIdentity);
                             identity = tempIdentity;
                         }
 
@@ -674,13 +679,6 @@ namespace Opc.Ua.Server
                         throw;
                     }
 
-                    // check for validation error.
-                    if (ServiceResult.IsBad(error))
-                    {
-                        RecordFailedAuthentication(clientKey);
-                        throw new ServiceResultException(error!);
-                    }
-
                     // Compare the continuity key rather than the diagnostic
                     // ClientUserId so neither a different issuer/subject split nor
                     // a different token type carrying the same identifier can be
@@ -691,10 +689,10 @@ namespace Opc.Ua.Server
                     clientUserTokenType = newIdentity!.TokenType;
                     if (isNewChannel &&
                         (!activationState.HasClientUserId ||
-                        !string.Equals(
-                            activationState.ClientUserId,
-                            clientUserId,
-                            StringComparison.Ordinal)))
+                            !string.Equals(
+                                activationState.ClientUserId,
+                                clientUserId,
+                                StringComparison.Ordinal)))
                     {
                         throw new ServiceResultException(
                             StatusCodes.BadIdentityChangeNotSupported,
@@ -840,10 +838,7 @@ namespace Opc.Ua.Server
                             session.Dispose();
 
                             // update diagnostics.
-                            m_server.UpdateServerDiagnostics(diagnostics =>
-                            {
-                                diagnostics.CurrentSessionCount--;
-                            });
+                            m_server.UpdateServerDiagnostics(diagnostics => diagnostics.CurrentSessionCount--);
                         }
                     }
                     finally
@@ -858,6 +853,9 @@ namespace Opc.Ua.Server
         /// Supplies the original transfer security state for a Session restored
         /// by <see cref="RestoreSessionAsync"/>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="session"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         protected void SetRestoredSessionTransferSecurityState(
             ISession session,
             ByteString originalClientChannelCertificate,
@@ -881,7 +879,7 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentOutOfRangeException(nameof(clientUserTokenType));
             }
-            if ((clientUserTokenType == UserTokenType.Anonymous) !=
+            if (clientUserTokenType == UserTokenType.Anonymous !=
                 (clientUserId == null))
             {
                 throw new ArgumentException(
@@ -1272,10 +1270,9 @@ namespace Opc.Ua.Server
         /// outcome is deterministic and idempotent.
         /// </para>
         /// <para>
-        /// Multiple concurrent requests racing through this method may each
-        /// compute the same refresh; the last writer wins. This is acceptable
-        /// because the computation is pure with respect to the current
-        /// RoleManager state.
+        /// The identity and generation are captured before the role computation
+        /// and committed conditionally, so a concurrent activation or role
+        /// change cannot be overwritten by an older refresh.
         /// </para>
         /// </remarks>
         protected virtual void ReevaluateIdentityIfStale(
@@ -1289,6 +1286,12 @@ namespace Opc.Ua.Server
 
             try
             {
+                IdentityRefreshSnapshot snapshot = session.CaptureIdentityRefreshSnapshot();
+                if (!session.IsIdentityStale)
+                {
+                    return;
+                }
+
                 // Build a minimal OperationContext to satisfy the
                 // AddMandatoryRoles signature; only ChannelContext is
                 // consulted (for the endpoint).
@@ -1297,14 +1300,17 @@ namespace Opc.Ua.Server
                     secureChannelContext,
                     RequestType.Unknown,
                     RequestLifetime.None,
-                    session.EffectiveIdentity);
+                    snapshot.Identity);
 
                 IUserIdentity refreshed = AddMandatoryRoles(
                     session,
                     refreshContext,
-                    session.Identity);
+                    snapshot.Identity);
 
-                session.RefreshEffectiveIdentity(refreshed);
+                _ = session.TryRefreshEffectiveIdentity(
+                    snapshot.Identity,
+                    snapshot.Generation,
+                    refreshed);
             }
             catch (Exception ex)
             {
@@ -1522,10 +1528,7 @@ namespace Opc.Ua.Server
             }
 
             // update diagnostics.
-            m_server.UpdateServerDiagnostics(diagnostics =>
-            {
-                diagnostics.SessionTimeoutCount++;
-            });
+            m_server.UpdateServerDiagnostics(diagnostics => diagnostics.SessionTimeoutCount++);
 
             // raise audit event for session closed because of timeout
             m_server.ReportAuditCloseSessionEvent(null!, session, m_logger, "Session/Timeout");
@@ -1597,8 +1600,15 @@ namespace Opc.Ua.Server
         private readonly TimeProvider m_timeProvider;
         private readonly ILogger m_logger;
         private readonly NodeIdDictionary<ISession> m_sessions;
+
         private readonly ConditionalWeakTable<ISession, SessionActivationState>
-            m_sessionActivationStates = new();
+            m_sessionActivationStates =
+#if NET8_0_OR_GREATER
+                [];
+#else
+                new();
+#endif
+
         private uint m_lastSessionId;
         private readonly ManualResetEvent m_shutdownEvent;
         private Task? m_monitorWorkerTask;
@@ -1844,22 +1854,25 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Gets the lockout key for a client based on certificate thumbprint or application URI.
+        /// Gets the lockout key for a client without using client-controlled session metadata.
         /// </summary>
-        private static string GetClientLockoutKey(ISession session)
+        private static string GetClientLockoutKey(
+            ISession session,
+            SecureChannelContext? channelContext)
         {
-            if (session?.ClientCertificate != null)
+            if (session.ClientCertificate != null)
             {
                 return session.ClientCertificate.Thumbprint;
             }
 
-            string? applicationUri = session?.ClientApplicationUri;
-            if (!string.IsNullOrEmpty(applicationUri))
+            if (channelContext?.PeerAddress != null)
             {
-                return applicationUri!;
+                return "peer:" + channelContext.PeerAddress;
             }
 
-            return session?.SecureChannelId ?? string.Empty;
+            // HTTP bindings may share a channel id across the entire listener.
+            // Without an observed peer, isolate the fallback to this server-created session.
+            return "session:" + session.Id;
         }
 
         /// <summary>
@@ -2044,5 +2057,4 @@ namespace Opc.Ua.Server
             int failedAttempts,
             long remainingSeconds);
     }
-
 }

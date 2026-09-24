@@ -2,7 +2,7 @@
 
 The `CertificateManager` provides centralized certificate lifecycle management for OPC UA applications. It replaces the scattered certificate handling across `CertificateValidator`, `CertificateIdentifier`, `CertificateTypesProvider`, and `CertificateFactory` with a cohesive set of interfaces following the Interface Segregation Principle.
 
-> **Note:** Since the `x509` refactor, `CertificateIdentifier` is **metadata-only** (`StoreType` / `StorePath` / `SubjectName` / `Thumbprint` / `CertificateType` / `RawData` / `ValidationOptions`). It no longer caches a `Certificate`, no longer implements `IDisposable`, and the `Certificate` property, `(Certificate)` / `(Certificate, options)` / `(byte[])` constructors, `FindAsync`, `LoadPrivateKey*Async` and `OpenStore` instance methods have been removed. The `CertificateManager` (via `ICertificateRegistry`) is now the single source of truth for materialized application certificates; `CertificateIdentifierResolver` is the stateless helper used to materialize a `Certificate` from an identifier on demand. See *Migration: CertificateIdentifier is metadata-only* below.
+> **Note:** `CertificateIdentifier` is **metadata-only** (`StoreType` / `StorePath` / `SubjectName` / `Thumbprint` / `CertificateType` / `RawData` / `ValidationOptions`). It caches no `Certificate` and is not disposable. The `CertificateManager` (via `ICertificateRegistry`) is the single source of truth for materialized application certificates; `CertificateIdentifierResolver` is the stateless helper that materializes a `Certificate` from an identifier on demand. See *[Materializing a `Certificate` from a `CertificateIdentifier`](#materializing-a-certificate-from-a-certificateidentifier)* below.
 
 ### Architecture
 
@@ -87,6 +87,31 @@ CertificateValidationResult devResult = await manager.ValidateAsync(
     options);
 ```
 
+`MapFromSecurityConfiguration` includes both store-backed certificates and
+explicit `TrustedCertificates` entries for the Peers, Users and Https lists.
+Explicit issuers complete chains without themselves granting trust. When a
+store is also configured, its revocation checks still apply to explicitly
+listed issuers. The manager snapshots the configuration; call `UpdateAsync`
+to replace those snapshots and invalidate cached validation results.
+An explicit-only list can validate certificates without a `StorePath`;
+store-management operations still require a configured backing store.
+
+**Inline issuer revocation policy:** when an inline issuer's list has a backing
+store that checks CRLs, `RejectUnknownRevocationStatus = true` rejects
+`BadCertificateRevocationUnknown` (or `BadCertificateIssuerRevocationUnknown`)
+if that store has no current CRL for the issuer. An inline entry does not
+implicitly suppress this check. This intentionally tightens compatibility with
+validators that accepted inline issuers without checking the configured store:
+provide the issuer's current CRL when using strict revocation policy.
+An explicit-only list without a backing store retains its no-store behavior.
+Disabling unknown-status rejection, or explicitly suppressing unknown status,
+never suppresses an actual `BadCertificateRevoked` or `BadCertificateIssuerRevoked`
+result. If the issuer is present both in the store and inline, the store's
+certificate and validation options take precedence.
+This follows the distinction between a suppressible missing revocation list
+and non-suppressible revocation in
+[OPC 10000-4, 6.1.3, Table 100](https://reference.opcfoundation.org/specs/OPC-10000-4/v1.05.07/6.1.3).
+
 > **Concurrency & caching:** `ValidateAsync` is designed for highly concurrent
 > use — a single shared `CertificateManager` validates many certificates in
 > parallel without serializing on an internal lock. Each trust-list is backed by
@@ -95,6 +120,12 @@ CertificateValidationResult devResult = await manager.ValidateAsync(
 > store changes, e.g. via the trust-list APIs or an out-of-band directory change).
 > Servers that validate a client certificate per incoming secure channel therefore
 > scale across cores instead of bottlenecking on certificate validation.
+
+Validation operations hold explicit borrows on their selected validation
+core. Trust-list invalidation retires the old core without disposing stores
+still used by active calls; new calls acquire the new configuration.
+Registry enumeration returns stable snapshots, and terminal manager
+disposal prevents late certificate publication.
 
 #### Subscribing to Certificate Changes
 
@@ -256,6 +287,29 @@ TrustList changes made with `AddCertificateAsync` / `RemoveCertificateAsync` / `
 
 - `IPushConfigurationTransactionCoordinator` (default: a private, per-server `PushConfigurationTransactionCoordinator` owned by `ConfigurationNodeManager`) owns transaction ownership, staged-operation bookkeeping, commit/rollback ordering and `TransactionDiagnostics`.
 - `IPendingCertificateKeyStore` (default: `DirectoryPendingCertificateKeyStore`) persists the private key regenerated by `CreateSigningRequest(regeneratePrivateKey: true)` until a matching `UpdateCertificate` consumes it (§7.10.10), scoped to its own sub-folder per (CertificateGroup, CertificateType) and protected with the configured `ICertificatePasswordProvider`. Tests can swap in the volatile, in-memory `InMemoryPendingCertificateKeyStore` instead.
+
+  Built-in stores implement `IPeekablePendingCertificateKeyStore`, an optional
+  extension of `IMatchingPendingCertificateKeyStore`. Staging uses
+  `TryPeekMatchingAsync` without consuming the pending key. If no pending key
+  matches, an upload may reuse the existing certificate's matching private key,
+  including stores without a pending sub-store. A mismatch is rejected at staging.
+  Only `ApplyChanges` claims a regenerated key with `TryTakeMatchingAsync`; the
+  staged certificate and claimed-key handles remain owned until the transaction
+  is disposed. Failed commits and later transaction rollbacks restore the claim
+  only while its scope is empty, never replacing a newer signing request.
+  `CreateSelfSignedCertificate` and `DeleteCertificate` also discard obsolete
+  signing requests only during commit, retaining a compensation handle.
+  `CancelChanges` and session close do not remove pending signing keys.
+
+  Compensation has its own bounded cancellation lifetime. Directory and hardware
+  operations serialize per configured scope within the process; distributed
+  stores use conditional compare-and-swap across replicas. Custom stores implement
+  the peek capability to support regenerated-key uploads without destructive
+  probes. The existing pending-store interfaces and their signatures are unchanged.
+  Without `IPeekablePendingCertificateKeyStore`, `CreateSigningRequest` rejects
+  `regeneratePrivateKey: true` with `Bad_NotSupported` before generating or
+  saving a key. Existing-key signing requests and updates remain supported.
+  The provider's explicit `TryTakeAsync` API remains available.
 - `IPushCertificateKeyGenerator` (default: `AdditionalEntropyCertificateKeyGenerator`) generates the regenerated signing-request key pair, **genuinely mixing the caller-supplied §7.10.10 `Nonce` into the private key** (see *Method security and validation* below).
 
 Both are also constructor parameters on `ConfigurationNodeManager`/`MainNodeManagerFactory` for applications that construct the server directly instead of through DI; omitting them lets `ConfigurationNodeManager` create its own private defaults.
@@ -277,11 +331,46 @@ This composes with the configured leader election. Setting `DistributedPushConfi
 
 Passing a null `CertificateGroupId` to `GetCertificates` selects the `DefaultApplicationGroup`, consistent with the other certificate-slot Methods.
 
+`HttpsCertificateType` uses RSA for self-signed certificate creation,
+including startup provisioning and push configuration. The configured
+HTTPS slot can subsequently be reloaded and activated with its private key.
+`CreateSigningRequest` applies an explicit requested subject to both RSA
+and ECC requests even when `regeneratePrivateKey` is false. In that case
+the request retains the existing public key and subject alternative names
+without changing the active certificate; a null or empty subject retains
+the active certificate's subject, including when only the store can resolve it.
+For regeneration, that subject is resolved before creating the new key.
+If neither metadata nor an existing certificate supplies a subject, regeneration
+returns `Bad_InvalidArgument` before key generation.
+A malformed subject returns `Bad_InvalidArgument` before key generation or
+pending-key changes; the active certificate and any earlier pending key remain
+unchanged.
+
 `CreateSigningRequest(regeneratePrivateKey: true)` additionally requires the caller to supply at least **32 bytes** of additional entropy in the `Nonce` argument (§7.10.10); a shorter or missing `Nonce` is rejected with `Bad_InvalidArgument` and leaves all state unchanged. The default `AdditionalEntropyCertificateKeyGenerator` genuinely incorporates that entropy: it instantiates a NIST SP 800-90A HMAC-DRBG from a fresh server-side cryptographic seed concatenated with the caller `Nonce`, and derives the RSA primes (via managed `BigInteger` prime generation, on every target framework) or the EC private scalar from that DRBG. Because the server seed is always present, a weak or adversarial `Nonce` can never weaken the key; a strong `Nonce` genuinely adds entropy. On .NET Framework and `netstandard2.1` the platform cannot import a private-only EC scalar, so genuine additional-entropy incorporation into an ECC key is unavailable there: an ECC `regeneratePrivateKey: true` request is rejected with `Bad_NotSupported` rather than silently generating a key that ignores the mandated `Nonce` (use an RSA `CertificateType`, or run the server on .NET 8 or later, to regenerate an ECC key). RSA keys remain fully nonce-derived on all frameworks.
+
+TrustList file operations reject a closed handle with `Bad_InvalidArgument`;
+another Session's live handle remains protected with `Bad_UserAccessDenied`.
+`LastUpdateTime` advances only on a successful update, and successful
+compensation restores the timestamp along with the previous store contents.
+Decode, store, and cancellation failures still close the file and invalidate
+any validation cache affected by an attempted write.
+
+Push-configuration compensation is independent of the cancelled request.
+Each rollback receives its own 30-second server-clock cancellation budget;
+an earlier operation still receives a fresh budget if a later rollback
+times out. Partial TrustList commits use the same policy to restore their
+stores. Rollback failures are reported explicitly and do not replace the
+original commit failure with success.
 
 `DeleteCertificate`'s endpoint-reference safety check (§7.10.7: "Certificates that are referenced by EndpointDescriptions shall not be deleted. This determination happens when ApplyChanges is called.") resolves the exact certificate each active `EndpointDescription` presents **from the active certificate registry** — keyed by the endpoint's `SecurityPolicyUri`, exactly as the channel handshake resolves the presented certificate — and rejects the transaction with `Bad_InvalidState` at `ApplyChanges` if the deleted certificate is still referenced. Resolving from the live registry (rather than the `EndpointDescription.ServerCertificate` blob captured when the endpoints were created) ensures a certificate that was rotated after startup is still protected. A delete that is superseded within the same transaction by a `CreateSelfSignedCertificate`/`UpdateCertificate` for the same slot coalesces to the later operation (§7.10.2 ordered-queue semantics), so replacing a referenced certificate in one transaction remains allowed. A conservative net "last remaining certificate" check still runs at staging time for immediate feedback.
 
 #### Certificate-Expiration and TrustList-Staleness Alarms (OPC UA Part 12 §7.8.3)
+
+Certificate inputs come from an owned snapshot of the active certificate
+registry, including certificates originally loaded from stores. Group
+selection uses the configured certificate types and the earliest UTC
+expiration. Certificate replacement is reflected at the next evaluation,
+rather than continuing to evaluate an old inline certificate.
 
 Each server `CertificateGroup` exposes the two optional standard alarm
 instances defined by OPC 10000-12 §7.8.3:
@@ -695,6 +784,17 @@ CA signing and CRL revocation. Located in `Opc.Ua.Security.Certificates`.
 
 ### Pluggable Store Backends
 
+The rejected-certificate store limit uses zero for unlimited history and a
+negative value to disable new rejected-certificate storage. Negative limits
+retain existing backend behavior: Directory prunes prior history, while the
+shared key/value store leaves it intact. Native X509 snapshots have
+explicit owners for matching and nonmatching entries; returned matches
+remain usable after the store closes.
+
+PEM deletion atomically replaces the file with the exact remaining
+contents, retaining other certificates and private-key sections without an
+old tail.
+
 Store providers are registered via `ICertificateStoreProvider`:
 
 ```csharp
@@ -714,6 +814,15 @@ Built-in providers:
 - `Pkcs11StoreProvider` — a hardware token, smart card or HSM addressed by an RFC 7512 `pkcs11:` URI (store type `PKCS11`); the private key is used but never leaves the device. Ships in the optional `OPCFoundation.NetStandard.Opc.Ua.Security.Pkcs11` package. See [CryptoProvider](CryptoProvider.md).
 
 Custom providers are passed to the `CertificateManager` constructor (or via `CertificateManagerOptions.AddStoreProvider`):
+
+Provider-aware resolution applies both when registering trust-list paths and
+when validating certificates against those stores. It resolves the default
+directory fallback for provider-specific URIs without replacing a configured
+custom store type. Validation caches retain the selected provider's store and
+release it when the validation core is retired.
+The built-in directory provider is used as a fallback during path resolution,
+even when listed before a custom provider. Native `CurrentUser\...` and
+`LocalMachine\...` paths continue to select the X509 store.
 
 ```csharp
 var manager = new CertificateManager(
@@ -738,6 +847,10 @@ cert.Dispose();    // refcount=0 → X509Certificate2.Dispose() called
 ```
 
 `CertificateCollection.Dispose()` calls `Dispose()` on each member, decrementing their reference counts. Store methods like `EnumerateAsync()` call `AddRef()` on cached certificates before returning them, so disposing the returned collection does not invalidate the store's cache.
+
+ECC secret decryption clears owned plaintext, derived keys, IVs, and decoded
+temporary byte strings on success and failure, while preserving the returned
+secret and data outside the encrypted segment.
 
 ### Backward Compatibility
 
@@ -784,28 +897,18 @@ sites.
 The authoritative, per-requirement Part 12 support status — every implemented ServerConfiguration / PushManagement, TrustList, certificate-alarm, KeyCredentialService and AuthorizationService requirement linked to its source **and** its automated tests, with complete / partial / optional / unsupported marks — lives in the [GDS Conformance Matrix](GDS.md#conformance-matrix). That matrix also identifies the applicable OPC UA Facets / conformance units and states explicitly that the formal UACTT/CTT (a licensed GUI tool) is not run automatically here.
 
 
-### Migration: `CertificateIdentifier` is metadata-only
+### Materializing a `Certificate` from a `CertificateIdentifier`
 
-#### What changed
+`CertificateIdentifier` is metadata only: `StoreType` / `StorePath` / `SubjectName` / `Thumbprint` /
+`CertificateType` / `RawData` / `ValidationOptions`. It caches no `Certificate`, is not disposable, and
+`Equals` compares metadata alone. `RawData` is backed by an explicit `byte[]` field whose setter derives
+`SubjectName` / `Thumbprint` / `CertificateType` from the parsed bytes. `ICertificateRegistry.GetIssuersAsync`
+returns `IList<CertificateIssuerReference>`, a public sealed record carrying `Certificate` plus
+`CertificateValidationOptions`.
 
-`CertificateIdentifier` used to play two roles:
+#### Resolving an identifier
 
-1. **Pure metadata** describing *where* to find a certificate (`StoreType` / `StorePath` / `SubjectName` / `Thumbprint` / `CertificateType` / `ValidationOptions`).
-2. **A cert wrapper** that owned a loaded `Certificate` and implemented `IDisposable`.
-
-The dual role caused recurring lifecycle bugs (stale caches surviving rotations, identifier disposal racing the registry, `Thumbprint` setter throwing on cache replacement, etc.). The `x509` branch removes the second role:
-
-* `Certificate` property and the cached `m_certificate` field — **removed**.
-* `IDisposable` declaration, `Dispose()`, `DisposeCertificate()` — **removed**. `CertificateIdentifier` is no longer disposable.
-* Constructors taking `Certificate` / `Certificate, options` / `byte[]` — **removed**.
-* Instance methods `FindAsync`, `LoadPrivateKeyAsync` (instance), `LoadPrivateKeyExAsync`, `OpenStore` — **removed**.
-* `RawData` is now backed by an explicit `byte[]` field (the setter still derives `SubjectName` / `Thumbprint` / `CertificateType` from the parsed raw bytes).
-* `Equals` compares metadata only.
-* `ICertificateRegistry.GetIssuersAsync` returns `IList<CertificateIssuerReference>` (a public sealed record carrying `Certificate` + `CertificateValidationOptions`) instead of `IList<CertificateIdentifier>`.
-
-#### How to materialize a `Certificate` from a `CertificateIdentifier`
-
-Use the new `CertificateIdentifierResolver` static helper:
+Use the `CertificateIdentifierResolver` static helper:
 
 ```csharp
 using Opc.Ua;
@@ -842,20 +945,6 @@ using ICertificateStore store = CertificateIdentifierResolver.OpenStore(id, tele
 ```
 
 The resolver always returns a caller-owned, `AddRef`'d `Certificate` (or `null`). The caller is responsible for disposing it.
-
-#### Common before / after migration patterns
-
-| Before (legacy) | After (resolver / manager) |
-|---|---|
-| `var id = new CertificateIdentifier(cert);` | `var id = new CertificateIdentifier { Thumbprint = cert.Thumbprint, SubjectName = cert.Subject, CertificateType = CertificateIdentifier.GetCertificateType(cert) };` (caller owns `cert`) |
-| `var id = new CertificateIdentifier(rawDataBytes);` | `var id = new CertificateIdentifier { RawData = rawDataBytes };` (RawData setter derives the other fields) |
-| `id.Certificate` read | `CertificateIdentifierResolver.ResolveAsync(id, ...)` or `using CertificateEntry? e = registry.AcquireApplicationCertificateByType(id.CertificateType); var cert = e?.Certificate;` (caller owns and disposes `e`) |
-| `id.Certificate = cert;` write | Drop the assignment. The cert is owned by the manager registry (use `ICertificateLifecycle.UpdateApplicationCertificateAsync`) or by a local variable in the calling method. |
-| `await id.FindAsync(true, applicationUri, ...)` | `await CertificateIdentifierResolver.LoadPrivateKeyAsync(id, passwordProvider, applicationUri, telemetry, ct)` |
-| `await id.LoadPrivateKeyExAsync(passwordProvider, ...)` | `await CertificateIdentifierResolver.LoadPrivateKeyAsync(id, passwordProvider, applicationUri, telemetry, ct)` |
-| `id.OpenStore(telemetry)` | `CertificateIdentifierResolver.OpenStore(id, telemetry)` |
-| `id.DisposeCertificate(); id.Dispose();` | Drop. The identifier owns nothing disposable. Dispose certificates returned by the resolver instead. |
-| `IList<CertificateIdentifier>` from `GetIssuersAsync`; `issuers[i].Certificate` | `IList<CertificateIssuerReference>`; `issuers[i].Certificate` (record's `Certificate` field, caller-owned) |
 
 #### When to register an in-memory certificate with the manager
 

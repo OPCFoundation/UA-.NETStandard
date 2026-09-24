@@ -37,18 +37,12 @@ using Opc.Ua.Server.UserDatabase;
 namespace Opc.Ua.Server.UserManagement
 {
     /// <summary>
-    /// Default in-memory <see cref="IUserManagement"/> implementation. Wraps
-    /// an <see cref="IUserDatabase"/> for credential persistence and keeps
-    /// the per-user <see cref="UserConfigurationMask"/> and description in
-    /// memory.
+    /// Default <see cref="IUserManagement"/> implementation. Wraps an
+    /// <see cref="IUserDatabase"/> for credential and metadata persistence.
     /// </summary>
     /// <remarks>
-    /// Per Part 18 §6.4 "the management of these Users is server-specific" —
-    /// this default keeps the metadata in memory across the server lifetime.
-    /// Integrators that need persistence of the metadata implement
-    /// <see cref="IUserManagement"/> directly and inject the instance via
-    /// <see cref="StandardServer.CreateUserManagement"/>, or by registering it
-    /// in the service container.
+    /// The database commits credentials and metadata together, and this manager publishes its
+    /// in-memory metadata only after the database mutation succeeds.
     /// </remarks>
     public sealed class UserManagement : IUserManagement, IDisposable
     {
@@ -58,6 +52,11 @@ namespace Opc.Ua.Server.UserManagement
             = new(StringComparer.Ordinal);
 
         private readonly ReaderWriterLockSlim m_lock = new(LockRecursionPolicy.NoRecursion);
+
+        /// <summary>
+        /// Queued mutations must not make metadata readers wait behind a self-service password change.
+        /// </summary>
+        private readonly Lock m_mutationLock = new();
         private bool m_disposed;
 
         /// <summary>
@@ -154,24 +153,29 @@ namespace Opc.Ua.Server.UserManagement
                 return passwordValidation;
             }
 
-            m_lock.EnterWriteLock();
-            try
+            lock (m_mutationLock)
             {
-                if (m_metadata.ContainsKey(userName))
+                m_lock.EnterWriteLock();
+                try
                 {
-                    return new ServiceResult(StatusCodes.BadAlreadyExists,
-                        new LocalizedText($"User '{userName}' already exists."));
+                    if (m_metadata.ContainsKey(userName))
+                    {
+                        return new ServiceResult(StatusCodes.BadAlreadyExists,
+                            new LocalizedText($"User '{userName}' already exists."));
+                    }
+                    bool created = m_userDatabase.CreateUser(
+                        userName, GetPasswordBytes(password), [], userConfiguration, description ?? string.Empty);
+                    if (!created)
+                    {
+                        return new ServiceResult(StatusCodes.BadResourceUnavailable,
+                            new LocalizedText("User-database rejected the create operation."));
+                    }
+                    m_metadata[userName] = new UserMetadata(userConfiguration, description ?? string.Empty);
                 }
-                if (!m_userDatabase.CreateUser(userName, GetPasswordBytes(password), []))
+                finally
                 {
-                    return new ServiceResult(StatusCodes.BadResourceUnavailable,
-                        new LocalizedText("User-database rejected the create operation."));
+                    m_lock.ExitWriteLock();
                 }
-                m_metadata[userName] = new UserMetadata(userConfiguration, description ?? string.Empty);
-            }
-            finally
-            {
-                m_lock.ExitWriteLock();
             }
 
             return ServiceResult.Good;
@@ -196,89 +200,72 @@ namespace Opc.Ua.Server.UserManagement
             bool willDisable = false;
             bool disabled;
 
-            m_lock.EnterWriteLock();
-            try
+            lock (m_mutationLock)
             {
-                if (!m_metadata.TryGetValue(userName, out UserMetadata? existing))
+                m_lock.EnterWriteLock();
+                try
                 {
-                    return new ServiceResult(StatusCodes.BadNotFound,
-                        new LocalizedText($"User '{userName}' not found."));
-                }
-
-                UserConfigurationMask effectiveConfig = modifyUserConfiguration
-                    ? userConfiguration
-                    : existing.Configuration;
-
-                if (modifyUserConfiguration)
-                {
-                    ServiceResult configValidation = ValidateConfigurationFlags(userConfiguration);
-                    if (ServiceResult.IsBad(configValidation))
+                    if (!m_metadata.TryGetValue(userName, out UserMetadata? existing))
                     {
-                        return configValidation;
+                        return new ServiceResult(StatusCodes.BadNotFound,
+                            new LocalizedText($"User '{userName}' not found."));
                     }
 
-                    willDisable = (existing.Configuration & UserConfigurationMask.Disabled) == 0 &&
-                        (userConfiguration & UserConfigurationMask.Disabled) != 0;
+                    UserConfigurationMask effectiveConfig = modifyUserConfiguration
+                        ? userConfiguration
+                        : existing.Configuration;
+                    string effectiveDescription = modifyDescription
+                        ? description ?? string.Empty
+                        : existing.Description;
 
-                    if (willDisable &&
-                        callingUserName != null &&
-                        string.Equals(callingUserName, userName, StringComparison.Ordinal))
+                    if (modifyUserConfiguration)
                     {
-                        return new ServiceResult(StatusCodes.BadInvalidSelfReference,
-                            new LocalizedText("The user to disable is the calling session's user."));
-                    }
-                }
+                        ServiceResult configValidation = ValidateConfigurationFlags(userConfiguration);
+                        if (ServiceResult.IsBad(configValidation))
+                        {
+                            return configValidation;
+                        }
 
-                if (modifyPassword)
-                {
-                    ServiceResult passwordValidation = ValidatePassword(password);
-                    if (ServiceResult.IsBad(passwordValidation))
+                        willDisable = (existing.Configuration & UserConfigurationMask.Disabled) == 0 &&
+                            (userConfiguration & UserConfigurationMask.Disabled) != 0;
+
+                        if (willDisable &&
+                            callingUserName != null &&
+                            string.Equals(callingUserName, userName, StringComparison.Ordinal))
+                        {
+                            return new ServiceResult(StatusCodes.BadInvalidSelfReference,
+                                new LocalizedText("The user to disable is the calling session's user."));
+                        }
+                    }
+
+                    if (modifyPassword)
                     {
-                        return passwordValidation;
-                    }
+                        ServiceResult passwordValidation = ValidatePassword(password);
+                        if (ServiceResult.IsBad(passwordValidation))
+                        {
+                            return passwordValidation;
+                        }
 
-                    // The IUserDatabase API only exposes ChangePassword which
-                    // requires the old password — admin password resets are
-                    // emulated by delete + recreate to keep the abstraction
-                    // stable. The previously assigned roles are snapshotted
-                    // and re-applied to preserve role assignments across the
-                    // reset (Part 18 §5.2.6 does not mandate role removal on
-                    // password change).
-                    //
-                    // KNOWN LIMITATION (see docs/RoleBasedUserManagement.md):
-                    // this two-step is not atomic — if CreateUser fails after
-                    // DeleteUser succeeds, the user account is lost. The
-                    // built-in LinqUserDatabase / JsonUserDatabase delete and
-                    // create operations succeed unconditionally so this is
-                    // only a concern for custom IUserDatabase implementations
-                    // that may fail mid-reset.
-                    ICollection<Role> preservedRoles = SnapshotUserRolesSafe(userName);
-                    if (!m_userDatabase.DeleteUser(userName))
+                        if (!m_userDatabase.ResetPassword(
+                            userName, GetPasswordBytes(password), effectiveConfig, effectiveDescription))
+                        {
+                            return new ServiceResult(StatusCodes.BadResourceUnavailable,
+                                new LocalizedText("User-database rejected the password reset."));
+                        }
+                    }
+                    else if (!PersistUserMetadata(userName, effectiveConfig, effectiveDescription))
                     {
                         return new ServiceResult(StatusCodes.BadResourceUnavailable,
-                            new LocalizedText("User-database rejected the delete during password reset."));
+                            new LocalizedText("User-database rejected the metadata write."));
                     }
-                    if (!m_userDatabase.CreateUser(userName, GetPasswordBytes(password), preservedRoles))
-                    {
-                        // User has been deleted but recreate failed — surface
-                        // a clear error. There is no way to recover the
-                        // original password from IUserDatabase.
-                        m_metadata.Remove(userName);
-                        return new ServiceResult(StatusCodes.BadResourceUnavailable,
-                            new LocalizedText(
-                                "User-database rejected the create during password reset; " +
-                                "the user account has been removed."));
-                    }
-                }
 
-                disabled = (effectiveConfig & UserConfigurationMask.Disabled) != 0;
-                m_metadata[userName] = new UserMetadata(
-                    effectiveConfig,
-                    modifyDescription ? description ?? string.Empty : existing.Description);
-            }
-            finally
-            {
-                m_lock.ExitWriteLock();
+                    disabled = (effectiveConfig & UserConfigurationMask.Disabled) != 0;
+                    m_metadata[userName] = new UserMetadata(effectiveConfig, effectiveDescription);
+                }
+                finally
+                {
+                    m_lock.ExitWriteLock();
+                }
             }
 
             if (willDisable && disabled)
@@ -303,27 +290,30 @@ namespace Opc.Ua.Server.UserManagement
                     new LocalizedText("The user to remove is the calling session's user."));
             }
 
-            m_lock.EnterWriteLock();
-            try
+            lock (m_mutationLock)
             {
-                if (!m_metadata.TryGetValue(userName, out UserMetadata? existing))
+                m_lock.EnterWriteLock();
+                try
                 {
-                    return new ServiceResult(StatusCodes.BadNotFound);
+                    if (!m_metadata.TryGetValue(userName, out UserMetadata? existing))
+                    {
+                        return new ServiceResult(StatusCodes.BadNotFound);
+                    }
+                    if ((existing.Configuration & UserConfigurationMask.NoDelete) != 0)
+                    {
+                        return new ServiceResult(StatusCodes.BadNotSupported,
+                            new LocalizedText($"User '{userName}' is marked NoDelete."));
+                    }
+                    if (!m_userDatabase.DeleteUser(userName))
+                    {
+                        return new ServiceResult(StatusCodes.BadResourceUnavailable);
+                    }
+                    m_metadata.Remove(userName);
                 }
-                if ((existing.Configuration & UserConfigurationMask.NoDelete) != 0)
+                finally
                 {
-                    return new ServiceResult(StatusCodes.BadNotSupported,
-                        new LocalizedText($"User '{userName}' is marked NoDelete."));
+                    m_lock.ExitWriteLock();
                 }
-                if (!m_userDatabase.DeleteUser(userName))
-                {
-                    return new ServiceResult(StatusCodes.BadResourceUnavailable);
-                }
-                m_metadata.Remove(userName);
-            }
-            finally
-            {
-                m_lock.ExitWriteLock();
             }
 
             RaiseUserDeactivated(userName);
@@ -350,45 +340,45 @@ namespace Opc.Ua.Server.UserManagement
                     new LocalizedText("New password matches the old password."));
             }
 
-            m_lock.EnterReadLock();
-            try
+            lock (m_mutationLock)
             {
-                if (!m_metadata.TryGetValue(userName, out UserMetadata? metadata))
+                UserMetadata metadata;
+                m_lock.EnterReadLock();
+                try
                 {
-                    return new ServiceResult(StatusCodes.BadNotFound);
+                    if (!m_metadata.TryGetValue(userName, out metadata!))
+                    {
+                        return new ServiceResult(StatusCodes.BadNotFound);
+                    }
+                    if ((metadata.Configuration & UserConfigurationMask.NoChangeByUser) != 0)
+                    {
+                        return new ServiceResult(StatusCodes.BadNotSupported,
+                            new LocalizedText($"User '{userName}' is marked NoChangeByUser."));
+                    }
                 }
-                if ((metadata.Configuration & UserConfigurationMask.NoChangeByUser) != 0)
+                finally
                 {
-                    return new ServiceResult(StatusCodes.BadNotSupported,
-                        new LocalizedText($"User '{userName}' is marked NoChangeByUser."));
+                    m_lock.ExitReadLock();
                 }
-            }
-            finally
-            {
-                m_lock.ExitReadLock();
-            }
 
-            if (!m_userDatabase.ChangePassword(userName,
+                if (!m_userDatabase.ChangePassword(userName,
                     GetPasswordBytes(oldPassword), GetPasswordBytes(newPassword)))
-            {
-                return new ServiceResult(StatusCodes.BadIdentityTokenInvalid,
-                    new LocalizedText("Old password does not match."));
-            }
-
-            m_lock.EnterWriteLock();
-            try
-            {
-                if (m_metadata.TryGetValue(userName, out UserMetadata? current))
                 {
-                    // Successful change clears the MustChangePassword bit.
-                    m_metadata[userName] = new UserMetadata(
-                        current.Configuration & ~UserConfigurationMask.MustChangePassword,
-                        current.Description);
+                    return new ServiceResult(StatusCodes.BadIdentityTokenInvalid,
+                        new LocalizedText("Old password does not match."));
                 }
-            }
-            finally
-            {
-                m_lock.ExitWriteLock();
+
+                m_lock.EnterWriteLock();
+                try
+                {
+                    m_metadata[userName] = new UserMetadata(
+                        metadata.Configuration & ~UserConfigurationMask.MustChangePassword,
+                        metadata.Description);
+                }
+                finally
+                {
+                    m_lock.ExitWriteLock();
+                }
             }
 
             return ServiceResult.Good;
@@ -445,6 +435,17 @@ namespace Opc.Ua.Server.UserManagement
                     (UserConfigurationMask)user.UserConfiguration,
                     user.Description ?? string.Empty);
             }
+        }
+
+        private bool PersistUserMetadata(
+            string userName,
+            UserConfigurationMask configuration,
+            string? description)
+        {
+            return m_userDatabase.UpdateUserMetadata(
+                userName,
+                configuration,
+                description ?? string.Empty);
         }
 
         private ServiceResult ValidatePassword(string password)
@@ -549,36 +550,20 @@ namespace Opc.Ua.Server.UserManagement
             return Encoding.UTF8.GetBytes(password ?? string.Empty);
         }
 
-        /// <summary>
-        /// Reads the current set of roles for <paramref name="userName"/>
-        /// from the user database, swallowing the <see cref="ArgumentException"/>
-        /// some implementations throw when the user is unknown and returning
-        /// an empty collection in that case. Used to preserve roles across
-        /// admin password resets (see <see cref="ModifyUser"/>).
-        /// </summary>
-        private ICollection<Role> SnapshotUserRolesSafe(string userName)
-        {
-            try
-            {
-                return m_userDatabase.GetUserRoles(userName) ?? [];
-            }
-            catch (ArgumentException)
-            {
-                return [];
-            }
-        }
-
         private sealed record UserMetadata(UserConfigurationMask Configuration, string Description);
 
         /// <inheritdoc/>
         public void Dispose()
         {
-            if (m_disposed)
+            lock (m_mutationLock)
             {
-                return;
+                if (m_disposed)
+                {
+                    return;
+                }
+                m_disposed = true;
+                m_lock.Dispose();
             }
-            m_disposed = true;
-            m_lock.Dispose();
         }
     }
 }

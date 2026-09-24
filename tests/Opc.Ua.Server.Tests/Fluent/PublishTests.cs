@@ -38,6 +38,7 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Fluent;
@@ -66,6 +67,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         private Mock<IMasterNodeManager> m_mockMasterNodeManager;
         private NamespaceTable m_namespaceTable;
         private MonitoredItemQueueFactory m_queueFactory;
+        private TimeProvider m_timeProvider;
 
         private sealed class FixedEventIdProvider : IEventIdProvider
         {
@@ -86,6 +88,9 @@ namespace Opc.Ua.Server.Tests.Fluent
         public void SetUp()
         {
             m_mockServer = new Mock<IServerInternal>();
+            m_timeProvider = TimeProvider.System;
+            m_mockServer.As<ITimeProviderProvider>().SetupGet(server => server.TimeProvider)
+                .Returns(() => m_timeProvider);
             m_mockMasterNodeManager = new Mock<IMasterNodeManager>();
             var mockConfigurationNodeManager = new Mock<IConfigurationNodeManager>();
 
@@ -995,6 +1000,196 @@ namespace Opc.Ua.Server.Tests.Fluent
             await stream.Stopped.Task.WaitAsync(s_signalTimeout).ConfigureAwait(false);
         }
 
+        [Test]
+        public async Task RepeatedSourceFailureRetriesOnlyAfterBackoffAsync()
+        {
+            var clock = new FakeTimeProvider();
+            m_timeProvider = clock;
+            using TestablePublishManager manager = CreateManager();
+            BaseObjectState notifier = await MakeReadinessNotifierAsync(manager, "Backoff").ConfigureAwait(false);
+            var errors = Channel.CreateUnbounded<Exception>();
+            int attempts = 0;
+            var failure = new InvalidOperationException("source unavailable");
+            manager.EventSources.Register(notifier,
+                (_, _, _) =>
+                {
+                    Interlocked.Increment(ref attempts);
+                    throw failure;
+                },
+                new EventPublishOptions
+                {
+                    AlwaysOn = true,
+                    OnError = exception => errors.Writer.TryWrite(exception)
+                });
+
+            Assert.That(await errors.Reader.ReadAsync().AsTask().WaitAsync(s_signalTimeout).ConfigureAwait(false),
+                Is.SameAs(failure));
+            await Assert.ThatAsync(
+                () => manager.EventSources.WaitUntilReadyAsync(notifier, CancellationToken.None).AsTask()
+                    .WaitAsync(s_signalTimeout),
+                Throws.Exception.SameAs(failure)).ConfigureAwait(false);
+            Assert.That(Volatile.Read(ref attempts), Is.EqualTo(1));
+
+            clock.Advance(TimeSpan.FromMilliseconds(500));
+            await Assert.ThatAsync(
+                () => manager.EventSources.WaitUntilReadyAsync(notifier, CancellationToken.None).AsTask()
+                    .WaitAsync(s_signalTimeout),
+                Throws.Exception.SameAs(failure)).ConfigureAwait(false);
+            Assert.That(Volatile.Read(ref attempts), Is.EqualTo(1));
+
+            clock.Advance(TimeSpan.FromMilliseconds(500));
+            await errors.Reader.ReadAsync().AsTask().WaitAsync(s_signalTimeout).ConfigureAwait(false);
+            await Assert.ThatAsync(
+                () => manager.EventSources.WaitUntilReadyAsync(notifier, CancellationToken.None).AsTask()
+                    .WaitAsync(s_signalTimeout),
+                Throws.Exception.SameAs(failure)).ConfigureAwait(false);
+            Assert.That(Volatile.Read(ref attempts), Is.EqualTo(2));
+
+            clock.Advance(TimeSpan.FromSeconds(1));
+            await Assert.ThatAsync(
+                () => manager.EventSources.WaitUntilReadyAsync(notifier, CancellationToken.None).AsTask()
+                    .WaitAsync(s_signalTimeout),
+                Throws.Exception.SameAs(failure)).ConfigureAwait(false);
+            Assert.That(Volatile.Read(ref attempts), Is.EqualTo(2));
+            clock.Advance(TimeSpan.FromSeconds(1));
+            await errors.Reader.ReadAsync().AsTask().WaitAsync(s_signalTimeout).ConfigureAwait(false);
+            Assert.That(Volatile.Read(ref attempts), Is.EqualTo(3));
+        }
+
+        [Test]
+        public async Task ReadinessFailureCanRecoverWithANewSourceGenerationAsync()
+        {
+            var clock = new FakeTimeProvider();
+            m_timeProvider = clock;
+            using TestablePublishManager manager = CreateManager();
+            BaseObjectState notifier = await MakeReadinessNotifierAsync(manager, "RecoverReady").ConfigureAwait(false);
+            var first = new ControlledReadyStream();
+            var second = new ControlledReadyStream();
+            int attempts = 0;
+            manager.EventSources.Register(
+                notifier, (_, _, _) => Interlocked.Increment(ref attempts) == 1 ? first : second, null);
+            notifier.SetAreEventsMonitored(manager.SystemContext, true, false);
+            Task initial = manager.EventSources.WaitUntilReadyAsync(notifier, CancellationToken.None).AsTask();
+            await first.Entered.Task.WaitAsync(s_signalTimeout).ConfigureAwait(false);
+            var failure = new InvalidOperationException("startup failed");
+            first.Ready.TrySetException(failure);
+            await Assert.ThatAsync(() => initial.WaitAsync(s_signalTimeout), Throws.Exception.SameAs(failure))
+                .ConfigureAwait(false);
+            await first.Stopped.Task.WaitAsync(s_signalTimeout).ConfigureAwait(false);
+            await Assert.ThatAsync(
+                () => manager.EventSources.WaitUntilReadyAsync(notifier, CancellationToken.None).AsTask()
+                    .WaitAsync(s_signalTimeout),
+                Throws.Exception.SameAs(failure)).ConfigureAwait(false);
+
+            clock.Advance(TimeSpan.FromSeconds(1));
+            await second.Entered.Task.WaitAsync(s_signalTimeout).ConfigureAwait(false);
+            second.Ready.TrySetResult(true);
+            await manager.EventSources.WaitUntilReadyAsync(notifier, CancellationToken.None).AsTask()
+                .WaitAsync(s_signalTimeout).ConfigureAwait(false);
+            Assert.That(Volatile.Read(ref attempts), Is.EqualTo(2));
+        }
+
+        [Test]
+        public async Task FailedSubscriptionReadinessRollsBackNotifierMembershipAsync()
+        {
+            m_timeProvider = new FakeTimeProvider();
+            using TestablePublishManager manager = CreateManager();
+            BaseObjectState notifier = await MakeReadinessNotifierAsync(manager, "FailedSubscription")
+                .ConfigureAwait(false);
+            var stream = new ControlledReadyStream();
+            manager.EventSources.Register(notifier, (_, _, _) => stream, null);
+            var item = new Mock<IEventMonitoredItem>();
+            item.SetupGet(value => value.Id).Returns(37);
+            item.SetupGet(value => value.NodeId).Returns(notifier.NodeId);
+            item.SetupGet(value => value.MonitoredItemType).Returns(MonitoredItemTypeMask.Events);
+            Task subscribed = manager.SubscribeEventAsync(notifier, item.Object, false).AsTask();
+            await stream.Entered.Task.WaitAsync(s_signalTimeout).ConfigureAwait(false);
+            var failure = new ServiceResultException(StatusCodes.BadServerNotConnected);
+            stream.Ready.TrySetException(failure);
+
+            await Assert.ThatAsync(() => subscribed.WaitAsync(s_signalTimeout), Throws.Exception.SameAs(failure))
+                .ConfigureAwait(false);
+            Assert.That(notifier.AreEventsMonitored, Is.False);
+            Assert.That(manager.EventItemCount, Is.Zero);
+            Assert.That(manager.EventNodeCount, Is.Zero);
+        }
+
+        [Test]
+        public async Task NullFactoryReportsFailureWithoutRestartingBeforeBackoffAsync()
+        {
+            m_timeProvider = new FakeTimeProvider();
+            using TestablePublishManager manager = CreateManager();
+            BaseObjectState notifier = await MakeReadinessNotifierAsync(manager, "NullFactory").ConfigureAwait(false);
+            var reported = new TaskCompletionSource<Exception>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int attempts = 0;
+            manager.EventSources.Register(notifier,
+                (_, _, _) =>
+                {
+                    Interlocked.Increment(ref attempts);
+                    return null;
+                },
+                new EventPublishOptions
+                {
+                    AlwaysOn = true,
+                    OnError = error => reported.TrySetResult(error)
+                });
+            Exception failure = await reported.Task.WaitAsync(s_signalTimeout).ConfigureAwait(false);
+            Assert.That(failure, Is.TypeOf<ServiceResultException>());
+            Assert.That(((ServiceResultException)failure).StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+            await Assert.ThatAsync(
+                () => manager.EventSources.WaitUntilReadyAsync(notifier, CancellationToken.None).AsTask()
+                    .WaitAsync(s_signalTimeout),
+                Throws.Exception.SameAs(failure)).ConfigureAwait(false);
+            Assert.That(Volatile.Read(ref attempts), Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task LateFailureCannotRetireANewerSourceGenerationAsync()
+        {
+            m_timeProvider = new FakeTimeProvider();
+            using TestablePublishManager manager = CreateManager();
+            BaseObjectState notifier = await MakeReadinessNotifierAsync(manager, "LateGeneration").ConfigureAwait(false);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var lateFailure = new TaskCompletionSource<BaseEventState>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var reported = new TaskCompletionSource<Exception>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var second = new ControlledReadyStream();
+            int attempts = 0;
+            async IAsyncEnumerable<BaseEventState> DelayedStream()
+            {
+                entered.TrySetResult(true);
+                yield return await lateFailure.Task.ConfigureAwait(false);
+            }
+
+            manager.EventSources.Register(notifier,
+                (_, _, _) => Interlocked.Increment(ref attempts) == 1 ? DelayedStream() : second,
+                new EventPublishOptions
+                {
+                    CancellationTimeout = TimeSpan.Zero,
+                    OnError = error => reported.TrySetResult(error)
+                });
+            notifier.SetAreEventsMonitored(manager.SystemContext, true, false);
+            await manager.EventSources.WaitUntilReadyAsync(notifier, CancellationToken.None).AsTask()
+                .WaitAsync(s_signalTimeout).ConfigureAwait(false);
+            await entered.Task.WaitAsync(s_signalTimeout).ConfigureAwait(false);
+
+            notifier.SetAreEventsMonitored(manager.SystemContext, false, false);
+            await manager.EventSources.WaitUntilReadyAsync(notifier, CancellationToken.None).AsTask()
+                .WaitAsync(s_signalTimeout).ConfigureAwait(false);
+            notifier.SetAreEventsMonitored(manager.SystemContext, true, false);
+            Task ready = manager.EventSources.WaitUntilReadyAsync(notifier, CancellationToken.None).AsTask();
+            await second.Entered.Task.WaitAsync(s_signalTimeout).ConfigureAwait(false);
+            second.Ready.TrySetResult(true);
+            await ready.WaitAsync(s_signalTimeout).ConfigureAwait(false);
+
+            var failure = new InvalidOperationException("old source failed late");
+            lateFailure.TrySetException(failure);
+            Assert.That(await reported.Task.WaitAsync(s_signalTimeout).ConfigureAwait(false), Is.SameAs(failure));
+            await manager.EventSources.WaitUntilReadyAsync(notifier, CancellationToken.None).AsTask()
+                .WaitAsync(s_signalTimeout).ConfigureAwait(false);
+            Assert.That(Volatile.Read(ref attempts), Is.EqualTo(2));
+            Assert.That(second.Stopped.Task.IsCompleted, Is.False);
+        }
+
         private static async Task<BaseObjectState> MakeReadinessNotifierAsync(
             TestablePublishManager manager, string name)
         {
@@ -1232,6 +1427,19 @@ namespace Opc.Ua.Server.Tests.Fluent
             }
 
             public new NodeIdDictionary<NodeState> PredefinedNodes => base.PredefinedNodes;
+
+            public int EventItemCount => MonitoredItems.Count;
+
+            public int EventNodeCount => MonitoredNodes.Count;
+
+            public ValueTask<ServiceResult> SubscribeEventAsync(
+                NodeState source,
+                IEventMonitoredItem item,
+                bool unsubscribe,
+                CancellationToken ct = default)
+            {
+                return SubscribeToEventsAsync(SystemContext, source, item, unsubscribe, ct);
+            }
 
             public ValueTask<NodeId> AddPublic(
                 BaseInstanceState node,

@@ -39,5 +39,16 @@ namespace Opc.Ua.Server.Hosting
         /// the standard ServerConfiguration/KeyCredentialConfiguration node.
         /// </summary>
         public string ConfigurationFolderPath { get; set; } = string.Empty;
+
+        /// <summary>
+        /// RSA policies accepted for encrypted credential updates, in default-selection order.
+        /// ECC and RSA-DH are rejected because this binding does not own an ephemeral-key exchange.
+        /// </summary>
+        public ArrayOf<string> AllowedSecurityPolicyUris { get; set; } =
+        [
+            SecurityPolicies.Aes256_Sha256_RsaPss,
+            SecurityPolicies.Aes128_Sha256_RsaOaep,
+            SecurityPolicies.Basic256Sha256
+        ];
     }
 }
