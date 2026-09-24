@@ -693,10 +693,12 @@ namespace Opc.Ua.Schema.Model
 
             if (input.Value != null)
             {
-                XmlDecoder decoder = CreateDecoder(input.Value);
+                XmlDecoder decoder = CreateValueDecoder(input.Value, out NamespaceTable valueNamespaceUris);
                 output.DecodedValue = decoder
                     .ReadVariantValue(null, default)
                     .AsBoxedObject(Variant.BoxingBehavior.Legacy);
+                // The value keeps the NodeSet's own indexes; record their table.
+                output.DecodedValueNamespaceUris = valueNamespaceUris;
                 decoder.Close();
             }
 
@@ -1000,10 +1002,12 @@ namespace Opc.Ua.Schema.Model
 
             if (input.Value != null)
             {
-                XmlDecoder decoder = CreateDecoder(input.Value);
+                XmlDecoder decoder = CreateValueDecoder(input.Value, out NamespaceTable valueNamespaceUris);
                 output.DecodedValue = decoder
                     .ReadVariantValue(null, default)
                     .AsBoxedObject(Variant.BoxingBehavior.Legacy);
+                // The value keeps the NodeSet's own indexes; record their table.
+                output.DecodedValueNamespaceUris = valueNamespaceUris;
                 decoder.Close();
             }
 
@@ -2449,31 +2453,55 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         private XmlDecoder CreateDecoder(System.Xml.XmlElement source, string sourceNodeSetUri = null)
         {
+            return CreateDecoder(source, sourceNodeSetUri, mapNamespaces: true, out _);
+        }
+
+        /// <summary>
+        /// Creates a decoder for a Variable/VariableType value. The namespace
+        /// indexes inside the value are left as the NodeSet wrote them, and
+        /// <paramref name="sourceNamespaceUris"/> is the NodeSet's own table they
+        /// refer to. The design validator decodes the same XML again without any
+        /// mapping, so the decoded value must mean the same thing either way.
+        /// </summary>
+        private XmlDecoder CreateValueDecoder(
+            System.Xml.XmlElement source,
+            out NamespaceTable sourceNamespaceUris)
+        {
+            return CreateDecoder(source, null, mapNamespaces: false, out sourceNamespaceUris);
+        }
+
+        private XmlDecoder CreateDecoder(
+            System.Xml.XmlElement source,
+            string sourceNodeSetUri,
+            bool mapNamespaces,
+            out NamespaceTable sourceNamespaceUris)
+        {
             // The factory knows the standard OPC UA encodeable types. Without them, structured
             // NodeSet2 values such as method Argument lists (InputArguments/OutputArguments)
             // cannot be decoded and the generated typed method state would lose its arguments
             // and result fields.
-            var messageContext = new ServiceMessageContext(m_telemetry, s_valueDecodingFactory);
-            messageContext.NamespaceUris = m_settings.NamespaceUris;
-            messageContext.ServerUris = m_serverUris;
-
-            var decoder = new XmlDecoder((XmlElement)source, messageContext);
-
             var namespaceUris = new NamespaceTable();
 
             if (sourceNodeSetUri == null ||
-                !m_settings.NamespaceTables.TryGetValue(sourceNodeSetUri, out string[] sourceNamespaceUris))
+                !m_settings.NamespaceTables.TryGetValue(sourceNodeSetUri, out string[] nodeSetNamespaceUris))
             {
-                sourceNamespaceUris = m_nodeset.NamespaceUris;
+                nodeSetNamespaceUris = m_nodeset.NamespaceUris;
             }
 
-            if (sourceNamespaceUris != null)
+            if (nodeSetNamespaceUris != null)
             {
-                for (int ii = 0; ii < sourceNamespaceUris.Length; ii++)
+                for (int ii = 0; ii < nodeSetNamespaceUris.Length; ii++)
                 {
-                    namespaceUris.Append(sourceNamespaceUris[ii]);
+                    namespaceUris.Append(nodeSetNamespaceUris[ii]);
                 }
             }
+            sourceNamespaceUris = namespaceUris;
+
+            var messageContext = new ServiceMessageContext(m_telemetry, s_valueDecodingFactory);
+            messageContext.NamespaceUris = mapNamespaces ? m_settings.NamespaceUris : namespaceUris;
+            messageContext.ServerUris = m_serverUris;
+
+            var decoder = new XmlDecoder((XmlElement)source, messageContext);
 
             var serverUris = new StringTable();
 
@@ -2496,7 +2524,7 @@ namespace Opc.Ua.Schema.Model
                 }
             }
 
-            decoder.SetMappingTables(namespaceUris, serverUris);
+            decoder.SetMappingTables(mapNamespaces ? namespaceUris : null, serverUris);
 
             return decoder;
         }

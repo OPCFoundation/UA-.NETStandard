@@ -2909,7 +2909,9 @@ namespace Opc.Ua.SourceGeneration
                     () => AddXmlInitializerForComplexValue(
                         node,
                         node.DataTypeNode,
-                        node.DefaultValue))));
+                        node.DefaultValue),
+                    node.DecodedValueNamespaceUris,
+                    kNamespaceTableContextVariable)));
             string dataTypeId =
                 GetNodeIdConstantForDataType(node, m_context.ModelDesign.Namespaces);
             context.Template.AddReplacement(
@@ -3053,7 +3055,9 @@ namespace Opc.Ua.SourceGeneration
                         () => AddXmlInitializerForComplexValue(
                             node,
                             node.DataTypeNode,
-                            node.DefaultValue))));
+                            node.DefaultValue),
+                        node.DecodedValueNamespaceUris,
+                        kNamespaceTableContextVariable)));
             }
         }
 

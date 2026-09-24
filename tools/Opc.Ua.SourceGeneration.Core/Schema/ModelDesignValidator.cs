@@ -5069,6 +5069,7 @@ namespace Opc.Ua.Schema.Model
             if (variableType.DecodedValue != null)
             {
                 mergedType.DecodedValue = variableType.DecodedValue;
+                mergedType.DecodedValueNamespaceUris = variableType.DecodedValueNamespaceUris;
             }
             if (variableType.DefaultValue != null)
             {
@@ -5254,6 +5255,7 @@ namespace Opc.Ua.Schema.Model
                 DisplayName = new LocalizedText(),
                 WriteAccess = 0,
                 DecodedValue = type.DecodedValue,
+                DecodedValueNamespaceUris = type.DecodedValueNamespaceUris,
                 DefaultValue = type.DefaultValue,
                 DataType = type.DataType,
                 DataTypeNode = type.DataTypeNode,
@@ -5407,6 +5409,7 @@ namespace Opc.Ua.Schema.Model
 
             {
                 mergedVariable.DecodedValue = variableType.DecodedValue;
+                mergedVariable.DecodedValueNamespaceUris = variableType.DecodedValueNamespaceUris;
             }
             if (variableType.DefaultValue != null)
 
@@ -5480,6 +5483,7 @@ namespace Opc.Ua.Schema.Model
 
             {
                 mergedVariable.DecodedValue = variable.DecodedValue;
+                mergedVariable.DecodedValueNamespaceUris = variable.DecodedValueNamespaceUris;
             }
             if (variable.DefaultValue != null)
 

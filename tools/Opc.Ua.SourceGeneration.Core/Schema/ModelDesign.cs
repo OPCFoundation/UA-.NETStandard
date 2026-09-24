@@ -966,6 +966,16 @@ namespace Opc.Ua.Schema.Model
         public object DecodedValue { get; set; }
 
         /// <summary>
+        /// The namespace table the namespace indexes inside
+        /// <see cref="DecodedValue"/> (NodeId, ExpandedNodeId, QualifiedName)
+        /// refer to - the table of the NodeSet the value was read from. Null
+        /// when the value was authored in a ModelDesign, whose indexes refer to
+        /// the design's own namespaces (OPC UA first).
+        /// </summary>
+        [XmlIgnore]
+        public NamespaceTable DecodedValueNamespaceUris { get; set; }
+
+        /// <summary>
         /// Data type node
         /// </summary>
         [XmlIgnore]
@@ -1067,6 +1077,14 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         [XmlIgnore]
         public object DecodedValue { get; set; }
+
+        /// <summary>
+        /// The namespace table the namespace indexes inside
+        /// <see cref="DecodedValue"/> refer to. See
+        /// <see cref="VariableDesign.DecodedValueNamespaceUris"/>.
+        /// </summary>
+        [XmlIgnore]
+        public NamespaceTable DecodedValueNamespaceUris { get; set; }
 
         /// <summary>
         /// Data type node

@@ -1883,11 +1883,12 @@ namespace Opc.Ua.Schema.Model.Tests
         }
 
         /// <summary>
-        /// Tests GetDefaultDotNetValue with NodeId type and valid namespace.
-        /// Expected: Returns ExpandedNodeId.Parse format.
+        /// Tests GetDefaultDotNetValue with NodeId type and a non-zero namespace
+        /// index but no namespace table in scope.
+        /// Expected: Returns the literal NodeId.Parse form.
         /// </summary>
         [Test]
-        public void GetDefaultDotNetValue_NodeIdWithValidNamespace_ReturnsExpandedNodeIdParse()
+        public void GetDefaultDotNetValue_NodeIdWithNamespaceWithoutNamespaceTable_ReturnsNodeIdParse()
         {
             // Arrange
             var mockDataType = new DataTypeDesign
@@ -1912,9 +1913,10 @@ namespace Opc.Ua.Schema.Model.Tests
                 namespaces,
                 mockContext.Object);
 
-            // Assert
-            Assert.That(result, Does.StartWith("ExpandedNodeId.Parse("));
-            Assert.That(result, Does.Contain("context.NamespaceUris"));
+            // Assert: without a namespace table in scope the id is emitted
+            // literally; it used to reference a "context" local that a structure
+            // field initializer does not have. See DefaultValueCodeTests.
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.NodeId.Parse(\"ns=1;i=123\")"));
         }
 
         /// <summary>
@@ -2124,7 +2126,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 mockContext.Object);
 
             // Assert
-            Assert.That(result, Does.StartWith("(global::Opc.Ua.StatusCode.StatusCode)"));
+            Assert.That(result, Is.EqualTo("new global::Opc.Ua.StatusCode(0x80000000u)"));
         }
 
         /// <summary>
@@ -5979,14 +5981,11 @@ namespace Opc.Ua.Schema.Model.Tests
         }
 
         /// <summary>
-        /// Tests that GetArrayDimensionsAsCode returns "null" when valueRank is not OneOrMoreDimensions.
+        /// Array ranks keep their declared ArrayDimensions.
         /// </summary>
-        [TestCase(ValueRank.Scalar)]
         [TestCase(ValueRank.Array)]
-        [TestCase(ValueRank.ScalarOrArray)]
-        [TestCase(ValueRank.ScalarOrOneDimension)]
-        [TestCase(ValueRank.Any)]
-        public void GetArrayDimensionsAsCode_ValueRankNotOneOrMoreDimensions_ReturnsNull(ValueRank valueRank)
+        [TestCase(ValueRank.OneOrMoreDimensions)]
+        public void GetArrayDimensionsAsCode_ArrayValueRank_ReturnsDimensions(ValueRank valueRank)
         {
             // Arrange
             const string arrayDimensions = "1,2,3";
@@ -5996,6 +5995,23 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Assert
             Assert.That(result, Is.EqualTo("new uint[] { 1, 2, 3 }"));
+        }
+
+        /// <summary>
+        /// Regression: the "not an array" guard compared the ModelDesign ValueRank
+        /// enum (Scalar = 0 ... Any = 5) against zero as if it were the numeric OPC
+        /// UA rank, so it never fired and a scalar with ArrayDimensions="0" (as
+        /// NodeSet exporters write it) was emitted with ArrayDimensions {0}.
+        /// Part 3 5.6.2: ArrayDimensions is null for ValueRank &lt;= 0.
+        /// </summary>
+        [TestCase(ValueRank.Scalar)]
+        [TestCase(ValueRank.ScalarOrArray)]
+        [TestCase(ValueRank.ScalarOrOneDimension)]
+        [TestCase(ValueRank.Any)]
+        public void GetArrayDimensionsAsCode_NonArrayValueRank_ReturnsNull(ValueRank valueRank)
+        {
+            Assert.That(valueRank.GetArrayDimensionsAsCode("1,2,3"), Is.Null);
+            Assert.That(valueRank.GetArrayDimensionsAsCode("0"), Is.Null);
         }
 
         /// <summary>
@@ -9283,14 +9299,16 @@ namespace Opc.Ua.Schema.Model.Tests
         }
 
         /// <summary>
-        /// Tests that IsOverriddenWithSameClass returns true when both class names start with BaseDataVariableState with different generic parameters.
-        /// Input: Merged instance class name is "BaseDataVariableState&lt;int&gt;", overridden node class name is "BaseDataVariableState&lt;string&gt;".
-        /// Expected: Returns true because both start with "BaseDataVariableState&lt;".
+        /// Two BaseDataVariableState classes with different generic arguments are
+        /// different classes: the override refines the value type and has to be
+        /// redeclared. A special case used to treat them as the same class, but
+        /// it matched only unqualified names like these - generated class names
+        /// are always "global::" qualified, so in generated code it never fired.
         /// </summary>
-        [TestCase("BaseDataVariableState<int>", "BaseDataVariableState<string>", true)]
-        [TestCase("BaseDataVariableState<double>", "BaseDataVariableState<bool>", true)]
-        [TestCase("BaseDataVariableState<CustomType>", "BaseDataVariableState<AnotherType>", true)]
-        public void IsOverriddenWithSameClass_BothBaseDataVariableState_ReturnsTrue(
+        [TestCase("BaseDataVariableState<int>", "BaseDataVariableState<string>", false)]
+        [TestCase("BaseDataVariableState<double>", "BaseDataVariableState<bool>", false)]
+        [TestCase("BaseDataVariableState<CustomType>", "BaseDataVariableState<AnotherType>", false)]
+        public void IsOverriddenWithSameClass_BothBaseDataVariableStateWithDifferentArguments_ReturnsFalse(
             string mergedClassName, string overriddenClassName, bool expected)
         {
             // Arrange
