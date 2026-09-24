@@ -146,6 +146,73 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
+        /// <summary>
+        /// Server-revised values at the edge of their wire types (an
+        /// hour-scale interval times a UInt32 keep-alive count exceeds
+        /// <see cref="TimeSpan.MaxValue"/>) or a NaN interval must not abort
+        /// the create after the server already created the subscription.
+        /// </summary>
+        [TestCase(3_600_000d, uint.MaxValue - 1)]
+        [TestCase(double.NaN, 10u)]
+        [TestCase(1e300, 10u)]
+        [CancelAfter(10_000)]
+        public async Task CreateToleratesExtremeRevisedValuesAsync(
+            double revisedPublishingInterval,
+            uint revisedKeepAliveCount,
+            CancellationToken testCt)
+        {
+            m_mockSubscriptionServices
+                .Setup(s => s.CreateSubscriptionAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<double>(), It.IsAny<uint>(),
+                    It.IsAny<uint>(), It.IsAny<uint>(), It.IsAny<bool>(),
+                    It.IsAny<byte>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CreateSubscriptionResponse
+                {
+                    SubscriptionId = 22,
+                    RevisedLifetimeCount = uint.MaxValue,
+                    RevisedMaxKeepAliveCount = revisedKeepAliveCount,
+                    RevisedPublishingInterval = revisedPublishingInterval
+                });
+            m_mockSubscriptionServices
+                .Setup(s => s.DeleteSubscriptionsAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<uint>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new DeleteSubscriptionsResponse { Results = [StatusCodes.Good] });
+
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry);
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.WaitForCreatedAsync(testCt).ConfigureAwait(false);
+
+                Assert.That(sut.Created, Is.True);
+                Assert.That(sut.Id, Is.EqualTo(22));
+                Assert.That(sut.CurrentKeepAliveCount, Is.EqualTo(revisedKeepAliveCount));
+                m_mockSubscriptionServices.Verify(s => s.CreateSubscriptionAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<double>(), It.IsAny<uint>(),
+                    It.IsAny<uint>(), It.IsAny<uint>(), It.IsAny<bool>(),
+                    It.IsAny<byte>(), It.IsAny<CancellationToken>()), Times.Once);
+            }
+        }
+
+        [Test]
+        public void SaturatingTimeSpanNeverThrows()
+        {
+            Assert.That(SaturatingTimeSpan.FromMilliseconds(double.NaN, TimeSpan.FromSeconds(3)),
+                Is.EqualTo(TimeSpan.FromSeconds(3)));
+            Assert.That(SaturatingTimeSpan.FromMilliseconds(double.PositiveInfinity, TimeSpan.Zero),
+                Is.EqualTo(TimeSpan.MaxValue));
+            Assert.That(SaturatingTimeSpan.FromMilliseconds(-5, TimeSpan.FromSeconds(1)),
+                Is.EqualTo(TimeSpan.Zero));
+            Assert.That(SaturatingTimeSpan.FromMilliseconds(1500, TimeSpan.Zero),
+                Is.EqualTo(TimeSpan.FromMilliseconds(1500)));
+            Assert.That(SaturatingTimeSpan.Multiply(TimeSpan.FromHours(1), uint.MaxValue),
+                Is.EqualTo(TimeSpan.MaxValue));
+            Assert.That(SaturatingTimeSpan.Multiply(TimeSpan.FromSeconds(2), 3),
+                Is.EqualTo(TimeSpan.FromSeconds(6)));
+            Assert.That(SaturatingTimeSpan.FromHours(uint.MaxValue), Is.EqualTo(TimeSpan.MaxValue));
+            Assert.That(SaturatingTimeSpan.FromHours(2), Is.EqualTo(TimeSpan.FromHours(2)));
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         [CancelAfter(10_000)]

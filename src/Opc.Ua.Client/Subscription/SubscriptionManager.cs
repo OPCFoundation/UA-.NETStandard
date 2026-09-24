@@ -2449,13 +2449,18 @@ namespace Opc.Ua.Client.Subscriptions
                 foreach (IManagedSubscription s in created)
                 {
                     TimeSpan publishingInterval = s.CurrentPublishingInterval;
-                    TimeSpan keepAlive = publishingInterval.Multiply(s.CurrentKeepAliveCount);
+                    // Saturate: the server may revise both factors up to the
+                    // limits of their wire types (Part 4 §5.14.2.2), and a
+                    // throwing multiply here would fault every publish worker.
+                    TimeSpan keepAlive = SaturatingTimeSpan.Multiply(
+                        publishingInterval, s.CurrentKeepAliveCount);
                     if (timeout < keepAlive)
                     {
                         timeout = keepAlive;
                     }
 
-                    int pi = (int)publishingInterval.TotalMilliseconds;
+                    int pi = (int)Math.Min(
+                        publishingInterval.TotalMilliseconds, int.MaxValue);
                     if (pi <= 0)
                     {
                         continue;
@@ -2471,7 +2476,7 @@ namespace Opc.Ua.Client.Subscriptions
                 // value for PublishingInterval * KeepAliveCount
                 // TODO: Validate this against spec
                 //
-                timeout = timeout.Multiply(2);
+                timeout = SaturatingTimeSpan.Multiply(timeout, 2);
                 if (timeout < s_minOperationTimeout)
                 {
                     timeout = s_minOperationTimeout;

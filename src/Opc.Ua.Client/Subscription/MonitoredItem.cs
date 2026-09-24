@@ -1021,8 +1021,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     // interval and queue size the server never accepted.
                     Item.CurrentMonitoringMode = request.MonitoringMode;
                     Item.ServerId = result.MonitoredItemId;
-                    Item.CurrentSamplingInterval =
-                        TimeSpan.FromMilliseconds(result.RevisedSamplingInterval);
+                    Item.CurrentSamplingInterval = SaturatingTimeSpan.FromMilliseconds(
+                        result.RevisedSamplingInterval, Options.SamplingInterval);
                     Item.CurrentQueueSize = result.RevisedQueueSize;
 
                     Item.LogRevisedSamplingRateAndQueueSize(Options, true);
@@ -1061,8 +1061,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                         request.RequestedParameters.SamplingInterval);
                     Item.CurrentQueueSize = request.RequestedParameters.QueueSize;
 
-                    Item.CurrentSamplingInterval = TimeSpan.FromMilliseconds(
-                        result.RevisedSamplingInterval);
+                    Item.CurrentSamplingInterval = SaturatingTimeSpan.FromMilliseconds(
+                        result.RevisedSamplingInterval, Options.SamplingInterval);
                     Item.CurrentQueueSize = result.RevisedQueueSize;
 
                     if (MonitoringModeChange == null)

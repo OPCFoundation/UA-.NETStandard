@@ -419,7 +419,7 @@ namespace Opc.Ua.Client.Subscriptions
                 throw ServiceResultException.Create(StatusCodes.BadUnexpectedError,
                     "Server.SetSubscriptionDurable returned no revised lifetime.");
             }
-            return TimeSpan.FromHours(revised);
+            return SaturatingTimeSpan.FromHours(revised);
         }
 
         /// <inheritdoc/>
@@ -1305,7 +1305,8 @@ namespace Opc.Ua.Client.Subscriptions
                     options.Priority,
                     options.MaxNotificationsPerPublish);
                 OnSubscriptionUpdateComplete(true, response.SubscriptionId,
-                    TimeSpan.FromMilliseconds(response.RevisedPublishingInterval),
+                    SaturatingTimeSpan.FromMilliseconds(
+                        response.RevisedPublishingInterval, options.PublishingInterval),
                     response.RevisedMaxKeepAliveCount, response.RevisedLifetimeCount,
                     options.Priority, options.MaxNotificationsPerPublish,
                     options.PublishingEnabled);
@@ -1351,7 +1352,8 @@ namespace Opc.Ua.Client.Subscriptions
                     options.Priority,
                     options.MaxNotificationsPerPublish);
                 OnSubscriptionUpdateComplete(false, 0,
-                    TimeSpan.FromMilliseconds(response.RevisedPublishingInterval),
+                    SaturatingTimeSpan.FromMilliseconds(
+                        response.RevisedPublishingInterval, options.PublishingInterval),
                     response.RevisedMaxKeepAliveCount, response.RevisedLifetimeCount,
                     options.Priority, options.MaxNotificationsPerPublish,
                     options.PublishingEnabled);
@@ -1532,11 +1534,13 @@ namespace Opc.Ua.Client.Subscriptions
         {
             SubscriptionOptions options = Options;
             LastNotificationTimestamp = TimeProvider.GetTimestamp();
-            m_keepAliveInterval = CurrentPublishingInterval.Multiply(CurrentKeepAliveCount + 1);
+            m_keepAliveInterval = SaturatingTimeSpan.Multiply(
+                CurrentPublishingInterval, (double)CurrentKeepAliveCount + 1);
             if (m_keepAliveInterval < s_minKeepAliveTimerInterval)
             {
                 AdjustCounts(options, out uint adjustedKeepAliveCount, out _);
-                m_keepAliveInterval = options.PublishingInterval.Multiply(adjustedKeepAliveCount + 1);
+                m_keepAliveInterval = SaturatingTimeSpan.Multiply(
+                    options.PublishingInterval, (double)adjustedKeepAliveCount + 1);
             }
             if (m_keepAliveInterval > s_maxKeepAliveTimerInterval)
             {
