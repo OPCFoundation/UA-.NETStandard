@@ -236,6 +236,37 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        [TestCase("{\"uav:securityMode\":\"SignAndEncrypt\",\"uav:securityMode\":\"None\"}")]
+        [TestCase("{\"uav:securityPolicy\":\"Aes256_Sha256_RsaPss\",\"uav:securityPolicy\":\"None\"}")]
+        public void ASecurityFloorStatingAMemberTwiceIsRejected(string json)
+        {
+            // The last value used to win, so the floor could be restated weaker
+            // than a first-wins reader (or a JCS canonicalizer) sees it.
+            using var document = JsonDocument.Parse(json);
+
+            bool parsed = WotSecurityFloor.TryParse(
+                document.RootElement, out WotSecurityFloor? floor, out string error);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(parsed, Is.False);
+                Assert.That(floor, Is.Null);
+                Assert.That(error, Does.Contain("more than once"));
+            });
+        }
+
+        [Test]
+        public void ASecurityFloorStatingEachMemberOnceIsAccepted()
+        {
+            using var document = JsonDocument.Parse(
+                "{\"uav:securityMode\":\"SignAndEncrypt\",\"uav:securityPolicy\":\"Aes256_Sha256_RsaPss\"}");
+
+            Assert.That(
+                WotSecurityFloor.TryParse(document.RootElement, out WotSecurityFloor? floor, out _),
+                Is.True);
+            Assert.That(floor!.SecurityMode, Is.EqualTo("SignAndEncrypt"));
+        }
+
         private static string Projection(
             string securityDefinitions,
             string security,
