@@ -28,6 +28,9 @@
  * ======================================================================*/
 
 using System;
+using System.Net;
+using System.Net.Http;
+using System.Net.Sockets;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -180,6 +183,140 @@ namespace Opc.Ua.Client.Tests.WebApi
             Assert.That(webApi.Scheme, Is.EqualTo(Uri.UriSchemeHttps));
             Assert.That(https.Scheme, Is.EqualTo(Uri.UriSchemeHttps));
             Assert.That(unchanged, Is.EqualTo(new Uri("https://localhost:4843/ua")));
+        }
+
+        [Test]
+        public async Task SendRequestMapsHttpErrorStatusToServiceResultExceptionAsync()
+        {
+            using WebApiTransportChannel channel = await OpenChannelAsync(
+                new StubHandler((_, _) => Task.FromResult(
+                    new HttpResponseMessage(HttpStatusCode.ServiceUnavailable))))
+                .ConfigureAwait(false);
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await channel.SendRequestAsync(NewReadRequest(), CancellationToken.None)
+                    .ConfigureAwait(false));
+#if NET5_0_OR_GREATER
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadServerTooBusy));
+#else
+            Assert.That(StatusCode.IsBad(ex.StatusCode), Is.True);
+#endif
+            Assert.That(ex.InnerException, Is.TypeOf<HttpRequestException>());
+        }
+
+        [Test]
+        public async Task SendRequestMapsConnectionFailureToServiceResultExceptionAsync()
+        {
+            using WebApiTransportChannel channel = await OpenChannelAsync(
+                new StubHandler((_, _) => throw new HttpRequestException(
+                    "connection refused",
+                    new SocketException((int)SocketError.ConnectionRefused))))
+                .ConfigureAwait(false);
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await channel.SendRequestAsync(NewReadRequest(), CancellationToken.None)
+                    .ConfigureAwait(false));
+            Assert.That(StatusCode.IsBad(ex.StatusCode), Is.True);
+        }
+
+        [Test]
+        public async Task SendRequestAppliesOperationTimeoutAsync()
+        {
+            using WebApiTransportChannel channel = await OpenChannelAsync(
+                new StubHandler(async (_, ct) =>
+                {
+                    await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false);
+                    return new HttpResponseMessage(HttpStatusCode.OK);
+                }))
+                .ConfigureAwait(false);
+            channel.OperationTimeout = 200;
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await channel.SendRequestAsync(NewReadRequest(), CancellationToken.None)
+                    .ConfigureAwait(false));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadRequestTimeout));
+        }
+
+        [Test]
+        public async Task SendRequestPropagatesCallerCancellationAsync()
+        {
+            using WebApiTransportChannel channel = await OpenChannelAsync(
+                new StubHandler(async (_, ct) =>
+                {
+                    await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false);
+                    return new HttpResponseMessage(HttpStatusCode.OK);
+                }))
+                .ConfigureAwait(false);
+            using var cts = new CancellationTokenSource(100);
+
+            Assert.That(
+                async () => await channel.SendRequestAsync(NewReadRequest(), cts.Token)
+                    .ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>());
+        }
+
+        [Test]
+        public void OpenRejectsCredentialsOverPlainHttp()
+        {
+            using var channel = new WebApiTransportChannel(
+                NUnitTelemetryContext.Create(),
+                new WebApiClientOptions
+                {
+                    BearerToken = "secret",
+                    HttpMessageHandler = new StubHandler((_, _) => Task.FromResult(
+                        new HttpResponseMessage(HttpStatusCode.OK)))
+                });
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await channel.OpenAsync(
+                    new Uri("http://localhost:4843/"),
+                    CreateSettings(),
+                    CancellationToken.None).ConfigureAwait(false));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+        }
+
+        private static ReadRequest NewReadRequest()
+        {
+            return new ReadRequest { RequestHeader = new RequestHeader() };
+        }
+
+        private static TransportChannelSettings CreateSettings()
+        {
+            return new TransportChannelSettings
+            {
+                Configuration = EndpointConfiguration.Create(),
+                Factory = ServiceMessageContext.Create(NUnitTelemetryContext.Create()).Factory,
+                NamespaceUris = new NamespaceTable()
+            };
+        }
+
+        private static async Task<WebApiTransportChannel> OpenChannelAsync(HttpMessageHandler handler)
+        {
+            var channel = new WebApiTransportChannel(
+                NUnitTelemetryContext.Create(),
+                new WebApiClientOptions { HttpMessageHandler = handler });
+            await channel.OpenAsync(
+                new Uri("https://localhost:4843/"),
+                CreateSettings(),
+                CancellationToken.None).ConfigureAwait(false);
+            return channel;
+        }
+
+        private sealed class StubHandler : HttpMessageHandler
+        {
+            private readonly Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> m_send;
+
+            public StubHandler(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> send)
+            {
+                m_send = send;
+            }
+
+            protected override Task<HttpResponseMessage> SendAsync(
+                HttpRequestMessage request,
+                CancellationToken cancellationToken)
+            {
+                return m_send(request, cancellationToken);
+            }
         }
     }
 }
