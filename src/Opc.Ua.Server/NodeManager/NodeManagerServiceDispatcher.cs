@@ -209,6 +209,10 @@ namespace Opc.Ua.Server
                     error = await TranslateBrowsePathAsync(context, browsePath, result, cancellationToken)
                         .ConfigureAwait(false);
                 }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
                 catch (Exception e)
                 {
                     error = ServiceResult.Create(
@@ -407,9 +411,18 @@ namespace Opc.Ua.Server
                 }
                 if (handle == null)
                 {
-                    (handle, manager) = await m_owner.GetManagerHandleAsync(
-                        ExpandedNodeId.ToNodeId(nextTarget, Server.NamespaceUris), cancellationToken)
-                        .ConfigureAwait(false);
+                    try
+                    {
+                        (handle, manager) = await m_owner.GetManagerHandleAsync(
+                            ExpandedNodeId.ToNodeId(nextTarget, Server.NamespaceUris), cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    catch (ServiceResultException exception) when (nextIndex != index)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        m_logger.BrowseReferenceTargetFailed(exception, nextTarget);
+                        continue;
+                    }
                 }
                 if (handle == null ||
                     manager == null ||
@@ -436,6 +449,12 @@ namespace Opc.Ua.Server
                     await manager.TranslateBrowsePathAsync(
                         context, handle, element, targetIds, externalTargetIds, cancellationToken)
                         .ConfigureAwait(false);
+                }
+                catch (ServiceResultException exception) when (nextIndex != index)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    m_logger.BrowseReferenceTargetFailed(exception, nextTarget);
+                    continue;
                 }
                 catch (ServiceResultException)
                 {
@@ -472,21 +491,30 @@ namespace Opc.Ua.Server
                 }
                 foreach (ExpandedNodeId targetId in targetIds)
                 {
-                    (object? targetHandle, IAsyncNodeManager? targetNodeManager) = await m_owner.GetManagerHandleAsync(
-                            ExpandedNodeId.ToNodeId(targetId, Server.NamespaceUris),
-                            cancellationToken)
-                        .ConfigureAwait(false);
-                    if (targetHandle != null && targetNodeManager != null)
+                    try
                     {
-                        NodeMetadata nodeMetadata = await targetNodeManager.GetNodeMetadataAsync(
-                            context, targetHandle, BrowseResultMask.All, cancellationToken)
+                        (object? targetHandle, IAsyncNodeManager? targetNodeManager) = await m_owner.GetManagerHandleAsync(
+                                ExpandedNodeId.ToNodeId(targetId, Server.NamespaceUris),
+                                cancellationToken)
                             .ConfigureAwait(false);
-                        ServiceResult serviceResult = MasterNodeManager.ValidateRolePermissions(
-                            context, nodeMetadata, PermissionType.Browse, m_logger);
-                        if (ServiceResult.IsBad(serviceResult))
+                        if (targetHandle != null && targetNodeManager != null)
                         {
-                            continue;
+                            NodeMetadata nodeMetadata = await targetNodeManager.GetNodeMetadataAsync(
+                                context, targetHandle, BrowseResultMask.All, cancellationToken)
+                                .ConfigureAwait(false);
+                            ServiceResult serviceResult = MasterNodeManager.ValidateRolePermissions(
+                                context, nodeMetadata, PermissionType.Browse, m_logger);
+                            if (ServiceResult.IsBad(serviceResult))
+                            {
+                                continue;
+                            }
                         }
+                    }
+                    catch (ServiceResultException exception)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        m_logger.BrowseReferenceTargetFailed(exception, targetId);
+                        continue;
                     }
                     targets.Add(new BrowsePathTarget
                     {
@@ -1016,45 +1044,54 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(description));
             }
 
-            // find node manager that owns the node.
-            (object? handle, IAsyncNodeManager? nodeManager) = await m_owner.GetManagerHandleAsync(targetId, cancellationToken)
-                .ConfigureAwait(false);
-
-            // dangling reference - nothing more to do.
-            if (handle == null)
+            try
             {
+                // find node manager that owns the node.
+                (object? handle, IAsyncNodeManager? nodeManager) = await m_owner.GetManagerHandleAsync(targetId, cancellationToken)
+                    .ConfigureAwait(false);
+
+                // dangling reference - nothing more to do.
+                if (handle == null)
+                {
+                    return false;
+                }
+
+                // fetch the node attributes.
+                NodeMetadata metadata = await nodeManager!.GetNodeMetadataAsync(context, handle, resultMask, cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (metadata == null)
+                {
+                    return false;
+                }
+
+                // check nodeclass filter.
+                if (nodeClassMask != NodeClass.Unspecified &&
+                    ((int)metadata.NodeClass & (int)nodeClassMask) == 0)
+                {
+                    return false;
+                }
+
+                // update attributes.
+                description.NodeId = metadata.NodeId;
+
+                description.SetTargetAttributes(
+                    resultMask,
+                    metadata.NodeClass,
+                    metadata.BrowseName,
+                    metadata.DisplayName,
+                    metadata.TypeDefinition);
+
+                description.Unfiltered = false;
+
+                return true;
+            }
+            catch (ServiceResultException exception)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                m_logger.BrowseReferenceTargetFailed(exception, targetId);
                 return false;
             }
-
-            // fetch the node attributes.
-            NodeMetadata metadata = await nodeManager!.GetNodeMetadataAsync(context, handle, resultMask, cancellationToken)
-                .ConfigureAwait(false);
-
-            if (metadata == null)
-            {
-                return false;
-            }
-
-            // check nodeclass filter.
-            if (nodeClassMask != NodeClass.Unspecified &&
-                ((int)metadata.NodeClass & (int)nodeClassMask) == 0)
-            {
-                return false;
-            }
-
-            // update attributes.
-            description.NodeId = metadata.NodeId;
-
-            description.SetTargetAttributes(
-                resultMask,
-                metadata.NodeClass,
-                metadata.BrowseName,
-                metadata.DisplayName,
-                metadata.TypeDefinition);
-
-            description.Unfiltered = false;
-
-            return true;
         }
 
         /// <summary>
@@ -3761,5 +3798,13 @@ namespace Opc.Ua.Server
         private readonly MasterNodeManager m_owner;
         private readonly NodeManagerRoutingTable m_nodeManagers;
         private readonly ILogger m_logger;
+    }
+
+    internal static partial class NodeManagerServiceDispatcherLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.NodeManagerServiceDispatcher, Level = LogLevel.Warning,
+            Message = "Could not resolve browse target {TargetId}; continuing with the remaining references.")]
+        public static partial void BrowseReferenceTargetFailed(
+            this ILogger logger, Exception exception, ExpandedNodeId targetId);
     }
 }

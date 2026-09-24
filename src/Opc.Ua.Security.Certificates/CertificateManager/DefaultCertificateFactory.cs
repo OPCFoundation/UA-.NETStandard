@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Formats.Asn1;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -74,7 +75,14 @@ namespace Opc.Ua.Security.Certificates
                         throw new CryptographicException("The certificate chain exceeds 16 certificates.");
                     }
 
-                    ReadOnlyMemory<byte> certBlob = AsnUtils.ParseX509Blob(chainBlob[offset..]);
+                    Asn1Tag tag = AsnDecoder.ReadEncodedValue(
+                        chainBlob.Span[offset..], AsnEncodingRules.DER,
+                        out _, out _, out int encodedLength);
+                    if (!tag.HasSameClassAndValue(Asn1Tag.Sequence) || !tag.IsConstructed)
+                    {
+                        throw new CryptographicException("The certificate is not an ASN.1 sequence.");
+                    }
+                    ReadOnlyMemory<byte> certBlob = chainBlob.Slice(offset, encodedLength);
                     using var cert = Certificate.FromRawData(certBlob);
                     collection.Add(cert);
                     offset += certBlob.Length;
@@ -83,6 +91,10 @@ namespace Opc.Ua.Security.Certificates
                 CertificateCollection result = collection;
                 collection = null;
                 return result;
+            }
+            catch (AsnContentException exception)
+            {
+                throw new CryptographicException("Failed to decode the X509 sequence.", exception);
             }
             finally
             {
@@ -130,6 +142,8 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Creates a signing request using the existing key and an explicit subject.
         /// </summary>
+        /// <exception cref="NotSupportedException">The required RSA or ECDsa key is not available.</exception>
+        /// <exception cref="CryptographicException">The certificate's signature algorithm has no OID.</exception>
         internal static byte[] CreateSigningRequest(
             Certificate certificate,
             X500DistinguishedName subjectName,
@@ -375,7 +389,7 @@ namespace Opc.Ua.Security.Certificates
         {
             const int length = 18;
             byte[] tokenBuffer = new byte[length];
-            using (RandomNumberGenerator rng = RandomNumberGenerator.Create())
+            using (var rng = RandomNumberGenerator.Create())
             {
                 rng.GetBytes(tokenBuffer);
             }

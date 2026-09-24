@@ -28,6 +28,9 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
 
 namespace Opc.Ua.Security.Certificates.Tests
@@ -39,6 +42,71 @@ namespace Opc.Ua.Security.Certificates.Tests
     [SetUICulture("en-us")]
     public class DefaultCertificateFactoryTests
     {
+        [TestCase(1)]
+        [TestCase(2)]
+        [TestCase(16)]
+        public void ParseChainBlobAcceptsPssSignatureWithoutHashAlgorithmPrevalidation(int certificateCount)
+        {
+            using var key = RSA.Create(2048);
+            var request = new CertificateRequest(
+                "CN=PSS Signed Peer", key, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
+            using X509Certificate2 pss = request.CreateSelfSigned(
+                new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
+                new DateTimeOffset(2027, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            using Certificate pkcs1 = CertificateBuilder.Create("CN=PKCS1 Peer").CreateForRSA();
+            var blob = new List<byte>();
+            for (int index = 0; index < certificateCount; index++)
+            {
+                blob.AddRange(index % 2 == 0 ? pss.RawData : pkcs1.RawData);
+            }
+
+            using CertificateCollection chain = DefaultCertificateFactory.Instance.ParseChainBlob(blob.ToArray());
+
+            Assert.That(chain, Has.Count.EqualTo(certificateCount));
+            for (int index = 0; index < certificateCount; index++)
+            {
+                Assert.That(chain[index].RawData, Is.EqualTo(index % 2 == 0 ? pss.RawData : pkcs1.RawData));
+                Assert.That(chain[index].SignatureAlgorithm.Value,
+                    Is.EqualTo(index % 2 == 0 ? "1.2.840.113549.1.1.10" : pkcs1.SignatureAlgorithm.Value));
+            }
+        }
+
+#if NETFRAMEWORK
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ParseChainBlobAcceptsEdDsaSignatureWithoutHashAlgorithmPrevalidation(bool ed448)
+        {
+            var random = new Org.BouncyCastle.Security.SecureRandom();
+            Org.BouncyCastle.Crypto.IAsymmetricCipherKeyPairGenerator generator = ed448
+                ? new Org.BouncyCastle.Crypto.Generators.Ed448KeyPairGenerator()
+                : new Org.BouncyCastle.Crypto.Generators.Ed25519KeyPairGenerator();
+            generator.Init(ed448
+                ? new Org.BouncyCastle.Crypto.Parameters.Ed448KeyGenerationParameters(random)
+                : new Org.BouncyCastle.Crypto.Parameters.Ed25519KeyGenerationParameters(random));
+            Org.BouncyCastle.Crypto.AsymmetricCipherKeyPair key = generator.GenerateKeyPair();
+            var builder = new Org.BouncyCastle.X509.X509V3CertificateGenerator();
+            var subject = new Org.BouncyCastle.Asn1.X509.X509Name("CN=EdDSA Signed Peer");
+            builder.SetSerialNumber(Org.BouncyCastle.Math.BigInteger.One);
+            builder.SetIssuerDN(subject);
+            builder.SetSubjectDN(subject);
+            builder.SetNotBefore(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+            builder.SetNotAfter(new DateTime(2027, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+            builder.SetPublicKey(key.Public);
+            byte[] encoded = builder.Generate(new Org.BouncyCastle.Crypto.Operators.Asn1SignatureFactory(
+                ed448 ? "Ed448" : "Ed25519", key.Private, random)).GetEncoded();
+            using var supported = new X509Certificate2(encoded);
+            using Certificate rsa = CertificateBuilder.Create("CN=RSA Chain Suffix").CreateForRSA();
+            byte[] blob = [.. encoded, .. rsa.RawData];
+
+            using CertificateCollection chain = DefaultCertificateFactory.Instance.ParseChainBlob(blob);
+
+            Assert.That(chain, Has.Count.EqualTo(2));
+            Assert.That(chain[0].RawData, Is.EqualTo(supported.RawData));
+            Assert.That(chain[0].SignatureAlgorithm.Value, Is.EqualTo(ed448 ? "1.3.101.113" : "1.3.101.112"));
+            Assert.That(chain[1].RawData, Is.EqualTo(rsa.RawData));
+        }
+#endif
+
         [Test]
         public void CreateFromRawDataCreatesValidCertificate()
         {

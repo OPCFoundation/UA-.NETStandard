@@ -939,10 +939,13 @@ namespace Opc.Ua.Server
         /// </summary>
         public async ValueTask DisposeAsync()
         {
-            Dispose();
             if (SyncNodeManager is IAsyncDisposable asynchronous)
             {
                 await asynchronous.DisposeAsync().ConfigureAwait(false);
+            }
+            else
+            {
+                Dispose();
             }
             GC.SuppressFinalize(this);
         }

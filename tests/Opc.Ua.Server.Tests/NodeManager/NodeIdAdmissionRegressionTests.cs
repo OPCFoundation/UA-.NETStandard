@@ -44,6 +44,133 @@ namespace Opc.Ua.Server.Tests.NodeManager
     [Category("NodeManagement")]
     public sealed class NodeIdAdmissionRegressionTests
     {
+        [TestCase("service")]
+        [TestCase("exception")]
+        [TestCase("cancelled")]
+        public async Task FailedAddNodeReparksRecoveredMonitoredItemAndLaterRecoversAsync(string failureKind)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (var manager = new AdmissionHooks(server.Object))
+            using (OperationContext context = CreateContext())
+            using (var cancellation = new CancellationTokenSource())
+            {
+                var nodeId = new NodeId("RecoveredChild", manager.NamespaceIndexes[0]);
+                var identity = new Mock<IUserIdentity>();
+                var session = new Mock<ISession>();
+                session.SetupGet(value => value.Identity).Returns(identity.Object);
+                session.SetupGet(value => value.EffectiveIdentity).Returns(identity.Object);
+                session.SetupGet(value => value.PreferredLocales).Returns([]);
+                var subscription = new Mock<ISubscription>();
+                subscription.SetupGet(value => value.Session).Returns(session.Object);
+                subscription.SetupGet(value => value.EffectiveIdentity).Returns(identity.Object);
+                using var monitoredItem = new MonitoredItem(
+                    server.Object, manager, new NodeHandle(), 1, 2,
+                    new ReadValueId { NodeId = nodeId, AttributeId = Attributes.DisplayName },
+                    DiagnosticsMasks.None, TimestampsToReturn.Both, MonitoringMode.Reporting, 3,
+                    null, null, null, 0, 1, true, 0)
+                {
+                    SubscriptionCallback = subscription.Object
+                };
+                var detachable = (IDetachableMonitoredItem)monitoredItem;
+                var lifecycle = (INodeManagerMonitoredItemLifecycle)manager;
+                detachable.Detach(server.Object);
+                detachable.QueueNodeIdUnknown();
+                var master = new Mock<IMasterNodeManager>();
+                Mock<IDynamicNodeManagerHost> recovery = master.As<IDynamicNodeManagerHost>();
+                master.SetupGet(value => value.CoreNodeManager).Returns(server.Object.CoreNodeManager);
+                server.SetupGet(value => value.NodeManager).Returns(master.Object);
+                recovery.Setup(value => value.RecoverDetachedMonitoredItemsAsync(
+                        It.IsAny<IAsyncNodeManager>(), It.IsAny<IReadOnlyCollection<NodeId>>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns(async (IAsyncNodeManager owner, IReadOnlyCollection<NodeId> ids, CancellationToken ct) =>
+                    {
+                        Assert.That(owner, Is.SameAs(manager));
+                        Assert.That(ids, Does.Contain(nodeId));
+                        ServiceResult attached = await lifecycle.AttachMonitoredItemAsync(monitoredItem, ct)
+                            .ConfigureAwait(false);
+                        Assert.That(attached.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    });
+                bool fail = true;
+                var injectedFailure = new InvalidOperationException("Remote parent publication failed.");
+                master.Setup(value => value.AddReferencesAsync(
+                        It.IsAny<NodeId>(), It.IsAny<IList<IReference>>(), It.IsAny<CancellationToken>()))
+                    .Returns(() =>
+                    {
+                        Assert.That(manager.GetNode(nodeId).BrowseName.Name, Is.EqualTo("RecoveredChild"));
+                        if (!fail)
+                        {
+                            return default;
+                        }
+                        if (failureKind == "cancelled")
+                        {
+                            cancellation.Cancel();
+                            throw new OperationCanceledException(cancellation.Token);
+                        }
+                        throw failureKind == "service"
+                            ? new ServiceResultException(StatusCodes.BadResourceUnavailable)
+                            : injectedFailure;
+                    });
+                AddNodesItem request = manager.CreateItem("RecoveredChild", ReferenceTypeIds.HasComponent);
+                request.RequestedNewNodeId = nodeId;
+
+                if (failureKind == "service")
+                {
+                    (ServiceResult failure, NodeId failedId) = await manager.AddNodeAsync(
+                        context, request, cancellation.Token).ConfigureAwait(false);
+                    Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadResourceUnavailable));
+                    Assert.That(failedId.IsNull, Is.True);
+                }
+                else if (failureKind == "cancelled")
+                {
+                    OperationCanceledException failure = Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                        await manager.AddNodeAsync(context, request, cancellation.Token).ConfigureAwait(false))!;
+                    Assert.That(failure.CancellationToken, Is.EqualTo(cancellation.Token));
+                }
+                else
+                {
+                    InvalidOperationException failure = Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                        await manager.AddNodeAsync(context, request, cancellation.Token).ConfigureAwait(false))!;
+                    Assert.That(failure, Is.SameAs(injectedFailure));
+                }
+
+                IReadOnlyList<IMonitoredItem> snapshot = await lifecycle.GetMonitoredItemsSnapshotAsync()
+                    .ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(manager.NodeCount, Is.Zero);
+                    Assert.That(snapshot, Is.Empty);
+                    Assert.That(detachable.IsDeleted, Is.True);
+                    Assert.That(detachable.IsDetached, Is.True);
+                    Assert.That(monitoredItem.NodeManager, Is.SameAs(MonitoredItem.GetDetachedOwner(server.Object)));
+                    Assert.That(monitoredItem.ManagerHandle, Is.SameAs(MonitoredItem.DetachedHandle));
+                });
+                using var publishContext = new OperationContext(monitoredItem);
+                var notifications = new Queue<MonitoredItemNotification>();
+                monitoredItem.Publish(publishContext, notifications, new Queue<DiagnosticInfo>(), 10,
+                    NullLogger.Instance);
+                Assert.That(notifications, Has.Count.EqualTo(1));
+                Assert.That(notifications.Dequeue().Value.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+
+                fail = false;
+                (ServiceResult retried, NodeId retriedId) = await manager.AddNodeAsync(context, request)
+                    .ConfigureAwait(false);
+                Assert.That(retried.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(retriedId, Is.EqualTo(nodeId));
+                Assert.That(detachable.IsDeleted, Is.False);
+                Assert.That(detachable.IsDetached, Is.False);
+                Assert.That(monitoredItem.NodeManager, Is.SameAs(manager));
+                snapshot = await lifecycle.GetMonitoredItemsSnapshotAsync().ConfigureAwait(false);
+                Assert.That(snapshot, Is.EqualTo(new IMonitoredItem[] { monitoredItem }));
+                monitoredItem.Publish(publishContext, notifications, new Queue<DiagnosticInfo>(), 10,
+                    NullLogger.Instance);
+                Assert.That(notifications, Has.Count.EqualTo(1));
+                DataValue recovered = notifications.Dequeue().Value;
+                Assert.That(recovered.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(recovered.WrappedValue, Is.EqualTo(new Variant(new LocalizedText("RecoveredChild"))));
+            }
+        }
+
         [TestCase("recovery", true, "service")]
         [TestCase("recovery", true, "exception")]
         [TestCase("recovery", true, "cancelled")]

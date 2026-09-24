@@ -961,7 +961,7 @@ namespace Opc.Ua
                 // as the reconnect result completes.
                 Volatile.Write(ref m_reconnectStoppedIntentionally, 1);
 
-                await NotifyParticipantsFinalAsync(cycleToken).ConfigureAwait(false);
+                await NotifyParticipantsFinalAsync().ConfigureAwait(false);
                 finalOutcome = kReconnectOutcomePolicyExhausted;
                 OwnerManager.RecordReconnectAttempt(this, finalOutcome);
             }
@@ -1129,7 +1129,7 @@ namespace Opc.Ua
                             "Participant signaled fatal channel error.");
                         terminal = true;
                         terminalAttempt = attempt;
-                        await NotifyParticipantsFinalAsync(cycleToken).ConfigureAwait(false);
+                        await NotifyParticipantsFinalAsync().ConfigureAwait(false);
                         finalOutcome = kReconnectOutcomeFatalChannel;
                         OwnerManager.RecordReconnectAttempt(this, finalOutcome);
                         return false;
@@ -1202,7 +1202,7 @@ namespace Opc.Ua
                     deadline.Elapsed);
                 finalOutcome = kReconnectOutcomeDeadlineExpired;
                 OwnerManager.Logger?.ChannelReconnectDeadlineExpired(deadline.Duration, deadline.Elapsed, State);
-                await NotifyParticipantsFinalAsync(cycleToken).ConfigureAwait(false);
+                await NotifyParticipantsFinalAsync().ConfigureAwait(false);
                 OwnerManager.RecordReconnectAttempt(this, finalOutcome);
                 return false;
             }
@@ -1774,8 +1774,9 @@ namespace Opc.Ua
                 TaskScheduler.Default);
         }
 
-        private async Task NotifyParticipantsFinalAsync(CancellationToken ct)
+        private async Task NotifyParticipantsFinalAsync()
         {
+            CancellationToken ct = OwnerManager.ShutdownToken;
             ManagedTransportChannelLease[] snapshot;
             lock (m_lock)
             {

@@ -139,6 +139,9 @@ namespace Opc.Ua.Client.Subscriptions
         public bool IsCreationInProgress
             => Volatile.Read(ref m_creationInProgress) != 0;
 
+        /// <inheritdoc/>
+        public bool IsIntentionallyDeleted => Volatile.Read(ref m_intentionallyDeleted) != 0;
+
         internal bool IsDispatchingCallback => IsDispatchingNotification;
 
         /// <inheritdoc/>
@@ -1224,6 +1227,8 @@ namespace Opc.Ua.Client.Subscriptions
             // nothing to do if not created.
             if (!Created)
             {
+                Volatile.Write(ref m_intentionallyDeleted, 1);
+                AckQueue.Update();
                 return;
             }
             await ResetMessageGenerationAsync(DeleteCoreAsync, _ => default, ct).ConfigureAwait(false);
@@ -1253,7 +1258,9 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 Logger.DeletingSubscriptionServerFailed(e);
             }
+            Volatile.Write(ref m_intentionallyDeleted, 1);
             OnSubscriptionDeleteCompleted();
+            AckQueue.Update();
         }
 
         private async ValueTask DeleteForRecreateAsync(uint subscriptionId,
@@ -1461,6 +1468,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             if (created)
             {
+                Volatile.Write(ref m_intentionallyDeleted, 0);
                 if (Volatile.Read(ref m_lastRequestedSettings) == null)
                 {
                     RememberRequestedSettings(
@@ -1719,6 +1727,7 @@ namespace Opc.Ua.Client.Subscriptions
         private readonly IDisposable? m_changeTracking;
         private readonly ISubscriptionNotificationHandler m_handler;
         private readonly ISubscriptionContext m_context;
+        private int m_intentionallyDeleted;
         private readonly MonitoredItemManager m_monitoredItems;
         private readonly BackgroundTaskScope m_backgroundWork;
     }

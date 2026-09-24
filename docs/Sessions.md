@@ -362,6 +362,13 @@ Because all of this is driven internally, callers must **not** wrap a
 `ManagedSession` with `SessionReconnectHandler`; doing so throws
 `NotSupportedException`.
 
+Reverse-connected managed sessions require a `ReverseConnectManager` to obtain
+fresh connections during recovery. A caller-supplied `ITransportWaitingConnection`
+is consumed by the initial connection attempt only. Supplying that connection
+without a manager supports a single connection, not automatic recovery: later
+attempts fail with `BadSecureChannelClosed` through the configured reconnect
+policy. They never fall back to opening an outbound connection.
+
 ### Closing a `ManagedSession`
 
 `CloseAsync` requests the close on the connection state machine, which
@@ -577,6 +584,11 @@ is pending, including a handoff after deadline expiry. Recovery cancels active
 update passes and restores subscriptions explicitly before admitting their
 automatic retries. See [publishing during session recovery](Subscriptions.md#publishing-during-session-recovery).
 
+Successful network-path or token-reuse reactivation restarts keepalive
+monitoring and classic Publish replenishment even when no new session or
+subscription is created. A failed or cancelled reactivation does not restart
+these workers.
+
 `IReconnectParticipant.CreateReconnectBudget` supplies a budget for each new
 shared recovery cycle, or returns null to impose no participant-specific limit.
 The manager samples active participants outside its entry lock. The earliest
@@ -597,7 +609,10 @@ Once the cancelled recovery callbacks have finished, the manager sends a final
 `OnReconnectAsync` notification with `reconnectAttempt = -1`. The session clears
 its recovery-in-progress flag before awaiting further cleanup. The manager can
 then stop waiting for that notification without leaving the session marked as
-recovering. It releases the channel recovery cycle and publishes `Faulted`,
+recovering. The notification gets a fresh shutdown-linked token, not the expired
+recovery-cycle token, and is awaited to completion or `ParticipantTimeout`
+(five seconds when that timeout is infinite). The manager then releases the
+channel recovery cycle and publishes `Faulted`,
 allowing the outer policy to run:
 
 ```mermaid

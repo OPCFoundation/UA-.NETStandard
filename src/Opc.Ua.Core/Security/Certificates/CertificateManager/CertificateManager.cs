@@ -740,15 +740,14 @@ namespace Opc.Ua
             if (!result.IsValid &&
                 options?.RecordRejectedCertificates != false &&
                 chain != null &&
-                chain.Count > 0)
+                chain.Count > 0 &&
+                TryGetRejectedProcessor() is { } processor)
             {
                 // The core does not own a rejected-store writer; the manager
                 // is responsible for enqueuing failed chains on the shared
                 // RejectedCertificateProcessor. CertificateCollection.Add
                 // AddRef's each cert; the processor disposes the chain after
                 // processing, balancing the AddRef.
-                RejectedCertificateProcessor processor = GetRejectedProcessor();
-
                 using var rejectedChain = new CertificateCollection();
                 foreach (Certificate c in chain)
                 {
@@ -877,7 +876,11 @@ namespace Opc.Ua
         /// </summary>
         private void EnqueueRejectedCertificate(Certificate certificate)
         {
-            RejectedCertificateProcessor processor = GetRejectedProcessor();
+            RejectedCertificateProcessor? processor = TryGetRejectedProcessor();
+            if (processor == null)
+            {
+                return;
+            }
             using var rejected = new CertificateCollection { certificate };
             // Fire-and-forget: the processor handles failures internally.
             _ = processor.EnqueueAsync(rejected).AsTask();
@@ -886,11 +889,24 @@ namespace Opc.Ua
         /// <summary>
         /// Acquires the single rejected-store writer without allowing creation after disposal begins.
         /// </summary>
+        /// <exception cref="ObjectDisposedException">The certificate manager is shutting down.</exception>
         private RejectedCertificateProcessor GetRejectedProcessor()
+        {
+            return TryGetRejectedProcessor() ??
+                throw new ObjectDisposedException(nameof(CertificateManager));
+        }
+
+        /// <summary>
+        /// Skips best-effort rejected recording when an admitted validation completes during shutdown.
+        /// </summary>
+        private RejectedCertificateProcessor? TryGetRejectedProcessor()
         {
             lock (m_certificatesLock)
             {
-                ThrowIfDisposed();
+                if (m_disposed)
+                {
+                    return null;
+                }
                 return m_rejectedProcessor ??= new RejectedCertificateProcessor(
                     this, m_maxRejectedCertificates, m_telemetry);
             }

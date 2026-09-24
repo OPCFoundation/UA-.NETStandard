@@ -31,8 +31,10 @@
 // disposables are explicitly disposed in TearDown or by the using-block.
 #pragma warning disable CA2000
 using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Channels;
@@ -954,7 +956,9 @@ namespace Opc.Ua.Server.Tests.Fluent
                 await slowStream.StopRequested.Task.WaitAsync(s_signalTimeout).ConfigureAwait(false);
                 fast.SetAreEventsMonitored(manager.SystemContext, true, false);
 
-                await manager.EventSources.WaitUntilReadyAsync(fast, CancellationToken.None).AsTask()
+                await Task.WhenAll(
+                    manager.EventSources.WaitUntilReadyAsync(fast, CancellationToken.None).AsTask(),
+                    fastStream.Entered.Task)
                     .WaitAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
 
                 Assert.That(fastStream.Entered.Task.IsCompleted, Is.True);
@@ -994,6 +998,68 @@ namespace Opc.Ua.Server.Tests.Fluent
             second.Ready.TrySetResult(true);
             await secondSubscription.WaitAsync(s_signalTimeout).ConfigureAwait(false);
             Assert.That(activations, Is.EqualTo(2));
+        }
+
+        [Test]
+        public async Task ReactivationReadinessIncludesSourceWhoseDrainCompletesDuringReconcileAsync()
+        {
+            var clock = new DeadlineObservingClock();
+            m_timeProvider = clock;
+            await using TestablePublishManager manager = CreateManager();
+            BaseObjectState notifier = await MakeReadinessNotifierAsync(manager, "DrainBoundary")
+                .ConfigureAwait(false);
+            var first = new ControlledReadyStream { BlockStop = true };
+            var second = new ControlledReadyStream();
+            first.Ready.TrySetResult(true);
+            int activations = 0;
+            manager.EventSources.Register(notifier,
+                (_, _, _) => Interlocked.Increment(ref activations) == 1 ? first : second,
+                new EventPublishOptions { CancellationTimeout = Timeout.InfiniteTimeSpan });
+            using var releaseReconcile = new ManualResetEventSlim();
+            try
+            {
+                notifier.SetAreEventsMonitored(manager.SystemContext, true, false);
+                await manager.EventSources.WaitUntilReadyAsync(notifier, CancellationToken.None).AsTask()
+                    .WaitAsync(s_signalTimeout).ConfigureAwait(false);
+                notifier.SetAreEventsMonitored(manager.SystemContext, false, false);
+                await manager.EventSources.WaitUntilReadyAsync(notifier, CancellationToken.None).AsTask()
+                    .WaitAsync(s_signalTimeout).ConfigureAwait(false);
+                await first.StopRequested.Task.WaitAsync(s_signalTimeout).ConfigureAwait(false);
+                Task draining = GetSourceDrain(manager.EventSources, notifier.NodeId);
+                Assert.That(draining.IsCompleted, Is.False);
+
+                var reconcileEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                clock.RunOnNextTimerChange(() =>
+                {
+                    reconcileEntered.TrySetResult(true);
+                    if (!releaseReconcile.Wait(s_signalTimeout))
+                    {
+                        throw new TimeoutException("The controlled reconcile pass was not released.");
+                    }
+                });
+                notifier.SetAreEventsMonitored(manager.SystemContext, true, false);
+                Task subscribed = manager.EventSources.WaitUntilReadyAsync(notifier, CancellationToken.None).AsTask();
+                await reconcileEntered.Task.WaitAsync(s_signalTimeout).ConfigureAwait(false);
+                Assert.That(Volatile.Read(ref activations), Is.EqualTo(1));
+                Assert.That(subscribed.IsCompleted, Is.False);
+                first.ReleaseStop.TrySetResult(true);
+                await draining.WaitAsync(s_signalTimeout).ConfigureAwait(false);
+                releaseReconcile.Set();
+
+                await second.Entered.Task.WaitAsync(s_signalTimeout).ConfigureAwait(false);
+                Assert.That(Volatile.Read(ref activations), Is.EqualTo(2));
+                Assert.That(second.Ready.Task.IsCompleted, Is.False);
+                Assert.That(subscribed.IsCompleted, Is.False);
+                second.Ready.TrySetResult(true);
+                await subscribed.WaitAsync(s_signalTimeout).ConfigureAwait(false);
+            }
+            finally
+            {
+                releaseReconcile.Set();
+                first.ReleaseStop.TrySetResult(true);
+                second.Ready.TrySetResult(true);
+                await manager.EventSources.ReleaseAsync().ConfigureAwait(false);
+            }
         }
 
         [Test]
@@ -1201,6 +1267,112 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(manager.EventNodeCount, Is.Zero);
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task EventCompensationReadinessHasFiniteDeadlineWithInfiniteSourceTimeoutAsync(bool deleteNode)
+        {
+            var clock = new DeadlineObservingClock();
+            m_timeProvider = clock;
+            m_mockMasterNodeManager.SetupGet(value => value.CoreNodeManager)
+                .Returns(Mock.Of<ICoreNodeManager>());
+            await using TestablePublishManager manager = CreateManager();
+            BaseObjectState source = await MakeReadinessNotifierAsync(manager, "CompensatedSource")
+                .ConfigureAwait(false);
+            BaseObjectState independent = await MakeReadinessNotifierAsync(manager, "IndependentSource")
+                .ConfigureAwait(false);
+            var first = new ControlledReadyStream();
+            var replacement = new ControlledReadyStream();
+            var healthy = new ControlledReadyStream();
+            first.Ready.TrySetResult(true);
+            healthy.Ready.TrySetResult(true);
+            int generations = 0;
+            manager.EventSources.Register(source, (_, _, _) =>
+                Interlocked.Increment(ref generations) == 1 ? first : replacement,
+                new EventPublishOptions { CancellationTimeout = Timeout.InfiniteTimeSpan });
+            manager.EventSources.Register(independent, (_, _, _) => healthy, null);
+            var identity = new Mock<IUserIdentity>();
+            var session = new Mock<ISession>();
+            session.SetupGet(value => value.Identity).Returns(identity.Object);
+            session.SetupGet(value => value.EffectiveIdentity).Returns(identity.Object);
+            session.SetupGet(value => value.PreferredLocales).Returns([]);
+            var subscription = new Mock<ISubscription>();
+            subscription.SetupGet(value => value.Session).Returns(session.Object);
+            subscription.SetupGet(value => value.EffectiveIdentity).Returns(identity.Object);
+            var filter = new EventFilter();
+            using var item = new MonitoredItem(
+                m_mockServer.Object, manager, new NodeHandle(), 1, 37,
+                new ReadValueId { NodeId = source.NodeId, AttributeId = Attributes.EventNotifier },
+                DiagnosticsMasks.None, TimestampsToReturn.Both, MonitoringMode.Reporting, 3,
+                filter, filter, null, 0, 10, true, 0)
+            {
+                SubscriptionCallback = subscription.Object
+            };
+            var detachable = (IDetachableMonitoredItem)item;
+            var lifecycle = (INodeManagerMonitoredItemLifecycle)manager;
+            detachable.Detach(m_mockServer.Object);
+            ServiceResult attached = await lifecycle.AttachMonitoredItemAsync(item).ConfigureAwait(false);
+            Assert.That(attached.StatusCode, Is.EqualTo(StatusCodes.Good));
+            var originalFailure = new InvalidOperationException("Event unsubscribe failed after stopping its source.");
+            manager.UnsubscribeCallback = async ct =>
+            {
+                await first.Stopped.Task.WaitAsync(ct).ConfigureAwait(false);
+                throw originalFailure;
+            };
+            Task transition = deleteNode
+                ? manager.DeleteNodeAsync(manager.SystemContext, source.NodeId).AsTask()
+                : lifecycle.DetachMonitoredItemAsync(item).AsTask();
+            var independentItem = new Mock<IEventMonitoredItem>();
+            independentItem.SetupGet(value => value.Id).Returns(38);
+            independentItem.SetupGet(value => value.NodeId).Returns(independent.NodeId);
+            independentItem.SetupGet(value => value.MonitoredItemType).Returns(MonitoredItemTypeMask.Events);
+            try
+            {
+                await replacement.Entered.Task.WaitAsync(s_signalTimeout).ConfigureAwait(false);
+                ServiceResult unrelated = await manager.SubscribeEventAsync(independent, independentItem.Object, false)
+                    .AsTask().WaitAsync(s_signalTimeout).ConfigureAwait(false);
+                Assert.That(unrelated.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(independent.AreEventsMonitored, Is.True);
+                Assert.That(transition.IsCompleted, Is.False);
+                Assert.That(replacement.Ready.Task.IsCompleted, Is.False);
+
+                TimeSpan deadline = await clock.DeadlineScheduled.Task.WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+                Assert.That(deadline, Is.GreaterThan(TimeSpan.Zero));
+                Assert.That(deadline, Is.Not.EqualTo(Timeout.InfiniteTimeSpan));
+                clock.Advance(deadline - TimeSpan.FromTicks(1));
+                Assert.That(transition.IsCompleted, Is.False);
+                clock.Advance(TimeSpan.FromTicks(1));
+                AggregateException failure = Assert.ThrowsAsync<AggregateException>(
+                    async () => await transition.WaitAsync(s_signalTimeout).ConfigureAwait(false))!;
+                Assert.That(failure.InnerExceptions, Has.Count.EqualTo(2));
+                Assert.That(failure.InnerExceptions[0], Is.SameAs(originalFailure));
+                Assert.That(failure.InnerExceptions[1],
+                    Is.InstanceOf<OperationCanceledException>().Or.InstanceOf<TimeoutException>());
+                Assert.That(replacement.Ready.Task.IsCompleted, Is.False);
+                Assert.That(detachable.IsDetached, Is.False);
+                Assert.That(item.NodeManager, Is.SameAs(manager));
+                Assert.That(source.AreEventsMonitored, Is.True);
+                Assert.That(manager.Find(source.NodeId), Is.SameAs(source));
+            }
+            finally
+            {
+                replacement.Ready.TrySetResult(true);
+                try
+                {
+                    await transition.WaitAsync(s_signalTimeout).ConfigureAwait(false);
+                }
+                catch (InvalidOperationException exception) when (ReferenceEquals(exception, originalFailure))
+                {
+                }
+                catch (AggregateException exception) when (exception.InnerExceptions.Contains(originalFailure))
+                {
+                }
+                manager.UnsubscribeCallback = null;
+                await lifecycle.DetachMonitoredItemAsync(item).ConfigureAwait(false);
+                await manager.SubscribeEventAsync(independent, independentItem.Object, true).ConfigureAwait(false);
+            }
+        }
+
         [Test]
         public async Task NullFactoryReportsFailureWithoutRestartingBeforeBackoffAsync()
         {
@@ -1282,12 +1454,81 @@ namespace Opc.Ua.Server.Tests.Fluent
         {
             var notifier = new BaseObjectState(null)
             {
-                NodeId = new NodeId(name, kNs),
-                BrowseName = new QualifiedName(name, kNs),
+                NodeId = new NodeId(name, manager.NamespaceIndexes[0]),
+                BrowseName = new QualifiedName(name, manager.NamespaceIndexes[0]),
                 EventNotifier = EventNotifiers.SubscribeToEvents
             };
             await manager.AddPublic(notifier).ConfigureAwait(false);
             return notifier;
+        }
+
+        private static Task GetSourceDrain(EventSourceRegistry registry, NodeId notifierId)
+        {
+            FieldInfo sourcesField = typeof(EventSourceRegistry).GetField(
+                "m_sources", BindingFlags.Instance | BindingFlags.NonPublic)
+                ?? throw new InvalidOperationException("The event-source registry was not found.");
+            if (sourcesField.GetValue(registry) is not IDictionary sources ||
+                sources[notifierId] is not { } entry)
+            {
+                throw new InvalidOperationException("The event source was not registered.");
+            }
+            return entry.GetType().GetField("StoppingTask", BindingFlags.Instance | BindingFlags.Public)?
+                .GetValue(entry) as Task
+                ?? throw new InvalidOperationException("The event-source drain task was not found.");
+        }
+
+        private sealed class DeadlineObservingClock : TimeProvider
+        {
+            public TaskCompletionSource<TimeSpan> DeadlineScheduled { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public override long TimestampFrequency => m_clock.TimestampFrequency;
+
+            public override DateTimeOffset GetUtcNow()
+            {
+                return m_clock.GetUtcNow();
+            }
+
+            public override long GetTimestamp()
+            {
+                return m_clock.GetTimestamp();
+            }
+
+            public override ITimer CreateTimer(
+                TimerCallback callback,
+                object state,
+                TimeSpan dueTime,
+                TimeSpan period)
+            {
+                ITimer timer = m_clock.CreateTimer(callback, state, dueTime, period);
+                if (dueTime > TimeSpan.Zero && dueTime != Timeout.InfiniteTimeSpan)
+                {
+                    DeadlineScheduled.TrySetResult(dueTime);
+                }
+                var observed = new Mock<ITimer>();
+                observed.Setup(value => value.Change(It.IsAny<TimeSpan>(), It.IsAny<TimeSpan>()))
+                    .Returns<TimeSpan, TimeSpan>((due, interval) =>
+                    {
+                        Interlocked.Exchange(ref m_onTimerChange, null)?.Invoke();
+                        return timer.Change(due, interval);
+                    });
+                observed.Setup(value => value.Dispose()).Callback(timer.Dispose);
+                observed.Setup(value => value.DisposeAsync()).Returns(timer.DisposeAsync);
+                return observed.Object;
+            }
+
+            public void RunOnNextTimerChange(Action callback)
+            {
+                Interlocked.Exchange(ref m_onTimerChange, callback);
+            }
+
+            public void Advance(TimeSpan elapsed)
+            {
+                m_clock.Advance(elapsed);
+            }
+
+            private readonly FakeTimeProvider m_clock = new();
+            private Action m_onTimerChange;
         }
 
         private sealed class ControlledReadyStream : IAsyncEnumerable<BaseEventState>, IEventSourceReadiness
@@ -1532,6 +1773,8 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             public int EventNodeCount => MonitoredNodes.Count;
 
+            public Func<CancellationToken, ValueTask> UnsubscribeCallback { get; set; }
+
             public ValueTask<ServiceResult> SubscribeEventAsync(
                 NodeState source,
                 IEventMonitoredItem item,
@@ -1546,6 +1789,20 @@ namespace Opc.Ua.Server.Tests.Fluent
                 CancellationToken cancellationToken = default)
             {
                 return AddNodeAsync(SystemContext, default, node, cancellationToken);
+            }
+
+            protected override async ValueTask OnSubscribeToEventsAsync(
+                ServerSystemContext context,
+                MonitoredNode2 monitoredNode,
+                bool unsubscribe,
+                CancellationToken cancellationToken = default)
+            {
+                await base.OnSubscribeToEventsAsync(context, monitoredNode, unsubscribe, cancellationToken)
+                    .ConfigureAwait(false);
+                if (unsubscribe && UnsubscribeCallback != null)
+                {
+                    await UnsubscribeCallback(cancellationToken).ConfigureAwait(false);
+                }
             }
         }
     }

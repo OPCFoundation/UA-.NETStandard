@@ -181,9 +181,14 @@ manager. Its synchronous service and lifecycle calls, and its optional
 asynchronous method callbacks, retain operation leases until they return.
 Cleanup waits for those leases without holding the node lock or the admission
 lock, so a sampling worker can observe closed admission and finish. New calls
-after admission closes throw `ObjectDisposedException`. `Dispose()` initiates
+after admission closes throw `ObjectDisposedException`, except `Find` and both
+`FindPredefinedNode` overloads, which return null. Nested calls belonging to an
+operation that is still admitted can finish; a captured context cannot grant
+access after that operation returns. `Dispose()` initiates
 this shutdown; `DisposeAsync()` awaits the shared completion and propagates
-cleanup failures. `AsyncNodeManagerAdapter` forwards asynchronous disposal, so
+cleanup failures even when a legacy `Dispose(bool)` override omits its base call.
+`AsyncNodeManagerAdapter` invokes the wrapped asynchronous disposal directly,
+without first invoking synchronous disposal, so
 the master and server also await cleanup for adapted synchronous managers.
 An admitted callback may initiate shutdown with `Dispose()`, but must return
 before its caller awaits `DisposeAsync()`.
@@ -1384,6 +1389,11 @@ continue processing other items. During stored monitored-item restoration,
 a validation failure is logged and that item is skipped without aborting
 the remaining items. Request cancellation still stops the operation.
 
+Browse and TranslateBrowsePaths isolate resolver failures per target reference:
+the failed reference is logged and skipped without discarding healthy siblings,
+including branches in a multi-element path. A failure resolving the starting
+node still fails that browse or path.
+
 The stack caches results only in its existing per-operation and monitored-component caches:
 virtual nodes are never inserted into `PredefinedNodes`.
 
@@ -1886,7 +1896,12 @@ readiness contract without holding admission for unrelated monitored-item
 services. Callback failure compensates only that operation's binding and
 notifier count, preserving a newer binding. Cleanup remains available after
 request cancellation, and compensation errors are reported with the original
-failure.
+failure. Compensation uses a fresh five-second deadline on the server's injected
+clock, even when ordinary source readiness has an infinite timeout.
+
+Readiness belongs to each activation: completion of the previous iterator's
+drain does not make its replacement ready. A producer's readiness signal is
+independent of iterator entry and the first event.
 
 Failed factories, iterators, and readiness checks are reported to the caller
 and `OnError`. While a source is still wanted, retries use an exponential delay

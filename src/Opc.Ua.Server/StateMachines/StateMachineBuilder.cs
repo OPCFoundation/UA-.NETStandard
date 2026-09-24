@@ -898,8 +898,13 @@ namespace Opc.Ua.Server.StateMachines
                 });
             }
 
-            m_dispatcher.AddEnterStateHandler(parentStateId, ScheduleChildSynchronization);
-            m_dispatcher.AddExitStateHandler(parentStateId, ScheduleChildSynchronization);
+            m_dispatcher.AddTransitionSynchronizer((ctx, parent, from, to) =>
+            {
+                if (from == parentStateId || to == parentStateId)
+                {
+                    ScheduleChildSynchronization(ctx, parent);
+                }
+            });
 
             return this;
         }
@@ -1451,6 +1456,7 @@ namespace Opc.Ua.Server.StateMachines
         private readonly TimeProvider m_timeProvider;
         private readonly Dictionary<uint, List<Action<ISystemContext, TState>>> m_enterHandlers = [];
         private readonly List<Action<ISystemContext, uint>> m_initialStateSynchronizers = [];
+        private readonly List<Action<ISystemContext, TState, uint, uint>> m_transitionSynchronizers = [];
         private readonly Dictionary<uint, List<Action<ISystemContext, TState>>> m_exitHandlers = [];
         private readonly List<Action<ISystemContext, TState, uint, uint>> m_transitionObservers = [];
         private readonly List<Func<ISystemContext, TState, uint, uint, ServiceResult>> m_guards = [];
@@ -1569,6 +1575,12 @@ namespace Opc.Ua.Server.StateMachines
         public void AddInitialStateSynchronizer(Action<ISystemContext, uint> synchronizer)
         {
             m_initialStateSynchronizers.Add(synchronizer);
+        }
+
+        public void AddTransitionSynchronizer(Action<ISystemContext, TState, uint, uint> synchronizer)
+        {
+            m_transitionSynchronizers.Add(synchronizer);
+            EnsureInstalled();
         }
 
         /// <summary>
@@ -1837,6 +1849,23 @@ namespace Opc.Ua.Server.StateMachines
                     inputArguments, outputArguments);
             }
 
+            if (m_transitionSynchronizers.Count != 0)
+            {
+                foreach (Action<ISystemContext, TState, uint, uint> synchronizer in m_transitionSynchronizers)
+                {
+                    synchronizer(context, m_stateMachine, from, to);
+                }
+                m_stateMachine.ScheduleTransitionObserver(() => DispatchLifecycle(context, from, to, revision));
+            }
+            else
+            {
+                DispatchLifecycle(context, from, to, revision);
+            }
+            return originalResult ?? ServiceResult.Good;
+        }
+
+        private void DispatchLifecycle(ISystemContext context, uint from, uint to, long revision)
+        {
             // Exit handlers fire first, then transition observers, then
             // enter handlers (standard reactive-FSM lifecycle order).
             if (from != 0 && m_exitHandlers.TryGetValue(from, out List<Action<ISystemContext, TState>>? exitList))
@@ -1892,8 +1921,6 @@ namespace Opc.Ua.Server.StateMachines
             {
                 ArmTimer(to, armEntry);
             }
-
-            return originalResult ?? ServiceResult.Good;
         }
 
         /// <summary>

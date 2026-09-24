@@ -49,6 +49,79 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     [SetUICulture("en-us")]
     public class CertificateManagerTests
     {
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AdmittedValidationPreservesResultWhenManagerDisposesBeforeRejectedEnqueueAsync(
+            bool acceptError)
+        {
+            await using var manager = new CertificateManager(m_telemetry);
+            using Certificate certificate = CertificateBuilder.Create("CN=Admitted Validation").CreateForRSA();
+            Task disposal = Task.CompletedTask;
+            StatusCode observed = default;
+            manager.AcceptError = (_, error) =>
+            {
+                observed = error.StatusCode;
+                disposal = manager.DisposeAsync().AsTask();
+                return acceptError;
+            };
+            try
+            {
+                CertificateValidationResult result = await manager.ValidateAsync(certificate).ConfigureAwait(false);
+
+                Assert.That(observed, Is.EqualTo(StatusCodes.BadCertificateUntrusted));
+                Assert.That(result.IsValid, Is.EqualTo(acceptError));
+                Assert.That(result.StatusCode, Is.EqualTo(
+                    acceptError ? StatusCodes.Good : StatusCodes.BadCertificateUntrusted));
+                Assert.ThrowsAsync<ObjectDisposedException>(
+                    async () => await manager.ValidateAsync(certificate).ConfigureAwait(false));
+            }
+            finally
+            {
+                await disposal.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AdmittedEndpointValidationPreservesCertificateErrorDuringDisposalAsync(bool validateUri)
+        {
+            await using var manager = new CertificateManager(m_telemetry);
+            using Certificate certificate = CertificateBuilder.Create("CN=Endpoint Validation")
+                .AddExtension(new X509SubjectAltNameExtension("urn:actual:server", ["actual.invalid"]))
+                .CreateForRSA();
+            var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
+            {
+                EndpointUrl = "opc.tcp://different.invalid:4840",
+                Server = new ApplicationDescription { ApplicationUri = "urn:different:server" }
+            });
+            Task disposal = Task.CompletedTask;
+            StatusCode observed = default;
+            manager.AcceptError = (_, error) =>
+            {
+                observed = error.StatusCode;
+                disposal = manager.DisposeAsync().AsTask();
+                return false;
+            };
+            Action validate = validateUri
+                ? () => manager.ValidateApplicationUri(certificate, endpoint)
+                : () => manager.ValidateDomains(certificate, endpoint);
+            try
+            {
+                StatusCode expected = validateUri
+                    ? StatusCodes.BadCertificateUriInvalid
+                    : StatusCodes.BadCertificateHostNameInvalid;
+                ServiceResultException error = Assert.Throws<ServiceResultException>(() => validate());
+
+                Assert.That(error.StatusCode, Is.EqualTo(expected));
+                Assert.That(observed, Is.EqualTo(expected));
+                Assert.That(() => validate(), Throws.TypeOf<ObjectDisposedException>());
+            }
+            finally
+            {
+                await disposal.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            }
+        }
+
         /// <summary>
         /// Verifies rejected-certificate submission cannot recreate a writer after manager disposal.
         /// </summary>

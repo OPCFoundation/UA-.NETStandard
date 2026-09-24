@@ -30,7 +30,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+#if NET7_0_OR_GREATER
 using System.Net.Security;
+#endif
 using System.Net.WebSockets;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
@@ -528,7 +530,12 @@ namespace Opc.Ua.Client.WebApi
                 new System.Buffers.ReadOnlySequence<byte>(payload),
                 context,
                 s_decoderOptions);
-            return decoder.DecodeMessage<IServiceResponse>();
+            IServiceResponse response = decoder.DecodeMessage<IServiceResponse>();
+            if (response?.ResponseHeader == null)
+            {
+                throw new ServiceResultException(StatusCodes.BadDecodingError, "The response header is missing.");
+            }
+            return response;
         }
 
         /// <inheritdoc/>
@@ -553,6 +560,7 @@ namespace Opc.Ua.Client.WebApi
         {
             public uint CallerHandle { get; } = callerHandle;
             public uint WireHandle { get; } = wireHandle;
+
             public TaskCompletionSource<IServiceResponse> Completion { get; } =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
         }
@@ -670,36 +678,64 @@ namespace Opc.Ua.Client.WebApi
                 }
             }
 
+            private bool TryFailResponse(uint wireHandle, Exception failure)
+            {
+                PendingRequest? pending;
+                lock (m_lock)
+                {
+                    if (!m_pending.TryGetValue(wireHandle, out pending))
+                    {
+                        return wireHandle > kUnknownCancelTargetHandle && wireHandle <= m_lastRequestHandle;
+                    }
+                    m_pending.Remove(wireHandle);
+                    m_callers.Remove(pending.CallerHandle);
+                }
+                pending.Completion.TrySetException(failure is ServiceResultException
+                    ? failure
+                    : new ServiceResultException(StatusCodes.BadDecodingError, "The response could not be decoded.",
+                        failure));
+                return true;
+            }
+
             public async Task SendAsync(byte[] bytes, CancellationToken ct)
             {
                 if (!TryBeginOperation())
                 {
                     throw new ServiceResultException(StatusCodes.BadConnectionClosed);
                 }
+                bool admitted = false;
                 try
                 {
                     using var sending = CancellationTokenSource.CreateLinkedTokenSource(ct, ShutdownToken);
                     await m_sendLock.WaitAsync(sending.Token).ConfigureAwait(false);
-                    try
-                    {
-                        await Socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text,
-                            endOfMessage: true, sending.Token).ConfigureAwait(false);
-                    }
-                    finally
-                    {
-                        m_sendLock.Release();
-                    }
-                }
-                catch (OperationCanceledException) when (ct.IsCancellationRequested)
-                {
-                    if (Socket.State == WebSocketState.Aborted)
-                    {
-                        Stop(new ServiceResultException(StatusCodes.BadConnectionClosed));
-                    }
-                    throw;
+                    admitted = true;
+                    _ = SendPayloadAsync(bytes);
                 }
                 finally
                 {
+                    if (!admitted)
+                    {
+                        CompleteOperation();
+                    }
+                }
+            }
+
+            private async Task SendPayloadAsync(byte[] bytes)
+            {
+                try
+                {
+                    await Socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text,
+                        endOfMessage: true, ShutdownToken).ConfigureAwait(false);
+                }
+                catch (Exception exception)
+                {
+                    m_logger.WssConnectionClosed(exception);
+                    Stop(new ServiceResultException(
+                        StatusCodes.BadConnectionClosed, "The WebSocket send failed.", exception));
+                }
+                finally
+                {
+                    m_sendLock.Release();
                     CompleteOperation();
                 }
             }
@@ -823,7 +859,22 @@ namespace Opc.Ua.Client.WebApi
                     while (!ShutdownToken.IsCancellationRequested)
                     {
                         byte[] bytes = await ReceiveMessageAsync(Socket, maxSize, ShutdownToken).ConfigureAwait(false);
-                        Complete(DecodeServiceResponse(bytes, Quotas.MessageContext));
+                        IServiceResponse response;
+                        try
+                        {
+                            response = DecodeServiceResponse(bytes, Quotas.MessageContext);
+                        }
+                        catch (Exception exception) when (
+                            exception is ServiceResultException or FormatException or InvalidOperationException or
+                                System.Text.Json.JsonException)
+                        {
+                            if (!TryFailResponse(RequestHandleReader.FromJsonResponse(bytes), exception))
+                            {
+                                throw;
+                            }
+                            continue;
+                        }
+                        Complete(response);
                     }
                 }
                 catch (OperationCanceledException) when (ShutdownToken.IsCancellationRequested)
@@ -871,8 +922,10 @@ namespace Opc.Ua.Client.WebApi
             private readonly Dictionary<uint, PendingRequest> m_pending = [];
             private readonly Dictionary<uint, PendingRequest> m_callers = [];
             private readonly CancellationTokenSource m_shutdown = new();
+
             private readonly TaskCompletionSource<bool> m_operationsDrained =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
+
             private readonly ILogger m_logger;
             private uint m_lastRequestHandle = kUnknownCancelTargetHandle;
             private int m_operationCount;

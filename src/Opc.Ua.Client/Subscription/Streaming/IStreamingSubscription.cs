@@ -50,8 +50,9 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
     /// <para>
     /// Each call to <c>SubscribeXxxAsync</c> returns an
     /// <see cref="IAsyncEnumerable{T}"/> backed by a bounded channel.
-    /// The default implementation buffers at least one data change per
+    /// The default implementation allocates capacity for at least one data change per
     /// monitored item, or ten events when no event queue size is specified.
+    /// Multi-node streams share that capacity rather than reserving slots per item.
     /// Explicit queue sizes are multiplied by the number of monitored items;
     /// <see cref="MonitoredItems.MonitoredItemOptions.DiscardOldest"/> selects the drop policy.
     /// <see cref="StreamingSubscription.DroppedNotificationCount"/> reports local buffer overflow.
@@ -80,6 +81,12 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
         /// Subscribes to data changes on multiple nodes and returns
         /// a merged async stream.
         /// </summary>
+        /// <remarks>
+        /// All nodes share one bounded local queue. With DiscardOldest enabled, a busy node can evict
+        /// a quiet node's only queued value; the stream does not guarantee retention of each node's
+        /// latest value. Overflow increments <see cref="StreamingSubscription.DroppedNotificationCount"/>
+        /// rather than failing the stream. Use separate single-node streams when per-node retention is required.
+        /// </remarks>
         IAsyncEnumerable<DataValueChange> SubscribeDataChangesAsync(
             IReadOnlyList<NodeId> nodeIds,
             MonitoredItems.MonitoredItemOptions? options = null,

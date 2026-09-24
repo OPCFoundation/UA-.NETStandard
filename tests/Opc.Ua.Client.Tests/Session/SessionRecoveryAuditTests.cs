@@ -134,9 +134,11 @@ namespace Opc.Ua.Client.Tests
         public async Task NetworkPathRecoveryReactivatesBeforeRecreatingAsync(bool rejectSession)
         {
             var alternateRequests = new ConcurrentQueue<Type>();
+            var clock = new ObservableFakeTimeProvider();
+            using var alternateKeepAlive = new SemaphoreSlim(0);
             int transports = 0;
             int activations = 0;
-            await using var harness = new SessionChannelHarness(configureChannel: channel =>
+            await using var harness = new SessionChannelHarness(timeProvider: clock, configureChannel: channel =>
             {
                 int index = Interlocked.Increment(ref transports);
                 channel.SupportedFeatures = TransportChannelFeatures.Reconnect;
@@ -163,6 +165,12 @@ namespace Opc.Ua.Client.Tests
                         {
                             throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
                         }
+                        if (request is ReadRequest read &&
+                            read.NodesToRead.Count == 1 &&
+                            read.NodesToRead[0].NodeId == VariableIds.Server_ServerStatus_State)
+                        {
+                            alternateKeepAlive.Release();
+                        }
                         return new ValueTask<IServiceResponse>(channel.CreateResponse(request));
                     };
                 }
@@ -170,11 +178,12 @@ namespace Opc.Ua.Client.Tests
             ConfiguredEndpoint primary = SessionChannelHarness.CreateEndpoint();
             ConfiguredEndpoint alternate = SessionChannelHarness.CreateEndpoint("opc.tcp://alternate:4840");
             alternate.Description.Server.ApplicationUri = primary.Description.Server.ApplicationUri;
-            var factory = new ChannelManagerSessionFactory(harness.Manager, harness.Telemetry);
+            var factory = new ChannelManagerSessionFactory(harness.Manager, harness.Telemetry, timeProvider: clock);
             using var cancellation = new CancellationTokenSource(s_timeout);
             await using Client.ManagedSession session = await Client.ManagedSession.CreateAsync(
                 harness.Configuration, primary, factory,
                 reconnectPolicy: new ReconnectPolicy { InitialDelay = TimeSpan.Zero, MaxRetries = 2 },
+                timeProvider: clock,
                 networkRedundancy: new NetworkRedundancyOptions { AlternateEndpoints = [alternate] },
                 ct: cancellation.Token).ConfigureAwait(false);
             NodeId initialId = session.SessionId;
@@ -193,6 +202,179 @@ namespace Opc.Ua.Client.Tests
             }
             Assert.That(session.TransportChannel.EndpointDescription.EndpointUrl,
                 Is.EqualTo(alternate.Description.EndpointUrl));
+            for (int keepAlive = 0; keepAlive < 2; keepAlive++)
+            {
+                clock.Advance(TimeSpan.FromMilliseconds(session.KeepAliveInterval));
+                Assert.That(await alternateKeepAlive.WaitAsync(s_timeout).ConfigureAwait(false), Is.True,
+                    "A successful recovery must continue reading server state on the alternate path.");
+            }
+        }
+
+        [Test]
+        public async Task ReusedSessionRestartsClassicPublishAndKeepAliveAsync(
+            [Values("network", "mirrored", "token")] string recovery,
+            [Values] bool observePublishing)
+        {
+            var clock = new ObservableFakeTimeProvider();
+            using var keepAlive = new SemaphoreSlim(0);
+            var originalPublish = new AsyncOperationGate();
+            var activation = new AsyncOperationGate();
+            var resumedPublish = new AsyncOperationGate();
+            var ongoingPublish = new AsyncOperationGate();
+            var initialProcessed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            NodeId originalToken = default;
+            NodeId reusedToken = default;
+            int channels = 0;
+            int createSessions = 0;
+            int createSubscriptions = 0;
+            int resumedPublishes = 0;
+            await using var harness = new SessionChannelHarness(timeProvider: clock, configureChannel: channel =>
+            {
+                int index = Interlocked.Increment(ref channels);
+                channel.RequestHandler = async (request, ct) =>
+                {
+                    switch (request)
+                    {
+                        case CreateSessionRequest:
+                            Interlocked.Increment(ref createSessions);
+                            break;
+                        case ActivateSessionRequest activate when index == 1:
+                            originalToken = activate.RequestHeader.AuthenticationToken;
+                            break;
+                        case ActivateSessionRequest activate:
+                            reusedToken = activate.RequestHeader.AuthenticationToken;
+                            await activation.WaitAsync(ct).ConfigureAwait(false);
+                            break;
+                        case CreateSubscriptionRequest create:
+                            Interlocked.Increment(ref createSubscriptions);
+                            return new CreateSubscriptionResponse
+                            {
+                                ResponseHeader = channel.CreateGoodHeader(),
+                                SubscriptionId = 1,
+                                RevisedPublishingInterval = create.RequestedPublishingInterval,
+                                RevisedLifetimeCount = create.RequestedLifetimeCount,
+                                RevisedMaxKeepAliveCount = create.RequestedMaxKeepAliveCount
+                            };
+                        case PublishRequest publish:
+                            if (index == 1)
+                            {
+                                await originalPublish.WaitAsync(ct).ConfigureAwait(false);
+                            }
+                            else if (Interlocked.Increment(ref resumedPublishes) == 1)
+                            {
+                                await resumedPublish.WaitAsync(ct).ConfigureAwait(false);
+                            }
+                            else
+                            {
+                                await ongoingPublish.WaitAsync(ct).ConfigureAwait(false);
+                                throw new ServiceResultException(StatusCodes.BadSessionClosed);
+                            }
+                            return new PublishResponse
+                            {
+                                ResponseHeader = channel.CreateGoodHeader(),
+                                SubscriptionId = 1,
+                                Results = publish.SubscriptionAcknowledgements.ConvertAll(_ => StatusCodes.Good),
+                                NotificationMessage = new NotificationMessage
+                                {
+                                    SequenceNumber = (uint)index,
+                                    PublishTime = new DateTimeUtc(clock.GetUtcNow().UtcDateTime)
+                                }
+                            };
+                        case DeleteSubscriptionsRequest delete:
+                            return new DeleteSubscriptionsResponse
+                            {
+                                ResponseHeader = channel.CreateGoodHeader(),
+                                Results = delete.SubscriptionIds.ConvertAll(_ => StatusCodes.Good)
+                            };
+                        case SetPublishingModeRequest publishing:
+                            return new SetPublishingModeResponse
+                            {
+                                ResponseHeader = channel.CreateGoodHeader(),
+                                Results = publishing.SubscriptionIds.ConvertAll(_ => StatusCodes.Good)
+                            };
+                        case ReadRequest read when index > 1 &&
+                            read.NodesToRead.Count == 1 &&
+                            read.NodesToRead[0].NodeId == VariableIds.Server_ServerStatus_State:
+                            keepAlive.Release();
+                            break;
+                    }
+                    return channel.CreateResponse(request);
+                };
+            });
+            ConfiguredEndpoint primary = SessionChannelHarness.CreateEndpoint();
+            ConfiguredEndpoint alternate = SessionChannelHarness.CreateEndpoint("opc.tcp://alternate:4840");
+            alternate.Description.Server.ApplicationUri = primary.Description.Server.ApplicationUri;
+            using var cancellation = new CancellationTokenSource(s_timeout);
+            await using Session session = await Session.CreateAsync(
+                harness.Manager, harness.Configuration, primary, updateBeforeConnect: false,
+                engineFactory: ClassicSubscriptionEngineFactory.Instance, timeProvider: clock,
+                ct: cancellation.Token).ConfigureAwait(false);
+            session.MinPublishRequestCount = 1;
+            session.MaxPublishRequestCount = 1;
+            session.EnableTokenReuseFailover = recovery == "token";
+            using var subscription = new Subscription(session.DefaultSubscription)
+            {
+                PublishingInterval = 1000,
+                KeepAliveCount = 10,
+                LifetimeCount = 100,
+                PublishingEnabled = true,
+                FastKeepAliveCallback = (_, _) => initialProcessed.TrySetResult(true)
+            };
+            Assert.That(session.AddSubscription(subscription), Is.True);
+            await subscription.CreateAsync(cancellation.Token).ConfigureAwait(false);
+            await originalPublish.Entered.WaitAsync(s_timeout).ConfigureAwait(false);
+            NodeId sessionId = session.SessionId;
+            Task recovering = recovery switch
+            {
+                "network" => session.ReactivateOnNetworkEndpointAsync(
+                    alternate, null, new RetryBudget(s_timeout, clock), cancellation.Token),
+                "mirrored" => session.ReactivateMirroredSessionAsync(alternate, cancellation.Token),
+                "token" => session.RecreateInPlaceAsync(
+                    alternate, new RetryBudget(s_timeout, clock), cancellation.Token),
+                _ => throw new ArgumentOutOfRangeException(nameof(recovery))
+            };
+            try
+            {
+                await activation.Entered.WaitAsync(s_timeout).ConfigureAwait(false);
+                originalPublish.Release();
+                await initialProcessed.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+                Assert.That(session.Reconnecting, Is.True);
+                Assert.That(session.GoodPublishRequestCount, Is.Zero,
+                    "The old Publish must finish while recovery owns admission, without refilling itself.");
+                activation.Release();
+                await recovering.WaitAsync(s_timeout).ConfigureAwait(false);
+                Assert.That(session.SessionId, Is.EqualTo(sessionId));
+                Assert.That(reusedToken, Is.EqualTo(originalToken));
+                Assert.That(createSessions, Is.EqualTo(1));
+                Assert.That(createSubscriptions, Is.EqualTo(1));
+                Assert.That(subscription.Id, Is.EqualTo(1));
+                Assert.That(session.TransportChannel.EndpointDescription.EndpointUrl,
+                    Is.EqualTo(alternate.Description.EndpointUrl));
+                if (observePublishing)
+                {
+                    await resumedPublish.Entered.WaitAsync(s_timeout).ConfigureAwait(false);
+                    resumedPublish.Release();
+                    await ongoingPublish.Entered.WaitAsync(s_timeout).ConfigureAwait(false);
+                    Assert.That(resumedPublishes, Is.EqualTo(2));
+                }
+                else
+                {
+                    for (int interval = 0; interval < 2; interval++)
+                    {
+                        clock.Advance(TimeSpan.FromMilliseconds(session.KeepAliveInterval));
+                        Assert.That(await keepAlive.WaitAsync(s_timeout).ConfigureAwait(false), Is.True,
+                            "Reusing a session must restart ongoing keepalive reads.");
+                    }
+                }
+            }
+            finally
+            {
+                originalPublish.Release();
+                activation.Release();
+                resumedPublish.Release();
+                ongoingPublish.Release();
+                await recovering.WaitAsync(s_timeout).ConfigureAwait(false);
+            }
         }
 
         [Test]
@@ -526,7 +708,7 @@ namespace Opc.Ua.Client.Tests
                         return new DeleteSubscriptionsResponse
                         {
                             ResponseHeader = channel.CreateGoodHeader(),
-                            Results = delete.SubscriptionIds.ConvertAll(_ => (StatusCode)StatusCodes.Good)
+                            Results = delete.SubscriptionIds.ConvertAll(_ => StatusCodes.Good)
                         };
                     case TransferSubscriptionsRequest transfer:
                         return new TransferSubscriptionsResponse

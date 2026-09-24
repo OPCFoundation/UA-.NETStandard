@@ -982,8 +982,8 @@ namespace Opc.Ua.Server
                 {
                     try
                     {
-                        await OnSubscribeToEventsAsync(
-                            context, restoredNode, false, CancellationToken.None).ConfigureAwait(false);
+                        await CompensateEventSubscriptionAsync(
+                            context, restoredNode, false).ConfigureAwait(false);
                     }
                     catch (Exception compensationException) when (
                         compensationException is not OutOfMemoryException)
@@ -1163,8 +1163,8 @@ namespace Opc.Ua.Server
                 {
                     try
                     {
-                        await OnSubscribeToEventsAsync(
-                            context, monitoredNode, true, CancellationToken.None).ConfigureAwait(false);
+                        await CompensateEventSubscriptionAsync(
+                            context, monitoredNode, true).ConfigureAwait(false);
                     }
                     catch (Exception compensationException) when (
                         compensationException is not OutOfMemoryException)
@@ -2157,9 +2157,27 @@ namespace Opc.Ua.Server
                         {
                             if (PredefinedNodes.TryGetValue(newNodeId, out NodeState? indexedNode))
                             {
-                                await RemovePredefinedNodeAsync(
-                                    systemContext, indexedNode, referencesToRemove, CancellationToken.None)
-                                    .ConfigureAwait(false);
+                                List<NodeState> removedNotifiers = GetSubtreeNotifiers(systemContext, indexedNode);
+                                IReadOnlyList<IMonitoredItem> detachedItems =
+                                    await DetachMonitoredItemsForNodeDeletionAsync(
+                                        systemContext, indexedNode, CancellationToken.None).ConfigureAwait(false);
+                                try
+                                {
+                                    await RemovePredefinedNodeAsync(
+                                        systemContext, indexedNode, referencesToRemove, CancellationToken.None)
+                                        .ConfigureAwait(false);
+                                }
+                                finally
+                                {
+                                    foreach (IMonitoredItem monitoredItem in detachedItems)
+                                    {
+                                        if (!PredefinedNodes.ContainsKey(monitoredItem.NodeId))
+                                        {
+                                            ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
+                                        }
+                                    }
+                                    await RemoveDeletedNotifiersAsync(removedNotifiers).ConfigureAwait(false);
+                                }
                             }
                             if (referencesToRemove.Count > 0)
                             {
@@ -2457,11 +2475,14 @@ namespace Opc.Ua.Server
             IReadOnlyList<IMonitoredItem> monitoredItems,
             CancellationToken cancellationToken)
         {
+            TimeProvider clock = (Server as ITimeProviderProvider)?.TimeProvider ?? TimeProvider.System;
+            using CancellationTokenSource timeout = clock.CreateCancellationTokenSource(TimeSpan.FromSeconds(5));
+            using var cleanup = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
             for (int ii = monitoredItems.Count - 1; ii >= 0; ii--)
             {
                 ServiceResult result = await AttachMonitoredItemForLifecycleAsync(
                     monitoredItems[ii],
-                    cancellationToken).ConfigureAwait(false);
+                    cleanup.Token).ConfigureAwait(false);
                 if (ServiceResult.IsBad(result))
                 {
                     throw new ServiceResultException(result);
@@ -4186,24 +4207,34 @@ namespace Opc.Ua.Server
                     reference != null;
                     reference = await browser.NextAsync(cancellationToken).ConfigureAwait(false))
                 {
-                    // validate Browse permission
-                    ServiceResult serviceResult = await ValidateRolePermissionsAsync(
-                        context,
-                        ExpandedNodeId.ToNodeId(reference.TargetId, Server.NamespaceUris),
-                        PermissionType.Browse,
-                        cancellationToken).ConfigureAwait(false);
-                    if (ServiceResult.IsBad(serviceResult))
+                    ReferenceDescription description;
+                    try
                     {
-                        // ignore reference
+                        // validate Browse permission
+                        ServiceResult serviceResult = await ValidateRolePermissionsAsync(
+                            context,
+                            ExpandedNodeId.ToNodeId(reference.TargetId, Server.NamespaceUris),
+                            PermissionType.Browse,
+                            cancellationToken).ConfigureAwait(false);
+                        if (ServiceResult.IsBad(serviceResult))
+                        {
+                            // ignore reference
+                            continue;
+                        }
+                        // create the type definition reference.
+                        description = await GetReferenceDescriptionAsync(
+                            systemContext,
+                            cache,
+                            reference,
+                            continuationPoint,
+                            cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (ServiceResultException exception)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        m_logger.ReferenceTargetResolutionFailed(exception, reference.TargetId);
                         continue;
                     }
-                    // create the type definition reference.
-                    ReferenceDescription description = await GetReferenceDescriptionAsync(
-                        systemContext,
-                        cache,
-                        reference,
-                        continuationPoint,
-                        cancellationToken).ConfigureAwait(false);
                     if (description == null)
                     {
                         continue;
@@ -4477,19 +4508,26 @@ namespace Opc.Ua.Server
                         }
 
                         // look up the target manually.
-                        NodeHandle targetHandle = await GetManagerHandleAsync(
-                            systemContext,
-                            targetId,
-                            operationCache,
-                            cancellationToken).ConfigureAwait(false);
-
-                        if (targetHandle == null)
+                        try
                         {
+                            NodeHandle targetHandle = await GetManagerHandleAsync(
+                                systemContext,
+                                targetId,
+                                operationCache,
+                                cancellationToken).ConfigureAwait(false);
+                            if (targetHandle == null)
+                            {
+                                continue;
+                            }
+                            target = await ValidateNodeAsync(
+                                systemContext, targetHandle, operationCache, cancellationToken).ConfigureAwait(false);
+                        }
+                        catch (ServiceResultException exception)
+                        {
+                            cancellationToken.ThrowIfCancellationRequested();
+                            m_logger.ReferenceTargetResolutionFailed(exception, reference.TargetId);
                             continue;
                         }
-
-                        // validate target.
-                        target = await ValidateNodeAsync(systemContext, targetHandle, operationCache, cancellationToken).ConfigureAwait(false);
 
                         if (target == null)
                         {
@@ -4507,7 +4545,14 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                browser.Dispose();
+                if (browser is IAsyncDisposable asynchronous)
+                {
+                    await asynchronous.DisposeAsync().ConfigureAwait(false);
+                }
+                else
+                {
+                    browser.Dispose();
+                }
             }
         }
 
@@ -7525,8 +7570,8 @@ namespace Opc.Ua.Server
                         {
                             try
                             {
-                                await OnSubscribeToEventsAsync(
-                                    context, monitoredNode, true, CancellationToken.None).ConfigureAwait(false);
+                                await CompensateEventSubscriptionAsync(
+                                    context, monitoredNode, true).ConfigureAwait(false);
                             }
                             catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
                             {
@@ -7539,6 +7584,16 @@ namespace Opc.Ua.Server
             }
 
             return serviceResult;
+        }
+
+        private async ValueTask CompensateEventSubscriptionAsync(
+            ServerSystemContext context,
+            MonitoredNode2 monitoredNode,
+            bool unsubscribe)
+        {
+            TimeProvider clock = (Server as ITimeProviderProvider)?.TimeProvider ?? TimeProvider.System;
+            using CancellationTokenSource cleanup = clock.CreateCancellationTokenSource(TimeSpan.FromSeconds(5));
+            await OnSubscribeToEventsAsync(context, monitoredNode, unsubscribe, cleanup.Token).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -10271,5 +10326,10 @@ namespace Opc.Ua.Server
         [LoggerMessage(EventId = ServerEventIds.AsyncCustomNodeManager + 1, Level = LogLevel.Error,
             Message = "Could not restore monitored item for node {NodeId}.")]
         public static partial void MonitoredItemRestoreFailed(this ILogger logger, Exception exception, NodeId nodeId);
+
+        [LoggerMessage(EventId = ServerEventIds.AsyncCustomNodeManager + 2, Level = LogLevel.Warning,
+            Message = "Could not resolve referenced target {TargetId}; continuing with the remaining references.")]
+        public static partial void ReferenceTargetResolutionFailed(
+            this ILogger logger, Exception exception, ExpandedNodeId targetId);
     }
 }

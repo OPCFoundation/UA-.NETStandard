@@ -3141,6 +3141,7 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint targetEndpoint = endpoint ?? m_endpoint;
             bool resetReconnect = false;
             bool publishingPaused = false;
+            bool reused = false;
             await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
@@ -3305,7 +3306,6 @@ namespace Opc.Ua.Client
                 // existing session on the failover server by reusing the current
                 // AuthenticationToken instead of CreateSession. Any failure
                 // falls through to the full re-authentication below.
-                bool reused = false;
                 if ((EnableTokenReuseFailover || requireTokenReuse || networkRecovery) &&
                     !SessionId.IsNull &&
                     (!m_serverNonce.IsNull || m_endpoint.Description.SecurityMode == MessageSecurityMode.None))
@@ -3492,6 +3492,18 @@ namespace Opc.Ua.Client
                         m_reconnectLock.Release();
                     }
                 }
+            }
+
+            if (reused)
+            {
+                ct.ThrowIfCancellationRequested();
+                await StartKeepAliveTimerAsync().ConfigureAwait(false);
+#if OPCUA_V1_CLIENT
+                if (m_engine is ClassicSubscriptionEngine)
+                {
+                    StartPublishing(OperationTimeout, true);
+                }
+#endif
             }
         }
 

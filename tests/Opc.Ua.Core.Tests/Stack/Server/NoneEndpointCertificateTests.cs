@@ -39,11 +39,15 @@ namespace Opc.Ua.Core.Tests.Stack.Server
     [TestFixture]
     public sealed class NoneEndpointCertificateTests
     {
-        [TestCase(UserTokenType.UserName, false)]
-        [TestCase(UserTokenType.UserName, true)]
-        [TestCase(UserTokenType.IssuedToken, false)]
-        [TestCase(UserTokenType.IssuedToken, true)]
-        public async Task NoneEndpointUsesRsaForEncryptedTokensWithEccFirstAsync(UserTokenType type, bool sendChain)
+        [Test]
+        [Combinatorial]
+        public async Task NoneEndpointUsesRsaForEncryptedTokensWithEccFirstAsync(
+            [Values(UserTokenType.UserName, UserTokenType.IssuedToken)] UserTokenType type,
+            [Values] bool sendChain,
+            [Values(
+                ObjectTypes.ApplicationCertificateType,
+                ObjectTypes.RsaMinApplicationCertificateType,
+                ObjectTypes.RsaSha256ApplicationCertificateType)] uint certificateType)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var registry = new CertificateManager(telemetry);
@@ -55,7 +59,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             await registry.UpdateApplicationCertificateAsync(ObjectTypeIds.EccNistP256ApplicationCertificateType, ecc)
                 .ConfigureAwait(false);
             await registry.UpdateApplicationCertificateAsync(
-                ObjectTypeIds.RsaSha256ApplicationCertificateType, rsa)
+                new NodeId(certificateType), rsa)
                 .ConfigureAwait(false);
             using var server = new ServerBase(telemetry);
             ApplicationConfiguration configuration = CreateConfiguration(registry, type, null);
@@ -75,6 +79,29 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             byte[] plaintext = [1, 2, 3, 4];
             byte[] encrypted = publicKey.Encrypt(plaintext, RSAEncryptionPadding.OaepSHA256);
             Assert.That(privateKey.Decrypt(encrypted, RSAEncryptionPadding.OaepSHA256), Is.EqualTo(plaintext));
+        }
+
+        [TestCase(UserTokenType.UserName, ObjectTypes.RsaSha256ApplicationCertificateType, (ushort)1024)]
+        [TestCase(UserTokenType.IssuedToken, ObjectTypes.RsaSha256ApplicationCertificateType, (ushort)1024)]
+        [TestCase(UserTokenType.UserName, ObjectTypes.EccNistP256ApplicationCertificateType, (ushort)2048)]
+        [TestCase(UserTokenType.IssuedToken, ObjectTypes.EccNistP256ApplicationCertificateType, (ushort)2048)]
+        public async Task NoneEndpointRejectsIncompatibleRsaTypeOrKeySizeAsync(
+            UserTokenType type, uint certificateType, ushort keySize)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var registry = new CertificateManager(telemetry);
+            using Certificate certificate = CertificateBuilder.Create("CN=Incompatible Token Certificate")
+                .SetRSAKeySize(keySize).CreateForRSA();
+            await registry.UpdateApplicationCertificateAsync(new NodeId(certificateType), certificate)
+                .ConfigureAwait(false);
+            using var server = new ServerBase(telemetry);
+            ApplicationConfiguration configuration = CreateConfiguration(registry, type, null);
+
+            ArrayOf<UserTokenPolicy> policies = server.GetUserTokenPolicies(configuration, CreateEndpoint());
+
+            Assert.That(policies.ToArray().Select(policy => policy.TokenType),
+                Is.EquivalentTo([UserTokenType.Anonymous, UserTokenType.Certificate]));
+            Assert.That(configuration.ServerConfiguration.UserTokenPolicies.Count, Is.EqualTo(3));
         }
 
         [TestCase(UserTokenType.UserName, null, false)]
@@ -113,7 +140,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var registry = new CertificateManager(telemetry);
-            using Certificate minimum = CertificateBuilder.Create("CN=Minimum RSA First").CreateForRSA();
+            using Certificate minimum = CertificateBuilder.Create("CN=Minimum RSA First")
+                .SetRSAKeySize(1024).CreateForRSA();
             using Certificate sha256 = CertificateBuilder.Create("CN=SHA256 RSA Second").CreateForRSA();
             await registry.UpdateApplicationCertificateAsync(ObjectTypeIds.RsaMinApplicationCertificateType, minimum)
                 .ConfigureAwait(false);

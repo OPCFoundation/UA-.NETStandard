@@ -69,6 +69,72 @@ namespace Opc.Ua.Client.Subscriptions
             m_mockNotificationDataHandler = new Mock<ISubscriptionNotificationHandler>();
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task IntentionalDeletionDropsPublishDemandWithoutUnregisteringSubscriptionAsync(bool disable)
+        {
+            var clock = new FakeTimeProvider();
+            var publishEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var deleted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var context = new FakeSubscriptionManagerContext
+            {
+                OnPublishAsync = async (_, _, ct) =>
+                {
+                    publishEntered.TrySetResult(true);
+                    await deleted.Task.WaitAsync(ct).ConfigureAwait(false);
+                    throw new ServiceResultException(StatusCodes.BadNoSubscription);
+                }
+            };
+            m_mockSubscriptionServices.Setup(value => value.DeleteSubscriptionsAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<uint>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new DeleteSubscriptionsResponse { Results = [StatusCodes.Good] });
+            TestSubscription subscription = null!;
+            context.CreateSubscriptionFactory = (handler, _, queue) =>
+                subscription = new TestSubscription(
+                    m_session, handler, queue, m_options, m_telemetry, 10, timeProvider: clock);
+            await using var manager = new SubscriptionManager(
+                context, m_telemetry.LoggerFactory, DiagnosticsMasks.None, clock)
+            {
+                MinPublishWorkerCount = 1,
+                MaxPublishWorkerCount = 1
+            };
+            ISubscription logicalSubscription = manager.Add(m_mockNotificationDataHandler.Object, m_options);
+            manager.Resume();
+            await publishEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            Assert.That(manager.PublishWorkerCount, Is.EqualTo(1));
+            Assert.That(manager.CreatedCount, Is.EqualTo(1));
+            subscription.SubscriptionStateChanged.Reset();
+            if (disable)
+            {
+                m_options.Configure(_ => TestSubscription.SubscriptionOptions with { Disabled = true });
+                await subscription.SubscriptionStateChanged.WaitAsync()
+                    .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            }
+            else
+            {
+                await subscription.DeleteAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            deleted.TrySetResult(true);
+            await WaitForAsync(() => manager.PublishWorkerCount == 0, TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+            Assert.That(subscription.Created, Is.False);
+            Assert.That(subscription.Id, Is.Zero);
+            Assert.That(manager.Count, Is.EqualTo(1));
+            Assert.That(manager.Items, Is.EquivalentTo([logicalSubscription]));
+            Assert.That(manager.CreatedCount, Is.Zero);
+            Assert.That(manager.PublishWorkerCount, Is.Zero,
+                "Intentional deletion must remove retained demand, unlike a recovery identifier reset.");
+            int badRequests = manager.BadPublishRequestCount;
+            int attempts = context.PublishCalls.Count;
+            clock.Advance(TimeSpan.FromMinutes(1));
+            Assert.That(manager.BadPublishRequestCount, Is.EqualTo(badRequests));
+            Assert.That(manager.BadPublishRequestCount, Is.LessThanOrEqualTo(1));
+            Assert.That(context.PublishCalls, Has.Count.EqualTo(attempts));
+            m_mockSubscriptionServices.Verify(value => value.DeleteSubscriptionsAsync(
+                It.IsAny<RequestHeader>(), It.Is<ArrayOf<uint>>(ids => ids.Count == 1 && ids[0] == 10),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+
         [Test]
         public async Task AddMonitoredItemShouldAddItemToMonitoredItemsAsync()
         {

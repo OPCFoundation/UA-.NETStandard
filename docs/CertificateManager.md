@@ -100,6 +100,15 @@ Set `CertificateValidationOptions.RecordRejectedCertificates = false` for
 re-evaluating an existing connection without adding failures to the rejected
 store. This changes only the recording side effect, not the trust decision.
 New-connection validation records rejected certificates by default.
+An admitted validation preserves its result, including URI and hostname errors,
+if the manager shuts down before rejected-store recording can begin. Recording
+is skipped once shutdown closes writer admission; explicitly requesting
+`RejectCertificateAsync` after disposal still fails.
+
+Concatenated certificate blobs are framed by their outer DER sequences, with at
+most 16 certificates. Framing does not interpret the signature algorithm;
+native import and certificate validation determine whether each certificate is
+supported and acceptable, including PSS and EdDSA signatures.
 
 **Inline issuer revocation policy:** when an inline issuer's list has a backing
 store that checks CRLs, `RejectUnknownRevocationStatus = true` rejects
@@ -185,6 +194,9 @@ use an RSA application certificate compatible with every advertised encrypted
 token policy. The selected certificate is also used for `CreateSession`, restored-session certificate
 resolution and certificate-deletion protection. An ECC-first application
 certificate list does not change this selection.
+Generic RSA-family certificate types, including `ApplicationCertificateType`,
+are accepted only when the certificate has an actual RSA public key within every
+applicable token policy's key-size bounds.
 
 An unspecified encrypted token policy defaults to `Basic256Sha256`. If no
 compatible RSA certificate exists, the server omits that policy and logs a
@@ -691,18 +703,25 @@ manager.RegisterTrustList(
 using ICertificateStore trustedStore = manager.OpenTrustedStore(TrustListIdentifier.Peers);
 using CertificateCollection certs = await trustedStore.EnumerateAsync();
 
-// Transactional trust-list update (atomic commit/rollback)
+// Stage a trust-list update
 await using ITrustListTransaction tx = await manager.BeginUpdateAsync(TrustListIdentifier.Peers);
 await tx.AddTrustedCertificateAsync(newTrustedCert);
 await tx.RemoveTrustedCertificateAsync(oldThumbprint);
-await tx.CommitAsync();  // Atomic apply; disposing without commit rolls back
+await tx.CommitAsync();  // Disposing before commit discards staged changes
 
 // Read/write trust-list as a blob (GDS Push Management)
 TrustListData data = await manager.ReadTrustListAsync(TrustListIdentifier.Peers);
 await manager.WriteTrustListAsync(TrustListIdentifier.Peers, data);
 ```
 
-> **Note:** `ITrustListTransaction`/`BeginUpdateAsync` above is a local, in-process API on `CertificateManager` for application code that wants an atomic trust-list edit. It is unrelated to the OPC UA PushManagement transaction model (`ApplyChanges`/`CancelChanges`, see *PushManagement Transactions* above), which is driven remotely by a Client over the `ServerConfiguration` address space and governs `TrustList`/`ServerConfiguration` Methods called through `ConfigurationNodeManager`.
+The last staging operation wins for each trusted/issuer certificate thumbprint
+(case-insensitive) and each identical CRL encoding. Remove-then-add performs a
+real replacement, including when the certificate is already present. Required
+issuer-store configuration is checked before any trusted-certificate or CRL
+write. A later backing-store failure can still leave partial writes; affected
+validation caches are invalidated in that case.
+
+> **Note:** `ITrustListTransaction`/`BeginUpdateAsync` above is a local, in-process staging API on `CertificateManager`. It is unrelated to the OPC UA PushManagement transaction model (`ApplyChanges`/`CancelChanges`, see *PushManagement Transactions* above), which is driven remotely by a Client over the `ServerConfiguration` address space and governs `TrustList`/`ServerConfiguration` Methods called through `ConfigurationNodeManager`.
 
 ### Interfaces Reference
 

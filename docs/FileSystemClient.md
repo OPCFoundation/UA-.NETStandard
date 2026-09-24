@@ -303,16 +303,16 @@ Both lazy `FileSystemNodeManager` nodes and materialized
 move, and copy. A NodeId from another namespace, an invalid encoded type,
 or a component identifier cannot alias a file-system object.
 
-Virtual directory browsing retains at most 1,024 provider entries per
-browser, matching the materialized binder's default `MaxEntries`. A larger
-unfiltered directory returns `BadEncodingLimitsExceeded` after observing
-the first excess entry, rather than silently returning a truncated directory.
-Within the limit, Browse/BrowseNext walks the snapshot once in provider order.
-Named-child lookup scans without retaining unrelated entries and stops at
-the match, so it can still resolve a child beyond the snapshot limit.
-The provider enumerator is disposed before results are exposed, including
-on cancellation or a limit failure; exhausting or disposing the browser
-releases its buffered children.
+Virtual directory browsing walks one provider cursor in provider order across
+Browse/BrowseNext pages, retaining only the current entry and a continuation's
+lookahead reference. It does not snapshot the directory or impose the materialized
+binder's `MaxEntries` limit. Named-child lookup scans without retaining unrelated
+entries and stops at the match. Exhaustion, cancellation, and continuation release
+dispose the cursor exactly once. Cancellation applies to the active page;
+cancelling an already-completed page does not cancel subsequent pages.
+Synchronous continuation release starts observed asynchronous cursor cleanup
+without blocking its caller. Provider failures are surfaced, not converted into
+an empty directory.
 
 Before Delete or MoveOrCopy reaches an arbitrary provider, the lazy host
 validates the decoded provider path. Separator-only root aliases resolve to

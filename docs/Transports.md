@@ -246,6 +246,16 @@ sequence can wrap; it is separate from the connection-local wire allocator.
 Terminal requests release their pending state without waiting for a server reply, and late replies cannot
 complete a newer request.
 
+An attributable response-decoding failure, such as exceeding `MaxArrayLength`,
+fails only that request. Other pending requests and subsequent requests keep
+using the connection. Transport/framing failures and responses that cannot be
+attributed to an issued wire handle still close it.
+
+Caller cancellation and request timeout cancel send-lock admission and the
+pending response, not an already-started WebSocket send. An admitted send uses
+the connection's shutdown token and finishes independently of the caller;
+shutdown drains it before disposing the socket.
+
 `CancelRequest.RequestHandle` is translated to the wire handle of the currently
 outstanding request with that caller handle. A retired or unknown target maps
 to a reserved, never-issued wire handle, so it cannot cancel an unrelated request.

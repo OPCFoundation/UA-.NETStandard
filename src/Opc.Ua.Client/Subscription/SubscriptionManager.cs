@@ -1820,7 +1820,11 @@ namespace Opc.Ua.Client.Subscriptions
                     m_establishedSubscriptions.IntersectWith(m_subscriptions);
                     foreach (IManagedSubscription subscription in m_subscriptions)
                     {
-                        if (subscription.Created)
+                        if (subscription.IsIntentionallyDeleted)
+                        {
+                            m_establishedSubscriptions.Remove(subscription);
+                        }
+                        else if (subscription.Created)
                         {
                             m_establishedSubscriptions.Add(subscription);
                         }

@@ -31,8 +31,11 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.StateMachines;
+using Opc.Ua.Server.Tests.NodeManager;
 
 namespace Opc.Ua.Server.Tests.StateMachines
 {
@@ -55,6 +58,85 @@ namespace Opc.Ua.Server.Tests.StateMachines
         public void SetUp()
         {
             m_context = StateMachineTestFixtures.CreateContext();
+        }
+
+        [Test]
+        public async Task ParentEnterHookSeesReadyChildAndDoesNotLoseItsTransitionAsync(
+            [Values] bool asynchronous,
+            [Values] bool reenter)
+        {
+            var clock = new TimerCreationGateClock();
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues, clock);
+            using MonitoredItemQueueFactory queueFactory = queues;
+            using var releaseTimer = new ManualResetEventSlim();
+            m_context = server.Object.DefaultSystemContext;
+            var observed = new TaskCompletionSource<(bool Suspended, uint State, StatusCode Result)>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            StateMachineBuilder<FluentFiniteStateMachineState> builder = BuildParent()
+                .AddTransition(11, "ReenterA", 1, 1)
+                .WithInitialState(reenter ? 1u : 2u)
+                .WithSubStateMachine(1, new QualifiedName("ChildSm", 1), child => child
+                    .AddState(10, "ChildIdle", isInitial: true)
+                    .AddState(11, "ChildRunning")
+                    .AddTransition(100, "Start", 10, 11)
+                    .OnCause(1000, 10, 100))
+                .WithTimedTransition(1, TimeSpan.FromHours(1), 12);
+            FluentFiniteStateMachineState parent = builder.StateMachine;
+            var child = (FluentFiniteStateMachineState)GetChild(parent, "ChildSm");
+            (bool Suspended, uint State, StatusCode Result) DriveChild(ISystemContext context)
+            {
+                bool suspended = child.IsSuspended;
+                uint initial = CurrentStateId(child);
+                ServiceResult result = child.DoCause(context, null, 1000, default, []);
+                return (suspended, initial, result.StatusCode);
+            }
+            if (asynchronous)
+            {
+                builder.OnEnterStateAsync(1, async (context, _, _) =>
+                {
+                    (bool Suspended, uint State, StatusCode Result) result = DriveChild(context);
+                    await Task.Yield();
+                    observed.TrySetResult(result);
+                });
+                clock.BeforeTimerCreation = () =>
+                {
+                    // Hold the end of parent dispatch until its queued async enter hook has run.
+                    if (!releaseTimer.Wait(TimeSpan.FromSeconds(10)))
+                    {
+                        throw new TimeoutException("The async enter hook did not release timer creation.");
+                    }
+                };
+            }
+            else
+            {
+                builder.OnEnterState(1, (context, _) => observed.TrySetResult(DriveChild(context)));
+            }
+            Task<ServiceResult> transition = Task.Run(
+                () => parent.DoTransition(m_context, reenter ? 11u : 21u, 0, default, []));
+            try
+            {
+                (bool observedSuspended, uint observedState, StatusCode observedResult) =
+                    await observed.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                releaseTimer.Set();
+                ServiceResult parentResult = await transition.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(parentResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(observedSuspended, Is.False);
+                    Assert.That(observedState, Is.EqualTo(10));
+                    Assert.That(observedResult, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(CurrentStateId(parent), Is.EqualTo(1));
+                    Assert.That(child.IsSuspended, Is.False);
+                    Assert.That(CurrentStateId(child), Is.EqualTo(11),
+                        "Child synchronization must not reset a successful transition performed by the parent hook.");
+                });
+            }
+            finally
+            {
+                releaseTimer.Set();
+                await transition.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                builder.StopTimedTransitions();
+            }
         }
 
         [TestCase(false)]
@@ -244,7 +326,7 @@ namespace Opc.Ua.Server.Tests.StateMachines
                 ReferenceTypeIds.HasSubStateMachine,
                 BrowseDirection.Forward);
 
-            Assert.That(subMachines, Is.EqualTo(new[] { childNodeId }));
+            Assert.That(subMachines, Is.EqualTo([childNodeId]));
         }
 
         private List<NodeId> BrowseTargets(
@@ -352,9 +434,9 @@ namespace Opc.Ua.Server.Tests.StateMachines
                 // LastTransition of an inactive sub-SM read with
                 // Bad_StateNotActive.
                 Assert.That(child.CurrentState.StatusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.BadStateNotActive));
+                    Is.EqualTo(StatusCodes.BadStateNotActive));
                 Assert.That(child.LastTransition!.StatusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.BadStateNotActive));
+                    Is.EqualTo(StatusCodes.BadStateNotActive));
             });
         }
 
@@ -372,7 +454,7 @@ namespace Opc.Ua.Server.Tests.StateMachines
                 .StateMachine;
             var child = (FluentFiniteStateMachineState)GetChild(parent, "ChildSm");
             Assert.That(child.CurrentState!.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadStateNotActive));
+                Is.EqualTo(StatusCodes.BadStateNotActive));
 
             // Parent enters the attached state → the sub-SM activates
             // and its state variables read Good with the seeded state.
@@ -382,7 +464,7 @@ namespace Opc.Ua.Server.Tests.StateMachines
             {
                 Assert.That(child.IsSuspended, Is.False);
                 Assert.That(child.CurrentState.StatusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.Good));
+                    Is.EqualTo(StatusCodes.Good));
                 Assert.That(CurrentStateId(child), Is.EqualTo(10u));
             });
         }
@@ -584,6 +666,23 @@ namespace Opc.Ua.Server.Tests.StateMachines
                 return sm.GetStateId(id);
             }
             return 0;
+        }
+
+        private sealed class TimerCreationGateClock : TimeProvider
+        {
+            public Action BeforeTimerCreation { get; set; }
+
+            public override ITimer CreateTimer(
+                TimerCallback callback,
+                object state,
+                TimeSpan dueTime,
+                TimeSpan period)
+            {
+                BeforeTimerCreation?.Invoke();
+                return m_clock.CreateTimer(callback, state, dueTime, period);
+            }
+
+            private readonly FakeTimeProvider m_clock = new();
         }
     }
 }
