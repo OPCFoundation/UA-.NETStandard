@@ -176,6 +176,18 @@ Subclasses must await their teardown operations before the callback returns.
 Operation lifetime extends through post-processing callbacks even after their
 semaphore scope has ended.
 
+`CustomNodeManager2` also closes admission before releasing its monitored-item
+manager. Its synchronous service and lifecycle calls, and its optional
+asynchronous method callbacks, retain operation leases until they return.
+Cleanup waits for those leases without holding the node lock or the admission
+lock, so a sampling worker can observe closed admission and finish. New calls
+after admission closes throw `ObjectDisposedException`. `Dispose()` initiates
+this shutdown; `DisposeAsync()` awaits the shared completion and propagates
+cleanup failures. `AsyncNodeManagerAdapter` forwards asynchronous disposal, so
+the master and server also await cleanup for adapted synchronous managers.
+An admitted callback may initiate shutdown with `Dispose()`, but must return
+before its caller awaits `DisposeAsync()`.
+
 Before serializing address-space deletion or disposal, the master drains
 configuration work that can call back into the server. Session-closing
 notifications and the address space remain available until accepted user

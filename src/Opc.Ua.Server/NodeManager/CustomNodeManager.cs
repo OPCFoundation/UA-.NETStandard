@@ -53,6 +53,7 @@ namespace Opc.Ua.Server
         INodeManager3,
         INodeIdFactory,
         IDisposable,
+        IAsyncDisposable,
         ILocalAddressSpaceSource,
         INodeManagerMonitoredItemLifecycle
     {
@@ -187,8 +188,12 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Frees any unmanaged resources.
+        /// Stops operation admission and starts releasing owned resources.
         /// </summary>
+        /// <remarks>
+        /// Admitted operations retain their resources until they return, including callbacks outside the node lock.
+        /// Use <see cref="DisposeAsync"/> to await cleanup and observe failures without blocking a sampling worker.
+        /// </remarks>
         public void Dispose()
         {
             Dispose(true);
@@ -196,7 +201,17 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// An overrideable version of the Dispose.
+        /// Stops admission and waits for admitted operations before releasing owned resources.
+        /// </summary>
+        public async ValueTask DisposeAsync()
+        {
+            Dispose();
+            await m_disposalCompleted.Task.ConfigureAwait(false);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Closes operation admission and initiates cleanup when disposing managed resources.
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
@@ -204,27 +219,19 @@ namespace Opc.Ua.Server
             {
                 return;
             }
-            IMonitoredItemManager? manager;
-            lock (Lock)
+            lock (m_operationLifetimeLock)
             {
                 if (m_disposed)
                 {
                     return;
                 }
                 m_disposed = true;
-                manager = m_monitoredItemManager;
-            }
-            try
-            {
-                manager?.Dispose();
-            }
-            finally
-            {
-                lock (Lock)
+                if (m_operationCount == 0)
                 {
-                    PredefinedNodes.Clear();
+                    m_operationsDrained.TrySetResult(true);
                 }
             }
+            _ = DisposeOwnedResourcesAsync();
         }
 
         private static bool HasHistoryWritePermission(
@@ -352,22 +359,27 @@ namespace Opc.Ua.Server
                 CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            lock (Lock)
+            IReadOnlyList<IMonitoredItem> snapshot;
+            using (BeginNodeManagerOperation())
             {
-                if (m_monitoredItemManager is not IMonitoredItemManagerLifecycle lifecycle)
+                lock (Lock)
                 {
-                    if (!MonitoredItems.IsEmpty)
+                    if (m_monitoredItemManager is not IMonitoredItemManagerLifecycle lifecycle)
                     {
-                        throw new NotSupportedException(
-                            "The configured monitored-item manager does not support lifecycle transitions.");
+                        if (!MonitoredItems.IsEmpty)
+                        {
+                            throw new NotSupportedException(
+                                "The configured monitored-item manager does not support lifecycle transitions.");
+                        }
+                        snapshot = [];
                     }
-                    return new ValueTask<IReadOnlyList<IMonitoredItem>>(
-                        []);
+                    else
+                    {
+                        snapshot = lifecycle.GetMonitoredItemsSnapshot(nodeIds);
+                    }
                 }
-
-                return new ValueTask<IReadOnlyList<IMonitoredItem>>(
-                    lifecycle.GetMonitoredItemsSnapshot(nodeIds));
             }
+            return new ValueTask<IReadOnlyList<IMonitoredItem>>(snapshot);
         }
 
         /// <inheritdoc/>
@@ -376,8 +388,12 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return new ValueTask<ServiceResult>(
-                ValidateMonitoredItemForLifecycle(monitoredItem));
+            ServiceResult result;
+            using (BeginNodeManagerOperation())
+            {
+                result = ValidateMonitoredItemForLifecycle(monitoredItem);
+            }
+            return new ValueTask<ServiceResult>(result);
         }
 
         /// <inheritdoc/>
@@ -386,8 +402,12 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return new ValueTask<ServiceResult>(
-                DetachMonitoredItemForLifecycle(monitoredItem));
+            ServiceResult result;
+            using (BeginNodeManagerOperation())
+            {
+                result = DetachMonitoredItemForLifecycle(monitoredItem);
+            }
+            return new ValueTask<ServiceResult>(result);
         }
 
         private ServiceResult DetachMonitoredItemForLifecycle(IMonitoredItem monitoredItem)
@@ -484,8 +504,12 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return new ValueTask<ServiceResult>(
-                AttachMonitoredItemForLifecycle(monitoredItem));
+            ServiceResult result;
+            using (BeginNodeManagerOperation())
+            {
+                result = AttachMonitoredItemForLifecycle(monitoredItem);
+            }
+            return new ValueTask<ServiceResult>(result);
         }
 
         /// <inheritdoc/>
@@ -494,8 +518,12 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return new ValueTask<ServiceResult>(
-                AttachMonitoredItemForLifecycle(monitoredItem));
+            ServiceResult result;
+            using (BeginNodeManagerOperation())
+            {
+                result = AttachMonitoredItemForLifecycle(monitoredItem);
+            }
+            return new ValueTask<ServiceResult>(result);
         }
 
         private ServiceResult ValidateMonitoredItemForLifecycle(IMonitoredItem monitoredItem)
@@ -839,6 +867,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public NodeState? Find(NodeId nodeId)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             if (PredefinedNodes.TryGetValue(nodeId, out NodeState? node))
             {
                 return node;
@@ -864,6 +893,7 @@ namespace Opc.Ua.Server
             QualifiedName browseName,
             BaseInstanceState instance)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             ServerSystemContext contextToUse = SystemContext.Copy(context);
 
             NodeId resultId;
@@ -913,6 +943,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public bool DeleteNode(ServerSystemContext context, NodeId nodeId)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             ServerSystemContext contextToUse = SystemContext.Copy(context);
 
             var referencesToRemove = new List<LocalReference>();
@@ -1069,6 +1100,7 @@ namespace Opc.Ua.Server
         public virtual void CreateAddressSpace(
             IDictionary<NodeId, IList<IReference>> externalReferences)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             LoadPredefinedNodes(SystemContext, externalReferences);
         }
 
@@ -1081,6 +1113,7 @@ namespace Opc.Ua.Server
             string resourcePath,
             IDictionary<NodeId, IList<IReference>> externalReferences)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             // load the predefined nodes from an XML document.
             var predefinedNodes = new NodeStateCollection();
             predefinedNodes.LoadFromResource(context, resourcePath, assembly, true);
@@ -1139,6 +1172,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual void AddPredefinedNode(ISystemContext context, NodeState node)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             // assign a default value to any variable in namespace 0
             if (node is BaseVariableState nodeStateVar &&
                 nodeStateVar.NodeId.NamespaceIndex == 0 &&
@@ -1507,6 +1541,7 @@ namespace Opc.Ua.Server
         [Obsolete("Use FindPredefinedNode<T> instead.")]
         public NodeState? FindPredefinedNode(NodeId nodeId, Type expectedType)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             if (nodeId.IsNull)
             {
                 return null;
@@ -1532,6 +1567,7 @@ namespace Opc.Ua.Server
         /// <returns>Returns null if not found or not of the correct type.</returns>
         public T? FindPredefinedNode<T>(NodeId nodeId) where T : NodeState
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             if (nodeId.IsNull)
             {
                 return null;
@@ -1607,6 +1643,7 @@ namespace Opc.Ua.Server
         /// </remarks>
         public virtual void DeleteAddressSpace()
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             NodeState[] nodes = [.. PredefinedNodes.Values];
             ISystemContext context = SystemContext;
             List<LocalReference> referencesToRemove =
@@ -1674,6 +1711,7 @@ namespace Opc.Ua.Server
         /// </remarks>
         public virtual object? GetManagerHandle(NodeId nodeId)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             return GetManagerHandle(SystemContext, nodeId, null!);
         }
 
@@ -1713,6 +1751,7 @@ namespace Opc.Ua.Server
         /// </remarks>
         public virtual void AddReferences(IDictionary<NodeId, IList<IReference>> references)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             lock (Lock)
             {
                 foreach (KeyValuePair<NodeId, IList<IReference>> current in references)
@@ -1754,6 +1793,7 @@ namespace Opc.Ua.Server
             ExpandedNodeId targetId,
             bool deleteBidirectional)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             // get the handle.
             NodeHandle? source = IsHandleInNamespace(sourceHandle);
 
@@ -1802,6 +1842,7 @@ namespace Opc.Ua.Server
             object targetHandle,
             BrowseResultMask resultMask)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             ServerSystemContext systemContext = SystemContext.Copy(context);
 
             // check for valid handle.
@@ -1989,6 +2030,7 @@ namespace Opc.Ua.Server
             ref ContinuationPoint continuationPoint,
             IList<ReferenceDescription> references)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             if (continuationPoint == null)
             {
                 throw new ArgumentNullException(nameof(continuationPoint));
@@ -2272,6 +2314,7 @@ namespace Opc.Ua.Server
             IList<ExpandedNodeId> targetIds,
             IList<NodeId> unresolvedTargetIds)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             ServerSystemContext systemContext = SystemContext.Copy(context);
             IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
 
@@ -2382,6 +2425,7 @@ namespace Opc.Ua.Server
             IList<DataValue> values,
             IList<ServiceResult> errors)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             ServerSystemContext systemContext = SystemContext.Copy(context);
             IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
             var nodesToValidate = new List<NodeHandle>();
@@ -2636,6 +2680,7 @@ namespace Opc.Ua.Server
             ArrayOf<WriteValue> nodesToWrite,
             IList<ServiceResult> errors)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             ServerSystemContext systemContext = SystemContext.Copy(context);
             IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
             var nodesToValidate = new List<NodeHandle>();
@@ -3230,6 +3275,7 @@ namespace Opc.Ua.Server
             IList<HistoryReadResult> results,
             IList<ServiceResult> errors)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             ServerSystemContext systemContext = SystemContext.Copy(context);
             IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
             var nodesToProcess = new List<NodeHandle>();
@@ -3741,6 +3787,7 @@ namespace Opc.Ua.Server
             IList<HistoryUpdateResult> results,
             IList<ServiceResult> errors)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             ServerSystemContext systemContext = SystemContext.Copy(context);
             IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
             var nodesToProcess = new List<NodeHandle>();
@@ -4234,6 +4281,7 @@ namespace Opc.Ua.Server
             IList<CallMethodResult> results,
             IList<ServiceResult> errors)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             CallSynchronousBatch(context, methodsToCall, results, errors);
         }
 
@@ -4244,6 +4292,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             CallMethodRequest methodToCall)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             if (methodToCall == null || methodToCall.ObjectId.IsNull || methodToCall.MethodId.IsNull)
             {
                 return null!;
@@ -4394,6 +4443,7 @@ namespace Opc.Ua.Server
             IEventMonitoredItem monitoredItem,
             bool unsubscribe)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             ServerSystemContext systemContext = SystemContext.Copy(context);
 
             // check for valid handle.
@@ -4432,6 +4482,7 @@ namespace Opc.Ua.Server
             IEventMonitoredItem monitoredItem,
             bool unsubscribe)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             ServerSystemContext systemContext = SystemContext.Copy(context);
 
             lock (Lock)
@@ -4465,6 +4516,7 @@ namespace Opc.Ua.Server
         /// </remarks>
         protected virtual void AddRootNotifier(NodeState notifier)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             lock (Lock)
             {
                 RootNotifiers ??= [];
@@ -4579,6 +4631,7 @@ namespace Opc.Ua.Server
             IEventMonitoredItem monitoredItem,
             bool unsubscribe)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             bool wasSubscribed = m_monitoredItemManager.MonitoredNodes.TryGetValue(
                 source.NodeId,
                 out MonitoredNode2? existingMonitoredNode) &&
@@ -4632,6 +4685,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             IList<IEventMonitoredItem> monitoredItems)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             ServerSystemContext systemContext = SystemContext.Copy(context);
 
             for (int ii = 0; ii < monitoredItems.Count; ii++)
@@ -4703,6 +4757,7 @@ namespace Opc.Ua.Server
             IList<IMonitoredItem> monitoredItems,
             IUserIdentity savedOwnerIdentity)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             if (itemsToRestore == null)
             {
                 throw new ArgumentNullException(nameof(itemsToRestore));
@@ -4823,6 +4878,7 @@ namespace Opc.Ua.Server
             IUserIdentity savedOwnerIdentity,
             out IMonitoredItem? monitoredItem)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             monitoredItem = null;
 
             // validate attribute.
@@ -4876,6 +4932,7 @@ namespace Opc.Ua.Server
             bool createDurable,
             MonitoredItemIdFactory monitoredItemIdFactory)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             ServerSystemContext systemContext = SystemContext.Copy(context);
             IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
             var nodesToValidate = new List<NodeHandle>();
@@ -5014,6 +5071,7 @@ namespace Opc.Ua.Server
             out MonitoringFilterResult filterResult,
             out IMonitoredItem? monitoredItem)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             filterResult = null!;
             monitoredItem = null;
 
@@ -5168,6 +5226,7 @@ namespace Opc.Ua.Server
             NodeId nodeId,
             PermissionType requestedPermission)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             if (requestedPermission == PermissionType.None)
             {
                 // no permission is required hence the validation passes.
@@ -5201,6 +5260,7 @@ namespace Opc.Ua.Server
             IEventMonitoredItem monitoredItem,
             IFilterTarget filterTarget)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             NodeId eventTypeId = default;
             NodeId sourceNodeId = default;
             var baseEventState = filterTarget as BaseEventState;
@@ -5237,6 +5297,7 @@ namespace Opc.Ua.Server
             NodeId eventTypeId,
             NodeId sourceNodeId)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             // validate the event type id permissions as specified
             ServiceResult result = ValidateRolePermissions(
                 operationContext,
@@ -5432,6 +5493,7 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors,
             IList<MonitoringFilterResult> filterErrors)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             ServerSystemContext systemContext = SystemContext.Copy(context);
             var nodesInNamespace = new List<(int, NodeHandle)>(monitoredItems.Count);
 
@@ -5526,6 +5588,7 @@ namespace Opc.Ua.Server
             NodeHandle handle,
             out MonitoringFilterResult? filterResult)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             // check for valid monitored item.
             var datachangeItem = monitoredItem as ISampledDataChangeMonitoredItem;
 
@@ -5611,6 +5674,7 @@ namespace Opc.Ua.Server
             IList<bool> processedItems,
             IList<ServiceResult> errors)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             ServerSystemContext systemContext = SystemContext.Copy(context);
             var nodesInNamespace = new List<(int, NodeHandle)>(monitoredItems.Count);
 
@@ -5688,6 +5752,7 @@ namespace Opc.Ua.Server
             IMonitoredItem monitoredItem,
             NodeHandle handle)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             var sampledDataChangeMonitoredItem = monitoredItem as ISampledDataChangeMonitoredItem;
 
             StatusCode statusCode = m_monitoredItemManager.DeleteMonitoredItem(
@@ -5757,6 +5822,7 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors,
             MonitoredItemTransferOptions transferOptions)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             ServerSystemContext systemContext = SystemContext.Copy(context);
             var transferredItems = new List<IMonitoredItem>();
             bool deferInitialValues = transferOptions.DeferInitialValues;
@@ -5820,6 +5886,7 @@ namespace Opc.Ua.Server
             IList<bool> processedItems,
             IList<ServiceResult> errors)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             ServerSystemContext systemContext = SystemContext.Copy(context);
             var nodesInNamespace = new List<(int, NodeHandle)>(monitoredItems.Count);
 
@@ -5902,6 +5969,7 @@ namespace Opc.Ua.Server
             MonitoringMode monitoringMode,
             NodeHandle handle)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             var sampledDataChangeMonitoredItem = monitoredItem as ISampledDataChangeMonitoredItem;
 
             (ServiceResult result, MonitoringMode? previousMode) = m_monitoredItemManager
@@ -5960,6 +6028,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public virtual void SessionActivated(OperationContext context, NodeId sessionId)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             foreach (MonitoredNode2 monitoredNode in m_monitoredItemManager.MonitoredNodes.Values)
             {
                 monitoredNode.InvalidatePermissionCacheForSession(sessionId);
@@ -5975,6 +6044,7 @@ namespace Opc.Ua.Server
         /// </remarks>
         public virtual bool IsNodeInView(OperationContext context, NodeId viewId, object nodeHandle)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             if (nodeHandle is not NodeHandle handle)
             {
                 return false;
@@ -6002,6 +6072,7 @@ namespace Opc.Ua.Server
             Dictionary<NodeId, Variant[]> uniqueNodesServiceAttributesCache,
             bool permissionsOnly)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             ServerSystemContext systemContext = SystemContext.Copy(context);
 
             // check for valid handle.
@@ -6261,6 +6332,68 @@ namespace Opc.Ua.Server
             }
         }
 
+        private NodeManagerOperation BeginNodeManagerOperation()
+        {
+            lock (m_operationLifetimeLock)
+            {
+                if (m_disposed)
+                {
+                    throw new ObjectDisposedException(GetType().Name);
+                }
+                m_operationCount++;
+                return new NodeManagerOperation(this);
+            }
+        }
+
+        private void CompleteNodeManagerOperation()
+        {
+            lock (m_operationLifetimeLock)
+            {
+                m_operationCount--;
+                if (m_disposed && m_operationCount == 0)
+                {
+                    m_operationsDrained.TrySetResult(true);
+                }
+            }
+        }
+
+        private async Task DisposeOwnedResourcesAsync()
+        {
+            try
+            {
+                await m_operationsDrained.Task.ConfigureAwait(false);
+                try
+                {
+                    m_monitoredItemManager?.Dispose();
+                }
+                finally
+                {
+                    PredefinedNodes.Clear();
+                }
+                m_disposalCompleted.TrySetResult(true);
+            }
+            catch (Exception exception)
+            {
+                m_logger.NodeManagerDeferredCleanupFailed(exception);
+                m_disposalCompleted.TrySetException(exception);
+            }
+        }
+
+        private readonly struct NodeManagerOperation : IDisposable
+        {
+            public NodeManagerOperation(CustomNodeManager2 owner)
+            {
+                m_owner = owner;
+            }
+
+            public void Dispose()
+            {
+                m_owner.CompleteNodeManagerOperation();
+            }
+
+            private readonly CustomNodeManager2 m_owner;
+        }
+
         private IReadOnlyList<string>? m_namespaceUris;
         private ushort[] m_namespaceIndexes;
         private NodeIdDictionary<CacheEntry>? m_componentCache;
@@ -6278,6 +6411,12 @@ namespace Opc.Ua.Server
         /// </summary>
         protected IMonitoredItemManager m_monitoredItemManager;
         private List<LocalReference> m_removedExternalReferences = [];
+        private readonly Lock m_operationLifetimeLock = new();
+        private readonly TaskCompletionSource<bool> m_operationsDrained =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource<bool> m_disposalCompleted =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int m_operationCount;
         private bool m_disposed;
     }
 }

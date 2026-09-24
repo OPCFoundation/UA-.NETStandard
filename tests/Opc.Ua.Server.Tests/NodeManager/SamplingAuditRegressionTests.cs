@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -130,10 +131,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     reader = Task.Run(() =>
                     {
-                        using var context = new OperationContext(
-                            new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
-                        manager.Read(context, 0, [], [], []);
-                        readCompleted.Set();
+                        try
+                        {
+                            using var context = new OperationContext(
+                                new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+                            Assert.That(() => manager.Read(context, 0, [], [], []),
+                                Throws.TypeOf<ObjectDisposedException>());
+                        }
+                        finally
+                        {
+                            readCompleted.Set();
+                        }
                     });
                     Assert.That(readCompleted.Wait(TimeSpan.FromSeconds(2)), Is.True,
                         "Sampling shutdown cannot join a reader while holding the reader's node lock.");
@@ -149,6 +157,550 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        [Test]
+        public async Task ShutdownRejectsLifecycleCallsWhileOwnedDisposalIsRunningAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (var release = new ManualResetEventSlim())
+            {
+                var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var monitoredItems = new Mock<IMonitoredItemManager>();
+                Mock<IMonitoredItemManagerLifecycle> lifecycle = monitoredItems.As<IMonitoredItemManagerLifecycle>();
+                lifecycle.Setup(value => value.GetMonitoredItemsSnapshot(It.IsAny<IReadOnlyCollection<NodeId>>()))
+                    .Returns([]);
+                using var manager = new TestNodeManager(server.Object, monitoredItems.Object);
+                monitoredItems.Setup(value => value.Dispose()).Callback(() =>
+                {
+                    entered.TrySetResult(true);
+                    Assert.That(release.Wait(TimeSpan.FromSeconds(5)), Is.True);
+                });
+                var disposal = Task.Run(manager.Dispose);
+                try
+                {
+                    await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    Assert.That(async () =>
+                        await ((INodeManagerMonitoredItemLifecycle)manager)
+                            .GetMonitoredItemsSnapshotAsync(null, CancellationToken.None).ConfigureAwait(false),
+                        Throws.TypeOf<ObjectDisposedException>());
+                    lifecycle.Verify(value => value.GetMonitoredItemsSnapshot(
+                        It.IsAny<IReadOnlyCollection<NodeId>>()), Times.Never);
+                }
+                finally
+                {
+                    release.Set();
+                    await disposal.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                }
+                monitoredItems.Verify(value => value.Dispose(), Times.Once);
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ShutdownDrainsAdmittedCallsBeforeDisposingTheirManagerAsync(bool throughAdapter)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (OperationContext context = CreateContext())
+            {
+                var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var monitoredItems = new Mock<IMonitoredItemManager>();
+                using var manager = new TestNodeManager(server.Object, monitoredItems.Object)
+                {
+                    PendingCall = async cancellationToken =>
+                    {
+                        entered.TrySetResult(true);
+                        await release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    }
+                };
+                IAsyncNodeManager adapter = manager.ToAsyncNodeManager();
+                IDisposable owner = throughAdapter ? (IDisposable)adapter : manager;
+                int cleanupCalls = 0;
+                int cleanupCallsAtCommit = -1;
+                monitoredItems.Setup(value => value.Dispose()).Callback(() => Interlocked.Increment(ref cleanupCalls));
+                monitoredItems.Setup(value => value.ApplyChanges())
+                    .Callback(() => cleanupCallsAtCommit = Volatile.Read(ref cleanupCalls));
+                Task operation = throughAdapter
+                    ? adapter.CallAsync(context, [], [], []).AsTask()
+                    : manager.CallAsync(context, [], [], []).AsTask();
+                Task disposal = Task.CompletedTask;
+                Task concurrentDisposal = Task.CompletedTask;
+                try
+                {
+                    await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    disposal = DisposeAsync(owner);
+                    manager.Dispose();
+                    concurrentDisposal = manager.DisposeAsync().AsTask();
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(disposal.IsCompleted, Is.False);
+                        Assert.That(concurrentDisposal.IsCompleted, Is.False);
+                        Assert.That(Volatile.Read(ref cleanupCalls), Is.Zero);
+                        Assert.That(manager.RetainedNodes, Is.EqualTo(1));
+                    });
+                }
+                finally
+                {
+                    release.TrySetResult(true);
+                    await operation.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    await disposal.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    await concurrentDisposal.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    await DisposeAsync(owner).ConfigureAwait(false);
+                }
+                Assert.Multiple(() =>
+                {
+                    Assert.That(cleanupCallsAtCommit, Is.Zero);
+                    Assert.That(Volatile.Read(ref cleanupCalls), Is.EqualTo(1));
+                    Assert.That(manager.RetainedNodes, Is.Zero);
+                });
+                monitoredItems.Verify(value => value.ApplyChanges(), Times.Once);
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ShutdownDrainsSynchronousServiceAndLifecycleOwnersOutsideTheirLocksAsync(bool lifecycleCall)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (OperationContext context = CreateContext())
+            using (var release = new ManualResetEventSlim())
+            using (var workerFinished = new ManualResetEventSlim())
+            {
+                var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var monitoredItems = new Mock<IMonitoredItemManager>();
+                Mock<IMonitoredItemManagerLifecycle> lifecycle = monitoredItems.As<IMonitoredItemManagerLifecycle>();
+                IReadOnlyList<IMonitoredItem> expectedSnapshot = [Mock.Of<IMonitoredItem>()];
+                lifecycle.Setup(value => value.GetMonitoredItemsSnapshot(It.IsAny<IReadOnlyCollection<NodeId>>()))
+                    .Returns(() =>
+                    {
+                        entered.TrySetResult(true);
+                        Assert.That(release.Wait(TimeSpan.FromSeconds(5)), Is.True);
+                        return expectedSnapshot;
+                    });
+                using var manager = new TestNodeManager(server.Object, monitoredItems.Object);
+                manager.RetainedNode.OnSimpleReadValue = (_, _, ref value) =>
+                {
+                    entered.TrySetResult(true);
+                    Assert.That(release.Wait(TimeSpan.FromSeconds(5)), Is.True);
+                    value = new Variant(42);
+                    return ServiceResult.Good;
+                };
+                bool workerFinishedDuringCleanup = false;
+                monitoredItems.Setup(value => value.Dispose()).Callback(() =>
+                    workerFinishedDuringCleanup = workerFinished.Wait(TimeSpan.FromSeconds(5)));
+                DataValue[] values = [default];
+                ServiceResult[] errors = [ServiceResult.Good];
+                IReadOnlyList<IMonitoredItem> snapshot = null;
+                var operation = Task.Run(async () =>
+                {
+                    try
+                    {
+                        if (lifecycleCall)
+                        {
+                            snapshot = await ((INodeManagerMonitoredItemLifecycle)manager)
+                                .GetMonitoredItemsSnapshotAsync(null, CancellationToken.None).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            manager.Read(context, 0,
+                                [new ReadValueId
+                                {
+                                    NodeId = manager.RetainedNode.NodeId,
+                                    AttributeId = Attributes.Value
+                                }],
+                                values, errors);
+                        }
+                    }
+                    finally
+                    {
+                        workerFinished.Set();
+                    }
+                });
+                Task disposal = Task.CompletedTask;
+                try
+                {
+                    await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    disposal = manager.DisposeAsync().AsTask();
+                    Assert.That(disposal.IsCompleted, Is.False);
+                    Assert.That(manager.RetainedNodes, Is.EqualTo(1));
+                    monitoredItems.Verify(value => value.Dispose(), Times.Never);
+                    await Task.Run(() =>
+                        Assert.That(() => manager.Read(context, 0, [], [], []),
+                            Throws.TypeOf<ObjectDisposedException>()))
+                        .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                }
+                finally
+                {
+                    release.Set();
+                    await operation.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    await disposal.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    await manager.DisposeAsync().ConfigureAwait(false);
+                }
+                Assert.Multiple(() =>
+                {
+                    Assert.That(workerFinishedDuringCleanup, Is.True,
+                        "The last operation must not dispose and join its own sampling worker inline.");
+                    Assert.That(manager.RetainedNodes, Is.Zero);
+                    if (lifecycleCall)
+                    {
+                        Assert.That(snapshot, Is.SameAs(expectedSnapshot));
+                    }
+                    else
+                    {
+                        Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                        Assert.That(values[0].WrappedValue, Is.EqualTo(new Variant(42)));
+                    }
+                });
+                monitoredItems.Verify(value => value.Dispose(), Times.Once);
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task FailedOrCancelledAdmittedCallsStillReleaseTheirDisposalLeaseAsync(bool cancel)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (OperationContext context = CreateContext())
+            using (var cancellation = new CancellationTokenSource())
+            {
+                var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var failure = new ServiceResultException(StatusCodes.BadCommunicationError);
+                var monitoredItems = new Mock<IMonitoredItemManager>();
+                using var manager = new TestNodeManager(server.Object, monitoredItems.Object)
+                {
+                    PendingCall = async ct =>
+                    {
+                        entered.TrySetResult(true);
+                        await release.Task.WaitAsync(ct).ConfigureAwait(false);
+                        throw failure;
+                    }
+                };
+                Task operation = manager.CallAsync(context, [], [], [], cancellation.Token).AsTask();
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Task disposal = manager.DisposeAsync().AsTask();
+                Exception operationFailure = null;
+                try
+                {
+                    Assert.That(disposal.IsCompleted, Is.False);
+                    monitoredItems.Verify(value => value.Dispose(), Times.Never);
+                }
+                finally
+                {
+                    if (cancel)
+                    {
+                        cancellation.Cancel();
+                    }
+                    else
+                    {
+                        release.TrySetResult(true);
+                    }
+                    try
+                    {
+                        await operation.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException exception) when (cancel)
+                    {
+                        operationFailure = exception;
+                    }
+                    catch (ServiceResultException exception) when (!cancel)
+                    {
+                        operationFailure = exception;
+                    }
+                    finally
+                    {
+                        release.TrySetResult(true);
+                        await disposal.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                        await manager.DisposeAsync().ConfigureAwait(false);
+                    }
+                }
+                if (cancel)
+                {
+                    Assert.That(operationFailure, Is.InstanceOf<OperationCanceledException>());
+                    Assert.That(((OperationCanceledException)operationFailure).CancellationToken,
+                        Is.EqualTo(cancellation.Token));
+                }
+                else
+                {
+                    Assert.That(operationFailure, Is.SameAs(failure));
+                }
+                Assert.That(manager.RetainedNodes, Is.Zero);
+                monitoredItems.Verify(value => value.ApplyChanges(), Times.Never);
+                monitoredItems.Verify(value => value.Dispose(), Times.Once);
+            }
+        }
+
+        [Test]
+        public async Task DisposalFromAnAdmittedReadCallbackDoesNotWaitForItselfAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (OperationContext context = CreateContext())
+            {
+                var monitoredItems = new Mock<IMonitoredItemManager>();
+                using var manager = new TestNodeManager(server.Object, monitoredItems.Object);
+                Task disposal = null;
+                manager.RetainedNode.OnSimpleReadValue = (_, _, ref value) =>
+                {
+                    manager.Dispose();
+                    disposal = manager.DisposeAsync().AsTask();
+                    Assert.That(disposal.IsCompleted, Is.False);
+                    monitoredItems.Verify(item => item.Dispose(), Times.Never);
+                    value = new Variant(42);
+                    return ServiceResult.Good;
+                };
+                DataValue[] values = [default];
+                ServiceResult[] errors = [ServiceResult.Good];
+
+                manager.Read(context, 0,
+                    [new ReadValueId { NodeId = manager.RetainedNode.NodeId, AttributeId = Attributes.Value }],
+                    values, errors);
+                Assert.That(disposal, Is.Not.Null);
+                await disposal.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(values[0].WrappedValue, Is.EqualTo(new Variant(42)));
+                    Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(manager.RetainedNodes, Is.Zero);
+                });
+                monitoredItems.Verify(value => value.Dispose(), Times.Once);
+            }
+        }
+
+        [Test]
+        public void OwnedCleanupFailureIsSharedAndStillClearsRetainedNodes()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var failure = new InvalidOperationException("Monitored-item cleanup failed.");
+                var monitoredItems = new Mock<IMonitoredItemManager>();
+                using var manager = new TestNodeManager(server.Object, monitoredItems.Object);
+                monitoredItems.Setup(value => value.Dispose()).Throws(failure);
+
+                manager.Dispose();
+                InvalidOperationException first = Assert.ThrowsAsync<InvalidOperationException>(
+                    () => manager.DisposeAsync().AsTask());
+                InvalidOperationException repeated = Assert.ThrowsAsync<InvalidOperationException>(
+                    () => DisposeAsync((IDisposable)manager.ToAsyncNodeManager()));
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(first, Is.SameAs(failure));
+                    Assert.That(repeated, Is.SameAs(failure));
+                    Assert.That(manager.RetainedNodes, Is.Zero);
+                });
+                monitoredItems.Verify(value => value.Dispose(), Times.Once);
+            }
+        }
+
+        [Test]
+        public async Task ClosedManagerRejectsServiceAndLifecycleEntryPointsAsync(
+            [Values] bool cleanupComplete,
+            [Values(
+                "Read", "Write", "HistoryRead", "HistoryUpdate", "Call", "CallAsync",
+                "CreateMonitoredItems", "RestoreMonitoredItems", "ModifyMonitoredItems", "DeleteMonitoredItems",
+                "TransferMonitoredItems", "SetMonitoringMode", "SubscribeToEvents", "SubscribeToAllEvents",
+                "ConditionRefresh", "SessionActivated", "Snapshot", "CanAttach", "Attach", "Detach", "Recover",
+                "Find", "FindPredefinedNode", "GetManagerHandle", "GetNodeMetadata", "GetPermissionMetadata",
+                "TranslateBrowsePath", "Browse", "DeleteNode", "CreateNode", "CreateAddressSpace", "DeleteAddressSpace",
+                "AddReferences", "DeleteReference", "FindMethodState", "IsNodeInView", "ValidateRolePermissions",
+                "ValidateEventRolePermissions", "ValidateEventReceivePermissions")] string operationName)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (OperationContext context = CreateContext())
+            {
+                var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var monitoredItems = new Mock<IMonitoredItemManager>();
+                using var manager = new TestNodeManager(server.Object, monitoredItems.Object)
+                {
+                    PendingCall = async ct => await release.Task.WaitAsync(ct).ConfigureAwait(false)
+                };
+                Task active = cleanupComplete
+                    ? Task.CompletedTask
+                    : manager.CallAsync(context, [], [], []).AsTask();
+                manager.Dispose();
+                try
+                {
+                    if (cleanupComplete)
+                    {
+                        await manager.DisposeAsync().ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        monitoredItems.Verify(value => value.Dispose(), Times.Never);
+                    }
+                    ObjectDisposedException failure = null;
+                    try
+                    {
+                        await InvokeOperationAsync(manager, context, operationName)
+                            .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    }
+                    catch (ObjectDisposedException exception)
+                    {
+                        failure = exception;
+                    }
+                    Assert.That(failure, Is.TypeOf<ObjectDisposedException>());
+                    Assert.That(failure.ObjectName, Is.EqualTo(manager.GetType().Name));
+                }
+                finally
+                {
+                    release.TrySetResult(true);
+                    await active.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    await manager.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                }
+                monitoredItems.Verify(value => value.Dispose(), Times.Once);
+            }
+        }
+
+        private static async Task InvokeOperationAsync(
+            TestNodeManager manager,
+            OperationContext context,
+            string operationName)
+        {
+            var lifecycle = (INodeManagerMonitoredItemLifecycle)manager;
+            switch (operationName)
+            {
+                case "Read":
+                    manager.Read(context, 0, [], [], []);
+                    break;
+                case "Write":
+                    manager.Write(context, [], []);
+                    break;
+                case "HistoryRead":
+                    manager.HistoryRead(
+                        context, new ReadRawModifiedDetails(), TimestampsToReturn.Both, false, [], [], []);
+                    break;
+                case "HistoryUpdate":
+                    manager.HistoryUpdate(context, typeof(UpdateDataDetails), [], [], []);
+                    break;
+                case "Call":
+                    manager.Call(context, [], [], []);
+                    break;
+                case "CallAsync":
+                    await manager.CallAsync(context, [], [], []).ConfigureAwait(false);
+                    break;
+                case "CreateMonitoredItems":
+                    manager.CreateMonitoredItems(context, 1, 1000, TimestampsToReturn.Both, [],
+                        [], [], [], false, new MonitoredItemIdFactory());
+                    break;
+                case "RestoreMonitoredItems":
+                    manager.RestoreMonitoredItems([], [], null);
+                    break;
+                case "ModifyMonitoredItems":
+                    manager.ModifyMonitoredItems(context, TimestampsToReturn.Both, [], [], [], []);
+                    break;
+                case "DeleteMonitoredItems":
+                    manager.DeleteMonitoredItems(context, [], [], []);
+                    break;
+                case "TransferMonitoredItems":
+                    manager.TransferMonitoredItems(context, false, [], [], [], new MonitoredItemTransferOptions());
+                    break;
+                case "SetMonitoringMode":
+                    manager.SetMonitoringMode(context, MonitoringMode.Disabled, [], [], []);
+                    break;
+                case "SubscribeToEvents":
+                    manager.SubscribeToEvents(context, new NodeHandle(), 1, null, false);
+                    break;
+                case "SubscribeToAllEvents":
+                    manager.SubscribeToAllEvents(context, 1, null, false);
+                    break;
+                case "ConditionRefresh":
+                    manager.ConditionRefresh(context, []);
+                    break;
+                case "SessionActivated":
+                    manager.SessionActivated(context, new NodeId(1));
+                    break;
+                case "Snapshot":
+                    await lifecycle.GetMonitoredItemsSnapshotAsync(null, CancellationToken.None).ConfigureAwait(false);
+                    break;
+                case "CanAttach":
+                    await lifecycle.CanAttachMonitoredItemAsync(null, CancellationToken.None).ConfigureAwait(false);
+                    break;
+                case "Attach":
+                    await lifecycle.AttachMonitoredItemAsync(null, CancellationToken.None).ConfigureAwait(false);
+                    break;
+                case "Detach":
+                    await lifecycle.DetachMonitoredItemAsync(null, CancellationToken.None).ConfigureAwait(false);
+                    break;
+                case "Recover":
+                    await lifecycle.RecoverMonitoredItemAsync(null, CancellationToken.None).ConfigureAwait(false);
+                    break;
+                case "Find":
+                    manager.Find(manager.RetainedNode.NodeId);
+                    break;
+                case "FindPredefinedNode":
+                    manager.FindPredefinedNode<BaseDataVariableState>(manager.RetainedNode.NodeId);
+                    break;
+                case "GetManagerHandle":
+                    manager.GetManagerHandle(manager.RetainedNode.NodeId);
+                    break;
+                case "GetNodeMetadata":
+                    manager.GetNodeMetadata(context, new NodeHandle(), BrowseResultMask.All);
+                    break;
+                case "GetPermissionMetadata":
+                    manager.GetPermissionMetadata(context, new NodeHandle(), BrowseResultMask.All, [], false);
+                    break;
+                case "TranslateBrowsePath":
+                    manager.TranslateBrowsePath(context, new NodeHandle(), new RelativePathElement(), [], []);
+                    break;
+                case "Browse":
+                    ContinuationPoint continuationPoint = null;
+                    manager.Browse(context, ref continuationPoint, []);
+                    break;
+                case "DeleteNode":
+                    manager.DeleteNode(manager.SystemContext, manager.RetainedNode.NodeId);
+                    break;
+                case "CreateNode":
+                    manager.CreateNode(manager.SystemContext, default, default, default, manager.RetainedNode);
+                    break;
+                case "CreateAddressSpace":
+                    manager.CreateAddressSpace(new Dictionary<NodeId, IList<IReference>>());
+                    break;
+                case "DeleteAddressSpace":
+                    manager.DeleteAddressSpace();
+                    break;
+                case "AddReferences":
+                    manager.AddReferences(new Dictionary<NodeId, IList<IReference>>());
+                    break;
+                case "DeleteReference":
+                    manager.DeleteReference(new NodeHandle(), default, false, default, false);
+                    break;
+                case "FindMethodState":
+                    manager.FindMethodState(context, new CallMethodRequest());
+                    break;
+                case "IsNodeInView":
+                    manager.IsNodeInView(context, default, new NodeHandle());
+                    break;
+                case "ValidateRolePermissions":
+                    manager.ValidateRolePermissions(context, manager.RetainedNode.NodeId, PermissionType.None);
+                    break;
+                case "ValidateEventRolePermissions":
+                    manager.ValidateEventRolePermissions(null, null);
+                    break;
+                case "ValidateEventReceivePermissions":
+                    manager.ValidateEventReceivePermissions(context, default, default);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(operationName), operationName, null);
+            }
+        }
+
+        private static Task DisposeAsync(IDisposable owner)
+        {
+            if (owner is IAsyncDisposable asynchronous)
+            {
+                return asynchronous.DisposeAsync().AsTask();
+            }
+            owner.Dispose();
+            return Task.CompletedTask;
+        }
+
         private static OperationContext CreateContext()
         {
             var session = new Mock<ISession>();
@@ -157,13 +709,48 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 new RequestHeader(), null, RequestType.CreateMonitoredItems, RequestLifetime.None, session.Object);
         }
 
-        private sealed class TestNodeManager : CustomNodeManager2
+        private sealed class TestNodeManager : CustomNodeManager2, ICallAsyncNodeManager
         {
             public TestNodeManager(IServerInternal server, IMonitoredItemManager manager)
                 : base(server, NullLogger.Instance, "urn:tests:sampling-audit")
             {
                 m_monitoredItemManager.Dispose();
                 m_monitoredItemManager = manager;
+                RetainedNode = new BaseDataVariableState(null)
+                {
+                    NodeId = new NodeId(1, NamespaceIndex),
+                    BrowseName = new QualifiedName("Retained", NamespaceIndex),
+                    DataType = DataTypeIds.Int32,
+                    ValueRank = ValueRanks.Scalar,
+                    AccessLevel = AccessLevels.CurrentRead,
+                    UserAccessLevel = AccessLevels.CurrentRead,
+                    Value = new Variant(1)
+                };
+                PredefinedNodes[RetainedNode.NodeId] = RetainedNode;
+            }
+
+            public Func<CancellationToken, ValueTask> PendingCall { get; set; }
+
+            public int RetainedNodes => PredefinedNodes.Count;
+
+            public BaseDataVariableState RetainedNode { get; }
+
+            protected override async ValueTask CallInternalAsync(
+                OperationContext context,
+                ArrayOf<CallMethodRequest> methodsToCall,
+                IList<CallMethodResult> results,
+                IList<ServiceResult> errors,
+                bool sync,
+                CancellationToken cancellationToken = default)
+            {
+                if (PendingCall is null)
+                {
+                    await base.CallInternalAsync(
+                        context, methodsToCall, results, errors, sync, cancellationToken).ConfigureAwait(false);
+                    return;
+                }
+                await PendingCall(cancellationToken).ConfigureAwait(false);
+                m_monitoredItemManager.ApplyChanges();
             }
         }
     }
