@@ -230,6 +230,33 @@ namespace Opc.Ua.Server.Tests
             Assert.That(raised, Is.EqualTo(1), "children discovered through the change are tracked");
         }
 
+        [Test]
+        public async Task MissLinkedLaterThroughReferenceWithoutChangeEventIsFoundAsync()
+        {
+            var host = new FakeHost(withNamespacesNode: true);
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+            registry.Attach(host.SystemContext);
+            ushort index = (ushort)host.SystemContext.Server.NamespaceUris.GetIndex(DeterministicServerMock.TestNamespaceUri);
+
+            // Looked up before the namespace's node manager linked its metadata.
+            Assert.That(await registry.GetAsync(index).ConfigureAwait(false), Is.Null);
+
+            // Linked the way AddReferencesAsync does it: a reference only, no
+            // StateChanged on Server/Namespaces.
+            NamespaceMetadataState late = host.AddForeignMetadataNode(DeterministicServerMock.TestNamespaceUri);
+
+            NamespaceMetadataState? byIndex = await registry.GetAsync(index).ConfigureAwait(false);
+            NamespaceMetadataState? byUri = await registry.GetAsync(DeterministicServerMock.TestNamespaceUri)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(byIndex, Is.SameAs(late),
+                    "a cached miss must not hide metadata linked later (its default permissions would be skipped)");
+                Assert.That(byUri, Is.SameAs(late));
+            });
+        }
+
         private static NamespaceMetadataRegistry CreateRegistry(FakeHost host)
         {
             return new NamespaceMetadataRegistry(host, s_telemetry.CreateLogger<NamespaceMetadataRegistry>());

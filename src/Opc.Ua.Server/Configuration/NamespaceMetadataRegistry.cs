@@ -123,13 +123,36 @@ namespace Opc.Ua.Server
                 }
             }
 
+            // A missing metadata node is only remembered while the
+            // Namespaces node is unchanged: a node manager registered later
+            // can link its NamespaceMetadata through a reference that raises
+            // no StateChanged event, and its default permissions must then
+            // be found instead of the cached miss.
+            (int, int) fingerprint = GetNamespacesFingerprint();
+            lock (m_lock)
+            {
+                if (m_missingByUri.TryGetValue(namespaceUri, out (int, int) missing) &&
+                    missing == fingerprint)
+                {
+                    return null;
+                }
+            }
+
             NamespaceMetadataState? namespaceMetadataState = await FindAsync(
                 namespaceUri, cancellationToken).ConfigureAwait(false);
 
             lock (m_lock)
             {
                 // remember the result for faster access.
-                m_statesByUri[namespaceUri] = namespaceMetadataState!;
+                if (namespaceMetadataState != null)
+                {
+                    m_statesByUri[namespaceUri] = namespaceMetadataState;
+                    m_missingByUri.Remove(namespaceUri);
+                }
+                else
+                {
+                    m_missingByUri[namespaceUri] = fingerprint;
+                }
             }
 
             return namespaceMetadataState;
@@ -155,12 +178,15 @@ namespace Opc.Ua.Server
             NamespaceMetadataState? namespaceMetadataState = await GetAsync(
                 namespaceUri!, cancellationToken).ConfigureAwait(false);
 
-            lock (m_lock)
+            if (namespaceMetadataState != null)
             {
-                m_statesByIndex[namespaceIndex] = namespaceMetadataState!;
+                lock (m_lock)
+                {
+                    m_statesByIndex[namespaceIndex] = namespaceMetadataState;
+                }
             }
 
-            return namespaceMetadataState!;
+            return namespaceMetadataState;
         }
 
         /// <summary>
@@ -262,6 +288,7 @@ namespace Opc.Ua.Server
                 m_tracked.Clear();
                 m_statesByUri.Clear();
                 m_statesByIndex.Clear();
+                m_missingByUri.Clear();
             }
 
             foreach (NamespaceMetadataState metadataState in tracked)
@@ -343,6 +370,25 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Returns the child and reference counts of <c>Server/Namespaces</c>.
+        /// A cached miss is only valid while these are unchanged.
+        /// </summary>
+        private (int, int) GetNamespacesFingerprint()
+        {
+            if (m_host.FindServerNamespacesNode() is not NamespacesState serverNamespacesNode)
+            {
+                return (-1, -1);
+            }
+
+            ServerSystemContext context = m_host.SystemContext;
+            List<BaseInstanceState> children = [];
+            serverNamespacesNode.GetChildren(context, children);
+            List<IReference> references = [];
+            serverNamespacesNode.GetReferences(context, references);
+            return (children.Count, references.Count);
+        }
+
+        /// <summary>
         /// Clear NamespaceMetadata nodes cache in case nodes are added or deleted
         /// </summary>
         private void OnServerNamespacesChanged(
@@ -359,6 +405,7 @@ namespace Opc.Ua.Server
                     {
                         m_statesByUri.Clear();
                         m_statesByIndex.Clear();
+                        m_missingByUri.Clear();
                     }
 
                     if (node is NamespacesState serverNamespacesNode)
@@ -447,6 +494,7 @@ namespace Opc.Ua.Server
         private readonly ILogger m_logger;
         private readonly Dictionary<string, NamespaceMetadataState> m_statesByUri = [];
         private readonly Dictionary<ushort, NamespaceMetadataState> m_statesByIndex = [];
+        private readonly Dictionary<string, (int, int)> m_missingByUri = [];
         private readonly HashSet<NamespaceMetadataState> m_tracked = [];
         private readonly Lock m_lock = new();
     }
