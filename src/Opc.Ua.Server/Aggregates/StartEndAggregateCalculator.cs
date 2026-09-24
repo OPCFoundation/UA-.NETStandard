@@ -204,7 +204,7 @@ namespace Opc.Ua.Server
             }
 
             // return result.
-            return value.WithWrappedValue(new Variant(delta).ConvertTo(originalType.BuiltInType));
+            return value.WithWrappedValue(new Variant(delta).ConvertTo(GetDeltaType(originalType.BuiltInType, delta)));
         }
 
         /// <summary>
@@ -332,7 +332,30 @@ namespace Opc.Ua.Server
             }
 
             // return result.
-            return value.WithWrappedValue(new Variant(delta).ConvertTo(originalType.BuiltInType));
+            return value.WithWrappedValue(new Variant(delta).ConvertTo(GetDeltaType(originalType.BuiltInType, delta)));
+        }
+
+        /// <summary>
+        /// Returns the data type of a Delta/DeltaBounds result. Part 13
+        /// 5.4.3.27 asks for the source type but also for a negative result
+        /// when the value decreases; an unsigned source cannot hold that, so
+        /// a negative delta is widened to the next signed type (Double for
+        /// UInt64) instead of failing with Bad_TypeMismatch.
+        /// </summary>
+        private static BuiltInType GetDeltaType(BuiltInType sourceType, double delta)
+        {
+            if (delta >= 0)
+            {
+                return sourceType;
+            }
+            return sourceType switch
+            {
+                BuiltInType.Byte => BuiltInType.Int16,
+                BuiltInType.UInt16 => BuiltInType.Int32,
+                BuiltInType.UInt32 => BuiltInType.Int64,
+                BuiltInType.UInt64 => BuiltInType.Double,
+                _ => sourceType
+            };
         }
     }
 }
