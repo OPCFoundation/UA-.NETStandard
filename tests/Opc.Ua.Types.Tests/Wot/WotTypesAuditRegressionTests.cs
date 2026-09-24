@@ -267,6 +267,34 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(floor!.SecurityMode, Is.EqualTo("SignAndEncrypt"));
         }
 
+        [Test]
+        public async Task ProjectionNodeIdsAreIndexedWithAnEscapedNamespaceAsync()
+        {
+            // Part 6 5.1.12: the nsu= URI is percent-encoded with ';' reserved.
+            // The projection index concatenated it raw, so the escaped id every
+            // other producer writes missed.
+            const string json =
+                "{" +
+                "\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"}]," +
+                "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
+                "\"title\":\"Pumps\"," +
+                "\"uav:nodes\":{\"namespaceUris\":[\"urn:acme;pumps\"]," +
+                "\"nodes\":[{\"nodeId\":\"ns=1;i=1001\",\"nodeClass\":\"ObjectType\"}]}" +
+                "}";
+
+            using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(json));
+            var resolver = new WotDocumentNodeResolver([document]);
+
+            WotResolvedNode? resolved = await resolver
+                .ResolveByNodeIdAsync(
+                    "nsu=urn:acme%3Bpumps;i=1001",
+                    WotExpectedNodeClass.ObjectType)
+                .ConfigureAwait(false);
+
+            Assert.That(resolved, Is.Not.Null);
+        }
+
         private static string Projection(
             string securityDefinitions,
             string security,
