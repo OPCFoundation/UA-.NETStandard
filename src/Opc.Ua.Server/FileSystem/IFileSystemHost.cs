@@ -125,6 +125,21 @@ namespace Opc.Ua.Server.FileSystem
         void ForgetHandle(NodeId nodeId);
 
         /// <summary>
+        /// Whether a file at, or below, the provider path is currently open.
+        /// </summary>
+        /// <param name="providerPath">The provider-relative file or directory path.</param>
+        /// <returns><c>true</c> when an open file handle is tracked at or below the path.</returns>
+        bool HasOpenHandles(string providerPath);
+
+        /// <summary>
+        /// Whether the user of the calling context may modify the hosted
+        /// file system (open for writing, create, delete, move or copy).
+        /// </summary>
+        /// <param name="context">The calling context.</param>
+        /// <returns><c>true</c> when the caller may modify the file system.</returns>
+        bool CanUserWrite(ISystemContext context);
+
+        /// <summary>
         /// Applies an admitted provider mutation and reconciles the hosted address space.
         /// </summary>
         /// <param name="kind">The operation to apply.</param>

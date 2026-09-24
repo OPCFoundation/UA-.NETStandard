@@ -97,7 +97,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             m_sessionId = new NodeId("directory-session", 0);
             var session = new Mock<ISession>();
             session.Setup(s => s.Id).Returns(m_sessionId);
-            session.Setup(s => s.Identity).Returns(new Mock<IUserIdentity>().Object);
+            session.Setup(s => s.Identity).Returns(Mock.Of<IUserIdentity>(i => i.TokenType == UserTokenType.UserName));
             session.Setup(s => s.PreferredLocales).Returns([]);
             m_context = m_manager.SystemContext.Copy(session.Object);
         }
@@ -264,7 +264,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         [Test]
-        public async Task DeleteFileSystemObjectWithNonFileSystemNodeReturnsBadInvalidStateAsync()
+        public async Task DeleteFileSystemObjectWithNonFileSystemNodeReturnsBadNotFoundAsync()
         {
             DirectoryObjectState state = CreateRootDirectory();
             var target = new NodeId(42);
@@ -272,7 +272,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             DeleteFileMethodStateResult result = await state.DeleteFileSystemObject!.OnCallAsync!(
                 m_context, state.DeleteFileSystemObject, state.NodeId, target, CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(result.ServiceResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(result.ServiceResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadNotFound));
         }
 
         [Test]
@@ -337,7 +337,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
         [Test]
         public async Task MoveOrCopyUsesSourceNameWhenNewNameEmptyAsync()
         {
-            DirectoryObjectState state = CreateRootDirectory();
+            // MoveOrCopy is called on the directory that organizes the source.
+            var state = new DirectoryObjectState(m_context,
+                FileSystemNodeId.BuildDirectory("sub", m_manager.NamespaceIndex), "sub", "sub", isRoot: false);
             Directory.CreateDirectory(Path.Combine(m_root, "sub"));
             File.WriteAllText(Path.Combine(m_root, "sub", "keep.txt"), "payload");
             NodeId source = FileSystemNodeId.BuildFile("sub/keep.txt", m_manager.NamespaceIndex);

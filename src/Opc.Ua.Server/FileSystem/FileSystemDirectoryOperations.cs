@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -87,11 +88,12 @@ namespace Opc.Ua.Server.FileSystem
         /// </summary>
         public static async ValueTask<CreateDirectoryMethodStateResult> CreateDirectoryAsync(
             IFileSystemHost host,
+            ISystemContext context,
             string providerPath,
             string directoryName,
             CancellationToken cancellationToken)
         {
-            if (!CanCreate(host, out ServiceResult accessResult))
+            if (!CanCreate(host, context, out ServiceResult accessResult))
             {
                 return new CreateDirectoryMethodStateResult { ServiceResult = accessResult };
             }
@@ -164,7 +166,7 @@ namespace Opc.Ua.Server.FileSystem
             bool requestFileOpen,
             CancellationToken cancellationToken)
         {
-            if (!CanCreate(host, out ServiceResult accessResult))
+            if (!CanCreate(host, context, out ServiceResult accessResult))
             {
                 return new CreateFileMethodStateResult { ServiceResult = accessResult };
             }
@@ -240,14 +242,17 @@ namespace Opc.Ua.Server.FileSystem
         }
 
         /// <summary>
-        /// Deletes a hosted file or directory while rejecting attempts to delete the mount root.
+        /// Deletes a hosted file or directory organized by the called directory while rejecting
+        /// attempts to delete the mount root or an open file.
         /// </summary>
         public static async ValueTask<DeleteFileMethodStateResult> DeleteAsync(
             IFileSystemHost host,
+            ISystemContext context,
+            string directoryPath,
             NodeId objectToDelete,
             CancellationToken cancellationToken)
         {
-            if (!host.Provider.IsWritable || !host.AllowDelete)
+            if (!host.Provider.IsWritable || !host.AllowDelete || !host.CanUserWrite(context))
             {
                 return new DeleteFileMethodStateResult
                 {
@@ -259,8 +264,8 @@ namespace Opc.Ua.Server.FileSystem
             {
                 return new DeleteFileMethodStateResult
                 {
-                    ServiceResult = ServiceResult.Create(StatusCodes.BadInvalidState,
-                        "Not a file-system object.")
+                    ServiceResult = ServiceResult.Create(StatusCodes.BadNotFound,
+                        "Not a file-system object organized by this directory.")
                 };
             }
             if (isRoot || string.IsNullOrEmpty(providerPath))
@@ -269,6 +274,23 @@ namespace Opc.Ua.Server.FileSystem
                 {
                     ServiceResult = ServiceResult.Create(StatusCodes.BadUserAccessDenied,
                         "Cannot delete the file-system root.")
+                };
+            }
+            // Part 20 4.3.5: only objects organized by the called directory can be deleted.
+            if (!IsOrganizedBy(host.Provider, directoryPath, providerPath))
+            {
+                return new DeleteFileMethodStateResult
+                {
+                    ServiceResult = ServiceResult.Create(StatusCodes.BadNotFound,
+                        "The file-system object is not organized by this directory.")
+                };
+            }
+            if (host.HasOpenHandles(providerPath))
+            {
+                return new DeleteFileMethodStateResult
+                {
+                    ServiceResult = ServiceResult.Create(StatusCodes.BadInvalidState,
+                        "The file or directory is locked and thus cannot be deleted.")
                 };
             }
 
@@ -318,13 +340,15 @@ namespace Opc.Ua.Server.FileSystem
         /// </summary>
         public static async ValueTask<MoveOrCopyMethodStateResult> MoveOrCopyAsync(
             IFileSystemHost host,
+            ISystemContext context,
+            string directoryPath,
             NodeId objectToMoveOrCopy,
             NodeId targetDirectory,
             bool createCopy,
             string newName,
             CancellationToken cancellationToken)
         {
-            if (!host.Provider.IsWritable || !host.AllowMoveOrCopy)
+            if (!host.Provider.IsWritable || !host.AllowMoveOrCopy || !host.CanUserWrite(context))
             {
                 return new MoveOrCopyMethodStateResult
                 {
@@ -341,6 +365,15 @@ namespace Opc.Ua.Server.FileSystem
                 {
                     ServiceResult = ServiceResult.Create(StatusCodes.BadInvalidArgument,
                         "Source is not a directory or file.")
+                };
+            }
+            // Part 20 4.3.6: only objects organized by the called directory can be moved or copied.
+            if (!IsOrganizedBy(host.Provider, directoryPath, sourcePath))
+            {
+                return new MoveOrCopyMethodStateResult
+                {
+                    ServiceResult = ServiceResult.Create(StatusCodes.BadNotFound,
+                        "The file-system object is not organized by this directory.")
                 };
             }
             if (!host.TryGetProviderPath(targetDirectory, out string targetDirectoryPath, out bool targetIsDirectory,
@@ -361,6 +394,23 @@ namespace Opc.Ua.Server.FileSystem
                 return new MoveOrCopyMethodStateResult { ServiceResult = newNameResult };
             }
             string targetPath = host.CombineProviderPath(targetDirectoryPath, finalName);
+            if (sourceIsDirectory &&
+                IsSameOrDescendant(host.Provider, targetPath, GetPathIdentity(host.Provider, sourcePath)))
+            {
+                return new MoveOrCopyMethodStateResult
+                {
+                    ServiceResult = ServiceResult.Create(StatusCodes.BadInvalidArgument,
+                        "A directory cannot be moved or copied into itself.")
+                };
+            }
+            if (!createCopy && host.HasOpenHandles(sourcePath))
+            {
+                return new MoveOrCopyMethodStateResult
+                {
+                    ServiceResult = ServiceResult.Create(StatusCodes.BadInvalidState,
+                        "The file or directory is locked and thus cannot be moved.")
+                };
+            }
 
             try
             {
@@ -446,9 +496,9 @@ namespace Opc.Ua.Server.FileSystem
             }
         }
 
-        private static bool CanCreate(IFileSystemHost host, out ServiceResult result)
+        private static bool CanCreate(IFileSystemHost host, ISystemContext context, out ServiceResult result)
         {
-            if (!host.Provider.IsWritable || !host.AllowCreate)
+            if (!host.Provider.IsWritable || !host.AllowCreate || !host.CanUserWrite(context))
             {
                 result = ServiceResult.Create(StatusCodes.BadUserAccessDenied,
                     "Creating file-system objects is not allowed.");
@@ -457,6 +507,75 @@ namespace Opc.Ua.Server.FileSystem
 
             result = ServiceResult.Good;
             return true;
+        }
+
+        /// <summary>
+        /// Whether the context does not belong to an anonymous user. Internal
+        /// server operations carry no user identity and are not restricted.
+        /// </summary>
+        internal static bool IsNonAnonymousOrInternal(ISystemContext context)
+        {
+            return context is not ISessionSystemContext { UserIdentity: { } identity } ||
+                identity.TokenType != UserTokenType.Anonymous;
+        }
+
+        /// <summary>
+        /// Whether one of the handles has an open file at, or below, the provider path.
+        /// </summary>
+        internal static bool HasOpenHandles(
+            IFileSystemProvider provider,
+            IEnumerable<FileHandle> handles,
+            string providerPath)
+        {
+            string identity = GetPathIdentity(provider, providerPath);
+            foreach (FileHandle handle in handles)
+            {
+                if (handle.OpenCount > 0 && IsSameOrDescendant(provider, handle.ProviderPath, identity))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Whether the provider path, or one of its ancestors, has the given path identity.
+        /// </summary>
+        private static bool IsSameOrDescendant(IFileSystemProvider provider, string providerPath, string ancestorIdentity)
+        {
+            string current = providerPath.TrimEnd('/');
+            while (!string.IsNullOrEmpty(current))
+            {
+                if (string.Equals(GetPathIdentity(provider, current), ancestorIdentity, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+                current = GetParentPath(current);
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Whether the entry at the provider path is a direct child of the directory.
+        /// </summary>
+        private static bool IsOrganizedBy(IFileSystemProvider provider, string directoryPath, string providerPath)
+        {
+            string parent = GetParentPath(providerPath.TrimEnd('/'));
+            string directory = directoryPath.TrimEnd('/');
+            if (string.IsNullOrEmpty(parent) || string.IsNullOrEmpty(directory))
+            {
+                return string.IsNullOrEmpty(parent) && string.IsNullOrEmpty(directory);
+            }
+            return string.Equals(
+                GetPathIdentity(provider, parent),
+                GetPathIdentity(provider, directory),
+                StringComparison.Ordinal);
+        }
+
+        private static string GetParentPath(string providerPath)
+        {
+            int slash = providerPath.LastIndexOf('/');
+            return slash < 0 ? string.Empty : providerPath[..slash];
         }
 
         /// <summary>

@@ -195,11 +195,15 @@ namespace Quickstarts.ReferenceServer
             {
                 // FileSystem node manager — exposes the configured
                 // provider (defaults to a temp folder) under the standard
-                // Server.FileSystem object (i=16314).
+                // Server.FileSystem object (i=16314). The reference server is a
+                // test server, so anonymous clients may modify the mount too.
                 Opc.Ua.Server.FileSystem.IFileSystemProvider provider =
                     FileSystemProvider ?? CreateDefaultFileSystemProvider();
                 asyncNodeManagers.Add(new Opc.Ua.Server.FileSystem.FileSystemNodeManager(
-                    server, configuration, provider));
+                    server, configuration, provider)
+                {
+                    AllowAnonymousWrite = true
+                });
             }
 
             // OPC UA Part 17 — AliasName provider for the reference server.

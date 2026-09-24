@@ -148,6 +148,30 @@ namespace Opc.Ua.Server.FileSystem
             ForgetHandle(nodeId);
         }
 
+        bool IFileSystemHost.HasOpenHandles(string providerPath)
+        {
+            FileHandle[] handles;
+            lock (m_lock)
+            {
+                handles = [.. m_handles.Values];
+            }
+            return FileSystemDirectoryOperations.HasOpenHandles(Provider, handles, providerPath);
+        }
+
+        bool IFileSystemHost.CanUserWrite(ISystemContext context)
+        {
+            return AllowAnonymousWrite || FileSystemDirectoryOperations.IsNonAnonymousOrInternal(context);
+        }
+
+        /// <summary>
+        /// Whether anonymous sessions may modify the mounted file system
+        /// (open for writing, create, delete, move or copy). Defaults to
+        /// <c>false</c>: only sessions with a non-anonymous user identity may
+        /// modify it. Enable only when the mount is meant to be writable by
+        /// every client.
+        /// </summary>
+        public bool AllowAnonymousWrite { get; set; }
+
         /// <inheritdoc/>
         public override NodeId New(ISystemContext context, NodeState node)
         {

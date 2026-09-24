@@ -393,6 +393,28 @@ namespace Opc.Ua.Server.FileSystem
             }
 
             /// <inheritdoc/>
+            public bool HasOpenHandles(string providerPath)
+            {
+                FileHandle[] handles;
+                lock (m_lock)
+                {
+                    handles = new FileHandle[m_handles.Count];
+                    m_handles.Values.CopyTo(handles, 0);
+                }
+                return FileSystemDirectoryOperations.HasOpenHandles(Provider, handles, providerPath);
+            }
+
+            /// <inheritdoc/>
+            /// <remarks>
+            /// The bound directory lives in the integrator's address space, which
+            /// controls user access through its RolePermissions and the binding options.
+            /// </remarks>
+            public bool CanUserWrite(ISystemContext context)
+            {
+                return true;
+            }
+
+            /// <inheritdoc/>
             public async ValueTask ApplyMutationAsync(
                 FileSystemMutationKind kind,
                 string path,
@@ -773,12 +795,12 @@ namespace Opc.Ua.Server.FileSystem
             {
                 EnsureDirectoryMethods(directory);
                 directory.DeleteFileSystemObject!.OnCallAsync = (context, method, objectId, objectToDelete, ct) =>
-                    FileSystemDirectoryOperations.DeleteAsync(this, objectToDelete, ct);
+                    FileSystemDirectoryOperations.DeleteAsync(this, context, providerPath, objectToDelete, ct);
                 directory.CreateFile!.OnCallAsync = (context, method, objectId, fileName, requestFileOpen, ct) =>
                     FileSystemDirectoryOperations.CreateFileAsync(
                         this, context, providerPath, fileName, requestFileOpen, ct);
                 directory.CreateDirectory!.OnCallAsync = (context, method, objectId, directoryName, ct) =>
-                    FileSystemDirectoryOperations.CreateDirectoryAsync(this, providerPath, directoryName, ct);
+                    FileSystemDirectoryOperations.CreateDirectoryAsync(this, context, providerPath, directoryName, ct);
                 directory.MoveOrCopy!.OnCallAsync = (
                     context,
                     method,
@@ -788,7 +810,7 @@ namespace Opc.Ua.Server.FileSystem
                     createCopy,
                     newName,
                     ct) => FileSystemDirectoryOperations.MoveOrCopyAsync(
-                        this, objectToMoveOrCopy, targetDirectory, createCopy, newName, ct);
+                        this, context, providerPath, objectToMoveOrCopy, targetDirectory, createCopy, newName, ct);
             }
 
             private void DetachDirectoryCallbacks(FileDirectoryState directory)
