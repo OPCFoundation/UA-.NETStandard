@@ -701,5 +701,85 @@ namespace Opc.Ua.Client.Tests
 
             Assert.DoesNotThrow(subscription.Dispose);
         }
+
+        /// <summary>
+        /// A restored item keeps the server id of the previous session. When
+        /// the subscription is created instead of transferred, that item must
+        /// still be created on the new server subscription (L7-6).
+        /// </summary>
+        [Test]
+        public async Task CreateAsyncCreatesItemsThatCarryAStaleServerIdAsync()
+        {
+            using Subscription subscription = CreateSubscription();
+            MonitoredItem item = CreateItem(4321u, "Restored");
+            item.ServerId = 55;
+            subscription.AddItem(item);
+            Mock<ISession> session = CreateItemSession(7);
+            subscription.Session = session.Object;
+
+            await subscription.CreateAsync().ConfigureAwait(false);
+
+            session.Verify(s => s.CreateMonitoredItemsAsync(
+                It.IsAny<RequestHeader>(),
+                7,
+                It.IsAny<TimestampsToReturn>(),
+                It.Is<ArrayOf<MonitoredItemCreateRequest>>(requests =>
+                    requests.Count == 1 &&
+                    requests[0].RequestedParameters.ClientHandle == 4321u),
+                It.IsAny<CancellationToken>()), Times.Once);
+            Assert.That(item.ServerId, Is.EqualTo(100u));
+        }
+
+        private static Mock<ISession> CreateItemSession(uint subscriptionId, Action onCreateItems = null)
+        {
+            var session = new Mock<ISession>();
+            session
+                .Setup(s => s.CreateSubscriptionAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<double>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<byte>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CreateSubscriptionResponse
+                {
+                    SubscriptionId = subscriptionId,
+                    RevisedPublishingInterval = 1000,
+                    RevisedMaxKeepAliveCount = 10,
+                    RevisedLifetimeCount = 100
+                });
+            session
+                .Setup(s => s.CreateMonitoredItemsAsync(
+                    It.IsAny<RequestHeader>(),
+                    subscriptionId,
+                    It.IsAny<TimestampsToReturn>(),
+                    It.IsAny<ArrayOf<MonitoredItemCreateRequest>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync((
+                    RequestHeader _,
+                    uint _,
+                    TimestampsToReturn _,
+                    ArrayOf<MonitoredItemCreateRequest> requests,
+                    CancellationToken _) =>
+                {
+                    onCreateItems?.Invoke();
+                    var results = new MonitoredItemCreateResult[requests.Count];
+                    for (int ii = 0; ii < results.Length; ii++)
+                    {
+                        results[ii] = new MonitoredItemCreateResult
+                        {
+                            StatusCode = StatusCodes.Good,
+                            MonitoredItemId = 100u + (uint)ii
+                        };
+                    }
+                    return new CreateMonitoredItemsResponse
+                    {
+                        Results = new ArrayOf<MonitoredItemCreateResult>(results)
+                    };
+                });
+            return session;
+        }
     }
 }

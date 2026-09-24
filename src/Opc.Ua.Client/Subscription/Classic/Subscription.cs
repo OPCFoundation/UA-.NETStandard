@@ -965,6 +965,12 @@ namespace Opc.Ua.Client
             using Activity? activity = m_telemetry.StartActivity();
             VerifySessionAndSubscriptionState(false);
 
+            // The subscription is not created, so a server id an item still
+            // carries (restored from storage, or left by a failed transfer)
+            // belongs to another server subscription. Reset it, otherwise the
+            // item is taken as created and never created on the new one.
+            ResetMonitoredItemServerIds(createdOnly: true);
+
             // create the subscription.
             uint revisedMaxKeepAliveCount = KeepAliveCount;
             uint revisedLifetimeCount = LifetimeCount;
@@ -2670,21 +2676,32 @@ namespace Opc.Ua.Client
             CurrentPriority = 0;
 
             // update items.
+            ResetMonitoredItemServerIds();
+
+            m_changeMask |= SubscriptionChangeMask.Deleted;
+        }
+
+        /// <summary>
+        /// Marks the monitored items as not created on the server and drops
+        /// pending deletions, whose server ids no longer exist.
+        /// </summary>
+        /// <param name="createdOnly">Leave items that are not created (and
+        /// their last error) untouched.</param>
+        private void ResetMonitoredItemServerIds(bool createdOnly = false)
+        {
             lock (m_cache)
             {
                 foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
                 {
-                    monitoredItem.SetDeleteResult(StatusCodes.Good, -1, default, null);
+                    if (!createdOnly || monitoredItem.Status.Created)
+                    {
+                        monitoredItem.SetDeleteResult(StatusCodes.Good, -1, default, null);
+                    }
                 }
-            }
 
-            lock (m_cache)
-            {
                 m_deletedItems.Clear();
                 m_deletingItems.Clear();
             }
-
-            m_changeMask |= SubscriptionChangeMask.Deleted;
         }
 
         /// <summary>
