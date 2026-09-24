@@ -1197,7 +1197,8 @@ namespace Opc.Ua.Server
                         channelContext.ServerChannelCertificate,
                         ClientCertificate?.RawData,
                         channelContext.ClientChannelCertificate,
-                        clientNonceData);
+                        clientNonceData,
+                        EndpointDescription.SecurityMode);
 
                     if (!await token.VerifyAsync(
                             dataToSign,
@@ -1228,7 +1229,8 @@ namespace Opc.Ua.Server
                                 channelContext.ServerChannelCertificate,
                                 ClientCertificate?.RawData,
                                 channelContext.ClientChannelCertificate,
-                                clientNonceData);
+                                clientNonceData,
+                                EndpointDescription.SecurityMode);
 
                             if (!await token.VerifyAsync(
                                     dataToSign,

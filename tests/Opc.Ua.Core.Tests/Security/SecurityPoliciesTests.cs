@@ -526,6 +526,51 @@ namespace Opc.Ua.Core.Tests.Security
                 Is.False);
         }
 
+        /// <summary>
+        /// OPC 10000-4 6.1.8 (Table 101): for an enhanced user token policy the
+        /// UserTokenSignature data on a SecurityMode None channel is
+        /// ServerNonce | HASH(ServerCertificate) | ClientNonce; otherwise the full
+        /// channel-bound data is signed, and legacy policies keep ServerCertificate | ServerNonce.
+        /// </summary>
+        [TestCase(SecurityPolicies.ECC_nistP256)]
+        [TestCase(SecurityPolicies.RSA_DH_AesGcm)]
+        [TestCase(SecurityPolicies.Basic256Sha256)]
+        public void UserTokenSignatureDataFollowsChannelSecurityMode(string policyUri)
+        {
+            SecurityPolicyInfo policy = SecurityPolicies.Default.Find(policyUri)!;
+            byte[] thumbprint = [1];
+            byte[] serverNonce = [2, 2];
+            byte[] serverCertificate = [3, 3, 3];
+            byte[] serverChannelCertificate = [4];
+            byte[] clientCertificate = [5];
+            byte[] clientChannelCertificate = [6];
+            byte[] clientNonce = [7, 7];
+
+            byte[] none = policy.GetUserTokenSignatureData(
+                thumbprint, serverNonce, serverCertificate, serverChannelCertificate,
+                clientCertificate, clientChannelCertificate, clientNonce, MessageSecurityMode.None);
+            byte[] secured = policy.GetUserTokenSignatureData(
+                thumbprint, serverNonce, serverCertificate, serverChannelCertificate,
+                clientCertificate, clientChannelCertificate, clientNonce, MessageSecurityMode.SignAndEncrypt);
+            byte[] withoutMode = policy.GetUserTokenSignatureData(
+                thumbprint, serverNonce, serverCertificate, serverChannelCertificate,
+                clientCertificate, clientChannelCertificate, clientNonce);
+
+            Assert.That(secured, Is.EqualTo(withoutMode));
+            if (policy.SecureChannelEnhancements)
+            {
+                using var hash = System.Security.Cryptography.SHA256.Create();
+                Assert.That(policy.CertificateThumbprintAlgorithm, Is.EqualTo(CertificateThumbprintAlgorithm.SHA256));
+                byte[] expected = [.. serverNonce, .. hash.ComputeHash(serverCertificate), .. clientNonce];
+                Assert.That(none, Is.EqualTo(expected));
+            }
+            else
+            {
+                Assert.That(none, Is.EqualTo(withoutMode));
+                Assert.That(none, Is.EqualTo(new byte[] { 3, 3, 3, 2, 2 }));
+            }
+        }
+
         private static bool VerifyEnhancedSignature(
             SignatureData signature,
             Certificate certificate,
