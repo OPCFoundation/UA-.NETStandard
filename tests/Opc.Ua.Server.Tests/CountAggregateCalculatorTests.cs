@@ -283,6 +283,50 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Verifies that annotation counting returns Bad_NoData outside the data and sets the
+        /// Partial bit on intervals overlapping the edges of the data in both time directions
+        /// (Part 13 §5.4.3.20, §5.3.3.2).
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void CalculateAnnotationCountsReportsIntervalsOutsideData(bool reverse)
+        {
+            // Data from 15 s to 25 s, intervals of 10 s over [0 s, 40 s].
+            ArrayOf<DataValue> result =
+                CountAggregateCalculator.CalculateAnnotationCounts(
+                    [TimeAt(15), TimeAt(18), TimeAt(25)],
+                    reverse ? TimeAt(40) : TimeAt(0),
+                    reverse ? TimeAt(0) : TimeAt(40),
+                    processingInterval: 10000,
+                    startOfData: TimeAt(15),
+                    endOfData: TimeAt(25),
+                    outputCap: 10,
+                    CancellationToken.None);
+
+            Assert.That(result, Has.Count.EqualTo(4));
+            for (int index = 0; index < result.Count; index++)
+            {
+                // chronological interval: 0 = [0,10), 1 = [10,20), 2 = [20,30), 3 = [30,40).
+                int interval = reverse ? 3 - index : index;
+                DateTimeUtc timestamp = reverse ? TimeAt(40 - (index * 10)) : TimeAt(index * 10);
+                Assert.That(result[index].SourceTimestamp, Is.EqualTo(timestamp));
+                if (interval is 0 or 3)
+                {
+                    Assert.That(result[index].StatusCode.Code, Is.EqualTo(StatusCodes.BadNoData));
+                    Assert.That(result[index].WrappedValue.IsNull, Is.True);
+                    continue;
+                }
+
+                Assert.That(result[index].WrappedValue.TryGetValue(out int count), Is.True);
+                Assert.That(count, Is.EqualTo(interval == 1 ? 2 : 1));
+                Assert.That(result[index].StatusCode.CodeBits, Is.EqualTo(StatusCodes.Good));
+                Assert.That(
+                    result[index].StatusCode.AggregateBits,
+                    Is.EqualTo(AggregateBits.Calculated | AggregateBits.Partial));
+            }
+        }
+
+        /// <summary>
         /// Verifies that forward annotation counting uses half-open time intervals.
         /// </summary>
         [Test]

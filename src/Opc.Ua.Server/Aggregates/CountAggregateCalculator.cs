@@ -93,6 +93,61 @@ namespace Opc.Ua.Server
             int outputCap,
             CancellationToken cancellationToken)
         {
+            return CalculateAnnotationCounts(
+                annotationTimestamps,
+                startTime,
+                endTime,
+                processingInterval,
+                DateTimeUtc.MinValue,
+                DateTimeUtc.MaxValue,
+                outputCap,
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Calculates AnnotationCount values for the requested time domain of a
+        /// history collection whose data spans the specified range.
+        /// </summary>
+        /// <remarks>
+        /// Part 13 §5.4.3.20: an interval entirely before the start of data or
+        /// after the end of data is <c>Bad_NoData</c>, and an interval that
+        /// overlaps the start or the end of data has the Partial bit set
+        /// (§5.3.3.2). Pass a <paramref name="startOfData"/> later than
+        /// <paramref name="endOfData"/> when the collection has no data.
+        /// </remarks>
+        /// <param name="annotationTimestamps">
+        /// Annotation timestamps in any order.
+        /// </param>
+        /// <param name="startTime">The start of the requested domain.</param>
+        /// <param name="endTime">The end of the requested domain.</param>
+        /// <param name="processingInterval">
+        /// The interval in milliseconds. Zero requests one result over the
+        /// complete domain.
+        /// </param>
+        /// <param name="startOfData">The timestamp of the first data point.</param>
+        /// <param name="endOfData">The timestamp of the last data point.</param>
+        /// <param name="outputCap">Maximum number of returned values.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>The calculated AnnotationCount values.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="annotationTimestamps"/> is null.
+        /// </exception>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// <paramref name="outputCap"/> is not positive.
+        /// </exception>
+        /// <exception cref="ServiceResultException">
+        /// The interval is invalid or the output cap is exceeded.
+        /// </exception>
+        public static ArrayOf<DataValue> CalculateAnnotationCounts(
+            ArrayOf<DateTimeUtc> annotationTimestamps,
+            DateTimeUtc startTime,
+            DateTimeUtc endTime,
+            double processingInterval,
+            DateTimeUtc startOfData,
+            DateTimeUtc endOfData,
+            int outputCap,
+            CancellationToken cancellationToken)
+        {
             if (annotationTimestamps.IsNull)
             {
                 throw new ArgumentNullException(nameof(annotationTimestamps));
@@ -181,7 +236,33 @@ namespace Opc.Ua.Server
                         cursor,
                         next,
                         cancellationToken);
-                values.Add(CreateAnnotationCountValue(count, cursor));
+
+                // chronological bounds; forward intervals exclude the late
+                // time and reverse intervals exclude the early time.
+                DateTimeUtc early = forward ? cursor : next;
+                DateTimeUtc late = forward ? next : cursor;
+                bool beforeStartOfData = forward
+                    ? late <= startOfData
+                    : late < startOfData;
+                bool afterEndOfData = forward
+                    ? early > endOfData
+                    : early >= endOfData;
+                if (beforeStartOfData || afterEndOfData)
+                {
+                    values.Add(new DataValue(
+                        Variant.Null,
+                        StatusCodes.BadNoData,
+                        cursor,
+                        cursor));
+                }
+                else
+                {
+                    // same edge rules as AggregateCalculator.TryGetProcessedValue.
+                    bool partial =
+                        (startOfData > early && startOfData < late) ||
+                        (endOfData >= early && endOfData < late);
+                    values.Add(CreateAnnotationCountValue(count, cursor, partial));
+                }
                 cursor = next;
             }
             return values.ToArrayOf();
@@ -509,7 +590,8 @@ namespace Opc.Ua.Server
 
         private static DataValue CreateAnnotationCountValue(
             int count,
-            DateTimeUtc timestamp)
+            DateTimeUtc timestamp,
+            bool partial)
         {
             var value = new DataValue(
                 Variant.From(count),
@@ -517,7 +599,9 @@ namespace Opc.Ua.Server
                 timestamp,
                 timestamp);
             return value.WithStatus(value.StatusCode.WithAggregateBits(
-                AggregateBits.Calculated));
+                partial
+                    ? AggregateBits.Calculated | AggregateBits.Partial
+                    : AggregateBits.Calculated));
         }
     }
 }

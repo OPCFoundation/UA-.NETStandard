@@ -1118,6 +1118,55 @@ namespace Opc.Ua.Server.Historian
                 }
                 token = page.NextToken;
             }
+
+            // Part 13 §5.4.3.20: intervals before the start or after the end of data are
+            // Bad_NoData and intervals overlapping either edge are Partial. The data is the
+            // raw history (read with bounds, as for the other aggregates) and the annotations.
+            DateTimeUtc startOfData = DateTimeUtc.MaxValue;
+            DateTimeUtc endOfData = DateTimeUtc.MinValue;
+            foreach (DateTimeUtc annotationTime in annotationTimes)
+            {
+                startOfData = annotationTime < startOfData ? annotationTime : startOfData;
+                endOfData = annotationTime > endOfData ? annotationTime : endOfData;
+            }
+            if (provider is IHistorianDataProvider raw)
+            {
+                var rawRequest = new HistorianRawReadRequest
+                {
+                    NodeId = node.NodeId,
+                    StartTime = windowStart,
+                    EndTime = windowEnd,
+                    MaxValues = 0,
+                    IsForward = true,
+                    ReturnBounds = true
+                };
+                HistorianResumeToken rawToken = default;
+                while (true)
+                {
+                    HistorianPage<HistoricalDataValue> rawPage = await raw.ReadRawAsync(
+                        opContext, rawRequest, rawToken, cancellationToken).ConfigureAwait(false);
+                    foreach (HistoricalDataValue sample in rawPage.Values)
+                    {
+                        // skip bound placeholders as AggregateCalculator.QueueRawValue does.
+                        StatusCode status = sample.Value.StatusCode;
+                        if (sample.Value.IsNull ||
+                            status == StatusCodes.BadNoData ||
+                            status == StatusCodes.BadBoundNotFound)
+                        {
+                            continue;
+                        }
+                        DateTimeUtc sampleTime = sample.Value.SourceTimestamp;
+                        startOfData = sampleTime < startOfData ? sampleTime : startOfData;
+                        endOfData = sampleTime > endOfData ? sampleTime : endOfData;
+                    }
+                    if (rawPage.IsFinal)
+                    {
+                        break;
+                    }
+                    rawToken = rawPage.NextToken;
+                }
+            }
+
             ArrayOf<DataValue> outputs;
             try
             {
@@ -1126,6 +1175,8 @@ namespace Opc.Ua.Server.Historian
                     startTime,
                     endTime,
                     details.ProcessingInterval,
+                    startOfData,
+                    endOfData,
                     kMaxProcessedBufferedOutputs,
                     cancellationToken);
             }
