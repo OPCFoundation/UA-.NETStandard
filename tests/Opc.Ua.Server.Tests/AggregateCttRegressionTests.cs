@@ -312,6 +312,69 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Verifies that the status of the duration-in-state aggregates takes the region ending at an
+        /// Uncertain simple end bound into account when sloped interpolation is used
+        /// (Part 13 §5.4.3.2.2), while the duration itself still includes that region because it
+        /// starts at a Good raw value (Part 13 §5.4.3.22-.23).
+        /// </summary>
+        [TestCase("DurationInStateZero", true, 15_000.0)]
+        [TestCase("DurationInStateNonZero", true, 5_000.0)]
+        [TestCase("DurationInStateZero", false, 15_000.0)]
+        [TestCase("DurationInStateNonZero", false, 5_000.0)]
+        public async Task DirectAndLiveDurationInStateUncertainEndBoundMakesLastRegionUncertainAsync(
+            string aggregateName,
+            bool treatUncertainAsBad,
+            double expected)
+        {
+            // Interval [5 s, 25 s): the raw data in the interval is Good, but the simple end bound
+            // at 25 s is Uncertain_DataSubNormal because the raw value after it (30 s) is Bad.
+            // The region 20-25 s therefore ends in an Uncertain value. With TreatUncertainAsBad it
+            // counts as Bad (25%, neither threshold is met); otherwise it counts as Good.
+            List<DataValue> rawValues =
+            [
+                CreateValue(0, StatusCodes.Good, 0),
+                CreateValue(0, StatusCodes.Good, 10),
+                CreateValue(1, StatusCodes.Good, 20),
+                CreateValue(1, StatusCodes.BadDataUnavailable, 30),
+                CreateValue(1, StatusCodes.Good, 40)
+            ];
+            NodeId aggregateId = GetAggregateId(aggregateName);
+            AggregateConfiguration configuration = CreateConfiguration(treatUncertainAsBad);
+            DateTimeUtc startTime = AtSeconds(5);
+            DateTimeUtc endTime = AtSeconds(25);
+            StatusCode expectedCodeBits = treatUncertainAsBad
+                ? StatusCodes.UncertainDataSubNormal
+                : StatusCodes.Good;
+
+            List<DataValue> direct = RunDirect(
+                aggregateId,
+                rawValues,
+                startTime,
+                endTime,
+                20_000,
+                configuration);
+
+            using var harness = new AggregateHarness();
+            List<DataValue> live = await harness.ReadProcessedAsync(
+                aggregateId,
+                rawValues,
+                startTime,
+                endTime,
+                20_000,
+                configuration).ConfigureAwait(false);
+
+            foreach (List<DataValue> results in new[] { direct, live })
+            {
+                Assert.That(results, Has.Count.EqualTo(1));
+                Assert.That(
+                    results[0].WrappedValue.ConvertToDouble().GetDouble(),
+                    Is.EqualTo(expected).Within(0.000_001));
+                Assert.That(results[0].StatusCode.CodeBits, Is.EqualTo(expectedCodeBits));
+                Assert.That(results[0].StatusCode.AggregateBits, Is.EqualTo(AggregateBits.Calculated));
+            }
+        }
+
+        /// <summary>
         /// Verifies that direct and live transition counts follow Part 13 boundary rules.
         /// </summary>
         [TestCase(false)]

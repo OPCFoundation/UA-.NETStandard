@@ -340,7 +340,12 @@ namespace Opc.Ua.Server
                 StatusCodes.Good,
                 GetTimestamp(slice),
                 GetTimestamp(slice));
-            value = value.WithStatus(GetTimeBasedStatusCode(regions, value.StatusCode));
+
+            // The duration uses stepped regions because a state lasts until the next value, but
+            // the status regions follow the interpolation of the variable: with sloped
+            // interpolation a region ending in a Bad or Uncertain value (including the simple
+            // end bound) is Uncertain (Part 13 §5.4.3.2.2).
+            value = value.WithStatus(GetTimeBasedStatusCode(slice, values, value.StatusCode));
             value = value.WithStatus(value.StatusCode.WithAggregateBits(AggregateBits.Calculated));
 
             // return result.
