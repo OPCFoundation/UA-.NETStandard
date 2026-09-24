@@ -128,7 +128,8 @@ namespace Opc.Ua
                     return 1;
                 }
 
-                return End - Begin + 1;
+                // "0:2147483647" has more elements than an int can count.
+                return (int)Math.Min((long)End - Begin + 1, int.MaxValue);
             }
         }
 
@@ -1659,23 +1660,14 @@ namespace Opc.Ua
             int numDims = srcDimensions.Length;
 
             // create the dimensions of the target.
-            int[] dstDimensions = new int[numDims];
-
-            for (int ii = 0; ii < numDims; ii++)
+            if (!TryGetMatrixSliceDimensions(
+                SubRanges,
+                srcDimensions,
+                out int[] dstDimensions,
+                out int dstLength))
             {
-                if (SubRanges[ii].m_begin >= srcDimensions[ii])
-                {
-                    value = default;
-                    return StatusCodes.BadIndexRangeNoData;
-                }
-
-                dstDimensions[ii] = SubRanges[ii].Count;
-            }
-
-            int dstLength = 1;
-            for (int ii = 0; ii < numDims; ii++)
-            {
-                dstLength *= dstDimensions[ii];
+                value = default;
+                return StatusCodes.BadIndexRangeNoData;
             }
 
             // pre-compute source strides for row-major flat index calculation.
@@ -1770,16 +1762,17 @@ namespace Opc.Ua
                 return StatusCodes.BadIndexRangeNoData;
             }
 
-            // Validate each dimension: the slice placed at SubRange
-            // begin must fit within the destination.
-            for (int ii = 0; ii < numDims; ii++)
+            // Validate each dimension: the slice must have the size of the
+            // range (clipped to the destination) so all elements can be
+            // written (Part 4 7.27).
+            if (!TryGetMatrixSliceDimensions(
+                SubRanges,
+                dstDimensions,
+                out int[] rangeDimensions,
+                out _) ||
+                !rangeDimensions.AsSpan().SequenceEqual(sliceDimensions))
             {
-                int start = SubRanges[ii].m_begin;
-
-                if (start + sliceDimensions[ii] > dstDimensions[ii])
-                {
-                    return StatusCodes.BadIndexRangeNoData;
-                }
+                return StatusCodes.BadIndexRangeNoData;
             }
 
             // Copy destination data to a mutable array.
@@ -1861,23 +1854,14 @@ namespace Opc.Ua
             }
 
             // create the dimensions of the target.
-            int[] dstDimensions = new int[numDims];
-
-            for (int ii = 0; ii < numDims; ii++)
+            if (!TryGetMatrixSliceDimensions(
+                SubRanges,
+                srcDimensions,
+                out int[] dstDimensions,
+                out int dstLength))
             {
-                if (SubRanges[ii].Begin >= srcDimensions[ii])
-                {
-                    value = default;
-                    return StatusCodes.BadIndexRangeNoData;
-                }
-
-                dstDimensions[ii] = SubRanges[ii].Count;
-            }
-
-            int dstLength = 1;
-            for (int ii = 0; ii < numDims; ii++)
-            {
-                dstLength *= dstDimensions[ii];
+                value = default;
+                return StatusCodes.BadIndexRangeNoData;
             }
 
             // pre-compute source strides for row-major flat index calculation.
@@ -2015,16 +1999,17 @@ namespace Opc.Ua
                 return StatusCodes.BadIndexRangeNoData;
             }
 
-            // Validate each dimension: the slice placed at SubRange
-            // begin must fit within the destination.
-            for (int ii = 0; ii < numDims; ii++)
+            // Validate each dimension: the slice must have the size of the
+            // range (clipped to the destination) so all elements can be
+            // written (Part 4 7.27).
+            if (!TryGetMatrixSliceDimensions(
+                SubRanges,
+                dstDimensions,
+                out int[] rangeDimensions,
+                out _) ||
+                !rangeDimensions.AsSpan().SequenceEqual(sliceDimensions))
             {
-                int start = SubRanges[ii].m_begin;
-
-                if (start + sliceDimensions[ii] > dstDimensions[ii])
-                {
-                    return StatusCodes.BadIndexRangeNoData;
-                }
+                return StatusCodes.BadIndexRangeNoData;
             }
 
             // Copy destination data to a mutable array.
@@ -2133,23 +2118,14 @@ namespace Opc.Ua
             }
 
             // create the dimensions of the target.
-            int[] dstDimensions = new int[numDims];
-
-            for (int ii = 0; ii < numDims; ii++)
+            if (!TryGetMatrixSliceDimensions(
+                SubRanges,
+                srcDimensions,
+                out int[] dstDimensions,
+                out int dstLength))
             {
-                if (SubRanges[ii].Begin >= srcDimensions[ii])
-                {
-                    value = default;
-                    return StatusCodes.BadIndexRangeNoData;
-                }
-
-                dstDimensions[ii] = SubRanges[ii].Count;
-            }
-
-            int dstLength = 1;
-            for (int ii = 0; ii < numDims; ii++)
-            {
-                dstLength *= dstDimensions[ii];
+                value = default;
+                return StatusCodes.BadIndexRangeNoData;
             }
 
             // pre-compute source strides for row-major flat index calculation.
@@ -2285,16 +2261,17 @@ namespace Opc.Ua
                 return StatusCodes.BadIndexRangeNoData;
             }
 
-            // Validate each dimension: the slice placed at SubRange
-            // begin must fit within the destination.
-            for (int ii = 0; ii < numDims; ii++)
+            // Validate each dimension: the slice must have the size of the
+            // range (clipped to the destination) so all elements can be
+            // written (Part 4 7.27).
+            if (!TryGetMatrixSliceDimensions(
+                SubRanges,
+                dstDimensions,
+                out int[] rangeDimensions,
+                out _) ||
+                !rangeDimensions.AsSpan().SequenceEqual(sliceDimensions))
             {
-                int start = SubRanges[ii].m_begin;
-
-                if (start + sliceDimensions[ii] > dstDimensions[ii])
-                {
-                    return StatusCodes.BadIndexRangeNoData;
-                }
+                return StatusCodes.BadIndexRangeNoData;
             }
 
             // Copy destination data to a mutable array.
@@ -2864,6 +2841,40 @@ namespace Opc.Ua
 
             length = end - begin + 1;
             statusCode = StatusCodes.Good;
+            return true;
+        }
+
+        /// <summary>
+        /// Computes the dimensions of the part of a matrix selected by the
+        /// sub ranges. Upper bounds beyond the matrix are clipped (partial
+        /// results per Part 4 7.27), so the result never exceeds the matrix.
+        /// Returns false if a lower bound is out of range.
+        /// </summary>
+        private static bool TryGetMatrixSliceDimensions(
+            NumericRange[] subRanges,
+            int[] matrixDimensions,
+            out int[] sliceDimensions,
+            out int sliceLength)
+        {
+            sliceDimensions = new int[matrixDimensions.Length];
+            sliceLength = 1;
+            for (int ii = 0; ii < matrixDimensions.Length; ii++)
+            {
+                if (!subRanges[ii].TryGetRange(
+                    matrixDimensions[ii],
+                    out _,
+                    out int length,
+                    out _))
+                {
+                    sliceLength = 0;
+                    return false;
+                }
+
+                // each length is bounded by the matrix dimension, so the
+                // product is bounded by the matrix length.
+                sliceDimensions[ii] = length;
+                sliceLength *= length;
+            }
             return true;
         }
 

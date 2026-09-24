@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using NUnit.Framework;
 
 namespace Opc.Ua.Types.Tests.Utils
@@ -720,6 +721,77 @@ namespace Opc.Ua.Types.Tests.Utils
             StatusCode statusCode = numericRange.ApplyRange(ref matrix);
 
             Assert.That(statusCode, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
+        }
+
+        /// <summary>
+        /// Upper bounds beyond the matrix return the partial result clipped
+        /// to the matrix (Part 4 7.27), never padding or huge allocations.
+        /// </summary>
+        [TestCase("1:5,0:2", new[] { 2, 3 }, new[] { 4, 5, 6, 7, 8, 9 })]
+        [TestCase("0:40000,0:40000", new[] { 3, 3 }, new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9 })]
+        [TestCase("0:2147483647,1:2147483647", new[] { 3, 2 }, new[] { 2, 3, 5, 6, 8, 9 })]
+        [TestCase("2147483646:2147483647,0", null, null)]
+        public void ApplyRangeMatrixOfClipsUpperBoundsToSource(
+            string range,
+            int[] expectedDimensions,
+            int[] expectedValues)
+        {
+            int[,] source = new int[,]
+            {
+                { 1, 2, 3 },
+                { 4, 5, 6 },
+                { 7, 8, 9 }
+            };
+            var numericRange = NumericRange.Parse(range);
+
+            MatrixOf<int> matrix = source.ToMatrixOf();
+            StatusCode statusCode = numericRange.ApplyRange(ref matrix);
+            MatrixOf<string> strings = new string[,]
+            {
+                { "1", "2", "3" },
+                { "4", "5", "6" },
+                { "7", "8", "9" }
+            }.ToMatrixOf();
+            StatusCode stringStatusCode = numericRange.ApplyRange(ref strings);
+            MatrixOf<ByteString> byteStrings = new ByteString[,]
+            {
+                { [1], [2], [3] },
+                { [4], [5], [6] },
+                { [7], [8], [9] }
+            }.ToMatrixOf();
+            StatusCode byteStringStatusCode = numericRange.ApplyRange(ref byteStrings);
+
+            if (expectedDimensions == null)
+            {
+                Assert.That(statusCode, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
+                Assert.That(stringStatusCode, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
+                Assert.That(byteStringStatusCode, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
+                return;
+            }
+
+            Assert.That(statusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(matrix.Dimensions, Is.EqualTo(expectedDimensions));
+            Assert.That(matrix.Span.ToArray(), Is.EqualTo(expectedValues));
+            Assert.That(stringStatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(strings.Dimensions, Is.EqualTo(expectedDimensions));
+            Assert.That(
+                strings.Span.ToArray(),
+                Is.EqualTo(Array.ConvertAll(
+                    expectedValues,
+                    v => v.ToString(CultureInfo.InvariantCulture))));
+            Assert.That(byteStringStatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(byteStrings.Dimensions, Is.EqualTo(expectedDimensions));
+            Assert.That(
+                byteStrings.Span.ToArray(),
+                Is.EqualTo(Array.ConvertAll(
+                    expectedValues,
+                    v => ByteString.From((byte)v))));
+        }
+
+        [Test]
+        public void NumericRangeCountDoesNotOverflow()
+        {
+            Assert.That(NumericRange.Parse("0:2147483647").Count, Is.EqualTo(int.MaxValue));
         }
 
         [Test]
@@ -1764,6 +1836,77 @@ namespace Opc.Ua.Types.Tests.Utils
                 { 7, 8, 9 }
             };
             Assert.That(matrix, Is.EqualTo(expected.ToMatrixOf()));
+        }
+
+        /// <summary>
+        /// A write must be rejected (not throw) when the range begins far
+        /// beyond the matrix or the slice does not match the range size
+        /// (Part 4 7.27).
+        /// </summary>
+        [TestCase("2147483646:2147483647,0:1")]
+        [TestCase("0:1,2147483646:2147483647")]
+        [TestCase("0:1,0")]
+        [TestCase("0,0:1")]
+        [TestCase("1:2,1:2")]
+        public void UpdateRangeMatrixOfRejectsSliceNotMatchingRange(string range)
+        {
+            var numericRange = NumericRange.Parse(range);
+            MatrixOf<int> slice = new int[,]
+            {
+                { 20, 30 },
+                { 50, 60 }
+            }.ToMatrixOf();
+            MatrixOf<int> matrix = new int[,]
+            {
+                { 1, 2 },
+                { 4, 5 }
+            }.ToMatrixOf();
+            MatrixOf<string> strings = new string[,]
+            {
+                { "1", "2" },
+                { "4", "5" }
+            }.ToMatrixOf();
+            MatrixOf<ByteString> byteStrings = new ByteString[,]
+            {
+                { [1], [2] },
+                { [4], [5] }
+            }.ToMatrixOf();
+
+            Assert.That(
+                numericRange.UpdateRange(ref matrix, slice),
+                Is.EqualTo(StatusCodes.BadIndexRangeNoData));
+            Assert.That(
+                numericRange.UpdateRange(
+                    ref strings,
+                    new string[,] { { "a", "b" }, { "c", "d" } }.ToMatrixOf()),
+                Is.EqualTo(StatusCodes.BadIndexRangeNoData));
+            Assert.That(
+                numericRange.UpdateRange(
+                    ref byteStrings,
+                    new ByteString[,] { { [9], [9] }, { [9], [9] } }.ToMatrixOf()),
+                Is.EqualTo(StatusCodes.BadIndexRangeNoData));
+        }
+
+        /// <summary>
+        /// An upper bound beyond the matrix is clipped like for arrays, so a
+        /// slice matching the clipped size is written.
+        /// </summary>
+        [Test]
+        public void UpdateRangeMatrixOfClipsUpperBound()
+        {
+            var numericRange = NumericRange.Parse("1:5,0:1");
+            MatrixOf<int> matrix = new int[,]
+            {
+                { 1, 2 },
+                { 4, 5 }
+            }.ToMatrixOf();
+
+            StatusCode statusCode = numericRange.UpdateRange(
+                ref matrix,
+                new int[,] { { 40, 50 } }.ToMatrixOf());
+
+            Assert.That(statusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(matrix, Is.EqualTo(new int[,] { { 1, 2 }, { 40, 50 } }.ToMatrixOf()));
         }
 
         /// <summary>
