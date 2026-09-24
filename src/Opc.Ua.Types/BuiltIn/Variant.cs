@@ -6111,9 +6111,46 @@ namespace Opc.Ua
             }
             if (TypeInfo.IsArray)
             {
-                return Collapse(Expand().ToArrayOf(v => v.ConvertTo(targetType)));
+                // Part 4 7.7.3: an array converts to an array of the target
+                // type by converting each element, so a one element or an
+                // empty array must stay an array.
+                if (!ValueIsValueType && ValueIsDefaultOrNull)
+                {
+                    return default;
+                }
+                ArrayOf<Variant> converted = Expand().ToArrayOf(v => v.ConvertTo(targetType));
+                if (converted.Count == 0)
+                {
+                    return CreateArray(converted, GetConvertedElementType(targetType));
+                }
+                if (converted.Count == 1 && converted.Span[0].TypeInfo.IsScalar)
+                {
+                    return CreateArray(converted, converted.Span[0].TypeInfo.BuiltInType);
+                }
+                return Collapse(converted);
             }
             throw new InvalidCastException();
+        }
+
+        /// <summary>
+        /// The built-in type a scalar converted to <paramref name="targetType"/>
+        /// has (abstract types convert to a concrete one).
+        /// </summary>
+        /// <exception cref="InvalidCastException">if no element can be converted.</exception>
+        private static BuiltInType GetConvertedElementType(BuiltInType targetType)
+        {
+            return targetType switch
+            {
+                BuiltInType.Number => BuiltInType.Double,
+                BuiltInType.Integer => BuiltInType.Int64,
+                BuiltInType.UInteger => BuiltInType.UInt64,
+                BuiltInType.Enumeration => BuiltInType.Int32,
+                BuiltInType.Null or
+                BuiltInType.ExtensionObject or
+                BuiltInType.DataValue or
+                BuiltInType.DiagnosticInfo => throw new InvalidCastException(),
+                _ => targetType
+            };
         }
 
         /// <inheritdoc/>
@@ -8595,70 +8632,80 @@ namespace Opc.Ua
             }
             if (typeInfo.IsScalar)
             {
-                switch (typeInfo.BuiltInType)
-                {
-                    case BuiltInType.Boolean:
-                        return new Variant(items.ConvertAll(v => v.GetBoolean()));
-                    case BuiltInType.SByte:
-                        return new Variant(items.ConvertAll(v => v.GetSByte()));
-                    case BuiltInType.Byte:
-                        return new Variant(items.ConvertAll(v => v.GetByte()));
-                    case BuiltInType.Int16:
-                        return new Variant(items.ConvertAll(v => v.GetInt16()));
-                    case BuiltInType.UInt16:
-                        return new Variant(items.ConvertAll(v => v.GetUInt16()));
-                    case BuiltInType.Int32:
-                        return new Variant(items.ConvertAll(v => v.GetInt32()));
-                    case BuiltInType.UInt32:
-                        return new Variant(items.ConvertAll(v => v.GetUInt32()));
-                    case BuiltInType.Int64:
-                        return new Variant(items.ConvertAll(v => v.GetInt64()));
-                    case BuiltInType.UInt64:
-                        return new Variant(items.ConvertAll(v => v.GetUInt64()));
-                    case BuiltInType.Float:
-                        return new Variant(items.ConvertAll(v => v.GetFloat()));
-                    case BuiltInType.Double:
-                        return new Variant(items.ConvertAll(v => v.GetDouble()));
-                    case BuiltInType.String:
-                        return new Variant(items.ConvertAll(v => v.GetString()));
-                    case BuiltInType.DateTime:
-                        return new Variant(items.ConvertAll(v => v.GetDateTime()));
-                    case BuiltInType.Guid:
-                        return new Variant(items.ConvertAll(v => v.GetGuid()));
-                    case BuiltInType.ByteString:
-                        return new Variant(items.ConvertAll(v => v.GetByteString()));
-                    case BuiltInType.XmlElement:
-                        return new Variant(items.ConvertAll(v => v.GetXmlElement()));
-                    case BuiltInType.NodeId:
-                        return new Variant(items.ConvertAll(v => v.GetNodeId()));
-                    case BuiltInType.ExpandedNodeId:
-                        return new Variant(items.ConvertAll(v => v.GetExpandedNodeId()));
-                    case BuiltInType.StatusCode:
-                        return new Variant(items.ConvertAll(v => v.GetStatusCode()));
-                    case BuiltInType.QualifiedName:
-                        return new Variant(items.ConvertAll(v => v.GetQualifiedName()));
-                    case BuiltInType.LocalizedText:
-                        return new Variant(items.ConvertAll(v => v.GetLocalizedText()));
-                    case BuiltInType.ExtensionObject:
-                        return new Variant(items.ConvertAll(v => v.GetExtensionObject()));
-                    case BuiltInType.DataValue:
-                        return new Variant(items.ConvertAll(v => v.GetDataValue()));
-                    case BuiltInType.DiagnosticInfo:
-                        return default;
-                    case BuiltInType.Enumeration:
-                        return new Variant(items.ConvertAll(v => v.GetEnumeration()));
-                    case BuiltInType.Number:
-                    case BuiltInType.Integer:
-                    case BuiltInType.UInteger:
-                    case BuiltInType.Variant:
-                        return new Variant(items);
-                }
+                return CreateArray(items, typeInfo.BuiltInType);
             }
             if (typeInfo.IsArray)
             {
                 // TODO: Collapse each individual one first
             }
             // TODO: Collapse matrix
+            return new Variant(items);
+        }
+
+        /// <summary>
+        /// Creates an array variant of <paramref name="builtInType"/> from
+        /// scalar variants of that type (a variant array for the abstract types).
+        /// </summary>
+        private static Variant CreateArray(ArrayOf<Variant> items, BuiltInType builtInType)
+        {
+            switch (builtInType)
+            {
+                case BuiltInType.Boolean:
+                    return new Variant(items.ConvertAll(v => v.GetBoolean()));
+                case BuiltInType.SByte:
+                    return new Variant(items.ConvertAll(v => v.GetSByte()));
+                case BuiltInType.Byte:
+                    return new Variant(items.ConvertAll(v => v.GetByte()));
+                case BuiltInType.Int16:
+                    return new Variant(items.ConvertAll(v => v.GetInt16()));
+                case BuiltInType.UInt16:
+                    return new Variant(items.ConvertAll(v => v.GetUInt16()));
+                case BuiltInType.Int32:
+                    return new Variant(items.ConvertAll(v => v.GetInt32()));
+                case BuiltInType.UInt32:
+                    return new Variant(items.ConvertAll(v => v.GetUInt32()));
+                case BuiltInType.Int64:
+                    return new Variant(items.ConvertAll(v => v.GetInt64()));
+                case BuiltInType.UInt64:
+                    return new Variant(items.ConvertAll(v => v.GetUInt64()));
+                case BuiltInType.Float:
+                    return new Variant(items.ConvertAll(v => v.GetFloat()));
+                case BuiltInType.Double:
+                    return new Variant(items.ConvertAll(v => v.GetDouble()));
+                case BuiltInType.String:
+                    return new Variant(items.ConvertAll(v => v.GetString()));
+                case BuiltInType.DateTime:
+                    return new Variant(items.ConvertAll(v => v.GetDateTime()));
+                case BuiltInType.Guid:
+                    return new Variant(items.ConvertAll(v => v.GetGuid()));
+                case BuiltInType.ByteString:
+                    return new Variant(items.ConvertAll(v => v.GetByteString()));
+                case BuiltInType.XmlElement:
+                    return new Variant(items.ConvertAll(v => v.GetXmlElement()));
+                case BuiltInType.NodeId:
+                    return new Variant(items.ConvertAll(v => v.GetNodeId()));
+                case BuiltInType.ExpandedNodeId:
+                    return new Variant(items.ConvertAll(v => v.GetExpandedNodeId()));
+                case BuiltInType.StatusCode:
+                    return new Variant(items.ConvertAll(v => v.GetStatusCode()));
+                case BuiltInType.QualifiedName:
+                    return new Variant(items.ConvertAll(v => v.GetQualifiedName()));
+                case BuiltInType.LocalizedText:
+                    return new Variant(items.ConvertAll(v => v.GetLocalizedText()));
+                case BuiltInType.ExtensionObject:
+                    return new Variant(items.ConvertAll(v => v.GetExtensionObject()));
+                case BuiltInType.DataValue:
+                    return new Variant(items.ConvertAll(v => v.GetDataValue()));
+                case BuiltInType.DiagnosticInfo:
+                    return default;
+                case BuiltInType.Enumeration:
+                    return new Variant(items.ConvertAll(v => v.GetEnumeration()));
+                case BuiltInType.Number:
+                case BuiltInType.Integer:
+                case BuiltInType.UInteger:
+                case BuiltInType.Variant:
+                    return new Variant(items);
+            }
             return new Variant(items);
         }
 

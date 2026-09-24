@@ -732,6 +732,30 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             });
         }
 
+        [Test]
+        public void ConvertToKeepsOneElementAndEmptyArraysAsArrays()
+        {
+            // T2-11: Part 4 7.7.3 - arrays convert element-wise to arrays.
+            Variant single = Variant.From(new[] { 5 }.ToArrayOf()).ConvertTo(BuiltInType.Double);
+            Variant empty = Variant.From(ArrayOf<int>.Empty).ConvertTo(BuiltInType.Double);
+            Variant number = Variant.From(new[] { 5 }.ToArrayOf()).ConvertTo(BuiltInType.Number);
+            Variant two = Variant.From(new[] { 5, 6 }.ToArrayOf()).ConvertTo(BuiltInType.String);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(single.TypeInfo, Is.EqualTo(TypeInfo.Arrays.Double));
+                Assert.That(single.GetDoubleArray().ToArray(), Is.EqualTo(new[] { 5.0 }));
+                Assert.That(empty.TypeInfo, Is.EqualTo(TypeInfo.Arrays.Double));
+                Assert.That(empty.IsNull, Is.False);
+                Assert.That(empty.GetDoubleArray().Count, Is.Zero);
+                Assert.That(number.TypeInfo, Is.EqualTo(TypeInfo.Arrays.Double));
+                Assert.That(two.GetStringArray().ToArray(), Is.EqualTo(new[] { "5", "6" }));
+                Assert.That(
+                    () => Variant.From(ArrayOf<int>.Empty).ConvertTo(BuiltInType.DiagnosticInfo),
+                    Throws.TypeOf<InvalidCastException>());
+            });
+        }
+
         private static bool IsEqual(object left, object right)
         {
             return left.Equals(right);
