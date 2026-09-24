@@ -444,9 +444,7 @@ namespace Opc.Ua.SourceGeneration
 
         private static string EscapeForString(string value)
         {
-            // Escape backslash and quote; everything else is safe for short URI / prefix strings.
-            return value.Replace("\\", "\\\\", StringComparison.Ordinal)
-                .Replace("\"", "\\\"", StringComparison.Ordinal);
+            return Templating.StringLiteralEscaper.AsCSharpStringLiteralContent(value);
         }
 
         private static string FormatNullableLiteral(string value)

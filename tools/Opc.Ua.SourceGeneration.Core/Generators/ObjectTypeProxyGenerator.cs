@@ -532,7 +532,9 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(Tokens.TypeName, typeName);
             context.Template.AddReplacement(Tokens.ClassName, clientType);
             context.Template.AddReplacement(Tokens.AccessModifier, isShadow ? "new " : string.Empty);
-            context.Template.AddReplacement(Tokens.BrowseNameNamespaceUri, browseNameNamespaceUri ?? string.Empty);
+            context.Template.AddReplacement(
+                Tokens.BrowseNameNamespaceUri,
+                StringLiteralEscaper.AsCSharpStringLiteralContent(browseNameNamespaceUri));
             context.Template.AddReplacement(Tokens.FieldName, fieldName);
             return context.Template.Render();
         }

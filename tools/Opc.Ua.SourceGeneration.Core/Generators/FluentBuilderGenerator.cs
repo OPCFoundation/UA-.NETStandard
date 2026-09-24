@@ -2005,13 +2005,7 @@ namespace Opc.Ua.SourceGeneration
 
         private static string EscapeStringLiteral(string value)
         {
-            if (string.IsNullOrEmpty(value))
-            {
-                return string.Empty;
-            }
-            return value
-                .Replace("\\", "\\\\", StringComparison.Ordinal)
-                .Replace("\"", "\\\"", StringComparison.Ordinal);
+            return Templating.StringLiteralEscaper.AsCSharpStringLiteralContent(value);
         }
 
         /// <summary>

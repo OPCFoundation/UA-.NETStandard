@@ -256,6 +256,39 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         /// <summary>
+        /// Regression: namespace URIs, XML namespaces and the model version were
+        /// emitted into string literals without (complete) escaping, so a
+        /// backslash, quote or line separator broke the generated Namespaces class.
+        /// </summary>
+        [Test]
+        public void Emit_NamespaceAndVersionWithSpecialCharacters_AreEscaped()
+        {
+            var targetNamespace = new Namespace
+            {
+                Value = "urn:a\\d\"x",
+                XmlNamespace = "urn:types\u2028",
+                Prefix = "Test",
+                Name = "TestNamespace",
+                Version = "1.0\u2029"
+            };
+            m_mockModelDesign.Setup(m => m.TargetNamespace).Returns(targetNamespace);
+            m_mockModelDesign.Setup(m => m.Namespaces).Returns([targetNamespace]);
+
+            string output = EmitWithSingleObjectType(targetNamespace);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    output,
+                    Does.Contain("public const string TestNamespace = \"urn:a\\\\d\\\"x\";"));
+                Assert.That(
+                    output,
+                    Does.Contain("public const string TestNamespaceXsd = \"urn:types\\u2028\";"));
+                Assert.That(output, Does.Contain("public const string Target = \"1.0\\u2029\";"));
+            });
+        }
+
+        /// <summary>
         /// A distinct XML namespace still gets its own "...Xsd" constant, next to
         /// the plain one.
         /// </summary>

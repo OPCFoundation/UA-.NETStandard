@@ -108,8 +108,7 @@ namespace Opc.Ua.SourceGeneration
 
         private static string EscapeForString(string value)
         {
-            return value.Replace("\\", "\\\\", StringComparison.Ordinal)
-                .Replace("\"", "\\\"", StringComparison.Ordinal);
+            return Templating.StringLiteralEscaper.AsCSharpStringLiteralContent(value);
         }
 
         private TemplateString LoadTemplate_BrowseNames(ILoadContext context)
@@ -148,7 +147,7 @@ namespace Opc.Ua.SourceGeneration
                 return false;
             }
 
-            context.Template.AddReplacement(Tokens.NamespaceUri, constant.Uri);
+            context.Template.AddReplacement(Tokens.NamespaceUri, EscapeForString(constant.Uri));
             context.Template.AddReplacement(Tokens.CodeName, constant.Prefix);
             context.Template.AddReplacement(Tokens.Name, constant.Name);
 

@@ -227,13 +227,7 @@ namespace Opc.Ua.SourceGeneration
 
         private static string EscapeString(string value)
         {
-            if (string.IsNullOrEmpty(value))
-            {
-                return value ?? string.Empty;
-            }
-            return value
-                .Replace("\\", "\\\\", StringComparison.Ordinal)
-                .Replace("\"", "\\\"", StringComparison.Ordinal);
+            return Templating.StringLiteralEscaper.AsCSharpStringLiteralContent(value);
         }
 
         private static string EscapeXml(string value)
