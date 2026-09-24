@@ -155,6 +155,16 @@ namespace Opc.Ua.Gds.Server.Identity
                 scopes = NormalizeScopes(m_options.DefaultScopes);
             }
 
+            // OPC 10000-12 §9.6.6: the AuthorizationService cleans up unused
+            // requestIds; a request that is never finished must not be kept.
+            PruneExpiredRequests();
+            if (m_requests.Count >= MaxPendingRequests)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTooManyOperations,
+                    "Too many pending AuthorizationService token requests.");
+            }
+
             var requestId = Guid.NewGuid();
             m_requests[requestId] = new RequestRecord(
                 resourceId,
@@ -216,6 +226,7 @@ namespace Opc.Ua.Gds.Server.Identity
             DateTime refreshExpiry = DateTime.MinValue;
             if (m_options.EnableRefreshTokens)
             {
+                PruneExpiredRefreshTokens();
                 refreshToken = CreateRefreshToken();
                 refreshExpiry = DateTime.UtcNow + m_options.DefaultRefreshTokenLifetime;
                 m_issuedTokens[refreshToken] = new IssuedTokenRecord(
@@ -315,6 +326,7 @@ namespace Opc.Ua.Gds.Server.Identity
                 ct)
                 .ConfigureAwait(false);
 
+            PruneExpiredRefreshTokens();
             string newRefreshToken = CreateRefreshToken();
             DateTime newRefreshExpiry = DateTime.UtcNow + m_options.DefaultRefreshTokenLifetime;
             m_issuedTokens[newRefreshToken] = new IssuedTokenRecord(
@@ -455,6 +467,45 @@ namespace Opc.Ua.Gds.Server.Identity
                 generator.GetBytes(bytes);
             }
             return Utils.ToHexString(bytes);
+        }
+
+        /// <summary>
+        /// The maximum number of started but not finished token requests.
+        /// </summary>
+        internal const int MaxPendingRequests = 10000;
+
+        /// <summary>
+        /// The number of started but not finished token requests.
+        /// </summary>
+        internal int PendingRequestCount => m_requests.Count;
+
+        /// <summary>
+        /// The number of refresh tokens that were issued and not used yet.
+        /// </summary>
+        internal int IssuedRefreshTokenCount => m_issuedTokens.Count;
+
+        private void PruneExpiredRequests()
+        {
+            DateTime now = DateTime.UtcNow;
+            foreach (KeyValuePair<Guid, RequestRecord> entry in m_requests)
+            {
+                if (entry.Value.ExpiresAtUtc < now)
+                {
+                    m_requests.TryRemove(entry.Key, out _);
+                }
+            }
+        }
+
+        private void PruneExpiredRefreshTokens()
+        {
+            DateTime now = DateTime.UtcNow;
+            foreach (KeyValuePair<string, IssuedTokenRecord> entry in m_issuedTokens)
+            {
+                if (entry.Value.ExpiresAtUtc < now)
+                {
+                    m_issuedTokens.TryRemove(entry.Key, out _);
+                }
+            }
         }
 
         private void PruneRevokedTokens()
