@@ -342,7 +342,7 @@ namespace Opc.Ua.SourceGeneration
                 "new global::Opc.Ua.QualifiedName({0}.{1}, GetNamespaceIndex(namespaceUris, {2}))",
                 browseNames,
                 field.BrowseName,
-                m_context.ModelDesign.Namespaces.GetConstantSymbolForNamespace(ns));
+                ns.AsStringLiteral());
         }
 
         private bool WriteTemplate_StandardFieldEntry(IWriteContext context)

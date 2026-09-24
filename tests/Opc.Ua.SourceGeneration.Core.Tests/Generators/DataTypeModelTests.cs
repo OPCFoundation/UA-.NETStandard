@@ -76,13 +76,13 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         public void StructureDefinitionIncludesFieldsInheritedThroughFieldlessType()
         {
             StructureDefinition midB = CreateDefinition<StructureDefinition>("MidB");
-            Assert.That(midB.Fields.ToArray().Select(f => f.Name), Is.EqualTo(new[] { "A" }));
+            Assert.That(midB.Fields.ToArray().Select(f => f.Name), Is.EqualTo(s_midBFields));
             Assert.That(midB.FirstExplicitFieldIndex, Is.EqualTo(1));
 
             StructureDefinition leafC = CreateDefinition<StructureDefinition>("LeafC");
             Assert.That(
                 leafC.Fields.ToArray().Select(f => f.Name),
-                Is.EqualTo(new[] { "A", "C" }));
+                Is.EqualTo(s_leafCFields));
             Assert.That(leafC.FirstExplicitFieldIndex, Is.EqualTo(1));
         }
 
@@ -385,6 +385,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             </opc:ModelDesign>
             """;
 
+        private static readonly string[] s_midBFields = ["A"];
+        private static readonly string[] s_leafCFields = ["A", "C"];
         private Dictionary<string, string> m_generated;
         private string m_dataTypes;
         private Assembly m_assembly;

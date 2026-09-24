@@ -731,6 +731,10 @@ namespace Opc.Ua.SourceGeneration
                 {
                     defaultValueLiteral = initializer.ToString();
                 }
+                else if (shortName == "String" && IsStringEmpty(initializer))
+                {
+                    defaultValueLiteral = "\"\"";
+                }
                 else
                 {
                     hasNonConstantInitializer = true;
@@ -920,6 +924,17 @@ namespace Opc.Ua.SourceGeneration
                 expression.IsKind(SyntaxKind.StringLiteralExpression) ||
                 expression.IsKind(SyntaxKind.TrueLiteralExpression) ||
                 expression.IsKind(SyntaxKind.FalseLiteralExpression);
+        }
+
+        /// <summary>
+        /// True for <c>string.Empty</c> (in any of its spellings).
+        /// </summary>
+        private static bool IsStringEmpty(ExpressionSyntax expression)
+        {
+            return expression is MemberAccessExpressionSyntax memberAccess &&
+                memberAccess.Name.Identifier.ValueText == "Empty" &&
+                memberAccess.Expression.ToString() is
+                    "string" or "String" or "System.String" or "global::System.String";
         }
 
         /// <summary>

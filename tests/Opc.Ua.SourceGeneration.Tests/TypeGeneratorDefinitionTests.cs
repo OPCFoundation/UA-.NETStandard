@@ -110,7 +110,7 @@ namespace Opc.Ua.SourceGeneration
 
             Assert.That(
                 definition.Fields.ToArray().Select(f => f.Name),
-                Is.EqualTo(new[] { "Name", "X", "Child", "Items", "Z" }));
+                Is.EqualTo(s_pt3DFields));
             Assert.That(definition.FirstExplicitFieldIndex, Is.EqualTo(4));
             Assert.That(definition.BaseDataType, Is.EqualTo(new NodeId(2u, 1)));
         }
@@ -139,6 +139,7 @@ namespace Opc.Ua.SourceGeneration
             object defaults = Create("Cfg");
             string json = EncodeJson((IEncodeable)defaults);
             Assert.That(json, Does.Not.Contain("Retries"));
+            Assert.That(json, Does.Not.Contain("Tag"));
             object decodedDefaults = JsonRoundTrip((IEncodeable)defaults);
             Assert.That(Get(decodedDefaults, "Retries"), Is.EqualTo(3));
             Assert.That(Get(decodedDefaults, "Enabled"), Is.True);
@@ -174,14 +175,14 @@ namespace Opc.Ua.SourceGeneration
             Assert.That(Get(decoded, "Pixels"), Is.EqualTo(Get(img, "Pixels")));
             Assert.That(
                 ((MatrixOf<int>)Get(decoded, "Pixels")).Dimensions,
-                Is.EqualTo(new[] { 2, 3 }));
+                Is.EqualTo(s_pixelDimensions));
 
             // Generated [DataType] classes do not override Equals, so the
             // structure matrix is compared element by element.
             object decodedCells = Get(decoded, "Cells");
             Assert.That(
                 decodedCells.GetType().GetProperty("Dimensions").GetValue(decodedCells),
-                Is.EqualTo(new[] { 1, 2 }));
+                Is.EqualTo(s_cellDimensions));
             object flattened = decodedCells.GetType()
                 .GetMethod("ToArrayOf", Type.EmptyTypes)
                 .Invoke(decodedCells, null);
@@ -364,6 +365,7 @@ namespace Opc.Ua.SourceGeneration
                     public bool Enabled { get; set; } = true;
                     public string? Label { get; set; } = "x";
                     public DateTimeUtc Stamp { get; set; } = DateTimeUtc.Now;
+                    public string Tag { get; set; } = string.Empty;
                 }
 
                 [DataType(Namespace = "urn:defs", DataTypeId = "i=5")]
@@ -399,6 +401,9 @@ namespace Opc.Ua.SourceGeneration
             }
             """;
 
+        private static readonly string[] s_pt3DFields = ["Name", "X", "Child", "Items", "Z"];
+        private static readonly int[] s_pixelDimensions = [2, 3];
+        private static readonly int[] s_cellDimensions = [1, 2];
         private Assembly m_assembly;
         private string m_generated;
         private ServiceMessageContext m_context;
