@@ -2158,6 +2158,26 @@ namespace Opc.Ua.Client
 
             previousChannel?.StateChanged -= OnManagedChannelStateChanged;
             currentChannel?.StateChanged += OnManagedChannelStateChanged;
+            SeedChannelReconnectTracking(currentChannel);
+        }
+
+        /// <summary>
+        /// Re-derives the channel-reconnect suppression from the lease now in
+        /// use. The Ready/Faulted/Closed transition that would have cleared a
+        /// reconnect tracked on the previous lease is never observed once its
+        /// handler is removed, and the new lease's attach-time state is raised
+        /// before the handler is added, so a stale count would otherwise
+        /// suppress every later keep-alive-triggered reconnect.
+        /// </summary>
+        private void SeedChannelReconnectTracking(IManagedTransportChannel? channel)
+        {
+            bool reconnecting = channel?.State is
+                ChannelState.TransportReconnecting or
+                ChannelState.TransportConnectedSessionReactivating;
+            Interlocked.Exchange(ref m_channelReconnectInProgress, reconnecting ? 1 : 0);
+            Volatile.Write(
+                ref m_channelReconnectStartedAt,
+                reconnecting ? m_timeProvider.GetTimestamp() : 0);
         }
 
         private void WireSessionEvents(Session session)
@@ -2176,6 +2196,7 @@ namespace Opc.Ua.Client
                 OnInnerRenewUserIdentity;
             session.ManagedChannel?.StateChanged
                     += OnManagedChannelStateChanged;
+            SeedChannelReconnectTracking(session.ManagedChannel);
         }
 
         private void UnwireSessionEvents(Session session)
