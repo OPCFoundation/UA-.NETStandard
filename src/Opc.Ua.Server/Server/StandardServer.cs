@@ -614,8 +614,9 @@ namespace Opc.Ua.Server
             // Admission control: reject with BadServerTooBusy before doing the
             // CPU-bound certificate validation / signing when at capacity. The
             // lease (a concurrency permit) is held for the duration of the call.
-            using IDisposable? rateLimitLease = BeginSessionEstablishmentOrThrow(
-                secureChannelContext, requestHeader.AuthenticationToken);
+            using IDisposable? rateLimitLease = await BeginSessionEstablishmentOrThrowAsync(
+                secureChannelContext, requestHeader.AuthenticationToken, requestLifetime.CancellationToken)
+                .ConfigureAwait(false);
 
             ISession? session = null;
             CertificateCollection? clientIssuerCertificates = null;
@@ -1023,8 +1024,9 @@ namespace Opc.Ua.Server
             // Admission control: reject with BadServerTooBusy before the CPU-bound
             // signature / identity-token verification when at capacity. The lease
             // (a concurrency permit) is held for the duration of the call.
-            using IDisposable? rateLimitLease = BeginSessionEstablishmentOrThrow(
-                secureChannelContext, requestHeader.AuthenticationToken);
+            using IDisposable? rateLimitLease = await BeginSessionEstablishmentOrThrowAsync(
+                secureChannelContext, requestHeader.AuthenticationToken, requestLifetime.CancellationToken)
+                .ConfigureAwait(false);
 
             try
             {
@@ -3729,6 +3731,59 @@ namespace Opc.Ua.Server
                 {
                     isolationLease?.Dispose();
                 }
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Acquires the session-establishment permits like
+        /// <see cref="BeginSessionEstablishmentOrThrow"/>, but lets a queueing rate limiter
+        /// (<see cref="IQueuedSessionEstablishmentLimiter"/>, see
+        /// ServerRateLimitOptions.SessionEstablishmentQueueLimit) wait for a permit.
+        /// </summary>
+        /// <returns>A lease that MUST be disposed when the operation completes, or <c>null</c>.</returns>
+        /// <exception cref="ServiceResultException">The server is too busy to admit the operation.</exception>
+        internal async ValueTask<IDisposable?> BeginSessionEstablishmentOrThrowAsync(
+            SecureChannelContext channelContext,
+            NodeId authenticationToken,
+            CancellationToken cancellationToken)
+        {
+            if (m_rateLimiterProvider is not IQueuedSessionEstablishmentLimiter queued)
+            {
+                return BeginSessionEstablishmentOrThrow(channelContext, authenticationToken);
+            }
+
+            IDisposable? isolationLease = null;
+            try
+            {
+                IServerResourceIsolationProvider? isolation = ResourceIsolationProvider;
+                if (isolation != null && !isolation.TryAcquire(
+                    ResourceIsolationStage.SessionEstablishment,
+                    isolation.Classify(channelContext, authenticationToken, sessionEstablishment: true),
+                    1,
+                    out isolationLease,
+                    out ResourceIsolationFailure failure))
+                {
+                    throw CreateServerTooBusyException(failure.RetryAfter);
+                }
+
+                (bool acquired, IDisposable? rateLimitLease, TimeSpan? retryAfter) =
+                    await queued.AcquireSessionEstablishmentAsync(cancellationToken)
+                        .ConfigureAwait(false);
+                if (!acquired)
+                {
+                    throw CreateServerTooBusyException(retryAfter);
+                }
+
+                if (isolationLease == null)
+                {
+                    return rateLimitLease;
+                }
+                return new SessionEstablishmentLease(isolationLease, rateLimitLease);
+            }
+            catch
+            {
+                isolationLease?.Dispose();
                 throw;
             }
         }

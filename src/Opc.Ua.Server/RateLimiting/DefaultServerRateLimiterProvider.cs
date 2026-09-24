@@ -28,7 +28,9 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
 using System.Threading.RateLimiting;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
 {
@@ -42,7 +44,9 @@ namespace Opc.Ua.Server
     /// in-flight <c>CreateSession</c> / <c>ActivateSession</c> operations so the
     /// CPU-bound handshake work cannot saturate every core under a storm.
     /// </remarks>
-    public sealed class DefaultServerRateLimiterProvider : IServerRateLimiterProvider
+    public sealed class DefaultServerRateLimiterProvider :
+        IServerRateLimiterProvider,
+        IQueuedSessionEstablishmentLimiter
     {
         private readonly ConcurrencyLimiter? m_sessionLimiter;
         private int m_disposed;
@@ -134,12 +138,40 @@ namespace Opc.Ua.Server
                 return true;
             }
 
-            retryAfter = acquired.TryGetMetadata(MetadataName.RetryAfter, out TimeSpan value)
-                ? value
-                : null;
+            retryAfter = GetRetryAfter(acquired);
             acquired.Dispose();
             lease = null;
             return false;
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<(bool Acquired, IDisposable? Lease, TimeSpan? RetryAfter)>
+            AcquireSessionEstablishmentAsync(CancellationToken cancellationToken = default)
+        {
+            if (m_sessionLimiter == null)
+            {
+                return (true, null, null);
+            }
+
+            // unlike AttemptAcquire, AcquireAsync waits in the SessionEstablishmentQueueLimit queue.
+            RateLimitLease acquired = await m_sessionLimiter
+                .AcquireAsync(1, cancellationToken)
+                .ConfigureAwait(false);
+            if (acquired.IsAcquired)
+            {
+                return (true, acquired, null);
+            }
+
+            TimeSpan? retryAfter = GetRetryAfter(acquired);
+            acquired.Dispose();
+            return (false, null, retryAfter);
+        }
+
+        private static TimeSpan? GetRetryAfter(RateLimitLease lease)
+        {
+            return lease.TryGetMetadata(MetadataName.RetryAfter, out TimeSpan value)
+                ? value
+                : null;
         }
 
         /// <inheritdoc/>
