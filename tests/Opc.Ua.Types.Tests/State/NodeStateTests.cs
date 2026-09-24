@@ -2005,6 +2005,43 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
+        public void WriteDisplayNameAttributeDeniedByUserWriteMask()
+        {
+            BaseObjectState node = CreateObjectNode();
+            node.WriteMask = AttributeWriteMask.DisplayName | AttributeWriteMask.Description;
+            node.UserWriteMask = AttributeWriteMask.Description;
+            var dv = new DataValue(new Variant(LocalizedText.From("NewDisplay")));
+            ServiceResult result = node.WriteAttribute(
+                m_context, Attributes.DisplayName, default, dv);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(node.DisplayName, Is.Not.EqualTo(LocalizedText.From("NewDisplay")));
+        }
+
+        [Test]
+        public void WriteDisplayNameAttributeDeniedByOnReadUserWriteMask()
+        {
+            BaseObjectState node = CreateObjectNode();
+            node.WriteMask = AttributeWriteMask.DisplayName;
+            node.OnReadUserWriteMask = (ISystemContext context, NodeState n, ref AttributeWriteMask mask) =>
+            {
+                mask = AttributeWriteMask.None;
+                return ServiceResult.Good;
+            };
+            var dv = new DataValue(new Variant(LocalizedText.From("NewDisplay")));
+            ServiceResult result = node.WriteAttribute(
+                m_context, Attributes.DisplayName, default, dv);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+
+            node.OnReadUserWriteMask = (ISystemContext context, NodeState n, ref AttributeWriteMask mask) =>
+            {
+                mask = AttributeWriteMask.DisplayName;
+                return ServiceResult.Good;
+            };
+            result = node.WriteAttribute(m_context, Attributes.DisplayName, default, dv);
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+        }
+
+        [Test]
         public void WriteDescriptionAttributeSucceeds()
         {
             BaseObjectState node = CreateObjectNode();

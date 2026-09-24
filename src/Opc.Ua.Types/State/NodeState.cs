@@ -4808,6 +4808,30 @@ namespace Opc.Ua
                     "Index range can only be specified for value attribute");
             }
 
+            // the UserWriteMask restricts which of the writable attributes the current user
+            // may write (Part 3 5.2.8), mirroring the UserAccessLevel check of the value path.
+            // Attributes the WriteMask does not allow are rejected by the handlers below.
+            AttributeWriteMask attributeMask = GetAttributeWriteMask(attributeId);
+
+            if (attributeMask != AttributeWriteMask.None && (WriteMask & attributeMask) != 0)
+            {
+                AttributeWriteMask userWriteMask = UserWriteMask;
+                NodeAttributeEventHandler<AttributeWriteMask>? onReadUserWriteMask =
+                    OnReadUserWriteMask;
+
+                // a UserWriteMask that is neither set nor computed per user is treated as
+                // not configured (nodes built in code and NodeSets frequently leave it 0).
+                bool userWriteMaskConfigured = onReadUserWriteMask != null ||
+                    userWriteMask != AttributeWriteMask.None;
+
+                onReadUserWriteMask?.Invoke(context, this, ref userWriteMask);
+
+                if (userWriteMaskConfigured && (userWriteMask & attributeMask) == 0)
+                {
+                    return StatusCodes.BadUserAccessDenied;
+                }
+            }
+
             // call implementation.
             try
             {
@@ -4819,6 +4843,43 @@ namespace Opc.Ua
                     StatusCodes.BadUnexpectedError,
                     "Failed to write non value attribute");
             }
+        }
+
+        /// <summary>
+        /// Returns the <see cref="AttributeWriteMask"/> bit that controls writing a
+        /// non-value attribute, or <see cref="AttributeWriteMask.None"/> if there is none.
+        /// </summary>
+        private static AttributeWriteMask GetAttributeWriteMask(uint attributeId)
+        {
+            return attributeId switch
+            {
+                Attributes.NodeId => AttributeWriteMask.NodeId,
+                Attributes.NodeClass => AttributeWriteMask.NodeClass,
+                Attributes.BrowseName => AttributeWriteMask.BrowseName,
+                Attributes.DisplayName => AttributeWriteMask.DisplayName,
+                Attributes.Description => AttributeWriteMask.Description,
+                Attributes.WriteMask => AttributeWriteMask.WriteMask,
+                Attributes.UserWriteMask => AttributeWriteMask.UserWriteMask,
+                Attributes.DataType => AttributeWriteMask.DataType,
+                Attributes.ValueRank => AttributeWriteMask.ValueRank,
+                Attributes.ArrayDimensions => AttributeWriteMask.ArrayDimensions,
+                Attributes.IsAbstract => AttributeWriteMask.IsAbstract,
+                Attributes.Symmetric => AttributeWriteMask.Symmetric,
+                Attributes.InverseName => AttributeWriteMask.InverseName,
+                Attributes.ContainsNoLoops => AttributeWriteMask.ContainsNoLoops,
+                Attributes.EventNotifier => AttributeWriteMask.EventNotifier,
+                Attributes.AccessLevel => AttributeWriteMask.AccessLevel,
+                Attributes.UserAccessLevel => AttributeWriteMask.UserAccessLevel,
+                Attributes.MinimumSamplingInterval => AttributeWriteMask.MinimumSamplingInterval,
+                Attributes.Historizing => AttributeWriteMask.Historizing,
+                Attributes.Executable => AttributeWriteMask.Executable,
+                Attributes.UserExecutable => AttributeWriteMask.UserExecutable,
+                Attributes.DataTypeDefinition => AttributeWriteMask.DataTypeDefinition,
+                Attributes.RolePermissions => AttributeWriteMask.RolePermissions,
+                Attributes.AccessRestrictions => AttributeWriteMask.AccessRestrictions,
+                Attributes.AccessLevelEx => AttributeWriteMask.AccessLevelEx,
+                _ => AttributeWriteMask.None
+            };
         }
 
         /// <summary>
