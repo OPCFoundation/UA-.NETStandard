@@ -78,6 +78,16 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
+        public void CreateAddressSpaceRejectsNullExternalReferences()
+        {
+            using var manager = new PipelineTestManager(_ => { });
+
+            Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await manager.CreateAddressSpaceAsync(null!).ConfigureAwait(false));
+            Assert.That(manager.ConfigureCount, Is.Zero);
+        }
+
+        [Test]
         public async Task CreateAddressSpaceSealsTheBuilderAndReplaysNodeAddedAsync()
         {
             INodeManagerBuilder? retained = null;
