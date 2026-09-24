@@ -170,38 +170,29 @@ namespace Opc.Ua.SourceGeneration
             }
             context.Template.AddReplacement(Tokens.ResourceName, resource.ResourceName);
 
+            if (context.Target is StringResource str && str.AsUtf16)
+            {
+                // A const string: the text is emitted as an escaped C# string
+                // literal directly, there is no nested template to render.
+                string text = str switch
+                {
+                    TextResource textResource => textResource.Text,
+                    TextReaderResource textReaderResource
+                        => textReaderResource.Reader.ReadToEnd(),
+                    _ => throw new NotSupportedException(
+                        $"Unable to read text of resource {str.GetType().Name}")
+                };
+                context.Template.AddReplacement(Tokens.Resource, text.AsStringLiteral());
+                return context.Template.Render();
+            }
+
             context.Template.AddReplacement(
                 Tokens.Resource,
                 [context.Target],
                 LoadTemplate_Resource,
-                WriteTemplate_Resource);
+                static _ => true); // Already written by the load callback
 
             return context.Template.Render();
-        }
-
-        private bool WriteTemplate_Resource(IWriteContext context)
-        {
-            if (context.Target is StringResource str && str.AsUtf16)
-            {
-                switch (str)
-                {
-                    case TextResource textResource:
-                        context.Template.AddReplacement(
-                            Tokens.Resource,
-                            textResource.Text);
-                        return context.Template.Render();
-                    case TextReaderResource textReaderResource:
-                        context.Template.AddReplacement(
-                            Tokens.Resource,
-                            textReaderResource.Reader.ReadToEnd());
-                        return context.Template.Render();
-                    default:
-                        // SHould not be here
-                        return false;
-                }
-            }
-            // Already written
-            return true;
         }
 
         private TemplateString LoadTemplate_Resource(ILoadContext context)
@@ -209,11 +200,6 @@ namespace Opc.Ua.SourceGeneration
             if (context.Target is not Resource resource)
             {
                 return null;
-            }
-
-            if (context.Target is StringResource str && str.AsUtf16)
-            {
-                return context.TemplateString;
             }
 
             bool writeAsBase64 =
