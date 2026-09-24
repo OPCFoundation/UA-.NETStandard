@@ -351,10 +351,15 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Verifies that direct and live transition counts include uncertain values.
+        /// Verifies that direct and live transition counts include uncertain values only when
+        /// TreatUncertainAsBad is false. With TreatUncertainAsBad the Uncertain values are equivalent
+        /// to Bad (Part 13 §4.2.1.2) and Bad values are not counted (Part 13 §5.4.3.24).
         /// </summary>
-        [Test]
-        public async Task DirectAndLiveNumberOfTransitionsCountUncertainValuesAsync()
+        [TestCase(false, 22)]
+        [TestCase(true, 20)]
+        public async Task DirectAndLiveNumberOfTransitionsCountUncertainValuesOnlyWhenNotTreatedAsBadAsync(
+            bool treatUncertainAsBad,
+            int expectedTransitions)
         {
             var rawValues = new List<DataValue>(25);
             for (int index = 0; index <= 24; index++)
@@ -368,7 +373,7 @@ namespace Opc.Ua.Server.Tests
                 rawValues.Add(CreateValue(index, status, index));
             }
             DateTimeUtc endTime = AtSeconds(24);
-            AggregateConfiguration configuration = CreateConfiguration(treatUncertainAsBad: true);
+            AggregateConfiguration configuration = CreateConfiguration(treatUncertainAsBad);
 
             List<DataValue> direct = RunDirect(
                 ObjectIds.AggregateFunction_NumberOfTransitions,
@@ -387,8 +392,8 @@ namespace Opc.Ua.Server.Tests
                 24_000,
                 configuration).ConfigureAwait(false);
 
-            AssertNumberOfTransitionsWithMixedQuality(direct);
-            AssertNumberOfTransitionsWithMixedQuality(live);
+            AssertNumberOfTransitionsWithMixedQuality(direct, expectedTransitions);
+            AssertNumberOfTransitionsWithMixedQuality(live, expectedTransitions);
         }
 
         /// <summary>
@@ -816,12 +821,14 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(AggregateBits.Calculated | AggregateBits.MultipleValues));
         }
 
-        private static void AssertNumberOfTransitionsWithMixedQuality(List<DataValue> results)
+        private static void AssertNumberOfTransitionsWithMixedQuality(
+            List<DataValue> results,
+            int expectedTransitions)
         {
             Assert.That(results, Has.Count.EqualTo(1));
             DataValue result = results[0];
             Assert.That(result.WrappedValue.TryGetValue(out int transitions), Is.True);
-            Assert.That(transitions, Is.EqualTo(22));
+            Assert.That(transitions, Is.EqualTo(expectedTransitions));
             Assert.That(result.SourceTimestamp, Is.EqualTo(s_baseTime));
             Assert.That(result.StatusCode.CodeBits, Is.EqualTo(StatusCodes.UncertainDataSubNormal));
             Assert.That(result.StatusCode.AggregateBits, Is.EqualTo(AggregateBits.Calculated));

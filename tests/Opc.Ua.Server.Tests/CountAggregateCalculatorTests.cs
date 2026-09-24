@@ -652,11 +652,15 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Verifies that transition counting uses a preceding uncertain value even when uncertain quality is treated as
-        /// bad.
+        /// Verifies that transition counting uses a preceding uncertain value only when uncertain quality is not
+        /// treated as bad (Part 13 §4.2.1.2, §5.4.3.24): with TreatUncertainAsBad no previous non-Bad value exists,
+        /// so the first value in the interval is a transition.
         /// </summary>
-        [Test]
-        public void NumberOfTransitionsUsesPreviousUncertainValueWhenUncertainIsConfiguredAsBad()
+        [TestCase(false, 1)]
+        [TestCase(true, 2)]
+        public void NumberOfTransitionsUsesPreviousUncertainValueOnlyWhenUncertainIsNotConfiguredAsBad(
+            bool treatUncertainAsBad,
+            int expected)
         {
             var startTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
             List<DataValue> dataValues = CreateMixedStatusDataValues(
@@ -665,7 +669,7 @@ namespace Opc.Ua.Server.Tests
                 [StatusCodes.Uncertain, StatusCodes.Good, StatusCodes.Good, StatusCodes.Good],
                 1000);
             DateTimeUtc endTime = startTime.AddMilliseconds(2500);
-            m_configuration.TreatUncertainAsBad = true;
+            m_configuration.TreatUncertainAsBad = treatUncertainAsBad;
 
             DataValue result = ComputeAggregate(
                 ObjectIds.AggregateFunction_NumberOfTransitions,
@@ -675,7 +679,7 @@ namespace Opc.Ua.Server.Tests
                 2500);
 
             Assert.That(result.WrappedValue.TryGetValue(out int count), Is.True);
-            Assert.That(count, Is.EqualTo(1));
+            Assert.That(count, Is.EqualTo(expected));
         }
 
         /// <summary>
