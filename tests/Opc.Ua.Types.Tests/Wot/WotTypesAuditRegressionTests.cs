@@ -216,6 +216,26 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo(1));
         }
 
+        [Test]
+        public void AnOversizedReadableDocumentIsReportedNotThrown()
+        {
+            // The readable document was parsed back (and threw FormatException)
+            // before its size was checked.
+            UANodeSet source = WotAnalogTestData.CreateAnalogNodeSet(withInstrumentRange: false);
+            var options = new WotNodeSetConverterOptions { MaxJsonDocumentSize = 256 };
+
+            WotConversionResult<WotDocument> result =
+                WotNodeSetConverter.FromNodeSetResult(source, null, options);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Success, Is.False);
+                Assert.That(
+                    result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.JsonDocumentTooLarge),
+                    Is.True);
+            });
+        }
+
         private static string Projection(
             string securityDefinitions,
             string security,
