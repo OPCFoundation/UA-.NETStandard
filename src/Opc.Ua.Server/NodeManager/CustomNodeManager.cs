@@ -5649,12 +5649,18 @@ namespace Opc.Ua.Server
             // validate parameters.
             MonitoringParameters parameters = itemToModify.RequestedParameters;
 
-            double previousSamplingInterval = datachangeItem!.SamplingInterval;
+            // a negative sampling interval selects the publishing interval of the
+            // subscription (Part 4 7.21), not the previous sampling interval.
+            double defaultSamplingInterval = datachangeItem!.SamplingInterval;
+            if (monitoredItem.SubscriptionCallback is ISubscription subscription)
+            {
+                defaultSamplingInterval = subscription.PublishingInterval;
+            }
 
             // check if the variable needs to be sampled.
             double samplingInterval = SubscriptionManager.CalculateRevisedSamplingInterval(
                 itemToModify.RequestedParameters.SamplingInterval,
-                previousSamplingInterval,
+                defaultSamplingInterval,
                 handle.Node,
                 datachangeItem.AttributeId,
                 MinSupportedSamplingInterval);

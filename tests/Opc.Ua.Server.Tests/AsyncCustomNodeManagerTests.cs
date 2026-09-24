@@ -2954,6 +2954,75 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Verifies that modifying a monitored item with a negative sampling interval revises it
+        /// to the publishing interval of the subscription (Part 4 7.21), not the previous interval.
+        /// </summary>
+        [Test]
+        public async Task ModifyMonitoredItemsAsyncNegativeSamplingIntervalUsesPublishingIntervalAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var variable = new BaseDataVariableState(null);
+            variable.CreateAsPredefinedNode(context);
+            variable.NodeId = new NodeId("MyVar", nsIdx);
+            variable.BrowseName = new QualifiedName("MyVar", nsIdx);
+            variable.Value = 10;
+            variable.DataType = DataTypeIds.Int32;
+            variable.ValueRank = ValueRanks.Scalar;
+            variable.AccessLevel = AccessLevels.CurrentRead;
+            await manager.AddNodeAsync(context, default, variable).ConfigureAwait(false);
+
+            var itemToCreate = new MonitoredItemCreateRequest
+            {
+                ItemToMonitor = new ReadValueId { NodeId = variable.NodeId, AttributeId = Attributes.Value },
+                MonitoringMode = MonitoringMode.Reporting,
+                RequestedParameters = new MonitoringParameters { ClientHandle = 1, SamplingInterval = 100, QueueSize = 10 }
+            };
+            var errors = new List<ServiceResult> { null };
+            var filterErrors = new List<MonitoringFilterResult> { null };
+            var monitoredItems = new List<IMonitoredItem> { null };
+
+            await manager.CreateMonitoredItemsAsync(
+                CreateMonitoredItemsContext(),
+                1,
+                1000,
+                TimestampsToReturn.Both,
+                new List<MonitoredItemCreateRequest> { itemToCreate },
+                errors,
+                filterErrors,
+                monitoredItems,
+                false,
+                new MonitoredItemIdFactory()).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(errors[0]), Is.True);
+            IMonitoredItem item = monitoredItems[0];
+            Assert.That(item.SamplingInterval, Is.EqualTo(100));
+            var subscription = new Mock<ISubscription>();
+            subscription.SetupGet(s => s.PublishingInterval).Returns(1000);
+            item.SubscriptionCallback = subscription.Object;
+
+            var modifyRequest = new MonitoredItemModifyRequest
+            {
+                MonitoredItemId = item.Id,
+                RequestedParameters = new MonitoringParameters { ClientHandle = 1, SamplingInterval = -1, QueueSize = 10 }
+            };
+            var modifyErrors = new List<ServiceResult> { null };
+            var modifyFilterErrors = new List<MonitoringFilterResult> { null };
+
+            await manager.ModifyMonitoredItemsAsync(
+                new OperationContext(new RequestHeader(), null, RequestType.ModifyMonitoredItems, RequestLifetime.None, m_mockSession.Object),
+                TimestampsToReturn.Both,
+                monitoredItems,
+                new List<MonitoredItemModifyRequest> { modifyRequest },
+                modifyErrors,
+                modifyFilterErrors).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(modifyErrors[0]), Is.True);
+            Assert.That(item.SamplingInterval, Is.EqualTo(1000));
+        }
+
+        /// <summary>
         /// Verifies that revising an aggregate reuses the monitored item's retained queue.
         /// </summary>
         [Test]
