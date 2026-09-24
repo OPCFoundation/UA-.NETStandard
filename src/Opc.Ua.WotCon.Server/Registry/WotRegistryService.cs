@@ -1517,6 +1517,15 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
             ImmutableArray<string> dependentXids = xids.ToImmutable();
 
+            if (delete && policy == WoTDeletePolicyEnum.Retire && !resource.Enabled &&
+                resource.LoadState == WoTLoadStateEnum.Retired && resource.ActiveVersionId is null &&
+                resource.RootNodeId.IsNull && resource.MaterializedNodeCount == 0)
+            {
+                return new WotRegistryLifecyclePlan(null, resource, new WotDeleteResult(
+                    WoTOutcomeEnum.Unchanged, policy, snapshot.Generation, deleted: false, retired: true,
+                    dependentXids, [], [], unknown, "The Resource is already retired; its document is retained."));
+            }
+
             if (policy == WoTDeletePolicyEnum.Reject &&
                 (dependents.Any(dependent => delete || dependent.Resource.ActiveVersionId is not null) ||
                  unknown.Length != 0))

@@ -308,6 +308,11 @@ requires authoritative registry recovery before deletion can complete. Retrying
 after recovery does not repeat a deletion already confirmed by the recovered
 snapshot.
 
+For `Retire`, the authoritative lifecycle planner recognizes a disabled, retired
+Resource with no active Version, root or materialized nodes as unchanged. The
+retained document does not force another retirement decision after recovery;
+its registry generation and metadata epoch remain unchanged.
+
 If local cleanup fails after commitment, `DeleteAsset` reports the incomplete
 cleanup and retains the asset entry for a retry. That retry uses the retained
 decision rather than deleting the backing Resource again. Replacement uploads
