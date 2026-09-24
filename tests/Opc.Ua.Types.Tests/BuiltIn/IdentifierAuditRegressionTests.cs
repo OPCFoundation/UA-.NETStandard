@@ -150,6 +150,37 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
+        public void AbsoluteExpandedNodeIdNeverComparesEqualToLocalNodeId()
+        {
+            var local = new NodeId(5u);
+            var foreign = new ExpandedNodeId(5u, "urn:x");
+            var remote = new ExpandedNodeId(local, null, 1);
+
+            Assert.That(foreign.CompareTo((object)local), Is.GreaterThan(0));
+            Assert.That(remote.CompareTo((object)local), Is.GreaterThan(0));
+            Assert.That(local.CompareTo(foreign), Is.LessThan(0));
+            Assert.That(local.CompareTo(remote), Is.LessThan(0));
+        }
+
+        [Test]
+        public void FormatWithContextKeepsAbsoluteIdWithNullInnerNodeId()
+        {
+            ServiceMessageContext context = CreateContext();
+            var foreign = new ExpandedNodeId(0u, "urn:other");
+            var remote = new ExpandedNodeId(NodeId.Null, null, 1);
+
+            Assert.That(foreign.IsNull, Is.False);
+            Assert.That(foreign.Format(context), Is.EqualTo("nsu=urn:other;i=0"));
+            Assert.That(remote.Format(context), Is.EqualTo("svr=1;i=0"));
+            Assert.That(ExpandedNodeId.Null.Format(context), Is.Null);
+
+            Assert.That(
+                ExpandedNodeId.TryParse(context, remote.Format(context), null, out ExpandedNodeId parsed),
+                Is.True);
+            Assert.That(parsed, Is.EqualTo(remote));
+        }
+
+        [Test]
         public void AmbientScopeRestoresAMissingPreviousContext()
         {
             ServiceMessageContext scoped = CreateContext();

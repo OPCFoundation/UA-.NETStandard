@@ -467,6 +467,13 @@ namespace Opc.Ua
                 {
                     return 0;
                 }
+
+                // an absolute id never equals a local node id; mirrors
+                // NodeId.CompareTo(ExpandedNodeId) which returns -1.
+                if (IsAbsolute)
+                {
+                    return 1;
+                }
             }
             else if (obj is ExpandedNodeId expandedId)
             {
@@ -751,7 +758,9 @@ namespace Opc.Ua
 
             int index = -1;
 
-            if (namespaceTable != null)
+            // an id that only carries a server index has no namespace uri to
+            // resolve (or append) and cannot become a local node id.
+            if (namespaceTable != null && !string.IsNullOrEmpty(nodeId.NamespaceUri))
             {
                 index = updateNamespaceTable ?
                     namespaceTable.GetIndexOrAppend(nodeId.NamespaceUri!) :
@@ -1393,6 +1402,14 @@ namespace Opc.Ua
                 }
 
                 string serverUri = CoreUtils.UnescapeUri(text.AsSpan()[4..index]);
+
+                // "svu=;" has no server uri (Part 6 5.1.12).
+                if (string.IsNullOrEmpty(serverUri))
+                {
+                    error = NodeIdParseError.InvalidServerUriFormat;
+                    return false;
+                }
+
                 serverIndex =
                     options?.UpdateTables == true
                         ? context.ServerUris.GetIndexOrAppend(serverUri)
@@ -1455,6 +1472,14 @@ namespace Opc.Ua
                 }
 
                 namespaceUri = CoreUtils.UnescapeUri(text[4..index]);
+
+                // "nsu=;" has no namespace uri (Part 6 5.1.12).
+                if (string.IsNullOrEmpty(namespaceUri))
+                {
+                    error = NodeIdParseError.InvalidNamespaceFormat;
+                    return false;
+                }
+
                 namespaceIndex =
                     options?.UpdateTables == true
                         ? context.NamespaceUris.GetIndexOrAppend(namespaceUri)

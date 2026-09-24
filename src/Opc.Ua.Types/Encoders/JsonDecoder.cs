@@ -2480,7 +2480,9 @@ namespace Opc.Ua
                             NamespaceMappings = m_namespaceMappings,
                             ServerMappings = m_serverMappings
                         },
-                        out ExpandedNodeId expandedNodeId))
+                        out ExpandedNodeId expandedNodeId) &&
+                        // a NodeId cannot reference another server ("svr=").
+                        expandedNodeId.ServerIndex == 0)
                     {
                         value = ExpandedNodeId.ToNodeId(
                             expandedNodeId,

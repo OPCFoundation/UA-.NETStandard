@@ -100,6 +100,42 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(context.ServerUris.GetIndex("http://test.org/srv/"), Is.Zero);
         }
 
+        [TestCase("nsu=;i=1")]
+        [TestCase("nsu= ;i=1")]
+        [TestCase("svu=;i=1")]
+        [TestCase("svr=1;i=5")]
+        public void ReadNodeIdWithUpdateTablesRejectsInvalidPrefixes(string text)
+        {
+            // These threw ArgumentNullException out of the decoder instead
+            // of failing the decode.
+            string json = "{\"Value\":\"" + text + "\"}";
+            using var decoder = new JsonDecoder(json, NewContext(), new JsonDecoderOptions
+            {
+                UpdateNamespaceTable = true,
+                ParseStrict = true
+            });
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadNodeId(JsonProperties.Value));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [TestCase("nsu=;i=1")]
+        [TestCase("svu=;i=1")]
+        public void ReadExpandedNodeIdWithUpdateTablesRejectsEmptyUris(string text)
+        {
+            string json = "{\"Value\":\"" + text + "\"}";
+            using var decoder = new JsonDecoder(json, NewContext(), new JsonDecoderOptions
+            {
+                UpdateNamespaceTable = true,
+                ParseStrict = true
+            });
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadExpandedNodeId(JsonProperties.Value));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
         [Test]
         public void SetMappingTablesWithoutUpdateDoesNotAppendUnknownUri()
         {

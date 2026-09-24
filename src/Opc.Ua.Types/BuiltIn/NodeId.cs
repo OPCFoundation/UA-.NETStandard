@@ -382,6 +382,14 @@ namespace Opc.Ua
                 }
 
                 string namespaceUri = CoreUtils.UnescapeUri(text.AsSpan()[4..index]);
+
+                // "nsu=;" has no namespace uri (Part 6 5.1.12).
+                if (string.IsNullOrEmpty(namespaceUri))
+                {
+                    error = NodeIdParseError.InvalidNamespaceFormat;
+                    return false;
+                }
+
                 namespaceIndex =
                     options?.UpdateTables == true
                         ? context.NamespaceUris.GetIndexOrAppend(namespaceUri)
