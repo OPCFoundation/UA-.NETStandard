@@ -262,6 +262,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 .ConfigureAwait(false);
             Assert.That(harness.Lease, stallActivation ? Is.Not.SameAs(originalLease) : Is.SameAs(originalLease));
             Assert.That(harness.Lease.EndpointDescription.EndpointUrl, Is.EqualTo(expectedEndpoint));
+            // L2-6: ConfiguredEndpoint must follow the failover like Endpoint.
+            Assert.That(harness.Session.Endpoint.EndpointUrl, Is.EqualTo(expectedEndpoint));
+            Assert.That(harness.Session.ConfiguredEndpoint.Description.EndpointUrl, Is.EqualTo(expectedEndpoint));
             await AssertRecreatedSubscriptionAsync(harness, live, 2, ackTimer, publishBackoff)
                 .ConfigureAwait(false);
             Assert.That(harness.Requests.ToList().OfType<CreateSubscriptionRequest>().Count(), Is.EqualTo(2));

@@ -89,7 +89,7 @@ namespace Opc.Ua.Client
         {
             m_configuration = configuration
                 ?? throw new ArgumentNullException(nameof(configuration));
-            ConfiguredEndpoint = endpoint
+            m_configuredEndpoint = endpoint
                 ?? throw new ArgumentNullException(nameof(endpoint));
             SessionFactory = sessionFactory
                 ?? throw new ArgumentNullException(nameof(sessionFactory));
@@ -524,7 +524,13 @@ namespace Opc.Ua.Client
         public ISessionFactory SessionFactory { get; }
 
         /// <inheritdoc/>
-        public ConfiguredEndpoint ConfiguredEndpoint { get; }
+        /// <remarks>
+        /// Reports the endpoint of the current inner session, so it follows a
+        /// server failover or network-path rotation like <see cref="Endpoint"/>;
+        /// before the first connect it is the endpoint passed at creation.
+        /// </remarks>
+        public ConfiguredEndpoint ConfiguredEndpoint
+            => m_session?.ConfiguredEndpoint ?? m_configuredEndpoint;
 
         /// <inheritdoc/>
         public RedundancySupport RedundancySupport => m_redundancyInfo?.Mode ?? RedundancySupport.None;
@@ -1237,7 +1243,7 @@ namespace Opc.Ua.Client
         private async Task<ServiceResult> HandleConnectAsync(
             CancellationToken ct)
         {
-            ConfiguredEndpoint endpoint = ConfiguredEndpoint;
+            ConfiguredEndpoint endpoint = m_configuredEndpoint;
             var attempted = new HashSet<ConfiguredEndpoint> { endpoint };
             while (true)
             {
@@ -1958,7 +1964,7 @@ namespace Opc.Ua.Client
             var completion = new TaskCompletionSource<ServerRedundancyInfo>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             m_redundancyEndpointRefreshTask = completion.Task;
-            ConfiguredEndpoint current = m_session?.ConfiguredEndpoint ?? ConfiguredEndpoint;
+            ConfiguredEndpoint current = ConfiguredEndpoint;
             if (!m_backgroundWork.Run("RefreshRedundantEndpoints", async shutdown =>
             {
                 using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, shutdown);
@@ -2721,6 +2727,7 @@ namespace Opc.Ua.Client
         private IDisposable? m_ownedTransportResources;
         private readonly AsyncReaderWriterLock m_serviceLock = new();
         private readonly ApplicationConfiguration m_configuration;
+        private readonly ConfiguredEndpoint m_configuredEndpoint;
         private readonly IReconnectPolicy m_reconnectPolicy;
         private readonly IServerRedundancyHandler? m_redundancyHandler;
         private static readonly TimeSpan IdentityRefreshSafetyMargin = TimeSpan.FromSeconds(60);
