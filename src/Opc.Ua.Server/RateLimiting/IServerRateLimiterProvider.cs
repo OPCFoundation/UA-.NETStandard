@@ -41,6 +41,8 @@ namespace Opc.Ua.Server
     /// <c>System.Threading.RateLimiting</c>. Register a custom implementation in
     /// dependency injection to plug in a different algorithm; a server constructed
     /// directly (without DI) uses the default provider as a fallback.
+    /// Explicit custom providers remain an additional ceiling and may reject otherwise
+    /// protected ingress; the server never bypasses or silently replaces their policy.
     /// </remarks>
     public interface IServerRateLimiterProvider : IDisposable
     {

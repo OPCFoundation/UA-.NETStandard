@@ -46,7 +46,7 @@ namespace Opc.Ua
     /// <summary>
     /// A base class for a UA server implementation.
     /// </summary>
-    public partial class ServerBase : IServerBase
+    public partial class ServerBase : IServerBase, IResourceIsolationProviderSource
     {
         /// <summary>
         /// Initializes object with default values.
@@ -226,7 +226,7 @@ namespace Opc.Ua
             IEndpointIncomingRequest request,
             CancellationToken cancellationToken = default)
         {
-            m_requestQueue.ScheduleIncomingRequest(request);
+            m_requestQueue.ScheduleIncomingRequest(request, cancellationToken);
         }
 
         /// <summary>
@@ -645,7 +645,9 @@ namespace Opc.Ua
                 minRequestThreadCount,
                 maxRequestThreadCount,
                 maxQueuedRequestCount,
-                decoupleHeldPublishRequests);
+                decoupleHeldPublishRequests,
+                ResourceIsolationProvider,
+                configuration.TransportQuotas?.MaxMessageSize ?? TcpMessageLimits.DefaultMaxMessageSize);
 
             // a fresh request queue re-arms the shutdown sequence for the (re)started server.
             lock (m_stopLock)
@@ -665,6 +667,14 @@ namespace Opc.Ua
         protected void StopRequestQueue()
         {
             m_requestQueue?.Dispose();
+        }
+
+        /// <summary>
+        /// Cancels admissions and drains executing and parked requests before server state is torn down.
+        /// </summary>
+        protected ValueTask StopRequestQueueAsync(CancellationToken cancellationToken = default)
+        {
+            return m_requestQueue?.StopAsync(cancellationToken) ?? default;
         }
 
         /// <summary>
@@ -916,6 +926,12 @@ namespace Opc.Ua
         public ISessionBindingProvider? SessionBindingProvider { get; set; }
 
         /// <summary>
+        /// Gets or sets the shared resource-isolation policy used by listeners and decoded request dispatch.
+        /// Configure before startup; the host owns explicitly supplied providers.
+        /// </summary>
+        public IServerResourceIsolationProvider? ResourceIsolationProvider { get; set; }
+
+        /// <summary>
         /// Gets or sets the encodeable factory to use for this server instance.
         /// </summary>
         /// <remarks>
@@ -1067,7 +1083,8 @@ namespace Opc.Ua
                     Factory = messageContext.Factory,
                     MaxChannelCount = 0,
                     ChunkReassemblyBudget = chunkReassemblyBudget,
-                    SessionBindingProvider = SessionBindingProvider ?? this as ISessionBindingProvider
+                    SessionBindingProvider = SessionBindingProvider ?? this as ISessionBindingProvider,
+                    ResourceIsolationProvider = ResourceIsolationProvider
                 };
 
                 settings.MaxChannelCount = Configuration!.ServerConfiguration!.MaxChannelCount;

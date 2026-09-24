@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -282,6 +283,7 @@ namespace Opc.Ua.Server.Hosting
             {
                 m_server.SessionBindingProvider = sessionBindingProvider;
             }
+            ApplyResourceIsolation(m_server, m_services, m_options);
 
             foreach (OpcUaServerNodeManagerRegistration reg in
                 m_services.GetServices<OpcUaServerNodeManagerRegistration>())
@@ -293,6 +295,7 @@ namespace Opc.Ua.Server.Hosting
                         throw new InvalidOperationException(
                             "The node-manager factories callback returned a null factory."));
                 }
+
                 if (reg.SyncFactory is not null)
                 {
                     m_server.AddNodeManager(reg.SyncFactory);
@@ -342,6 +345,26 @@ namespace Opc.Ua.Server.Hosting
             catch (OperationCanceledException)
             {
                 // Expected on host shutdown.
+            }
+        }
+
+        internal static void ApplyResourceIsolation(
+            StandardServer server,
+            IServiceProvider services,
+            OpcUaServerOptions options)
+        {
+            ServerResourceIsolationOptions? isolation = services.GetService<ServerResourceIsolationOptions>();
+            if (isolation == null &&
+                (services.GetServices<IConfigureOptions<ServerResourceIsolationOptions>>().Any() ||
+                 services.GetServices<IPostConfigureOptions<ServerResourceIsolationOptions>>().Any()))
+            {
+                isolation = services.GetRequiredService<IOptions<ServerResourceIsolationOptions>>().Value;
+            }
+            server.ResourceIsolationOptions = isolation ?? options.ResourceIsolation;
+            server.ResourceIsolationClassifier = services.GetService<IResourceIsolationClassifier>();
+            if (services.GetService<IServerResourceIsolationProvider>() is { } provider)
+            {
+                server.ResourceIsolationProvider = provider;
             }
         }
 

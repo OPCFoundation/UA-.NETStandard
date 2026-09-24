@@ -28,22 +28,24 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Sizes prospective reassembly floors and validates SecureChannel headroom without changing a server.
+    /// Configures server-scoped, nonblocking resource admission and decoded-request fairness.
     /// </summary>
     /// <remarks>
-    /// This staged, pure calculator is not consumed by server hosting or transport admission.
-    /// A successful plan is not an enforced isolation policy. Other protected stages, trusted-owner
-    /// provisioning, hard owner ceilings and weighted scheduling are deliberately not configured here.
+    /// Reserved floors remain inside existing totals. Unknown anonymous callers receive shared,
+    /// best-effort service; guaranteed pre-authentication access requires an explicit ingress classifier.
+    /// StandardServer's SharedOnly mode does not install or validate a default runtime provider;
+    /// existing unlimited capacities, aggregate limits and FIFO behavior remain in effect.
     /// </remarks>
     public sealed class ServerResourceIsolationOptions
     {
         /// <summary>
-        /// The planning profile, independent of rate-limiter options. Does not select a running server policy.
+        /// The runtime profile, independent of and additional to existing rate limiters.
         /// </summary>
         public ServerResourceIsolationMode Mode { get; set; } = ServerResourceIsolationMode.Balanced;
 
@@ -58,6 +60,44 @@ namespace Opc.Ua.Server
         /// SharedOnly and FairShare accept only null or zero.
         /// </summary>
         public long? ReconnectReservedBytes { get; set; }
+
+        /// <summary>
+        /// Maximum concurrently accounted owner keys. Idle entries are removed on final release.
+        /// Active entries are never evicted to make room for new keys.
+        /// </summary>
+        public int MaxTrackedOwners { get; set; } = 4096;
+
+        /// <summary>
+        /// Maximum classifier-supplied key length. Default identities use bounded SHA-256 digests.
+        /// </summary>
+        public int MaxOwnerKeyLength { get; set; } = 256;
+
+        /// <summary>
+        /// Relative scheduling weight for ordinary owners.
+        /// </summary>
+        public int DefaultWeight { get; set; } = 1;
+
+        /// <summary>
+        /// Maximum lifetime of an admitted, unfinished protocol handshake.
+        /// The maximum and default are two minutes; it is independent of renewable channel lifetimes.
+        /// </summary>
+        public TimeSpan HandshakeTimeout { get; set; } = TimeSpan.FromMinutes(2);
+
+        /// <summary>
+        /// Stage-specific overrides. Capacity overrides can only lower existing totals.
+        /// </summary>
+        public ArrayOf<ResourceIsolationStageOptions> Stages { get; set; }
+
+        /// <summary>
+        /// Explicitly provisioned trusted owners, required by TrustedReservations.
+        /// </summary>
+        public ArrayOf<TrustedResourceOwnerOptions> TrustedOwners { get; set; }
+
+        /// <summary>
+        /// Explicit maximum retained backing-array footprint for custom buffer pools or transports.
+        /// Null uses the default pool's conservative bound across negotiated chunk sizes.
+        /// </summary>
+        public long? MaxRetainedMessageBytes { get; set; }
 
         /// <summary>
         /// Creates an immutable capacity plan using explicit, finite deployment bounds.
@@ -82,9 +122,6 @@ namespace Opc.Ua.Server
         /// The totals cannot support the requested floors and message footprint, or the profile
         /// does not permit the supplied overrides.
         /// </exception>
-        /// <exception cref="NotSupportedException">
-        /// TrustedReservations requires a provisioning and classification model not yet implemented.
-        /// </exception>
         public ServerResourceIsolationPlan CreatePlan(
             ChunkReassemblyBudget budget,
             int maxSessionCount,
@@ -98,6 +135,7 @@ namespace Opc.Ua.Server
             }
             ServerResourceIsolationMode mode = Mode;
             ValidateMode(mode);
+            ValidateOwners();
             if (maxSessionCount <= 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(maxSessionCount), "A finite positive limit is required.");
@@ -150,6 +188,28 @@ namespace Opc.Ua.Server
                     "The unreserved capacity must still hold one maximum retained message.", nameof(budget));
             }
 
+            long trustedBytes = 0;
+            foreach (TrustedResourceOwnerOptions owner in TrustedOwners)
+            {
+                long reserved = messageBytes;
+                foreach (TrustedResourceReservation reservation in owner.Reservations)
+                {
+                    if (reservation.Stage == ResourceIsolationStage.ReassemblyBytes)
+                    {
+                        reserved = reservation.Reserved;
+                    }
+                }
+                ValidateFloor(reserved, messageBytes, nameof(TrustedOwners));
+                if (reserved > budget.MaxBytes - bootstrapBytes - reconnectBytes - trustedBytes)
+                {
+                    throw new ArgumentException("Trusted floors exceed the existing reassembly total.");
+                }
+                trustedBytes += reserved;
+            }
+            if (budget.MaxBytes - bootstrapBytes - reconnectBytes - trustedBytes < messageBytes)
+            {
+                throw new ArgumentException("The shared pool must hold one maximum retained message.");
+            }
             return new ServerResourceIsolationPlan(
                 mode,
                 budget.MaxBytes,
@@ -158,7 +218,250 @@ namespace Opc.Ua.Server
                 maxChannelCount,
                 messageBytes,
                 bootstrapBytes,
-                reconnectBytes);
+                reconnectBytes,
+                trustedBytes);
+        }
+
+        /// <summary>
+        /// Creates a complete runtime plan without changing any declared capacity.
+        /// The supplied budget remains a separately enforced, potentially shared additional ceiling.
+        /// Shared connection capacity must support the advertised Session maximum plus one
+        /// ordinary reconnect channel; reserved ingress capacity is not counted toward this guarantee.
+        /// </summary>
+        public ServerResourceIsolationPlan CreateRuntimePlan(
+            ApplicationConfiguration configuration,
+            ServerRateLimitOptions rateLimits,
+            ChunkReassemblyBudget? budget = null)
+        {
+            if (configuration == null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+            if (rateLimits == null)
+            {
+                throw new ArgumentNullException(nameof(rateLimits));
+            }
+            ServerConfiguration server = configuration.ServerConfiguration ??
+                throw new ArgumentException("Server configuration is required.", nameof(configuration));
+            TransportQuotas quotas = configuration.TransportQuotas ??
+                throw new ArgumentException("Transport quotas are required.", nameof(configuration));
+            if (quotas.MaxMessageSize <= 0 || quotas.MaxBufferSize <= 0)
+            {
+                throw new ArgumentException("Isolation requires finite positive message and buffer limits.");
+            }
+            long footprint = MaxRetainedMessageBytes ??
+                checked(4L * (quotas.MaxMessageSize + (long)Math.Max(
+                    TcpMessageLimits.MinBufferSize, Math.Min(quotas.MaxBufferSize, TcpMessageLimits.MaxBufferSize))));
+            if (footprint <= 0)
+            {
+                throw new ArgumentException("MaxRetainedMessageBytes must be positive.");
+            }
+            budget ??= ChunkReassemblyBudget.CreateDefault(EndpointConfiguration.Create(configuration));
+            ValidateMode(Mode);
+            long bootstrap = ResolveFloor(Mode, BootstrapReservedBytes, footprint, nameof(BootstrapReservedBytes));
+            long reconnect = ResolveFloor(Mode, ReconnectReservedBytes, footprint, nameof(ReconnectReservedBytes));
+            ValidateOwners();
+            if (server.MaxSessionCount <= 0 || server.MaxChannelCount < (long)server.MaxSessionCount + 1)
+            {
+                throw new ArgumentException("SecureChannel capacity must support the Session maximum plus one.");
+            }
+            if (MaxTrackedOwners <= 0 || MaxOwnerKeyLength <= 0 || DefaultWeight <= 0)
+            {
+                throw new ArgumentException("Owner table, key length and weight limits must be positive.");
+            }
+            if (HandshakeTimeout <= TimeSpan.Zero || HandshakeTimeout > TimeSpan.FromMinutes(2))
+            {
+                throw new ArgumentException("HandshakeTimeout must be positive and no greater than two minutes.");
+            }
+            if (TrustedOwners.Count > MaxTrackedOwners)
+            {
+                throw new ArgumentException("The owner table cannot hold every provisioned trusted owner.");
+            }
+            int sessionCapacity = rateLimits.MaxConcurrentSessionEstablishment > 0
+                ? rateLimits.MaxConcurrentSessionEstablishment
+                : ServerRateLimitOptions.DefaultMaxConcurrentSessionEstablishment;
+            int queuedCapacity = Math.Max(100, server.MaxQueuedRequestCount);
+            int executionCapacity = Math.Max(100, Math.Max(server.MinRequestThreadCount, server.MaxRequestThreadCount));
+            long retainedRequestSlots = 2L * queuedCapacity + executionCapacity;
+            if (retainedRequestSlots > long.MaxValue / quotas.MaxMessageSize)
+            {
+                throw new ArgumentException("The declared queued, executing and parked request cost overflows Int64.");
+            }
+            long requestCostCapacity = retainedRequestSlots * quotas.MaxMessageSize;
+            long[] totals =
+            [
+                server.MaxChannelCount, server.MaxChannelCount, budget.MaxBytes, sessionCapacity,
+                queuedCapacity, executionCapacity, requestCostCapacity, queuedCapacity
+            ];
+            var overrides = new ResourceIsolationStageOptions?[totals.Length];
+            foreach (ResourceIsolationStageOptions item in Stages)
+            {
+                if (item == null)
+                {
+                    throw new ArgumentException("Stage options cannot contain null entries.");
+                }
+                ValidateStage(item.Stage);
+                if (overrides[(int)item.Stage] != null)
+                {
+                    throw new ArgumentException("Duplicate resource stage.");
+                }
+                overrides[(int)item.Stage] = item;
+            }
+            var trusted = new Dictionary<string, TrustedOwnerPlan>(StringComparer.Ordinal);
+            foreach (TrustedResourceOwnerOptions owner in TrustedOwners)
+            {
+                var floors = new long[totals.Length];
+                var ceilings = new long[totals.Length];
+                for (int ii = 0; ii < floors.Length; ii++)
+                {
+                    floors[ii] = GetStageUnit((ResourceIsolationStage)ii, footprint, quotas.MaxMessageSize);
+                    ceilings[ii] = overrides[ii]?.OwnerHardLimit ?? overrides[ii]?.Capacity ?? totals[ii];
+                }
+                foreach (TrustedResourceReservation item in owner.Reservations)
+                {
+                    floors[(int)item.Stage] = item.Reserved;
+                    ceilings[(int)item.Stage] = item.HardLimit ?? ceilings[(int)item.Stage];
+                }
+                trusted.Add(owner.Key, new TrustedOwnerPlan(owner.Weight, floors, ceilings));
+            }
+            var stages = new ResourceIsolationStagePlan[totals.Length];
+            bool hasBootstrap = false;
+            bool hasReconnect = false;
+            bool hasControl = false;
+            for (int ii = 0; ii < stages.Length; ii++)
+            {
+                ResourceIsolationStageOptions? item = overrides[ii];
+                long unit = GetStageUnit((ResourceIsolationStage)ii, footprint, quotas.MaxMessageSize);
+                long capacity = item?.Capacity ?? totals[ii];
+                long floorDefault = Mode is ServerResourceIsolationMode.Balanced or
+                    ServerResourceIsolationMode.TrustedReservations ? unit : 0;
+                long bootstrapFloor = item?.BootstrapReserved ??
+                    (ii == (int)ResourceIsolationStage.ReassemblyBytes ? bootstrap : floorDefault);
+                long reconnectFloor = item?.ReconnectReserved ??
+                    (ii == (int)ResourceIsolationStage.ReassemblyBytes ? reconnect : floorDefault);
+                long controlFloor = item?.ControlReserved ??
+                    (ii >= (int)ResourceIsolationStage.RequestQueue ? floorDefault : 0);
+                long hardLimit = item?.OwnerHardLimit ?? capacity;
+                if (capacity <= 0 || capacity > totals[ii] || hardLimit < unit || hardLimit > capacity)
+                {
+                    throw new ArgumentException($"Invalid capacity or owner ceiling for {(ResourceIsolationStage)ii}.");
+                }
+                ValidateFloor(bootstrapFloor, unit, nameof(Stages));
+                ValidateFloor(reconnectFloor, unit, nameof(Stages));
+                ValidateFloor(controlFloor, unit, nameof(Stages));
+                if (floorDefault == 0 && (bootstrapFloor != 0 || reconnectFloor != 0 || controlFloor != 0))
+                {
+                    throw new ArgumentException("This profile does not permit reserved floors.");
+                }
+                long remaining = capacity;
+                SubtractFloor(ref remaining, bootstrapFloor);
+                SubtractFloor(ref remaining, reconnectFloor);
+                SubtractFloor(ref remaining, controlFloor);
+                long trustedTotal = 0;
+                foreach (TrustedOwnerPlan owner in trusted.Values)
+                {
+                    ValidateFloor(owner.Floors[ii], unit, nameof(TrustedOwners));
+                    if (owner.HardLimits[ii] < Math.Max(unit, owner.Floors[ii]) ||
+                        owner.HardLimits[ii] > capacity)
+                    {
+                        throw new ArgumentException("A trusted owner's ceiling cannot satisfy its floor.");
+                    }
+                    SubtractFloor(ref remaining, owner.Floors[ii]);
+                    trustedTotal += owner.Floors[ii];
+                }
+                if (remaining < unit || hardLimit < Math.Max(Math.Max(bootstrapFloor, reconnectFloor), controlFloor))
+                {
+                    throw new ArgumentException($"The {(ResourceIsolationStage)ii} pools cannot hold an operation.");
+                }
+                stages[ii] = new ResourceIsolationStagePlan(
+                    (ResourceIsolationStage)ii, capacity, bootstrapFloor, reconnectFloor, trustedTotal, hardLimit,
+                    controlFloor);
+                hasBootstrap |= bootstrapFloor > 0;
+                hasReconnect |= reconnectFloor > 0;
+                hasControl |= controlFloor > 0;
+            }
+            long requiredOwners = (long)TrustedOwners.Count + 1 + (hasBootstrap ? 1 : 0) +
+                (hasReconnect ? 1 : 0) + (hasControl ? 1 : 0);
+            if (requiredOwners > MaxTrackedOwners)
+            {
+                throw new ArgumentException("The owner table needs slots for shared and each protected class.");
+            }
+            if (stages[(int)ResourceIsolationStage.Connection].SharedCapacity < (long)server.MaxSessionCount + 1)
+            {
+                throw new ArgumentException(
+                    "The shared Connection capacity must support MaxSessionCount plus one ordinary reconnect " +
+                    "channel. Reduce connection reservations or explicitly increase MaxChannelCount.");
+            }
+            ResourceIsolationStagePlan reassembly = stages[(int)ResourceIsolationStage.ReassemblyBytes];
+            return new ServerResourceIsolationPlan(
+                Mode, budget.MaxBytes, budget.MaxBytesWithoutSession, server.MaxSessionCount, server.MaxChannelCount,
+                footprint, reassembly.BootstrapReserved, reassembly.ReconnectReserved, reassembly.TrustedReserved,
+                stages, trusted, MaxTrackedOwners, MaxOwnerKeyLength, DefaultWeight);
+        }
+
+        private void ValidateOwners()
+        {
+            if (Mode == ServerResourceIsolationMode.TrustedReservations && TrustedOwners.Count == 0)
+            {
+                throw new ArgumentException("TrustedReservations requires explicit trusted-owner provisioning.");
+            }
+            if (Mode != ServerResourceIsolationMode.TrustedReservations && TrustedOwners.Count != 0)
+            {
+                throw new ArgumentException("Trusted owners require the TrustedReservations profile.");
+            }
+            var keys = new HashSet<string>(StringComparer.Ordinal);
+            foreach (TrustedResourceOwnerOptions owner in TrustedOwners)
+            {
+                if (owner == null || string.IsNullOrEmpty(owner.Key) || owner.Key.Length > MaxOwnerKeyLength ||
+                    owner.Weight <= 0 || !keys.Add(owner.Key))
+                {
+                    throw new ArgumentException("Trusted owners require unique bounded keys and positive weights.");
+                }
+                var stages = new HashSet<ResourceIsolationStage>();
+                foreach (TrustedResourceReservation reservation in owner.Reservations)
+                {
+                    ValidateStage(reservation.Stage);
+                    if (!stages.Add(reservation.Stage) || reservation.Reserved < 0 || reservation.HardLimit <= 0)
+                    {
+                        throw new ArgumentException("Invalid or duplicate trusted stage reservation.");
+                    }
+                }
+            }
+        }
+
+        private static void ValidateStage(ResourceIsolationStage stage)
+        {
+            if (stage is < ResourceIsolationStage.Connection or > ResourceIsolationStage.ParkedRequest)
+            {
+                throw new ArgumentOutOfRangeException(nameof(stage));
+            }
+        }
+
+        private static long GetStageUnit(ResourceIsolationStage stage, long footprint, int maxMessageSize)
+        {
+            return stage switch
+            {
+                ResourceIsolationStage.ReassemblyBytes => footprint,
+                ResourceIsolationStage.RequestQueueBytes => maxMessageSize,
+                _ => 1
+            };
+        }
+
+        private static void ValidateFloor(long floor, long unit, string parameterName)
+        {
+            if (floor < 0 || (floor != 0 && floor < unit))
+            {
+                throw new ArgumentOutOfRangeException(parameterName, "A nonzero floor must hold one operation.");
+            }
+        }
+
+        private static void SubtractFloor(ref long remaining, long floor)
+        {
+            if (floor > remaining)
+            {
+                throw new ArgumentException("Reserved floors exceed the existing capacity.");
+            }
+            remaining -= floor;
         }
 
         private static void ValidateMode(ServerResourceIsolationMode mode)
@@ -166,11 +469,6 @@ namespace Opc.Ua.Server
             if (mode is < ServerResourceIsolationMode.SharedOnly or > ServerResourceIsolationMode.TrustedReservations)
             {
                 throw new ArgumentOutOfRangeException(nameof(mode));
-            }
-            if (mode == ServerResourceIsolationMode.TrustedReservations)
-            {
-                throw new NotSupportedException(
-                    "Trusted reservation planning requires explicit owner provisioning and validated classification.");
             }
         }
 
@@ -184,7 +482,8 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentOutOfRangeException(parameterName, "A reserved floor cannot be negative.");
             }
-            if (mode != ServerResourceIsolationMode.Balanced)
+            if (mode is not ServerResourceIsolationMode.Balanced and
+                not ServerResourceIsolationMode.TrustedReservations)
             {
                 if (requestedBytes.GetValueOrDefault() != 0)
                 {

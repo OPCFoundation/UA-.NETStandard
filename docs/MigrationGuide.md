@@ -827,6 +827,16 @@ implementation detail, and can no longer do so.
 
 ## Transport resource limits
 
+Managed servers use **Balanced resource isolation** by default. It reserves
+startup/reconnect capacity inside existing limits and applies bounded caller
+admission and fair decoded-request scheduling. Existing configurations that
+cannot satisfy the declared Session count, replacement-channel headroom, or
+message-capacity floors fail startup with an explicit configuration error.
+Choose `ServerResourceIsolationMode.SharedOnly` to retain legacy shared-limit
+behavior while migrating, or adjust the documented capacities explicitly.
+See [server resource isolation](ResourceIsolation.md) for sizing, profile
+configuration, trusted classification, and the limits of availability guarantees.
+
 Applications migrating from 1.5.x have a server-wide budget for retained
 intermediate-message buffers. With the reference server's 4 MiB maximum message
 size, the default budget is **64 MiB**, and channels without an activated session

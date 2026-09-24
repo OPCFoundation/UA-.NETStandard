@@ -27,15 +27,17 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Collections.Generic;
+
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// An immutable, validated reassembly and SecureChannel sizing result, not an admission policy or lease.
+    /// An immutable capacity snapshot consumed by the runtime isolation provider.
     /// </summary>
     /// <remarks>
-    /// Created by <see cref="ServerResourceIsolationOptions.CreatePlan"/>. No running server consumes this
-    /// plan. The reserved values are prospective, separate, non-borrowable floors inside the original
-    /// total; they are not additional capacity, owner ceilings, weights, or runtime guarantees.
+    /// CreateRuntimePlan resolves every stage. CreatePlan retains the standalone reassembly sizing API.
+    /// Floors are separate, non-borrowable partitions inside the original totals.
     /// </remarks>
     public sealed class ServerResourceIsolationPlan
     {
@@ -47,7 +49,13 @@ namespace Opc.Ua.Server
             int maxChannelCount,
             long maxRetainedMessageBytes,
             long bootstrapReservedBytes,
-            long reconnectReservedBytes)
+            long reconnectReservedBytes,
+            long trustedReservedBytes = 0,
+            ResourceIsolationStagePlan[]? stages = null,
+            Dictionary<string, TrustedOwnerPlan>? trustedOwners = null,
+            int maxTrackedOwners = 4096,
+            int maxOwnerKeyLength = 256,
+            int defaultWeight = 1)
         {
             Mode = mode;
             MaxReassemblyBytes = maxReassemblyBytes;
@@ -57,6 +65,12 @@ namespace Opc.Ua.Server
             MaxRetainedMessageBytes = maxRetainedMessageBytes;
             BootstrapReservedBytes = bootstrapReservedBytes;
             ReconnectReservedBytes = reconnectReservedBytes;
+            TrustedReservedBytes = trustedReservedBytes;
+            m_stages = stages;
+            TrustedOwners = trustedOwners ?? new Dictionary<string, TrustedOwnerPlan>(StringComparer.Ordinal);
+            MaxTrackedOwners = maxTrackedOwners;
+            MaxOwnerKeyLength = maxOwnerKeyLength;
+            DefaultWeight = defaultWeight;
         }
 
         /// <summary>
@@ -107,11 +121,55 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The sum of the two separate proposed floors.
         /// </summary>
-        public long ReservedReassemblyBytes => BootstrapReservedBytes + ReconnectReservedBytes;
+        public long ReservedReassemblyBytes => BootstrapReservedBytes + ReconnectReservedBytes + TrustedReservedBytes;
 
         /// <summary>
         /// The remaining shared bytes inside the original total.
         /// </summary>
-        public long UnreservedReassemblyBytes => MaxReassemblyBytes - ReservedReassemblyBytes;
+        public long UnreservedReassemblyBytes =>
+            m_stages?[(int)ResourceIsolationStage.ReassemblyBytes].SharedCapacity ??
+            MaxReassemblyBytes - ReservedReassemblyBytes;
+
+        /// <summary>
+        /// Individually provisioned, non-borrowable trusted-owner bytes.
+        /// </summary>
+        public long TrustedReservedBytes { get; }
+
+        /// <summary>
+        /// Bounded active accounting table size.
+        /// </summary>
+        public int MaxTrackedOwners { get; }
+
+        /// <summary>
+        /// Maximum classifier key length.
+        /// </summary>
+        public int MaxOwnerKeyLength { get; }
+
+        /// <summary>
+        /// Default relative scheduling weight.
+        /// </summary>
+        public int DefaultWeight { get; }
+
+        internal Dictionary<string, TrustedOwnerPlan> TrustedOwners { get; }
+
+        /// <summary>
+        /// Returns an immutable stage plan. Standalone reassembly-only plans cannot run a server.
+        /// </summary>
+        public ResourceIsolationStagePlan GetStage(ResourceIsolationStage stage)
+        {
+            if (stage is < ResourceIsolationStage.Connection or > ResourceIsolationStage.ParkedRequest)
+            {
+                throw new ArgumentOutOfRangeException(nameof(stage));
+            }
+            if (m_stages == null)
+            {
+                throw new InvalidOperationException("CreateRuntimePlan is required for runtime admission.");
+            }
+            return m_stages[(int)stage];
+        }
+
+        private readonly ResourceIsolationStagePlan[]? m_stages;
     }
+
+    internal sealed record TrustedOwnerPlan(int Weight, long[] Floors, long[] HardLimits);
 }

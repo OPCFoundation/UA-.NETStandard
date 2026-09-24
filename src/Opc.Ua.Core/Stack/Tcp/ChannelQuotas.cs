@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+
 namespace Opc.Ua.Bindings
 {
     /// <summary>
@@ -120,6 +122,17 @@ namespace Opc.Ua.Bindings
         /// membership hints only. Those hints cannot establish identity or trusted capacity.
         /// </remarks>
         public ISessionBindingProvider? SessionBindingProvider { get; set; }
+
+        /// <summary>
+        /// Gets or sets the shared fail-fast admission policy for retained incoming messages.
+        /// </summary>
+        public IServerResourceIsolationProvider? ResourceIsolationProvider { get; set; }
+
+        /// <summary>
+        /// Gets or sets the fixed startup handshake deadline inherited from the listener.
+        /// Must be positive and no greater than two minutes.
+        /// </summary>
+        public TimeSpan HandshakeTimeout { get; set; } = TimeSpan.FromMinutes(2);
 
         /// <summary>
         /// Bounds incomplete-message retention even when the channel lifetime is unset.

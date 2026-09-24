@@ -1,126 +1,224 @@
-# Resource-isolation capacity planning (staged)
+# Server resource isolation
 
-**This release adds an offline sizing calculator, not noisy-neighbor isolation.**
-`ServerResourceIsolationOptions.CreatePlan` validates a prospective reassembly
-partition and the configured Session/SecureChannel relationship. It returns an
-immutable `ServerResourceIsolationPlan`; it does not change configuration,
-acquire leases, reserve bytes, or install an admission policy.
+Resource isolation coordinates admission across the listeners and service
+pipeline of one server. It complements message limits and connection rate
+limits; it is not a total-process-memory or network-DDoS guarantee.
 
-There is deliberately **no server property, DI registration helper, hosting
-option, or configuration-file binding** for enabling these profiles yet.
-Registering the calculator in an application's DI container does not enable
-protection. Running servers retain their existing shared admission behavior,
-including the [incomplete-message budget](RateLimiting.md#incomplete-messages).
-Balanced is the **planning default and intended eventual enforcement default**,
-not the current server default.
+`StandardServer.ResourceIsolationOptions` selects the policy. Hosted servers
+use `OpcUaServerOptions.ResourceIsolation`, the fluent configuration below, or
+an explicitly registered provider. Directly supplied providers and classifiers
+remain host-owned.
 
-## Profile selection
+## Profiles
 
-| Mode | What this calculator does |
+| Mode | Behavior |
 | --- | --- |
-| `SharedOnly` | Keeps the whole byte total shared; no reserved floors or fairness guarantee. |
-| `FairShare` | The same capacity partition as SharedOnly. Weighted scheduling is not implemented. |
-| `Balanced` | Proposes separate, non-borrowable bootstrap and reconnect byte floors, each sufficient for one maximum retained message by default. |
-| `TrustedReservations` | Throws `NotSupportedException`: trusted-owner provisioning and classification are not implemented by this module. No silent fallback to Balanced. |
+| `SharedOnly` | Compatibility behavior: existing rate, message and shared reassembly limits, without the new runtime fairness/reservation policy. |
+| `FairShare` | Bounded owner accounting and weighted decoded-request scheduling, without protected floors. |
+| `Balanced` (default) | FairShare plus separate non-borrowable bootstrap, reconnect and applicable control-work floors inside existing capacities. |
+| `TrustedReservations` | Balanced plus individually provisioned trusted-owner floors and weights. Requires an explicit classifier and owner configuration; missing provisioning fails startup. |
 
-These options are independent of `ServerRateLimitOptions.Enabled`. Creating a
-plan neither enables nor disables the existing rate limiters.
+Reassembly admission is always fail-fast. It never waits while holding a channel
+gate or pauses the ordered receive loop to wait for another owner. Fair waiting
+is confined to bounded decoded-request queues.
 
-## Explicit sizing, without increasing totals
+Unused **shared** capacity is work-conserving: one owner can consume it unless
+an explicit hard ceiling limits that owner. Protected floors are not shared
+capacity and are never lent away. No already-admitted lease is revoked.
+Consequently a new ordinary caller can still be refused while shared memory is
+held by earlier work; FairShare is not an unconditional admission guarantee.
 
-The caller supplies the **existing** `ChunkReassemblyBudget`, configured
-`MaxSessionCount` and `MaxChannelCount`, and two finite deployment bounds:
-
-- `maxRetainedChunkCount`: the maximum intermediate chunks that a permitted
-  incomplete message can retain. Include a peer that sends intermediate chunks
-  right up to the chunk-count limit, even though another final chunk would then
-  be rejected.
-- `maxPooledBufferLength`: the maximum actual backing-array length for any such
-  chunk, including pool rounding and metadata, not its payload/wire length.
-
-The conservative footprint `F` is their product, using 64-bit arithmetic.
-These must be proven bounds across the applicable listeners and negotiations,
-not measurements of typical traffic. `IBufferManager.GetExpectedBufferSize`
-provides the buffer-manager sizing contract; a custom pool must actually honor
-the assumed upper bound. The calculator cannot inspect or enforce that promise.
-Independent worst-case chunk-count and array-length bounds can overestimate the
-footprint; an impossible result is rejected, not silently reduced.
-
-For Balanced, each unset floor becomes `F`. A manual floor must be at least
-`F`. The two floors must fit **inside** the existing total, and the unreserved
-remainder must also fit `F` so the shared class still supports one message.
-The bootstrap floor must fit the existing sessionless threshold. That last
-check is only a sizing constraint: the legacy threshold remains a **global
-occupancy threshold, not a bootstrap reservation**. Activated-session traffic
-can still fill the entire legacy budget.
-
-SharedOnly and FairShare accept only zero or unset floor overrides, and require
-one message to fit the total. They preserve even a zero sessionless threshold
-(sessionless intermediate chunks disabled) or a threshold equal to the total.
-The calculator does not impose Balanced's proposed floors on legacy servers.
-
-All supplied counts/lengths must be positive and finite; zero does not mean
-"auto" or "unlimited". A single-chunk-only workload needs no intermediate-byte
-reserve and is outside this calculator's positive retained-footprint model.
-Invalid totals/thresholds are rejected by `ChunkReassemblyBudget` itself.
-No percentage policy or machine-memory heuristic is introduced.
-
-The channel check requires **N+1 SecureChannels for N configured Sessions**
-([OPC 10000-4, 5.7.2.1](https://reference.opcfoundation.org/specs/OPC-10000-4/v1.05.07/5.7.2)).
-It does not add channels or subtract reservations from advertised Session
-capacity. Reported channel headroom is arithmetic, not protected connection
-capacity.
+## Configuration
 
 ```csharp
-using Opc.Ua.Bindings;
-using Opc.Ua.Server;
-
-var budget = new ChunkReassemblyBudget(64L * 1024 * 1024, 32L * 1024 * 1024);
-var options = new ServerResourceIsolationOptions
-{
-    Mode = ServerResourceIsolationMode.Balanced
-    // BootstrapReservedBytes and ReconnectReservedBytes are independent overrides.
-};
-
-// Illustrative deployment-proven bounds, NOT automatically derived reference defaults.
-ServerResourceIsolationPlan plan = options.CreatePlan(
-    budget,
-    maxSessionCount: 75,
-    maxChannelCount: 1000,
-    maxRetainedChunkCount: 65,
-    maxPooledBufferLength: 65536);
+services.AddOpcUa()
+    .AddServer(options => options.ApplicationName = "MyServer")
+    .ConfigureResourceIsolation(options =>
+    {
+        options.Mode = ServerResourceIsolationMode.Balanced;
+        options.MaxTrackedOwners = 4096;
+        options.HandshakeTimeout = TimeSpan.FromSeconds(30);
+        options.Stages =
+        [
+            new ResourceIsolationStageOptions
+            {
+                Stage = ResourceIsolationStage.RequestExecution,
+                OwnerHardLimit = 8
+            },
+            new ResourceIsolationStageOptions
+            {
+                Stage = ResourceIsolationStage.Connection,
+                OwnerHardLimit = 16
+            }
+        ];
+    });
 ```
 
-This example keeps the reference budget **64 MiB** and sessionless threshold
-**32 MiB**, with 75 Sessions and 1000 SecureChannels unchanged. For these
-explicit illustrative buffer bounds, `F = 4,259,840` bytes: each floor is
-4,259,840 bytes, reserved capacity totals 8,519,680 bytes, and unreserved
-capacity is 58,589,184 bytes. No automatic reference-server enforcement plan
-is claimed: actual negotiated/pool bounds must be established before wiring it.
-Later mutation of the options does not change an existing plan.
+Set `ResourceIsolationOptions` and, if needed, `ResourceIsolationClassifier`
+before starting a directly constructed server. An
+`IServerResourceIsolationProvider` may instead be assigned through
+`ServerBase.ResourceIsolationProvider` or registered in Dependency Injection.
+A custom provider must honor the physical queue and transport capacity
+envelopes of its consumers; reporting larger admission capacity does not
+increase those consumers' limits.
 
-## Not implemented and limits of future guarantees
+The hosting configuration section is `OpcUa:Server:ResourceIsolation`.
+Options are parsed explicitly rather than requiring reflection-based binding:
 
-This slice does not size or enforce physical connection, pending handshake,
-cryptographic work, session-establishment, request-worker, queue, or
-unfinished-message-count reservations. It does not implement classifiers,
-per-owner accounting, leases, hard owner ceilings, weighted shares, schedulers,
-transport adapters, telemetry, or server startup selection. It adds no
-subscription or PubSub quotas.
+```json
+{
+  "OpcUa": {
+    "Server": {
+      "ResourceIsolation": {
+        "Mode": "Balanced",
+        "MaxTrackedOwners": 4096,
+        "HandshakeTimeout": "00:00:30",
+        "Stages": [
+          { "Stage": "RequestExecution", "OwnerHardLimit": 8 }
+        ]
+      }
+    }
+  }
+}
+```
 
-Future strict floors at **every** protected stage must be non-borrowable;
-weighted unreserved shares must remain work-conserving and distinct from
-configurable hard ceilings. Already admitted leases must never be revoked.
-Reassembly stays **fail-fast**; asynchronous fair waiting belongs only to
-decoded-request scheduling.
+Invalid capacities, duplicate stage entries, invalid modes, floor sums,
+overflow, or insufficient room for a supported message are rejected explicitly.
+Stage `Capacity` overrides can lower but not increase the existing envelope.
+Zero reserved capacity explicitly disables that stage's corresponding floor;
+it must not be interpreted as a remaining guarantee.
 
-Trusted classification requires validated application identity, explicit
-provisioning, and the versioned live `SessionBindingContext`, followed by normal
-execution-time validation. An IP address, recent IP history, a claimed
-ApplicationUri/token, or an activated anonymous Session is not proof of trust.
-Pre-authentication protection requires explicitly trusted ingress.
+## Accounting and lifetime
 
-Even eventual enforcement is server/node-local, not a total-process-memory,
-network-DDoS, fleet-wide, or hard-real-time guarantee. Unknown/anonymous
-clients remain best effort under distributed load; upstream network/TLS
-protection and cooperative application handlers are still required.
+| Stage | Charged lifetime |
+| --- | --- |
+| Connection | Physical connection, including reverse-connect handoff until actual closure |
+| Handshake | Connection admission through successful protocol startup, and bounded OpenSecureChannel renewal work; startup has an independent fixed deadline |
+| ReassemblyBytes | Actual backing-array bytes retained for intermediate chunks, through completion, abort, replacement, quota error or closure |
+| SessionEstablishment | Concurrent CreateSession/ActivateSession processing |
+| RequestQueue | Decoded requests awaiting dispatch |
+| RequestExecution | Running handlers; released when a supported Publish request parks |
+| RequestQueueBytes | Conservative encoded-message admission cost retained through queued/executing/parked processing |
+| ParkedRequest | Potentially parked work retained until actual completion |
+
+Leases are idempotent and released on failures, cancellation, rejected
+downstream admission, and shutdown. Handler code that ignores cancellation
+cannot be forcibly preempted; its resource accounting stays live until the
+handler finishes.
+
+The default request-cost charge is `MaxMessageSize` per retained decoded
+request, not a measurement of CLR heap size. The aggregate cost envelope derives
+from configured queued, executing and parked slot limits. Existing decoder,
+operation and body-size limits still apply.
+
+Owner tracking has a hard bound; inactive entries disappear when their last
+lease is returned. Active entries cannot be evicted to admit new keys. Some
+table capacity is kept available for configured protected classes and trusted
+owners. Repeated rejected identities cannot create an unlimited idle cache.
+
+## Reserve sizing
+
+Bootstrap and reconnect floors default to one operation at slot-based stages.
+Reassembly floors use a conservative maximum retained-message footprint derived
+from the default pool and negotiated chunk bounds. Configure
+`MaxRetainedMessageBytes` explicitly for custom buffer managers whose array
+length bounds differ. A custom bound is a deployment obligation, not a
+measurement of typical traffic.
+
+All floors fit **inside** existing totals. Shared space must still accommodate
+one allowed operation/message. The configured Session/SecureChannel capacities
+must support the protocol's N+1 relationship and the effective admission
+partitions; impossible configurations fail rather than silently increasing
+totals or advertising unavailable capacity.
+
+For a 4 MiB message limit, 65,535-byte buffer limit and 64 MiB reference
+reassembly budget, the default conservative footprint is 16.25 MiB.
+Bootstrap and reconnect each reserve 16.25 MiB, leaving 31.5 MiB shared.
+This is not the payload size: it allows for retained arrays and pool overhead.
+`CreateRuntimePlan` exposes the effective immutable stage plan for inspection.
+The explicit-bound `CreatePlan` calculator remains available for sizing but
+does not by itself install enforcement.
+
+With runtime isolation enabled, its byte-class partitions replace the legacy
+sessionless occupancy priority, while the shared reassembly budget still
+counts actual bytes and enforces its aggregate ceiling. `SharedOnly` preserves
+the legacy priority behavior. An independently shared custom global ceiling
+or external rate limiter remains an additional rejection condition.
+
+## Trust, anonymous clients and NAT
+
+Ordinary pre-authentication traffic is grouped by observed address, normalized
+for IPv4-mapped IPv6. This is an abuse-control key, not identity. A validated
+application certificate and a verified live Session continuity key allow
+stronger classification later. Certificates supplied under SecurityPolicy None
+do not confer trusted classification.
+
+`IResourceIsolationClassifier` is the explicit deployment trust seam. Its
+ingress mapping is the only way to designate protected traffic before protocol
+authentication. It must use a trusted network/proxy/transport boundary, not
+recent successful IP history or caller-supplied headers.
+
+For `TrustedReservations`, configure bounded `TrustedOwners` with keys, weights
+and optional `TrustedResourceReservation` overrides. The classifier must return
+the matching provisioned key only from verified evidence. An unprovisioned
+trusted key is an error, not a fallback that silently bypasses protection.
+
+Multiple authenticated applications behind one NAT can acquire distinct
+identities after authentication. Anonymous callers sharing an address cannot
+always be distinguished. An activated anonymous Session is not automatically
+a trusted tenant. HTTPS logical channels may represent multiple clients; they
+must not be treated as one permanent tenant.
+
+Decoded-request classification uses `ISessionBindingProvider` and is revalidated
+after queueing. Stale, transferred, expired or unknown tokens gain no protected
+privileges. Normal service authentication and authorization still execute.
+User keys, tokens and raw addresses must not become diagnostic metric labels.
+
+## Transport behavior and limitations
+
+Raw TCP, Kestrel TCP and UACP WebSockets share the server policy. Admission
+occurs before channel/crypto allocation, and isolation refusal does not consume
+a subsequent legacy rate-limit token. HTTPS uses physical admission before TLS
+and bounded common request-body processing; HTTP streams/requests are not
+counted as separate physical UASC connections.
+
+With the default rate provider, Balanced and TrustedReservations also partition
+the existing connection-rate and burst totals: one token and one token/second
+for bootstrap, reconnect, and each provisioned trusted owner. Shared traffic
+cannot consume those tokens; protected traffic can also use available shared
+tokens. Connection closure does not refund a consumed rate token. Totals too
+small for these floors plus one shared token fail configuration explicitly.
+FairShare and SharedOnly retain the ordinary token bucket. Explicit custom rate
+providers are respected and may impose additional rejection conditions.
+
+Startup deadlines use shared scheduling, not one timer per socket. Initial
+timeouts are configurable up to two minutes by default. Reverse-connect
+handoff preserves the connection lease and distinguishes established protocol
+startup from a paused reverse connection. A configured client accepting a valid
+ReverseHello completes startup admission so it may save the connection for
+later use as the specification permits; physical connection capacity stays
+charged until actual closure.
+
+At capacity the raw listener reclaims genuinely unused established sessionless
+channels, not an active handshake, partial message, queued write, or in-flight
+decoded request. Rejection by an owner limit or rate limiter does not evict
+another channel merely to discover that the new caller is inadmissible.
+
+Use transport ERR `BadTcpNotEnoughResources` for retained-resource rejection and
+service-level `BadServerTooBusy` for decoded admission pressure. HTTP/JSON and
+WebSocket adapters keep their profile-specific errors; size-related close 1009
+does not stand for arbitrary quota pressure. Existing oldest-unused,
+sessionless SecureChannel reclamation and Session transfer semantics remain.
+
+The provider exposes current stage usage, low-cardinality usage/owner gauges, and a bounded
+`opcua.server.isolation.rejections` counter tagged by stage and reason, never
+by owner identity. Existing telemetry and generated logging carry failures.
+Subscription/MonitoredItem storage, PubSub, custom REST contributor body
+buffering, and unrelated application allocations have their own bounds; this
+policy does not claim to account every allocation.
+
+Network/link/SYN/TLS saturation needs upstream protection. Strict
+pre-authentication availability needs protected ingress; unknown anonymous
+clients are best effort during a distributed flood. Sharing an injected
+provider within a process is supported, but this is not a fleet-wide quota
+store or hard-real-time scheduler.

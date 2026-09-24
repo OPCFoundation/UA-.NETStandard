@@ -237,7 +237,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(
                 () => options.CreatePlan(new ChunkReassemblyBudget(300), 1, 2, 1, 1),
-                Throws.TypeOf<NotSupportedException>().With.Message.Contains("validated classification"));
+                Throws.TypeOf<ArgumentException>().With.Message.Contains("trusted-owner provisioning"));
         }
 
         [TestCase(ServerResourceIsolationMode.SharedOnly, true)]

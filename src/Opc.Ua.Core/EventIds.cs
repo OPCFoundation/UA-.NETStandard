@@ -109,5 +109,6 @@ namespace Opc.Ua
         public const int X509CrlHelper = 580;
         public const int CryptoProvider = 590;
         public const int FilterEvaluator = 600;
+        public const int UaScConnectionAdmission = 610;
     }
 }

@@ -41,6 +41,46 @@ namespace Opc.Ua.Aot.Tests
     public class RateLimitingAotTests
     {
         [Test]
+        public async Task RuntimeIsolationPreservesBootstrapFloorAtSharedCapacityAsync()
+        {
+            var configuration = new ApplicationConfiguration
+            {
+                ServerConfiguration = new ServerConfiguration { MaxSessionCount = 75, MaxChannelCount = 1000 },
+                TransportQuotas = new TransportQuotas { MaxMessageSize = 4 * 1024 * 1024, MaxBufferSize = 65535 }
+            };
+            var options = new ServerResourceIsolationOptions();
+            ServerResourceIsolationPlan plan = options.CreateRuntimePlan(configuration, new ServerRateLimitOptions());
+            using var provider = new DefaultServerResourceIsolationProvider(
+                plan, DefaultTelemetry.Create(_ => { }), classifier: new BootstrapClassifier());
+            ResourceIsolationStagePlan bytes = plan.GetStage(ResourceIsolationStage.ReassemblyBytes);
+            ResourceIsolationOwner ordinary = provider.ClassifyConnection(
+                new IPEndPoint(IPAddress.Parse("192.0.2.1"), 4840));
+            ResourceIsolationOwner bootstrap = provider.ClassifyConnection(
+                new IPEndPoint(IPAddress.Loopback, 4840));
+            bool admitted = provider.TryAcquire(
+                ResourceIsolationStage.ReassemblyBytes, ordinary, bytes.SharedCapacity,
+                out IDisposable shared, out _);
+            using (shared)
+            {
+                await Assert.That(admitted).IsTrue();
+                await Assert.That(provider.TryAcquire(
+                    ResourceIsolationStage.ReassemblyBytes, ordinary, 1, out IDisposable denied, out _)).IsFalse();
+                denied?.Dispose();
+                bool protectedAdmission = provider.TryAcquire(
+                    ResourceIsolationStage.ReassemblyBytes, bootstrap, bytes.BootstrapReserved,
+                    out IDisposable reserved, out _);
+                using (reserved)
+                {
+                    await Assert.That(protectedAdmission).IsTrue();
+                    await Assert.That(provider.GetUsage(ResourceIsolationStage.ReassemblyBytes))
+                        .IsEqualTo(bytes.SharedCapacity + bytes.BootstrapReserved);
+                }
+            }
+            await Assert.That(provider.GetUsage(ResourceIsolationStage.ReassemblyBytes)).IsEqualTo(0L);
+            await Assert.That(provider.TrackedOwnerCount).IsEqualTo(0);
+        }
+
+        [Test]
         public async Task ServerConnectionLimiterAdmitsThenRejectsAsync()
         {
             using var limiter = new TokenBucketConnectionRateLimiter(
@@ -132,6 +172,23 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(good.HasValue).IsTrue();
             await Assert.That(busy.HasValue).IsTrue();
             await Assert.That(busy!.Value > good!.Value).IsTrue();
+        }
+
+        private sealed class BootstrapClassifier : IResourceIsolationClassifier
+        {
+            public bool TryClassifyIngress(IPEndPoint remoteEndpoint, out ResourceIsolationIdentity identity)
+            {
+                identity = new ResourceIsolationIdentity("protected-loopback", ResourceIsolationClass.Bootstrap);
+                return remoteEndpoint?.Address.Equals(IPAddress.Loopback) == true;
+            }
+
+            public bool TryClassify(
+                SecureChannelContext channelContext, SessionBindingContext sessionBinding,
+                out ResourceIsolationIdentity identity)
+            {
+                identity = default;
+                return false;
+            }
         }
     }
 }

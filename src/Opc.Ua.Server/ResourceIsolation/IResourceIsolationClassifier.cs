@@ -27,31 +27,39 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Net;
+
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Selects the running server's resource admission and scheduling profile.
+    /// A trusted host's classification result. Weights and limits are resolved from policy, not this result.
     /// </summary>
-    public enum ServerResourceIsolationMode
+    public readonly record struct ResourceIsolationIdentity(string Key, ResourceIsolationClass Class);
+
+    /// <summary>
+    /// Explicit trust boundary for deployment-specific tenant and ingress mappings.
+    /// </summary>
+    /// <remarks>
+    /// Implementations must use an authenticated ingress boundary or verified channel/session
+    /// evidence, never request names, source-address history or unvalidated certificates.
+    /// Returning false uses ordinary best-effort shared classification.
+    /// </remarks>
+    public interface IResourceIsolationClassifier
     {
         /// <summary>
-        /// Existing shared aggregate capacity without reserved floors or fairness guarantees.
+        /// Classifies an observed endpoint using an explicitly trusted ingress mapping.
+        /// This is the only way to protect a caller before protocol authentication.
         /// </summary>
-        SharedOnly,
+        bool TryClassifyIngress(IPEndPoint? remoteEndpoint, out ResourceIsolationIdentity identity);
 
         /// <summary>
-        /// Work-conserving shared capacity with owner ceilings and weighted scheduling.
+        /// Maps a transport-established channel and optional live verified session to an owner.
+        /// None-policy certificates are removed before this method is called.
+        /// A successful mapping is explicitly trusted host policy, not session authorization.
         /// </summary>
-        FairShare,
-
-        /// <summary>
-        /// Separate non-borrowable bootstrap and reconnect floors. The default runtime profile.
-        /// </summary>
-        Balanced,
-
-        /// <summary>
-        /// Balanced isolation plus explicitly provisioned, non-borrowable trusted-owner floors.
-        /// </summary>
-        TrustedReservations
+        bool TryClassify(
+            SecureChannelContext channelContext,
+            SessionBindingContext? sessionBinding,
+            out ResourceIsolationIdentity identity);
     }
 }

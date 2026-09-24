@@ -240,7 +240,10 @@ namespace Opc.Ua.Bindings
         /// Wraps an accepted socket in its decorated byte transport and releases both wrappers if attachment fails.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="socket"/> is <c>null</c>.</exception>
-        internal void AttachCore(uint channelId, Socket socket)
+        internal void AttachCore(
+            uint channelId,
+            Socket socket,
+            UaScConnectionAdmission.Lease? admission = null)
         {
             if (socket == null)
             {
@@ -251,6 +254,11 @@ namespace Opc.Ua.Bindings
             try
             {
                 transport = TransportDecorator?.Invoke(socketTransport) ?? socketTransport;
+                if (admission != null)
+                {
+                    admission.Attach(transport);
+                    transport = admission;
+                }
                 AttachCore(channelId, transport);
                 transport = null;
                 socketTransport = null;
@@ -321,7 +329,10 @@ namespace Opc.Ua.Bindings
             {
                 if (Volatile.Read(ref m_disposed) != 0 ||
                     UsedBySession ||
-                    State is TcpChannelState.Closed or TcpChannelState.Closing)
+                    State is not (TcpChannelState.Open or TcpChannelState.Faulted) ||
+                    HasPartialMessage ||
+                    HasPendingWrites ||
+                    Volatile.Read(ref m_pendingServiceRequests) != 0)
                 {
                     return false;
                 }
@@ -331,6 +342,15 @@ namespace Opc.Ua.Bindings
                 StatusCodes.BadNoCommunication,
                 LocalizedText.From("Channel closed due to inactivity.")));
             return true;
+        }
+
+        /// <summary>
+        /// Keeps a decoded sessionless request classified as in-use through dispatch and asynchronous processing.
+        /// </summary>
+        internal IDisposable TrackPendingRequest()
+        {
+            Interlocked.Increment(ref m_pendingServiceRequests);
+            return new PendingRequest(() => Interlocked.Decrement(ref m_pendingServiceRequests));
         }
 
         /// <summary>
@@ -1172,6 +1192,17 @@ namespace Opc.Ua.Bindings
         }
 
         private readonly ILogger m_logger;
+        private int m_pendingServiceRequests;
+
+        private sealed class PendingRequest(Action release) : IDisposable
+        {
+            public void Dispose()
+            {
+                Interlocked.Exchange(ref m_release, null)?.Invoke();
+            }
+
+            private Action? m_release = release;
+        }
 
         /// <summary>
         /// Prevents new transport attachment or admission cleanup after disposal begins.

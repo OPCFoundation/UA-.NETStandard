@@ -807,6 +807,15 @@ sessionless headroom, and direct-construction equivalent.
 
 ### Committed session bindings
 
+The hosted server's `OpcUaServerOptions.ResourceIsolation` configures runtime
+admission independently of existing connection rate limits. Use
+`ConfigureResourceIsolation(...)` on the server builder and
+`AddResourceIsolationClassifier<T>()` for explicit trusted ingress/tenant
+mapping. The default is Balanced; SharedOnly opts out of the runtime isolation
+provider without disabling legacy limits. Direct servers expose
+`ResourceIsolationOptions`, `ResourceIsolationClassifier`, and the optional
+`ResourceIsolationProvider` override. See [server resource isolation](ResourceIsolation.md).
+
 Managed servers automatically supply their session manager's committed-binding
 view to transport listeners. A custom `ISessionBindingProvider` registered as a
 singleton is applied by the hosted server; direct hosts can assign

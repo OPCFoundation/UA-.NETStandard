@@ -112,10 +112,10 @@ CreateSession, or ActivateSession may be refused until occupancy drops.
 Per-caller fairness and guaranteed bootstrap reservations require a separate
 isolation policy; the shared budget alone does not provide them.
 
-The staged [resource-isolation capacity planner](ResourceIsolation.md) can
-validate prospective floors without changing these totals or runtime behavior.
-Its Balanced default is for planning only; it does not enable protected
-reservations or fair scheduling.
+[Server resource isolation](ResourceIsolation.md) coordinates caller-aware
+admission and protected floors without increasing these totals. Managed servers
+use Balanced isolation by default; SharedOnly preserves the legacy shared
+priority. Isolation is independent of the existing rate-limiting switch.
 
 Configure the hosted server through its fluent builder:
 

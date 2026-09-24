@@ -38,9 +38,12 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Opc.Ua.Security.Certificates;
@@ -199,6 +202,11 @@ namespace Opc.Ua.Bindings
             // Enable WebSocket upgrades so the WSS handler added in p2-wss-listener-handler
             // can accept opcua+uacp / opcua+uajson sub-protocols.
             appBuilder.UseWebSockets();
+            appBuilder.Use((context, next) =>
+            {
+                HttpsTransportListener.CompleteHttpHandshake(context);
+                return next();
+            });
 
             // Invoke companion-binding startup contributors (e.g. the
             // REST MVC pipeline from Opc.Ua.Bindings.WebApi) so their
@@ -291,6 +299,11 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentNullException(nameof(accessor));
             }
             appBuilder.UseWebSockets();
+            appBuilder.Use((context, next) =>
+            {
+                HttpsTransportListener.CompleteHttpHandshake(context);
+                return next();
+            });
             appBuilder.Run(context =>
             {
                 SharedKestrelHost? sharedHost = accessor.Instance;
@@ -419,9 +432,14 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected virtual async ValueTask DisposeAsyncCore()
         {
+            Volatile.Write(ref m_admissionStopped, 1);
             try
             {
                 m_admission?.Stop();
+                foreach (UaScConnectionAdmission.Lease upgrade in m_activeUpgrades.Keys)
+                {
+                    upgrade.Close();
+                }
             }
             catch (AggregateException ex)
             {
@@ -603,6 +621,8 @@ namespace Opc.Ua.Bindings
                 CertificateValidator = settings.CertificateValidator,
                 SecurityPolicyRegistry = settings.SecurityPolicyRegistry,
                 SessionBindingProvider = settings.SessionBindingProvider,
+                ResourceIsolationProvider = settings.ResourceIsolationProvider,
+                HandshakeTimeout = settings.HandshakeTimeout,
                 // The opc.wss channels assemble chunked messages like opc.tcp
                 // ones, so they are bounded by the same kind of budget.
                 ChunkReassemblyBudget = settings.ChunkReassemblyBudget ??
@@ -621,7 +641,12 @@ namespace Opc.Ua.Bindings
             // listener's ConnectionWaiting event when the server's
             // ReverseHello arrives.
             m_reverseConnectListener = settings.ReverseConnectListener;
-            m_admission = new UaScConnectionAdmission(settings.MaxChannelCount, settings.ConnectionRateLimiter);
+            m_admission = new UaScConnectionAdmission(
+                settings.MaxChannelCount,
+                settings.ConnectionRateLimiter,
+                settings.ResourceIsolationProvider,
+                m_quotas.HandshakeTimeout,
+                telemetry: m_telemetry);
 
             // buffer manager used by the WSS path to rent send / receive chunks.
             m_bufferManager = new BufferManager(
@@ -868,6 +893,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public async ValueTask StartAsync(CancellationToken ct = default)
         {
+            Volatile.Write(ref m_admissionStopped, 0);
             m_admission?.Start();
             // 1) Prepare the TLS certificate up front so the registry can
             //    key on its thumbprint when matching shared hosts.
@@ -969,6 +995,7 @@ namespace Opc.Ua.Bindings
         private void ConfigureSharedWebHost(IWebHostBuilder webHostBuilder, SharedHostAccessor accessor)
 #pragma warning restore CA1859
         {
+            UaScConnectionAdmission physicalAdmission = m_admission!.CreateIndependentScope();
             var httpsOptions = new HttpsConnectionAdapterOptions
             {
                 // TLS-layer revocation is intentionally disabled: certificate
@@ -998,7 +1025,7 @@ namespace Opc.Ua.Bindings
                 webHostBuilder.UseKestrel(options =>
                     options.ListenAnyIP(
                         EndpointUrl.Port,
-                        listenOptions => listenOptions.UseHttps(httpsOptions)));
+                        listenOptions => ConfigureHttpsAdmission(listenOptions, httpsOptions, physicalAdmission)));
             }
             else
             {
@@ -1007,13 +1034,14 @@ namespace Opc.Ua.Bindings
                     options.Listen(
                         ipAddress,
                         EndpointUrl.Port,
-                        listenOptions => listenOptions.UseHttps(httpsOptions)));
+                        listenOptions => ConfigureHttpsAdmission(listenOptions, httpsOptions, physicalAdmission)));
             }
 
             webHostBuilder.UseContentRoot(Directory.GetCurrentDirectory())
                 .ConfigureServices(services =>
             {
                 services.AddSingleton(accessor);
+                services.AddSingleton<IHostedService>(new AdmissionHostLifetime(physicalAdmission, m_logger));
                 ConfigureContributorServices(services);
             });
             webHostBuilder.UseStartup<SharedHostStartup>();
@@ -1131,7 +1159,7 @@ namespace Opc.Ua.Bindings
                 webHostBuilder.UseKestrel(options =>
                     options.ListenAnyIP(
                         EndpointUrl.Port,
-                        listenOptions => listenOptions.UseHttps(httpsOptions)));
+                        listenOptions => ConfigureHttpsAdmission(listenOptions, httpsOptions)));
             }
             else
             {
@@ -1141,7 +1169,7 @@ namespace Opc.Ua.Bindings
                     options.Listen(
                         ipAddress,
                         EndpointUrl.Port,
-                        listenOptions => listenOptions.UseHttps(httpsOptions)));
+                        listenOptions => ConfigureHttpsAdmission(listenOptions, httpsOptions)));
             }
 
             webHostBuilder.UseContentRoot(Directory.GetCurrentDirectory());
@@ -1153,6 +1181,60 @@ namespace Opc.Ua.Bindings
                 ConfigureContributorServices(services);
             });
             webHostBuilder.UseStartup<Startup>();
+        }
+
+        private void ConfigureHttpsAdmission(
+            ListenOptions options,
+            HttpsConnectionAdapterOptions httpsOptions,
+            UaScConnectionAdmission? physicalAdmission = null)
+        {
+            UaScConnectionAdmission? admission = physicalAdmission ?? m_admission;
+            options.Use(next => connection => RunHttpsConnectionAsync(connection, next, admission));
+            options.UseHttps(httpsOptions);
+        }
+
+        internal static async Task RunHttpsConnectionAsync(
+            ConnectionContext connection,
+            ConnectionDelegate next,
+            UaScConnectionAdmission? admission)
+        {
+            if (connection == null)
+            {
+                throw new ArgumentNullException(nameof(connection));
+            }
+            if (next == null)
+            {
+                throw new ArgumentNullException(nameof(next));
+            }
+#if NET8_0_OR_GREATER
+            EndPoint? remote = connection.RemoteEndPoint;
+#else
+            IHttpConnectionFeature? endpoints = connection.Features.Get<IHttpConnectionFeature>();
+            EndPoint? remote = MakeEndpoint(endpoints?.RemoteIpAddress, endpoints?.RemotePort ?? 0);
+#endif
+            if (admission == null)
+            {
+                connection.Abort();
+                return;
+            }
+            bool admitted = admission.TryAcquire(remote, out UaScConnectionAdmission.Lease? lease);
+            using UaScConnectionAdmission.Lease? retainedConnection = lease;
+            if (!admitted || lease == null)
+            {
+                connection.Abort();
+                return;
+            }
+            try
+            {
+                lease.SetAbortAction(connection.Abort);
+                connection.Features.Set<IHttpsTransportAdmissionFeature>(new HttpsTransportAdmissionFeature(lease));
+                await next(connection).ConfigureAwait(false);
+            }
+            finally
+            {
+                lease.ReleaseAfterTransportClosed();
+                await lease.WaitForCloseAsync(CancellationToken.None).ConfigureAwait(false);
+            }
         }
 
         private void ConfigureContributorServices(IServiceCollection services)
@@ -1182,6 +1264,14 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public async Task SendBinaryAsync(HttpContext context)
         {
+            context.Features.Get<IHttpsTransportAdmissionFeature>()?.Lease.CompleteHandshake();
+            bool admitted = TryAdmitHttpBody(context, out IDisposable? bodyLease);
+            using IDisposable? retainedBody = bodyLease;
+            if (!admitted)
+            {
+                await WriteAdmissionRejectedAsync(context).ConfigureAwait(false);
+                return;
+            }
             string message = string.Empty;
             CancellationToken ct = context.RequestAborted;
             try
@@ -1390,6 +1480,14 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public async Task SendJsonAsync(HttpContext context)
         {
+            context.Features.Get<IHttpsTransportAdmissionFeature>()?.Lease.CompleteHandshake();
+            bool admitted = TryAdmitHttpBody(context, out IDisposable? bodyLease);
+            using IDisposable? retainedBody = bodyLease;
+            if (!admitted)
+            {
+                await WriteAdmissionRejectedAsync(context).ConfigureAwait(false);
+                return;
+            }
             string message = string.Empty;
             CancellationToken ct = context.RequestAborted;
             try
@@ -1524,9 +1622,8 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Handles WebSocket upgrade requests for the WSS transport
         /// (Part 6 §7.5). Negotiates the <c>opcua+uacp</c> sub-protocol
-        /// (binary + UASC SecureChannel), JSON, or OpenAPI. UACP connections
-        /// reserve listener admission capacity before upgrading; JSON and
-        /// HTTP logical channels retain their separate middleware policy.
+        /// (binary + UASC SecureChannel), JSON, or OpenAPI. Physical upgrades
+        /// reserve admission capacity before upgrade or bearer validation.
         /// </summary>
         public async Task AcceptWebSocketAsync(HttpContext context)
         {
@@ -1553,14 +1650,64 @@ namespace Opc.Ua.Bindings
                     HttpStatusCode.BadRequest).ConfigureAwait(false);
                 return;
             }
+            EndPoint? remoteEndpoint = MakeEndpoint(
+                context.Connection.RemoteIpAddress,
+                context.Connection.RemotePort);
+            IHttpsTransportAdmissionFeature? physical = context.Features.Get<IHttpsTransportAdmissionFeature>();
+            if (physical != null)
+            {
+                await AcceptAdmittedWebSocketAsync(context, selected, physical.Lease).ConfigureAwait(false);
+                return;
+            }
+            if (m_admission == null ||
+                !m_admission.TryAcquire(remoteEndpoint, out UaScConnectionAdmission.Lease? lease))
+            {
+                await WriteAdmissionRejectedAsync(context).ConfigureAwait(false);
+                return;
+            }
+            using (lease)
+            {
+                lease.SetAbortAction(context.Abort);
+                context.RequestAborted.ThrowIfCancellationRequested();
+                await AcceptAdmittedWebSocketAsync(context, selected, lease).ConfigureAwait(false);
+            }
+        }
+
+        private async Task AcceptAdmittedWebSocketAsync(
+            HttpContext context,
+            string selected,
+            UaScConnectionAdmission.Lease lease)
+        {
+            m_activeUpgrades.TryAdd(lease, 0);
+            try
+            {
+                if (Volatile.Read(ref m_admissionStopped) != 0)
+                {
+                    await WriteAdmissionRejectedAsync(context).ConfigureAwait(false);
+                    return;
+                }
+                await AcceptAdmittedWebSocketCoreAsync(context, selected, lease).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_activeUpgrades.TryRemove(lease, out _);
+                lease.Close();
+            }
+        }
+
+        private async Task AcceptAdmittedWebSocketCoreAsync(
+            HttpContext context,
+            string selected,
+            UaScConnectionAdmission.Lease lease)
+        {
             if (string.Equals(selected, Profiles.OpcUaWsSubProtocolUaJson, StringComparison.Ordinal))
             {
-                await AcceptWebSocketJsonAsync(context).ConfigureAwait(false);
+                await AcceptWebSocketJsonAsync(context, lease).ConfigureAwait(false);
                 return;
             }
             if (string.Equals(selected, Profiles.OpcUaWsSubProtocolOpenApi, StringComparison.Ordinal))
             {
-                await AcceptWebSocketOpenApiAsync(context, accessToken: null).ConfigureAwait(false);
+                await AcceptWebSocketOpenApiAsync(context, lease, accessToken: null).ConfigureAwait(false);
                 return;
             }
             if (selected.StartsWith(Profiles.OpcUaWsSubProtocolOpenApiBearerPrefix, StringComparison.Ordinal))
@@ -1618,7 +1765,7 @@ namespace Opc.Ua.Bindings
                         HttpStatusCode.Unauthorized).ConfigureAwait(false);
                     return;
                 }
-                await AcceptWebSocketOpenApiAsync(context, accessToken).ConfigureAwait(false);
+                await AcceptWebSocketOpenApiAsync(context, lease, accessToken).ConfigureAwait(false);
                 return;
             }
 
@@ -1629,20 +1776,7 @@ namespace Opc.Ua.Bindings
                 context.Connection.RemoteIpAddress,
                 context.Connection.RemotePort);
 
-            // Only UACP upgrades allocate physical UASC channels. HTTP requests
-            // and JSON logical channels retain their separate middleware policy.
-            if (m_admission == null || !m_admission.TryAcquire(remoteEndpoint, out UaScConnectionAdmission.Lease? lease))
             {
-                await WriteResponseAsync(
-                    context.Response,
-                    "HTTPSLISTENER - UACP connection rejected by listener admission settings.",
-                    HttpStatusCode.ServiceUnavailable).ConfigureAwait(false);
-                return;
-            }
-
-            using (lease)
-            {
-                lease.SetAbortAction(context.Abort);
                 context.RequestAborted.ThrowIfCancellationRequested();
                 using WebSocket ws = await context.WebSockets
                     .AcceptWebSocketAsync(selected)
@@ -1689,6 +1823,7 @@ namespace Opc.Ua.Bindings
                         forwardChannel.SetReportCertificateAuditCallback(
                             new ReportAuditCertificateEventHandler(OnReportAuditCertificateEvent));
                     }
+
                     perWsListener.AttachChannel(channelId, channel);
                     channel.Attach(channelId, lease);
 
@@ -1707,6 +1842,81 @@ namespace Opc.Ua.Bindings
                     channel?.Dispose();
                 }
             }
+        }
+
+        internal static void CompleteHttpHandshake(HttpContext context)
+        {
+            if (!context.WebSockets.IsWebSocketRequest)
+            {
+                context.Features.Get<IHttpsTransportAdmissionFeature>()?.Lease.CompleteHandshake();
+            }
+        }
+
+        private interface IHttpsTransportAdmissionFeature
+        {
+            UaScConnectionAdmission.Lease Lease { get; }
+        }
+
+        private sealed class HttpsTransportAdmissionFeature(UaScConnectionAdmission.Lease lease)
+            : IHttpsTransportAdmissionFeature
+        {
+            public UaScConnectionAdmission.Lease Lease { get; } = lease;
+        }
+
+        private sealed class AdmissionHostLifetime(UaScConnectionAdmission admission, ILogger logger) : IHostedService
+        {
+            public Task StartAsync(CancellationToken cancellationToken)
+            {
+                admission.Start();
+                return Task.CompletedTask;
+            }
+
+            public Task StopAsync(CancellationToken cancellationToken)
+            {
+                try
+                {
+                    admission.Stop();
+                }
+                catch (AggregateException ex)
+                {
+                    logger.WssAdmissionStopFailed(ex);
+                }
+                return Task.CompletedTask;
+            }
+        }
+
+        private bool TryAdmitHttpBody(HttpContext context, out IDisposable? lease)
+        {
+            lease = null;
+            IServerResourceIsolationProvider? provider = m_quotas?.ResourceIsolationProvider;
+            if (provider == null)
+            {
+                return true;
+            }
+            int maximum = m_quotas!.MessageContext.MaxMessageSize;
+            if (maximum <= 0)
+            {
+                // An unlimited decoder body cannot be charged safely to a finite runtime pool.
+                return false;
+            }
+            ResourceIsolationOwner owner = provider.ClassifyConnection(
+                MakeEndpoint(context.Connection.RemoteIpAddress, context.Connection.RemotePort));
+            // Readers retain their growth buffer and decoded payload concurrently. Reserve the
+            // upper bound before allocation; HTTP requests are not physical UASC connections.
+            return provider.TryAcquire(
+                ResourceIsolationStage.ReassemblyBytes,
+                owner,
+                (3L * maximum) + m_quotas.MaxBufferSize,
+                out lease,
+                out _);
+        }
+
+        private static Task WriteAdmissionRejectedAsync(HttpContext context)
+        {
+            return WriteResponseAsync(
+                context.Response,
+                "HTTPSLISTENER - transport resource admission rejected.",
+                HttpStatusCode.ServiceUnavailable);
         }
 
 #pragma warning disable IDE0051, RCS1213 // Kept for the Task-returning request callback path used by alternate listeners.
@@ -1833,11 +2043,22 @@ namespace Opc.Ua.Bindings
         /// use the UA Secure Conversation layer so only Security Mode
         /// None is supported (transport security is TLS).
         /// </summary>
-        private async Task AcceptWebSocketJsonAsync(HttpContext context)
+        private async Task AcceptWebSocketJsonAsync(
+            HttpContext context,
+            UaScConnectionAdmission.Lease lease)
         {
+            bool admitted = TryAdmitHttpBody(context, out IDisposable? bodyLease);
+            using IDisposable? retainedBody = bodyLease;
+            if (!admitted)
+            {
+                await WriteAdmissionRejectedAsync(context).ConfigureAwait(false);
+                return;
+            }
             WebSocket ws = await context.WebSockets
                 .AcceptWebSocketAsync(Profiles.OpcUaWsSubProtocolUaJson)
                 .ConfigureAwait(false);
+            lease.SetAbortAction(ws.Abort);
+            lease.CompleteHandshake();
 
             CancellationToken ct = context.RequestAborted;
 
@@ -2018,6 +2239,7 @@ namespace Opc.Ua.Bindings
         /// flavor (Compact / Verbose per the Web API codec defaults).
         /// </summary>
         /// <param name="context">The HTTP context carrying the WebSocket upgrade.</param>
+        /// <param name="lease">The admission lease owned by the physical upgraded connection.</param>
         /// <param name="accessToken">The bearer token extracted from the
         /// <c>opcua+openapi+&lt;accesstoken&gt;</c> sub-protocol name, or
         /// <c>null</c> for the plain <c>opcua+openapi</c> variant. Browser
@@ -2029,8 +2251,16 @@ namespace Opc.Ua.Bindings
         /// through the standard <c>ISessionlessIdentityProvider</c> hook.</param>
         private async Task AcceptWebSocketOpenApiAsync(
             HttpContext context,
+            UaScConnectionAdmission.Lease lease,
             string? accessToken)
         {
+            bool admitted = TryAdmitHttpBody(context, out IDisposable? bodyLease);
+            using IDisposable? retainedBody = bodyLease;
+            if (!admitted)
+            {
+                await WriteAdmissionRejectedAsync(context).ConfigureAwait(false);
+                return;
+            }
             string selectedSubProtocol = accessToken == null
                 ? Profiles.OpcUaWsSubProtocolOpenApi
                 : Profiles.OpcUaWsSubProtocolOpenApiBearerPrefix + accessToken;
@@ -2038,6 +2268,8 @@ namespace Opc.Ua.Bindings
             WebSocket ws = await context.WebSockets
                 .AcceptWebSocketAsync(selectedSubProtocol)
                 .ConfigureAwait(false);
+            lease.SetAbortAction(ws.Abort);
+            lease.CompleteHandshake();
 
             CancellationToken ct = context.RequestAborted;
 
@@ -2276,6 +2508,10 @@ namespace Opc.Ua.Bindings
                 try
                 {
                     await handler(m_owner, args).ConfigureAwait(false);
+                    if (args.Accepted && transport is IUaSCHandshakeCompletionSource completion)
+                    {
+                        completion.CompleteHandshake();
+                    }
                 }
                 catch
                 {
@@ -2482,6 +2718,8 @@ namespace Opc.Ua.Bindings
         private List<EndpointDescription> m_descriptions = null!;
         private ChannelQuotas m_quotas = null!;
         private UaScConnectionAdmission? m_admission;
+        private readonly ConcurrentDictionary<UaScConnectionAdmission.Lease, byte> m_activeUpgrades = new();
+        private int m_admissionStopped;
         private BufferManager m_bufferManager = null!;
         private readonly IBufferManagerFactory m_bufferManagerFactory;
         private ITransportListenerCallback? m_callback;

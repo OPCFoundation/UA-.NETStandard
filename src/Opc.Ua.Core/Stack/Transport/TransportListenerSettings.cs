@@ -154,6 +154,18 @@ namespace Opc.Ua
         public ISessionBindingProvider? SessionBindingProvider { get; set; }
 
         /// <summary>
+        /// Gets or sets the server-owned isolation policy shared across transport listeners.
+        /// </summary>
+        public IServerResourceIsolationProvider? ResourceIsolationProvider { get; set; }
+
+        /// <summary>
+        /// Gets or sets the fixed deadline from physical connection admission to handshake completion.
+        /// Must be positive and no greater than two minutes. Partial input does not extend it.
+        /// An accepted ReverseHello handoff completes startup admission, allowing the client to save the connection.
+        /// </summary>
+        public TimeSpan HandshakeTimeout { get; set; } = TimeSpan.FromMinutes(2);
+
+        /// <summary>
         /// Indicates if Http listener requires mutual TLS
         /// Handled only by HttpsTransportListener
         /// In case true, the client should provide it's own valid TLS certificate to the TLS layer for the connection to succeed.
