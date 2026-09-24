@@ -127,6 +127,23 @@ runs:
         echo "OPCUA_PKCS11_PIN=1234"
       } >> "$GITHUB_ENV"
 
+  # Hosted Linux images need msquic to exercise QUIC rather than silently skip
+  # the transport tests. Keep provisioning strict for both PR and nightly runs.
+  - name: Setup msquic
+    if: ${{ contains(inputs.projects, 'Opc.Ua.Core.DataChannels.Tests') && runner.os == 'Linux' }}
+    shell: bash
+    run: |
+      set -euo pipefail
+      . /etc/os-release
+      curl -fsSL "https://packages.microsoft.com/config/${ID}/${VERSION_ID}/packages-microsoft-prod.deb" \
+        -o /tmp/packages-microsoft-prod.deb
+      sudo dpkg -i /tmp/packages-microsoft-prod.deb
+      sudo apt-get update
+      sudo apt-get install -y libmsquic
+
+      ldconfig -p | grep libmsquic
+      echo "UA_REQUIRE_QUIC=1" >> "$GITHUB_ENV"
+
   - name: Enable native core dumps
     # Issue #4447: on run 34158052372 the testhost was lost to a glibc abort -
     # `double free or corruption (out)` - and no dump was produced at all,

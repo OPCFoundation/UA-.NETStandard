@@ -278,3 +278,57 @@ namespace System.Diagnostics.CodeAnalysis
 }
 
 #endif
+
+// ExperimentalAttribute shipped in .NET 8. The compiler resolves it by full
+// name, so a source definition drives the same EXPxxxx diagnostics on the older
+// frameworks and callers opt in identically everywhere.
+#if !NET8_0_OR_GREATER
+
+namespace System.Diagnostics.CodeAnalysis
+{
+    /// <summary>
+    /// Indicates that an API is experimental and subject to change or removal,
+    /// so a caller has to opt in deliberately.
+    /// </summary>
+    [AttributeUsage(
+        AttributeTargets.Assembly |
+        AttributeTargets.Module |
+        AttributeTargets.Class |
+        AttributeTargets.Struct |
+        AttributeTargets.Enum |
+        AttributeTargets.Constructor |
+        AttributeTargets.Method |
+        AttributeTargets.Property |
+        AttributeTargets.Field |
+        AttributeTargets.Event |
+        AttributeTargets.Interface |
+        AttributeTargets.Delegate,
+        Inherited = false)]
+    public sealed class ExperimentalAttribute : Attribute
+    {
+        /// <summary>
+        /// Initializes a new instance of the
+        /// <see cref="ExperimentalAttribute"/> class.
+        /// </summary>
+        /// <param name="diagnosticId">The diagnostic the compiler reports for a
+        /// use of the marked API.</param>
+        public ExperimentalAttribute(string diagnosticId)
+        {
+            DiagnosticId = diagnosticId;
+        }
+
+        /// <summary>
+        /// Gets the diagnostic the compiler reports for a use of the marked
+        /// API.
+        /// </summary>
+        public string DiagnosticId { get; }
+
+        /// <summary>
+        /// Gets or sets the format of the URL naming the documentation for the
+        /// diagnostic, where <c>{0}</c> is the diagnostic identifier.
+        /// </summary>
+        public string? UrlFormat { get; set; }
+    }
+}
+
+#endif

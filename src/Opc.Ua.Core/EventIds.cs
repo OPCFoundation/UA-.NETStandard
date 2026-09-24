@@ -109,5 +109,7 @@ namespace Opc.Ua
         public const int X509CrlHelper = 580;
         public const int CryptoProvider = 590;
         public const int FilterEvaluator = 600;
+        public const int DataChannel = 610;
+        public const int DataChannelManager = 620;
     }
 }
