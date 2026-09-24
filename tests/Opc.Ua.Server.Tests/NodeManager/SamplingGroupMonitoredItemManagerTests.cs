@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
@@ -255,6 +256,44 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(
                 result.StatusCode,
                 Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+        }
+
+        [Test]
+        public void SubscribeToEventsUnsubscribeKeepsLinkedItemAndDisposesLastNode()
+        {
+            using SamplingGroupMonitoredItemManager manager = CreateManager(out _, out ServerSystemContext ctx);
+            var first = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("Notifier1", 3),
+                EventNotifier = EventNotifiers.SubscribeToEvents
+            };
+            var second = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("Notifier2", 3),
+                EventNotifier = EventNotifiers.SubscribeToEvents
+            };
+            var monitoredItem = new Mock<IEventMonitoredItem>();
+            monitoredItem.SetupGet(m => m.Id).Returns(7);
+
+            (MonitoredNode2? firstNode, _) = manager.SubscribeToEvents(ctx, first, monitoredItem.Object, false);
+            (MonitoredNode2? secondNode, _) = manager.SubscribeToEvents(ctx, second, monitoredItem.Object, false);
+
+            (_, ServiceResult result) = manager.SubscribeToEvents(ctx, first, monitoredItem.Object, true);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(manager.MonitoredItems.ContainsKey(7), Is.True);
+            Assert.That(manager.MonitoredNodes.ContainsKey(first.NodeId), Is.False);
+            Assert.That(
+                () => firstNode!.Add(monitoredItem.Object),
+                Throws.TypeOf<ObjectDisposedException>());
+
+            (_, result) = manager.SubscribeToEvents(ctx, second, monitoredItem.Object, true);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(manager.MonitoredItems.ContainsKey(7), Is.False);
+            Assert.That(
+                () => secondNode!.Add(monitoredItem.Object),
+                Throws.TypeOf<ObjectDisposedException>());
         }
     }
 }
