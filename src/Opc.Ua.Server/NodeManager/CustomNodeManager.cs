@@ -4608,11 +4608,50 @@ namespace Opc.Ua.Server
                     {
                         if (ReferenceEquals(notifier, RootNotifiers[ii]))
                         {
+                            // detach the Server object (all events) subscriptions which were
+                            // linked to this root notifier, otherwise they are stranded in the
+                            // monitored nodes once the notifier is no longer a root notifier.
+                            if (m_monitoredItemManager.MonitoredNodes.TryGetValue(
+                                notifier.NodeId, out MonitoredNode2? monitored))
+                            {
+                                foreach (IEventMonitoredItem item in monitored.EventMonitoredItems.Values.ToArray())
+                                {
+                                    if (!item.MonitoringAllEvents)
+                                    {
+                                        continue;
+                                    }
+                                    (MonitoredNode2? removed, ServiceResult result) = m_monitoredItemManager
+                                        .SubscribeToEvents(SystemContext, notifier, item, unsubscribe: true);
+                                    if (ServiceResult.IsBad(result))
+                                    {
+                                        throw new ServiceResultException(result);
+                                    }
+                                    notifier.SetAreEventsMonitored(SystemContext, false, true);
+                                    if (removed != null)
+                                    {
+                                        OnSubscribeToEvents(SystemContext, removed, true);
+                                    }
+                                }
+                            }
+
                             notifier.OnReportEvent = null;
                             notifier.RemoveReference(
                                 ReferenceTypeIds.HasNotifier,
                                 true,
                                 ObjectIds.Server);
+
+                            ServerObjectState? serverObject = Server.ServerObject;
+                            if (serverObject != null &&
+                                serverObject.ReferenceExists(
+                                    ReferenceTypeIds.HasNotifier,
+                                    false,
+                                    notifier.NodeId))
+                            {
+                                serverObject.RemoveReference(
+                                    ReferenceTypeIds.HasNotifier,
+                                    false,
+                                    notifier.NodeId);
+                            }
                             RootNotifiers.RemoveAt(ii);
                             break;
                         }

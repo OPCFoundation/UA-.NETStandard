@@ -5282,6 +5282,51 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Verifies that removing a root notifier detaches the Server object (all events)
+        /// monitored items linked to it, so they are not stranded in the monitored nodes.
+        /// </summary>
+        [Test]
+        public async Task RemoveRootNotifierDetachesAllEventsMonitoredItemsAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            var notifier = new BaseObjectState(null);
+            notifier.CreateAsPredefinedNode(context);
+            notifier.NodeId = new NodeId("AreaNotifier", nsIdx);
+            notifier.BrowseName = new QualifiedName("AreaNotifier", nsIdx);
+            notifier.EventNotifier = EventNotifiers.SubscribeToEvents;
+            await manager.AddNodeAsync(context, default, notifier).ConfigureAwait(false);
+            await manager.AddRootNotifierPublicAsync(notifier).ConfigureAwait(false);
+
+            var monitoredItem = new TestEventMonitoredItem
+            {
+                NodeId = ObjectIds.Server,
+                Id = 56,
+                MonitoringAllEvents = true,
+                MonitoringMode = MonitoringMode.Reporting
+            };
+            ServiceResult result = await manager.SubscribeToAllEventsAsync(
+                new OperationContext(new RequestHeader(), null, RequestType.CreateSubscription, RequestLifetime.None),
+                1,
+                monitoredItem,
+                false).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(manager.MonitoredNodes.ContainsKey(notifier.NodeId), Is.True);
+            Assert.That(notifier.AreEventsMonitored, Is.True);
+
+            await manager.RemoveRootNotifierPublicAsync(notifier).ConfigureAwait(false);
+
+            Assert.That(manager.RootNotifiers.ContainsKey(notifier.NodeId), Is.False);
+            Assert.That(
+                manager.MonitoredNodes.TryGetValue(notifier.NodeId, out MonitoredNode2 monitoredNode) &&
+                    monitoredNode.EventMonitoredItems.ContainsKey(monitoredItem.Id),
+                Is.False);
+            Assert.That(notifier.AreEventsMonitored, Is.False);
+        }
+
+        /// <summary>
         /// Verifies that the node-manager event callback forwards events to the server.
         /// </summary>
         [Test]
