@@ -535,7 +535,10 @@ namespace Opc.Ua
                 return true;
             }
 
-            if (obj == null && IsNullDiagnosticInfo)
+            // Only the top level object compares equal to null. A nested
+            // all-default inner diagnostic info must not equal a missing one,
+            // that would make Equals asymmetric and break the hash contract.
+            if (obj == null && depth == 0 && IsNullDiagnosticInfo)
             {
                 return true;
             }

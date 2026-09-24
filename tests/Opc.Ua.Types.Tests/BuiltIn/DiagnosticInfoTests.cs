@@ -68,6 +68,22 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
+        public void EqualsIsSymmetricForAllDefaultInnerDiagnosticInfo()
+        {
+            var withInner = new DiagnosticInfo { InnerDiagnosticInfo = new DiagnosticInfo() };
+            var withoutInner = new DiagnosticInfo();
+
+            bool forward = withInner.Equals(withoutInner);
+            bool backward = withoutInner.Equals(withInner);
+
+            Assert.That(forward, Is.EqualTo(backward));
+            if (forward)
+            {
+                Assert.That(withInner.GetHashCode(), Is.EqualTo(withoutInner.GetHashCode()));
+            }
+        }
+
+        [Test]
         public void CopyConstructorWithNullThrowsArgumentNullException()
         {
 #pragma warning disable IDE0004 // Remove Unnecessary Cast

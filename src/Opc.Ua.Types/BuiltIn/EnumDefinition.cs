@@ -112,7 +112,8 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override int GetHashCode()
         {
-            return HashCode.Combine(base.GetHashCode(), Fields);
+            // the base class has no value based hash code.
+            return Fields.GetHashCode();
         }
 
         /// <inheritdoc/>
