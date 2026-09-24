@@ -1824,16 +1824,11 @@ namespace Opc.Ua.Server
 
             try
             {
+                // The limit bounds the browsePaths array only (Part 5 6.3.11); the number of
+                // RelativePath elements is capped per operation by the dispatcher.
                 ValidateOperationLimits(
                     browsePaths,
                     OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds);
-
-                foreach (BrowsePath bp in browsePaths)
-                {
-                    ValidateOperationLimits(
-                        bp.RelativePath.Elements.Count,
-                        OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds);
-                }
 
                 (ArrayOf<BrowsePathResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await ServerInternal.NodeManager.TranslateBrowsePathsToNodeIdsAsync(
