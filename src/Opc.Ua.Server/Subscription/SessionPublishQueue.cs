@@ -153,7 +153,10 @@ namespace Opc.Ua.Server
                 // are added last and requeued ones first, so the head is the oldest. A requeued
                 // request was admitted before every request still queued, so it is itself the
                 // oldest and is the one rejected.
-                while (Volatile.Read(ref m_pendingRequestCount) >= m_maxRequestCount)
+                // The Server shall also accept more queued requests than created Subscriptions,
+                // so the limit is raised to one more than the Subscriptions of the Session.
+                int maxRequestCount = Math.Max(m_maxRequestCount, m_queuedSubscriptions.Count + 1);
+                while (Volatile.Read(ref m_pendingRequestCount) >= maxRequestCount)
                 {
                     if (requeue || m_queuedRequests.Count == 0)
                     {
