@@ -976,12 +976,43 @@ namespace Opc.Ua.Client
             ArrayOf<string> preferredLocales,
             CancellationToken ct = default)
         {
-            using (await m_serviceLock.WriterLockAsync(ct)
-                .ConfigureAwait(false))
+            // An explicit identity replaces the identity provider: a refresh
+            // loop still bound to the provider would reactivate its identity
+            // on the next tick and silently undo this call. Stop the loop
+            // before taking the writer lock (the loop takes it too) and
+            // restart it if the update does not go through.
+            IClientIdentityProvider? provider = identity != null ? m_identityProvider : null;
+            if (provider != null)
             {
-                await InnerSession.UpdateSessionAsync(
-                    identity, preferredLocales, ct)
-                    .ConfigureAwait(false);
+                await StopIdentityRefreshLoopAsync().ConfigureAwait(false);
+            }
+
+            bool updated = false;
+            try
+            {
+                using (await m_serviceLock.WriterLockAsync(ct)
+                    .ConfigureAwait(false))
+                {
+                    await InnerSession.UpdateSessionAsync(
+                        identity, preferredLocales, ct)
+                        .ConfigureAwait(false);
+                }
+                updated = true;
+            }
+            finally
+            {
+                if (provider != null && ReferenceEquals(m_identityProvider, provider))
+                {
+                    if (updated)
+                    {
+                        m_identityProvider = null;
+                        m_identity = identity;
+                    }
+                    else
+                    {
+                        StartIdentityRefreshLoop();
+                    }
+                }
             }
         }
 
@@ -2733,12 +2764,19 @@ namespace Opc.Ua.Client
         private static readonly TimeSpan IdentityRefreshSafetyMargin = TimeSpan.FromSeconds(60);
 
         private readonly ILogger m_logger;
-        private readonly IUserIdentity? m_identity;
+
+        /// <summary>
+        /// The eager identity used to connect. Replaced by an explicit
+        /// <see cref="UpdateSessionAsync(IUserIdentity, ArrayOf{string}, CancellationToken)"/>
+        /// on a provider-backed session, which drops the provider.
+        /// </summary>
+        private IUserIdentity? m_identity;
 
         /// <summary>
         /// The provider that materializes user identities. Replaced by
         /// <see cref="UpdateIdentityAsync(IClientIdentityProvider, CancellationToken)"/>
-        /// so the refresh loop follows the identity that is actually active.
+        /// so the refresh loop follows the identity that is actually active,
+        /// and cleared by an explicit identity update.
         /// </summary>
         private volatile IClientIdentityProvider? m_identityProvider;
         private readonly TimeProvider m_timeProvider;
