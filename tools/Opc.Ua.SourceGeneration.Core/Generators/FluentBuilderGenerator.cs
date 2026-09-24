@@ -1025,6 +1025,15 @@ namespace Opc.Ua.SourceGeneration
                     {
                         continue;
                     }
+                    // Placeholders (<Name>) are never instantiated under that
+                    // browse name, so an accessor walking to "<Name>" could
+                    // never resolve a child.
+                    if (child.ModellingRule is
+                        ModellingRule.OptionalPlaceholder or
+                        ModellingRule.MandatoryPlaceholder)
+                    {
+                        continue;
+                    }
                     if (child is PropertyDesign)
                     {
                         properties.Add(child);

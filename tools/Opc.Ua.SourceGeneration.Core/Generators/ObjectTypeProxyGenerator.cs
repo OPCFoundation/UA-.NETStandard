@@ -400,6 +400,16 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
+                // A placeholder (<Name>) only declares that instances can
+                // carry any number of children of that type under their own
+                // browse names; no instance has a child named "<Name>", so
+                // a single-child accessor could never resolve anything.
+                if (objectChild.ModellingRule is
+                    ModellingRule.OptionalPlaceholder or
+                    ModellingRule.MandatoryPlaceholder)
+                {
+                    continue;
+                }
                 result.Add(objectChild);
             }
             result.Sort(static (a, b) => string.CompareOrdinal(
@@ -483,17 +493,34 @@ namespace Opc.Ua.SourceGeneration
                 (m_inheritedMethodNames != null &&
                     m_inheritedMethodNames.Contains(emittedName));
 
+            // The accessor is named after the symbolic name (a C# identifier),
+            // but the server is asked for the child's real BrowseName, which
+            // differs whenever the design or NodeSet sets one explicitly
+            // (e.g. BrowseName "Axis 1", SymbolicName "Axis1").
             context.Template.AddBrowseNameReplacement(
                 Tokens.BrowseName,
                 Tokens.BrowseNameLiteral,
-                childBrowseName,
+                GetBrowseName(objectChild),
                 m_logger);
+            context.Template.AddReplacement(Tokens.BrowseName, childBrowseName);
             context.Template.AddReplacement(Tokens.TypeName, typeName);
             context.Template.AddReplacement(Tokens.ClassName, clientType);
             context.Template.AddReplacement(Tokens.AccessModifier, isShadow ? "new " : string.Empty);
             context.Template.AddReplacement(Tokens.BrowseNameNamespaceUri, browseNameNamespaceUri ?? string.Empty);
             context.Template.AddReplacement(Tokens.FieldName, fieldName);
             return context.Template.Render();
+        }
+
+        /// <summary>
+        /// The on-the-wire browse name of a child: the explicit BrowseName
+        /// when the design sets one, otherwise the symbolic name (the design
+        /// schema default).
+        /// </summary>
+        private static string GetBrowseName(NodeDesign node)
+        {
+            return string.IsNullOrEmpty(node.BrowseName)
+                ? node.SymbolicName?.Name ?? string.Empty
+                : node.BrowseName;
         }
 
         private static string LowerFirst(string s)
@@ -552,7 +579,7 @@ namespace Opc.Ua.SourceGeneration
             string methodBrowseNamespaceLiteral =
                 StringLiteralEscaper.AsCSharpStringLiteralContent(methodBrowseNamespaceUri);
             string methodBrowseNameLiteral =
-                StringLiteralEscaper.AsCSharpStringLiteralContent(methodName);
+                StringLiteralEscaper.AsCSharpStringLiteralContent(GetBrowseName(method));
 
             // Compute the strongly typed return signature.
             string returnTypeAnnotation = GetReturnTypeAnnotation(

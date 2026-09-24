@@ -515,12 +515,26 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 @"global::Opc\.Ua\.Server\.Fluent\.INodeBuilder<global::Opc\.Ua\.MethodState>\s+Blue\("),
                 "Method child accessor must return INodeBuilder<MethodState>");
 
-            // Variable children (Red, Pink_Placeholder) sit under
-            // HasComponent in the TestModel; the generator must emit
-            // them as IVariableBuilder<T> on IComponentAccessor.
+            // Variable children (Red) sit under HasComponent in the
+            // TestModel; the generator must emit them as
+            // IVariableBuilder<T> on IComponentAccessor.
             Assert.That(fb, Does.Match(
                 @"global::Opc\.Ua\.Server\.Fluent\.IVariableBuilder<\w+>\s+Red\("),
                 "Variable HasComponent child accessor must return IVariableBuilder<T>");
+        }
+
+        /// <summary>
+        /// Regression: the placeholder child Pink_Placeholder (browse name
+        /// <c>&lt;Pink&gt;</c>) got an accessor walking to a child that no
+        /// instance carries, so it could never resolve.
+        /// </summary>
+        [Test]
+        public void EmittedFluentBuilders_PlaceholderChildHasNoAccessor()
+        {
+            string fb = GetFluentBuilders();
+
+            Assert.That(fb, Does.Not.Contain("Pink_Placeholder("));
+            Assert.That(fb, Does.Match(@"\s+Red\("), "ordinary children keep their accessor");
         }
 
         [Test]

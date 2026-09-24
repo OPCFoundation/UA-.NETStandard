@@ -496,6 +496,110 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 "public partial class RootTypeClient : global::Opc.Ua.ObjectTypeClient"));
         }
 
+        /// <summary>
+        /// Regression: the child accessor asked the server for the child's
+        /// SymbolicName instead of its BrowseName, so any child whose two names
+        /// differ (e.g. BrowseName "Axis 1", SymbolicName "Axis1") never resolved.
+        /// </summary>
+        [Test]
+        public void Emit_ObjectChildWithDistinctBrowseName_ResolvesByBrowseName()
+        {
+            ObjectTypeDesign childType = CreateObjectType("AxisType");
+            ObjectTypeDesign parent = CreateObjectType("RobotType");
+            parent.Children = new ListOfChildren
+            {
+                Items = [CreateObjectChild("Axis1", "Axis 1", childType)]
+            };
+            m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([childType, parent]);
+
+            string content = EmitToString();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(content, Does.Contain("GetAxis1Async("));
+                Assert.That(content, Does.Contain($"\"{kTestNamespaceUri}\", \"Axis 1\", ct"));
+                Assert.That(content, Does.Not.Contain("\"Axis1\""));
+            });
+        }
+
+        /// <summary>
+        /// Regression: a placeholder child (<c>&lt;MotorIdentifier&gt;</c>, SymbolicName
+        /// <c>MotorIdentifier_Placeholder</c>) got a single-child accessor that asked for
+        /// a child named "MotorIdentifier_Placeholder" and therefore always returned null.
+        /// Instances expose placeholder children under their own names, so no accessor
+        /// is emitted.
+        /// </summary>
+        [TestCase(ModellingRule.OptionalPlaceholder)]
+        [TestCase(ModellingRule.MandatoryPlaceholder)]
+        public void Emit_PlaceholderObjectChild_EmitsNoAccessor(ModellingRule rule)
+        {
+            ObjectTypeDesign childType = CreateObjectType("MotorType");
+            ObjectTypeDesign parent = CreateObjectType("PowerTrainType");
+            ObjectDesign placeholder = CreateObjectChild(
+                "MotorIdentifier_Placeholder", "<MotorIdentifier>", childType);
+            placeholder.ModellingRule = rule;
+            parent.Children = new ListOfChildren
+            {
+                Items = [placeholder, CreateObjectChild("Brake", null, childType)]
+            };
+            m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([childType, parent]);
+
+            string content = EmitToString();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(content, Does.Not.Contain("MotorIdentifier"));
+                Assert.That(content, Does.Contain("GetBrakeAsync("), "ordinary children keep their accessor");
+            });
+        }
+
+        /// <summary>
+        /// The Bad_MethodInvalid fallback resolves the instance method by browse
+        /// name, so it must be given the BrowseName, not the SymbolicName.
+        /// </summary>
+        [Test]
+        public void Emit_MethodWithDistinctBrowseName_PassesBrowseNameToFallback()
+        {
+            MethodDesign method = CreateMethod("StartMotion");
+            method.BrowseName = "Start Motion";
+            ObjectTypeDesign objectType = CreateObjectType("FooType", method);
+            m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([objectType]);
+
+            string content = EmitToString();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(content, Does.Contain("StartMotionAsync("));
+                Assert.That(content, Does.Contain("\"Start Motion\","));
+            });
+        }
+
+        private string EmitToString()
+        {
+            using var stream = new MemoryStream();
+            m_mockFileSystem
+                .Setup(fs => fs.OpenWrite(It.IsAny<string>()))
+                .Returns(stream);
+            new ObjectTypeProxyGenerator(CreateContext()).Emit();
+            return Encoding.UTF8.GetString(stream.ToArray());
+        }
+
+        private static ObjectDesign CreateObjectChild(
+            string symbolicName,
+            string browseName,
+            ObjectTypeDesign typeDefinition)
+        {
+            return new ObjectDesign
+            {
+                SymbolicName = new XmlQualifiedName(symbolicName, kTestNamespaceUri),
+                SymbolicId = new XmlQualifiedName(symbolicName, kTestNamespaceUri),
+                BrowseName = browseName,
+                TypeDefinition = typeDefinition.SymbolicName,
+                TypeDefinitionNode = typeDefinition,
+                ModellingRule = ModellingRule.Mandatory
+            };
+        }
+
         private GeneratorContext CreateContext(GeneratorOptions options = null)
         {
             m_context = new GeneratorContext
