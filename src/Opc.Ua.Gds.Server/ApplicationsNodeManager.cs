@@ -1926,8 +1926,10 @@ namespace Opc.Ua.Gds.Server
 
                 if (!resolvedTypeId.IsNull)
                 {
+                    // Only a concrete type of the group can be issued; an abstract
+                    // supertype (e.g. ApplicationCertificateType) is not valid.
                     if (!certificateGroup.CertificateTypes.Contains(certificateType =>
-                            Server.TypeTree.IsTypeOf(certificateType, resolvedTypeId)))
+                            certificateType == resolvedTypeId))
                     {
                         return result = new ServiceResult(
                             StatusCodes.BadInvalidArgument,
@@ -2113,8 +2115,10 @@ namespace Opc.Ua.Gds.Server
 
                 if (!resolvedTypeId.IsNull)
                 {
+                    // Only a concrete type of the group can be issued; an abstract
+                    // supertype (e.g. ApplicationCertificateType) is not valid.
                     if (!certificateGroup.CertificateTypes.Contains(certificateType =>
-                            Server.TypeTree.IsTypeOf(certificateType, resolvedTypeId)))
+                            certificateType == resolvedTypeId))
                     {
                         result.ServiceResult = new ServiceResult(
                             StatusCodes.BadInvalidArgument,
