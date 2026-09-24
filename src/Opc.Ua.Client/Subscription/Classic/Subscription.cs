@@ -272,9 +272,31 @@ namespace Opc.Ua.Client
         /// e.g. the user explicitly initiating a transfer-away — runs
         /// through the spec-strict path.
         /// </para>
+        /// <para>
+        /// A notification that arrived while this client was transferring
+        /// the subscription itself (or that predates such a transfer) only
+        /// reports that transfer to the old session. It is ignored: the old
+        /// session's reconnecting flag does not reveal the transfer, and
+        /// stopping or recreating here would kill the subscription on the
+        /// session it was just moved to.
+        /// </para>
         /// </summary>
-        private void HandleGoodSubscriptionTransferred()
+        /// <param name="savedDuringTransfer">The message was received while a
+        /// transfer of this subscription was in progress.</param>
+        /// <param name="transferGeneration">The transfer generation at the
+        /// time the message was received.</param>
+        private void HandleGoodSubscriptionTransferred(
+            bool savedDuringTransfer,
+            int transferGeneration)
         {
+            if (savedDuringTransfer ||
+                Volatile.Read(ref m_transfersInProgress) != 0 ||
+                transferGeneration != Volatile.Read(ref m_transferGeneration))
+            {
+                m_logger.SubscriptionIdIgnoredGoodSubscriptionTransferredOwnTransfer(Id);
+                return;
+            }
+
             ISession? session = Session;
             bool unsolicited = session != null &&
                 !session.Reconnecting &&
@@ -294,6 +316,27 @@ namespace Opc.Ua.Client
             // publish loop is shut down. Applications can subscribe to
             // PublishStatusChanged with the Transferred flag to react.
             _ = ResetPublishTimerAndWorkerStateAsync(); // Do not block on ourselves but exit
+        }
+
+        /// <summary>
+        /// Called by the session before it asks the server to transfer this
+        /// subscription, so the <c>Good_SubscriptionTransferred</c> the server
+        /// sends to the old session is not taken for an unsolicited one.
+        /// Must be paired with <see cref="OnTransferFinished"/>.
+        /// </summary>
+        internal void OnTransferStarting()
+        {
+            Interlocked.Increment(ref m_transferGeneration);
+            Interlocked.Increment(ref m_transfersInProgress);
+        }
+
+        /// <summary>
+        /// Called by the session once a transfer started with
+        /// <see cref="OnTransferStarting"/> has completed or failed.
+        /// </summary>
+        internal void OnTransferFinished()
+        {
+            Interlocked.Decrement(ref m_transfersInProgress);
         }
 
         /// <summary>
@@ -1976,6 +2019,8 @@ namespace Opc.Ua.Client
                     if (message.NotificationData.Count > 0 && !newEntry.Processed)
                     {
                         newEntry.Message = message;
+                        newEntry.SavedDuringTransfer = Volatile.Read(ref m_transfersInProgress) != 0;
+                        newEntry.TransferGeneration = Volatile.Read(ref m_transferGeneration);
                     }
                 }
 
@@ -2902,7 +2947,8 @@ namespace Opc.Ua.Client
                 PublishStateChangedEventHandler? callback = null;
 
                 // list of new messages to process.
-                List<NotificationMessage>? messagesToProcess = null;
+                List<(NotificationMessage Message, bool SavedDuringTransfer, int TransferGeneration)>?
+                    messagesToProcess = null;
 
                 // list of keep alive messages to process.
                 List<IncomingMessage>? keepAliveToProcess = null;
@@ -2928,7 +2974,8 @@ namespace Opc.Ua.Client
                             !ii.Value.Processed &&
                             (!State.SequentialPublishing || ValidSequentialPublishMessage(ii.Value)))
                         {
-                            (messagesToProcess ??= []).Add(ii.Value.Message);
+                            (messagesToProcess ??= []).Add(
+                                (ii.Value.Message, ii.Value.SavedDuringTransfer, ii.Value.TransferGeneration));
 
                             // remove the oldest items. The emptiness check keeps a
                             // negative MaxMessageCount from throwing on RemoveFirst.
@@ -3035,7 +3082,8 @@ namespace Opc.Ua.Client
                         = FastDataChangeCallback;
                     FastEventNotificationEventHandler? eventCallback = FastEventCallback;
 
-                    foreach (NotificationMessage message in messagesToProcess)
+                    foreach ((NotificationMessage message, bool savedDuringTransfer, int transferGeneration)
+                        in messagesToProcess)
                     {
                         noNotificationsReceived = 0;
                         try
@@ -3117,7 +3165,9 @@ namespace Opc.Ua.Client
                                         publishStateChangedMask
                                             |= PublishStateChangedMask.Transferred;
 
-                                        HandleGoodSubscriptionTransferred();
+                                        HandleGoodSubscriptionTransferred(
+                                            savedDuringTransfer,
+                                            transferGeneration);
                                     }
                                     else if (statusChanged.Status == StatusCodes.BadTimeout)
                                     {
@@ -3681,6 +3731,8 @@ namespace Opc.Ua.Client
         /// </summary>
         private readonly AsyncLocal<bool> m_dispatchContext = new();
         private int m_recreateAfterTransferInProgress;
+        private int m_transfersInProgress;
+        private int m_transferGeneration;
         private readonly Lock m_cache = new();
         private readonly LinkedList<NotificationMessage> m_messageCache = new();
         private ArrayOf<uint> m_availableSequenceNumbers;
@@ -3709,6 +3761,8 @@ namespace Opc.Ua.Client
             public bool Republished;
             public bool RepublishImmediately;
             public StatusCode RepublishStatus;
+            public bool SavedDuringTransfer;
+            public int TransferGeneration;
         }
     }
 
@@ -4357,5 +4411,12 @@ namespace Opc.Ua.Client
             uint sequenceNumber,
             uint lastSequenceNumber,
             NodeId? sessionId);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 70, Level = LogLevel.Information,
+            Message = "SubscriptionId {SubscriptionId}: Good_SubscriptionTransferred reports a transfer this" +
+                " client made itself; the subscription is kept running.")]
+        public static partial void SubscriptionIdIgnoredGoodSubscriptionTransferredOwnTransfer(
+            this ILogger logger,
+            uint subscriptionId);
     }
 }

@@ -2370,6 +2370,15 @@ namespace Opc.Ua.Client
             {
                 bool reconnecting = false;
                 await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
+
+                // The server reports the transfer to the old session with a
+                // Good_SubscriptionTransferred, which the subscription must
+                // not take for an unsolicited transfer (Reconnecting is only
+                // set on this session, not on the old one).
+                foreach (Subscription subscription in subscriptions)
+                {
+                    subscription.OnTransferStarting();
+                }
                 try
                 {
                     reconnecting = Reconnecting;
@@ -2475,6 +2484,10 @@ namespace Opc.Ua.Client
                 }
                 finally
                 {
+                    foreach (Subscription subscription in subscriptions)
+                    {
+                        subscription.OnTransferFinished();
+                    }
                     Reconnecting = reconnecting;
                     m_reconnectLock.Release();
                 }

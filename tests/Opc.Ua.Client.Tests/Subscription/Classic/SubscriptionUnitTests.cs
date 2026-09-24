@@ -783,6 +783,49 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
+        /// The Good_SubscriptionTransferred a server sends to the old session
+        /// when this client transfers the subscription itself must neither
+        /// stop the publish worker nor recreate the subscription (L7-7).
+        /// </summary>
+        [TestCase(SubscriptionRecoveryPolicy.ReportOnly)]
+        [TestCase(SubscriptionRecoveryPolicy.RecreateOnUnsolicitedTransfer)]
+        [CancelAfter(5000)]
+        public async Task OwnTransferDoesNotStopOrRecreateTheSubscriptionAsync(
+            SubscriptionRecoveryPolicy policy,
+            CancellationToken ct)
+        {
+            NotificationMessage[] messages = BuildMessages(2);
+            using SubscriptionContainer container = await BuildSubscriptionAsync(
+                messages, sequentialPublishing: false, ct).ConfigureAwait(false);
+            Subscription subscription = container.Subscription;
+            subscription.RecoveryPolicy = policy;
+            uint originalId = subscription.Id;
+            var transferredReported = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            subscription.PublishStatusChanged += (_, args) =>
+            {
+                if ((args.Status & PublishStateChangedMask.Transferred) != 0)
+                {
+                    transferredReported.TrySetResult(true);
+                }
+            };
+
+            subscription.OnTransferStarting();
+            subscription.SaveMessageInCache(default, BuildStatusChangeMessage(
+                sequenceNumber: 1, StatusCodes.GoodSubscriptionTransferred));
+            await transferredReported.Task.WaitAsync(ct).ConfigureAwait(false);
+            subscription.OnTransferFinished();
+
+            // the publish worker must still be running
+            subscription.SaveMessageInCache(default, messages[2]);
+            await Task.WhenAny(container.ProcessedMessages[2], Task.Delay(1000, ct)).ConfigureAwait(false);
+
+            Assert.That(container.ProcessedMessages[2].IsCompleted, Is.True,
+                "The publish worker was stopped by the notification of the own transfer.");
+            Assert.That(subscription.Id, Is.EqualTo(originalId),
+                "The subscription must not be recreated after the own transfer.");
+        }
+
+        /// <summary>
         /// A late copy of a message that was already processed (the original
         /// Publish response racing its Republish) must not be delivered again
         /// (L7-2).
