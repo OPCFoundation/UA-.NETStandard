@@ -89,6 +89,13 @@ namespace Opc.Ua.Gds.Client
                         .ConfigureAwait(false);
                     byte[] bytes = chunk.ToArray() ?? [];
 
+                    // Part 20 4.2.4: the server may return less data than
+                    // requested; only an empty ByteString marks end of file.
+                    if (bytes.Length == 0)
+                    {
+                        break;
+                    }
+
                     totalBytesRead += bytes.Length;
                     if (totalBytesRead > maxTrustListSize)
                     {
@@ -99,11 +106,6 @@ namespace Opc.Ua.Gds.Client
                     }
 
                     ostrm.Write(bytes, 0, bytes.Length);
-
-                    if (bytes.Length != chunkSize)
-                    {
-                        break;
-                    }
                 }
 
                 ostrm.Position = 0;
