@@ -1006,6 +1006,7 @@ namespace Opc.Ua.Features.Tests
             alarm.Comment!.Value = new LocalizedText("en", "Original comment");
 
             var eventId = new ByteString(new byte[] { 1, 2, 3, 4 });
+            MakeAcknowledgeable(alarm, eventId);
             ServiceResult result = alarm.CallAcknowledge(
                 m_context, eventId, new LocalizedText(string.Empty));
 
@@ -1023,6 +1024,7 @@ namespace Opc.Ua.Features.Tests
             alarm.Comment!.Value = new LocalizedText("en", "Original comment");
 
             var eventId = new ByteString(new byte[] { 5, 6, 7, 8 });
+            MakeAcknowledgeable(alarm, eventId);
             ServiceResult result = alarm.CallAcknowledge(
                 m_context, eventId, new LocalizedText("en", "Operator comment"));
 
@@ -1038,6 +1040,7 @@ namespace Opc.Ua.Features.Tests
             alarm.Comment!.Value = new LocalizedText("en", "Original comment");
 
             ByteString eventId = ByteString.FromHexString("090A0B0C");
+            MakeAcknowledgeable(alarm, eventId);
             ServiceResult result = alarm.CallAcknowledge(
                 m_context,
                 eventId,
@@ -1046,6 +1049,15 @@ namespace Opc.Ua.Features.Tests
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(alarm.Comment!.Value.Locale, Is.EqualTo("en"));
             Assert.That(alarm.Comment.Value.Text, Is.EqualTo(string.Empty));
+        }
+
+        /// <summary>
+        /// Part 9 5.7.3: only the current, unacknowledged state can be acknowledged.
+        /// </summary>
+        private void MakeAcknowledgeable(AlarmConditionState alarm, ByteString eventId)
+        {
+            alarm.EventId!.Value = eventId;
+            alarm.SetAcknowledgedState(m_context, false);
         }
     }
 }

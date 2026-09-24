@@ -527,10 +527,15 @@ namespace Opc.Ua
 
             if (ServiceResult.IsGood(error))
             {
-                string? currentUserId = GetCurrentUserId(context);
+                // Part 9 5.5.6: the comment belongs to the event occurrence identified by
+                // the EventId. A branch comment is applied (and reported) by the branch only.
                 ConditionState? branch = GetBranch(eventId);
-                branch?.OnAddCommentCalled(context, method, objectId, eventId, comment);
+                if (branch != null && !ReferenceEquals(branch, this))
+                {
+                    return branch.OnAddCommentCalled(context, method, objectId, eventId, comment);
+                }
 
+                string? currentUserId = GetCurrentUserId(context);
                 SetComment(context, comment, currentUserId ?? string.Empty);
             }
 
@@ -606,6 +611,12 @@ namespace Opc.Ua
             if (!EnabledState!.Id!.Value) // condition states always have EnabledState/Id after construction
             {
                 return StatusCodes.BadConditionDisabled;
+            }
+
+            // Part 9 5.5.6: comments are added to event occurrences identified by the EventId.
+            if (GetEventByEventId(eventId) == null)
+            {
+                return StatusCodes.BadEventIdUnknown;
             }
 
             if (OnAddComment != null)

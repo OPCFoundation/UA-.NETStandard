@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Globalization;
 using System.Text;
 using System.Threading;
 
@@ -171,6 +170,12 @@ namespace Opc.Ua
                     ReportStateChange(context, false);
                 }
             }
+            catch (Exception ex)
+            {
+                // a failed response must not be audited as successful.
+                error = ServiceResult.Create(ex, StatusCodes.BadUnexpectedError, "Unexpected error responding to a Dialog.");
+                throw;
+            }
             finally
             {
                 if (AreEventsMonitored)
@@ -200,10 +205,11 @@ namespace Opc.Ua
                         Variant.From(new Variant[] { selectedResponse }),
                         false);
 
+                    // SelectedResponse is a UInt32 property (Part 9 5.10.5).
                     e.SetChildValue(
                         context,
                         BrowseNames.SelectedResponse,
-                        selectedResponse.ToString(CultureInfo.InvariantCulture),
+                        selectedResponse >= 0 ? (uint)selectedResponse : 0u,
                         false);
 
                     ReportEvent(context, e);

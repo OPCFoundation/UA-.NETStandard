@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 
 namespace Opc.Ua
@@ -147,6 +148,8 @@ namespace Opc.Ua
 
             if (ServiceResult.IsGood(error))
             {
+                AddHandledEventId(m_acknowledgedEventIds, eventId);
+
                 AcknowledgeableConditionState? branch = GetAcknowledgeableBranch(eventId);
 
                 if (branch != null)
@@ -245,6 +248,22 @@ namespace Opc.Ua
                 return StatusCodes.BadConditionDisabled;
             }
 
+            // Part 9 5.7.3: the EventId must identify the current state of the condition
+            // or of one of its branches, and that state must still need acknowledgement.
+            if (GetEventByEventId(eventId) is not AcknowledgeableConditionState target)
+            {
+                // the EventId of a state that was acknowledged before is superseded by
+                // the EventId of the state change the acknowledgement reported.
+                return IsHandledEventId(m_acknowledgedEventIds, eventId)
+                    ? StatusCodes.BadConditionBranchAlreadyAcked
+                    : StatusCodes.BadEventIdUnknown;
+            }
+
+            if (target.AckedState?.Id?.Value == true)
+            {
+                return StatusCodes.BadConditionBranchAlreadyAcked;
+            }
+
             if (OnAcknowledge != null)
             {
                 try
@@ -323,6 +342,8 @@ namespace Opc.Ua
 
             if (ServiceResult.IsGood(error))
             {
+                AddHandledEventId(m_confirmedEventIds, eventId);
+
                 AcknowledgeableConditionState? branch = GetAcknowledgeableBranch(eventId);
 
                 if (branch != null)
@@ -406,6 +427,22 @@ namespace Opc.Ua
             if (!EnabledState!.Id!.Value) // condition states always have EnabledState/Id after construction
             {
                 return StatusCodes.BadConditionDisabled;
+            }
+
+            // Part 9 5.7.4: the EventId must identify the current state of the condition
+            // or of one of its branches, and that state must still need confirmation.
+            if (GetEventByEventId(eventId) is not AcknowledgeableConditionState target)
+            {
+                // the EventId of a state that was confirmed before is superseded by
+                // the EventId of the state change the confirmation reported.
+                return IsHandledEventId(m_confirmedEventIds, eventId)
+                    ? StatusCodes.BadConditionBranchAlreadyConfirmed
+                    : StatusCodes.BadEventIdUnknown;
+            }
+
+            if (target.ConfirmedState?.Id?.Value == true)
+            {
+                return StatusCodes.BadConditionBranchAlreadyConfirmed;
             }
 
             if (OnConfirm != null)
@@ -566,5 +603,44 @@ namespace Opc.Ua
 
             return retainState;
         }
+
+        /// <summary>
+        /// Remembers an EventId whose state was acknowledged or confirmed.
+        /// </summary>
+        private void AddHandledEventId(Queue<ByteString> handled, ByteString eventId)
+        {
+            lock (m_handledEventIdsLock)
+            {
+                handled.Enqueue(eventId);
+                while (handled.Count > kMaxHandledEventIds)
+                {
+                    handled.Dequeue();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Returns true if the EventId identifies a state that was acknowledged or confirmed.
+        /// </summary>
+        private bool IsHandledEventId(Queue<ByteString> handled, ByteString eventId)
+        {
+            lock (m_handledEventIdsLock)
+            {
+                foreach (ByteString id in handled)
+                {
+                    if (id == eventId)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private const int kMaxHandledEventIds = 16;
+        private readonly Lock m_handledEventIdsLock = new();
+        private readonly Queue<ByteString> m_acknowledgedEventIds = new();
+        private readonly Queue<ByteString> m_confirmedEventIds = new();
     }
 }

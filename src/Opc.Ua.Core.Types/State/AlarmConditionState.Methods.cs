@@ -641,6 +641,12 @@ namespace Opc.Ua
                     ReportStateChange(context, false);
                 }
             }
+            catch (Exception ex)
+            {
+                // a failed call must not be audited as successful.
+                error = ServiceResult.Create(ex, StatusCodes.BadUnexpectedError, "Unexpected error calling a Condition method.");
+                throw;
+            }
             finally
             {
                 if (AreEventsMonitored)
