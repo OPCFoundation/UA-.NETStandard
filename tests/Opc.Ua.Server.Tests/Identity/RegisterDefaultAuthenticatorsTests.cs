@@ -197,6 +197,25 @@ namespace Opc.Ua.Server.Tests.Identity
             Assert.That(result.Error!.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
         }
 
+        [Test]
+        public async Task UserDatabaseVerifierRejectsDisabledUserAsync()
+        {
+            var database = new FakeUserDatabase { CredentialsValid = true };
+            database.Users.Add(new UserManagementDataType
+            {
+                UserName = "alice",
+                UserConfiguration = (uint)UserConfigurationMask.Disabled
+            });
+
+            UserNamePasswordAuthenticator authenticator = GetUserNamePasswordAuthenticator(database);
+            AuthenticationResult result = await authenticator
+                .AuthenticateAsync(CreateContext("alice", [1, 2, 3, 4]))
+                .ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
+            Assert.That(result.Error!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+        }
+
         private static UserNamePasswordAuthenticator GetUserNamePasswordAuthenticator(IUserDatabase database)
         {
             var registry = new RecordingRegistry();
@@ -217,6 +236,8 @@ namespace Opc.Ua.Server.Tests.Identity
         private sealed class FakeUserDatabase : IUserDatabase
         {
             public bool CredentialsValid { get; set; }
+
+            public List<UserManagementDataType> Users { get; } = [];
 
             /// <inheritdoc/>
             public bool CheckCredentials(string userName, ReadOnlySpan<byte> password)
@@ -245,7 +266,7 @@ namespace Opc.Ua.Server.Tests.Identity
             /// <inheritdoc/>
             public IReadOnlyList<UserManagementDataType> GetUsers()
             {
-                return [];
+                return Users;
             }
 
             /// <inheritdoc/>

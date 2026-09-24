@@ -135,7 +135,10 @@ namespace Opc.Ua.Server
                     "Security token is not a valid username token. An empty password is not accepted.");
             }
 
-            if (!userDatabase.CheckCredentials(userName, password))
+            // A user disabled through UserManagement (Part 18 UserConfigurationMask.Disabled)
+            // is persisted in the database and must be rejected like a wrong password.
+            bool credentialsValid = userDatabase.CheckCredentials(userName, password);
+            if (IsUserDisabled(userDatabase, userName) || !credentialsValid)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadUserAccessDenied,
@@ -143,6 +146,19 @@ namespace Opc.Ua.Server
             }
 
             return new ValueTask<IUserIdentity>(new UserIdentity(userTokenHandler));
+        }
+
+        private static bool IsUserDisabled(IUserDatabase userDatabase, string userName)
+        {
+            foreach (UserManagementDataType user in userDatabase.GetUsers())
+            {
+                if (string.Equals(user.UserName, userName, StringComparison.Ordinal))
+                {
+                    return ((UserConfigurationMask)user.UserConfiguration &
+                        UserConfigurationMask.Disabled) != 0;
+                }
+            }
+            return false;
         }
     }
 }
