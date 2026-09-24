@@ -283,7 +283,19 @@ namespace Opc.Ua
                 case Attributes.DataTypeDefinition:
                     if (!value.TryGetValue(out ExtensionObject dataTypeDefinition))
                     {
+                        // only a Null value clears the definition; any other type is
+                        // not a DataTypeDefinition (Part 4 7.38.2 Bad_TypeMismatch).
+                        if (!value.IsNull)
+                        {
+                            return StatusCodes.BadTypeMismatch;
+                        }
+
                         dataTypeDefinition = default;
+                    }
+                    else if (dataTypeDefinition.TryGetValue(out IEncodeable? body) &&
+                        body is not Opc.Ua.DataTypeDefinition)
+                    {
+                        return StatusCodes.BadTypeMismatch;
                     }
 
                     if ((WriteMask & AttributeWriteMask.DataTypeDefinition) == 0)

@@ -105,6 +105,41 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
+        public void WriteDataTypeDefinitionRejectsWrongType()
+        {
+            var definition = new ExtensionObject(new StructureDefinition());
+            var dt = new DataTypeState
+            {
+                DataTypeDefinition = definition,
+                WriteMask = AttributeWriteMask.DataTypeDefinition
+            };
+
+            ServiceResult result = dt.WriteAttribute(
+                m_context, Attributes.DataTypeDefinition, default, new DataValue(new Variant(42)));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
+            Assert.That(dt.DataTypeDefinition, Is.EqualTo(definition));
+
+            result = dt.WriteAttribute(
+                m_context,
+                Attributes.DataTypeDefinition,
+                default,
+                new DataValue(new Variant(new ExtensionObject(new Argument()))));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
+            Assert.That(dt.DataTypeDefinition, Is.EqualTo(definition));
+
+            var enumDefinition = new ExtensionObject(new EnumDefinition());
+            result = dt.WriteAttribute(
+                m_context, Attributes.DataTypeDefinition, default, new DataValue(new Variant(enumDefinition)));
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(dt.DataTypeDefinition, Is.EqualTo(enumDefinition));
+
+            result = dt.WriteAttribute(
+                m_context, Attributes.DataTypeDefinition, default, new DataValue(Variant.Null));
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(dt.DataTypeDefinition.IsNull, Is.True);
+        }
+
+        [Test]
         public void PurposePropertyCanBeSetAndRead()
         {
             var dt = new DataTypeState
