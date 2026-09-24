@@ -370,6 +370,39 @@ namespace Opc.Ua.Gds.Tests
         }
 
         /// <summary>
+        /// OPC 10000-12 §8.5.5 / §8.5.6: a SecurityPolicyUri requires a PublicKey,
+        /// and a secret that is not encrypted reports no SecurityPolicyUri.
+        /// </summary>
+        [Test]
+        public async Task KeyCredentialSecurityPolicyRequiresPublicKeyAsync()
+        {
+            ISystemContext context = CreateContext(
+                CreateRoleIdentity(GdsRole.KeyCredentialAdmin),
+                certificateMarker: 15);
+
+            Assert.That(
+                async () => await m_service.StartRequest!.OnCallAsync!(
+                    context,
+                    m_service.StartRequest,
+                    m_service.NodeId,
+                    OwnerApplicationUri,
+                    default,
+                    SecurityPolicies.Basic256Sha256,
+                    default,
+                    CancellationToken.None).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadInvalidArgument));
+
+            NodeId requestId = await StartRequestAsync(context, OwnerApplicationUri)
+                .ConfigureAwait(false);
+            KeyCredentialFinishRequestMethodStateResult finished =
+                await FinishRequestAsync(context, requestId, cancelRequest: false)
+                    .ConfigureAwait(false);
+            Assert.That(finished.SecurityPolicyUri, Is.Null.Or.Empty);
+        }
+
+        /// <summary>
         /// OPC 10000-12 §7.9.3 - §7.9.5: the certificate request methods shall
         /// be called from an encrypted SecureChannel.
         /// </summary>

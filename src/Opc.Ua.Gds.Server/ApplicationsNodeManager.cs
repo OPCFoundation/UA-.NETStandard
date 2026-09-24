@@ -2869,6 +2869,14 @@ namespace Opc.Ua.Gds.Server
             try
             {
                 AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
+                if (!string.IsNullOrEmpty(securityPolicyUri) && publicKey.IsEmpty)
+                {
+                    // OPC 10000-12 §8.5.5: if the SecurityPolicyUri is provided
+                    // the PublicKey shall be provided.
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidArgument,
+                        "A PublicKey is required when a SecurityPolicyUri is provided.");
+                }
                 ByteString clientCertificateFingerprint =
                     AuthorizationHelper.GetClientCertificateFingerprint(context);
                 NodeId applicationId = ResolveKeyCredentialApplicationId(m_database, applicationUri);
