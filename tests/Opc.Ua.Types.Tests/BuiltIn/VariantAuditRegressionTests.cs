@@ -756,9 +756,48 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             });
         }
 
+        [Test]
+        public void ConstructRecognizesMultiDimensionalEncodeableAndEnumArrays()
+        {
+            // T2-12: the multi-dimensional branch tested the array type.
+            TypeInfo encodeables = TypeInfo.Construct(typeof(Argument[,]));
+            TypeInfo enums = TypeInfo.Construct(typeof(AuditTestEnum[,,]));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(encodeables.BuiltInType, Is.EqualTo(BuiltInType.ExtensionObject));
+                Assert.That(encodeables.ValueRank, Is.EqualTo(2));
+                Assert.That(TypeInfo.GetValueRank(typeof(Argument[,])), Is.EqualTo(2));
+                Assert.That(enums.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
+                Assert.That(enums.ValueRank, Is.EqualTo(3));
+            });
+        }
+
+        [Test]
+        public void UnknownTypeInfoIsNeitherScalarNorArray()
+        {
+            // T2-13: Unknown reported ValueRank 0 (OneOrMoreDimensions).
+            Assert.Multiple(() =>
+            {
+                Assert.That(TypeInfo.Unknown.IsArray, Is.False);
+                Assert.That(TypeInfo.Unknown.IsScalar, Is.False);
+                Assert.That(TypeInfo.Unknown.IsMatrix, Is.False);
+                Assert.That(TypeInfo.Unknown.ValueRank, Is.EqualTo(ValueRanks.Any));
+                Assert.That(Variant.Null.TypeInfo.IsArray, Is.False);
+                Assert.That(Variant.Null.TypeInfo.ValueRank, Is.EqualTo(ValueRanks.Any));
+                Assert.That(TypeInfo.Unknown, Is.Default);
+            });
+        }
+
         private static bool IsEqual(object left, object right)
         {
             return left.Equals(right);
+        }
+
+        public enum AuditTestEnum
+        {
+            One = 1,
+            Two = 2
         }
     }
 }
