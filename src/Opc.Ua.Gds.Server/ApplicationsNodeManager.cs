@@ -2524,7 +2524,11 @@ namespace Opc.Ua.Gds.Server
 
             var result = new RequestAccessTokenMethodStateResult();
 
-            ArrayOf<Variant> auditInputs = [Variant.FromStructure(identityToken), resourceId];
+            ArrayOf<Variant> auditInputs =
+            [
+                Diagnostics.AuditEvents.RedactUserIdentityToken(identityToken),
+                resourceId
+            ];
             IAccessTokenProvider provider = GetAccessTokenProvider(
                 context,
                 objectId,
@@ -2625,8 +2629,10 @@ namespace Opc.Ua.Gds.Server
             [
                 requestId,
                 requestedRoles,
-                Variant.FromStructure(userIdentityToken),
-                Variant.FromStructure(userTokenSignature)
+                // The token secret and the proof-of-possession signature must
+                // not be published to audit subscribers.
+                Diagnostics.AuditEvents.RedactUserIdentityToken(userIdentityToken),
+                Variant.Null
             ];
 
             IAccessTokenProvider provider = GetAccessTokenProvider(
