@@ -930,7 +930,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static readonly TemplateString InitializeOptionalChild = TemplateString.Parse(
             $$"""
-            if ({{Tokens.ChildName}} != null)
+            if ({{Tokens.ChildName}} != null && NeedsOptionalInitialization({{Tokens.ChildName}}))
             {
                 {{Tokens.ChildName}}.Create(
                     context,
@@ -1379,7 +1379,7 @@ namespace Opc.Ua.SourceGeneration
         public static readonly TemplateString CloneChild = TemplateString.Parse(
             $$"""
             state.{{Tokens.BrowseName}} =
-                ({{Tokens.ClassName}})global::Opc.Ua.CoreUtils.Clone({{Tokens.BrowseName}});
+                CloneChild({{Tokens.BrowseName}}, state);
             """);
 
         /// <summary>
