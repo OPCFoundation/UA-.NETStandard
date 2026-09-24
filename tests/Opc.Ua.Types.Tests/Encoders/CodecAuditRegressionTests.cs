@@ -559,6 +559,123 @@ namespace Opc.Ua.Types.Tests.Encoders
             private bool m_disposed;
         }
 
+        private static Nested CreateNestedChain(int depth)
+        {
+            var root = new Nested();
+            Nested current = root;
+            for (int ii = 0; ii < depth; ii++)
+            {
+                var child = new Nested();
+                current.Child = new ExtensionObject(child);
+                current = child;
+            }
+            return root;
+        }
+
+        [Test]
+        public void SeekableBinaryEncoderCountsExtensionObjectBodiesAgainstNestingLimit()
+        {
+            // The seekable stream path encoded the body without incrementing
+            // the nesting level while the decoder counts every body.
+            ServiceMessageContext context = CreateContext();
+            context.MaxEncodingNestingLevels = 4;
+            Nested root = CreateNestedChain(10);
+
+            using var stream = new MemoryStream();
+            using var encoder = new BinaryEncoder(stream, context, true);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => encoder.WriteExtensionObject("Body", new ExtensionObject(root)));
+            Assert.That(
+                ex.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
+        public void SeekableBinaryEncoderNestedExtensionObjectsWithinLimitRoundTrip()
+        {
+            ServiceMessageContext context = CreateContext();
+            context.Factory.AddEncodeableType(typeof(Nested));
+            context.MaxEncodingNestingLevels = 8;
+            Nested root = CreateNestedChain(3);
+
+            byte[] buffer;
+            using (var stream = new MemoryStream())
+            {
+                using (var encoder = new BinaryEncoder(stream, context, true))
+                {
+                    encoder.WriteExtensionObject("Body", new ExtensionObject(root));
+                }
+                buffer = stream.ToArray();
+            }
+
+            using var decoder = new BinaryDecoder(buffer, context);
+            ExtensionObject decoded = decoder.ReadExtensionObject("Body");
+            Assert.That(decoded.TryGetValue(out Nested result), Is.True);
+            Assert.That(result.IsEqual(root), Is.True);
+        }
+
+        [Test]
+        public void XmlEncoderCountsExtensionObjectBodiesAgainstNestingLimit()
+        {
+            // WriteExtensionObjectBody encoded the body without incrementing
+            // the nesting level while XmlDecoder counts every body.
+            ServiceMessageContext context = CreateContext();
+            context.MaxEncodingNestingLevels = 4;
+            Nested root = CreateNestedChain(10);
+
+            using var encoder = new XmlEncoder(context);
+            encoder.PushNamespace(kNs);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => encoder.WriteExtensionObject("Body", new ExtensionObject(root)));
+            Assert.That(
+                ex.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        /// <summary>
+        /// An encodeable with an ExtensionObject field used to build nested bodies.
+        /// </summary>
+        public sealed class Nested : IEncodeable
+        {
+            public ExtensionObject Child { get; set; }
+
+            public ExpandedNodeId TypeId => new(88811, 0);
+            public ExpandedNodeId BinaryEncodingId => new(88812, 0);
+            public ExpandedNodeId XmlEncodingId => new(88813, 0);
+
+            public void Encode(IEncoder encoder)
+            {
+                encoder.WriteExtensionObject("Child", Child);
+            }
+
+            public void Decode(IDecoder decoder)
+            {
+                Child = decoder.ReadExtensionObject("Child");
+            }
+
+            public bool IsEqual(IEncodeable encodeable)
+            {
+                if (encodeable is not Nested other)
+                {
+                    return false;
+                }
+                bool hasChild = Child.TryGetValue(out Nested mine);
+                bool otherHasChild = other.Child.TryGetValue(out Nested theirs);
+                if (hasChild != otherHasChild)
+                {
+                    return false;
+                }
+                return !hasChild || mine.IsEqual(theirs);
+            }
+
+            public object Clone()
+            {
+                return new Nested { Child = Child };
+            }
+        }
+
         /// <summary>
         /// A minimal encodeable used as an ExtensionObject body.
         /// </summary>

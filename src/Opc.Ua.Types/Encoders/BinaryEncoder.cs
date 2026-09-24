@@ -1026,7 +1026,10 @@ namespace Opc.Ua
 
                 // write a placeholder for the body length.
                 WriteInt32(null, -1);
-                encodeable.Encode(this);
+
+                // count the body against the nesting budget like the
+                // non-seekable path and BinaryDecoder.ReadExtensionObject.
+                WriteEncodeable(encodeable);
 
                 // update body length.
                 long delta = writer.BaseStream.Position - start;

@@ -2025,7 +2025,19 @@ namespace Opc.Ua
                     // encode extension object in xml.
                     XmlQualifiedName? xmlName = TypeInfo.GetXmlName(encodeable, Context);
                     m_writer.WriteStartElement(xmlName!.Name, xmlName.Namespace);
-                    encodeable!.Encode(this);
+
+                    // count the body against the nesting budget like
+                    // XmlDecoder.ReadExtensionObject does.
+                    CheckAndIncrementNestingLevel();
+                    try
+                    {
+                        encodeable!.Encode(this);
+                    }
+                    finally
+                    {
+                        m_nestingLevel--;
+                    }
+
                     m_writer.WriteEndElement();
                 }
                 else
