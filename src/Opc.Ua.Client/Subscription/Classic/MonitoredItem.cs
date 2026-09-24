@@ -107,6 +107,12 @@ namespace Opc.Ua.Client
             if (copyClientHandle)
             {
                 ClientHandle = template.ClientHandle;
+
+                // The triggering links reference client handles, which stay
+                // valid, so a recreated subscription can restore them. The
+                // server id of the triggering item does not carry over.
+                TriggeredItems = template.TriggeredItems;
+                TriggeringItemId = 0;
             }
             else
             {

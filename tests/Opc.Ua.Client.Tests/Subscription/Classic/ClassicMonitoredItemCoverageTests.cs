@@ -643,6 +643,46 @@ namespace Opc.Ua.Client.Tests
             Assert.That(clone.ClientHandle, Is.EqualTo(item.ClientHandle));
         }
 
+        /// <summary>
+        /// Triggering links reference client handles, so a clone that keeps
+        /// the client handle must keep them for restoration after a session
+        /// recreate (L7-5). A clone with a fresh handle must not.
+        /// </summary>
+        [Test]
+        public void CloneWithCopyClientHandleKeepsTriggeringLinks()
+        {
+            MonitoredItem item = CreateItem();
+            item.TriggeredItems = [11u, 12u];
+            item.TriggeringItemId = 99;
+
+            MonitoredItem sameHandle = item.CloneMonitoredItem(false, true);
+            MonitoredItem newHandle = item.CloneMonitoredItem(false, false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(sameHandle.TriggeredItems.ToArray(), Is.EqualTo(new uint[] { 11, 12 }));
+                Assert.That(sameHandle.TriggeringItemId, Is.Zero);
+                Assert.That(newHandle.TriggeredItems.IsEmpty, Is.True);
+            });
+        }
+
+        [Test]
+        public void SubscriptionCloneKeepsTriggeringLinksOfItems()
+        {
+            using var subscription = new Subscription(m_telemetry);
+            MonitoredItem triggering = CreateItem();
+            MonitoredItem triggered = CreateItem();
+            triggering.TriggeredItems = [triggered.ClientHandle];
+            subscription.AddItems([triggering, triggered]);
+
+            using Subscription clone = subscription.CloneSubscription(false);
+
+            MonitoredItem clonedTriggering = clone.FindItemByClientHandle(triggering.ClientHandle);
+            Assert.That(clonedTriggering, Is.Not.Null);
+            Assert.That(clonedTriggering.TriggeredItems.ToArray(),
+                Is.EqualTo(new[] { triggered.ClientHandle }));
+        }
+
         [Test]
         public void TemplateConstructorTruncatesDisplayNameAtLastSpace()
         {
