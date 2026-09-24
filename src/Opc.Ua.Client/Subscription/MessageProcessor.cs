@@ -373,6 +373,15 @@ namespace Opc.Ua.Client.Subscriptions
                 // the keep-alive, and DO NOT advance the data-dedup gate
                 // (LastDataSequenceNumberProcessed) — otherwise the next real
                 // data message would be silently dropped as a duplicate.
+                //
+                // Because the keep-alive names the next sequence number, a
+                // keep-alive more than one ahead of the last data message
+                // proves the messages in between were sent but never
+                // received (Part 4 §5.14.1.1). Recover them now rather than
+                // waiting for the next data message, which on a quiet
+                // subscription may never come before the server drops them.
+                await RecoverMissingBeforeKeepAliveAsync(curSeqNum, ct)
+                    .ConfigureAwait(false);
                 LastSequenceNumberProcessed = curSeqNum;
                 await OnNotificationReceivedAsync(
                     incoming.Message,
@@ -469,6 +478,64 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// Republish the data messages a keep-alive proves are missing. The
+        /// keep-alive carries the sequence number of the next message to be
+        /// sent, so every sequence number between the last processed data
+        /// message and the keep-alive was sent and is missing.
+        /// </summary>
+        /// <param name="keepAliveSeqNum">The sequence number of the
+        /// keep-alive.</param>
+        /// <param name="ct">Cancellation token.</param>
+        private async ValueTask RecoverMissingBeforeKeepAliveAsync(
+            uint keepAliveSeqNum,
+            CancellationToken ct)
+        {
+            const uint kBackwardThreshold = 1u << 31;
+            uint prevDataSeq = LastDataSequenceNumberProcessed;
+            if (prevDataSeq == 0)
+            {
+                // Nothing to compare against yet (first message after create).
+                return;
+            }
+            uint delta = unchecked(keepAliveSeqNum - prevDataSeq);
+            if (delta is 0 or 1 or >= kBackwardThreshold)
+            {
+                // No gap, or a stale keep-alive.
+                return;
+            }
+            uint gap = delta - 1;
+            if (keepAliveSeqNum < prevDataSeq)
+            {
+                // Zero is skipped at the wrap point (Part 4 §5.14.5.1).
+                gap--;
+            }
+            if (gap == 0)
+            {
+                return;
+            }
+            Interlocked.Add(ref m_missingCount, gap);
+            IReadOnlyList<uint> available = AvailableInRetransmissionQueue;
+            for (int i = 0; i < available.Count; i++)
+            {
+                uint seq = available[i];
+                uint offset = unchecked(seq - prevDataSeq);
+                if (offset != 0 && offset < delta)
+                {
+                    await TryRepublishAsync(seq, keepAliveSeqNum, ct)
+                        .ConfigureAwait(false);
+                }
+            }
+
+            // Advance the data gate to the message just before the keep-alive
+            // so the gap is accounted for once: the data message that later
+            // reuses the keep-alive's sequence number is then not treated as
+            // a gap again, and recovered messages that arrive late are
+            // discarded as duplicates.
+            uint lastMissing = unchecked(keepAliveSeqNum - 1);
+            LastDataSequenceNumberProcessed = lastMissing == 0 ? uint.MaxValue : lastMissing;
+        }
+
+        /// <summary>
         /// Retires the current server-side generation while message delivery is
         /// quiesced, resets generation-specific cursors, and initializes the
         /// replacement before queued messages can resume.
@@ -481,9 +548,18 @@ namespace Opc.Ua.Client.Subscriptions
             Func<CancellationToken, ValueTask> initializeAsync,
             CancellationToken ct)
         {
-            await m_messageDispatchGate.WaitAsync(ct).ConfigureAwait(false);
+            if (!m_messageDispatchGate.Wait(0, CancellationToken.None))
+            {
+                // A notification callback is running. Callers hold the
+                // owner's state lock here, so give the owner a chance to
+                // release anything that callback may be awaiting which in
+                // turn needs that lock - otherwise neither side progresses.
+                OnDispatchGateContended();
+                await m_messageDispatchGate.WaitAsync(ct).ConfigureAwait(false);
+            }
             try
             {
+                OnDispatchGateAcquired();
                 await retireAsync(ct).ConfigureAwait(false);
                 Interlocked.Increment(ref m_generation);
                 LastSequenceNumberProcessed = 0;
@@ -496,6 +572,23 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 m_messageDispatchGate.Release();
             }
+        }
+
+        /// <summary>
+        /// Called by <see cref="ResetMessageGenerationAsync"/> when it has to
+        /// wait for a notification callback to return before it can retire
+        /// the current generation.
+        /// </summary>
+        protected virtual void OnDispatchGateContended()
+        {
+        }
+
+        /// <summary>
+        /// Called by <see cref="ResetMessageGenerationAsync"/> once it holds
+        /// the dispatch gate, i.e. while no notification callback runs.
+        /// </summary>
+        protected virtual void OnDispatchGateAcquired()
+        {
         }
 
         /// <summary>
@@ -536,6 +629,26 @@ namespace Opc.Ua.Client.Subscriptions
                 // next message is not treated as the first after create.
                 foreach (uint sequenceNumber in ordered)
                 {
+                    if (LastDataSequenceNumberProcessed != 0 &&
+                        !IsNewerSequenceNumber(
+                            sequenceNumber,
+                            LastDataSequenceNumberProcessed))
+                    {
+                        // The subscription survived the transfer with its
+                        // dedup gate intact (reconnect onto the same
+                        // object), and this message was already dispatched
+                        // - it is only still listed because its
+                        // acknowledgement had not reached the server yet
+                        // (Part 4 §5.14.7.2). Do not republish or
+                        // re-dispatch it; just acknowledge it so the server
+                        // can drop it from its retransmission queue.
+                        await AckQueue.QueueAsync(new SubscriptionAcknowledgement
+                        {
+                            SequenceNumber = sequenceNumber,
+                            SubscriptionId = Id
+                        }, ct).ConfigureAwait(false);
+                        continue;
+                    }
                     await RepublishKnownAvailableAsync(
                         sequenceNumber,
                         sequenceNumber,
