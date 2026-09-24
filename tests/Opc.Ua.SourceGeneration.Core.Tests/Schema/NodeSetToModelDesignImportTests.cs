@@ -158,7 +158,7 @@ namespace Opc.Ua.Schema.Model.Tests
             Assert.That(diagnostics, Is.Not.Null, "the node must not be dropped");
             Assert.That(
                 diagnostics.Children?.Items?.Select(x => x.SymbolicName.Name),
-                Is.EqualTo(new[] { "Counter" }),
+                Is.EqualTo(s_counter),
                 "the subtree must be kept");
         }
 
@@ -192,8 +192,11 @@ namespace Opc.Ua.Schema.Model.Tests
 
             Assert.That(
                 owner.Children?.Items?.Select(x => x.SymbolicName.Name),
-                Is.EqualTo(new[] { "Shared" }));
+                Is.EqualTo(s_shared));
         }
+
+        private static readonly string[] s_counter = ["Counter"];
+        private static readonly string[] s_shared = ["Shared"];
 
         /// <summary>
         /// N-2: a node whose only link to its ParentNodeId is a

@@ -219,18 +219,18 @@ namespace Opc.Ua.Schema.Model.Tests
                 .Where(f => f.Key.Contains("S12.", StringComparison.Ordinal))
                 .SelectMany(f => f.Value.Split('\n'))
                 .Select(l => l.Trim())
-                .Where(l => l.StartsWith("state.WrappedValue", StringComparison.Ordinal))];
+                .Where(l => l.StartsWith("baseState.WrappedValue", StringComparison.Ordinal))];
 
             Assert.That(lines, Has.Some.EqualTo(
-                "state.WrappedValue = global::Opc.Ua.Variant.From(" +
+                "baseState.WrappedValue = global::Opc.Ua.Variant.From(" +
                 "global::Opc.Ua.NodeId.Parse(\"i=5000\").WithNamespaceIndex(" +
                 "context.NamespaceUris.GetIndexOrAppend(\"" + OtherUri + "\")));"));
             Assert.That(lines, Has.Some.EqualTo(
-                "state.WrappedValue = global::Opc.Ua.Variant.From(" +
+                "baseState.WrappedValue = global::Opc.Ua.Variant.From(" +
                 "new global::Opc.Ua.QualifiedName(\"Foo\", " +
                 "context.NamespaceUris.GetIndexOrAppend(\"" + TargetUri + "\")));"));
             Assert.That(lines, Has.Some.EqualTo(
-                "state.WrappedValue = global::Opc.Ua.Variant.From(" +
+                "baseState.WrappedValue = global::Opc.Ua.Variant.From(" +
                 "global::Opc.Ua.ExpandedNodeId.Parse(\"nsu=" + OtherUri + ";i=5000\"));"));
         }
 
