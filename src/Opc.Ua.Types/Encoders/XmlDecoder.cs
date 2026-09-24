@@ -1998,6 +1998,12 @@ namespace Opc.Ua
                         value = ToMatrixOrThrow(ReadEncodeableArray<T>(null, encodeableTypeId), dimensions);
                         EndField("Elements");
                     }
+                    else if (dimensions.Length > 0)
+                    {
+                        // An empty matrix has no Elements content; keep it
+                        // empty (not null) when the dimensions allow it.
+                        value = ToMatrixOrThrow(ArrayOf.Empty<T>(), dimensions);
+                    }
 
                     PopNamespace();
 
@@ -2028,6 +2034,12 @@ namespace Opc.Ua
                     {
                         value = ToMatrixOrThrow(ReadEncodeableArray<T>(null), dimensions);
                         EndField("Elements");
+                    }
+                    else if (dimensions.Length > 0)
+                    {
+                        // An empty matrix has no Elements content; keep it
+                        // empty (not null) when the dimensions allow it.
+                        value = ToMatrixOrThrow(ArrayOf.Empty<T>(), dimensions);
                     }
 
                     PopNamespace();
@@ -2160,7 +2172,7 @@ namespace Opc.Ua
                 {
                     PushNamespace(Namespaces.OpcUaXsd);
 
-                    value = ReadVariantValue();
+                    value = ReadVariantValue(true, typeInfo.BuiltInType);
 
                     // Allow reading with unknown type info
                     if (!typeInfo.IsUnknown && !value.IsNull)
@@ -2170,7 +2182,8 @@ namespace Opc.Ua
                             typeInfo = typeInfo.WithBuiltInType(BuiltInType.Int32);
                         }
 
-                        if (value.TypeInfo != typeInfo)
+                        if (value.TypeInfo != typeInfo &&
+                            !IsInlineMatrixOf(value, typeInfo))
                         {
                             throw ServiceResultException.Create(
                                 StatusCodes.BadDecodingError,
@@ -2192,8 +2205,30 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Whether a decoded inline matrix matches the matrix type info of a
+        /// structure field. The rank of the decoded value follows its
+        /// dimensions, which for an empty matrix can be a single zero.
+        /// </summary>
+        internal static bool IsInlineMatrixOf(in Variant value, TypeInfo typeInfo)
+        {
+            return typeInfo.IsMatrix &&
+                value.TypeInfo.BuiltInType == typeInfo.BuiltInType &&
+                value.IsInlineMatrix(out _);
+        }
+
         /// <inheritdoc/>
         public Variant ReadVariantValue()
+        {
+            return ReadVariantValue(false, BuiltInType.Null);
+        }
+
+        /// <summary>
+        /// Reads the content of a Variant. A raw value is the value of a
+        /// structure field whose inline matrix may be empty.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private Variant ReadVariantValue(bool readRawValue, BuiltInType rawBuiltInType)
         {
             // skip whitespace.
             while (m_reader.NodeType != XmlNodeType.Element)
@@ -2272,7 +2307,7 @@ namespace Opc.Ua
                         case "DataValue":
                             return ReadDataValue(typeName);
                         case "Matrix":
-                            return ReadMatrix(typeName);
+                            return ReadMatrix(typeName, readRawValue, rawBuiltInType);
                         default:
                             throw ServiceResultException.Create(
                                 StatusCodes.BadDecodingError,
@@ -2522,7 +2557,10 @@ namespace Opc.Ua
         /// Reads a Matrix from the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private Variant ReadMatrix(string? fieldName)
+        private Variant ReadMatrix(
+            string? fieldName,
+            bool readRawValue,
+            BuiltInType rawBuiltInType)
         {
             CheckAndIncrementNestingLevel();
 
@@ -2540,8 +2578,11 @@ namespace Opc.Ua
                     // the product-versus-length consistency is enforced by
                     // MatrixOf<T> below. Reject an absent, too-short, zero or
                     // negative dimension here so an empty matrix (which would
-                    // otherwise satisfy the product check) is rejected.
-                    if (!MatrixOf.IsValidMatrix(dimensions))
+                    // otherwise satisfy the product check) is rejected. The
+                    // inline matrix of a structure field may be empty (5.2.5).
+                    if (readRawValue
+                        ? !MatrixOf.IsValidInlineMatrix(dimensions)
+                        : !MatrixOf.IsValidMatrix(dimensions))
                     {
                         throw ServiceResultException.Create(
                             StatusCodes.BadDecodingError,
@@ -2552,6 +2593,21 @@ namespace Opc.Ua
                     {
                         value = ReadMatrix(dimensions);
                         EndField("Elements");
+                    }
+                    else if (readRawValue)
+                    {
+                        // An empty inline matrix has no element to take the type
+                        // from; it must have a zero dimension.
+                        if (!MatrixOf.IsValidInlineMatrix(dimensions, 0))
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadDecodingError,
+                                "Variant matrix Dimensions [{0}] are inconsistent with 0 element(s).",
+                                string.Join(",", dimensions));
+                        }
+                        value = Variant.CreateEmptyMatrix(
+                            rawBuiltInType == BuiltInType.Enumeration ? BuiltInType.Int32 : rawBuiltInType,
+                            dimensions);
                     }
 
                     PopNamespace();
@@ -2574,7 +2630,9 @@ namespace Opc.Ua
 
             MatrixOf<T> ToMatrix<T>(ArrayOf<T> elements, int[] dimensions)
             {
-                if (!MatrixOf.IsValidMatrix(dimensions, elements.Count))
+                if (readRawValue
+                    ? !MatrixOf.IsValidInlineMatrix(dimensions, elements.Count)
+                    : !MatrixOf.IsValidMatrix(dimensions, elements.Count))
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,

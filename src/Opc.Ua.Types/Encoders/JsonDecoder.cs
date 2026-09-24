@@ -3733,10 +3733,14 @@ namespace Opc.Ua
                     // (which would otherwise satisfy the product check) is rejected.
                     // This sits inside the try so the pushed stack entry is popped
                     // again by the finally below.
+                    // The inline matrix of a structure field (raw value) may be
+                    // empty, a dimension of 0 means no values (5.2.5, 5.4.5).
                     if (!TryGetInt32ArrayFromElement(
                         dimensionElement,
                         out ArrayOf<int> dims) ||
-                        !MatrixOf.IsValidMatrix(dims.Span))
+                        (readRawValue
+                            ? !MatrixOf.IsValidInlineMatrix(dims.Span)
+                            : !MatrixOf.IsValidMatrix(dims.Span)))
                     {
                         value = default;
                         return false;

@@ -4410,6 +4410,7 @@ namespace Opc.Ua.Schema.Model
 
                 ValidateParameters(dataType, dataType.Fields);
                 ValidateFieldNamesAreUsableAsXmlNames(dataType);
+                NormalizeSingleDimensionMatrixFields(dataType);
 
                 dataType.IsStructure = IsTypeOf(
                     dataType,
@@ -4751,6 +4752,32 @@ namespace Opc.Ua.Schema.Model
                     "generated for it. Rename the field in the design.",
                     field.Name,
                     dataType.SymbolicId.Name);
+            }
+        }
+
+        /// <summary>
+        /// A field declared <see cref="ValueRank.OneOrMoreDimensions"/> with a
+        /// single ArrayDimensions entry is a one dimensional array: its
+        /// StructureField is published with ValueRank OneDimension, so a
+        /// DataTypeDefinition driven decoder reads a plain array. Generate
+        /// (type, encoding, schemas) it as the array it is instead of as an
+        /// inline matrix.
+        /// </summary>
+        private static void NormalizeSingleDimensionMatrixFields(DataTypeDesign dataType)
+        {
+            if (dataType.Fields == null)
+            {
+                return;
+            }
+
+            foreach (Parameter field in dataType.Fields)
+            {
+                if (field?.ValueRank == ValueRank.OneOrMoreDimensions &&
+                    !string.IsNullOrWhiteSpace(field.ArrayDimensions) &&
+                    field.ArrayDimensions.Split([','], StringSplitOptions.RemoveEmptyEntries).Length == 1)
+                {
+                    field.ValueRank = ValueRank.Array;
+                }
             }
         }
 

@@ -321,6 +321,17 @@ namespace Opc.Ua.Encoders
                     encoder.WriteVariant(name, variant);
                     break;
                 default:
+                    // A raw binary array or matrix value is written without
+                    // type information, so a null Variant must still carry
+                    // the field's shape: a null array (length -1) or a null
+                    // inline matrix (OPC 10000-6 5.2.5), never nothing at all.
+                    // (Json and Xml write a null Variant as a null field.)
+                    if (variant.IsNull &&
+                        !property.TypeInfo.IsScalar &&
+                        encoder.EncodingType == EncodingType.Binary)
+                    {
+                        variant = Variant.CreateDefault(property.TypeInfo);
+                    }
                     encoder.WriteVariantValue(name, variant);
                     break;
             }
@@ -397,6 +408,12 @@ namespace Opc.Ua.Encoders
                     {
                         variant = Variant.From(values.ConvertAll(value => new EnumValue(value.Value, enumeratedType)));
                     }
+                }
+                else if (variant.TypeInfo.BuiltInType == BuiltInType.Int32)
+                {
+                    // The XML encoding carries enumerations as Int32.
+                    variant = Variant.From(variant.GetInt32Matrix()
+                        .ConvertAll(value => new EnumValue(value, enumeratedType)));
                 }
                 else
                 {

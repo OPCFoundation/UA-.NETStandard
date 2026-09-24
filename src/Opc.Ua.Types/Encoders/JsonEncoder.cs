@@ -904,8 +904,13 @@ namespace Opc.Ua
             {
                 return;
             }
-            if (value.IsNull)
+            if (value.IsNull ||
+                (!value.TypeInfo.IsScalar &&
+                    value.IsInlineMatrix(out bool isNullMatrix) &&
+                    isNullMatrix))
             {
+                // A null matrix field is encoded like a null array, the way
+                // WriteEncodeableMatrix encodes it (OPC 10000-6 5.4.5).
                 WriteNull(fieldName);
                 return;
             }
@@ -2134,8 +2139,10 @@ namespace Opc.Ua
                             $"Unexpected BuiltInType {value.TypeInfo.BuiltInType}");
                 }
             }
-            // write array
-            else if (value.TypeInfo.IsArray)
+            // write array (a raw matrix field value is always an inline
+            // matrix, also when the Variant lost the matrix type info)
+            else if (value.TypeInfo.IsArray &&
+                !(writeRawValue && value.IsInlineMatrix(out _)))
             {
                 switch (value.TypeInfo.BuiltInType)
                 {
@@ -2346,8 +2353,11 @@ namespace Opc.Ua
                 // element count (Part 6 5.2.2.16 / 5.4.5). Refuse to emit
                 // inconsistent dimensions (e.g. a zero dimension produced by an
                 // empty matrix) instead of writing wire data a conforming peer
-                // must reject with BadDecodingError.
-                if (!MatrixOf.IsValidMatrix(dim))
+                // must reject with BadDecodingError. The inline matrix of a
+                // structure field (raw value) may be empty.
+                if (writeRawValue
+                    ? !MatrixOf.IsValidInlineMatrix(dim)
+                    : !MatrixOf.IsValidMatrix(dim))
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadEncodingError,

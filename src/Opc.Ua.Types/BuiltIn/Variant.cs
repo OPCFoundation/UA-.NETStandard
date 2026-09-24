@@ -1040,6 +1040,31 @@ namespace Opc.Ua
         internal object? Raw => AsBoxedObject(BoxingBehavior.None);
 
         /// <summary>
+        /// Whether the value is written as an inline matrix (OPC 10000-6
+        /// 5.2.5) when it is the raw value of a multi-dimensional structure
+        /// field. This is the case for a matrix type info and for a
+        /// <see cref="MatrixOf{T}"/> value whose shape the type info lost:
+        /// a null matrix has no dimensions (value rank OneOrMoreDimensions)
+        /// and an empty matrix a single zero dimension (value rank
+        /// OneDimension). A non empty single dimension matrix is an array.
+        /// </summary>
+        /// <param name="isNull">Whether the matrix is null.</param>
+        internal bool IsInlineMatrix(out bool isNull)
+        {
+            TypeInfo typeInfo = TypeInfo;
+            if (m_value is IMatrixOf matrix)
+            {
+                isNull = matrix.IsNull;
+                return typeInfo.IsMatrix ||
+                    typeInfo.ValueRank != ValueRanks.OneDimension ||
+                    matrix.IsNull ||
+                    matrix.Count == 0;
+            }
+            isNull = m_value is null || (m_value is INullable nullable && nullable.IsNull);
+            return typeInfo.IsMatrix;
+        }
+
+        /// <summary>
         /// Distinguishes split scalar storage from boxed payloads, including typed null payloads.
         /// </summary>
         private bool IsPackedQualifiedName =>
@@ -8139,6 +8164,53 @@ namespace Opc.Ua
                 return default;
             }
             return new Variant(default, typeInfo, null);
+        }
+
+        /// <summary>
+        /// Creates an empty (not null) matrix of the built-in type with the
+        /// given dimensions, at least one of which is zero. Used to decode an
+        /// empty inline matrix whose encoding carries no element to take the
+        /// type from. Returns a null variant for types that have no matrix.
+        /// </summary>
+        internal static Variant CreateEmptyMatrix(BuiltInType builtInType, int[] dimensions)
+        {
+            return builtInType switch
+            {
+                BuiltInType.Boolean => From(Empty<bool>()),
+                BuiltInType.SByte => From(Empty<sbyte>()),
+                BuiltInType.Byte => From(Empty<byte>()),
+                BuiltInType.Int16 => From(Empty<short>()),
+                BuiltInType.UInt16 => From(Empty<ushort>()),
+                BuiltInType.Int32 => From(Empty<int>()),
+                BuiltInType.Enumeration => From(Empty<EnumValue>()),
+                BuiltInType.UInt32 => From(Empty<uint>()),
+                BuiltInType.Int64 => From(Empty<long>()),
+                BuiltInType.UInt64 => From(Empty<ulong>()),
+                BuiltInType.Float => From(Empty<float>()),
+                BuiltInType.Double => From(Empty<double>()),
+                BuiltInType.String => From(Empty<string>()),
+                BuiltInType.DateTime => From(Empty<DateTimeUtc>()),
+                BuiltInType.Guid => From(Empty<Uuid>()),
+                BuiltInType.ByteString => From(Empty<ByteString>()),
+                BuiltInType.XmlElement => From(Empty<XmlElement>()),
+                BuiltInType.NodeId => From(Empty<NodeId>()),
+                BuiltInType.ExpandedNodeId => From(Empty<ExpandedNodeId>()),
+                BuiltInType.StatusCode => From(Empty<StatusCode>()),
+                BuiltInType.QualifiedName => From(Empty<QualifiedName>()),
+                BuiltInType.LocalizedText => From(Empty<LocalizedText>()),
+                BuiltInType.ExtensionObject => From(Empty<ExtensionObject>()),
+                BuiltInType.DataValue => From(Empty<DataValue>()),
+                BuiltInType.Variant or
+                BuiltInType.Number or
+                BuiltInType.Integer or
+                BuiltInType.UInteger => From(Empty<Variant>()),
+                _ => default
+            };
+
+            MatrixOf<T> Empty<T>()
+            {
+                return new MatrixOf<T>(Array.Empty<T>(), dimensions);
+            }
         }
 
         /// <summary>

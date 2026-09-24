@@ -91,17 +91,21 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
         /// <summary>
         /// D-13: fields the generated code writes as a Variant are described
-        /// as a Variant, a structure matrix as its dimensions followed by
-        /// the elements, not as a plain counted array.
+        /// as a Variant, a matrix (D-5: of structures and of built-in types
+        /// alike) as its dimensions followed by the elements, not as a plain
+        /// counted array.
         /// </summary>
         [Test]
         public void NonArrayValueRanksAreDescribedAsWritten()
         {
             string ranks = Element(m_bsd, "opc:StructuredType", "Ranks");
             Assert.That(ranks, Does.Contain("<opc:Field Name=\"Loose\" TypeName=\"ua:Variant\" />"));
-            Assert.That(ranks, Does.Contain("<opc:Field Name=\"Grid\" TypeName=\"ua:Variant\" />"));
             Assert.That(ranks, Does.Not.Contain("NoOfLoose"));
-            Assert.That(ranks, Does.Not.Contain("NoOfGrid\""));
+            Assert.That(ranks, Does.Not.Contain("<opc:Field Name=\"Grid\" TypeName=\"ua:Variant\" />"));
+            Assert.That(ranks, Does.Contain(
+                "<opc:Field Name=\"GridDimensions\" TypeName=\"opc:Int32\" LengthField=\"NoOfGridDimensions\" />"));
+            Assert.That(ranks, Does.Contain(
+                "<opc:Field Name=\"Grid\" TypeName=\"opc:Double\" LengthField=\"NoOfGrid\" />"));
             Assert.That(ranks, Does.Contain(
                 "<opc:Field Name=\"CellsDimensions\" TypeName=\"opc:Int32\" LengthField=\"NoOfCellsDimensions\" />"));
             Assert.That(ranks, Does.Contain(

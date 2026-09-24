@@ -1188,12 +1188,13 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Emit the encoder call for a structure field whose ValueRank is
         /// <see cref="ValueRank.OneOrMoreDimensions"/>. The field is
-        /// generated as a typed <c>MatrixOf&lt;T&gt;</c> and either passes
-        /// through a dedicated <c>WriteEncodeableMatrix</c> call (for
-        /// concrete <see cref="IEncodeable"/> matrices) or is packed into a
-        /// <see cref="Variant"/> via <c>Variant.From</c> /
-        /// <c>Variant.FromStructure</c> before being written through
-        /// <c>WriteVariant</c>.
+        /// generated as a typed <c>MatrixOf&lt;T&gt;</c> and encoded as the
+        /// inline matrix OPC 10000-6 5.2.5 prescribes for a structure field -
+        /// the dimensions followed by the flattened values, without any
+        /// Variant framing - exactly as the DataTypeDefinition driven codec
+        /// (<c>Structure.EncodeProperty</c>) writes the same field: through
+        /// <c>WriteEncodeableMatrix</c> for concrete <see cref="IEncodeable"/>
+        /// matrices and through <c>WriteVariantValue</c> for everything else.
         /// </summary>
         private static void EmitMatrixWriteCall(
             ILoadContext context,
@@ -1213,10 +1214,13 @@ namespace Opc.Ua.SourceGeneration
             if (field.DataTypeNode.BasicDataType == BasicDataType.UserDefined &&
                 !field.DataTypeNode.IsEnumeration)
             {
-                // UserDefined structure with AllowSubTypes - wrap as Variant
-                // of extension objects via FromStructure.
+                // UserDefined structure with AllowSubTypes - a matrix of
+                // extension objects. FromStructure turns a null matrix into a
+                // null Variant, which carries no shape; keep a null matrix.
                 context.Out.WriteLine(
-                    "encoder.WriteVariant({0}, global::Opc.Ua.Variant.FromStructure({1}));",
+                    "encoder.WriteVariantValue({0}, {1}.IsNull ? " +
+                    "global::Opc.Ua.Variant.From(default(global::Opc.Ua.MatrixOf<global::Opc.Ua.ExtensionObject>)) : " +
+                    "global::Opc.Ua.Variant.FromStructure({1}));",
                     fieldName,
                     valueName);
                 return;
@@ -1226,7 +1230,7 @@ namespace Opc.Ua.SourceGeneration
             // Number/Integer/UInteger/BaseDataType (Variant) all flow
             // through the typed Variant.From overloads.
             context.Out.WriteLine(
-                "encoder.WriteVariant({0}, global::Opc.Ua.Variant.From({1}));",
+                "encoder.WriteVariantValue({0}, global::Opc.Ua.Variant.From({1}));",
                 fieldName,
                 valueName);
         }
@@ -1234,7 +1238,8 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Emit the decoder call for a structure field whose ValueRank is
         /// <see cref="ValueRank.OneOrMoreDimensions"/>. Mirrors
-        /// <see cref="EmitMatrixWriteCall"/>.
+        /// <see cref="EmitMatrixWriteCall"/> and <c>Structure.DecodeProperty</c>,
+        /// which reads the inline matrix with the field's type info.
         /// </summary>
         private void EmitMatrixReadCall(
             ILoadContext context,
@@ -1259,10 +1264,66 @@ namespace Opc.Ua.SourceGeneration
 
             string getter = GetMatrixVariantGetter(field);
             context.Out.WriteLine(
-                "{0} = decoder.ReadVariant({1}).{2};",
+                "{0} = decoder.ReadVariantValue({1}, global::Opc.Ua.TypeInfo.Create(" +
+                "global::Opc.Ua.BuiltInType.{2}, {3})).{4};",
                 valueName,
                 fieldName,
+                GetMatrixBuiltInType(field),
+                GetMatrixValueRankAsCode(field),
                 getter);
+        }
+
+        /// <summary>
+        /// The built-in type the elements of a matrix field are encoded with.
+        /// Matches the type a DataTypeDefinition driven decoder resolves for
+        /// the field (enumerations, subtyped structures as extension objects,
+        /// abstract numbers as Variants).
+        /// </summary>
+        private static string GetMatrixBuiltInType(Parameter field)
+        {
+            DataTypeDesign type = field.DataTypeNode;
+            switch (type.BasicDataType)
+            {
+                case BasicDataType.UserDefined:
+                    return type.IsEnumeration ? "Enumeration" : "ExtensionObject";
+                case BasicDataType.Enumeration:
+                    if (type.SymbolicId ==
+                        new XmlQualifiedName("Enumeration", Namespaces.OpcUa))
+                    {
+                        return "Int32";
+                    }
+                    if (type.IsOptionSet &&
+                        type.BaseTypeNode is DataTypeDesign optionSetBase)
+                    {
+                        return optionSetBase.BasicDataType.ToString();
+                    }
+                    return "Enumeration";
+                case BasicDataType.Structure:
+                    return "ExtensionObject";
+                case BasicDataType.BaseDataType:
+                case BasicDataType.Number:
+                case BasicDataType.Integer:
+                case BasicDataType.UInteger:
+                    return "Variant";
+                default:
+                    return type.BasicDataType.ToString();
+            }
+        }
+
+        /// <summary>
+        /// The value rank of a matrix field: the number of ArrayDimensions
+        /// entries. Without them the rank is unknown and the field is read as
+        /// a two dimensional matrix; the decoders take the actual rank from
+        /// the encoded dimensions.
+        /// </summary>
+        private static string GetMatrixValueRankAsCode(Parameter field)
+        {
+            int rank = string.IsNullOrWhiteSpace(field.ArrayDimensions)
+                ? 0
+                : field.ArrayDimensions.Split([','], StringSplitOptions.RemoveEmptyEntries).Length;
+            return rank > 2
+                ? rank.ToString(CultureInfo.InvariantCulture)
+                : "global::Opc.Ua.ValueRanks.TwoDimensions";
         }
 
         /// <summary>

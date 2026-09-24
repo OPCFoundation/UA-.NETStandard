@@ -198,11 +198,13 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
         /// Verifies that DataType structure fields with
         /// <c>ValueRank="OneOrMoreDimensions"</c> are generated as typed
         /// <c>MatrixOf&lt;T&gt;</c> properties and that the encode/decode
-        /// pipeline uses the appropriate typed call: dedicated
-        /// <c>WriteEncodeableMatrix</c> / <c>ReadEncodeableMatrix</c> for
-        /// concrete encodeable matrices and <c>WriteVariant</c> wrapped via
-        /// <c>Variant.From</c> together with the matching
-        /// <c>Variant.GetXxxMatrix</c> getters for everything else.
+        /// pipeline writes the inline matrix of OPC 10000-6 5.2.5 with the
+        /// calls the DataTypeDefinition driven Structure codec makes:
+        /// dedicated <c>WriteEncodeableMatrix</c> / <c>ReadEncodeableMatrix</c>
+        /// for concrete encodeable matrices and <c>WriteVariantValue</c> /
+        /// <c>ReadVariantValue</c> with the field's type info (no Variant
+        /// framing) together with the matching <c>Variant.GetXxxMatrix</c>
+        /// getters for everything else.
         /// </summary>
         [Test]
         public void GenerateMatrixValueDataType_EmitsMatrixOfPropertiesAndCalls()
@@ -252,69 +254,69 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
                     "global::Opc.Ua.MatrixOf<global::TestData.HeaterStatus> HeaterStatusMatrix"));
             });
 
-            // Encode assertions.
+            // Encode assertions: matrix fields are written as the inline
+            // matrix of OPC 10000-6 5.2.5, the same calls the
+            // DataTypeDefinition driven Structure codec makes.
             Assert.Multiple(() =>
             {
                 // Concrete encodeable matrix uses the typed
                 // WriteEncodeableMatrix overload.
                 Assert.That(code, Does.Contain(
                     """encoder.WriteEncodeableMatrix("VectorMatrix", VectorMatrix);"""));
-                // Primitive matrices use Variant.From.
-                Assert.That(code, Does.Contain(
-                    """encoder.WriteVariant("BooleanMatrix", global::Opc.Ua.Variant.From(BooleanMatrix));"""));
-                Assert.That(code, Does.Contain(
-                    """encoder.WriteVariant("Int32Matrix", global::Opc.Ua.Variant.From(Int32Matrix));"""));
-                Assert.That(code, Does.Contain(
-                    """encoder.WriteVariant("StringMatrix", global::Opc.Ua.Variant.From(StringMatrix));"""));
-                Assert.That(code, Does.Contain(
-                    """encoder.WriteVariant("NodeIdMatrix", global::Opc.Ua.Variant.From(NodeIdMatrix));"""));
-                Assert.That(code, Does.Contain(
-                    """encoder.WriteVariant("VariantMatrix", global::Opc.Ua.Variant.From(VariantMatrix));"""));
-                Assert.That(code, Does.Contain(
-                    "encoder.WriteVariant(\"ExtensionObjectMatrix\", " +
-                    "global::Opc.Ua.Variant.From(ExtensionObjectMatrix));"));
-                // AllowSubTypes -> field resolves to ExtensionObject, so it
-                // takes the same Variant.From(MatrixOf<ExtensionObject>) path
-                // as the explicit Structure field above.
-                Assert.That(code, Does.Contain(
-                    "encoder.WriteVariant(\"AbstractVectorMatrix\", " +
-                    "global::Opc.Ua.Variant.From(AbstractVectorMatrix));"));
-                // Typed enum matrix uses Variant.From, same shape as other
-                // primitive matrices (the enum is a value type with a
-                // generated EnumerationBuilder).
-                Assert.That(code, Does.Contain(
-                    "encoder.WriteVariant(\"HeaterStatusMatrix\", " +
-                    "global::Opc.Ua.Variant.From(HeaterStatusMatrix));"));
+                Assert.That(code, Does.Not.Match(@"encoder\.WriteVariant\(""\w*Matrix"""),
+                    "No matrix field may be framed as a Variant.");
+                foreach (string name in s_variantValueMatrixFields)
+                {
+                    Assert.That(code, Does.Contain(
+                        $"encoder.WriteVariantValue(\"{name}\", global::Opc.Ua.Variant.From({name}));"));
+                }
             });
 
-            // Decode assertions.
+            // Decode assertions: read with the field's type info, like
+            // Structure.DecodeProperty does.
             Assert.Multiple(() =>
             {
                 Assert.That(code, Does.Contain(
                     """VectorMatrix = decoder.ReadEncodeableMatrix<global::TestData.Vector>("VectorMatrix");"""));
+                Assert.That(code, Does.Not.Match(@"decoder\.ReadVariant\(""\w*Matrix"""),
+                    "No matrix field may be read as a Variant.");
+                Assert.That(code, Does.Contain(ReadMatrix("BooleanMatrix", "Boolean", "GetBooleanMatrix()")));
+                Assert.That(code, Does.Contain(ReadMatrix("Int32Matrix", "Int32", "GetInt32Matrix()")));
+                Assert.That(code, Does.Contain(ReadMatrix("StringMatrix", "String", "GetStringMatrix()")));
+                Assert.That(code, Does.Contain(ReadMatrix("NodeIdMatrix", "NodeId", "GetNodeIdMatrix()")));
+                Assert.That(code, Does.Contain(ReadMatrix("VariantMatrix", "Variant", "GetVariantMatrix()")));
                 Assert.That(code, Does.Contain(
-                    """BooleanMatrix = decoder.ReadVariant("BooleanMatrix").GetBooleanMatrix();"""));
+                    ReadMatrix("ExtensionObjectMatrix", "ExtensionObject", "GetExtensionObjectMatrix()")));
                 Assert.That(code, Does.Contain(
-                    """Int32Matrix = decoder.ReadVariant("Int32Matrix").GetInt32Matrix();"""));
-                Assert.That(code, Does.Contain(
-                    """StringMatrix = decoder.ReadVariant("StringMatrix").GetStringMatrix();"""));
-                Assert.That(code, Does.Contain(
-                    """NodeIdMatrix = decoder.ReadVariant("NodeIdMatrix").GetNodeIdMatrix();"""));
-                Assert.That(code, Does.Contain(
-                    """VariantMatrix = decoder.ReadVariant("VariantMatrix").GetVariantMatrix();"""));
-                Assert.That(code, Does.Contain(
-                    "ExtensionObjectMatrix = decoder.ReadVariant(\"ExtensionObjectMatrix\")" +
-                    ".GetExtensionObjectMatrix();"));
-                Assert.That(code, Does.Contain(
-                    "AbstractVectorMatrix = decoder.ReadVariant(\"AbstractVectorMatrix\")" +
-                    ".GetExtensionObjectMatrix();"));
+                    ReadMatrix("AbstractVectorMatrix", "ExtensionObject", "GetExtensionObjectMatrix()")));
                 // Typed enum matrix decodes through GetEnumerationMatrix<T>
                 // (the EnumerationBuilder<T>-backed Variant getter).
                 Assert.That(code, Does.Contain(
-                    "HeaterStatusMatrix = decoder.ReadVariant(\"HeaterStatusMatrix\")" +
-                    ".GetEnumerationMatrix<global::TestData.HeaterStatus>();"));
+                    ReadMatrix(
+                        "HeaterStatusMatrix",
+                        "Enumeration",
+                        "GetEnumerationMatrix<global::TestData.HeaterStatus>()")));
             });
+
+            static string ReadMatrix(string name, string builtInType, string getter)
+            {
+                return $"{name} = decoder.ReadVariantValue(\"{name}\", global::Opc.Ua.TypeInfo.Create(" +
+                    $"global::Opc.Ua.BuiltInType.{builtInType}, global::Opc.Ua.ValueRanks.TwoDimensions)).{getter};";
+            }
         }
+        private static readonly string[] s_variantValueMatrixFields =
+        [
+            "BooleanMatrix",
+            "Int32Matrix",
+            "StringMatrix",
+            "NodeIdMatrix",
+            "VariantMatrix",
+            "ExtensionObjectMatrix",
+            // AllowSubTypes -> field resolves to ExtensionObject.
+            "AbstractVectorMatrix",
+            // Typed enum matrix -> Variant.From<T>(MatrixOf<T>).
+            "HeaterStatusMatrix"
+        ];
 
         private static Dictionary<string, string> GenerateCodeFromModel(
             string modelDesignFile,

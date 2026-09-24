@@ -561,11 +561,11 @@ namespace Opc.Ua.SourceGeneration
             }
 
             if (field.ValueRank == ValueRank.OneOrMoreDimensions &&
-                field.DataTypeNode.SupportsMatrixOf() &&
-                DataTypeGenerator.IsConcreteEncodeableMatrix(field))
+                field.DataTypeNode.SupportsMatrixOf())
             {
-                // WriteEncodeableMatrix: the Int32 dimensions array followed
-                // by the flattened elements (OPC 10000-6 5.2.5).
+                // The inline matrix (WriteEncodeableMatrix / WriteVariantValue):
+                // the Int32 dimensions array followed by the flattened
+                // elements (OPC 10000-6 5.2.5).
                 context.Out.WriteLine(
                     "<opc:Field Name=\"NoOf{0}Dimensions\" TypeName=\"opc:Int32\"{1} />",
                     fieldName,

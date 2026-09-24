@@ -1825,8 +1825,18 @@ namespace Opc.Ua
             }
             try
             {
+                // A raw matrix field value is always an inline matrix, also
+                // when the Variant lost the matrix type info (a null or an
+                // empty MatrixOf).
+                bool isInlineMatrix = false;
+                bool isNullMatrix = false;
+                if (writeRawValue && !value.TypeInfo.IsScalar)
+                {
+                    isInlineMatrix = value.IsInlineMatrix(out isNullMatrix);
+                }
+
                 // check for null.
-                if (value.IsNull)
+                if (value.IsNull || (isInlineMatrix && isNullMatrix))
                 {
                     m_writer.WriteAttributeString("xsi", "nil", Namespaces.XmlSchemaInstance, "true");
                     return;
@@ -1928,7 +1938,7 @@ namespace Opc.Ua
                                     $"Unexpected BuiltInType {value.TypeInfo.BuiltInType}");
                         }
                     }
-                    else if (value.TypeInfo.IsArray)
+                    else if (value.TypeInfo.IsArray && !isInlineMatrix)
                     {
                         // write array.
                         switch (value.TypeInfo.BuiltInType)
@@ -2042,9 +2052,13 @@ namespace Opc.Ua
                             // (e.g. a zero dimension produced by an empty matrix)
                             // instead of writing wire data a conforming peer must
                             // reject with BadDecodingError.
+                            // The inline matrix of a structure field (raw value)
+                            // may be empty (OPC 10000-6 5.2.5).
                             void WriteDimensions<T>(MatrixOf<T> matrix)
                             {
-                                if (!MatrixOf.IsValidMatrix(matrix.Dimensions))
+                                if (writeRawValue
+                                    ? !MatrixOf.IsValidInlineMatrix(matrix.Dimensions)
+                                    : !MatrixOf.IsValidMatrix(matrix.Dimensions))
                                 {
                                     throw ServiceResultException.Create(
                                         StatusCodes.BadEncodingError,

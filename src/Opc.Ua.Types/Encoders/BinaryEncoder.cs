@@ -1647,6 +1647,16 @@ namespace Opc.Ua
                 return;
             }
 
+            // A multi-dimensional structure field is written as an inline
+            // matrix even when the Variant lost the matrix type info (a null
+            // or an empty MatrixOf). See OPC 10000-6 5.2.5.
+            bool isInlineMatrix = false;
+            bool isNullMatrix = false;
+            if (writeRawValue && !typeInfo.IsScalar)
+            {
+                isInlineMatrix = value.IsInlineMatrix(out isNullMatrix);
+            }
+
             // encode enums as int32.
             byte encodingByte = (byte)builtInType;
             if (builtInType == BuiltInType.Enumeration)
@@ -1750,7 +1760,7 @@ namespace Opc.Ua
                             $"Unexpected BuiltInType {builtInType}");
                 }
             }
-            else if (typeInfo.IsArray)
+            else if (typeInfo.IsArray && !isInlineMatrix)
             {
                 // Write arrays
 
@@ -2062,10 +2072,20 @@ namespace Opc.Ua
                 }
 
                 // write the dimensions for array encoding before the array.
+                // A null matrix is written like WriteEncodeableMatrix writes
+                // one: a null dimensions array followed by the null values.
                 // see https://reference.opcfoundation.org/Core/Part6/v105/docs/5.2.5
                 void WriteDimensions<T>(MatrixOf<T> matrix)
                 {
-                    if (writeRawValue)
+                    if (!writeRawValue)
+                    {
+                        return;
+                    }
+                    if (isNullMatrix || matrix.IsNull)
+                    {
+                        WriteInt32(null, -1);
+                    }
+                    else
                     {
                         WriteInt32Array(null, matrix.Dimensions);
                     }

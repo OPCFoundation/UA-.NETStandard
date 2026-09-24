@@ -52,7 +52,7 @@ namespace Opc.Ua
     public readonly struct MatrixOf<T> :
         IConvertableToArray,
         IConvertableToMatrix,
-        IElementContainer,
+        IMatrixOf,
         IEquatable<MatrixOf<T>>,
         IEquatable<Array>,
         IEquatable<ArrayOf<T>>,
@@ -647,6 +647,18 @@ namespace Opc.Ua
     }
 
     /// <summary>
+    /// The shape of a <see cref="MatrixOf{T}"/> independent of its element
+    /// type.
+    /// </summary>
+    internal interface IMatrixOf : INullable
+    {
+        /// <summary>
+        /// Number of elements in the flattened matrix.
+        /// </summary>
+        int Count { get; }
+    }
+
+    /// <summary>
     /// MatrixOf extensions
     /// </summary>
     public static class MatrixOf
@@ -712,6 +724,39 @@ namespace Opc.Ua
             for (int ii = 0; ii < dimensions.Length; ii++)
             {
                 if (dimensions[ii] <= 0)
+                {
+                    return false;
+                }
+                product *= dimensions[ii];
+                if (product > int.MaxValue)
+                {
+                    return false;
+                }
+            }
+            return elementCount < 0 || product == elementCount;
+        }
+
+        /// <summary>
+        /// Validates the dimensions of an inline matrix, the representation
+        /// of a multi-dimensional structure field (OPC 10000-6 5.2.5, 5.4.5).
+        /// Unlike a matrix Variant (<see cref="IsValidMatrix(int[], int)"/>)
+        /// a dimension may be zero, in which case no values are encoded. A
+        /// single dimension is only accepted as the zero dimension an empty
+        /// <see cref="MatrixOf{T}"/> carries.
+        /// </summary>
+        internal static bool IsValidInlineMatrix(
+            ReadOnlySpan<int> dimensions,
+            int elementCount = -1)
+        {
+            if (dimensions.Length == 0 ||
+                (dimensions.Length == 1 && dimensions[0] != 0))
+            {
+                return false;
+            }
+            long product = 1;
+            for (int ii = 0; ii < dimensions.Length; ii++)
+            {
+                if (dimensions[ii] < 0)
                 {
                     return false;
                 }

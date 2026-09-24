@@ -1846,17 +1846,38 @@ namespace Opc.Ua
                 }
                 // read the dimensions for variant encoding after the array.
                 // see https://reference.opcfoundation.org/Core/Part6/v105/docs/5.2.2.16
-                int[] ReadDims()
+                // A raw (inline) matrix already read its dimensions, which are
+                // null for a null matrix - the values array that follows must
+                // not be taken for a second dimensions array.
+                int[]? ReadDims()
                 {
-                    return dim ?? ReadInt32Array(null).ToArray() ?? [];
+                    return readRawValue ? dim : ReadInt32Array(null).ToArray() ?? [];
                 }
 
                 static MatrixOf<T> ToMatrix<T>(
                     ArrayOf<T> values,
-                    int[] dimensions,
+                    int[]? dimensions,
                     TypeInfo typeInfo,
                     bool readRawValue)
                 {
+                    // A null inline matrix is written as a null dimensions
+                    // array followed by a null values array (the shape
+                    // WriteEncodeableMatrix writes). Earlier versions wrote an
+                    // empty dimensions array for it, accept that as well.
+                    if (readRawValue &&
+                        (dimensions == null || (dimensions.Length == 0 && values.IsNull)))
+                    {
+                        if (!values.IsNull && values.Count > 0)
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadDecodingError,
+                                "Inline matrix without dimensions carries {0} element(s) ({1}).",
+                                values.Count,
+                                typeInfo);
+                        }
+                        return default;
+                    }
+                    dimensions ??= [];
                     if (!IsValidMatrixDimensions(dimensions, values.Count, readRawValue))
                     {
                         throw ServiceResultException.Create(
@@ -1884,31 +1905,9 @@ namespace Opc.Ua
 
                 static bool IsValidMatrixDimensions(int[] dimensions, int elementCount, bool readRawValue)
                 {
-                    if (!readRawValue)
-                    {
-                        return MatrixOf.IsValidMatrix(dimensions, elementCount);
-                    }
-
-                    if (dimensions.Length == 0)
-                    {
-                        return false;
-                    }
-
-                    long product = 1;
-                    for (int ii = 0; ii < dimensions.Length; ii++)
-                    {
-                        if (dimensions[ii] < 0)
-                        {
-                            return false;
-                        }
-                        product *= dimensions[ii];
-                        if (product > int.MaxValue)
-                        {
-                            return false;
-                        }
-                    }
-
-                    return product == elementCount;
+                    return readRawValue
+                        ? MatrixOf.IsValidInlineMatrix(dimensions, elementCount)
+                        : MatrixOf.IsValidMatrix(dimensions, elementCount);
                 }
 
                 switch (typeInfo.BuiltInType)
