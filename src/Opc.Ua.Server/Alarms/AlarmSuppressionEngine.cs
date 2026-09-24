@@ -43,6 +43,8 @@ namespace Opc.Ua.Server.Alarms
         private readonly Lock m_lock = new();
         private readonly List<RegistrationEntry> m_registrations = [];
         private readonly Dictionary<NodeId, List<AlarmConditionState>> m_firstInGroupMembers = [];
+        private readonly Lock m_evaluationLock = new();
+        private readonly Dictionary<AlarmConditionState, HashSet<object>> m_activeSuppressors = [];
         private bool m_disposed;
 
         /// <summary>
@@ -131,41 +133,47 @@ namespace Opc.Ua.Server.Alarms
                 throw new ArgumentNullException(nameof(context));
             }
 
-            RegistrationEntry[] snapshot;
-            lock (m_lock)
+            // Reading the source, recording LastState and applying the
+            // member state happen under one evaluation lock so concurrent
+            // evaluations cannot apply an older state after a newer one.
+            lock (m_evaluationLock)
             {
-                ThrowIfDisposed();
-                snapshot = [.. m_registrations];
-            }
-
-            foreach (RegistrationEntry entry in snapshot)
-            {
-                bool currentState;
-                try
-                {
-                    currentState = entry.Source();
-                }
-                catch
-                {
-                    continue;
-                }
-
-                bool changed;
+                RegistrationEntry[] snapshot;
                 lock (m_lock)
                 {
-                    changed = entry.FirstEvaluation || currentState != entry.LastState;
-                    entry.LastState = currentState;
-                    entry.FirstEvaluation = false;
+                    ThrowIfDisposed();
+                    snapshot = [.. m_registrations];
                 }
 
-                if (!changed)
+                foreach (RegistrationEntry entry in snapshot)
                 {
-                    continue;
-                }
+                    bool currentState;
+                    try
+                    {
+                        currentState = entry.Source();
+                    }
+                    catch
+                    {
+                        continue;
+                    }
 
-                foreach (AlarmConditionState alarm in entry.Members)
-                {
-                    alarm.SetSuppressedState(context, currentState);
+                    bool changed;
+                    lock (m_lock)
+                    {
+                        changed = entry.FirstEvaluation || currentState != entry.LastState;
+                        entry.LastState = currentState;
+                        entry.FirstEvaluation = false;
+                    }
+
+                    if (!changed)
+                    {
+                        continue;
+                    }
+
+                    foreach (AlarmConditionState alarm in entry.Members)
+                    {
+                        ApplySuppression(context, alarm, entry, currentState);
+                    }
                 }
             }
         }
@@ -191,22 +199,26 @@ namespace Opc.Ua.Server.Alarms
                 throw new ArgumentNullException(nameof(group));
             }
 
-            List<AlarmConditionState>? otherMembers;
-            lock (m_lock)
+            lock (m_evaluationLock)
             {
-                ThrowIfDisposed();
-                if (!m_firstInGroupMembers.TryGetValue(group.NodeId, out otherMembers))
+                List<AlarmConditionState>? otherMembers;
+                lock (m_lock)
                 {
-                    return;
+                    ThrowIfDisposed();
+                    if (!m_firstInGroupMembers.TryGetValue(group.NodeId, out otherMembers))
+                    {
+                        return;
+                    }
+                    otherMembers = [.. otherMembers];
                 }
-                otherMembers = [.. otherMembers];
-            }
 
-            foreach (AlarmConditionState other in otherMembers)
-            {
-                if (!ReferenceEquals(other, firstAlarm))
+                var suppressor = new FirstInGroupKey(group.NodeId, firstAlarm);
+                foreach (AlarmConditionState other in otherMembers)
                 {
-                    other.SetSuppressedState(context, firstActive);
+                    if (!ReferenceEquals(other, firstAlarm))
+                    {
+                        ApplySuppression(context, other, suppressor, firstActive);
+                    }
                 }
             }
         }
@@ -224,6 +236,39 @@ namespace Opc.Ua.Server.Alarms
                 m_registrations.Clear();
                 m_firstInGroupMembers.Clear();
             }
+            lock (m_evaluationLock)
+            {
+                m_activeSuppressors.Clear();
+            }
+        }
+
+        /// <summary>
+        /// Records whether <paramref name="suppressor"/> currently suppresses
+        /// <paramref name="alarm"/> and sets the SuppressedState to the OR
+        /// of all active suppressors (Part 9 5.8.2): one group going
+        /// inactive must not unsuppress an alarm another group still
+        /// suppresses. The caller holds the evaluation lock.
+        /// </summary>
+        private void ApplySuppression(
+            ISystemContext context,
+            AlarmConditionState alarm,
+            object suppressor,
+            bool active)
+        {
+            if (!m_activeSuppressors.TryGetValue(alarm, out HashSet<object>? suppressors))
+            {
+                suppressors = [];
+                m_activeSuppressors[alarm] = suppressors;
+            }
+            if (active)
+            {
+                suppressors.Add(suppressor);
+            }
+            else
+            {
+                suppressors.Remove(suppressor);
+            }
+            alarm.SetSuppressedState(context, suppressors.Count > 0);
         }
 
         private void ThrowIfDisposed()
@@ -242,5 +287,9 @@ namespace Opc.Ua.Server.Alarms
             public bool LastState { get; set; }
             public bool FirstEvaluation { get; set; }
         }
+
+        private readonly record struct FirstInGroupKey(
+            NodeId Group,
+            AlarmConditionState? FirstAlarm);
     }
 }

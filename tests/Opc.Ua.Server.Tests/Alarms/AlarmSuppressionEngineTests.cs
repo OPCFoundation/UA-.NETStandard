@@ -130,6 +130,49 @@ namespace Opc.Ua.Server.Tests.Alarms
         }
 
         [Test]
+        public void EvaluateKeepsAlarmSuppressedWhileAnotherGroupIsActive()
+        {
+            using var engine = new AlarmSuppressionEngine();
+            AlarmGroupState g1 = CreateGroup(400);
+            AlarmGroupState g2 = CreateGroup(401);
+            AlarmConditionState a1 = CreateAlarm(402);
+            bool g1Active = true;
+            bool g2Active = true;
+
+            engine.RegisterSuppressionGroup(g1, () => g1Active, [a1]);
+            engine.RegisterSuppressionGroup(g2, () => g2Active, [a1]);
+            engine.Evaluate(m_context);
+            Assert.That(a1.SuppressedState.Id.Value, Is.True);
+
+            g1Active = false;
+            engine.Evaluate(m_context);
+            Assert.That(a1.SuppressedState.Id.Value, Is.True);
+
+            g2Active = false;
+            engine.Evaluate(m_context);
+            Assert.That(a1.SuppressedState.Id.Value, Is.False);
+        }
+
+        [Test]
+        public void FirstInGroupInactiveKeepsAlarmSuppressedByActiveSuppressionGroup()
+        {
+            using var engine = new AlarmSuppressionEngine();
+            AlarmGroupState suppressionGroup = CreateGroup(410);
+            AlarmGroupState firstGroup = CreateGroup(411);
+            AlarmConditionState first = CreateAlarm(412);
+            AlarmConditionState other = CreateAlarm(413);
+
+            engine.RegisterSuppressionGroup(suppressionGroup, () => true, [other]);
+            engine.RegisterFirstInGroupAlarm(first, firstGroup, [other]);
+            engine.Evaluate(m_context);
+
+            engine.OnFirstInGroupActiveChanged(m_context, first, firstGroup, firstActive: true);
+            engine.OnFirstInGroupActiveChanged(m_context, first, firstGroup, firstActive: false);
+
+            Assert.That(other.SuppressedState.Id.Value, Is.True);
+        }
+
+        [Test]
         public void RegisterSuppressionGroupWithNullGroupThrows()
         {
             using var engine = new AlarmSuppressionEngine();
