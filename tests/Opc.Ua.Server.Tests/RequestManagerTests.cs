@@ -356,6 +356,32 @@ namespace Opc.Ua.Server.Tests
 
         [Test]
         [Category("NodeManagerLifecycle")]
+        public async Task WaitForCurrentRequestsAsyncDoesNotWaitForParkedPublishAsync()
+        {
+            using var readLifetime = new RequestLifetime();
+            using var publishLifetime = new RequestLifetime();
+            OperationContext read = CreateOperationContext(1, readLifetime);
+            var publish = new OperationContext(
+                new RequestHeader { RequestHandle = 2 },
+                null,
+                RequestType.Publish,
+                publishLifetime);
+
+            m_requestManager.RequestReceived(read);
+            m_requestManager.RequestReceived(publish);
+
+            Task waiter = m_requestManager.WaitForCurrentRequestsAsync().AsTask();
+            Assert.That(waiter.IsCompleted, Is.False);
+
+            m_requestManager.RequestCompleted(read);
+
+            await AssertCompletesWithinTimeoutAsync(waiter).ConfigureAwait(false);
+            Assert.That(publishLifetime.CancellationToken.IsCancellationRequested, Is.False);
+            m_requestManager.RequestCompleted(publish);
+        }
+
+        [Test]
+        [Category("NodeManagerLifecycle")]
         public async Task WaitForCurrentRequestsAsyncExcludesRequestsReceivedAfterSnapshotAsync()
         {
             using var requestLifetimeA = new RequestLifetime();
