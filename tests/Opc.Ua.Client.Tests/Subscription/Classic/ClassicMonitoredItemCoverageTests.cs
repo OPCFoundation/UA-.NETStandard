@@ -899,6 +899,39 @@ namespace Opc.Ua.Client.Tests
             });
         }
 
+        /// <summary>
+        /// A notification of the other kind for the item's client handle
+        /// (buggy server or handle clash) must not make LastMessage throw.
+        /// </summary>
+        [Test]
+        public void LastMessageIgnoresNotificationOfTheOtherKind()
+        {
+            MonitoredItem eventItem = CreateItem();
+            eventItem.NodeClass = NodeClass.Object;
+            eventItem.SaveValueInCache(new MonitoredItemNotification
+            {
+                ClientHandle = eventItem.ClientHandle,
+                Value = new DataValue(new Variant(1), StatusCodes.Good, DateTime.UtcNow),
+                Message = new NotificationMessage()
+            });
+
+            MonitoredItem dataItem = CreateItem();
+            dataItem.SaveValueInCache(new EventFieldList
+            {
+                ClientHandle = dataItem.ClientHandle,
+                EventFields = [new Variant(1)],
+                Message = new NotificationMessage()
+            });
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(() => eventItem.LastMessage, Throws.Nothing);
+                Assert.That(eventItem.LastMessage, Is.Null);
+                Assert.That(() => dataItem.LastMessage, Throws.Nothing);
+                Assert.That(dataItem.LastMessage, Is.Null);
+            });
+        }
+
         [Test]
         public void DequeueEventsReturnsQueuedEvents()
         {
