@@ -346,11 +346,11 @@ namespace Opc.Ua.Wot
                 {
                     continue;
                 }
-                string local =
-                    LocalName(GetElementString(property.Value, "uav:browseName")) ??
-                    property.Key;
+                // Keyed by the affordance key, which the JSON object makes
+                // unique: two affordances may share a local BrowseName in
+                // different namespaces.
                 catalog.Add(
-                    local,
+                    property.Key,
                     await schemaResolver.ResolveAndCompareAsync(
                         reference,
                         property.Value,
@@ -1515,7 +1515,7 @@ namespace Opc.Ua.Wot
             ValidateVariableValue(schema, variable.DataType, key, diagnostics);
             variable.Value ??= BuildVariableValue(schema, variable.DataType);
 
-            ReportUnsupportedSchema(schema, nodeId, local, externalSchemas, diagnostics);
+            ReportUnsupportedSchema(schema, nodeId, key, externalSchemas, diagnostics);
 
             items.Add(variable);
             propertyNodeIds[key] = nodeId;
@@ -3188,7 +3188,7 @@ namespace Opc.Ua.Wot
         private static void ReportUnsupportedSchema(
             JsonElement schema,
             string nodeId,
-            string local,
+            string affordanceKey,
             WotExternalSchemaCatalog? externalSchemas,
             List<WotDiagnostic> diagnostics)
         {
@@ -3198,7 +3198,7 @@ namespace Opc.Ua.Wot
                 ReportExternalSchema(
                     external.GetString()!,
                     nodeId,
-                    local,
+                    affordanceKey,
                     externalSchemas,
                     diagnostics);
                 return;
@@ -3229,13 +3229,13 @@ namespace Opc.Ua.Wot
         private static void ReportExternalSchema(
             string reference,
             string nodeId,
-            string local,
+            string affordanceKey,
             WotExternalSchemaCatalog? externalSchemas,
             List<WotDiagnostic> diagnostics)
         {
             WotExternalSchemaResult? result =
                 externalSchemas is not null &&
-                externalSchemas.TryGet(local, out WotExternalSchemaResult found)
+                externalSchemas.TryGet(affordanceKey, out WotExternalSchemaResult found)
                     ? found
                     : null;
             if (result is null || result.Outcome == WotExternalSchemaOutcome.NotEvaluated)
