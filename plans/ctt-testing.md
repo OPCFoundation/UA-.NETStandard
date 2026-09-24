@@ -227,8 +227,8 @@ For every distinct error signature:
    `AggregateCttRegressionTests`, which runs the calculator directly and through the
    live history dispatcher) before changing server code.
 5. **Classify** as a server issue (with a spec reference and the location in
-   `src/Opc.Ua.Server` or `samples/Quickstarts.Servers`), a CTT issue (add to
-   `ctt-issues.md` with the test, line, the reason it is wrong and the recommended fix),
+   `src/Opc.Ua.Server` or `samples/Quickstarts.Servers`), a CTT issue (file it in Mantis and add the failing test, a short
+   abstract and the Mantis link to `ctt-issues.md`),
    or configuration (a project setting such as a blank `ProcessingInterval` or a
    non-historizing node).
 
@@ -358,8 +358,7 @@ Measured on 2026-09-14 (CTT 1.05.06, scripts 1.05.513, fresh server per part):
 The durations include the CTT's own start-up and project loading of about 10–15 s.
 
 Before the server fix of 2026-09-14 the Session group took 9 minutes: after Session Base `002.js` every
-CreateSession waited for the CTT's 20 s request timeout (see [ctt-issues.md](ctt-issues.md), open server
-findings).
+CreateSession waited for the CTT's 20 s request timeout.
 
 ### Expected result
 
@@ -391,7 +390,7 @@ Both groups run with the normal recipe (`--ctt -a -c`), one CTT process per grou
 Expected results with the fixes of 2026-09-14: Monitor Basic `039.js` fails (C17) and `038.js` warns (C32);
 Node Management Add Node `Err-008.js` fails (issue 9). Everything else passes or is *Not Implemented*, except
 one or two sporadic *"Timestamp shows a delay"* warnings that move between Monitored Item test cases from run
-to run ([ctt-issues.md](ctt-issues.md), open server findings).
+to run; they depend on the machine load.
 
 ## 9. Security groups
 
@@ -510,7 +509,7 @@ runs of 2026-09-13/14, except
 
 - Aggregates: 4,498 error messages (was 4,210). Minimum, MinimumActualTime and MaximumActualTime `001-02.js`… now
   fail because #4477 implements the Part 13 Uncertain rules the oracle lacks (C48, C49).
-- Auditing: 0 errors (C14 was the event queue size bug, fixed by #4480).
+- Auditing: 0 errors (the event queue size bug was fixed by #4480).
 - A & C Confirm `Test_001.js` can fail for all alarm types depending on the alarm phase (C10).
 - Newly covered: UAFX (no FX model), PubSub Publisher UADP (no PubSub publisher) and Security None /
   Basic256Sha256 `007.js`/`005.js`. Those two failed (also on origin/master) because the server closed idle
@@ -524,7 +523,7 @@ matches the run above at test-case level, except
 - Aggregates: 4,562 error messages (was 4,498). Aggregate – DeltaBounds now also differs on the Double and Float
   nodes because #4503 computes the difference for Uncertain bounds (U4).
 - Monitored Item Services: Monitor Value Change V2 `020.js` passes (it was skipped while the sample ByteString
-  array still had elements shorter than four bytes, C33).
+  array still had elements shorter than four bytes).
 - A & C Confirm `Test_001.js` passed this time; it depends on the alarm phase (C10).
 - Security None `007.js` and Security Basic256Sha256 `005.js` pass with the default 30 s `ChannelLifetime`.
 - Node Management Delete Node `Err-002.js` warned about 200 ms AddNodes/DeleteNodes responses (the batches took
