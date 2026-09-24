@@ -94,6 +94,40 @@ namespace Opc.Ua.Client.Tests.FileSystem
         }
 
         [Test]
+        public async Task GenerateForReadWaitsForReadTransferStateAsync()
+        {
+            using var harness = TempTransferHarness.Create();
+            harness.UseCompletionStateMachine(
+                ObjectIds.FileTransferStateMachineType_ReadPrepare,
+                ObjectIds.FileTransferStateMachineType_ReadPrepare,
+                ObjectIds.FileTransferStateMachineType_ReadTransfer);
+
+            UaFileStream stream = await harness.Client
+                .GenerateFileForReadAsync(default, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(harness.StateReads, Is.EqualTo(3),
+                "Read must only be possible once the state reached ReadTransfer.");
+            await stream.DisposeAsync().ConfigureAwait(false);
+        }
+
+        [Test]
+        public void GenerateForReadThrowsAndClosesHandleWhenStateMachineFails()
+        {
+            using var harness = TempTransferHarness.Create();
+            harness.UseCompletionStateMachine(
+                ObjectIds.FileTransferStateMachineType_ReadPrepare,
+                ObjectIds.FileTransferStateMachineType_Error);
+
+            Assert.That(
+                async () => await harness.Client
+                    .GenerateFileForReadAsync(default, CancellationToken.None)
+                    .ConfigureAwait(false),
+                Throws.TypeOf<System.IO.IOException>());
+            Assert.That(harness.CloseCount, Is.EqualTo(1));
+        }
+
+        [Test]
         public async Task TempStreamWrapperDisposeDoesNotCloseHandleAsync()
         {
             using var harness = TempTransferHarness.Create();
@@ -113,12 +147,84 @@ namespace Opc.Ua.Client.Tests.FileSystem
         {
             private readonly Dictionary<uint, Func<CallMethodRequest, Variant[]>> m_handlers = [];
 
-            private TempTransferHarness(TemporaryFileTransferClient client)
+            private TempTransferHarness(
+                TemporaryFileTransferClient client,
+                Mock<ISession> sessionMock)
             {
                 Client = client;
+                SessionMock = sessionMock;
             }
 
             public TemporaryFileTransferClient Client { get; }
+            public Mock<ISession> SessionMock { get; }
+            public int StateReads { get; private set; }
+
+            /// <summary>
+            /// Makes GenerateFileForRead return a completion state machine
+            /// whose CurrentState/Id reads as <paramref name="states"/> in
+            /// turn (the last one repeats).
+            /// </summary>
+            public void UseCompletionStateMachine(params NodeId[] states)
+            {
+                var stateMachine = new NodeId(500);
+                var stateIdNode = new NodeId(501);
+                m_handlers[Methods.TemporaryFileTransferType_GenerateFileForRead] = _ =>
+                [
+                    new Variant(new NodeId(123)),
+                    new Variant(7u),
+                    new Variant(stateMachine)
+                ];
+                SessionMock
+                    .Setup(s => s.TranslateBrowsePathsToNodeIdsAsync(
+                        It.IsAny<RequestHeader>(),
+                        It.IsAny<ArrayOf<BrowsePath>>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns<RequestHeader, ArrayOf<BrowsePath>, CancellationToken>(
+                        (_, paths, _) =>
+                        {
+                            Assert.That(paths[0].StartingNode, Is.EqualTo(stateMachine));
+                            return new ValueTask<TranslateBrowsePathsToNodeIdsResponse>(
+                                new TranslateBrowsePathsToNodeIdsResponse
+                                {
+                                    ResponseHeader = new ResponseHeader(),
+                                    Results = new[]
+                                    {
+                                        new BrowsePathResult
+                                        {
+                                            StatusCode = StatusCodes.Good,
+                                            Targets = new[]
+                                            {
+                                                new BrowsePathTarget
+                                                {
+                                                    TargetId = stateIdNode,
+                                                    RemainingPathIndex = uint.MaxValue
+                                                }
+                                            }.ToArrayOf()
+                                        }
+                                    }.ToArrayOf()
+                                });
+                        });
+                SessionMock
+                    .Setup(s => s.ReadAsync(
+                        It.IsAny<RequestHeader>(),
+                        It.IsAny<double>(),
+                        It.IsAny<TimestampsToReturn>(),
+                        It.IsAny<ArrayOf<ReadValueId>>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns<RequestHeader, double, TimestampsToReturn, ArrayOf<ReadValueId>,
+                        CancellationToken>(
+                        (_, _, _, nodes, _) =>
+                        {
+                            Assert.That(nodes[0].NodeId, Is.EqualTo(stateIdNode));
+                            NodeId state = states[Math.Min(StateReads, states.Length - 1)];
+                            StateReads++;
+                            return new ValueTask<ReadResponse>(new ReadResponse
+                            {
+                                ResponseHeader = new ResponseHeader(),
+                                Results = new[] { new DataValue(new Variant(state)) }.ToArrayOf()
+                            });
+                        });
+            }
 
             public int CloseAndCommitCount { get; private set; }
             public int CloseCount { get; private set; }
@@ -160,7 +266,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
                     sessionMock.Object,
                     new NodeId(1000));
 
-                harness = new TempTransferHarness(client);
+                harness = new TempTransferHarness(client, sessionMock);
                 harness.RegisterHandlers();
                 return harness;
             }
