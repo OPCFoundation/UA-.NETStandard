@@ -501,7 +501,10 @@ namespace Opc.Ua.Gds.Server
                     new CertificateStoreIdentifier(certificateGroup.Configuration.TrustedListPath!),
                     new CertificateStoreIdentifier(certificateGroup.Configuration.IssuerListPath!),
                     new TrustList.SecureAccess(HasTrustListAccess),
-                    new TrustList.SecureAccess(HasTrustListAccess),
+                    // the group trust list is shared by all applications of
+                    // the group: SelfAdmin / ApplicationAdmin may only read it.
+                    new TrustList.SecureAccess(
+                        (context, _) => AuthorizationHelper.HasTrustListWriteAccess(context)),
                     Server.Telemetry);
         }
 

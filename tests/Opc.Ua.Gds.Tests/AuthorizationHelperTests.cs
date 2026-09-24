@@ -126,6 +126,39 @@ namespace Opc.Ua.Gds.Tests
                     appId));
         }
 
+        /// <summary>
+        /// OPC 10000-12 §7.2 Table 20: ApplicationSelfAdmin only reads the
+        /// shared group trust list; writing needs CertificateAuthorityAdmin.
+        /// </summary>
+        [Test]
+        public void HasTrustListWriteAccessRequiresCertificateAuthorityAdmin()
+        {
+            var selfAdmin = new GdsRoleBasedIdentity(
+                new UserIdentity("appuser", s_passwordBytes),
+                new List<Role> { Role.AuthenticatedUser },
+                new NodeId(99),
+                m_namespaceTable);
+            var selfAdminContext = new SessionSystemContext(m_telemetry)
+            {
+                UserIdentity = selfAdmin,
+                NamespaceUris = m_namespaceTable
+            };
+            var caAdmin = new GdsRoleBasedIdentity(
+                new UserIdentity("admin", s_passwordBytes),
+                new List<Role> { GdsRole.CertificateAuthorityAdmin },
+                m_namespaceTable);
+            var caAdminContext = new SessionSystemContext(m_telemetry)
+            {
+                UserIdentity = caAdmin,
+                NamespaceUris = m_namespaceTable
+            };
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() =>
+                AuthorizationHelper.HasTrustListWriteAccess(selfAdminContext));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.DoesNotThrow(() => AuthorizationHelper.HasTrustListWriteAccess(caAdminContext));
+        }
+
         [Test]
         public void HasAuthorizationThrowsWithSelfAdminForDifferentApplication()
         {

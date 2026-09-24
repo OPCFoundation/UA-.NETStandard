@@ -206,6 +206,33 @@ namespace Opc.Ua.Gds.Server
         }
 
         /// <summary>
+        /// Checks if the current session (context) may modify a certificate
+        /// group trust list. The GDS trust lists are shared by every
+        /// application of the group, and OPC 10000-12 §7.2 (Table 20) grants
+        /// the <c>ApplicationSelfAdmin</c> and <c>ApplicationAdmin</c>
+        /// Privileges read access only, so writing requires the
+        /// <c>CertificateAuthorityAdmin</c> or <c>SecurityAdmin</c> Role.
+        /// </summary>
+        /// <param name="context">the current <see cref="ISystemContext"/></param>
+        /// <exception cref="ServiceResultException">
+        /// Thrown with <see cref="StatusCodes.BadUserAccessDenied"/> when the
+        /// caller lacks the required roles.
+        /// </exception>
+        internal static void HasTrustListWriteAccess(ISystemContext context)
+        {
+            var roles = new List<Role> { GdsRole.CertificateAuthorityAdmin, Role.SecurityAdmin };
+            IUserIdentity? userIdentity = (context as ISessionSystemContext)?.UserIdentity;
+            if (HasRole(userIdentity, roles, context.NamespaceUris))
+            {
+                return;
+            }
+
+            throw new ServiceResultException(
+                StatusCodes.BadUserAccessDenied,
+                $"At least one of the Roles {string.Join(", ", roles)} is required to modify the TrustList");
+        }
+
+        /// <summary>
         /// Checks if current session (context) is connected using an
         /// authenticated secure channel (<see cref="MessageSecurityMode.Sign"/>
         /// or <see cref="MessageSecurityMode.SignAndEncrypt"/>).
