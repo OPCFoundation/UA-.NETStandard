@@ -144,6 +144,31 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        [TestCase(3)]
+        [TestCase(100)]
+        [TestCase(20000)]
+        public void BinaryEncoderDoesNotApplyMaxByteStringLengthToStrings(int length)
+        {
+            // Depending on the string size the encoder routed strings through
+            // WriteByteString, which applied MaxByteStringLength although the
+            // decoder only checks MaxStringLength.
+            ServiceMessageContext context = CreateContext();
+            context.MaxStringLength = 0;
+            context.MaxByteStringLength = 2;
+            string value = new('x', length);
+
+            byte[] buffer;
+            using (var encoder = new BinaryEncoder(context))
+            {
+                encoder.WriteString("Value", value);
+                buffer = encoder.CloseAndReturnBuffer();
+            }
+
+            using var decoder = new BinaryDecoder(buffer, context);
+            Assert.That(decoder.ReadString("Value"), Is.EqualTo(value));
+        }
+
+        [Test]
         public void EncodeableMatrixWithInconsistentDimensionsIsADecodingError()
         {
             // MatrixOf throws ArgumentException for wire dimensions that do not
