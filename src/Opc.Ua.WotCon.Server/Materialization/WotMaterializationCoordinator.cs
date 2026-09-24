@@ -71,7 +71,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
             IWotViewProjectionHost? viewProjectionHost = null)
         {
             m_registry = registry ?? throw new ArgumentNullException(nameof(registry));
-            m_deletePolicyRegistry = registry as IWotDeletePolicyRegistryService;
             m_sourceHost = projectionHost ?? throw new ArgumentNullException(nameof(projectionHost));
             m_host = new ProjectionCaptureAdapter(m_sourceHost, () => m_preparing);
             m_sourceBinders = binderRegistry ?? NullWotBinderRegistry.Instance;
@@ -449,7 +448,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <exception cref="NotSupportedException">
         /// The configured registry does not support policy-driven deletion.
         /// </exception>
-        public async ValueTask<WotDeleteOutcome> DeleteAsync(
+        public ValueTask<WotDeleteOutcome> DeleteAsync(
             WotDeleteRequest request,
             CancellationToken cancellationToken = default)
         {
@@ -457,71 +456,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 throw new ArgumentNullException(nameof(request));
             }
-            if (!TryBeginOperation(allowDisposed: false))
-            {
-                throw new ObjectDisposedException(nameof(WotMaterializationCoordinator));
-            }
-
-            WotDeleteResult delete;
-            try
-            {
-                IWotDeletePolicyRegistryService deletePolicyRegistry =
-                    m_deletePolicyRegistry ??
-                    throw new NotSupportedException(
-                        "The registry service does not support policy-driven deletion.");
-                DateTime start = DateTime.UtcNow;
-                delete = await deletePolicyRegistry.DeleteResourceAsync(
-                    request.GroupId,
-                    request.ResourceId,
-                    request.Policy,
-                    request.ExpectedEpoch,
-                    cancellationToken).ConfigureAwait(false);
-                if (delete.Outcome != WoTOutcomeEnum.Success)
-                {
-                    var refused = new WoTRefreshSummaryDataType
-                    {
-                        RequestId = request.RequestId,
-                        Generation = m_generation,
-                        Outcome = delete.Outcome,
-                        Atomicity = WoTAtomicityEnum.PerClosure,
-                        StartTime = start,
-                        EndTime = DateTime.UtcNow,
-                        Total = 0,
-                        Succeeded = 0,
-                        Unchanged = 0,
-                        Failed = 0,
-                        Skipped = 0,
-                        Retired = 0
-                    };
-                    RaiseEvent(new WotMaterializationEventArgs(
-                        WotMaterializationEventKind.RefreshCompleted)
-                    {
-                        Generation = m_generation,
-                        RequestId = request.RequestId,
-                        Outcome = delete.Outcome,
-                        Summary = refused,
-                        Reason = delete.Message
-                    });
-                    return new WotDeleteOutcome(delete, refused, [], m_generation);
-                }
-            }
-            finally
-            {
-                EndOperation();
-            }
-
-            WotRefreshResult reconciled = await RefreshAsync(
-                new WotRefreshRequest
-                {
-                    RequestId = request.RequestId,
-                    Options = new WoTRefreshOptionsDataType
-                    {
-                        DeletePolicy = request.Policy
-                    }
-                },
-                cancellationToken).ConfigureAwait(false);
-            return new WotDeleteOutcome(
-                delete, reconciled.Summary, reconciled.Results, reconciled.NewGeneration);
+            return ApplyResourceLifecycleAsync(
+                request.GroupId, request.ResourceId, true, request.Policy, request.ExpectedEpoch,
+                request.RequestId, cancellationToken);
         }
 
         /// <summary>
@@ -755,7 +692,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WotCapturedRefreshRequest request,
             CancellationToken cancellationToken,
             uint? preparationGeneration = null,
-            bool committedInputs = false)
+            bool committedInputs = false,
+            WotRegistryMutationImage? mutation = null)
         {
             m_converterOptions.Validate();
             uint generation = preparationGeneration ?? m_generation;
@@ -776,7 +714,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     : [];
             WotMaterializationSnapshot inputs = await WotDependencyGraph.CapturePublicationAsync(
                 m_registry, request.Selection, request.IncludeDependents, maxJsonDepth,
-                replacementClosures, cancellationToken, committedInputs)
+                replacementClosures, cancellationToken, committedInputs, mutation)
                 .ConfigureAwait(false);
             bool transferred = false;
             try
@@ -2631,7 +2569,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         private readonly IWotRegistryService m_registry;
-        private readonly IWotDeletePolicyRegistryService? m_deletePolicyRegistry;
         private readonly ProjectionCaptureAdapter m_host;
         private readonly ViewCaptureAdapter m_viewHost;
         private readonly BinderCaptureAdapter m_binders;

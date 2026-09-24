@@ -78,6 +78,11 @@ namespace Opc.Ua.WotCon.Server
         public bool StrictBindings { get; set; }
 
         /// <summary>
+        /// Gets or sets the policy applied to hosted logical Resource unload and delete operations.
+        /// </summary>
+        public WoTDeletePolicyEnum DeletePolicy { get; set; } = WoTDeletePolicyEnum.Reject;
+
+        /// <summary>
         /// Gets or sets the algorithm for importing document-set partitions.
         /// Independent readable-model normalization is opt-in and never
         /// relaxes native or archive authority.

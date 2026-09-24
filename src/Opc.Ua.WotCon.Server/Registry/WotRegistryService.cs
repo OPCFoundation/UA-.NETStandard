@@ -236,6 +236,10 @@ namespace Opc.Ua.WotCon.Server.Registry
             long? expectedEpoch = null,
             CancellationToken cancellationToken = default)
         {
+            if (Volatile.Read(ref m_lifecycleCoordinator) is { } coordinator)
+            {
+                return await coordinator.DeleteGroupAsync(groupId, expectedEpoch, cancellationToken).ConfigureAwait(false);
+            }
             await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
@@ -524,6 +528,11 @@ namespace Opc.Ua.WotCon.Server.Registry
             long? expectedEpoch = null,
             CancellationToken cancellationToken = default)
         {
+            if (Volatile.Read(ref m_lifecycleCoordinator) is { } coordinator)
+            {
+                return await coordinator.DeleteVersionAsync(
+                    groupId, resourceId, versionId, expectedEpoch, cancellationToken).ConfigureAwait(false);
+            }
             await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
@@ -563,6 +572,14 @@ namespace Opc.Ua.WotCon.Server.Registry
             long? expectedEpoch = null,
             CancellationToken cancellationToken = default)
         {
+            if (Volatile.Read(ref m_lifecycleCoordinator) is { } coordinator)
+            {
+                return deleteLogicalResource
+                    ? await DeleteThroughLifecycleAsync(
+                        coordinator, groupId, resourceId, expectedEpoch, cancellationToken).ConfigureAwait(false)
+                    : await coordinator.DeleteVersionAsync(
+                        groupId, resourceId, versionId, expectedEpoch, cancellationToken).ConfigureAwait(false);
+            }
             await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
@@ -1328,6 +1345,11 @@ namespace Opc.Ua.WotCon.Server.Registry
             long? expectedEpoch = null,
             CancellationToken cancellationToken = default)
         {
+            if (Volatile.Read(ref m_lifecycleCoordinator) is { } coordinator)
+            {
+                return await DeleteThroughLifecycleAsync(
+                    coordinator, groupId, resourceId, expectedEpoch, cancellationToken).ConfigureAwait(false);
+            }
             await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
@@ -1364,6 +1386,14 @@ namespace Opc.Ua.WotCon.Server.Registry
             long? expectedEpoch = null,
             CancellationToken cancellationToken = default)
         {
+            if (Volatile.Read(ref m_lifecycleCoordinator) is { } coordinator)
+            {
+                WotDeleteOutcome result = await coordinator.DeleteAsync(new WotDeleteRequest
+                {
+                    GroupId = groupId, ResourceId = resourceId, Policy = policy, ExpectedEpoch = expectedEpoch
+                }, cancellationToken).ConfigureAwait(false);
+                return result.Delete;
+            }
             await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
@@ -1399,6 +1429,71 @@ namespace Opc.Ua.WotCon.Server.Registry
             WoTDeletePolicyEnum policy,
             CancellationToken cancellationToken)
         {
+            WotRegistryLifecyclePlan plan = await PlanResourceLifecycleLockedAsync(
+                snapshot, resource, delete: true, policy, cancellationToken).ConfigureAwait(false);
+            if (plan.Mutation is { } mutation)
+            {
+                await CommitAndPublishAsync(snapshot,
+                    mutation.Desired.WithPublicationState(plan.Result.Generation, snapshot.RefreshGeneration),
+                    mutation.ChangedResourceXids.ToList(), projectionOnly: false, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            return plan.Result;
+        }
+
+        internal async ValueTask<WotRegistryLifecyclePlan> PlanResourceLifecycleAsync(
+            string groupId,
+            string resourceId,
+            bool delete,
+            WoTDeletePolicyEnum policy,
+            long? expectedEpoch,
+            CancellationToken cancellationToken)
+        {
+            groupId = ResolveAssignedGroupId(groupId);
+            resourceId = ResolveAssignedResourceId(groupId, resourceId);
+            await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                EnsureMutationAllowed();
+                WotRegistrySnapshot snapshot = m_snapshot;
+                WotResource? resource = snapshot.FindResource(groupId, resourceId);
+                if (resource is null)
+                {
+                    return new WotRegistryLifecyclePlan(null, null, DeleteRefused(
+                        WoTOutcomeEnum.Failed, policy, snapshot.Generation, "Resource not found."));
+                }
+                if (expectedEpoch is { } epoch && epoch != resource.MetaEpoch)
+                {
+                    return new WotRegistryLifecyclePlan(null, resource, DeleteRefused(
+                        WoTOutcomeEnum.Rejected, policy, snapshot.Generation, "Epoch mismatch."));
+                }
+                if (!delete && !resource.Enabled && resource.ActiveVersionId is null)
+                {
+                    return new WotRegistryLifecyclePlan(null, resource, DeleteRefused(
+                        WoTOutcomeEnum.Unchanged, policy, snapshot.Generation, "The Resource is already unloaded."));
+                }
+                return await PlanResourceLifecycleLockedAsync(
+                    snapshot, resource, delete, policy, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_mutex.Release();
+            }
+        }
+
+        private async ValueTask<WotRegistryLifecyclePlan> PlanResourceLifecycleLockedAsync(
+            WotRegistrySnapshot snapshot,
+            WotResource resource,
+            bool delete,
+            WoTDeletePolicyEnum policy,
+            CancellationToken cancellationToken,
+            ArrayOf<string> deletionCohort = default)
+        {
+            if (policy is not (WoTDeletePolicyEnum.Reject or WoTDeletePolicyEnum.Retire or
+                WoTDeletePolicyEnum.Cascade or WoTDeletePolicyEnum.Force))
+            {
+                throw new ArgumentOutOfRangeException(nameof(policy));
+            }
             WotDependentSet found =
                 await WotDependencyGraph.FindDependentsWithFaultsAsync(
                     snapshot,
@@ -1406,13 +1501,15 @@ namespace Opc.Ua.WotCon.Server.Registry
                     Bounds.MaxJsonDepth,
                     ReadContentAsync,
                     cancellationToken).ConfigureAwait(false);
-            ImmutableArray<WotDependent> dependents = found.Dependents;
+            ImmutableArray<WotDependent> dependents = found.Dependents
+                .Where(dependent => !deletionCohort.Contains(dependent.Xid)).ToImmutableArray();
 
             // The target's own blob being unreadable says nothing about
             // whether anything depends on it, and it is being removed
             // anyway. Every other unreadable document might be a dependent,
             // and no policy may treat "not checked" as "checked and clear".
-            ImmutableArray<string> unknown = Except(found.Unreadable, resource.Xid);
+            ImmutableArray<string> unknown = Except(found.Unreadable, resource.Xid)
+                .Where(xid => !deletionCohort.Contains(xid)).ToImmutableArray();
             ImmutableArray<string>.Builder xids = ImmutableArray.CreateBuilder<string>();
             foreach (WotDependent dependent in dependents)
             {
@@ -1421,12 +1518,13 @@ namespace Opc.Ua.WotCon.Server.Registry
             ImmutableArray<string> dependentXids = xids.ToImmutable();
 
             if (policy == WoTDeletePolicyEnum.Reject &&
-                (dependents.Length != 0 || unknown.Length != 0))
+                (dependents.Any(dependent => delete || dependent.Resource.ActiveVersionId is not null) ||
+                 unknown.Length != 0))
             {
                 // Nothing is written: a rejected delete has to leave every
                 // piece of state exactly as the caller found it, or the
                 // difference between Reject and Force is only a message.
-                return new WotDeleteResult(
+                return new WotRegistryLifecyclePlan(null, resource, new WotDeleteResult(
                     WoTOutcomeEnum.Rejected,
                     policy,
                     snapshot.Generation,
@@ -1443,7 +1541,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                         : $"'{resource.Xid}' cannot be shown to be unreferenced: " +
                             unknown.Length.ToString(CultureInfo.InvariantCulture) +
                             " document(s) could not be read, and the delete policy is " +
-                            "Reject.");
+                            "Reject."));
             }
 
             long generation = snapshot.Generation + 1;
@@ -1454,7 +1552,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             bool retired;
             ImmutableArray<string> unloaded = [];
             ImmutableArray<string> failed = [];
-            if (policy == WoTDeletePolicyEnum.Retire)
+            if (!delete || policy == WoTDeletePolicyEnum.Retire)
             {
                 // The document stays stored and therefore stays
                 // resolvable; only its projection comes down. Nothing that
@@ -1463,7 +1561,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                 long metaEpoch = resource.MetaEpoch + 1;
                 WotResource retiredResource = resource.With(
                         enabled: false,
-                        loadState: WoTLoadStateEnum.Retired,
+                        loadState: policy == WoTDeletePolicyEnum.Retire
+                            ? WoTLoadStateEnum.Retired : WoTLoadStateEnum.Unloaded,
                         epoch: metaEpoch,
                         materializedNodeCount: 0,
                         clearActiveVersion: true,
@@ -1472,6 +1571,11 @@ namespace Opc.Ua.WotCon.Server.Registry
                 next = WithResource(next, retiredResource, generation);
                 deleted = false;
                 retired = true;
+                if (policy is WoTDeletePolicyEnum.Cascade or WoTDeletePolicyEnum.Force)
+                {
+                    (next, unloaded, failed) = ApplyPolicyToDependents(
+                        next, policy, dependents, unknown, generation, modifiedAt, changed);
+                }
             }
             else
             {
@@ -1488,10 +1592,9 @@ namespace Opc.Ua.WotCon.Server.Registry
                     changed);
             }
 
-            await CommitAndPublishAsync(
-                    snapshot, next, changed, projectionOnly: false, cancellationToken)
-                .ConfigureAwait(false);
-            return new WotDeleteResult(
+            var mutation = new WotRegistryMutationImage(
+                snapshot, next.WithPublicationState(snapshot.Generation, snapshot.RefreshGeneration), changed.ToArrayOf());
+            return new WotRegistryLifecyclePlan(mutation, resource, new WotDeleteResult(
                 WoTOutcomeEnum.Success,
                 policy,
                 generation,
@@ -1501,7 +1604,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 unloaded,
                 failed,
                 unknown,
-                DescribeDelete(policy, resource.Xid, unloaded, failed, unknown));
+                DescribeDelete(policy, resource.Xid, unloaded, failed, unknown)));
         }
 
         /// <summary>
@@ -1754,6 +1857,10 @@ namespace Opc.Ua.WotCon.Server.Registry
             long? expectedEpoch = null,
             CancellationToken cancellationToken = default)
         {
+            if (!enabled && Volatile.Read(ref m_lifecycleCoordinator) is { } coordinator)
+            {
+                return coordinator.SetEnabledAsync(groupId, resourceId, false, expectedEpoch, cancellationToken);
+            }
             return MutateResourceAsync(
                 groupId,
                 resourceId,
@@ -2337,6 +2444,22 @@ namespace Opc.Ua.WotCon.Server.Registry
             WotResourceVersion version,
             CancellationToken cancellationToken)
         {
+            (WotRegistrySnapshot next, WotRegistryMutationResult result) =
+                PlanVersionDeletion(snapshot, group, resource, version);
+            if (result.Changed)
+            {
+                await CommitAndPublishAsync(
+                    snapshot, next, [resource.Xid], projectionOnly: false, cancellationToken).ConfigureAwait(false);
+            }
+            return result;
+        }
+
+        private static (WotRegistrySnapshot Snapshot, WotRegistryMutationResult Result) PlanVersionDeletion(
+            WotRegistrySnapshot snapshot,
+            WotResourceGroup group,
+            WotResource resource,
+            WotResourceVersion version)
+        {
             long generation = snapshot.Generation + 1;
             WotRegistrySnapshot next;
             WotResource resultResource;
@@ -2357,9 +2480,9 @@ namespace Opc.Ua.WotCon.Server.Registry
                     .ToImmutableArray();
                 if (committedVersions.IsEmpty)
                 {
-                    return Rejected(
+                    return (snapshot, Rejected(
                         snapshot.Generation,
-                        "Deleting the last committed Version would leave only pending Versions.");
+                        "Deleting the last committed Version would leave only pending Versions."));
                 }
                 WotResourceVersion? currentDefault = versions.FirstOrDefault(candidate =>
                     candidate.HasContent &&
@@ -2425,18 +2548,11 @@ namespace Opc.Ua.WotCon.Server.Registry
                     generation,
                     bumpGroupEpoch: false);
             }
-            await CommitAndPublishAsync(
-                    snapshot,
-                    next,
-                    [resource.Xid],
-                    projectionOnly: false,
-                    cancellationToken)
-                .ConfigureAwait(false);
-            return new WotRegistryMutationResult(
+            return (next, new WotRegistryMutationResult(
                 WoTOutcomeEnum.Success,
                 resultResource,
                 generation,
-                []);
+                []));
         }
 
         private static WotRegistrySnapshot ReplaceResource(
@@ -2617,14 +2733,16 @@ namespace Opc.Ua.WotCon.Server.Registry
             WotRegistrySnapshot current,
             IReadOnlyList<string> changed,
             bool projectionOnly,
-            Exception? priorFailure = null)
+            Exception? priorFailure = null,
+            bool materializationHandled = false)
         {
             EventHandler<WotRegistryChangedEventArgs>? observers = Changed;
             if (observers is null)
             {
                 return;
             }
-            var change = new WotRegistryChangedEventArgs(previous, current, changed, projectionOnly);
+            var change = new WotRegistryChangedEventArgs(
+                previous, current, changed, projectionOnly, materializationHandled);
             List<Exception>? failures = null;
             foreach (EventHandler<WotRegistryChangedEventArgs> observer in observers.GetInvocationList())
             {

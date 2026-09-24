@@ -179,7 +179,8 @@ namespace Opc.Ua.WotCon.Server.Registry
             uint refreshGeneration,
             ByteString canonicalViewGraphState,
             RegistryPublicationInvocation? invocation,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            WotRegistryMutationImage? mutation = null)
         {
             _ = expectedSnapshot ?? throw new ArgumentNullException(nameof(expectedSnapshot));
             if (m_store is not IWotRegistryPreparedStore { SupportsPreparedCommits: true } store)
@@ -195,19 +196,30 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 throw new ServiceResultException(StatusCodes.BadInvalidState, "Publication generation regressed.");
             }
+            if (mutation is not null && !ReferenceEquals(mutation.Previous, expectedSnapshot))
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidState, "The mutation input image changed.");
+            }
             (WotRegistrySnapshot next, ArrayOf<string> changed) =
-                BuildProjectionSnapshot(expectedSnapshot, projections.ToList());
+                BuildProjectionSnapshot(mutation?.Desired ?? expectedSnapshot, projections.ToList());
+            if (mutation is not null)
+            {
+                changed = mutation.ChangedResourceXids.ToList().Concat(changed.ToList())
+                    .Distinct(StringComparer.Ordinal).ToArrayOf();
+            }
             next = next.WithPublicationState(
                 checked(expectedSnapshot.Generation + 1), refreshGeneration, canonicalViewGraphState);
             using IWotRegistryValidatedGeneration captured = await store
                 .CaptureValidatedGenerationAsync(cancellationToken).ConfigureAwait(false);
             IWotRegistryPreparedCommit? decision = await store.PrepareCommitAsync(
-                next, captured, WotRegistryCommitScope.ProjectionMetadata, cancellationToken).ConfigureAwait(false);
+                next, captured, mutation is null
+                    ? WotRegistryCommitScope.ProjectionMetadata : WotRegistryCommitScope.Full, cancellationToken)
+                .ConfigureAwait(false);
             try
             {
                 var publication = new PreparedRegistryPublication(
                     expectedSnapshot, next, PrepareReadImages(expectedSnapshot, next), changed, decision,
-                    DecidePublicationAsync, PublishPublication, ReleasePublication, invocation);
+                    DecidePublicationAsync, PublishPublication, ReleasePublication, invocation, mutation is null);
                 decision = null;
                 return publication;
             }
@@ -383,8 +395,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             ReleasePublication(publication);
             RaiseChanged(
                 publication.PreviousSnapshot, publication.IntendedSnapshot,
-                publication.Changed.ToList(), projectionOnly: true,
-                publication.DurabilityWarning?.PersistenceFailure);
+                publication.Changed.ToList(), publication.ProjectionOnly,
+                publication.DurabilityWarning?.PersistenceFailure,
+                materializationHandled: !publication.ProjectionOnly);
         }
 
         private void ReleasePublication(PreparedRegistryPublication publication)
@@ -409,11 +422,13 @@ namespace Opc.Ua.WotCon.Server.Registry
             Func<PreparedRegistryPublication, CancellationToken, ValueTask> decide,
             Action<PreparedRegistryPublication> publish,
             Action<PreparedRegistryPublication> release,
-            RegistryPublicationInvocation? invocation) : IWotPreparedRegistryPublication
+            RegistryPublicationInvocation? invocation,
+            bool projectionOnly) : IWotPreparedRegistryPublication
         {
             public WotRegistrySnapshot PreviousSnapshot { get; } = previous;
             public WotRegistrySnapshot IntendedSnapshot { get; } = intended;
             public ArrayOf<INodeManagerReadImage> ReadImages { get; } = readImages;
+            public bool ProjectionOnly { get; } = projectionOnly;
             public ArrayOf<string> Changed { get; } = changed;
             public IWotRegistryPreparedCommit Decision { get; } = decision;
             public RegistryPublicationInvocation? Invocation { get; } = invocation;
@@ -668,7 +683,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         }
 
         private sealed class RegistryPublicationInvocation(WotRegistryService owner, bool recoveryOnly = false)
-            : IWotRegistryRecoveryPublication
+            : IWotRegistryRecoveryPublication, IWotRegistryMutationPublication
         {
             public WotRegistrySnapshot Current => owner.Current;
 
@@ -710,6 +725,33 @@ namespace Opc.Ua.WotCon.Server.Registry
                         expectedSnapshot, runtimeSnapshot, this, cancellationToken).ConfigureAwait(false);
                     RegisterPublication(recovery);
                     return recovery;
+                }
+                finally
+                {
+                    FinishPreparation();
+                }
+            }
+
+            public async ValueTask<IWotPreparedRegistryPublication> PrepareMutationAsync(
+                WotRegistryMutationImage mutation,
+                ArrayOf<WotResourceProjection> projections,
+                uint refreshGeneration,
+                ByteString canonicalViewGraphState = default,
+                CancellationToken cancellationToken = default)
+            {
+                _ = mutation ?? throw new ArgumentNullException(nameof(mutation));
+                if (recoveryOnly)
+                {
+                    throw new InvalidOperationException("A recovery invocation cannot decide a lifecycle mutation.");
+                }
+                BeginPreparation();
+                try
+                {
+                    IWotPreparedRegistryPublication publication = await owner.PreparePublicationCoreAsync(
+                        mutation.Previous, projections, refreshGeneration, canonicalViewGraphState,
+                        this, cancellationToken, mutation).ConfigureAwait(false);
+                    RegisterPublication(publication);
+                    return publication;
                 }
                 finally
                 {

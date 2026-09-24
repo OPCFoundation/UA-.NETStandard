@@ -545,7 +545,7 @@ namespace Opc.Ua.WotCon.Server
                 return ServiceResult.Create(
                     StatusCodes.BadInvalidArgument, "The Enabled argument is required.");
             }
-            WotRegistryMutationResult result = await m_registry
+            WotRegistryMutationResult result = await m_manager.Coordinator
                 .SetEnabledAsync(groupId, resourceId, enabled, OptionalEpoch(input, 1), ct)
                 .ConfigureAwait(false);
             return ToServiceResult(result);
@@ -1020,9 +1020,13 @@ namespace Opc.Ua.WotCon.Server
                 long? epoch,
                 CancellationToken ct)
             {
-                WotRegistryMutationResult result = await m_projection.m_registry
-                    .DeleteResourceAsync(groupId, resourceId, epoch, ct).ConfigureAwait(false);
-                return ToServiceResult(result);
+                WotDeleteOutcome result = await m_projection.m_manager.Coordinator.DeleteAsync(new WotDeleteRequest
+                {
+                    GroupId = groupId, ResourceId = resourceId, ExpectedEpoch = epoch,
+                    Policy = m_projection.m_manager.Coordinator.DeletePolicy
+                }, ct).ConfigureAwait(false);
+                return ToServiceResult(new WotRegistryMutationResult(
+                    result.Delete.Outcome, null, result.Delete.Generation, [], result.Delete.Message));
             }
 
             public async ValueTask<ServiceResult> DeleteProjectedEntityAsync(
@@ -1033,6 +1037,10 @@ namespace Opc.Ua.WotCon.Server
                 long? epoch,
                 CancellationToken ct)
             {
+                if (deleteLogicalResource)
+                {
+                    return await DeleteResourceAsync(groupId, resourceId, epoch, ct).ConfigureAwait(false);
+                }
                 if (m_projection.m_registry is not IWotVersionedRegistryService versioned)
                 {
                     return StatusCodes.BadNotSupported;

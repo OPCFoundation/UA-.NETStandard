@@ -388,10 +388,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 ? await AddStockViewAsync("child", false).ConfigureAwait(false)
                 : null;
             await m_coordinator.RefreshAsync(HandoffRequest("before-preview-retirement")).ConfigureAwait(false);
-            await m_registry.SetEnabledAsync(source.GroupId, source.ResourceId, false).ConfigureAwait(false);
+            await StageDesiredDisableAsync(source).ConfigureAwait(false);
             if (child is not null)
             {
-                await m_registry.SetEnabledAsync(child.GroupId, child.ResourceId, false).ConfigureAwait(false);
+                await StageDesiredDisableAsync(child).ConfigureAwait(false);
             }
             await AwaitStockRegistryProjectionAsync().ConfigureAwait(false);
             WotRegistrySnapshot before = m_registry.Current;
@@ -562,7 +562,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             WotResource first = await AddAsync("first").ConfigureAwait(false);
             WotResource second = await AddAsync("second").ConfigureAwait(false);
             WotResource third = await AddAsync("third").ConfigureAwait(false);
-            await m_registry.SetEnabledAsync(retired.GroupId, retired.ResourceId, false).ConfigureAwait(false);
+            await StageDesiredDisableAsync(retired).ConfigureAwait(false);
             await AwaitStockRegistryProjectionAsync().ConfigureAwait(false);
             WotRegistrySnapshot before = m_registry.Current;
             string xid = exactXid ? WotDependencyGraph.VersionXid(retired, selected) : retired.Xid;
@@ -618,7 +618,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             await m_coordinator.RefreshAsync(HandoffRequest("before-split-preview")).ConfigureAwait(false);
             WotResource first = await AddAsync("first").ConfigureAwait(false);
             WotResource second = await AddAsync("second").ConfigureAwait(false);
-            await m_registry.SetEnabledAsync(retired.GroupId, retired.ResourceId, false).ConfigureAwait(false);
+            await StageDesiredDisableAsync(retired).ConfigureAwait(false);
             await AwaitStockRegistryProjectionAsync().ConfigureAwait(false);
             WotRegistrySnapshot before = m_registry.Current;
             string retiredXid = exactRetiredVersion
@@ -686,11 +686,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 : null;
             await m_coordinator.RefreshAsync(HandoffRequest("before-rejected-retirement")).ConfigureAwait(false);
             WotResource unrelated = await AddAsync("unrelated-disabled").ConfigureAwait(false);
-            await m_registry.SetEnabledAsync(unrelated.GroupId, unrelated.ResourceId, false).ConfigureAwait(false);
-            await m_registry.SetEnabledAsync(source.GroupId, source.ResourceId, false).ConfigureAwait(false);
+            await StageDesiredDisableAsync(unrelated).ConfigureAwait(false);
+            await StageDesiredDisableAsync(source).ConfigureAwait(false);
             if (child is not null)
             {
-                await m_registry.SetEnabledAsync(child.GroupId, child.ResourceId, false).ConfigureAwait(false);
+                await StageDesiredDisableAsync(child).ConfigureAwait(false);
             }
             await AwaitStockRegistryProjectionAsync().ConfigureAwait(false);
             WotRegistrySnapshot before = m_registry.Current;
@@ -750,6 +750,25 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             request.Options.DryRun = false;
             WotRefreshResult retired = await m_coordinator.RefreshAsync(request).ConfigureAwait(false);
             Assert.That(retired.NewGeneration, Is.EqualTo(2u));
+        }
+
+        private async Task StageDesiredDisableAsync(WotResource resource)
+        {
+            // Construct pending desired metadata for preview tests, not an already-completed unload command.
+            await using IWotRegistryPublication invocation = await m_registry.BeginPublicationAsync()
+                .ConfigureAwait(false);
+            WotRegistrySnapshot previous = invocation.Current;
+            WotResource current = previous.FindResourceByXid(resource.Xid)!;
+            WotResourceGroup group = previous.FindGroup(current.GroupId)!;
+            WotRegistrySnapshot desired = previous.WithGroup(group.WithResources(
+                group.Resources.SetItem(current.ResourceId, current.With(enabled: false)), group.Epoch),
+                previous.Generation);
+            await using IWotPreparedRegistryPublication staged =
+                await ((IWotRegistryMutationPublication)invocation).PrepareMutationAsync(
+                    new WotRegistryMutationImage(previous, desired, [current.Xid]), [], previous.RefreshGeneration)
+                    .ConfigureAwait(false);
+            await staged.DecideAsync().ConfigureAwait(false);
+            staged.Publish();
         }
     }
 }

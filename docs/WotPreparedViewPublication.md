@@ -257,6 +257,37 @@ These rules report outcomes supplied by the configured conversion and binding
 providers. They do not add a JSON Schema validator or infer compatibility success
 from parsing.
 
+## Coordinated lifecycle mutations
+
+A hosted registry routes logical Resource deletion, exact-Version deletion,
+group deletion and `SetEnabled(false)` through its registered coordinator before
+acquiring registry mutation admission. These operations do not depend on
+`AutoRefresh`. The coordinator applies the effective `DeletePolicy`, prepares the
+affected source/View retirement image and publishes it with the registry change
+through the existing deciding store and native publication owner.
+
+Mutation planning leaves committed generations unchanged. Preparation uses
+retained committed inputs for affected survivors, not unrelated pending default
+Versions. `Retire` keeps the target document resolvable without recreating its
+activation owner; `Cascade` and `Force` retain their distinct dependent outcomes.
+Optimistic checks use the addressed Resource, Version or group epoch.
+`WotRegistryServerOptions.DeletePolicy` supplies the hosted coordinator's policy.
+Deleting an active exact Version retires that owner while retaining the surviving
+default-selection metadata. With automatic refresh disabled, explicitly refreshing
+the remaining Resource activates its selected surviving Version.
+
+A content mutation reports its changed identities even when an identity has been
+removed. `MaterializationHandled` distinguishes a coordinated content change
+from projection-only bookkeeping: both still reconcile native registry events,
+but a coordinated change does not schedule a second automatic refresh.
+Metadata-only mutations preserve the projection generation and use the existing
+read-image publication path where required.
+
+Confirmed noncommit and pre-decision cancellation leave both images unchanged.
+After the durable decision, publication completes without using caller
+cancellation to undo it. An unresolved prior publication keeps lifecycle
+mutations fenced until authoritative runtime recovery completes.
+
 ## Captured dependency metadata
 
 `IWotRefreshCaptureProvider` resolves to the registered

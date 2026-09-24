@@ -91,7 +91,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             await AwaitStockRegistryProjectionAsync().ConfigureAwait(false);
 
             WotRefreshResult retired = await m_coordinator.RefreshAsync(
-                HandoffRequest("retired-correlation", 2)).ConfigureAwait(false);
+                HandoffRequest("retired-correlation", 3)).ConfigureAwait(false);
 
             Assert.That(retired.NewGeneration, Is.EqualTo(3u));
             Assert.That(await BrowseStockAsync(ResourceId(source), HasProjectionId()).ConfigureAwait(false),

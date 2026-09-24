@@ -215,10 +215,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
             int maxJsonDepth,
             ArrayOf<ArrayOf<string>> replacementClosures,
             CancellationToken cancellationToken,
-            bool committedInputs = false)
+            bool committedInputs = false,
+            WotRegistryMutationImage? mutation = null)
         {
             _ = registry ?? throw new ArgumentNullException(nameof(registry));
-            WotRegistrySnapshot original = registry.Current;
+            WotRegistrySnapshot original = mutation?.Previous ?? registry.Current;
             var retainedInputs = new Dictionary<string, WotResource>(StringComparer.Ordinal);
             if (committedInputs)
             {
@@ -314,7 +315,35 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         group.Resources.SetItem(input.ResourceId, input), group.Epoch), original.Generation);
                 }
             }
+            var removed = new List<WotSelectedResource>();
+            if (mutation is not null)
+            {
+                foreach (WotResourceGroup group in original.Groups.Values)
+                {
+                    ImmutableDictionary<string, WotResource> resources = group.Resources;
+                    foreach (WotResource resource in group.Resources.Values)
+                    {
+                        WotResource? desired = mutation.Desired.FindResource(group.GroupId, resource.ResourceId);
+                        if (desired is null)
+                        {
+                            removed.Add(new WotSelectedResource(
+                                resource.With(enabled: false), resource.DefaultVersion, resource.Xid));
+                            resources = resources.Remove(resource.ResourceId);
+                        }
+                        else if (mutation.ChangedResourceXids.Contains(resource.Xid))
+                        {
+                            resources = resources.SetItem(resource.ResourceId,
+                                resource.With(enabled: desired.Enabled && desired.ActiveVersionId is not null));
+                        }
+                    }
+                    original = original.WithGroup(group.WithResources(resources, group.Epoch), original.Generation);
+                }
+            }
             ArrayOf<WotSelectedResource> selection = SelectResources(original, selectors, includeDependents);
+            if (removed.Count != 0)
+            {
+                selection = [.. selection, .. removed];
+            }
             WotRegistrySnapshot pinned = original;
             foreach (WotSelectedResource selected in selection)
             {

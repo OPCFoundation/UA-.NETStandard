@@ -149,7 +149,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 }).ConfigureAwait(false);
                 Assert.That(activated.NewGeneration, Is.EqualTo(1u));
             }
-            await m_registry.SetEnabledAsync(model.GroupId, model.ResourceId, false).ConfigureAwait(false);
+            await StageDesiredDisableAsync(model).ConfigureAwait(false);
             ArrayOf<WoTResourceSelectorDataType> selection = [UnitSelector(source)];
             if (sharedInput)
             {

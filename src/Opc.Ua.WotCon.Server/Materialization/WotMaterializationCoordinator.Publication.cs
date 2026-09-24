@@ -80,7 +80,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             DateTime start,
             IWotProjectionPublication? publication,
             IWotRegistryPublication? registryPublication,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            WotRegistryMutationImage? mutation = null)
         {
             WotPublicationPlan plan = WotPublicationPlanner.Create(
                 refresh.Inputs.Closures, refresh.Request.Atomicity,
@@ -132,7 +133,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     result = await RefreshPreparedUnitAsync(
                         unitCapture, snapshot, start, unit, includeSkipped,
-                        publication, registryPublication, preview, cancellationToken).ConfigureAwait(false);
+                        publication, registryPublication, preview, cancellationToken, mutation).ConfigureAwait(false);
                 }
                 catch (WotRegistryCommitNotCommittedException failure) when (
                     rows.Any(row => row.Outcome is WoTOutcomeEnum.Success or WoTOutcomeEnum.Warning))
@@ -166,10 +167,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
             if (plan.Units.IsEmpty)
             {
                 WotRefreshResult empty = await RefreshPreparedUnitAsync(
-                    refresh, snapshot, start, [], true, publication, registryPublication, preview, cancellationToken)
+                    refresh, snapshot, start, [], true, publication, registryPublication, preview, cancellationToken,
+                    mutation)
                     .ConfigureAwait(false);
                 rows.AddRange(empty.Results);
                 retired = empty.Summary.Retired;
+                committedWarning |= empty.Summary.Outcome == WoTOutcomeEnum.Warning;
             }
             if (preview is not null)
             {
@@ -255,7 +258,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             IWotProjectionPublication? publication,
             IWotRegistryPublication? registryPublication,
             PublicationCapture? preview,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            WotRegistryMutationImage? mutation = null)
         {
             if (m_sourceHost is not IWotPreparedProjectionHost { SupportsPreparedPublication: true } host ||
                 m_registry is not IWotPreparedRegistryPublicationService { SupportsPreparedPublication: true } registry)
@@ -282,7 +286,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             bool dryRun = request.DryRun;
             bool changed = capture.Changes.Count != 0 ||
                 capture.ViewUpdates.Count != 0 || capture.ViewRemovals.Count != 0;
-            if (failed || !changed)
+            if (failed || !changed && mutation is null)
             {
                 if (failed)
                 {
@@ -317,7 +321,72 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 return result;
             }
 
-            AddRetiredResourceMetadata(capture, preview?.Closures ?? m_closures, snapshot, start);
+            if (!changed && mutation is not null)
+            {
+                if (registryPublication is not IWotRegistryMutationPublication owner)
+                {
+                    throw new NotSupportedException("The registry invocation cannot prepare lifecycle metadata.");
+                }
+                IWotPreparedRegistryPublication metadata = await owner.PrepareMutationAsync(
+                    mutation, capture.Projections.ToArrayOf(), snapshot.RefreshGeneration,
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
+                await using var metadataLifetime = metadata.ConfigureAwait(false);
+                WotRegistryCommitDurabilityUncertainException? warning = null;
+                async ValueTask DecideAsync(CancellationToken token)
+                {
+                    try
+                    {
+                        await metadata.DecideAsync(token).ConfigureAwait(false);
+                    }
+                    catch (WotRegistryCommitDurabilityUncertainException failure) when (metadata.IsCommitted)
+                    {
+                        warning = failure;
+                    }
+                }
+                void Publish()
+                {
+                    Volatile.Write(ref m_committedPublication, new WotCommittedPublicationState(
+                        metadata.IntendedSnapshot, CommittedPublication.Views, CommittedPublication.ActiveBindingPlans));
+                    try
+                    {
+                        metadata.Publish();
+                    }
+                    catch (WotRegistryCommitDurabilityUncertainException failure) when (metadata.IsCommitted)
+                    {
+                        warning = failure;
+                    }
+                }
+                if (metadata.ReadImages.Count == 0)
+                {
+                    await DecideAsync(cancellationToken).ConfigureAwait(false);
+                    Publish();
+                }
+                else
+                {
+                    if (publication is null)
+                    {
+                        throw new NotSupportedException("Lifecycle metadata needs its captured source owner.");
+                    }
+                    IWotPreparedProjectionPublication prepared = await publication.PrepareReadImagesAsync(
+                        metadata.ReadImages, cancellationToken).ConfigureAwait(false);
+                    await using var preparedLifetime = prepared.ConfigureAwait(false);
+                    await prepared.CommitAsync(DecideAsync, Publish, cancellationToken).ConfigureAwait(false);
+                    if (prepared.CleanupFailure is { } cleanup)
+                    {
+                        AddCommittedWarning(staged, "Committed lifecycle reconciliation warning: " +
+                            DescribeCommittedFailure(cleanup));
+                    }
+                }
+                warning ??= metadata.DurabilityWarning;
+                if (warning is not null)
+                {
+                    m_publicationRecoveryRequired = true;
+                    AddCommittedWarning(staged, "Committed lifecycle durability warning: " + warning.Message);
+                }
+                return NormalizeUncommitted(staged, metadata.IntendedSnapshot, false, false);
+            }
+
+            AddRetiredResourceMetadata(capture, preview?.Closures ?? m_closures, snapshot, start, mutation?.Desired);
             if (preview is not null)
             {
                 capture.Changes.InsertRange(0, preview.Changes);
@@ -403,7 +472,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     }
                 }
                 IWotPreparedRegistryPublication metadata = await PrepareProjectionMetadataAsync(
-                    capture, staged, snapshot, unit, prepared, registry, registryPublication, cancellationToken)
+                    capture, staged, snapshot, unit, prepared, registry, registryPublication, cancellationToken, mutation)
                     .ConfigureAwait(false);
                 await using var metadataLifetime = metadata.ConfigureAwait(false);
                 foreach (ClosureState closure in capture.Closures.Values)
@@ -557,7 +626,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             IWotPreparedProjectionPublication prepared,
             IWotPreparedRegistryPublicationService registry,
             IWotRegistryPublication? publication,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            WotRegistryMutationImage? mutation = null)
         {
             BindPreparedSourceRoots(capture, result, snapshot);
             ByteString graph = prepared.ViewGraph is { } preparedGraph
@@ -569,7 +639,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
             BindCommittedResolutionInputs(capture, unit, snapshot);
             uint generation = checked(snapshot.RefreshGeneration + 1);
-            IWotPreparedRegistryPublication? metadata = publication is null
+            IWotPreparedRegistryPublication? metadata = mutation is not null
+                ? publication is IWotRegistryMutationPublication owner
+                    ? await owner.PrepareMutationAsync(
+                        mutation, capture.Projections.ToArrayOf(), generation, graph, cancellationToken)
+                        .ConfigureAwait(false)
+                    : throw new NotSupportedException("The registry invocation cannot prepare a lifecycle mutation.")
+                : publication is null
                 ? await registry.PreparePublicationAsync(
                     snapshot, capture.Projections.ToArrayOf(), generation, graph, cancellationToken)
                     .ConfigureAwait(false)
@@ -662,7 +738,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             PublicationCapture capture,
             Dictionary<string, ClosureState> previous,
             WotRegistrySnapshot snapshot,
-            DateTime refreshedAt)
+            DateTime refreshedAt,
+            WotRegistrySnapshot? desired = null)
         {
             var retained = new HashSet<string>(
                 capture.Closures.Values.SelectMany(closure => closure.Members).Select(member => member.Xid),
@@ -681,10 +758,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 capture.RetiredResources.Add(resource);
                 capture.Projections.RemoveAll(projection =>
                     projection.GroupId == resource.GroupId && projection.ResourceId == resource.ResourceId);
+                WotResource? planned = desired?.FindResourceByXid(resource.Xid);
+                WoTLoadStateEnum state = planned is { Enabled: false, LoadState: WoTLoadStateEnum.Failed or
+                    WoTLoadStateEnum.Retired } ? planned.LoadState : WoTLoadStateEnum.Unloaded;
                 capture.Projections.Add(new WotResourceProjection(
-                    resource.GroupId, resource.ResourceId, WoTLoadStateEnum.Unloaded, null,
+                    resource.GroupId, resource.ResourceId, state, null,
                     checked(snapshot.RefreshGeneration + 1), 0, NodeId.Null, resource.DefaultVersion?.Validation,
-                    resource.Diagnostics, refreshedAt)
+                    planned is null ? resource.Diagnostics : planned.Diagnostics, refreshedAt)
                 {
                     VersionId = resource.DefaultVersionId
                 });

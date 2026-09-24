@@ -168,9 +168,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             ArrayOf<ReadValueId> nodes = await NativeResourceReadNodesAsync(source).ConfigureAwait(false);
             if (child is not null)
             {
-                await m_registry.SetEnabledAsync(child.GroupId, child.ResourceId, false).ConfigureAwait(false);
+                await StageDesiredDisableAsync(child).ConfigureAwait(false);
             }
-            await m_registry.SetEnabledAsync(source.GroupId, source.ResourceId, false).ConfigureAwait(false);
+            await StageDesiredDisableAsync(source).ConfigureAwait(false);
 
             WotRefreshResult result = await m_coordinator.RefreshAsync(HandoffRequest("read-retire", 1))
                 .ConfigureAwait(false);

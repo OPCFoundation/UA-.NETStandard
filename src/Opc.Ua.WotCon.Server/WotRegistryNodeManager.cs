@@ -73,6 +73,7 @@ namespace Opc.Ua.WotCon.Server
             Registry = registry ?? throw new ArgumentNullException(nameof(registry));
             Coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
             Coordinator.StrictBindings = options.StrictBindings;
+            Coordinator.DeletePolicy = options.DeletePolicy;
             Coordinator.RetirementPolicy = options.RetirementPolicy;
             Coordinator.ServerNamespaceUris = server.NamespaceUris;
 
@@ -215,6 +216,10 @@ namespace Opc.Ua.WotCon.Server
                 {
                     m_recoveryProjectionRegistration = recovery.RegisterRecoveryProjection(this);
                 }
+                if (Registry is WotRegistryService service)
+                {
+                    m_lifecycleCoordinatorRegistration = service.RegisterLifecycleCoordinator(Coordinator);
+                }
                 m_reconcileQueue.Enqueue(() =>
                 {
                     if (Coordinator.LastRefreshSummary is { } completed)
@@ -303,6 +308,7 @@ namespace Opc.Ua.WotCon.Server
             Coordinator.Event -= OnCoordinatorEvent;
             Coordinator.RefreshStateChanged -= OnRefreshStateChanged;
             m_recoveryProjectionRegistration?.Dispose();
+            m_lifecycleCoordinatorRegistration?.Dispose();
             await m_reconcileQueue.CompleteAsync(cancellationToken).ConfigureAwait(false);
             await Coordinator.RemoveAllAsync(cancellationToken).ConfigureAwait(false);
             m_projection.Dispose();
@@ -315,6 +321,7 @@ namespace Opc.Ua.WotCon.Server
             if (disposing)
             {
                 m_recoveryProjectionRegistration?.Dispose();
+                m_lifecycleCoordinatorRegistration?.Dispose();
                 m_reconcileQueue.Dispose();
                 m_projection.Dispose();
                 m_refreshGate.Dispose();
@@ -356,6 +363,7 @@ namespace Opc.Ua.WotCon.Server
                 new Variant((int)WoTRefreshModeEnum.EventDriven));
             SetChildValue(registry, "VocabularyVersion",
                 new Variant(Wot.WotNodeSetConverter.VocabularyNamespace));
+            SetChildValue(registry, "DeletePolicy", new Variant((int)Coordinator.DeletePolicy));
             if (registry is WoTRegistryState typed)
             {
                 typed.AddLastRefreshTime(context).AddLastRefreshSummary(context);
@@ -550,7 +558,7 @@ namespace Opc.Ua.WotCon.Server
             // including projection-only callbacks (which must never re-trigger
             // materialization).
             m_reconcileQueue.Enqueue(e);
-            if (e.ProjectionOnly || !m_options.AutoRefresh)
+            if (e.ProjectionOnly || e.MaterializationHandled || !m_options.AutoRefresh)
             {
                 return;
             }
@@ -847,6 +855,7 @@ namespace Opc.Ua.WotCon.Server
         private readonly SemaphoreSlim m_refreshGate = new(1, 1);
         private BaseObjectState? m_registryNode;
         private IDisposable? m_recoveryProjectionRegistration;
+        private IDisposable? m_lifecycleCoordinatorRegistration;
     }
 
     internal sealed class WotRegistryReconcileQueue : IDisposable

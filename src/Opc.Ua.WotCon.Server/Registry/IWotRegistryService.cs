@@ -287,12 +287,14 @@ namespace Opc.Ua.WotCon.Server.Registry
             WotRegistrySnapshot previous,
             WotRegistrySnapshot current,
             IReadOnlyList<string> changedResourceXids,
-            bool projectionOnly)
+            bool projectionOnly,
+            bool materializationHandled = false)
         {
             Previous = previous;
             Current = current;
             ChangedResourceXids = changedResourceXids;
             ProjectionOnly = projectionOnly;
+            MaterializationHandled = materializationHandled;
         }
 
         /// <summary>
@@ -315,6 +317,12 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// re-trigger materialization).
         /// </summary>
         public bool ProjectionOnly { get; }
+
+        /// <summary>
+        /// Gets whether the mutation's required runtime changes were included in the same publication.
+        /// Such a change still reconciles registry content but must not trigger another automatic refresh.
+        /// </summary>
+        public bool MaterializationHandled { get; }
     }
 
     /// <summary>
