@@ -145,7 +145,7 @@ namespace Opc.Ua.Schema.Json
                 JsonObject schema = type.Definition switch
                 {
                     StructureDefinition structure => BuildStructure(type, structure),
-                    EnumDefinition enumeration => BuildEnum(enumeration),
+                    EnumDefinition enumeration => BuildEnum(enumeration, m_verbose),
                     _ => new JsonObject { ["type"] = "object" }
                 };
                 m_visiting.Remove(typeKey);
@@ -171,7 +171,8 @@ namespace Opc.Ua.Schema.Json
                         var optionRequired = new List<JsonNode?>();
                         if (!m_verbose)
                         {
-                            // The compact encoding emits the union discriminator.
+                            // The compact encoding emits the union discriminator and
+                            // omits the selected value when it is the default value.
                             properties["SwitchField"] = new JsonObject
                             {
                                 ["type"] = "integer",
@@ -179,8 +180,12 @@ namespace Opc.Ua.Schema.Json
                             };
                             optionRequired.Add("SwitchField");
                         }
+                        else
+                        {
+                            // The verbose encoding identifies the selected field by name.
+                            optionRequired.Add(name);
+                        }
                         properties[name] = FieldSchema(field);
-                        optionRequired.Add(name);
                         options.Add(new JsonObject
                         {
                             ["type"] = "object",
@@ -189,6 +194,14 @@ namespace Opc.Ua.Schema.Json
                             ["additionalProperties"] = false
                         });
                     }
+
+                    // A union without a selected field (SwitchField 0) is encoded as an
+                    // empty object.
+                    options.Add(new JsonObject
+                    {
+                        ["type"] = "object",
+                        ["maxProperties"] = 0
+                    });
                     return new JsonObject
                     {
                         ["title"] = type.Name,
@@ -208,8 +221,10 @@ namespace Opc.Ua.Schema.Json
                     {
                         hasOptionalField = true;
                     }
-                    else
+                    else if (m_verbose)
                     {
+                        // Part 6 5.4.1: only the verbose encoding writes every field; the
+                        // compact encoding omits fields with a default or null value.
                         required.Add(name);
                     }
                 }
@@ -217,13 +232,13 @@ namespace Opc.Ua.Schema.Json
                 if (!m_verbose && hasOptionalField)
                 {
                     // The compact encoding prefixes structures that have optional
-                    // fields with an EncodingMask that selects the present fields.
+                    // fields with an EncodingMask that selects the present fields; a
+                    // zero mask is the default value and therefore omitted.
                     fieldSchemas["EncodingMask"] = new JsonObject
                     {
                         ["type"] = "integer",
                         ["minimum"] = 0
                     };
-                    required.Add("EncodingMask");
                 }
 
                 var schema = new JsonObject
@@ -240,10 +255,23 @@ namespace Opc.Ua.Schema.Json
                 return schema;
             }
 
-            private JsonObject BuildEnum(EnumDefinition enumeration)
+            private static JsonObject BuildEnum(EnumDefinition enumeration, bool verbose)
             {
                 ArrayOf<EnumField> fields = enumeration.Fields;
-                if (m_verbose)
+                if (enumeration.IsOptionSet)
+                {
+                    // Part 3 8.52: the fields of an OptionSet are bit numbers and the value
+                    // is the underlying unsigned integer (a string when 64 bit wide) with
+                    // any combination of these bits, in both flavors.
+                    return new JsonObject
+                    {
+                        ["type"] = new JsonArray("integer", "string"),
+                        ["minimum"] = 0,
+                        ["pattern"] = "^\\d+$"
+                    };
+                }
+
+                if (verbose)
                 {
                     // Verbose enums are encoded as the string "Name_Value".
                     var names = new List<JsonNode?>(fields.Count);
@@ -282,25 +310,69 @@ namespace Opc.Ua.Schema.Json
             private JsonObject FieldSchema(StructureField field)
             {
                 NodeId dataType = field.DataType;
-                return ApplyValueRank(() => ElementSchema(dataType), field.ValueRank);
+                bool isScalar = field.ValueRank == ValueRanks.Scalar;
+
+                // Part 6 5.4.1: the verbose encoding writes JSON null for null values and
+                // null array elements are written as JSON null in both flavors.
+                bool allowNull = m_verbose || !isScalar;
+                JsonObject schema = ApplyValueRank(() => ElementSchema(dataType, allowNull), field.ValueRank);
+                return m_verbose && !isScalar ? Nullable(schema) : schema;
             }
 
-            private JsonObject ElementSchema(NodeId dataType)
+            private JsonObject ElementSchema(NodeId dataType, bool allowNull)
             {
                 BuiltInType builtInType = TypeInfo.GetBuiltInType(dataType);
                 if (builtInType != BuiltInType.Null)
                 {
-                    return JsonBuiltInTypeSchemas.Create(builtInType, m_verbose, Definitions);
+                    JsonObject schema = JsonBuiltInTypeSchemas.Create(builtInType, m_verbose, Definitions);
+                    return allowNull && IsNullable(builtInType) ? Nullable(schema) : schema;
                 }
 
                 if (m_resolver.TryResolve(dataType, out UaTypeDescription? referenced))
                 {
                     string key = EnsureType(referenced);
-                    return JsonSchemaConstants.Ref(key);
+                    JsonObject schema = JsonSchemaConstants.Ref(key);
+                    return allowNull && referenced.Definition is StructureDefinition
+                        ? Nullable(schema)
+                        : schema;
                 }
 
                 // Unresolved type: allow any value.
                 return [];
+            }
+
+            /// <summary>
+            /// Returns true for the built-in types whose null value is encoded as JSON null.
+            /// </summary>
+            private static bool IsNullable(BuiltInType builtInType)
+            {
+                switch (builtInType)
+                {
+                    case BuiltInType.String:
+                    case BuiltInType.DateTime:
+                    case BuiltInType.Guid:
+                    case BuiltInType.ByteString:
+                    case BuiltInType.XmlElement:
+                    case BuiltInType.NodeId:
+                    case BuiltInType.ExpandedNodeId:
+                    case BuiltInType.QualifiedName:
+                    case BuiltInType.LocalizedText:
+                    case BuiltInType.ExtensionObject:
+                    case BuiltInType.DataValue:
+                    case BuiltInType.Variant:
+                    case BuiltInType.DiagnosticInfo:
+                        return true;
+                    default:
+                        return false;
+                }
+            }
+
+            private static JsonObject Nullable(JsonObject schema)
+            {
+                return new JsonObject
+                {
+                    ["anyOf"] = new JsonArray(schema, new JsonObject { ["type"] = "null" })
+                };
             }
 
             private static JsonObject ApplyValueRank(Func<JsonObject> elementFactory, int valueRank)
