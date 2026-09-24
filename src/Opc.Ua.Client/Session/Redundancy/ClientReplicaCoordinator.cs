@@ -131,12 +131,28 @@ namespace Opc.Ua.Client.Redundancy
                 {
                     await PromoteToLeaderAsync(m_cts.Token).ConfigureAwait(false);
                 }
-                else if (m_options.Mode == ClientStandbyMode.Cold && m_session != null)
+                else if (m_session != null &&
+                    (m_options.Mode == ClientStandbyMode.Cold || m_sessionServedLeader))
                 {
+                    // A Warm/Hot session that served as leader still carries the leader's
+                    // subscriptions and (with token reuse) the shared AuthenticationToken.
+                    // Kept alive, it would keep publishing next to the new leader and its
+                    // reconnects would take the mirrored session back. Tear it down and,
+                    // for Warm/Hot, reconnect a genuine standby session.
                     ManagedSession demoted = m_session;
                     m_session = null;
+                    m_sessionServedLeader = false;
                     demoted.SessionConfigurationChanged -= OnSessionConfigurationChanged;
+                    if (ReferenceEquals(m_publishedSession, demoted))
+                    {
+                        m_publishedSession = null;
+                    }
                     await demoted.DisposeAsync().ConfigureAwait(false);
+                    if (m_options.Mode != ClientStandbyMode.Cold && !m_election.IsLeader)
+                    {
+                        m_session = await m_options.CreateSessionAsync!(m_cts.Token)
+                            .ConfigureAwait(false);
+                    }
                 }
                 if (isLeader == m_election.IsLeader)
                 {
@@ -160,6 +176,7 @@ namespace Opc.Ua.Client.Redundancy
                 try
                 {
                     bool fastActivated = await EnsureLeaderSessionAsync(ct).ConfigureAwait(false);
+                    m_sessionServedLeader = m_session != null;
                     if (m_options.ConfigureLeaderAsync != null && m_session != null)
                     {
                         await m_options.ConfigureLeaderAsync(m_session, fastActivated, ct)
@@ -218,13 +235,22 @@ namespace Opc.Ua.Client.Redundancy
                     {
                         config.Identity = m_session.Identity;
                     }
-                    if (m_session.ApplySessionConfiguration(config))
+
+                    // Adopting the mirrored configuration replaces this session's own
+                    // SessionId/AuthenticationToken; close that server session first so it
+                    // (and a Hot standby's sampling subscriptions) is not orphaned until it
+                    // times out.
+                    await CloseOwnSessionQuietlyAsync(m_session, ct).ConfigureAwait(false);
+                    mutatedForReuse = true;
+                    if (!m_session.ApplySessionConfiguration(config))
                     {
-                        mutatedForReuse = true;
-                        await m_session.ReactivateMirroredSessionAsync(m_session.ConfiguredEndpoint, ct)
-                            .ConfigureAwait(false);
-                        return true;
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadInvalidState,
+                            "The mirrored session configuration could not be applied.");
                     }
+                    await m_session.ReactivateMirroredSessionAsync(m_session.ConfiguredEndpoint, ct)
+                        .ConfigureAwait(false);
+                    return true;
                 }
             }
             catch (Exception ex)
@@ -244,6 +270,26 @@ namespace Opc.Ua.Client.Redundancy
                 }
             }
             return false;
+        }
+
+        private async ValueTask CloseOwnSessionQuietlyAsync(ManagedSession session, CancellationToken ct)
+        {
+            if (session.SessionId.IsNull)
+            {
+                return;
+            }
+            try
+            {
+                // Straight to the inner session: the managed service gate waits for the
+                // connection state machine, which would stall promotion while the standby
+                // session is reconnecting. A failed close only leaves it to time out.
+                await session.InnerSession.CloseSessionAsync(null, deleteSubscriptions: true, ct)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                m_logger.ClosingStandbySessionBeforeTokenReuseFailed(ex);
+            }
         }
 
         private async ValueTask DisposeQuietlyAsync(ManagedSession session)
@@ -334,6 +380,7 @@ namespace Opc.Ua.Client.Redundancy
         private readonly BackgroundTaskScope m_backgroundWork;
         private ManagedSession? m_session;
         private ManagedSession? m_publishedSession;
+        private bool m_sessionServedLeader;
     }
 
     /// <summary>
@@ -363,5 +410,11 @@ namespace Opc.Ua.Client.Redundancy
         [LoggerMessage(EventId = ClientEventIds.ClientReplicaCoordinator + 3, Level = LogLevel.Information,
             Message = "Disposing a token-reuse session that failed to reactivate threw; ignoring.")]
         public static partial void DisposingTokenReuseSessionThatFailed(this ILogger logger, Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.ClientReplicaCoordinator + 4, Level = LogLevel.Information,
+            Message = "Closing the standby's own session before token reuse failed; it expires on the server.")]
+        public static partial void ClosingStandbySessionBeforeTokenReuseFailed(
+            this ILogger logger,
+            Exception? exception);
     }
 }
