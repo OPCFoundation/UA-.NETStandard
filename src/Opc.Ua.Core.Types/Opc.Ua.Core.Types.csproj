@@ -31,8 +31,8 @@
   <PropertyGroup>
     <StackSourceGeneratorMode>Models</StackSourceGeneratorMode>
   </PropertyGroup>
+  <Import Project="..\..\tools\Opc.Ua.SourceGeneration.Stack\OPCFoundation.Opc.Ua.SourceGeneration.Stack.props" />
   <ItemGroup>
-    <CompilerVisibleProperty Include="StackSourceGeneratorMode" />
     <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration.Stack\Opc.Ua.SourceGeneration.Stack.csproj">
 	  <OutputItemType>Analyzer</OutputItemType>
 	  <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
