@@ -1,0 +1,4 @@
+# Corpus inputs are raw bytes: never normalize line endings or attempt merges.
+* binary
+*.md text eol=crlf
+.gitattributes text eol=crlf
