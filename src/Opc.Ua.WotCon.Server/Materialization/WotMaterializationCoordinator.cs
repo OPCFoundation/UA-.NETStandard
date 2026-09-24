@@ -920,6 +920,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             var degradationReasons = new List<string>();
             var requiredNamespaces = new HashSet<string>(StringComparer.Ordinal);
             var ownedNamespaces = new HashSet<string>(StringComparer.Ordinal);
+            ArrayOf<WotResource> conversionMembers = members.ToArrayOf();
             bool declarationOwnerAssigned = false;
 
             foreach (WotResource member in members)
@@ -969,7 +970,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     projectionError is not null
                         ? (null, default, projectionError, WoTPhaseEnum.FormatValidation, [])
                         : await TryConvertAsync(
-                            member, snapshot, contentCache, ownsResolutionDefinitions, cancellationToken)
+                            member, snapshot, contentCache, new WotDocumentConversionContents(
+                                contentCache, capture.Inputs.DeclarationInputs, member, conversionMembers,
+                                ownsResolutionDefinitions), cancellationToken)
                             .ConfigureAwait(false);
                 if (nodeSet is not null && m_nodeSetContributors.Length > 0)
                 {
@@ -1399,7 +1402,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WotResource resource,
             WotRegistrySnapshot snapshot,
             Dictionary<string, ByteString> contentCache,
-            bool ownsResolutionDefinitions,
+            IReadOnlyDictionary<string, ByteString> conversionContents,
             CancellationToken cancellationToken)
         {
             WotResourceVersion? version = resource.DefaultVersion;
@@ -1414,12 +1417,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
             ByteString content = await ReadCachedContentAsync(contentCache, version, cancellationToken)
                 .ConfigureAwait(false);
-            WotConversionOutput output = m_converter is WotNodeSetDocumentConverter stock
-                ? await stock.ConvertCapturedAsync(
-                    resource, content, snapshot, contentCache, ownsResolutionDefinitions, cancellationToken)
-                    .ConfigureAwait(false)
-                : await m_converter.ConvertAsync(resource, content, snapshot, contentCache, cancellationToken)
-                    .ConfigureAwait(false);
+            WotConversionOutput output = await m_converter.ConvertAsync(
+                resource, content, snapshot, conversionContents, cancellationToken).ConfigureAwait(false);
             if (!output.Succeeded)
             {
                 return (null, default, output.Errors.IsDefaultOrEmpty

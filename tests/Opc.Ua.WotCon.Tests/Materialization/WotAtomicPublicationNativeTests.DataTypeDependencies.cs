@@ -35,8 +35,10 @@ using System.Text;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
+using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
@@ -45,24 +47,51 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 {
     public sealed partial class WotAtomicPublicationNativeTests
     {
-        [TestCase(0, false, false, false, 0)]
-        [TestCase(1, false, false, false, 0)]
-        [TestCase(2, false, false, false, 0)]
-        [TestCase(0, true, false, false, 0)]
-        [TestCase(1, true, false, false, 0)]
-        [TestCase(2, true, false, false, 0)]
-        [TestCase(0, false, true, false, 0)]
-        [TestCase(0, true, true, false, 0)]
-        [TestCase(0, false, true, true, 0)]
-        [TestCase(0, false, true, true, 1)]
-        [TestCase(0, false, true, true, 2)]
+        [TestCase(0, false, false, false, 0, false)]
+        [TestCase(1, false, false, false, 0, false)]
+        [TestCase(2, false, false, false, 0, false)]
+        [TestCase(0, true, false, false, 0, false)]
+        [TestCase(1, true, false, false, 0, false)]
+        [TestCase(2, true, false, false, 0, false)]
+        [TestCase(0, false, true, false, 0, false)]
+        [TestCase(0, true, true, false, 0, false)]
+        [TestCase(0, false, true, true, 0, false)]
+        [TestCase(0, false, true, true, 1, false)]
+        [TestCase(0, false, true, true, 2, false)]
+        [TestCase(0, false, true, true, 0, true)]
         public async Task SelectedDefinitionOwnerMaterializesThroughTheStockNativePath(
-            int referenceForm, bool activeDefinition, bool sharedDefinition, bool perResource, int restart)
+            int referenceForm, bool activeDefinition, bool sharedDefinition, bool perResource, int restart, bool decorated)
         {
             m_coordinator.Dispose();
+            var conversionOptions = new WotNodeSetConverterOptions();
+            var stock = new WotNodeSetDocumentConverter(conversionOptions);
+            var borrowedDocuments = new List<WotDocument>();
+            var emissionFlags = new List<bool>();
+            IWotDocumentConverter converter = stock;
+            if (decorated)
+            {
+                var decorator = new Mock<IWotDocumentConverter>(MockBehavior.Strict);
+                decorator.Setup(value => value.ConvertAsync(
+                    It.IsAny<WotResource>(), It.IsAny<ByteString>(), It.IsAny<WotRegistrySnapshot>(),
+                    It.IsAny<IReadOnlyDictionary<string, ByteString>>(), It.IsAny<CancellationToken>()))
+                    .Returns((WotResource resource, ByteString bytes, WotRegistrySnapshot snapshot,
+                        IReadOnlyDictionary<string, ByteString> contents, CancellationToken token) =>
+                    {
+                        Assert.That(contents, Is.InstanceOf<IWotDocumentConversionContext>());
+                        ArrayOf<WotDataTypeDefinitionSource> definitions =
+                            ((IWotDocumentConversionContext)contents).GetDataTypeDefinitions(conversionOptions, token);
+                        foreach (WotDataTypeDefinitionSource definition in definitions)
+                        {
+                            borrowedDocuments.Add(definition.Document);
+                            emissionFlags.Add(definition.ProjectedSeparately);
+                        }
+                        return stock.ConvertAsync(resource, bytes, snapshot, contents, token);
+                    });
+                converter = decorator.Object;
+            }
             m_coordinator = new WotMaterializationCoordinator(
                 m_registry, new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle),
-                documentConverter: new WotNodeSetDocumentConverter())
+                documentConverter: converter)
             {
                 ServerNamespaceUris = m_server.CurrentInstance.NamespaceUris
             };
@@ -169,6 +198,16 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             Assert.That(result.Summary.Failed, Is.Zero, string.Join("; ", result.Results.Select(row => row.Message)));
             Assert.That(result.NewGeneration, Is.EqualTo(1u));
+            if (decorated)
+            {
+                Assert.That(borrowedDocuments, Has.Count.EqualTo(2));
+                Assert.That(borrowedDocuments[1], Is.SameAs(borrowedDocuments[0]),
+                    "Each captured declaration document is parsed once and shared by its consumers.");
+                Assert.That(emissionFlags.Count(flag => !flag), Is.EqualTo(1));
+                Assert.That(() => borrowedDocuments[0].RootElement.GetRawText(),
+                    Throws.TypeOf<ObjectDisposedException>(),
+                    "The completed capture must release its borrowed declaration documents.");
+            }
             if (perResource)
             {
                 Assert.That(result.Summary.Atomicity, Is.EqualTo(WoTAtomicityEnum.PerClosure));
@@ -214,6 +253,21 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             WotRegistryMutationResult refused = await m_registry.DeleteResourceAsync(
                 model.GroupId, model.ResourceId).ConfigureAwait(false);
             Assert.That(refused.Outcome, Is.EqualTo(WoTOutcomeEnum.Rejected));
+            if (decorated)
+            {
+                WotDocument previousBorrow = borrowedDocuments[0];
+                borrowedDocuments.Clear();
+                emissionFlags.Clear();
+                request.ExpectedGeneration = 1;
+                request.Options.Force = true;
+                WotRefreshResult refreshed = await m_coordinator.RefreshAsync(request).ConfigureAwait(false);
+                Assert.That(refreshed.Summary.Failed, Is.Zero);
+                Assert.That(refreshed.NewGeneration, Is.EqualTo(2u));
+                Assert.That(borrowedDocuments, Has.Count.EqualTo(2));
+                Assert.That(borrowedDocuments[0], Is.Not.SameAs(previousBorrow));
+                Assert.That(borrowedDocuments[1], Is.SameAs(borrowedDocuments[0]));
+                Assert.That(() => borrowedDocuments[0].RootElement.GetRawText(), Throws.TypeOf<ObjectDisposedException>());
+            }
             if (restart != 0)
             {
                 await VerifyCapturedDefinitionRecoveryAsync(model, consumer, restart == 2).ConfigureAwait(false);

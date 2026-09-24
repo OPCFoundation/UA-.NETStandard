@@ -61,6 +61,15 @@ the same context-aware name parsing used by conversion and registry indexing.
 Captured inputs remain subject to the converter's document, node and byte limits;
 supplying them does not authorize another fetch.
 
+The content dictionary passed to `IWotDocumentConverter.ConvertAsync` can also
+implement `IWotDocumentConversionContext`. Its declaration inputs carry the
+per-conversion emission decision through injected converters and decorators.
+Forward the content argument unchanged when delegating conversion. The captured
+input image parses each required declaration document once for a given JSON
+depth limit, reuses those borrowed documents across publication units, and
+disposes them when the capture ends. Converters must not dispose borrowed
+documents or retain them beyond that capture.
+
 An active definition owner emits its own declarations. Resolution-only
 definitions are emitted once by an active source in the prepared closure.
 Consumers sharing such declarations stay in one publication unit rather than

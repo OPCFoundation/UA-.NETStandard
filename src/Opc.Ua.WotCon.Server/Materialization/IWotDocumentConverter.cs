@@ -152,6 +152,21 @@ namespace Opc.Ua.WotCon.Server.Materialization
     }
 
     /// <summary>
+    /// Optional per-conversion metadata carried by the captured content dictionary.
+    /// Converter decorators preserve this context by forwarding their content argument unchanged.
+    /// </summary>
+    public interface IWotDocumentConversionContext
+    {
+        /// <summary>
+        /// Borrows complete declaration inputs with this conversion's emission ownership.
+        /// Documents remain owned by the captured input image and must not be disposed by the converter.
+        /// </summary>
+        ArrayOf<WotDataTypeDefinitionSource> GetDataTypeDefinitions(
+            WotNodeSetConverterOptions options,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
     /// The production converter over <see cref="WotNodeSetConverter"/>.
     /// </summary>
     public sealed class WotNodeSetDocumentConverter : IWotDocumentConverter
@@ -218,25 +233,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         /// <inheritdoc/>
-        public ValueTask<WotConversionOutput> ConvertAsync(
+        public async ValueTask<WotConversionOutput> ConvertAsync(
             WotResource resource,
             ByteString content,
             WotRegistrySnapshot snapshot,
             IReadOnlyDictionary<string, ByteString> contents,
             CancellationToken cancellationToken)
         {
-            return ConvertCapturedAsync(resource, content, snapshot, contents, true, cancellationToken);
-        }
-
-        internal async ValueTask<WotConversionOutput> ConvertCapturedAsync(
-            WotResource resource,
-            ByteString content,
-            WotRegistrySnapshot snapshot,
-            IReadOnlyDictionary<string, ByteString> contents,
-            bool ownsResolutionDefinitions,
-            CancellationToken cancellationToken)
-        {
-            var siblingDocuments = new List<WotDocument>();
+            using var directInputs = contents is IWotDocumentConversionContext
+                ? null : new WotDeclarationInputCache(contents);
             try
             {
                 using var document = WotDocument.Parse(content.Span.ToArray(), m_options);
@@ -252,40 +257,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 // the resolver is reused for as long as the snapshot it indexes
                 // is the one being converted. Building it per conversion would
                 // make a refresh cost one registry-wide index per document.
-                var indexed = new HashSet<string>(StringComparer.Ordinal);
-                var definitions = new List<WotDataTypeDefinitionSource>();
-                long bytes = 0;
-                foreach (WotResource sibling in snapshot.AllResources())
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    WotResourceVersion? version = sibling.DefaultVersion;
-                    if (version is null || !contents.TryGetValue(version.DigestHex, out ByteString body) ||
-                        !indexed.Add(version.DigestHex))
-                    {
-                        continue;
-                    }
-                    bytes = checked(bytes + body.Length);
-                    if (indexed.Count > m_options.MaxResolverDocuments ||
-                        bytes > m_options.MaxResolverTotalBytes)
-                    {
-                        return WotConversionOutput.Failure("The captured sibling documents exceed the resolver budget.");
-                    }
-                    WotDocument owner = sibling.Xid == resource.Xid
-                        ? document : WotDocument.Parse(body.Memory, m_options);
-                    if (!ReferenceEquals(owner, document))
-                    {
-                        siblingDocuments.Add(owner);
-                    }
-                    foreach (WotDataTypeDefinitionSource definition in WotNodeSetConverter.ReadDataTypeDefinitions(owner))
-                    {
-                        definitions.Add(new WotDataTypeDefinitionSource(owner, definition.Definition)
-                        {
-                            ProjectedSeparately = sibling.Xid != resource.Xid &&
-                                (sibling.Enabled || !ownsResolutionDefinitions)
-                        });
-                    }
-                }
-                var resolver = new SnapshotThingResolver(snapshot, contents, definitions.ToArrayOf());
+                ArrayOf<WotDataTypeDefinitionSource> definitions = contents is IWotDocumentConversionContext context
+                    ? context.GetDataTypeDefinitions(m_options, cancellationToken)
+                    : directInputs!.GetDefinitions(
+                        resource, snapshot.AllResources().ToArrayOf(), true, m_options, cancellationToken);
+                var resolver = new SnapshotThingResolver(snapshot, contents, definitions);
                 IWotNodeResolver nodeResolver = GetLocalContext(snapshot, contents);
                 // One resolution context per top-level conversion, seeded from
                 // the configured converter options, so depth/document/byte
@@ -332,13 +308,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 return WotConversionOutput.Failure(ex.Message);
-            }
-            finally
-            {
-                foreach (WotDocument sibling in siblingDocuments)
-                {
-                    sibling.Dispose();
-                }
             }
         }
 

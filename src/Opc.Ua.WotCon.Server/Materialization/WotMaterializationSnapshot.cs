@@ -119,6 +119,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             SelectsAll = selectsAll;
             Closures = closures;
             Contents = contents;
+            DeclarationInputs = new WotDeclarationInputCache(contents);
             m_leases = leases;
             Resources = registry.AllResources().OrderBy(resource => resource.Xid, StringComparer.Ordinal).ToArrayOf();
             AcquisitionFailures = closures.ToList()
@@ -156,6 +157,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         public ArrayOf<WotResourceAcquisitionFailure> AcquisitionFailures { get; }
 
         internal ImmutableDictionary<string, ByteString> Contents { get; }
+        internal WotDeclarationInputCache DeclarationInputs { get; }
 
         /// <summary>
         /// Reads the captured bytes of one exact input; never falls back to the current store.
@@ -182,6 +184,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 return;
             }
+            DeclarationInputs.Dispose();
             foreach (IWotRegistryVersionLease lease in m_leases)
             {
                 lease.Dispose();
