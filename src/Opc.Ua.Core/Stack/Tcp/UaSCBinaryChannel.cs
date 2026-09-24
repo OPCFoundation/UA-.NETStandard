@@ -691,11 +691,15 @@ namespace Opc.Ua.Bindings
         {
             get
             {
+                if (Volatile.Read(ref m_partialMessageChunks) == null)
+                {
+                    return false;
+                }
                 lock (m_partialMessageLock)
                 {
                     return m_partialMessageChunks != null &&
                         TimeProvider.GetElapsedTime(m_partialMessageStartedAt).TotalMilliseconds >=
-                            Quotas.ChannelLifetime;
+                            Quotas.MessageAssemblyLifetime;
                 }
             }
         }

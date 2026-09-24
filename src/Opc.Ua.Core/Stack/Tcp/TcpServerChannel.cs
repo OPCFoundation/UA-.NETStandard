@@ -418,6 +418,10 @@ namespace Opc.Ua.Bindings
 
             using (await Gate.EnterAsync(ct).ConfigureAwait(false))
             {
+                if (State == TcpChannelState.Closed)
+                {
+                    return false;
+                }
                 SetResponseRequired(true);
 
                 try
@@ -1537,7 +1541,8 @@ namespace Opc.Ua.Bindings
                 if (TcpMessageType.IsAbort(messageType))
                 {
                     m_logger.TcpServerLog15(ChannelId, requestId);
-                    chunksToProcess = GetSavedChunks(requestId, messageBody, true, gateHeld: true);
+                    chunksToProcess = TakeSavedChunks();
+                    chunksToProcess.Add(messageBody);
                     return true;
                 }
 

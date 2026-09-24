@@ -111,5 +111,18 @@ namespace Opc.Ua.Bindings
         /// all the listeners of a server - share one budget.
         /// </remarks>
         public ChunkReassemblyBudget? ChunkReassemblyBudget { get; set; }
+
+        /// <summary>
+        /// Bounds incomplete-message retention even when the channel lifetime is unset.
+        /// Non-positive values use the same default as a newly configured channel,
+        /// without changing the lifetime used by other channel operations.
+        /// </summary>
+        internal int MessageAssemblyLifetime =>
+            ChannelLifetime > 0 ? ChannelLifetime : TcpMessageLimits.DefaultChannelLifetime;
+
+        /// <summary>
+        /// Shares assembly-deadline checks across channels using these quotas and the same clock.
+        /// </summary>
+        internal MessageAssemblyScheduler MessageAssemblyScheduler { get; } = new();
     }
 }

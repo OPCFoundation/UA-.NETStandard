@@ -845,7 +845,9 @@ sessionless configuration. General buffer-manager limits remain opt-in.
 Server-channel `ChannelLifetime` also bounds an unfinished message from its
 first retained chunk, even if more chunks keep arriving. Size this lifetime
 for legitimate large transfers without relying on continuation chunks to
-extend it indefinitely. See [incomplete-message limits](Transports.md#incomplete-message-resource-limits).
+extend it indefinitely. A zero or negative value uses the 30-second default
+for message assembly; it does not disable assembly cleanup. See
+[incomplete-message limits](Transports.md#incomplete-message-resource-limits).
 
 ## Migrating channel subclasses that override HandleIncomingMessage
 

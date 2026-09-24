@@ -112,11 +112,7 @@ namespace Opc.Ua.Bindings
             TokenActivatedCallback = (current, previous)
                 => m_tokenActivated?.Invoke(this, current, previous);
 
-            if (quotas.ChannelLifetime > 0)
-            {
-                TimeSpan period = TimeSpan.FromMilliseconds(Math.Max(1, quotas.ChannelLifetime / 2));
-                m_messageAssemblyTimer = TimeProvider.CreateTimer(CheckMessageAssemblyTimeout, null, period, period);
-            }
+            quotas.MessageAssemblyScheduler.Register(this, TimeProvider, quotas.MessageAssemblyLifetime);
         }
 
         /// <summary>
@@ -160,7 +156,7 @@ namespace Opc.Ua.Bindings
             if (disposing)
             {
                 Volatile.Write(ref m_disposed, 1);
-                m_messageAssemblyTimer?.Dispose();
+                Quotas.MessageAssemblyScheduler.Unregister(this, TimeProvider);
             }
             base.Dispose(disposing);
         }
@@ -791,7 +787,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Reclaims incomplete messages even when the hosting listener has no inactivity sweep.
         /// </summary>
-        private void CheckMessageAssemblyTimeout(object? state)
+        internal void CheckMessageAssemblyTimeout()
         {
             if (Volatile.Read(ref m_disposed) != 0 ||
                 !HasExpiredPartialMessage ||
@@ -815,13 +811,28 @@ namespace Opc.Ua.Bindings
                     {
                         return;
                     }
-                    if (State is TcpChannelState.Open or TcpChannelState.Connecting)
-                    {
-                        State = TcpChannelState.Closing;
-                    }
-                    CleanupCore(new ServiceResult(
+                    var reason = new ServiceResult(
                         StatusCodes.BadTimeout,
-                        LocalizedText.From("Incomplete message exceeded the channel lifetime.")));
+                        LocalizedText.From("Incomplete message exceeded its assembly deadline."));
+                    try
+                    {
+                        if (Transport != null)
+                        {
+                            SendErrorMessage(reason);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.UaSCChannelTerminalWriteFailed(ex, ChannelId);
+                    }
+                    finally
+                    {
+                        if (State is TcpChannelState.Open or TcpChannelState.Connecting)
+                        {
+                            State = TcpChannelState.Closing;
+                        }
+                        CleanupCore(reason);
+                    }
                 }
             }
             finally
@@ -873,6 +884,7 @@ namespace Opc.Ua.Bindings
             {
                 State = TcpChannelState.Closed;
                 ClosePartialMessage();
+                Quotas.MessageAssemblyScheduler.Unregister(this, TimeProvider);
                 Listener.ChannelClosed(ChannelId);
 
                 // notify any monitors.
@@ -899,6 +911,7 @@ namespace Opc.Ua.Bindings
             {
                 State = finalState;
                 ClosePartialMessage();
+                Quotas.MessageAssemblyScheduler.Unregister(this, TimeProvider);
                 Listener.ChannelClosed(ChannelId);
             }
         }
@@ -1153,7 +1166,6 @@ namespace Opc.Ua.Bindings
         }
 
         private readonly ILogger m_logger;
-        private readonly ITimer? m_messageAssemblyTimer;
 
         /// <summary>
         /// Prevents new transport attachment or admission cleanup after disposal begins.

@@ -595,13 +595,33 @@ namespace Microsoft.Extensions.DependencyInjection
             this IOpcUaServerBuilder builder,
             long maxBytes)
         {
+            return builder.WithChunkReassemblyBudget(maxBytes, maxBytes / 2);
+        }
+
+        /// <summary>
+        /// Bounds incomplete-message memory with an explicit share for channels without an activated session.
+        /// </summary>
+        /// <param name="builder">The server builder.</param>
+        /// <param name="maxBytes">The total retained-byte limit across the server's listeners.</param>
+        /// <param name="maxBytesWithoutSession">
+        /// The occupancy threshold for channels without an activated session.
+        /// </param>
+        /// <returns>The same builder for chaining.</returns>
+        /// <exception cref="ArgumentNullException">The builder is null.</exception>
+        /// <exception cref="ArgumentOutOfRangeException">The total or sessionless limit is invalid.</exception>
+        public static IOpcUaServerBuilder WithChunkReassemblyBudget(
+            this IOpcUaServerBuilder builder,
+            long maxBytes,
+            long maxBytesWithoutSession)
+        {
             if (builder is null)
             {
                 throw new ArgumentNullException(nameof(builder));
             }
 
             builder.Services.Replace(
-                ServiceDescriptor.Singleton(new Opc.Ua.Bindings.ChunkReassemblyBudget(maxBytes)));
+                ServiceDescriptor.Singleton(
+                    new Opc.Ua.Bindings.ChunkReassemblyBudget(maxBytes, maxBytesWithoutSession)));
             return builder;
         }
 

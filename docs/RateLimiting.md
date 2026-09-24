@@ -116,13 +116,23 @@ var server = new StandardServer(telemetry)
 The same instance can be shared by several servers. A host that opens listeners
 itself passes it through `TransportListenerSettings.ChunkReassemblyBudget`;
 otherwise each standalone listener creates its own appropriately sized budget.
-For DI configuration of the sessionless threshold, register a
-`ChunkReassemblyBudget(maxBytes, maxBytesWithoutSession)` singleton before server
-startup instead of using the one-argument builder method.
+For Dependency Injection (DI), the two-argument builder overload sets the
+sessionless threshold and validates both limits immediately:
+
+```csharp
+services.AddOpcUa()
+    .AddServer(options => options.ApplicationName = "MyServer")
+    .WithChunkReassemblyBudget(256L * 1024 * 1024, 64L * 1024 * 1024);
+```
+
+A directly constructed `ChunkReassemblyBudget(maxBytes, maxBytesWithoutSession)`
+can also be registered as a singleton when several servers should share it.
 
 Server channels also enforce a fixed assembly deadline using `ChannelLifetime`.
-Continuation traffic cannot restart it. Cleanup is asynchronous and independent
-of listener inactivity sweeps; see
+Continuation traffic cannot restart it. A shared quota/clock timer schedules
+asynchronous cleanup independently of listener inactivity sweeps. Non-positive
+lifetimes use the 30-second default for assembly, and expiration reports
+`BadTimeout` before closure when possible; see
 [incomplete-message resource limits](Transports.md#incomplete-message-resource-limits).
 
 ## HTTPS / Kestrel transport

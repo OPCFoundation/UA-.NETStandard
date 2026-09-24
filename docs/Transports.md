@@ -79,13 +79,22 @@ sockets. Invalid response sequences fail pending requests promptly with
 UA Secure Conversation channels enforce message-size and chunk-count limits
 including the incoming chunk, before retaining it. Exceeding a limit releases
 the partial message and closes the channel; no final chunk is required to
-trigger cleanup.
+trigger cleanup. A valid Abort chunk is not additional message payload: it
+discards the partial message without consuming its size, chunk-count, or
+reassembly-budget allowance. The channel stays open; a client reports the
+peer's abort status for that request.
 
 On server channels, `ChannelLifetime` also bounds assembly of an incomplete
 message from its first retained chunk. Further chunks or other activity do not
-restart that deadline. Each channel checks the deadline at half-lifetime
-intervals and releases the buffers when it closes, independently of listener
-inactivity sweeps. Completed or discarded messages clear their assembly state,
+restart that deadline. Channels sharing listener quotas and a clock share one
+assembly timer, checked at half-lifetime intervals. Idle channels do not take
+the partial-message lock during that check. The timer is released when the last
+channel leaves the scope. This also works in bindings without an inactivity
+sweep. For assembly deadlines, a zero or negative `ChannelLifetime` uses the
+30-second transport default rather than disabling cleanup; other quota values
+are not changed. Expiry attempts an ERR carrying `BadTimeout` before closing,
+and cleanup still completes if that error cannot be sent.
+Completed or discarded messages clear their assembly state,
 and subsequent messages receive a fresh deadline. This applies before an OPC UA
 session is created and to the UA-TCP, Kestrel TCP, and WebSocket bindings using
 the server-channel pipeline.
