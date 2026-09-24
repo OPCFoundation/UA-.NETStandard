@@ -2413,7 +2413,19 @@ namespace Opc.Ua.Client
                 return;
             }
 
-            HandleOnKeepAliveStopped();
+            // The PublishStatusChanged handlers run on the timer callback.
+            // Disposing the timer waits for its running callbacks, so a
+            // Dispose from such a handler must take the non-blocking path.
+            bool dispatchContext = m_dispatchContext.Value;
+            m_dispatchContext.Value = true;
+            try
+            {
+                HandleOnKeepAliveStopped();
+            }
+            finally
+            {
+                m_dispatchContext.Value = dispatchContext;
+            }
         }
 
         /// <summary>

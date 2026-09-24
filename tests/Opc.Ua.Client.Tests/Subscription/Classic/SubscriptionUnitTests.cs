@@ -783,6 +783,38 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
+        /// Disposing the subscription from a PublishStatusChanged handler that
+        /// the keep-alive timer raised must not wait for the running timer
+        /// callback, which is the caller itself (L7-3).
+        /// </summary>
+        [Test]
+        [CancelAfter(Subscription.MinKeepAliveTimerInterval * 10)]
+        public async Task DisposeFromKeepAliveStoppedHandlerDoesNotDeadlockAsync(CancellationToken ct)
+        {
+            var disposed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var subscription = new Subscription(
+                NUnitTelemetryContext.Create(),
+                new() { PublishingEnabled = true })
+            {
+                Session = BuildSessionMock(setup: mock => mock.Setup(x => x.Connected).Returns(false))
+            };
+            subscription.PublishStatusChanged += (s, e) =>
+            {
+                if ((e.Status & PublishStateChangedMask.Stopped) != 0)
+                {
+                    s.Dispose();
+                    disposed.TrySetResult(true);
+                }
+            };
+            await subscription.CreateAsync(ct).ConfigureAwait(false);
+
+            await Task.WhenAny(disposed.Task, Task.Delay(Timeout.Infinite, ct)).ConfigureAwait(false);
+
+            Assert.That(disposed.Task.IsCompleted, Is.True,
+                "Dispose from the keep-alive handler did not return.");
+        }
+
+        /// <summary>
         /// A negative MaxMessageCount must not make every worker pass throw
         /// (L7-10): the notification is still delivered and cached.
         /// </summary>
