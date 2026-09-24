@@ -12,13 +12,6 @@ on:
         description: 'Include the macOS runners'
         type: boolean
         default: true
-      run_private_corpus:
-        description: >-
-          Replay the private fuzz corpus. Requires the fuzz-private-corpus
-          environment to be provisioned; a run without it is public-only and is
-          reported as incomplete.
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -44,7 +37,7 @@ jobs:
     outputs:
       tests: ${{ steps.matrix.outputs.tests }}
       builds: ${{ steps.matrix.outputs.builds }}
-      private_tests: ${{ steps.private.outputs.tests }}
+      crash_corpus_tests: ${{ steps.corpus.outputs.tests }}
       aot_matrix: ${{ steps.aot.outputs.matrix }}
     steps:
     - uses: actions/checkout@v7
@@ -62,13 +55,12 @@ jobs:
           -ExcludeMacOS:($env:INCLUDE_MACOS -ne 'true') `
           -ManifestPath '${{ runner.temp }}/workload-manifest.json'
 
-    # The private corpus only extends the encoder fuzz project, so its matrix is
+    # The crash corpus only extends the encoder fuzz project, so its matrix is
     # the same profile table narrowed to that one project rather than a second
-    # hand-maintained profile list. macOS is always excluded: the corpus job is
-    # about input coverage, not platform coverage, and every extra secret-bearing
-    # runner is extra exposure.
-    - name: Expand the private-corpus matrix
-      id: private
+    # hand-maintained profile list. macOS is excluded: the corpus job is about
+    # input coverage, not platform coverage.
+    - name: Expand the crash-corpus matrix
+      id: corpus
       shell: pwsh
       run: |
         ./.github/scripts/get-ci-matrix.ps1 `
@@ -344,176 +336,79 @@ jobs:
             exit 1
         }
 
-  # The approved exception to the "no secrets in CI test jobs" rule. The crash
-  # corpus that Azure supplies as a secure file is genuinely consumed by
-  # FuzzTargetTestsBase, and checked-in inputs are not an equivalent substitute,
-  # so it is replayed here - only on an explicit request, only through a
-  # protected environment, and never from a fork's code.
-  #
-  # Two things must stay true of this job:
-  #   * no private corpus bytes and no raw test output ever become public. The
-  #     executor is run with -QuietOutput because a failing fuzz test prints a
-  #     base64 reproducer, and a public repository's job log is world-readable.
-  #   * a missing prerequisite fails the job. Silently degrading to a
-  #     public-corpus run would report full coverage that was never performed.
-  private-corpus:
-    name: private-corpus-${{ matrix.entry.name }}
+  # Replays the full fuzz crash corpus that Azure DevOps used to supply as the
+  # secure file FuzzingArtifacts.zip. The corpus lives on the orphan branch
+  # 'fuzz-corpus' of this repository (see fuzzing/CrashCorpus.md) and takes too
+  # long to replay on every pull request, so it runs here. The commit is
+  # pinned: a push to the branch changes nothing until this SHA is updated in a
+  # reviewed pull request.
+  crash-corpus:
+    name: crash-corpus-${{ matrix.entry.name }}
     needs: discover
-    if: ${{ inputs.run_private_corpus }}
     runs-on: ${{ matrix.entry.runsOn }}
     timeout-minutes: 90
-    # Provisioned by a maintainer with a deployment-branch restriction and
-    # required reviewers. See docs/DeveloperGuide.md.
-    environment: fuzz-private-corpus
-    permissions:
-      contents: read
-      # Federated credential exchange for the storage account holding the
-      # corpus; no long-lived storage key is stored in this repository.
-      id-token: write
+    env:
+      FUZZ_CORPUS_COMMIT: 843ba944a7b144a7ae6429151846d9e5ab28d29f
     strategy:
       fail-fast: false
       max-parallel: 4
       matrix:
-        entry: ${{ fromJSON(needs.discover.outputs.private_tests) }}
+        entry: ${{ fromJSON(needs.discover.outputs.crash_corpus_tests) }}
     steps:
     - uses: actions/checkout@v7
       with:
         fetch-depth: 0
 
-    - name: Verify the private-corpus prerequisites
-      shell: pwsh
-      env:
-        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-        AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-        AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-        FUZZ_CORPUS_ACCOUNT: ${{ vars.FUZZ_CORPUS_ACCOUNT }}
-        FUZZ_CORPUS_CONTAINER: ${{ vars.FUZZ_CORPUS_CONTAINER }}
-        FUZZ_CORPUS_BLOB: ${{ vars.FUZZ_CORPUS_BLOB }}
-        FUZZ_CORPUS_SHA256: ${{ vars.FUZZ_CORPUS_SHA256 }}
-      run: |
-        $required = @(
-            'AZURE_CLIENT_ID', 'AZURE_TENANT_ID', 'AZURE_SUBSCRIPTION_ID',
-            'FUZZ_CORPUS_ACCOUNT', 'FUZZ_CORPUS_CONTAINER', 'FUZZ_CORPUS_BLOB',
-            'FUZZ_CORPUS_SHA256')
-        $missing = @($required | Where-Object { [string]::IsNullOrWhiteSpace([System.Environment]::GetEnvironmentVariable($_)) })
-        if ($missing.Count -gt 0) {
-            throw ("The fuzz-private-corpus environment is not provisioned: $($missing -join ', ') " +
-                'is not set. Falling back to the public corpus would report private-corpus coverage ' +
-                'that was never performed, so this job fails instead. See docs/DeveloperGuide.md.')
-        }
-        Write-Host 'Private-corpus prerequisites are present.'
-
-    - name: Authenticate to the corpus store
-      uses: azure/login@v2
+    - name: Check out the crash corpus
+      uses: actions/checkout@v7
       with:
-        client-id: ${{ secrets.AZURE_CLIENT_ID }}
-        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        ref: ${{ env.FUZZ_CORPUS_COMMIT }}
+        path: .fuzz-crash-corpus
+        fetch-depth: 1
+        persist-credentials: false
 
-    - name: Download and verify the corpus
+    - name: Overlay the crash corpus
       shell: pwsh
-      env:
-        FUZZ_CORPUS_ACCOUNT: ${{ vars.FUZZ_CORPUS_ACCOUNT }}
-        FUZZ_CORPUS_CONTAINER: ${{ vars.FUZZ_CORPUS_CONTAINER }}
-        FUZZ_CORPUS_BLOB: ${{ vars.FUZZ_CORPUS_BLOB }}
-        FUZZ_CORPUS_SHA256: ${{ vars.FUZZ_CORPUS_SHA256 }}
       run: |
         $ErrorActionPreference = 'Stop'
-        $archive = Join-Path '${{ runner.temp }}' 'FuzzingArtifacts.zip'
-        az storage blob download `
-            --auth-mode login `
-            --account-name $env:FUZZ_CORPUS_ACCOUNT `
-            --container-name $env:FUZZ_CORPUS_CONTAINER `
-            --name $env:FUZZ_CORPUS_BLOB `
-            --file $archive `
-            --no-progress `
-            --only-show-errors | Out-Null
-        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $archive)) {
-            throw "The private corpus could not be downloaded (exit code $LASTEXITCODE)."
+        $source = Join-Path $env:GITHUB_WORKSPACE '.fuzz-crash-corpus'
+        $actual = (git -C $source rev-parse HEAD).Trim()
+        if ($actual -ne $env:FUZZ_CORPUS_COMMIT) {
+            throw "The crash corpus is at $actual, expected $env:FUZZ_CORPUS_COMMIT."
         }
 
-        # Pinned digest: the corpus is an immutable input to this run, and a
-        # changed archive has to be re-approved rather than silently replayed.
-        $actual = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
-        $expected = $env:FUZZ_CORPUS_SHA256.Trim().ToLowerInvariant()
-        if ($actual -ne $expected) {
-            throw "The private corpus digest does not match: expected $expected, got $actual."
+        # Each top-level folder overlays the fuzzing/ project of the same name,
+        # the location the Azure template extracted to, so the assets land where
+        # FuzzTargetTestsBase enumerates them.
+        $count = 0
+        foreach ($area in Get-ChildItem -LiteralPath $source -Directory | Where-Object Name -ne '.git') {
+            $target = Join-Path 'fuzzing' $area.Name
+            if (-not (Test-Path -LiteralPath $target)) {
+                throw "Corpus folder '$($area.Name)' has no matching fuzzing/ project."
+            }
+            Copy-Item -Path (Join-Path $area.FullName '*') -Destination $target -Recurse -Force
+            $count += @(Get-ChildItem -LiteralPath $area.FullName -Recurse -File).Count
         }
+        if ($count -eq 0) {
+            throw 'The crash corpus is empty; a replay of nothing would report coverage that was never performed.'
+        }
+        Remove-Item -LiteralPath $source -Recurse -Force
+        Write-Host "Overlaid $count corpus files from commit $actual."
+        "Crash corpus: ``$actual`` ($count files)" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
 
-        # Same overlay location the Azure template extracts to, so the assets
-        # land where FuzzTargetTestsBase enumerates them.
-        Expand-Archive -LiteralPath $archive -DestinationPath './fuzzing/Opc.Ua.Encoders.Fuzz.Tests' -Force
-        Remove-Item -LiteralPath $archive -Force
-        Write-Host "Corpus verified ($actual) and extracted."
-
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v6
+    - uses: ./.github/actions/run-dotnet-tests
       with:
-        dotnet-version: ${{ matrix.entry.dotnet }}
-
-    - name: Set cloud version
-      shell: pwsh
-      run: ./.azurepipelines/set-version.ps1
-
-    - name: Replay the private corpus
-      shell: pwsh
-      env:
-        CI_PROJECTS: ${{ matrix.entry.projects }}
-        CI_CUSTOM_TEST_TARGET: ${{ matrix.entry.customTestTarget }}
-        CI_FRAMEWORK: ${{ matrix.entry.framework }}
-        CI_CONFIGURATION: ${{ matrix.entry.configuration }}
-        CI_FILTER: ${{ matrix.entry.filter }}
-        CI_HANG_TIMEOUT: ${{ matrix.entry.hangTimeout }}
-        CI_PER_PROJECT_TIMEOUT: ${{ matrix.entry.perProjectTimeout }}
-      run: |
-        ./.github/scripts/run-dotnet-tests.ps1 `
-          -Projects $env:CI_PROJECTS `
-          -CustomTestTarget $env:CI_CUSTOM_TEST_TARGET `
-          -Framework $env:CI_FRAMEWORK `
-          -Configuration $env:CI_CONFIGURATION `
-          -Filter $env:CI_FILTER `
-          -HangTimeout $env:CI_HANG_TIMEOUT `
-          -PerProjectTimeoutMinutes ([int]$env:CI_PER_PROJECT_TIMEOUT) `
-          -ResultsDirectory '${{ runner.temp }}/private-results' `
-          -QuietOutput
-
-    # Evidence without content: outcomes, counts and a digest per result file,
-    # so a reviewer can tell the run happened and correlate it with the private
-    # copy without any corpus byte or reproducer leaving the runner.
-    - name: Publish sanitized evidence
-      if: ${{ always() }}
-      shell: pwsh
-      run: |
-        $root = '${{ runner.temp }}/private-results'
-        if (-not (Test-Path -LiteralPath $root)) {
-            Write-Host '::warning title=Private corpus::No results were produced.'
-            exit 0
-        }
-        $lines = @(
-            "### private corpus - ${{ matrix.entry.name }}",
-            '',
-            '| Evidence | SHA-256 | Bytes |',
-            '| --- | --- | ---: |')
-        foreach ($file in Get-ChildItem -LiteralPath $root -Recurse -File | Sort-Object FullName) {
-            $relative = [System.IO.Path]::GetRelativePath($root, $file.FullName).Replace('\', '/')
-            $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-            $lines += "| $relative | $hash | $($file.Length) |"
-        }
-        $lines += ''
-        $lines | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
-
-    # Belt and braces: the results tree is under RUNNER_TEMP and no step uploads
-    # it, but an accidental upload added later would publish reproducer bytes, so
-    # remove it before the runner is recycled.
-    - name: Discard private results
-      if: ${{ always() }}
-      shell: pwsh
-      run: |
-        $root = '${{ runner.temp }}/private-results'
-        if (Test-Path -LiteralPath $root) {
-            Remove-Item -LiteralPath $root -Recurse -Force
-            Write-Host 'Private results discarded.'
-        }
+        projects: ${{ matrix.entry.projects }}
+        custom-test-target: ${{ matrix.entry.customTestTarget }}
+        framework: ${{ matrix.entry.framework }}
+        configuration: ${{ matrix.entry.configuration }}
+        dotnet: ${{ matrix.entry.dotnet }}
+        filter: ${{ matrix.entry.filter }}
+        hang-timeout: ${{ matrix.entry.hangTimeout }}
+        per-project-timeout: ${{ matrix.entry.perProjectTimeout }}
+        # Not dotnet-results-*: the coverage job merges those, and this replay
+        # measures inputs, not code coverage.
+        artifact-name: crash-corpus-results-${{ matrix.entry.id }}
 
   nightly-summary:
     # Deliberately NOT named 'build-and-test summary': that name belongs to the
@@ -523,7 +418,7 @@ jobs:
     name: nightly summary
     runs-on: ubuntu-latest
     if: ${{ always() }}
-    needs: [discover, build-solutions, tests, aot, coverage, private-corpus]
+    needs: [discover, build-solutions, tests, aot, coverage, crash-corpus]
     steps:
     - name: Evaluate job results
       shell: pwsh
@@ -533,8 +428,7 @@ jobs:
         TEST_RESULT: ${{ needs.tests.result }}
         AOT_RESULT: ${{ needs.aot.result }}
         COVERAGE_RESULT: ${{ needs.coverage.result }}
-        PRIVATE_RESULT: ${{ needs.private-corpus.result }}
-        PRIVATE_REQUESTED: ${{ inputs.run_private_corpus }}
+        CORPUS_RESULT: ${{ needs.crash-corpus.result }}
       run: |
         $results = [ordered]@{
           'discover'        = $env:DISCOVER_RESULT
@@ -542,7 +436,7 @@ jobs:
           'tests'           = $env:TEST_RESULT
           'aot'             = $env:AOT_RESULT
           'coverage'        = $env:COVERAGE_RESULT
-          'private-corpus'  = $env:PRIVATE_RESULT
+          'crash-corpus'    = $env:CORPUS_RESULT
         }
 
         $bad = @()
@@ -553,16 +447,11 @@ jobs:
           }
         }
 
-        # Coverage of the private corpus is the one part of the Azure full-scope
-        # workload that cannot run from public inputs, so a run without it is
-        # explicitly labelled incomplete rather than presented as full parity.
-        if ($env:PRIVATE_REQUESTED -eq 'true' -and $env:PRIVATE_RESULT -eq 'skipped') {
-          $bad += 'private-corpus=requested but did not run'
+        # The crash-corpus replay is part of Azure parity and its matrix is
+        # never empty, so unlike the other jobs it may not be skipped.
+        if ($env:CORPUS_RESULT -eq 'skipped') {
+          $bad += 'crash-corpus=skipped'
         }
-        $complete = $env:PRIVATE_REQUESTED -eq 'true' -and $env:PRIVATE_RESULT -eq 'success'
-        $scope = if ($complete) { 'full (public + private corpus)' } else { 'public only - INCOMPLETE for Azure parity' }
-        Write-Host "Validation scope: $scope"
-        "### Nightly validation scope: $scope" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
 
         if ($bad.Count -gt 0) {
           Write-Host "::error::Nightly jobs did not succeed: $($bad -join ', ')"

@@ -297,6 +297,9 @@ SharpFuzz. The NUnit slow/timeout regressions run in child processes with a 30-s
 `CancelAfter` alone cannot stop a synchronous callback. Tools playback itself is in-process,
 so use the isolated replay gate for suspected hangs.
 
+The full crash corpus (about 22k inputs) lives on the orphan branch `fuzz-corpus` and is replayed
+nightly; see [CrashCorpus.md](CrashCorpus.md) for how to replay it locally and how to add inputs.
+
 ## Recreate or improve seeds
 
 Run the area's `*.Fuzz.Tools` project with `-t` to (re)generate the area's `Testcases.*/`
