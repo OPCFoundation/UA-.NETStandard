@@ -68,7 +68,7 @@ namespace Opc.Ua.PubSub.Security.Internal
         /// Encrypts or decrypts <paramref name="input"/> using AES-CTR
         /// where the initial counter is composed of the spec layout
         /// <c>nonce(12) || blockCounter(4 BE)</c> with the block counter
-        /// starting at zero.
+        /// starting at one (OPC 10000-14 7.2.4.4.3.2, Table 157, following RFC 3686).
         /// </summary>
         /// <param name="key">AES key (16, 24 or 32 bytes).</param>
         /// <param name="nonce">12-byte message nonce.</param>
@@ -103,7 +103,8 @@ namespace Opc.Ua.PubSub.Security.Internal
             counter[12] = 0;
             counter[13] = 0;
             counter[14] = 0;
-            counter[15] = 0;
+            // OPC 10000-14 7.2.4.4.3.2 (Table 157): the counter starts with 1 at the first block.
+            counter[15] = 1;
 
             TransformWithCounter(key, counter, input, output);
         }
@@ -262,7 +263,7 @@ namespace Opc.Ua.PubSub.Security.Internal
         /// Helper used by tests; equivalent to
         /// <see cref="EncryptOrDecrypt"/> but advances the per-block
         /// counter by 1 starting from the supplied integer rather than
-        /// zero. Not part of the public contract.
+        /// one. Not part of the public contract.
         /// </summary>
         /// <exception cref="ArgumentException"></exception>
         internal static void EncryptOrDecryptWithStartingBlock(
