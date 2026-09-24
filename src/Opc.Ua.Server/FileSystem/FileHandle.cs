@@ -279,6 +279,15 @@ namespace Opc.Ua.Server.FileSystem
                     "FileType.Open mode must include read or write.");
                 return false;
             }
+            // Part 20 4.2.2: bits 4:7 shall be zero and EraseExisting can only
+            // be set when the file is opened for writing.
+            if ((mode & 0xF0) != 0 || ((mode & 0x4) != 0 && !wantsWrite))
+            {
+                error = ServiceResult.Create(
+                    StatusCodes.BadInvalidArgument,
+                    "FileType.Open mode setting is invalid.");
+                return false;
+            }
             if (wantsRead && wantsWrite)
             {
                 error = ServiceResult.Create(
@@ -301,8 +310,16 @@ namespace Opc.Ua.Server.FileSystem
                     error = StatusCodes.BadShutdown;
                     return false;
                 }
+                if (m_write != null && !wantsWrite)
+                {
+                    // Part 20 4.2.2: a file open for writing cannot be opened for reading.
+                    error = ServiceResult.Create(StatusCodes.BadNotReadable,
+                        "The file is locked for writing and thus not readable.");
+                    return false;
+                }
                 if (m_write != null || (wantsWrite && m_reads.Count != 0))
                 {
+                    // Part 20 4.2.2 result table: the file is locked and thus not writable.
                     error = ServiceResult.Create(StatusCodes.BadInvalidState,
                         "File already open with incompatible access.");
                     return false;

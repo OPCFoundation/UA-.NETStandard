@@ -184,7 +184,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         [Test]
-        public void OpenReadWhileWritingReturnsBadInvalidState()
+        public void OpenReadWhileWritingReturnsBadNotReadable()
         {
             WriteFile("f.txt", "hello");
             using var handle = new FileHandle(CreateProvider(), "f.txt");
@@ -192,11 +192,11 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
             ServiceResult result = handle.Open(s_sessionId, ModeRead, out _);
 
-            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotReadable));
         }
 
         [Test]
-        public void OpenReadWhileWriteHandleAlreadyOpenInternallyReturnsBadInvalidState()
+        public void OpenReadWhileWriteHandleAlreadyOpenInternallyReturnsBadNotReadable()
         {
             // Uses a provider whose streams do not take exclusive OS-level
             // file locks, so this exercises FileHandle's own in-memory
@@ -207,7 +207,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
             ServiceResult result = handle.Open(s_sessionId, ModeRead, out uint readHandle);
 
-            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotReadable));
             Assert.That(readHandle, Is.Zero);
             Assert.That(handle.OpenCount, Is.EqualTo(1));
             Assert.That(handle.GetStream(s_sessionId, writeHandle), Is.Not.Null);
