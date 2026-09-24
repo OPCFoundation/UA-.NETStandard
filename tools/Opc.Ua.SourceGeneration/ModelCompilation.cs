@@ -244,6 +244,17 @@ namespace Opc.Ua.SourceGeneration
                 var designDependencies = new List<string>(nodesets.DesignFileEntries);
                 designDependencies.AddRange(designTargets);
 
+                // A CSV that a NodeSet claims through its IdentifierFile metadata
+                // is that NodeSet's sidecar. Left in the list, the ModelDesign
+                // pass adopts it as the identifier file of a design that has no
+                // same-named CSV and is the only design in the folder, and the
+                // design silently takes the NodeSet's numeric ids.
+                var claimedIdentifierFiles = new HashSet<string>(
+                    nodesets.IdentifierFilePaths, StringComparer.Ordinal);
+                List<string> designIdentifierFiles = [.. m_identifierFiles
+                    .Select(i => i.Path)
+                    .Where(path => !claimedIdentifierFiles.Contains(path))];
+
                 // A [NodeManager] may bind to a model produced by either pass
                 // (a NodeSet2 type model or a ModelDesign instance model). The
                 // "used" set is therefore shared across both passes and the
@@ -301,7 +312,7 @@ namespace Opc.Ua.SourceGeneration
                     m_telemetry,
                     generatorOptions,
                     m_options.UseAllowSubtypes,
-                    [.. m_identifierFiles.Select(i => i.Path)],
+                    designIdentifierFiles,
                     referencedModels,
                     bindings.Count > 0 ? bindings : null,
                     bindings.Count > 0 ? reportBinding : null,

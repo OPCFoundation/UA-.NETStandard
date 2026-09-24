@@ -51,13 +51,18 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static readonly SemVer Unspecified;
 
-        private static readonly char[] s_prereleaseSeparators = ['-', '+'];
-
-        private SemVer(int major, int minor, int patch, bool hasValue, bool isPrerelease)
+        private SemVer(
+            int major,
+            int minor,
+            int patch,
+            bool hasValue,
+            bool isPrerelease,
+            int revision = 0)
         {
             Major = major;
             Minor = minor;
             Patch = patch;
+            Revision = revision;
             HasValue = hasValue;
             IsPrerelease = isPrerelease;
         }
@@ -70,6 +75,12 @@ namespace Opc.Ua.SourceGeneration
 
         /// <summary>Patch component (Z in X.Y.Z); zero when the source omits it.</summary>
         public int Patch { get; }
+
+        /// <summary>
+        /// Fourth (revision) component of a four-part version such as
+        /// <c>"1.0.0.2"</c>; zero when the source omits it.
+        /// </summary>
+        public int Revision { get; }
 
         /// <summary>True when the version was present and parseable.</summary>
         public bool HasValue { get; }
@@ -96,9 +107,18 @@ namespace Opc.Ua.SourceGeneration
                 s = s[1..];
             }
 
-            // Detach any pre-release tag after '-' or '+'.
+            // Build metadata after '+' carries no precedence (SemVer 2.0 §10):
+            // drop it without marking the version a pre-release. It comes last,
+            // so a '-' inside it ("1.0+build-5") is not a pre-release tag either.
+            int buildAt = s.IndexOf('+', StringComparison.Ordinal);
+            if (buildAt >= 0)
+            {
+                s = s[..buildAt];
+            }
+
+            // Detach any pre-release tag after '-'.
             bool isPrerelease = false;
-            int tagAt = s.IndexOfAny(s_prereleaseSeparators);
+            int tagAt = s.IndexOf('-', StringComparison.Ordinal);
             if (tagAt >= 0)
             {
                 isPrerelease = true;
@@ -135,9 +155,20 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-            // parts.Length > 3 is tolerated; trailing components are ignored.
+            int revision = 0;
+            if (parts.Length > 3 && !TryParseComponent(parts[3], out revision))
+            {
+                return false;
+            }
+            // parts.Length > 4 is tolerated; trailing components are ignored.
 
-            value = new SemVer(major, minor, patch, hasValue: true, isPrerelease: isPrerelease);
+            value = new SemVer(
+                major,
+                minor,
+                patch,
+                hasValue: true,
+                isPrerelease: isPrerelease,
+                revision: revision);
             return true;
         }
 
@@ -173,6 +204,44 @@ namespace Opc.Ua.SourceGeneration
             // Unspecified sorts below everything, which is not what an
             // unparseable string means - fall back to the ordinal order.
             return string.CompareOrdinal(left, right);
+        }
+
+        /// <summary>
+        /// Orders two model version strings with a total order, so that picking
+        /// the newest of several candidates does not depend on the order they
+        /// are visited in. <see cref="CompareVersionStrings"/> reports a date
+        /// against a version as equal, and a caller that breaks that tie on
+        /// something else (the publication date) ends up with a non-transitive
+        /// comparison. Here the kind of version ranks first - a parseable version
+        /// above an unparseable one, above a bare date (a model that declared no
+        /// version), above nothing at all - and only values of the same kind are
+        /// compared with <see cref="CompareVersionStrings"/>.
+        /// </summary>
+        public static int CompareVersionStringsTotal(string left, string right)
+        {
+            int leftKind = GetVersionKind(left);
+            int cmp = leftKind.CompareTo(GetVersionKind(right));
+            if (cmp != 0 || leftKind == 0)
+            {
+                return cmp;
+            }
+            return CompareVersionStrings(left, right);
+        }
+
+        /// <summary>
+        /// 0 = missing, 1 = ISO date, 2 = unparseable text, 3 = parseable version.
+        /// </summary>
+        private static int GetVersionKind(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return 0;
+            }
+            if (IsIsoDate(value))
+            {
+                return 1;
+            }
+            return TryParse(value, out _) ? 3 : 2;
         }
 
         /// <summary>
@@ -234,6 +303,11 @@ namespace Opc.Ua.SourceGeneration
             {
                 return c;
             }
+            c = Revision.CompareTo(other.Revision);
+            if (c != 0)
+            {
+                return c;
+            }
             // Pre-release sorts below its release counterpart.
             if (IsPrerelease == other.IsPrerelease)
             {
@@ -249,6 +323,7 @@ namespace Opc.Ua.SourceGeneration
                 Major == other.Major &&
                 Minor == other.Minor &&
                 Patch == other.Patch &&
+                Revision == other.Revision &&
                 IsPrerelease == other.IsPrerelease;
         }
 
@@ -270,6 +345,7 @@ namespace Opc.Ua.SourceGeneration
                 int hash = Major;
                 hash = (hash * 397) ^ Minor;
                 hash = (hash * 397) ^ Patch;
+                hash = (hash * 397) ^ Revision;
                 hash = (hash * 397) ^ (IsPrerelease ? 1 : 0);
                 return hash;
             }
@@ -287,6 +363,10 @@ namespace Opc.Ua.SourceGeneration
                 Minor.ToString(CultureInfo.InvariantCulture) +
                 "." +
                 Patch.ToString(CultureInfo.InvariantCulture);
+            if (Revision != 0)
+            {
+                core += "." + Revision.ToString(CultureInfo.InvariantCulture);
+            }
             return IsPrerelease ? core + "-pre" : core;
         }
 
