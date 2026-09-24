@@ -40,24 +40,58 @@ running the CTT is in [ctt-testing.md](ctt-testing.md).
 | 17 | Security User Name Password `015.js`: PolicyId uniqueness | [11258](https://mantis.opcfoundation.org/view.php?id=11258) | Resolved / no change required |
 | 18 | Durable Subscription `008.js`: `MoreNotifications` | [11259](https://mantis.opcfoundation.org/view.php?id=11259) | Resolved / fixed |
 | 19 | Subscription Minimum 02 `020.js`: unrelated audit events | [11260](https://mantis.opcfoundation.org/view.php?id=11260) | Assigned / open |
-| C1 | Aggregates: harness always sends `UseServerCapabilitiesDefaults = TRUE` | — | Not filed |
-| C2 | Aggregates: AnnotationCount counts raw values | — | Not filed |
-| C3 | Aggregates: WorstQuality2 includes the end bound | — | Not filed |
-| C4 | Aggregates: DurationInState status thresholds | — | Not filed |
-| C5 | Aggregates: durations truncated to whole milliseconds | — | Not filed |
-| C6 | Aggregates: DurationGood/PercentGood first region | — | Not filed |
-| C7–C18 | Other unfiled script defects | — | Not filed |
-| C19–C31 | GDS Application Directory / Query Applications script defects | — | Not filed |
-| C32–C36 | Monitored Item, Node Management and Security script defects | — | Not filed |
-| C37 | Session Base: secure test cases send CreateSession with the `opc.wss` EndpointUrl | — | Not filed |
-| C38 | Subscription Durable `012.js`: denied diagnostics Browse and missing braces | — | Not filed |
-| C39–C44 | Alarms and Conditions script defects | — | Not filed |
-| C45–C47 | Reference server coverage script defects (#4479) | — | Not filed |
-| C48 | Aggregates: Minimum/Maximum ignore Uncertain values beyond the Good extremum | — | Not filed |
-| C49 | Aggregates: Min/MaxActualTime and Minimum keep Raw when non-Good values make the result Uncertain | — | Not filed |
-| C50 | CloseSession on a Session with a running SessionThread: request timestamp taken before a ~550 ms thread stop | — | Not filed |
+| C1 | Aggregate harness always sends `UseServerCapabilitiesDefaults = TRUE` | [11420](https://mantis.opcfoundation.org/view.php?id=11420) | New / open |
+| C2 | AnnotationCount oracle counts raw values instead of Annotations | [11421](https://mantis.opcfoundation.org/view.php?id=11421) | New / open |
+| C3 | WorstQuality2 oracle also includes the end bound | [11422](https://mantis.opcfoundation.org/view.php?id=11422) | New / open |
+| C4 | DurationInStateZero/NonZero reports Bad below PercentDataBad | [11423](https://mantis.opcfoundation.org/view.php?id=11423) | New / open |
+| C5 | Duration aggregates are truncated to whole milliseconds | [11424](https://mantis.opcfoundation.org/view.php?id=11424) | New / open |
+| C6 | DurationGood/PercentGood first region ignores the raw value before the interval | [11425](https://mantis.opcfoundation.org/view.php?id=11425) | New / open |
+| C7 | Historical Access Read Raw `Err-013.js` describes an operation error as a ServiceResult | [11428](https://mantis.opcfoundation.org/view.php?id=11428) | New / open |
+| C8 | Historical Access Read Raw `Err-019.js` uses an undefined loop variable | [11429](https://mantis.opcfoundation.org/view.php?id=11429) | New / open |
+| C9 | Monitor Value Change V2 `042.js` cannot identify the missing item | [11430](https://mantis.opcfoundation.org/view.php?id=11430) | New / open |
+| C10 | Alarm `Test_002.js` evaluates Retain from the main branch only | [11431](https://mantis.opcfoundation.org/view.php?id=11431) | New / open |
+| C11 | Alarm `Test_004.js` calls `ReadHelper` re-entrantly from the alarm callback | [11432](https://mantis.opcfoundation.org/view.php?id=11432) | New / open |
+| C12 | Enable `Test_002.js` passes four arguments to a three-argument `AddMessage` | [11433](https://mantis.opcfoundation.org/view.php?id=11433) | New / open |
+| C13 | Base Info Currency `004.js` drops the CurrencyUnit Exponent | [11434](https://mantis.opcfoundation.org/view.php?id=11434) | New / open |
+| C14 | Auditing Connections cannot find entries by `ClientAuditEntryId` (withdrawn: server defect, fixed) | — | Withdrawn |
+| C15 | Base Info Core Structure 2 — `InfoFactory.js` Organizes check dereferences an undefined type | [11435](https://mantis.opcfoundation.org/view.php?id=11435) | New / open |
+| C16 | Discovery Get Endpoints `003.js` rejects WebSocket transport profiles | [11436](https://mantis.opcfoundation.org/view.php?id=11436) | New / open |
+| C17 | Monitor Basic `039.js` calls `getMatrixValues` without including its library | [11097](https://mantis.opcfoundation.org/view.php?id=11097) | Already reported |
+| C18 | A & C Acknowledge / Confirm cannot find recommended state texts for `en-US` | [11437](https://mantis.opcfoundation.org/view.php?id=11437) | New / open |
+| C19 | GDS Application Directory `060.js`, `067.js`, `069.js` register an ApplicationUri that is not a URI | [11438](https://mantis.opcfoundation.org/view.php?id=11438) | New / open |
+| C20 | GDS `[_]` / `[%]` patterns are evaluated as "contains" | [11410](https://mantis.opcfoundation.org/view.php?id=11410) | Already reported |
+| C21 | GDS `%[^f-h]%` / `%[^w-y]%` patterns are evaluated as "contains none of" | [11411](https://mantis.opcfoundation.org/view.php?id=11411) | Already reported |
+| C22 | `callQueryServers()` dereferences the output arguments of a failed call | [11407](https://mantis.opcfoundation.org/view.php?id=11407) | Already reported |
+| C23 | GDS Application Directory `018.js` selects `ActionTimestamp` instead of `ActionTimeStamp` | [11439](https://mantis.opcfoundation.org/view.php?id=11439) | New / open |
+| C24 | GDS Application Directory `019.js` step 3 batch RegisterApplication never reaches the server | [11409](https://mantis.opcfoundation.org/view.php?id=11409) | Already reported |
+| C25 | GDS Application Directory `010.js` dereferences the ApplicationId of a rejected registration | [11106](https://mantis.opcfoundation.org/view.php?id=11106), [11408](https://mantis.opcfoundation.org/view.php?id=11408) | Already reported |
+| C26 | GDS Application Directory `012.js` / `032.js` require ServerCapabilities for a Server | [11441](https://mantis.opcfoundation.org/view.php?id=11441) | New / open |
+| C27 | GDS Application Directory `027.js` changes a Server with a DiscoveryUrl into a Client | [11442](https://mantis.opcfoundation.org/view.php?id=11442) | New / open |
+| C28 | GDS Application Directory `029.js`, `038.js`, `039.js` expect `BadInvalidArgument` for unknown ApplicationIds | — | Held back |
+| C29 | GDS Application Directory `005.js` expects `BadInvalidArgument` for a string above MaxStringLength | [11406](https://mantis.opcfoundation.org/view.php?id=11406) | Already reported |
+| C30 | GDS Query Applications `036.js` expects `rcp+` URLs the test never registered | [11412](https://mantis.opcfoundation.org/view.php?id=11412) | Already reported |
+| C31 | GDS Query Applications `038.js` treats applicationType 3 as invalid | [11413](https://mantis.opcfoundation.org/view.php?id=11413) | Already reported |
+| C32 | Monitor Basic `038.js` judges a RevisedSamplingInterval of 0 against a project setting | — | Held back |
+| C33 | Monitor Value Change V2 `020.js` requires every ByteString element to be four bytes long | — | Held back |
+| C34 | Node Management `RequestedNewNodeId()` ignores `RequestedNodeId_Namespace` | [11443](https://mantis.opcfoundation.org/view.php?id=11443) | New / open |
+| C35 | Security User Anonymous `initialize.js` selects the `opc.wss` endpoint | [11102](https://mantis.opcfoundation.org/view.php?id=11102) | Already reported |
+| C36 | `UaEndpointDescription.FindTokenType` rewrites the cached endpoints, so Security User Name Password 2 `015.js` reports duplicate PolicyIds | [11444](https://mantis.opcfoundation.org/view.php?id=11444) | New / open |
+| C37 | Session Base secure test cases send CreateSession with the `opc.wss` EndpointUrl | [11102](https://mantis.opcfoundation.org/view.php?id=11102) | Already reported |
+| C38 | Subscription Durable `012.js` does not handle a denied diagnostics Browse | [11445](https://mantis.opcfoundation.org/view.php?id=11445) | New / open |
+| C39 | A & C `AlarmCollector.GetCallTime()` returns an unset time, so Comment skips every alarm type | [11447](https://mantis.opcfoundation.org/view.php?id=11447) | New / open |
+| C40 | A & C Limit/Level CUs create their filter subscriptions on a session that has timed out | [11448](https://mantis.opcfoundation.org/view.php?id=11448) | New / open |
+| C41 | A & C Alarm `Test_002.js` always runs to the maximum test time | [11449](https://mantis.opcfoundation.org/view.php?id=11449) | New / open |
+| C42 | A & C Enable `Test_003.js` depends on all alarm types going active within cycle/10 | [11450](https://mantis.opcfoundation.org/view.php?id=11450) | New / open |
+| C43 | A & C Enable `Err_004.js` feedback burst; the CTT alarm thread then drops received events | — | Held back |
+| C44 | A & C CertificateExpiration blocks a `--hidden` run on a modal dialog | [11453](https://mantis.opcfoundation.org/view.php?id=11453) | New / open |
+| C45 | Historical Access Read Raw `Err-025.js` expects `BadNotSupported` | [11347](https://mantis.opcfoundation.org/view.php?id=11347), [11353](https://mantis.opcfoundation.org/view.php?id=11353) | Already reported |
+| C46 | Address Space Atomicity `001.js` only sees the first 10000 variables | [11446](https://mantis.opcfoundation.org/view.php?id=11446) | New / open |
+| C47 | View Basic 2 `015.js` compares browse results by position | — | Held back |
+| C48 | Aggregate oracle: Minimum/Maximum ignore Uncertain values beyond the Good extremum | [11426](https://mantis.opcfoundation.org/view.php?id=11426) | New / open |
+| C49 | Aggregate oracle: ActualTime aggregates keep Raw when non-Good values make the result Uncertain | [11427](https://mantis.opcfoundation.org/view.php?id=11427) | New / open |
+| C50 | CloseSession timestamps the request before the CTT stops the Session's SessionThread | [11454](https://mantis.opcfoundation.org/view.php?id=11454) | New / open |
 
-Mantis states were last checked on 2026-09-13.
+Mantis states were last checked on 2026-09-24.
 
 ---
 
@@ -329,7 +363,7 @@ for the trigger event, and drain while `MoreNotifications` is true.
 
 ---
 
-## Not yet filed: aggregate issues
+## Filed 2026-09-24: aggregate issues
 
 All of these use the shared scripts in `maintree/Aggregates/Aggregate - Base/Test Cases/`, which
 run in every `Aggregate – *` ConformanceUnit, together with
@@ -338,6 +372,8 @@ run in every `Aggregate – *` ConformanceUnit, together with
 `CompareValues`, `CompareHistoryData`, `equals`).
 
 ### C1. Aggregate harness always sends `UseServerCapabilitiesDefaults = TRUE`
+
+**Mantis:** [11420](https://mantis.opcfoundation.org/view.php?id=11420), new / open (filed 2026-09-24).
 
 - **Tests:** `003-01.js` … `003-04.js`, `004-01.js` … `004-04.js` (all set a configuration) and `Err-004.js`
 - **Helpers:** `HAAggregateHelper.js` `GetDefaultConfiguration` (line 2201), `MergeDefaultConfiguration` (lines 2213–2230), `GetItemConfiguration`/`TranslateConfiguration` (lines 477–497), `CreateProcessedDetailsRequest` (line 2283); `HAStructureHelpers.js` `UaAggregateConfiguration.New` (line 34)
@@ -379,6 +415,8 @@ Also make the test scripts use the key that `GetDefaultConfiguration` defines
 
 ### C2. AnnotationCount oracle counts raw values instead of Annotations
 
+**Mantis:** [11421](https://mantis.opcfoundation.org/view.php?id=11421), new / open (filed 2026-09-24).
+
 - **CU:** `Aggregate – AnnotationCount` (all Base test cases)
 
 The server returns 0 in every interval for nodes without Annotations. The oracle returns the
@@ -393,6 +431,8 @@ history), not raw DataValues. Configure a node with known Annotations to get a n
 
 ### C3. WorstQuality2 oracle also includes the end bound
 
+**Mantis:** [11422](https://mantis.opcfoundation.org/view.php?id=11422), new / open (filed 2026-09-24).
+
 - **CU:** `Aggregate – WorstQuality2`
 
 Example: interval [142.8 s, 166.6 s) contains only Good raw values and has a Good start bound.
@@ -405,6 +445,8 @@ it counts the end bound as a second value. Part 13 §5.4.3.36 includes only the 
 end bound from both the worst-status selection and the `MultipleValues` count.
 
 ### C4. DurationInStateZero/NonZero reports Bad below PercentDataBad
+
+**Mantis:** [11423](https://mantis.opcfoundation.org/view.php?id=11423), new / open (filed 2026-09-24).
 
 - **CUs:** `Aggregate – DurationInStateZero`, `Aggregate – DurationInStateNonZero`
 
@@ -420,6 +462,8 @@ PercentDataBad/PercentDataGood, as the other time-weighted aggregates do.
 
 ### C5. Duration aggregates are truncated to whole milliseconds
 
+**Mantis:** [11424](https://mantis.opcfoundation.org/view.php?id=11424), new / open (filed 2026-09-24).
+
 - **CUs:** `Aggregate – DurationGood`, `DurationBad`, `PercentGood`, `PercentBad` (multi-node `002-0x.js`)
 
 Raw source timestamps carry sub-millisecond ticks. For one-interval multi-node reads the server
@@ -432,6 +476,8 @@ Alternatively, let `HAAggregateHelper.equals` (lines 2411–2428) accept a sub-m
 for Duration results; its current fallback accepts only an absolute difference below 0.01.
 
 ### C6. DurationGood/PercentGood first region ignores the raw value before the interval
+
+**Mantis:** [11425](https://mantis.opcfoundation.org/view.php?id=11425), new / open (filed 2026-09-24).
 
 - **CUs:** `Aggregate – DurationGood`, `Aggregate – PercentGood`
 
@@ -447,6 +493,12 @@ start, not from the interpolated simple bound. Use the same rule for DurationBad
 
 ### Known aggregate oracle differences (not yet filed)
 
+The non-numeric node difference is related to [11274](https://mantis.opcfoundation.org/view.php?id=11274) (aggregate calculation fails for DataType String, assigned / open).
+
+The non-numeric node difference is related to [11274](https://mantis.opcfoundation.org/view.php?id=11274) (aggregate calculation fails for DataType String, assigned / open).
+
+The non-numeric node difference is related to [11274](https://mantis.opcfoundation.org/view.php?id=11274) (aggregate calculation fails for DataType String, assigned / open).
+
 - **Non-numeric nodes.** Status-only aggregates (DurationGood/Bad, PercentGood/Bad, WorstQuality2,
   DurationInState*) must not depend on the value type. The oracle nevertheless returns different
   results for Boolean/String nodes than for numeric nodes with the same status timeline, and it
@@ -461,9 +513,11 @@ start, not from the interpolated simple bound. Use the same rule for DurationBad
   timestamped at EffectiveEndTime (Part 13 §§5.4.3.17–.18, §5.4.2.4); the oracle selects an earlier
   raw value. **Fix:** include the sloped End bound as a candidate.
 
-## Not yet filed: other script defects
+## Filed 2026-09-24: other script defects
 
 ### C7. Historical Access Read Raw `Err-013.js` describes an operation error as a ServiceResult
+
+**Mantis:** [11428](https://mantis.opcfoundation.org/view.php?id=11428), new / open (filed 2026-09-24).
 
 Reusing a consumed continuation point produces a per-node `BadContinuationPointInvalid` while the
 HistoryRead ServiceResult stays Good (Part 11 §6.3, Part 4 §5.11.3.2). **Fix:** word the message as
@@ -471,10 +525,14 @@ HistoryRead ServiceResult stays Good (Part 11 §6.3, Part 4 §5.11.3.2). **Fix:*
 
 ### C8. Historical Access Read Raw `Err-019.js` uses an undefined loop variable
 
+**Mantis:** [11429](https://mantis.opcfoundation.org/view.php?id=11429), new / open (filed 2026-09-24).
+
 Lines 25 and 43 interpolate an undeclared `i` into error messages. **Fix:** use literal case
 numbers or define a case index.
 
 ### C9. Monitor Value Change V2 `042.js` cannot identify the missing item
+
+**Mantis:** [11430](https://mantis.opcfoundation.org/view.php?id=11430), new / open (filed 2026-09-24).
 
 - **Test:** `maintree/Monitored Item Services/Monitor Value Change V2/Test Cases/042.js`
 
@@ -486,6 +544,8 @@ index, report missing ClientHandles, and write a representably different value.
 
 ### C10. Alarm `Test_002.js` evaluates Retain from the main branch only
 
+**Mantis:** [11431](https://mantis.opcfoundation.org/view.php?id=11431), new / open (filed 2026-09-24).
+
 Retain is derived from the main event's Active/Acked/Confirmed fields. Part 9 §5.5.2 requires
 `Retain=true` while any ConditionBranch still needs operator input. **Fix:** include outstanding
 branches in `ValidateRetain`. This also covers Confirm `Test_001.js`, depending on the alarm phase when the
@@ -496,11 +556,15 @@ alarms and passed 14 of 14.
 
 ### C11. Alarm `Test_004.js` calls `ReadHelper` re-entrantly from the alarm callback
 
+**Mantis:** [11432](https://mantis.opcfoundation.org/view.php?id=11432), new / open (filed 2026-09-24).
+
 The global `ReadHelper` runs synchronously inside the alarm callback and fails client-side with
 `BadInvalidState`. The server resolves and reads every AlarmCondition `InputNode` with Good.
 **Fix:** queue the Read outside the callback, or use a helper/session valid on that thread.
 
 ### C12. Enable `Test_002.js` passes four arguments to a three-argument `AddMessage`
+
+**Mantis:** [11433](https://mantis.opcfoundation.org/view.php?id=11433), new / open (filed 2026-09-24).
 
 `collector.AddMessage(testCase, category, conditionId, reason)` drops `reason`. The result is empty
 `Error: ns=...` entries that hide which check failed. **Fix:** combine `conditionId` and `reason`
@@ -508,6 +572,8 @@ into the third argument. With the reason logged, the failing check is the event 
 against `GetCallTime()`, which is broken (C39).
 
 ### C13. Base Info Currency `004.js` drops the CurrencyUnit Exponent
+
+**Mantis:** [11434](https://mantis.opcfoundation.org/view.php?id=11434), new / open (filed 2026-09-24).
 
 The server's EUR CurrencyUnit is `NumericCode=978`, `Exponent=2`, `AlphabeticCode=EUR`,
 `Currency=Euro`, encoded with the Int16 NumericCode followed by the SByte Exponent (prefix
@@ -527,6 +593,8 @@ Auditing Connections `001.js`, `007.js`, `011.js`, `012.js` and `020.js` pass.
 
 ### C15. Base Info Core Structure 2 — `InfoFactory.js` Organizes check dereferences an undefined type
 
+**Mantis:** [11435](https://mantis.opcfoundation.org/view.php?id=11435), new / open (filed 2026-09-24).
+
 - **Test:** `maintree/Base Information/Base Info Core Structure 2/Test Cases/001.js`
 - **Helper:** `library/Information/InfoFactory.js`, `Organizes` validator, lines 454–473
 - **Error:** *"Result of expression 'sourceTypeNodeId' [undefined] is not an object"* (line 466), which aborts `001.js`
@@ -541,6 +609,8 @@ inside the inner loop, so a value can leak from an earlier node. **Fix:** declar
 
 ### C16. Discovery Get Endpoints `003.js` rejects WebSocket transport profiles
 
+**Mantis:** [11436](https://mantis.opcfoundation.org/view.php?id=11436), new / open (filed 2026-09-24).
+
 - **Test:** `maintree/Discovery Services/Discovery Get Endpoints/Test Cases/003.js`, lines 22–27 and 39
 - **Error:** *"Unexpected type: http://opcfoundation.org/UA-Profile/Transport/wss-uasc-uabinary"*
 
@@ -550,6 +620,8 @@ server also exposes an `opc.wss` endpoint with the valid Part 7 transport profil
 profiles (`wss-uasc-uabinary`, `wss-uajson`) to `AcceptedProfileUris`.
 
 ### C17. Monitor Basic `039.js` calls `getMatrixValues` without including its library
+
+**Mantis:** already reported as [11097](https://mantis.opcfoundation.org/view.php?id=11097) (resolved / fixed; the fix ships after 1.05.513); not filed again.
 
 - **Test:** `maintree/Monitored Item Services/Monitor Basic/Test Cases/039.js`, lines 45, 78, 84, 90
 - **Error:** *"Can't find variable: getMatrixValues"* (ReferenceError, line 45)
@@ -562,6 +634,8 @@ does not, so `039.js` only works when another CU has loaded the library earlier 
 
 ### C18. A & C Acknowledge / Confirm cannot find recommended state texts for `en-US`
 
+**Mantis:** [11437](https://mantis.opcfoundation.org/view.php?id=11437), new / open (filed 2026-09-24).
+
 - **Tests:** A & C Acknowledge `Test_001.js`–`Test_003.js`, `Err_004.js`; A & C Confirm `Test_001.js`–`Test_003.js`
 - **Warning:** *"CTT cannot retrieve recommended text for AckedState in the supplied locale en-US"* (also for
   ConfirmedState), about 130 times per run
@@ -572,6 +646,8 @@ fall back from a specific locale (`en-US`) to its base language (`en`) when look
 recommended texts.
 
 ### C19. GDS Application Directory `060.js`, `067.js`, `069.js` register an ApplicationUri that is not a URI
+
+**Mantis:** [11438](https://mantis.opcfoundation.org/view.php?id=11438), new / open (filed 2026-09-24).
 
 - **Tests:** `maintree/GDS/GDS Application Directory/Test Cases/060.js` and `067.js` line 15
   (`urn:OPCFoundation:ServerApplicationWith%WildcardCharacter`), `069.js` line 15
@@ -590,6 +666,8 @@ defect of C20.
 
 ### C20. GDS `[_]` / `[%]` patterns are evaluated as "contains"
 
+**Mantis:** already reported as [11410](https://mantis.opcfoundation.org/view.php?id=11410) by node-opcua (new / open); not filed again.
+
 - **Tests:** GDS Application Directory `065.js` line 10 (`[_]`), `060.js` line 10 (`[%]`); GDS Query
   Applications `011.js` line 10 (`[%]`), `016.js` line 10 (`[_]`)
 - **Error:** *"Did not receive the expected list of servers"* / *"Received unexpected array length for
@@ -603,6 +681,8 @@ correctly returns no record. **Fix:** use `%[_]%` and `%[%]%` (or `%\_%` and `%\
 `068.js`, `018.js` and `019.js` already test).
 
 ### C21. GDS `%[^f-h]%` / `%[^w-y]%` patterns are evaluated as "contains none of"
+
+**Mantis:** already reported as [11411](https://mantis.opcfoundation.org/view.php?id=11411) by node-opcua (new / open); not filed again.
 
 - **Tests:** GDS Application Directory `074.js` line 11 (`%[^f-h]%`); GDS Query Applications `025.js`
   line 11 (`%[^w-y]%`)
@@ -618,6 +698,8 @@ record. No Like pattern can express "contains none of these characters". Both te
 drop these cases, or expect all records.
 
 ### C22. `callQueryServers()` dereferences the output arguments of a failed call
+
+**Mantis:** already reported as [11407](https://mantis.opcfoundation.org/view.php?id=11407) by node-opcua (new / open); not filed again.
 
 - **Tests:** GDS Application Directory `079.js` step 2 (`ServerCapabilities = [ "NA", "DA", "AC" ]`) and
   `078.js` (`%[a^j-l]%`, since the server rejects the invalid pattern); `078.js` lines 19–20
@@ -637,6 +719,8 @@ line 20 (*"Result of expression 'queryServersResult.Servers' [undefined] is not 
 `Results[0].StatusCode.isGood()`, and check `isEmpty()` before `toExtensionObjectArray()`.
 
 ### C23. GDS Application Directory `018.js` selects `ActionTimestamp` instead of `ActionTimeStamp`
+
+**Mantis:** [11439](https://mantis.opcfoundation.org/view.php?id=11439), new / open (filed 2026-09-24).
 
 - **Test:** `maintree/GDS/GDS Application Directory/Test Cases/initialize.js` line 44
   (`ApplicationRegistrationChangedAuditEventType_Fields`), used by `018.js`
@@ -661,6 +745,8 @@ monitored items with a queue size above 1.
 
 ### C24. GDS Application Directory `019.js` step 3 batch RegisterApplication never reaches the server
 
+**Mantis:** already reported as [11409](https://mantis.opcfoundation.org/view.php?id=11409) by node-opcua (new / open); not filed again.
+
 - **Test:** `maintree/GDS/GDS Application Directory/Test Cases/019.js`, line 53
 - **Error:** *"Call the ErrorCode in the Error Message received doesn't match the expectation. Expected:
   Good but received: BadNotFound"*, then *"Step 3: Failed to register all ApplicationRecords in one call"*
@@ -674,6 +760,8 @@ with four `ApplicationRecordDataType` ExtensionObjects fails before it is sent.
 
 ### C25. GDS Application Directory `010.js` dereferences the ApplicationId of a rejected registration
 
+**Mantis:** already reported as [11106](https://mantis.opcfoundation.org/view.php?id=11106) (resolved / fixed) and [11408](https://mantis.opcfoundation.org/view.php?id=11408) by node-opcua (new / open); not filed again.
+
 - **Test:** `maintree/GDS/GDS Application Directory/Test Cases/010.js`, line 37
 - **Error:** *"Result of expression 'registerApplicationResult.ApplicationId' [undefined] is not an object"*
 
@@ -683,6 +771,8 @@ RegisterApplication of an already registered ApplicationUri correctly returns `B
 **Fix:** clone only when `isDefined( registerApplicationResult.ApplicationId )`.
 
 ### C26. GDS Application Directory `012.js` / `032.js` require ServerCapabilities for a Server
+
+**Mantis:** [11441](https://mantis.opcfoundation.org/view.php?id=11441), new / open (filed 2026-09-24).
 
 - **Tests:** `012.js` step 5 (line 66, RegisterApplication), `032.js` line 52 (UpdateApplication)
 - **Error:** *"Call.Results[0].StatusCode incorrect. Received: Good. Expected: BadInvalidArgument"*
@@ -694,6 +784,8 @@ capability information is available"* without making it mandatory. **Fix:** acce
 `Bad_InvalidArgument`, or ask for a Part 12 clarification that Servers shall register `NA`.
 
 ### C27. GDS Application Directory `027.js` changes a Server with a DiscoveryUrl into a Client
+
+**Mantis:** [11442](https://mantis.opcfoundation.org/view.php?id=11442), new / open (filed 2026-09-24).
 
 - **Test:** `maintree/GDS/GDS Application Directory/Test Cases/027.js`, line 39
   (`UaVariant.Increment` of the embedded server's ApplicationType)
@@ -709,6 +801,8 @@ change the type to ClientAndServer), or expect `Bad_InvalidArgument`.
 
 ### C28. GDS Application Directory `029.js`, `038.js`, `039.js` expect `BadInvalidArgument` for unknown ApplicationIds
 
+**Mantis:** not filed (held back on 2026-09-24: the GDS server behaviour is to be reviewed first).
+
 - **Tests:** `029.js` line 16 (UpdateApplication with an empty record, ApplicationId null),
   `038.js` line 15 (GetApplication with a null NodeId), `039.js` line 18 (GetApplication with
   `Settings.Advanced.NodeIds.Invalid.NodeId1`)
@@ -721,6 +815,8 @@ the GDS. **Fix:** expect `Bad_NotFound` (accept `Bad_InvalidArgument` as well fo
 fields are also invalid).
 
 ### C29. GDS Application Directory `005.js` expects `BadInvalidArgument` for a string above MaxStringLength
+
+**Mantis:** already reported as [11406](https://mantis.opcfoundation.org/view.php?id=11406) by node-opcua (new / open; same root cause, the NUL characters); not filed again.
 
 - **Test:** `maintree/GDS/GDS Application Directory/Test Cases/005.js`, lines 20, 31, 37
 - **Error:** *"Call.Results[0].StatusCode incorrect. Received: Good. Expected: BadInvalidArgument"* (second call)
@@ -738,6 +834,8 @@ string does not reach the server as generated; a likely cause is its `\0` and no
 the oversized call.
 ### C30. GDS Query Applications `036.js` expects `rcp+` URLs the test never registered
 
+**Mantis:** already reported as [11412](https://mantis.opcfoundation.org/view.php?id=11412) by node-opcua (new / open); not filed again.
+
 - **Test:** `maintree/GDS/GDS Query Applications/Test Cases/036.js`, lines 23–28; records from
   `initialize.js`
 - **Error:** *"Received DiscoveryUrl 'opc.tcp://ClientAndServer:12345' does not start with 'rcp+' prefix"*
@@ -752,6 +850,8 @@ used for forward connections"* (§4.4.3). **Fix:** register the RCP client or Cl
 
 ### C31. GDS Query Applications `038.js` treats applicationType 3 as invalid
 
+**Mantis:** already reported as [11413](https://mantis.opcfoundation.org/view.php?id=11413) by node-opcua (new / open); not filed again.
+
 - **Test:** `maintree/GDS/GDS Query Applications/Test Cases/038.js`, lines 17 and 48 (step 5)
 - **Error:** *"Call.Results[0].StatusCode incorrect. Received: Good. Expected: BadInvalidArgument"*
 
@@ -763,6 +863,8 @@ The script's expectation (*"no records"*) matches neither reading. **Fix:** expe
 records for `3`, and use a value with an undefined bit (for example `4`) for the invalid case.
 
 ### C45. Historical Access Read Raw `Err-025.js` expects `BadNotSupported`
+
+**Mantis:** already reported as [11347](https://mantis.opcfoundation.org/view.php?id=11347) (resolved / fixed) and [11353](https://mantis.opcfoundation.org/view.php?id=11353) (new / open: the script is obsolete and will be removed); not filed again.
 
 - **Test:** `maintree/Historical Access/Historical Access Read Raw/Test Cases/Err-025.js`, line 32
 - **Error:** *"Results[ 0].StatusCode did not match expected results. Received: BadHistoryOperationUnsupported"*
@@ -776,6 +878,8 @@ Delete Value `dat-005.js`, `dat-Err-001.js` and `Err-004.js` already accept both
 `BadHistoryOperationUnsupported` as well.
 
 ### C46. Address Space Atomicity `001.js` only sees the first 10000 variables
+
+**Mantis:** [11446](https://mantis.opcfoundation.org/view.php?id=11446), new / open (filed 2026-09-24).
 
 - **Test:** `maintree/Address Space Model/Address Space Atomicity/Test Cases/001.js`, lines 10 and 42
 - **Skip:** *"No node found that have the NonatomicRead or NonatomicWrite flag in the AccessLevelEx attribute set"*
@@ -793,6 +897,8 @@ variables), test `((value >> 8) & 3) !== 0`, and match UaNodesToIgnore entries b
 
 ### C47. View Basic 2 `015.js` compares browse results by position
 
+**Mantis:** not filed (held back on 2026-09-24).
+
 - **Helper:** `library/ServiceBased/ViewServiceSet/Browse.js`, `AssertArrayContainsReferences` (line 387)
 
 `015.js` compares the references of a Browse filtered by ReferenceType with the matching references of an
@@ -801,6 +907,8 @@ does not define an order for the returned references. The reference server now r
 in the order of an unfiltered Browse, so the case passes. **Fix:** compare the reference sets without regard
 to order, as `AssertNodeReferencesInListNotOrdered` does.
 ### C32. Monitor Basic `038.js` judges a RevisedSamplingInterval of 0 against a project setting
+
+**Mantis:** not filed (held back on 2026-09-24: relevance unclear).
 
 - **Test:** `maintree/Monitored Item Services/Monitor Basic/Test Cases/038.js`, lines 7 and 15–21
 - **Warning:** *"Expected CreateMonitoredItems.Results[0].RevisedSamplingInterval to be different than the
@@ -820,6 +928,8 @@ either is 0.
 
 ### C33. Monitor Value Change V2 `020.js` requires every ByteString element to be four bytes long
 
+**Mantis:** not filed (held back on 2026-09-24).
+
 - **Test:** `maintree/Monitored Item Services/Monitor Value Change V2/Test Cases/020.js`, lines 34–42
 - **Skip:** *"The byteString elements (0, 1, and 2) are too small and should be increased to 4-characters as a minimum."*
 
@@ -831,6 +941,8 @@ keeps every element at least four bytes long, and the test passes. **Fix:** comp
 elements the index ranges select (the first and last three) and report the real requirement.
 
 ### C34. Node Management `RequestedNewNodeId()` ignores `RequestedNodeId_Namespace`
+
+**Mantis:** [11443](https://mantis.opcfoundation.org/view.php?id=11443), new / open (filed 2026-09-24).
 
 - **Helper:** `maintree/Node Management Services/Node Management Add Node/Test Cases/initialize.js`,
   `CUVariables.RequestedNewNodeId` (lines 131–153)
@@ -849,6 +961,8 @@ identifier first and the namespace index afterwards, or build the id with
 
 ### C35. Security User Anonymous `initialize.js` selects the `opc.wss` endpoint
 
+**Mantis:** covered by [11102](https://mantis.opcfoundation.org/view.php?id=11102) (assigned / open): Paul Hunkar's note there asks the scripts to skip `opc.https` and `opc.wss` endpoints; not filed again.
+
 - **Test:** `maintree/Security User Token/Security User Anonymous/Test Cases/initialize.js`, lines 42–60;
   `002.js`, lines 10–11
 - **Error:** *"OpenSecureChannel( MessageSecurityMode: SignAndEncrypt; RequestedSecurityPolicyUri: …Basic256Sha256 );
@@ -861,6 +975,8 @@ cannot open; `BadNotSupported` comes from the CTT. **Fix:** filter endpoints by 
 (`opc.tcp`), as `UaEndpointDescription.Find` should for WebSocket URLs too (see C16).
 
 ### C36. `UaEndpointDescription.FindTokenType` rewrites the cached endpoints, so Security User Name Password 2 `015.js` reports duplicate PolicyIds
+
+**Mantis:** [11444](https://mantis.opcfoundation.org/view.php?id=11444), new / open (filed 2026-09-24). It follows up [11258](https://mantis.opcfoundation.org/view.php?id=11258), which was resolved as no change required.
 
 - **Helper:** `library/ClassBased/UaE.js`, lines 54–56 (called from `UaEndpointDescription.Find`, line 105)
 - **Test:** `maintree/Security User Token/Security User Name Password 2/Test Cases/015.js`, line 52
@@ -887,6 +1003,8 @@ set the SecurityPolicyUri on the returned clone only, and index `foundTokens` wi
 
 ### C37. Session Base secure test cases send CreateSession with the `opc.wss` EndpointUrl
 
+**Mantis:** covered by [11102](https://mantis.opcfoundation.org/view.php?id=11102) (assigned / open): Paul Hunkar's note there asks the scripts to skip `opc.https` and `opc.wss` endpoints; not filed again.
+
 - **Tests:** `maintree/Session Services/Session Base/Test Cases/Err-002.js`, `Err-005.js` and
   `Err-022.js`, line 14 (`Test.Session.Execute( { EndpointUrl: epSecureEncrypt.EndpointUrl } )`)
 - **Helpers:** `maintree/Session Services/Session Base/Test Cases/initialize.js`, lines 27–37;
@@ -911,6 +1029,8 @@ the test opens, and let `HostnameFromUrl` accept any `scheme://host:port` URL (`
 
 ### C38. Subscription Durable `012.js` does not handle a denied diagnostics Browse
 
+**Mantis:** [11445](https://mantis.opcfoundation.org/view.php?id=11445), new / open (filed 2026-09-24).
+
 - **Test:** `maintree/Subscription Services/Subscription Durable/Test Cases/012.js`, lines 23–37
 - **Errors:** *"Browse.Results[0].StatusCode is: BadUserAccessDenied"* (line 23), then
   *"Read.Response.ResponseHeader.ServiceResult is Bad: BadNothingToDo"* (line 30)
@@ -929,6 +1049,8 @@ Steps 4–6 (lifetime honoured after SetSubscriptionDurable, reset by ModifySubs
 Bad or has no references, add braces on line 37, and guard `diagsObject`.
 
 ### C39. A & C `AlarmCollector.GetCallTime()` returns an unset time, so Comment skips every alarm type
+
+**Mantis:** [11447](https://mantis.opcfoundation.org/view.php?id=11447), new / open (filed 2026-09-24).
 
 - **Helper:** `library/AlarmsAndConditions/AlarmCollector.js`, lines 1839–1842
   (`return new UaDateTime( callHelper.ServerTimeOfCall )`)
@@ -950,6 +1072,8 @@ or use the request time corrected by the device time differential.
 
 ### C40. A & C Limit/Level CUs create their filter subscriptions on a session that has timed out
 
+**Mantis:** [11448](https://mantis.opcfoundation.org/view.php?id=11448), new / open (filed 2026-09-24).
+
 - **Tests:** A & C Exclusive Limit, Exclusive Level, Non-Exclusive Limit and Non-Exclusive Level
   (all use `maintree/Alarms and Conditions/A and C Base/Limit/Test Cases/`), `Test_003.js`–`Test_006.js`
 - **Helper:** `library/AlarmsAndConditions/ConformanceHelpers/limithelper.js`, lines 72–79
@@ -970,6 +1094,8 @@ the alarm thread session for the filter subscriptions.
 
 ### C41. A & C Alarm `Test_002.js` always runs to the maximum test time
 
+**Mantis:** [11449](https://mantis.opcfoundation.org/view.php?id=11449), new / open (filed 2026-09-24).
+
 - **Test:** `maintree/Alarms and Conditions/A and C Alarm/Test Cases/Test_002.js`, line 38;
   `initialize.js`, lines 15–36
 
@@ -982,6 +1108,8 @@ Line 22 also compares with `Identifier.ConditionId` where `Identifier.ConditionT
 **Fix:** increment `TestsSkipped` (or set IgnoreSkip) for types that `CanRunTest` rejects.
 
 ### C42. A & C Enable `Test_003.js` depends on all alarm types going active within cycle/10
+
+**Mantis:** [11450](https://mantis.opcfoundation.org/view.php?id=11450), new / open (filed 2026-09-24).
 
 - **Test:** `maintree/Alarms and Conditions/A and C Enable/Test Cases/Test_003.js`, lines 64–68, 89,
   129–132, 201–215, 233–237
@@ -999,6 +1127,8 @@ until the refresh is started for all non-ignored types, or mark types without an
 skipped when the refresh is issued.
 
 ### C43. A & C Enable `Err_004.js` feedback burst; the CTT alarm thread then drops received events
+
+**Mantis:** not filed (held back on 2026-09-24: needs more investigation to make the report concrete).
 
 - **Test:** `maintree/Alarms and Conditions/A and C Enable/Test Cases/Err_004.js`, lines 25–40
 
@@ -1030,6 +1160,8 @@ within a few seconds.
 
 ### C44. A & C CertificateExpiration blocks a `--hidden` run on a modal dialog
 
+**Mantis:** [11453](https://mantis.opcfoundation.org/view.php?id=11453), new / open (filed 2026-09-24).
+
 - **Test:** `maintree/Alarms and Conditions/A and C CertificateExpiration/Test Cases/initialize.js`,
   lines 135–149
 
@@ -1041,6 +1173,8 @@ The CU needs an operator (and a server whose clock can be moved past a certifica
 limit). **Fix:** skip dialogs in hidden/automated runs, or add a project setting that answers them.
 
 ### C48. Aggregate oracle: Minimum/Maximum ignore Uncertain values beyond the Good extremum
+
+**Mantis:** [11426](https://mantis.opcfoundation.org/view.php?id=11426), new / open (filed 2026-09-24).
 
 - **Tests:** Aggregate – Minimum, Maximum, MinimumActualTime, MaximumActualTime (`001-02.js`, `001-03.js`, …;
   24 readings per aggregate on the numeric HA nodes)
@@ -1058,6 +1192,8 @@ readings passed.
 
 ### C49. Aggregate oracle: ActualTime aggregates keep Raw when non-Good values make the result Uncertain
 
+**Mantis:** [11427](https://mantis.opcfoundation.org/view.php?id=11427), new / open (filed 2026-09-24).
+
 - **Tests:** Aggregate – MinimumActualTime and MaximumActualTime (228 readings each), Minimum (14 readings)
 - **Error:** *"Query did not result in identical readings"*
 
@@ -1070,6 +1206,8 @@ Bad value; the oracle expects `UncertainDataSubNormal` with Raw bits (`0x40A4000
 Calculated bit whenever the status is Uncertain because of non-Good input.
 
 ### C50. CloseSession timestamps the request before the CTT stops the Session's SessionThread
+
+**Mantis:** [11454](https://mantis.opcfoundation.org/view.php?id=11454), new / open (filed 2026-09-24).
 
 - **Tests:** Security None `007.js`, Security Basic256Sha256 `005.js` (step 3); Subscription Publish Basic
   `cleanup.js` (its `initialize.js` starts a `SessionThread` on `Test.Session`)
