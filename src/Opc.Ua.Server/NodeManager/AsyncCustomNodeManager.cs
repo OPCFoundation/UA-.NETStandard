@@ -5071,6 +5071,15 @@ namespace Opc.Ua.Server
                 return;
             }
 
+            // the SemanticChangeEvent is raised once per change, whether or not the
+            // owning node is monitored (Part 3 5.6.2).
+            NodeState? changedNode = property.Parent;
+            if (changedNode != null &&
+                !IsSemanticChangeProperty(changedNode, propertyName))
+            {
+                return;
+            }
+
             foreach (KeyValuePair<uint, IMonitoredItem> kvp in MonitoredItems)
             {
                 if (kvp.Value is not ISampledDataChangeMonitoredItem monitoredItem ||
@@ -5088,88 +5097,102 @@ namespace Opc.Ua.Server
                 NodeState node = handle.Node;
                 BaseInstanceState? propertyState = node.FindChild(
                     systemContext,
-                    property!.BrowseName);
+                    property.BrowseName);
 
                 if (propertyState != null &&
-                    property != null &&
-                    propertyState.NodeId == property.NodeId)
+                    propertyState.NodeId == property.NodeId &&
+                    IsSemanticChangeProperty(node, propertyName))
                 {
-                    if ((
-                            node is AnalogItemState &&
-                            (propertyName == BrowseNames.EURange ||
-                                propertyName == BrowseNames.EngineeringUnits)
-                        ) ||
-                        (
-                            node is TwoStateDiscreteState &&
-                            (propertyName == BrowseNames.FalseState ||
-                                propertyName == BrowseNames.TrueState)
-                        ) ||
-                        (node is MultiStateDiscreteState &&
-                            (propertyName == BrowseNames.EnumStrings)) ||
-                        (
-                            node is ArrayItemState &&
-                            (
-                                propertyName == BrowseNames.InstrumentRange ||
-                                propertyName == BrowseNames.EURange ||
-                                propertyName == BrowseNames.EngineeringUnits ||
-                                propertyName == BrowseNames.Title)
-                        ) ||
-                        (
-                            (node is YArrayItemState || node is XYArrayItemState) &&
-                            (
-                                propertyName == BrowseNames.InstrumentRange ||
-                                propertyName == BrowseNames.EURange ||
-                                propertyName == BrowseNames.EngineeringUnits ||
-                                propertyName == BrowseNames.Title ||
-                                propertyName == BrowseNames.XAxisDefinition)
-                        ) ||
-                        (
-                            node is ImageItemState &&
-                            (
-                                propertyName == BrowseNames.InstrumentRange ||
-                                propertyName == BrowseNames.EURange ||
-                                propertyName == BrowseNames.EngineeringUnits ||
-                                propertyName == BrowseNames.Title ||
-                                propertyName == BrowseNames.XAxisDefinition ||
-                                propertyName == BrowseNames.YAxisDefinition)
-                        ) ||
-                        (
-                            node is CubeItemState &&
-                            (
-                                propertyName == BrowseNames.InstrumentRange ||
-                                propertyName == BrowseNames.EURange ||
-                                propertyName == BrowseNames.EngineeringUnits ||
-                                propertyName == BrowseNames.Title ||
-                                propertyName == BrowseNames.XAxisDefinition ||
-                                propertyName == BrowseNames.YAxisDefinition ||
-                                propertyName == BrowseNames.ZAxisDefinition)
-                        ) ||
-                        (
-                            node is NDimensionArrayItemState &&
-                            (
-                                propertyName == BrowseNames.InstrumentRange ||
-                                propertyName == BrowseNames.EURange ||
-                                propertyName == BrowseNames.EngineeringUnits ||
-                                propertyName == BrowseNames.Title ||
-                                propertyName == BrowseNames.AxisDefinition)))
-                    {
-                        monitoredItem.SetSemanticsChanged();
+                    monitoredItem.SetSemanticsChanged();
 
-                        var value = new DataValue(Variant.Null, StatusCodes.Good, DateTimeUtc.MinValue, DateTime.UtcNow);
+                    // re-read in the context of the session owning the monitored item,
+                    // not in the context of the writer.
+                    ServerSystemContext itemContext = SystemContext.Copy(
+                        new OperationContext(kvp.Value));
+                    var value = new DataValue(Variant.Null, StatusCodes.Good, DateTimeUtc.MinValue, DateTime.UtcNow);
 
-                        node.ReadAttribute(
-                            systemContext,
-                            Attributes.Value,
-                            monitoredItem.IndexRange,
-                            default,
-                            ref value);
+                    ServiceResult readResult = node.ReadAttribute(
+                        itemContext,
+                        Attributes.Value,
+                        monitoredItem.IndexRange,
+                        monitoredItem.DataEncoding,
+                        ref value);
 
-                        monitoredItem.QueueValue(value, ServiceResult.Good, true);
+                    monitoredItem.QueueValue(value, readResult, true);
 
-                        RaiseSemanticChangeEvent(systemContext, node, property);
-                    }
+                    changedNode ??= node;
                 }
             }
+
+            if (changedNode != null)
+            {
+                RaiseSemanticChangeEvent(systemContext, changedNode, property);
+            }
+        }
+
+        /// <summary>
+        /// Returns true if a change of the named property changes the semantics of the node.
+        /// </summary>
+        internal static bool IsSemanticChangeProperty(NodeState node, string? propertyName)
+        {
+            return (
+                    node is AnalogItemState &&
+                    (propertyName == BrowseNames.EURange ||
+                        propertyName == BrowseNames.EngineeringUnits)
+                ) ||
+                (
+                    node is TwoStateDiscreteState &&
+                    (propertyName == BrowseNames.FalseState ||
+                        propertyName == BrowseNames.TrueState)
+                ) ||
+                (node is MultiStateDiscreteState &&
+                    (propertyName == BrowseNames.EnumStrings)) ||
+                (
+                    node is ArrayItemState &&
+                    (
+                        propertyName == BrowseNames.InstrumentRange ||
+                        propertyName == BrowseNames.EURange ||
+                        propertyName == BrowseNames.EngineeringUnits ||
+                        propertyName == BrowseNames.Title)
+                ) ||
+                (
+                    (node is YArrayItemState || node is XYArrayItemState) &&
+                    (
+                        propertyName == BrowseNames.InstrumentRange ||
+                        propertyName == BrowseNames.EURange ||
+                        propertyName == BrowseNames.EngineeringUnits ||
+                        propertyName == BrowseNames.Title ||
+                        propertyName == BrowseNames.XAxisDefinition)
+                ) ||
+                (
+                    node is ImageItemState &&
+                    (
+                        propertyName == BrowseNames.InstrumentRange ||
+                        propertyName == BrowseNames.EURange ||
+                        propertyName == BrowseNames.EngineeringUnits ||
+                        propertyName == BrowseNames.Title ||
+                        propertyName == BrowseNames.XAxisDefinition ||
+                        propertyName == BrowseNames.YAxisDefinition)
+                ) ||
+                (
+                    node is CubeItemState &&
+                    (
+                        propertyName == BrowseNames.InstrumentRange ||
+                        propertyName == BrowseNames.EURange ||
+                        propertyName == BrowseNames.EngineeringUnits ||
+                        propertyName == BrowseNames.Title ||
+                        propertyName == BrowseNames.XAxisDefinition ||
+                        propertyName == BrowseNames.YAxisDefinition ||
+                        propertyName == BrowseNames.ZAxisDefinition)
+                ) ||
+                (
+                    node is NDimensionArrayItemState &&
+                    (
+                        propertyName == BrowseNames.InstrumentRange ||
+                        propertyName == BrowseNames.EURange ||
+                        propertyName == BrowseNames.EngineeringUnits ||
+                        propertyName == BrowseNames.Title ||
+                        propertyName == BrowseNames.AxisDefinition));
         }
 
         /// <summary>

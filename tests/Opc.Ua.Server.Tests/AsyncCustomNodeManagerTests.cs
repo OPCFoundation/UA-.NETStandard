@@ -2662,6 +2662,85 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Verifies that a semantic property change raises exactly one SemanticChangeEvent,
+        /// independent of the number of monitored items on the node (Part 3 5.6.2).
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(2)]
+        public async Task WriteEURangeAsyncRaisesOneSemanticChangeEventAsync(int monitoredItemCount)
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var variable = new AnalogItemState(null);
+            variable.CreateAsPredefinedNode(context);
+            variable.NodeId = new NodeId("SemanticVar", nsIdx);
+            variable.BrowseName = new QualifiedName("SemanticVar", nsIdx);
+            variable.Value = 0;
+            variable.DataType = DataTypeIds.Int32;
+            variable.ValueRank = ValueRanks.Scalar;
+            variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
+            variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+
+            var euProperty = new PropertyState(null);
+            euProperty.CreateAsPredefinedNode(context);
+            euProperty.NodeId = new NodeId("SemanticVar.EURange", nsIdx);
+            euProperty.BrowseName = QualifiedName.From(BrowseNames.EURange);
+            euProperty.Value = 0;
+            euProperty.ReferenceTypeId = ReferenceTypeIds.HasProperty;
+            euProperty.AccessLevel = AccessLevels.CurrentReadOrWrite;
+            euProperty.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+            variable.AddChild(euProperty);
+
+            await manager.AddNodeAsync(context, default, variable).ConfigureAwait(false);
+
+            for (int ii = 0; ii < monitoredItemCount; ii++)
+            {
+                var createErrors = new List<ServiceResult> { null };
+                await manager.CreateMonitoredItemsAsync(
+                    CreateMonitoredItemsContext(),
+                    1,
+                    1000,
+                    TimestampsToReturn.Both,
+                    new List<MonitoredItemCreateRequest>
+                    {
+                        new()
+                        {
+                            ItemToMonitor = new ReadValueId { NodeId = variable.NodeId, AttributeId = Attributes.Value },
+                            MonitoringMode = MonitoringMode.Reporting,
+                            RequestedParameters = new MonitoringParameters { ClientHandle = (uint)ii, SamplingInterval = 0, QueueSize = 10 }
+                        }
+                    },
+                    createErrors,
+                    new List<MonitoringFilterResult> { null },
+                    new List<IMonitoredItem> { null },
+                    false,
+                    new MonitoredItemIdFactory()).ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(createErrors[0]), Is.True);
+            }
+
+            var writeErrors = new List<ServiceResult> { null };
+            await manager.WriteAsync(
+                new OperationContext(new RequestHeader(), null, RequestType.Write, RequestLifetime.None),
+                new List<WriteValue>
+                {
+                    new()
+                    {
+                        NodeId = euProperty.NodeId,
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue(new Variant(123))
+                    }
+                },
+                writeErrors).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(writeErrors[0]), Is.True);
+            Assert.That(euProperty.Value, Is.EqualTo(123));
+            m_mockServer.Verify(
+                s => s.ReportEvent(It.Is<IFilterTarget>(e => e is SemanticChangeEventState)),
+                Times.Once);
+        }
+
+        /// <summary>
         /// Verifies that adding references registers external references.
         /// </summary>
         [Test]
