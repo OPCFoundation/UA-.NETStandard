@@ -56,6 +56,7 @@ namespace Opc.Ua.SourceGeneration
         public IEnumerable<Resource> Emit()
         {
             SortedDictionary<string, string> browseNames = [];
+            m_defaultInstanceBrowseNameKeys.Clear();
             foreach (NodeDesign node in m_context.ModelDesign.GetNodeDesigns())
             {
                 CollectBrowseNames(node, browseNames);
@@ -166,6 +167,7 @@ namespace Opc.Ua.SourceGeneration
             if (node.SymbolicName.Namespace == m_context.ModelDesign.TargetNamespace.Value)
             {
                 browseNames[node.SymbolicName.Name] = node.BrowseName;
+                m_defaultInstanceBrowseNameKeys.Remove(node.SymbolicName.Name);
             }
 
             if (node.Children?.Items == null)
@@ -203,6 +205,10 @@ namespace Opc.Ua.SourceGeneration
                         if (!browseNames.ContainsKey(constantName))
                         {
                             browseNames[constantName] = qname.Name;
+                            // Remember that this entry is not a symbolic name, so a
+                            // node visited later that really has this symbolic name
+                            // replaces it instead of being reported as a clash.
+                            m_defaultInstanceBrowseNameKeys.Add(constantName);
                         }
                     }
 
@@ -211,7 +217,8 @@ namespace Opc.Ua.SourceGeneration
 
                 if (child.SymbolicName.Namespace == m_context.ModelDesign.TargetNamespace.Value)
                 {
-                    if (browseNames.TryGetValue(child.SymbolicName.Name, out string browseName))
+                    if (browseNames.TryGetValue(child.SymbolicName.Name, out string browseName) &&
+                        !m_defaultInstanceBrowseNameKeys.Remove(child.SymbolicName.Name))
                     {
                         if (browseName != child.BrowseName)
                         {
@@ -325,5 +332,11 @@ namespace Opc.Ua.SourceGeneration
 
         private readonly IGeneratorContext m_context;
         private readonly Microsoft.Extensions.Logging.ILogger m_logger;
+
+        /// <summary>
+        /// Browse-name dictionary keys that were derived from a
+        /// DefaultInstanceBrowseName value rather than a symbolic name.
+        /// </summary>
+        private readonly HashSet<string> m_defaultInstanceBrowseNameKeys = new(StringComparer.Ordinal);
     }
 }

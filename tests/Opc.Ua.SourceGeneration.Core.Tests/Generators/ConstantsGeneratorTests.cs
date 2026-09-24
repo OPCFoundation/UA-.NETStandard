@@ -494,6 +494,91 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 Does.Not.Contain("public const string PumpType = \"Pump Type\";"));
         }
 
+        /// <summary>
+        /// Regression: the reverse order of the test above. A DefaultInstanceBrowseName
+        /// visited first ("Device Set" -> key "DeviceSet") made a later child whose real
+        /// symbolic name is "DeviceSet" throw "Two nodes with the same symbolic name have
+        /// different browse names", so the outcome depended on declaration order.
+        /// </summary>
+        [Test]
+        public void Emit_SymbolicNameAfterCollidingDefaultInstanceBrowseName_ReplacesIt()
+        {
+            var targetNamespace = new Namespace
+            {
+                Value = "http://test.org/UA/",
+                Prefix = "Test",
+                Name = "TestNamespace"
+            };
+            m_mockModelDesign.Setup(m => m.TargetNamespace).Returns(targetNamespace);
+            m_mockModelDesign.Setup(m => m.Namespaces).Returns([targetNamespace]);
+
+            var fooType = new ObjectTypeDesign
+            {
+                SymbolicName = new System.Xml.XmlQualifiedName("FooType", targetNamespace.Value),
+                SymbolicId = new System.Xml.XmlQualifiedName("FooType", targetNamespace.Value),
+                BrowseName = "FooType",
+                Children = new ListOfChildren
+                {
+                    Items =
+                    [
+                        new PropertyDesign
+                        {
+                            SymbolicName = new System.Xml.XmlQualifiedName(
+                                Types.BrowseNames.DefaultInstanceBrowseName,
+                                Types.Namespaces.OpcUa),
+                            BrowseName = Types.BrowseNames.DefaultInstanceBrowseName,
+                            DecodedValue = new QualifiedName("Device Set")
+                        }
+                    ]
+                },
+                HasChildren = true
+            };
+            var barType = new ObjectTypeDesign
+            {
+                SymbolicName = new System.Xml.XmlQualifiedName("BarType", targetNamespace.Value),
+                SymbolicId = new System.Xml.XmlQualifiedName("BarType", targetNamespace.Value),
+                BrowseName = "BarType",
+                Children = new ListOfChildren
+                {
+                    Items =
+                    [
+                        new ObjectDesign
+                        {
+                            SymbolicName = new System.Xml.XmlQualifiedName(
+                                "DeviceSet", targetNamespace.Value),
+                            SymbolicId = new System.Xml.XmlQualifiedName(
+                                "BarType_DeviceSet", targetNamespace.Value),
+                            BrowseName = "DeviceSet"
+                        }
+                    ]
+                },
+                HasChildren = true
+            };
+
+            m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([fooType, barType]);
+            m_mockModelDesign.Setup(m => m.IsExcluded(It.IsAny<NodeDesign>())).Returns(false);
+
+            using var fileSystem = new VirtualFileSystem();
+            m_context = new GeneratorContext
+            {
+                FileSystem = fileSystem,
+                OutputFolder = "out",
+                ModelDesign = m_mockModelDesign.Object,
+                Telemetry = m_mockTelemetry.Object,
+                Options = new GeneratorOptions()
+            };
+
+            var generator = new ConstantsGenerator(m_context);
+            Assert.That(() => generator.Emit(), Throws.Nothing);
+
+            string output = System.Text.Encoding.UTF8.GetString(
+                fileSystem.Get(Path.Combine("out", "Test.Constants.g.cs")));
+            Assert.That(
+                output,
+                Does.Contain("public const string DeviceSet = \"DeviceSet\";"),
+                "the symbolic name entry wins regardless of declaration order");
+        }
+
         [Test]
         public void Emit_TargetModelVersionEmitsModelVersionConstant()
         {
