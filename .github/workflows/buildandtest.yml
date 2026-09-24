@@ -12,9 +12,6 @@ on:
     # branch protection requires, this workflow has to trigger on every pull
     # request. The path allow-list is applied inside the `discover` job instead,
     # which skips the expensive jobs while still letting the summary report.
-  # Weekly nightly run mirroring azure-pipelines.yml — Sun 02:00 UTC.
-  schedule:
-    - cron: '0 2 * * 0'
   # Manual dispatch can opt out of the macOS runners that are enabled by default.
   workflow_dispatch:
     inputs:
