@@ -512,7 +512,9 @@ namespace Opc.Ua.Client.Tests.StateMachines
             Assert.That(transitions[0].TransitionNumber, Is.EqualTo(20u));
             Assert.That(child, Is.Not.Null);
             Assert.That(child!.ObjectId, Is.EqualTo(subMachine));
-            Assert.That(translateRequests, Has.Count.EqualTo(5));
+            // The sixth translate resolves the sub-state machine's instance component; it
+            // does not match here, so the reference target is used as-is.
+            Assert.That(translateRequests, Has.Count.EqualTo(6));
             Assert.That(readRequests, Has.Count.EqualTo(5));
             Assert.That(browseDescriptions, Has.Count.EqualTo(1));
             Assert.Multiple(() =>
@@ -547,6 +549,11 @@ namespace Opc.Ua.Client.Tests.StateMachines
                     startTransition,
                     ReferenceTypeIds.HasProperty,
                     BrowseNames.TransitionNumber);
+                AssertPath(
+                    translateRequests[5][0],
+                    client.ObjectId,
+                    ReferenceTypeIds.HasComponent,
+                    "SubMachine");
                 AssertRead(readRequests[1][0], availableStatesNode, Attributes.Value);
                 AssertRead(readRequests[2][0], runningState, Attributes.BrowseName);
                 AssertRead(readRequests[2][1], stateNumber, Attributes.Value);
@@ -565,6 +572,80 @@ namespace Opc.Ua.Client.Tests.StateMachines
                 It.Is<ArrayOf<BrowseDescription>>(descriptions =>
                     descriptions.Count > 0 && descriptions[0].NodeId == client.ObjectId),
                 It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [Test]
+        public void WaitForStateAsyncThrowsBadNotFoundWhenCurrentStateIdUnresolved()
+        {
+            var sessionMock = new Mock<ISessionClient>(MockBehavior.Loose);
+            FiniteStateMachineTypeClient client = CreateClient(sessionMock);
+            SetupTranslateAllEmpty(sessionMock);
+
+            // Previously the observation ended at once and was mis-reported as a
+            // cancellation although neither the token nor a timeout fired.
+            Assert.That(
+                async () => await client
+                    .WaitForStateAsync(new EmptyStreamingSubscription(), new NodeId(1u, 2))
+                    .ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadNotFound));
+        }
+
+        [Test]
+        public async Task GetSubStateMachineResolvesTheInstanceComponentNotTheTypeDeclarationAsync()
+        {
+            var sessionMock = new Mock<ISessionClient>(MockBehavior.Strict);
+            FiniteStateMachineTypeClient client = CreateClient(sessionMock);
+            var typeLevelState = new NodeId(601u, 2);
+            var typeLevelSubMachine = new NodeId(602u, 2);
+            var instanceSubMachine = new NodeId(603u, 2);
+            var subMachineName = new QualifiedName("SubMachine", 2);
+            sessionMock.Setup(s => s.BrowseAsync(
+                    null, null, 0,
+                    It.Is<ArrayOf<BrowseDescription>>(b => b.Count == 1 && b[0].NodeId == typeLevelState),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new BrowseResponse
+                {
+                    Results =
+                    [
+                        new BrowseResult
+                        {
+                            References =
+                            [
+                                new ReferenceDescription
+                                {
+                                    NodeId = typeLevelSubMachine,
+                                    BrowseName = subMachineName
+                                }
+                            ]
+                        }
+                    ]
+                });
+            sessionMock.Setup(s => s.TranslateBrowsePathsToNodeIdsAsync(
+                    null,
+                    It.Is<ArrayOf<BrowsePath>>(p =>
+                        p.Count == 1 &&
+                        p[0].StartingNode == client.ObjectId &&
+                        p[0].RelativePath.Elements[0].TargetName == subMachineName),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new TranslateBrowsePathsToNodeIdsResponse
+                {
+                    Results =
+                    [
+                        new BrowsePathResult
+                        {
+                            Targets = [new BrowsePathTarget { TargetId = instanceSubMachine }]
+                        }
+                    ]
+                });
+
+            FiniteStateMachineTypeClient? child = await client
+                .GetSubStateMachineAsync(typeLevelState, NUnitTelemetryContext.Create())
+                .ConfigureAwait(false);
+
+            Assert.That(child, Is.Not.Null);
+            Assert.That(child!.ObjectId, Is.EqualTo(instanceSubMachine));
         }
 
         private static void SetupTranslateAllEmpty(Mock<ISessionClient> sessionMock)
