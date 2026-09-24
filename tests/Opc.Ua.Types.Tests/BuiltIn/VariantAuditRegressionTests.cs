@@ -606,6 +606,21 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
+        public void XmlElementToXElementDoesNotProcessDtd()
+        {
+            // T2-5: XElement.Load(Stream) expanded DTD entities.
+            var xml = (XmlElement)"<!DOCTYPE a [<!ENTITY x \"expanded\">]><a>&x;</a>";
+            var plain = (XmlElement)"<a> <b>text</b> </a>";
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(xml.AsXElement(), Is.Null);
+                Assert.Throws<System.Xml.XmlException>(() => xml.ToXElement());
+                Assert.That(plain.ToXElement().Element("b")?.Value, Is.EqualTo("text"));
+            });
+        }
+
+        [Test]
         public void SerializableMatrixOfRoundTripsNullMatrix()
         {
             // T2-8: a null matrix could not be deserialized.
