@@ -25,7 +25,7 @@ if ($nbgvVersion -notmatch '^\d+\.\d+\.\d+$') {
 
 $toolPath = './tools'
 $toolExecutable = Join-Path $toolPath 'nbgv'
-if ($IsWindows) {
+if ([System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT) {
     $toolExecutable += '.exe'
 }
 

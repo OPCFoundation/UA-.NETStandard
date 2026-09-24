@@ -919,6 +919,11 @@ namespace Opc.Ua.Tools.Tests
                 Assert.That(script, Does.Contain("'--framework'"));
                 Assert.That(script, Does.Contain("'net10.0'"));
                 Assert.That(script, Does.Not.Contain("3.7.115"));
+                Assert.That(
+                    script,
+                    Does.Contain("[System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT"),
+                    "Azure invokes this script through Windows PowerShell 5.1, which does not define $IsWindows.");
+                Assert.That(script, Does.Not.Contain("$IsWindows"));
             });
         }
 
