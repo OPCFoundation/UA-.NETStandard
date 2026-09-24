@@ -488,7 +488,7 @@ The Actions workflows were added while Azure Pipelines kept every trigger and re
 
 What is still outstanding — each needing repository- or organization-administrator access, and therefore **not** part of the source change:
 
-1. Push the `fuzz-corpus` orphan branch, then run `nightly.yml` on a trusted SHA and compare its manifest against a full-scope Azure run.
+1. Run `nightly.yml` on a trusted SHA and compare its manifest against a full-scope Azure run.
 2. Confirm definition 14's service-side **Pull request validation** setting is off. `pr: none` covers the YAML trigger, but an enabled "Override the YAML PR trigger from here" would still queue builds.
 3. Confirm definition 14's service-side schedule is off and retire the push trigger once the GitHub replacement has proven stable. The YAML `cron` has already moved to `nightly.yml`.
 4. Retire `azure-pipelines-preview.yml` and definition 16's build-completion trigger. Development packages already publish to GitHub Packages from [`.github/workflows/nuget-publish.yml`](../.github/workflows/nuget-publish.yml), so that publisher is a duplicate. Ensure the stale definition 13 cannot restart it.
