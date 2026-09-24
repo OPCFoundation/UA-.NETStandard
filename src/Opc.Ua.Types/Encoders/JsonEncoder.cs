@@ -595,7 +595,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteLocalizedText(string? fieldName, LocalizedText value)
         {
-            if (value.IsNull)
+            if (IsJsonNull(value))
             {
                 WriteNull(fieldName);
                 return;
@@ -1044,7 +1044,7 @@ namespace Opc.Ua
                 {
                     WriteVariantUaTypeByte(value.WrappedValue);
                 }
-                if (!m_options.IgnoreDefaultValues || !value.WrappedValue.ValueIsDefaultOrNull)
+                if (!CanOmitVariantValue(value.WrappedValue))
                 {
                     m_writer.WritePropertyName(JsonProperties.Value);
                     WriteVariantContents(value.WrappedValue, false, m_options.SuppressArtifacts);
@@ -1565,7 +1565,7 @@ namespace Opc.Ua
         /// </summary>
         private void WriteLocalizedText(LocalizedText value)
         {
-            if (value.IsNull)
+            if (IsJsonNull(value))
             {
                 m_writer.WriteNullValue();
                 return;
@@ -1577,6 +1577,15 @@ namespace Opc.Ua
                 WriteString(JsonProperties.Locale, value.Locale);
             }
             EndObject();
+        }
+
+        /// <summary>
+        /// An empty locale is not encoded (Part 6 5.4.2.15), so a value without text and
+        /// locale is the null LocalizedText (all fields default, Part 6 5.1.2) on the wire.
+        /// </summary>
+        private static bool IsJsonNull(LocalizedText value)
+        {
+            return value.IsNull || (value.Text == null && string.IsNullOrEmpty(value.Locale));
         }
 
         /// <summary>
@@ -1899,12 +1908,24 @@ namespace Opc.Ua
             {
                 WriteVariantUaTypeByte(value);
             }
-            if (!m_options.IgnoreDefaultValues || !value.ValueIsDefaultOrNull)
+            if (!CanOmitVariantValue(value))
             {
                 m_writer.WritePropertyName(JsonProperties.Value);
                 WriteVariantContents(in value, false, suppressUaType);
             }
             EndObject();
+        }
+
+        /// <summary>
+        /// A decoder reconstructs a Variant without a Value field as the default scalar of
+        /// its UaType, so only a default scalar can be omitted. A null array is written as
+        /// an empty array instead, which is semantically the same (Part 6 5.1.11).
+        /// </summary>
+        private bool CanOmitVariantValue(in Variant value)
+        {
+            return m_options.IgnoreDefaultValues &&
+                value.TypeInfo.IsScalar &&
+                value.ValueIsDefaultOrNull;
         }
 
         /// <summary>

@@ -916,7 +916,9 @@ namespace Opc.Ua.Fuzzing
             int leftCount = (int)type.GetProperty(nameof(ArrayOf<int>.Count))!.GetValue(left)!;
             int rightCount = (int)type.GetProperty(nameof(ArrayOf<int>.Count))!.GetValue(right)!;
 
-            if (options.IgnoreNullValues && leftCount == 0 && rightCount == 0)
+            // Null, empty and zero length arrays are semantically the same for all
+            // DataEncodings, and a conversion may turn one into the other (Part 6 5.1.11).
+            if (leftCount == 0 && rightCount == 0)
             {
                 return true;
             }

@@ -775,7 +775,7 @@ namespace Opc.Ua
         /// <returns>The formatted identifier.</returns>
         public string? Format(IServiceMessageContext context, bool useUris = false)
         {
-            if (m_nodeId.IsNull)
+            if (IsNull)
             {
                 return null;
             }
@@ -816,7 +816,9 @@ namespace Opc.Ua
                     .Append(';');
             }
 
-            string id = m_nodeId.Format(context, useUris);
+            // A server index or namespace URI keeps the value non-null even when the
+            // identifier is, so the identifier must still be written for it to parse back.
+            string id = m_nodeId.IsNull ? "i=0" : m_nodeId.Format(context, useUris);
             buffer.Append(id);
 
             return buffer.ToString();
