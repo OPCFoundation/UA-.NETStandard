@@ -1293,23 +1293,28 @@ namespace Opc.Ua.Server
                 }
 
                 // check if the application has a callback which validates the identity tokens.
+                // The callback may be slow (password hashing, directory lookups), so it runs
+                // outside m_eventLock, which every session event of every request takes.
+                ImpersonateEventHandler? impersonateUser;
                 lock (m_eventLock)
                 {
-                    if (m_ImpersonateUser != null)
+                    impersonateUser = m_ImpersonateUser;
+                }
+
+                if (impersonateUser != null)
+                {
+                    var args = new ImpersonateEventArgs(
+                        newIdentity,
+                        userTokenPolicy,
+                        endpointDescription);
+                    impersonateUser(session, args);
+
+                    if (ServiceResult.IsBad(args.IdentityValidationError))
                     {
-                        var args = new ImpersonateEventArgs(
-                            newIdentity,
-                            userTokenPolicy,
-                            endpointDescription);
-                        m_ImpersonateUser(session, args);
-
-                        if (ServiceResult.IsBad(args.IdentityValidationError))
-                        {
-                            return (null, null, args.IdentityValidationError);
-                        }
-
-                        return (args.Identity, args.EffectiveIdentity, null);
+                        return (null, null, args.IdentityValidationError);
                     }
+
+                    return (args.Identity, args.EffectiveIdentity, null);
                 }
 
                 return (null, null, null);
