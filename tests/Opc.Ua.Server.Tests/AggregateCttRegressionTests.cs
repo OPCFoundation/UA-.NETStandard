@@ -227,6 +227,57 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Verifies that the value-based status counts Uncertain values as Good when
+        /// TreatUncertainAsBad is false and as Bad otherwise (Part 13 §4.2.1.2, §5.4.3.2.1).
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DirectAndLiveCountValueBasedStatusHonorsTreatUncertainAsBadAsync(
+            bool treatUncertainAsBad)
+        {
+            // Two Good values and one Uncertain value: 100% Good without TreatUncertainAsBad,
+            // otherwise 67% Good and 33% Bad, which meets neither threshold.
+            StatusCode expectedCodeBits = treatUncertainAsBad
+                ? StatusCodes.UncertainDataSubNormal
+                : StatusCodes.Good;
+            List<DataValue> rawValues =
+            [
+                CreateValue(1, StatusCodes.Good, 0),
+                CreateValue(2, StatusCodes.UncertainSubstituteValue, 5),
+                CreateValue(3, StatusCodes.Good, 10),
+                CreateValue(4, StatusCodes.Good, 20)
+            ];
+            AggregateConfiguration configuration = CreateConfiguration(treatUncertainAsBad);
+            DateTimeUtc endTime = AtSeconds(15);
+
+            List<DataValue> direct = RunDirect(
+                ObjectIds.AggregateFunction_Count,
+                rawValues,
+                s_baseTime,
+                endTime,
+                15_000,
+                configuration);
+
+            using var harness = new AggregateHarness();
+            List<DataValue> live = await harness.ReadProcessedAsync(
+                ObjectIds.AggregateFunction_Count,
+                rawValues,
+                s_baseTime,
+                endTime,
+                15_000,
+                configuration).ConfigureAwait(false);
+
+            foreach (List<DataValue> results in new[] { direct, live })
+            {
+                Assert.That(results, Has.Count.EqualTo(1));
+                Assert.That(results[0].WrappedValue.TryGetValue(out int count), Is.True);
+                Assert.That(count, Is.EqualTo(2));
+                Assert.That(results[0].StatusCode.CodeBits, Is.EqualTo(expectedCodeBits));
+                Assert.That(results[0].StatusCode.AggregateBits, Is.EqualTo(AggregateBits.Calculated));
+            }
+        }
+
+        /// <summary>
         /// Verifies that repeated Good quality sets the multiple-values flag for worst-quality aggregates.
         /// </summary>
         [TestCase("WorstQuality")]
