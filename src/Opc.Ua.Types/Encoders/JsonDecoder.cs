@@ -2865,8 +2865,16 @@ namespace Opc.Ua
                                                     return true;
                                                 case JsonValueKind.Object:
                                                     m_stack.Push(uaBody);
-                                                    value.Decode(this);
-                                                    m_stack.Pop();
+                                                    try
+                                                    {
+                                                        value.Decode(this);
+                                                    }
+                                                    finally
+                                                    {
+                                                        // keep the element stack balanced
+                                                        // when the body throws.
+                                                        m_stack.Pop();
+                                                    }
                                                     return true;
                                             }
                                         }

@@ -426,6 +426,96 @@ namespace Opc.Ua.Types.Tests.Encoders
             });
         }
 
+        [Test]
+        [TestCase("[-1,2]")]
+        [TestCase("[3,1]")]
+        [TestCase("[]")]
+        [TestCase("[65536,65537]")]
+        public void EncodeableMatrixWithInvalidDimensionsIsADecodingError(string dimensions)
+        {
+            // MatrixOf throws ArgumentException for invalid wire dimensions; the
+            // JSON decoder let it escape instead of reporting BadDecodingError.
+            ServiceMessageContext context = CreateContext();
+            string json =
+                "{\"Samples\":{\"Dimensions\":" + dimensions +
+                ",\"Array\":[{\"Value\":1},{\"Value\":2}]}}";
+            using var decoder = new JsonDecoder(json, context);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadEncodeableMatrix<Sample>("Samples"));
+            Assert.That(ex.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void EncodeableMatrixWithValidDimensionsDecodes()
+        {
+            ServiceMessageContext context = CreateContext();
+            const string json =
+                "{\"Samples\":{\"Dimensions\":[1,2],\"Array\":[{\"Value\":1},{\"Value\":2}]}}";
+            using var decoder = new JsonDecoder(json, context);
+
+            MatrixOf<Sample> matrix = decoder.ReadEncodeableMatrix<Sample>("Samples");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(matrix.Count, Is.EqualTo(2));
+                Assert.That(matrix.Span[1].Value, Is.EqualTo(2));
+            });
+        }
+
+        [Test]
+        public void NonStrictExtensionObjectBodyThatThrowsKeepsTheElementStackBalanced()
+        {
+            // The legacy object form of UaBody pushed the body element without a
+            // try/finally, so a throwing Decode left it on the stack and every
+            // following field was read from the wrong JSON object.
+            ServiceMessageContext context = CreateContext();
+            context.Factory.AddEncodeableType(typeof(ThrowingSample));
+            const string json =
+                "{\"Inner\":{\"UaTypeId\":\"i=99011\",\"UaEncoding\":0,\"UaBody\":{\"Value\":1}}," +
+                "\"After\":5}";
+            using var decoder = new JsonDecoder(
+                json,
+                context,
+                new JsonDecoderOptions { ParseStrict = false });
+
+            Assert.Throws<ServiceResultException>(
+                () => decoder.ReadEncodeableAsExtensionObject<ThrowingSample>("Inner"));
+            Assert.That(decoder.ReadInt32("After"), Is.EqualTo(5));
+        }
+
+        /// <summary>
+        /// An encodeable whose Decode always fails.
+        /// </summary>
+        public sealed class ThrowingSample : IEncodeable
+        {
+            public ExpandedNodeId TypeId => new(99011, 0);
+            public ExpandedNodeId BinaryEncodingId => new(99012, 0);
+            public ExpandedNodeId XmlEncodingId => new(99013, 0);
+
+            public void Encode(IEncoder encoder)
+            {
+            }
+
+            public void Decode(IDecoder decoder)
+            {
+                decoder.ReadInt32("Value");
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Decode failed.");
+            }
+
+            public bool IsEqual(IEncodeable encodeable)
+            {
+                return ReferenceEquals(this, encodeable);
+            }
+
+            public object Clone()
+            {
+                return new ThrowingSample();
+            }
+        }
+
         /// <summary>
         /// A minimal encodeable used for factory registration.
         /// </summary>
