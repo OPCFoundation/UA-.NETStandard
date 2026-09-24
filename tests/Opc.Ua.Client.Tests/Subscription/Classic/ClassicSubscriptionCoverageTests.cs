@@ -764,6 +764,59 @@ namespace Opc.Ua.Client.Tests
                 It.IsAny<CancellationToken>()), Times.Once);
         }
 
+        /// <summary>
+        /// A saved item that was never created does not exist on the server,
+        /// so it must not make the transfer of a restored subscription fail
+        /// (L7-4).
+        /// </summary>
+        [Test]
+        public async Task TransferOfRestoredSubscriptionIgnoresItemsThatWereNeverCreatedAsync()
+        {
+            using Subscription subscription = CreateSubscription();
+            MonitoredItem created = CreateItem(4323u, "Created");
+            created.ServerId = 55;
+            MonitoredItem neverCreated = CreateItem(4324u, "NeverCreated");
+            subscription.AddItems([created, neverCreated]);
+            Mock<ISession> session = CreateGetMonitoredItemsSession([55u], [4323u]);
+            subscription.Session = session.Object;
+
+            bool transferred = await subscription.TransferAsync(session.Object, 9, [])
+                .ConfigureAwait(false);
+
+            Assert.That(transferred, Is.True);
+            Assert.That(subscription.Id, Is.EqualTo(9u));
+            session.Verify(s => s.DeleteSubscriptionsAsync(
+                It.IsAny<RequestHeader>(),
+                It.IsAny<ArrayOf<uint>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// When a transferred subscription cannot be adopted, the server side
+        /// subscription now owned by the session is deleted instead of being
+        /// left alive as an orphan (L7-4).
+        /// </summary>
+        [Test]
+        public async Task FailedTransferOfRestoredSubscriptionDeletesTheServerSubscriptionAsync()
+        {
+            using Subscription subscription = CreateSubscription();
+            MonitoredItem created = CreateItem(4325u, "Created");
+            created.ServerId = 55;
+            subscription.AddItem(created);
+            Mock<ISession> session = CreateGetMonitoredItemsSession([], []);
+            subscription.Session = session.Object;
+
+            bool transferred = await subscription.TransferAsync(session.Object, 9, [])
+                .ConfigureAwait(false);
+
+            Assert.That(transferred, Is.False);
+            Assert.That(subscription.Created, Is.False);
+            session.Verify(s => s.DeleteSubscriptionsAsync(
+                It.IsAny<RequestHeader>(),
+                It.Is<ArrayOf<uint>>(ids => ids.Count == 1 && ids[0] == 9u),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+
         private static Mock<ISession> CreateItemSession(uint subscriptionId, Action onCreateItems = null)
         {
             var session = new Mock<ISession>();
@@ -813,6 +866,36 @@ namespace Opc.Ua.Client.Tests
                         Results = new ArrayOf<MonitoredItemCreateResult>(results)
                     };
                 });
+            return session;
+        }
+
+        private static Mock<ISession> CreateGetMonitoredItemsSession(
+            ArrayOf<uint> serverHandles,
+            ArrayOf<uint> clientHandles)
+        {
+            var session = new Mock<ISession>();
+            session
+                .Setup(s => s.CallAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<CallMethodRequest>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CallResponse
+                {
+                    Results =
+                    [
+                        new CallMethodResult
+                        {
+                            StatusCode = StatusCodes.Good,
+                            OutputArguments = [Variant.From(serverHandles), Variant.From(clientHandles)]
+                        }
+                    ]
+                });
+            session
+                .Setup(s => s.DeleteSubscriptionsAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<uint>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new DeleteSubscriptionsResponse { Results = [StatusCodes.Good] });
             return session;
         }
     }

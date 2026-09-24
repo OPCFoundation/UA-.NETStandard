@@ -1817,10 +1817,18 @@ namespace Opc.Ua.Client
                     m_logger.SubscriptionIdSubscriptionIdServerFailedRespondGetMonitoredItems(
                         Id,
                         Session?.SessionId);
+                    await DeleteTransferredSubscriptionAsync(session, id, ct).ConfigureAwait(false);
                     return (false, default);
                 }
 
-                int monitoredItemsCount = m_monitoredItems.Count;
+                // Items that were never created (e.g. failed with
+                // BadNodeIdUnknown before the state was saved) do not exist on
+                // the server, so only the created ones must match.
+                int monitoredItemsCount;
+                lock (m_cache)
+                {
+                    monitoredItemsCount = m_monitoredItems.Values.Count(item => item.Status.Created);
+                }
                 if (serverHandles.Count != monitoredItemsCount ||
                     clientHandles.Count != monitoredItemsCount)
                 {
@@ -1830,6 +1838,11 @@ namespace Opc.Ua.Client
                         serverHandles.Count,
                         monitoredItemsCount,
                         Session?.SessionId);
+
+                    // The server already moved its subscription to this
+                    // session. Nothing on the client owns it (Id stays 0), so
+                    // it would live on and consume publish requests: delete it.
+                    await DeleteTransferredSubscriptionAsync(session, id, ct).ConfigureAwait(false);
                     return (false, default);
                 }
 
@@ -1855,6 +1868,29 @@ namespace Opc.Ua.Client
             TraceState("TRANSFERRED ASYNC");
 
             return (true, acknowledgements);
+        }
+
+        /// <summary>
+        /// Best effort delete of a server subscription that was transferred
+        /// to <paramref name="session"/> but could not be adopted, so it does
+        /// not stay alive as an orphan for the lifetime of the session.
+        /// </summary>
+        private async Task DeleteTransferredSubscriptionAsync(
+            ISession session,
+            uint id,
+            CancellationToken ct)
+        {
+            try
+            {
+                await session.DeleteSubscriptionsAsync(null, [id], ct).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                m_logger.SubscriptionIdFailedDeleteTransferredSubscription(
+                    ex,
+                    id,
+                    session.SessionId);
+            }
         }
 
         /// <summary>
@@ -4227,6 +4263,15 @@ namespace Opc.Ua.Client
             this ILogger logger,
             Exception? exception,
             string state,
+            uint subscriptionId,
+            NodeId? sessionId);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 68, Level = LogLevel.Warning,
+            Message = "SubscriptionId {SubscriptionId}: Failed to delete the transferred subscription that" +
+                " could not be adopted, SessionId={SessionId}.")]
+        public static partial void SubscriptionIdFailedDeleteTransferredSubscription(
+            this ILogger logger,
+            Exception? exception,
             uint subscriptionId,
             NodeId? sessionId);
     }
