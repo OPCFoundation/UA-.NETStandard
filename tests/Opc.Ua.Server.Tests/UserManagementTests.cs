@@ -362,6 +362,18 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
         }
 
+        [TestCase("")]
+        [TestCase(null)]
+        public void ChangePassword_EmptyOldPassword_ReturnsBadIdentityTokenInvalid(string? oldPassword)
+        {
+            using UserManagementImpl um = CreateManager();
+            Assert.That(ServiceResult.IsGood(
+                um.AddUser("alice", "secret", UserConfigurationMask.None, string.Empty)), Is.True);
+            ServiceResult result = um.ChangePassword("alice", oldPassword!, "newpass");
+            Assert.That(result.StatusCode,
+                Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
+        }
+
         [Test]
         public void ChangePassword_ClearsMustChangePasswordBit()
         {
