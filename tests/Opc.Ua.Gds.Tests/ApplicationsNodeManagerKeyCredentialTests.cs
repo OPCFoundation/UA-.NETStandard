@@ -369,6 +369,43 @@ namespace Opc.Ua.Gds.Tests
                     .EqualTo(StatusCodes.BadSecurityChecksFailed));
         }
 
+        /// <summary>
+        /// OPC 10000-12 §7.9.3 - §7.9.5: the certificate request methods shall
+        /// be called from an encrypted SecureChannel.
+        /// </summary>
+        [Test]
+        public void CertificateRequestMethodsRequireEncryptedChannel()
+        {
+            ISystemContext context = CreateContext(
+                CreateRoleIdentity(GdsRole.CertificateAuthorityAdmin),
+                certificateMarker: 14,
+                MessageSecurityMode.Sign);
+            var method = new MethodState(null);
+            NodeId requestId = default;
+
+            Assert.That(
+                () => m_nodeManager.OnStartNewKeyPairRequest(
+                    context, method, default, m_ownerApplicationId, default, default,
+                    "CN=Owner", default, "PFX", "password", ref requestId),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadSecurityModeInsufficient));
+            Assert.That(
+                async () => await m_nodeManager.OnStartSigningRequestAsync(
+                    context, method, default, m_ownerApplicationId, default, default,
+                    ByteString.From([1, 2, 3]), CancellationToken.None).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadSecurityModeInsufficient));
+            Assert.That(
+                async () => await m_nodeManager.OnFinishRequestAsync(
+                    context, method, default, m_ownerApplicationId, new NodeId(Guid.NewGuid()),
+                    CancellationToken.None).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadSecurityModeInsufficient));
+        }
+
         private async Task<NodeId> StartRequestAsync(
             ISystemContext context,
             string applicationUri)
@@ -414,11 +451,14 @@ namespace Opc.Ua.Gds.Tests
                 CancellationToken.None);
         }
 
-        private ServerSystemContext CreateContext(IUserIdentity identity, byte certificateMarker)
+        private ServerSystemContext CreateContext(
+            IUserIdentity identity,
+            byte certificateMarker,
+            MessageSecurityMode securityMode = MessageSecurityMode.SignAndEncrypt)
         {
             var endpoint = new EndpointDescription
             {
-                SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                SecurityMode = securityMode,
                 SecurityPolicyUri = SecurityPolicies.Basic256Sha256
             };
             var channelContext = new SecureChannelContext(

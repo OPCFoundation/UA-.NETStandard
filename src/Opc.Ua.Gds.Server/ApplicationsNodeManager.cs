@@ -1761,7 +1761,7 @@ namespace Opc.Ua.Gds.Server
             return [.. names];
         }
 
-        private ServiceResult OnStartNewKeyPairRequest(
+        internal ServiceResult OnStartNewKeyPairRequest(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -1785,6 +1785,9 @@ namespace Opc.Ua.Gds.Server
 
             try
             {
+                // OPC 10000-12 §7.9.4: the private key password is an input
+                // and the private key an output, so the channel must be encrypted.
+                AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
                 AuthorizationHelper.HasAuthorization(
                     context,
                     AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
@@ -1948,7 +1951,7 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
-        private async ValueTask<StartSigningRequestMethodStateResult> OnStartSigningRequestAsync(
+        internal async ValueTask<StartSigningRequestMethodStateResult> OnStartSigningRequestAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -1968,6 +1971,8 @@ namespace Opc.Ua.Gds.Server
 
             try
             {
+                // OPC 10000-12 §7.9.3: shall be called from an encrypted SecureChannel.
+                AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
                 AuthorizationHelper.HasAuthorization(
                     context,
                     AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
@@ -2084,7 +2089,7 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
-        private async ValueTask<FinishRequestMethodStateResult> OnFinishRequestAsync(
+        internal async ValueTask<FinishRequestMethodStateResult> OnFinishRequestAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -2092,6 +2097,9 @@ namespace Opc.Ua.Gds.Server
             NodeId requestId,
             CancellationToken cancellationToken)
         {
+            // OPC 10000-12 §7.9.5: the private key is returned, so the
+            // channel must be encrypted (Bad_SecurityModeInsufficient).
+            AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
             AuthorizationHelper.HasAuthorization(
                 context,
                 AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
