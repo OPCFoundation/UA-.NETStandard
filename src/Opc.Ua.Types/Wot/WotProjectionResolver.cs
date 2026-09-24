@@ -686,7 +686,7 @@ namespace Opc.Ua.Wot
             MergeAnnotation(target, reference.Annotations, sourceRouting);
             if (sourceRouting)
             {
-                TransformForms(target, source, selection);
+                TransformForms(target, source, selection, diagnostics);
             }
             CarryAnchor(target, source.Document);
             target["uav:resolvedFrom"] = reference.Reference;
@@ -748,7 +748,7 @@ namespace Opc.Ua.Wot
                 JsonObject target = CloneObject(definition);
                 if (sourceRouting)
                 {
-                    TransformForms(target, source, selection);
+                    TransformForms(target, source, selection, diagnostics);
                 }
                 else
                 {
@@ -835,7 +835,8 @@ namespace Opc.Ua.Wot
         private static void TransformForms(
             JsonObject target,
             ResolvedSource source,
-            Selection selection)
+            Selection selection,
+            List<WotDiagnostic> diagnostics)
         {
             if (!target.TryGetPropertyValue("forms", out JsonNode? formsNode) ||
                 formsNode is not JsonArray forms)
@@ -862,8 +863,8 @@ namespace Opc.Ua.Wot
                         source.Source.SourceName,
                         source.Document.SecurityDefinitions,
                         effective,
-                        selection.SecurityDefinitions,
-                        selection.SecurityAdded);
+                        selection,
+                        diagnostics);
                     var security = new JsonArray();
                     for (int ii = 0; ii < effective.Count; ii++)
                     {
@@ -883,8 +884,8 @@ namespace Opc.Ua.Wot
             string sourceName,
             IReadOnlyDictionary<string, JsonElement> sourceDefinitions,
             List<string> schemeNames,
-            JsonObject securityDefinitions,
-            HashSet<string> securityAdded)
+            Selection selection,
+            List<WotDiagnostic> diagnostics)
         {
             for (int ii = 0; ii < schemeNames.Count; ii++)
             {
@@ -892,8 +893,8 @@ namespace Opc.Ua.Wot
                     sourceName,
                     schemeNames[ii],
                     sourceDefinitions,
-                    securityDefinitions,
-                    securityAdded);
+                    selection,
+                    diagnostics);
             }
         }
 
@@ -901,8 +902,8 @@ namespace Opc.Ua.Wot
             string sourceName,
             string schemeName,
             IReadOnlyDictionary<string, JsonElement> sourceDefinitions,
-            JsonObject securityDefinitions,
-            HashSet<string> securityAdded)
+            Selection selection,
+            List<WotDiagnostic> diagnostics)
         {
             if (!sourceDefinitions.TryGetValue(schemeName, out JsonElement definition) ||
                 definition.ValueKind != JsonValueKind.Object)
@@ -910,10 +911,15 @@ namespace Opc.Ua.Wot
                 return;
             }
             string qualified = Qualify(sourceName, schemeName);
-            if (!securityAdded.Add(qualified))
+            bool claimed = selection.SecurityOwners.TryGetValue(
+                qualified, out (string? Source, string Scheme) owner);
+            if (claimed &&
+                string.Equals(owner.Source, sourceName, StringComparison.Ordinal) &&
+                string.Equals(owner.Scheme, schemeName, StringComparison.Ordinal))
             {
                 return;
             }
+            JsonObject securityDefinitions = selection.SecurityDefinitions;
             JsonObject copy = CloneObject(definition);
             var children = new List<string>();
             for (int ii = 0; ii < s_comboKeys.Length; ii++)
@@ -939,15 +945,42 @@ namespace Opc.Ua.Wot
                     copy[s_comboKeys[ii]] = rewritten;
                 }
             }
-            securityDefinitions[qualified] = copy;
+            if (claimed)
+            {
+                // The qualified name is already the projection's own scheme or
+                // another source's. Binding these forms to that definition - or
+                // replacing it - would state a security nobody authored, so only
+                // an identical definition may be shared.
+                if (!securityDefinitions.TryGetPropertyValue(qualified, out JsonNode? existing) ||
+                    !WotJsonCanonicalizer.TryEquals(existing, copy, out bool equal, out _) ||
+                    !equal)
+                {
+                    AddError(
+                        diagnostics,
+                        WotDiagnosticCode.ProjectionSecurityConflict,
+                        $"The security scheme '{schemeName}' of the source '{sourceName}' " +
+                        $"qualifies to '{qualified}', which is already " +
+                        (owner.Source is null
+                            ? "a security scheme the projection defines"
+                            : $"the scheme '{owner.Scheme}' of the source '{owner.Source}'") +
+                        " with a different definition.",
+                        qualified);
+                    return;
+                }
+            }
+            else
+            {
+                securityDefinitions[qualified] = copy;
+            }
+            selection.SecurityOwners[qualified] = (sourceName, schemeName);
             for (int ii = 0; ii < children.Count; ii++)
             {
                 CopyScheme(
                     sourceName,
                     children[ii],
                     sourceDefinitions,
-                    securityDefinitions,
-                    securityAdded);
+                    selection,
+                    diagnostics);
             }
         }
 
@@ -2016,6 +2049,13 @@ namespace Opc.Ua.Wot
             public Selection(JsonObject securityDefinitions)
             {
                 SecurityDefinitions = securityDefinitions;
+                foreach (KeyValuePair<string, JsonNode?> definition in securityDefinitions)
+                {
+                    // The projection's own schemes are claimed first, so a
+                    // source scheme that qualifies to one of their names can
+                    // neither replace it nor be bound to it.
+                    SecurityOwners[definition.Key] = (null, definition.Key);
+                }
             }
 
             public List<ResolvedAffordance> Properties { get; } = [];
@@ -2026,7 +2066,11 @@ namespace Opc.Ua.Wot
 
             public JsonObject SecurityDefinitions { get; }
 
-            public HashSet<string> SecurityAdded { get; } =
+            /// <summary>
+            /// The source (<c>null</c> for the projection itself) and scheme
+            /// name each qualified security definition was copied from.
+            /// </summary>
+            public Dictionary<string, (string? Source, string Scheme)> SecurityOwners { get; } =
                 new(StringComparer.Ordinal);
 
             public bool Claim(WotAffordanceKind kind, string name)

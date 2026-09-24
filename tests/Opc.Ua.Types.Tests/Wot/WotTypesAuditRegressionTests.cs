@@ -115,6 +115,149 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo(1));
         }
 
+        [Test]
+        public async Task SourceSchemeCannotReplaceTheProjectionsOwnSchemeAsync()
+        {
+            // "plant" + "_" + "sc" is the name of the projection's own floor;
+            // the source's nosec scheme used to overwrite it silently.
+            string projection = Projection(
+                "\"plant_sc\":{\"scheme\":\"uav:channelsec\"," +
+                "\"uav:securityMode\":\"SignAndEncrypt\"," +
+                "\"uav:securityPolicy\":\"Aes256_Sha256_RsaPss\"}",
+                "plant_sc",
+                ("plant", "urn:plant"));
+            WotProjectionResolver resolver = ThingResolver(
+                ("urn:plant", Source("urn:plant", "sc", "{\"scheme\":\"nosec\"}", "p1")));
+
+            WotConversionResult<WotDocument> result =
+                await ResolveAsync(resolver, projection).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Success, Is.False);
+                Assert.That(
+                    result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.ProjectionSecurityConflict),
+                    Is.True);
+            });
+        }
+
+        [Test]
+        public async Task TwoSourceSchemesWithOneQualifiedNameAreRefusedAsync()
+        {
+            // "line" + "2_sc" and "line_2" + "sc" both qualify to "line_2_sc".
+            string projection = Projection(
+                "\"nosec_sc\":{\"scheme\":\"nosec\"}",
+                "nosec_sc",
+                ("line", "urn:line"),
+                ("line_2", "urn:line2"));
+            WotProjectionResolver resolver = ThingResolver(
+                ("urn:line", Source("urn:line", "2_sc", "{\"scheme\":\"nosec\"}", "p1")),
+                ("urn:line2", Source(
+                    "urn:line2",
+                    "sc",
+                    "{\"scheme\":\"uav:channelsec\",\"uav:securityMode\":\"SignAndEncrypt\"," +
+                    "\"uav:securityPolicy\":\"Aes256_Sha256_RsaPss\"}",
+                    "p2")));
+
+            WotConversionResult<WotDocument> result =
+                await ResolveAsync(resolver, projection).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Success, Is.False);
+                Assert.That(
+                    result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.ProjectionSecurityConflict),
+                    Is.True);
+            });
+        }
+
+        [Test]
+        public async Task AnIdenticalProjectionSchemeIsSharedAsync()
+        {
+            const string definition = "{\"scheme\":\"nosec\"}";
+            string projection = Projection(
+                "\"plant_sc\":" + definition,
+                "plant_sc",
+                ("plant", "urn:plant"));
+            WotProjectionResolver resolver = ThingResolver(
+                ("urn:plant", Source("urn:plant", "sc", definition, "p1")));
+
+            WotConversionResult<WotDocument> result =
+                await ResolveAsync(resolver, projection).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(
+                result.Value!.RootElement.GetProperty("properties").GetProperty("p1")
+                    .GetProperty("forms")[0].GetProperty("security")[0].GetString(),
+                Is.EqualTo("plant_sc"));
+        }
+
+        private static string Projection(
+            string securityDefinitions,
+            string security,
+            params (string Name, string Href)[] sources)
+        {
+            var projects = new StringBuilder();
+            foreach ((string name, string href) in sources)
+            {
+                if (projects.Length > 0)
+                {
+                    projects.Append(',');
+                }
+                projects.Append("{\"uav:sourceName\":\"").Append(name)
+                    .Append("\",\"href\":\"").Append(href)
+                    .Append("\",\"type\":\"application/td+json\",\"uav:routing\":\"source\"," +
+                        "\"uav:selectAll\":true}");
+            }
+            return "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
+                "\"tm\":\"https://www.w3.org/2019/wot/tm#\"}]," +
+                "\"@type\":[\"Thing\",\"uav:projection\"],\"id\":\"urn:view\",\"title\":\"View\"," +
+                "\"uav:scenario\":\"http://example.com/scenario/View\"," +
+                "\"securityDefinitions\":{" + securityDefinitions + "}," +
+                "\"security\":\"" + security + "\"," +
+                "\"uav:projects\":[" + projects + "]}";
+        }
+
+        private static string Source(string id, string scheme, string definition, string property)
+        {
+            return "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"}]," +
+                "\"@type\":\"uav:object\",\"id\":\"" + id + "\",\"title\":\"Source\"," +
+                "\"securityDefinitions\":{\"" + scheme + "\":" + definition + "}," +
+                "\"security\":\"" + scheme + "\",\"base\":\"opc.tcp://host:4840\"," +
+                "\"properties\":{\"" + property + "\":{\"type\":\"number\"," +
+                "\"forms\":[{\"href\":\"/?id=nsu=urn:x;s=" + property + "\",\"op\":[\"readproperty\"]}]}}}";
+        }
+
+        private static async Task<WotConversionResult<WotDocument>> ResolveAsync(
+            WotProjectionResolver resolver,
+            string projection)
+        {
+            using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(projection));
+            return await resolver.ResolveAsync(document).ConfigureAwait(false);
+        }
+
+        private static WotProjectionResolver ThingResolver(params (string Href, string Json)[] map)
+        {
+            return new WotProjectionResolver(
+                new MapThingResolver(map.ToDictionary(e => e.Href, e => e.Json, StringComparer.Ordinal)));
+        }
+
+        private sealed class MapThingResolver(Dictionary<string, string> map) : IWotThingResolver
+        {
+            public ValueTask<WotResolverResult> ResolveThingAsync(
+                string reference,
+                WotResolutionContext context,
+                System.Threading.CancellationToken cancellationToken)
+            {
+                return new ValueTask<WotResolverResult>(
+                    map.TryGetValue(reference, out string? json)
+                        ? WotResolverResult.FromBytes(Encoding.UTF8.GetBytes(json))
+                        : WotResolverResult.NotFound);
+            }
+        }
+
         /// <summary>
         /// Answers "bad.json" with a string schema and anything else with a
         /// number schema.
