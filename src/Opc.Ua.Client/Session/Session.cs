@@ -4848,19 +4848,41 @@ namespace Opc.Ua.Client
                         continue;
                     }
 
+                    long timeoutHint = Math.Min(2L * KeepAliveInterval, int.MaxValue);
                     var requestHeader = new RequestHeader
                     {
                         RequestHandle = NewRequestHandle(),
-                        TimeoutHint = (uint)(KeepAliveInterval * 2),
+                        TimeoutHint = (uint)timeoutHint,
                         ReturnDiagnostics = 0
                     };
 
-                    ReadResponse result = await ReadAsync(
-                        requestHeader,
-                        0,
-                        TimestampsToReturn.Neither,
-                        nodesToRead,
-                        ct).ConfigureAwait(false);
+                    // Part 4 7.32: the client applies timeoutHint to the call
+                    // itself. Without it the read waits for the transport's
+                    // OperationTimeout (minutes) on a silent server, and no
+                    // keep-alive error - hence no reconnect - is raised until then.
+                    using CancellationTokenSource readTimeout =
+                        m_timeProvider.CreateCancellationTokenSource(
+                            TimeSpan.FromMilliseconds(timeoutHint));
+                    using var readCancellation =
+                        CancellationTokenSource.CreateLinkedTokenSource(ct, readTimeout.Token);
+                    ReadResponse result;
+                    try
+                    {
+                        result = await ReadAsync(
+                            requestHeader,
+                            0,
+                            TimestampsToReturn.Neither,
+                            nodesToRead,
+                            readCancellation.Token).ConfigureAwait(false);
+                    }
+                    catch (Exception) when (
+                        readTimeout.IsCancellationRequested && !ct.IsCancellationRequested)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadNoCommunication,
+                            "Keep alive read timed out after {0} ms.",
+                            timeoutHint);
+                    }
 
                     // read the server status.
                     ArrayOf<DataValue> values = result.Results;
