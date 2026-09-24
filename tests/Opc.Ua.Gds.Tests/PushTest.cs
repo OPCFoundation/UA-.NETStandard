@@ -626,9 +626,10 @@ namespace Opc.Ua.Gds.Tests
 
             // Issuer certificates are added through the TrustList file
             // (AddCertificate only accepts trusted certificates, §7.8.2.6).
-            TrustListDataType withIssuer = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
-            withIssuer.IssuerCertificates = withIssuer.IssuerCertificates.AddItems(
-                new[] { m_caCert.RawData.ToByteString() });
+            TrustListDataType withIssuer = await m_pushClient.PushClient
+                .ReadTrustListAsync(TrustListMasks.IssuerCertificates).ConfigureAwait(false);
+            withIssuer.IssuerCertificates = withIssuer.IssuerCertificates.AddItem(
+                m_caCert.RawData.ToByteString());
             bool applyChangesRequired = await m_pushClient.PushClient
                 .UpdateTrustListAsync(withIssuer).ConfigureAwait(false);
             Assert.That(applyChangesRequired, Is.True);
