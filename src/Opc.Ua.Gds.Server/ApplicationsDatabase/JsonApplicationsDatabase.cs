@@ -53,7 +53,14 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         /// <summary>
         /// Load the JSON application database.
         /// </summary>
+        /// <remarks>
+        /// A missing or empty file yields an empty database. A file that
+        /// cannot be read or parsed is reported instead of being replaced by
+        /// an empty database on the next save.
+        /// </remarks>
         /// <exception cref="ArgumentNullException"><paramref name="fileName"/> is <c>null</c>.</exception>
+        /// <exception cref="IOException">The file exists but cannot be read.</exception>
+        /// <exception cref="InvalidDataException">The file does not contain a valid database.</exception>
         public static JsonApplicationsDatabase Load(string fileName)
         {
             if (fileName == null)
@@ -61,43 +68,69 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                 throw new ArgumentNullException(nameof(fileName));
             }
 
+            if (!File.Exists(fileName))
+            {
+                return new JsonApplicationsDatabase(fileName);
+            }
+
+            string json = File.ReadAllText(fileName);
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return new JsonApplicationsDatabase(fileName);
+            }
+
+            JsonApplicationsDatabase? db;
             try
             {
-                if (File.Exists(fileName))
+                db = JsonSerializer.Deserialize(json, GdsApplicationsDatabaseJsonContext.Default.JsonApplicationsDatabase);
+            }
+            catch (JsonException ex)
+            {
+                throw new InvalidDataException(
+                    $"The GDS applications database '{fileName}' is not valid JSON.", ex);
+            }
+
+            if (db == null)
+            {
+                throw new InvalidDataException(
+                    $"The GDS applications database '{fileName}' does not contain a database.");
+            }
+
+            db.FileName = fileName;
+            lock (db.Lock)
+            {
+                if (db.AssignServerEndpointIds())
                 {
-                    string json = File.ReadAllText(fileName);
-                    JsonApplicationsDatabase? db =
-                        JsonSerializer.Deserialize(json, GdsApplicationsDatabaseJsonContext.Default.JsonApplicationsDatabase);
-                    if (db != null)
-                    {
-                        db.FileName = fileName;
-                        lock (db.Lock)
-                        {
-                            if (db.AssignServerEndpointIds())
-                            {
-                                // Persist the identifiers of endpoints saved
-                                // before endpoints had an identifier.
-                                db.Save();
-                            }
-                        }
-                        return db;
-                    }
+                    // Persist the identifiers of endpoints saved
+                    // before endpoints had an identifier.
+                    db.Save();
                 }
             }
-            catch
-            {
-            }
-            return new JsonApplicationsDatabase(fileName);
+            return db;
         }
 
         /// <summary>
         /// Save the complete database.
         /// </summary>
+        /// <remarks>
+        /// The database is written to a temporary file which then replaces
+        /// the database file, so a crash during the write does not leave a
+        /// truncated database behind.
+        /// </remarks>
         public override void Save()
         {
             string json = JsonSerializer.Serialize(
                 this, GdsApplicationsDatabaseJsonContext.Default.JsonApplicationsDatabase);
-            File.WriteAllText(FileName, json);
+            string tempFileName = FileName + ".tmp";
+            File.WriteAllText(tempFileName, json);
+            if (File.Exists(FileName))
+            {
+                File.Replace(tempFileName, FileName, null);
+            }
+            else
+            {
+                File.Move(tempFileName, FileName);
+            }
         }
 
         /// <summary>

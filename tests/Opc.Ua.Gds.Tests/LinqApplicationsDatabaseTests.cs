@@ -325,6 +325,60 @@ namespace Opc.Ua.Gds.Tests
                 Throws.TypeOf<ServiceResultException>());
         }
 
+        [Test]
+        public void ApplicationCertificatesSurviveJsonReload()
+        {
+            string fileName = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".json");
+            try
+            {
+                var database = JsonApplicationsDatabase.Load(fileName);
+                NodeId application = database.RegisterApplication(CreateServerApplication("urn:test:a", "ServerA"));
+                database.SetApplicationCertificate(
+                    application, "RsaSha256ApplicationCertificateType", ByteString.From([1, 2, 3]));
+                database.SetApplicationTrustLists(
+                    application, "RsaSha256ApplicationCertificateType", "pki/trusted");
+
+                database = JsonApplicationsDatabase.Load(fileName);
+
+                Assert.That(
+                    database.GetApplicationCertificate(
+                        application, "RsaSha256ApplicationCertificateType", out ByteString certificate),
+                    Is.True);
+                Assert.That(certificate.ToArray(), Is.EqualTo(new byte[] { 1, 2, 3 }));
+                Assert.That(
+                    database.GetApplicationTrustLists(
+                        application, "RsaSha256ApplicationCertificateType", out string? trustListId),
+                    Is.True);
+                Assert.That(trustListId, Is.EqualTo("pki/trusted"));
+            }
+            finally
+            {
+                File.Delete(fileName);
+            }
+        }
+
+        [Test]
+        public void LoadOfCorruptDatabaseThrowsAndKeepsTheFile()
+        {
+            string fileName = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".json");
+            try
+            {
+                const string corrupt = "{ \"Applications\": [ { \"ApplicationUri\": ";
+                File.WriteAllText(fileName, corrupt);
+
+                Assert.That(() => JsonApplicationsDatabase.Load(fileName), Throws.TypeOf<InvalidDataException>());
+                Assert.That(File.ReadAllText(fileName), Is.EqualTo(corrupt));
+
+                // An empty file is an empty database.
+                File.WriteAllText(fileName, string.Empty);
+                Assert.That(JsonApplicationsDatabase.Load(fileName).FindApplications("urn:test:a"), Is.Empty);
+            }
+            finally
+            {
+                File.Delete(fileName);
+            }
+        }
+
         /// <summary>
         /// OPC 10000-12 §7.9.4: the private key password shall not be persisted.
         /// </summary>

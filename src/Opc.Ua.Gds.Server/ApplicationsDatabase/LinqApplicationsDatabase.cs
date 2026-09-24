@@ -59,8 +59,13 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         public int ApplicationType { get; set; }
         public string? ProductUri { get; set; }
         public string? ServerCapabilities { get; set; }
-        public Dictionary<string, byte[]> Certificate { get; }
-        public Dictionary<string, string> TrustListId { get; }
+        // Settable for the JSON serializer: a get-only property is skipped on
+        // deserialization, which lost the certificates on every reload.
+        [JsonInclude]
+        public Dictionary<string, byte[]> Certificate { get; internal set; }
+
+        [JsonInclude]
+        public Dictionary<string, string> TrustListId { get; internal set; }
     }
 
     [Serializable]
