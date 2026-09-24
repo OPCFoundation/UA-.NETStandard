@@ -2089,6 +2089,18 @@ namespace Opc.Ua.Client.Subscriptions
                         else if (!ct.IsCancellationRequested)
                         {
                             //
+                            // The Publish itself succeeded, so the server has
+                            // processed the acknowledgements it carried. End
+                            // the in-flight request now: a failure below must
+                            // not re-queue those acknowledgements (the server
+                            // would answer Bad_SequenceNumberUnknown), and a
+                            // drain must not wait for the throttle or the
+                            // orphan delete below.
+                            //
+                            m_outer.EndPublishRequest();
+                            publishActive = false;
+
+                            //
                             // The identifier does not resolve to any subscription
                             // this manager owns. Delete the orphan on the server,
                             // but only when no subscription is currently awaiting
@@ -2152,7 +2164,7 @@ namespace Opc.Ua.Client.Subscriptions
                                 await m_outer.m_session.DeleteSubscriptionsAsync(
                                     null,
                                     [subscriptionId],
-                                    ct).ConfigureAwait(false);
+                                    attemptToken).ConfigureAwait(false);
                                 //
                                 // Retire the identifier so responses that were
                                 // already in flight, or that the server emits
