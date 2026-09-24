@@ -1483,6 +1483,34 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(CompileGeneratedAssembly(files), Is.Not.Null);
         }
 
+        /// <summary>
+        /// Regression: the VariableType value class addressed the structure
+        /// value by the authored field name, but the data type generator
+        /// renames fields that collide with the enclosing type name or with
+        /// reserved members (e.g. <c>Measurement</c> becomes
+        /// <c>MeasurementField</c>), producing CS1061.
+        /// </summary>
+        [Test]
+        public void VariableTypeValueUsesGeneratedStructurePropertyNames()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+            Dictionary<string, string> files = GenerateFromNodeSet(
+                "VariableTypeRenamedField.NodeSet2.xml",
+                telemetry);
+
+            string code = string.Join("\n", files.Values);
+            Assert.Multiple(() =>
+            {
+                Assert.That(code, Does.Contain("m_value.MeasurementField"));
+                Assert.That(code, Does.Contain("m_value.TypeIdField"));
+                Assert.That(code, Does.Contain("m_value.Unit"));
+                Assert.That(code, Does.Contain("m_variable.Measurement"));
+                Assert.That(code, Does.Not.Match(@"m_value\.Measurement\b"));
+                Assert.That(code, Does.Not.Match(@"m_value\.TypeId\b"));
+            });
+            Assert.That(CompileGeneratedAssembly(files), Is.Not.Null);
+        }
+
         private static Dictionary<string, string> GenerateFromNodeSet(
             string nodeSetResource,
             ITelemetryContext telemetry)

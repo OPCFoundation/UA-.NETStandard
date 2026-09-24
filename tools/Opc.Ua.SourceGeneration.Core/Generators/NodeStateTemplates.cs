@@ -672,7 +672,7 @@ namespace Opc.Ua.SourceGeneration
                     if (m_value != null)
                     {
                         value = global::Opc.Ua.Variant.{{Tokens.VariantFrom}}(
-                            ({{Tokens.ChildDataType}})m_value.{{Tokens.ChildPath}});
+                            ({{Tokens.ChildDataType}})m_value.{{Tokens.PropertyName}});
                     }
 
                     var result = Read(
@@ -722,7 +722,7 @@ namespace Opc.Ua.SourceGeneration
                         newValue = default;
                     }
                     UpdateChildVariableStatus(m_variable.{{Tokens.ChildPath}}, ref statusCode, ref timestamp);
-                    m_value.{{Tokens.ChildPath}} = {{Tokens.ValueWrite}};
+                    m_value.{{Tokens.PropertyName}} = {{Tokens.ValueWrite}};
                     UpdateParent(context, ref statusCode, ref timestamp);
                 }
                 finally

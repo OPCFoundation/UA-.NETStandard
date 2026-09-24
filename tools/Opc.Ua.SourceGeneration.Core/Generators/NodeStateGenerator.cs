@@ -1029,16 +1029,20 @@ namespace Opc.Ua.SourceGeneration
 
             var dataType = field.Value.Parent as DataTypeDesign;
             string path = field.Key;
+            // The value is addressed through the generated structure property,
+            // which can differ from the authored field name (e.g. a field named
+            // like its enclosing type or a reserved member gets a suffix).
+            string valuePath = field.Value.GetPropertyName();
 
             if (dataType.IsDotNetEqualityComparable(field.Value.ValueRank))
             {
-                context.Out.WriteLine("if (m_value.{0} != newValue.{0})", path);
+                context.Out.WriteLine("if (m_value.{0} != newValue.{0})", valuePath);
             }
             else
             {
                 context.Out.WriteLine(
                     "if (!global::Opc.Ua.CoreUtils.IsEqual(m_value.{0}, newValue.{0}))",
-                    path);
+                    valuePath);
             }
             context.Out.WriteLine("{");
             context.Out.WriteLine(
@@ -1059,6 +1063,7 @@ namespace Opc.Ua.SourceGeneration
 
             context.Template.AddReplacement(Tokens.ChildName, field.Key);
             context.Template.AddReplacement(Tokens.ChildPath, field.Key);
+            context.Template.AddReplacement(Tokens.PropertyName, field.Value.GetPropertyName());
 
             string childDataType = field.Value.DataTypeNode.GetDotNetTypeName(
                 field.Value.ValueRank,
