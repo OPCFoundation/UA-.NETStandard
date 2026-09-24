@@ -3100,8 +3100,11 @@ namespace Opc.Ua
                             TryGetEncodeableArrayFromElement(
                                 GetPropertyElement(JsonProperties.Array),
                                 encodeableTypeId,
-                                out ArrayOf<T> structures))
+                                out ArrayOf<T> structures) &&
+                            MatrixOf.IsValidInlineMatrix(dimensions.Span, structures.Count))
                         {
+                            // The inline matrix has at least two dimensions
+                            // and may be empty (5.4.5, 5.2.5 Table 28).
                             values = structures.ToMatrix(dimensions);
                             return true;
                         }
@@ -3140,8 +3143,11 @@ namespace Opc.Ua
                                 out ArrayOf<int> dimensions) &&
                             TryGetEncodeableArrayFromElement(
                                 GetPropertyElement(JsonProperties.Array),
-                                out ArrayOf<T> structures))
+                                out ArrayOf<T> structures) &&
+                            MatrixOf.IsValidInlineMatrix(dimensions.Span, structures.Count))
                         {
+                            // The inline matrix has at least two dimensions
+                            // and may be empty (5.4.5, 5.2.5 Table 28).
                             values = structures.ToMatrix(dimensions);
                             return true;
                         }

@@ -199,6 +199,16 @@ namespace Opc.Ua.SourceGeneration
 
             BasicDataType basicType = dataType.BasicDataType;
 
+            if (basicType == BasicDataType.UserDefined &&
+                !dataType.IsEnumeration &&
+                dataType.HasInlineMatrixField())
+            {
+                // A structure with an inline matrix field (or nested field)
+                // shall not be included in a DataTypeDictionary, which cannot
+                // describe it (OPC 10000-6 5.2.5).
+                return null;
+            }
+
             if (basicType == BasicDataType.UserDefined ||
                 IsStructureOptionSet(dataType))
             {
@@ -560,26 +570,12 @@ namespace Opc.Ua.SourceGeneration
                 }
             }
 
-            if (field.ValueRank == ValueRank.OneOrMoreDimensions &&
-                field.DataTypeNode.SupportsMatrixOf())
-            {
-                // The inline matrix (WriteEncodeableMatrix / WriteVariantValue):
-                // the Int32 dimensions array followed by the flattened
-                // elements (OPC 10000-6 5.2.5).
-                context.Out.WriteLine(
-                    "<opc:Field Name=\"NoOf{0}Dimensions\" TypeName=\"opc:Int32\"{1} />",
-                    fieldName,
-                    switchAttributes);
-                context.Out.WriteLine(
-                    "<opc:Field Name=\"{0}Dimensions\" TypeName=\"opc:Int32\" LengthField=\"NoOf{0}Dimensions\"{1} />",
-                    fieldName,
-                    switchAttributes);
-            }
-            else if (field.ValueRank is not ValueRank.Scalar and not ValueRank.Array)
+            // A structure with a multi-dimensional (inline matrix) field is
+            // not part of the dictionary (see LoadTemplate_DataType).
+            if (field.ValueRank is not ValueRank.Scalar and not ValueRank.Array)
             {
                 // Every other rank is written by the generated Encode as a
-                // Variant (ScalarOrArray, Any, ... and matrices of built-in
-                // types, enumerations and subtyped structures).
+                // Variant (ScalarOrArray, Any, ...).
                 context.Out.WriteLine(
                     "<opc:Field Name=\"{0}\" TypeName=\"ua:Variant\"{1} />",
                     fieldName,

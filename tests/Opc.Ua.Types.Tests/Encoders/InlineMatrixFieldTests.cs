@@ -102,21 +102,22 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         /// <summary>
-        /// A null matrix is encoded the way WriteEncodeableMatrix encodes one:
-        /// a null dimensions array and a null values array.
+        /// A null matrix is a null dimensions array (length -1) and nothing
+        /// else (OPC 10000-6 5.2.5 Table 28).
         /// </summary>
         [TestCase(Shape.Null)]
         [TestCase(Shape.TypedNull)]
-        public void BinaryNullInlineMatrixIsNullDimensionsAndValues(Shape shape)
+        public void BinaryNullInlineMatrixIsNullDimensions(Shape shape)
         {
             byte[] encoded = EncodeBinary(Create(BuiltInType.Double, shape));
 
-            Assert.That(encoded, Is.EqualTo(Int32s(7, -1, -1, 9)));
+            Assert.That(encoded, Is.EqualTo(Int32s(7, -1, 9)));
+            Assert.That(DecodeBinary(encoded, BuiltInType.Double).GetDoubleMatrix().IsNull, Is.True);
         }
 
         /// <summary>
         /// A populated matrix is the dimensions array followed by the values,
-        /// without the Variant encoding byte.
+        /// without the Variant encoding byte and without a length prefix.
         /// </summary>
         [Test]
         public void BinaryInlineMatrixIsDimensionsThenValues()
@@ -125,7 +126,189 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             byte[] encoded = EncodeBinary(value);
 
-            Assert.That(encoded, Is.EqualTo(Int32s(7, 2, 2, 3, 6, 1, 2, 3, 4, 5, 6, 9)));
+            Assert.That(encoded, Is.EqualTo(Int32s(7, 2, 2, 3, 1, 2, 3, 4, 5, 6, 9)));
+        }
+
+        /// <summary>
+        /// A 2 x 3 Double matrix: dimensions, then six Doubles.
+        /// </summary>
+        [Test]
+        public void BinaryDoubleInlineMatrixExactBytes()
+        {
+            Variant value = Variant.From(new double[] { 0.5, 1.5, 2.5, 3.5, 4.5, 5.5 }
+                .ToArrayOf().ToMatrix(2, 3));
+
+            byte[] encoded = EncodeBinary(value);
+
+            byte[] expected = Concat(
+                Int32s(7, 2, 2, 3),
+                Doubles(0.5, 1.5, 2.5, 3.5, 4.5, 5.5),
+                Int32s(9));
+            Assert.That(encoded, Is.EqualTo(expected));
+            AssertSameMatrix(BuiltInType.Double, value, DecodeBinary(encoded, BuiltInType.Double));
+        }
+
+        /// <summary>
+        /// A 2 x 1 x 2 String matrix: three dimensions, then four Strings
+        /// (a null String is length -1).
+        /// </summary>
+        [Test]
+        public void BinaryStringCubeInlineMatrixExactBytes()
+        {
+            Variant value = Variant.From(new string[] { "a", null, string.Empty, "bc" }
+                .ToArrayOf().ToMatrix(2, 1, 2));
+
+            byte[] encoded = EncodeBinary(value);
+
+            byte[] expected = Concat(
+                Int32s(7, 3, 2, 1, 2),
+                Int32s(1), Encoding.UTF8.GetBytes("a"),
+                Int32s(-1),
+                Int32s(0),
+                Int32s(2), Encoding.UTF8.GetBytes("bc"),
+                Int32s(9));
+            Assert.That(encoded, Is.EqualTo(expected));
+            AssertSameMatrix(
+                BuiltInType.String,
+                value,
+                DecodeBinary(encoded, BuiltInType.String, 3));
+        }
+
+        /// <summary>
+        /// Enumeration elements are Int32 values.
+        /// </summary>
+        [Test]
+        public void BinaryEnumerationInlineMatrixExactBytes()
+        {
+            Variant value = Variant.From(new EnumValue[]
+            {
+                new(1), new(2), new(0), new(5)
+            }.ToArrayOf().ToMatrix(2, 2));
+
+            byte[] encoded = EncodeBinary(value);
+
+            Assert.That(encoded, Is.EqualTo(Int32s(7, 2, 2, 2, 1, 2, 0, 5, 9)));
+            AssertSameMatrix(
+                BuiltInType.Enumeration,
+                value,
+                DecodeBinary(encoded, BuiltInType.Enumeration));
+        }
+
+        /// <summary>
+        /// ExtensionObject elements are encoded one after the other, a null
+        /// ExtensionObject is the null NodeId and encoding byte 0.
+        /// </summary>
+        [Test]
+        public void BinaryExtensionObjectInlineMatrixExactBytes()
+        {
+            Variant value = Variant.From(new ExtensionObject[]
+            {
+                ExtensionObject.Null,
+                new(new ExpandedNodeId(5001u), ByteString.From(new byte[] { 1, 42 }))
+            }.ToArrayOf().ToMatrix(1, 2));
+
+            byte[] encoded = EncodeBinary(value);
+
+            byte[] expected = Concat(
+                Int32s(7, 2, 1, 2),
+                // null: two byte NodeId 0, no body
+                [0x00, 0x00, 0x00],
+                // four byte NodeId ns=0;i=5001, ByteString body
+                [0x01, 0x00, 0x89, 0x13, 0x01],
+                Int32s(2),
+                [1, 42],
+                Int32s(9));
+            Assert.That(encoded, Is.EqualTo(expected));
+            AssertSameMatrix(
+                BuiltInType.ExtensionObject,
+                value,
+                DecodeBinary(encoded, BuiltInType.ExtensionObject));
+        }
+
+        /// <summary>
+        /// Variant elements are complete Variants with their encoding byte.
+        /// </summary>
+        [Test]
+        public void BinaryVariantInlineMatrixExactBytes()
+        {
+            Variant value = Variant.From(new Variant[]
+            {
+                Variant.From(3), Variant.Null
+            }.ToArrayOf().ToMatrix(2, 1));
+
+            byte[] encoded = EncodeBinary(value);
+
+            byte[] expected = Concat(
+                Int32s(7, 2, 2, 1),
+                [(byte)BuiltInType.Int32],
+                Int32s(3),
+                [0x00],
+                Int32s(9));
+            Assert.That(encoded, Is.EqualTo(expected));
+            AssertSameMatrix(BuiltInType.Variant, value, DecodeBinary(encoded, BuiltInType.Variant));
+        }
+
+        /// <summary>
+        /// An encodeable matrix is the dimensions followed by the encoded
+        /// structures, no length prefix.
+        /// </summary>
+        [Test]
+        public void BinaryEncodeableInlineMatrixExactBytes()
+        {
+            MatrixOf<Pair> value = new Pair[] { new() { X = 1 }, new() { X = 2 }, new() { X = 3 }, new() { X = 4 } }
+                .ToArrayOf().ToMatrix(2, 2);
+            ServiceMessageContext context = CreateContext();
+
+            byte[] encoded;
+            using (var encoder = new BinaryEncoder(context))
+            {
+                encoder.WriteInt32("A", 7);
+                encoder.WriteEncodeableMatrix("M", value);
+                encoder.WriteInt32("B", 9);
+                encoded = encoder.CloseAndReturnBuffer();
+            }
+
+            Assert.That(encoded, Is.EqualTo(Int32s(7, 2, 2, 2, 1, 2, 3, 4, 9)));
+
+            using var decoder = new BinaryDecoder(encoded, context);
+            Assert.That(decoder.ReadInt32("A"), Is.EqualTo(7));
+            MatrixOf<Pair> decoded = decoder.ReadEncodeableMatrix<Pair>("M");
+            Assert.That(decoder.ReadInt32("B"), Is.EqualTo(9));
+            Assert.That(decoded.Dimensions, Is.EqualTo(new[] { 2, 2 }));
+            Assert.That(decoded.Span.ToArray().Select(p => p.X), Is.EqualTo(new[] { 1, 2, 3, 4 }));
+        }
+
+        /// <summary>
+        /// Null and empty encodeable matrices.
+        /// </summary>
+        [Test]
+        public void BinaryNullAndEmptyEncodeableInlineMatrixExactBytes()
+        {
+            ServiceMessageContext context = CreateContext();
+            byte[] encoded;
+            using (var encoder = new BinaryEncoder(context))
+            {
+                encoder.WriteEncodeableMatrix("N", default(MatrixOf<Pair>));
+                encoder.WriteEncodeableMatrix("E", MatrixOf<Pair>.Empty);
+                encoder.WriteEncodeableMatrix("R", Array.Empty<Pair>().ToArrayOf().ToMatrix(2, 0));
+                encoder.WriteEncodeableMatrix(
+                    "T",
+                    Array.Empty<Pair>().ToArrayOf().ToMatrix(0, 0),
+                    new ExpandedNodeId(77790u));
+                encoder.WriteInt32("B", 9);
+                encoded = encoder.CloseAndReturnBuffer();
+            }
+
+            Assert.That(encoded, Is.EqualTo(Int32s(-1, 2, 0, 0, 2, 2, 0, 2, 0, 0, 9)));
+
+            using var decoder = new BinaryDecoder(encoded, context);
+            Assert.That(decoder.ReadEncodeableMatrix<Pair>("N").IsNull, Is.True);
+            MatrixOf<Pair> empty = decoder.ReadEncodeableMatrix<Pair>("E");
+            Assert.That(empty.IsNull, Is.False);
+            Assert.That(empty.Dimensions, Is.EqualTo(new[] { 0, 0 }));
+            Assert.That(decoder.ReadEncodeableMatrix<Pair>("R").Dimensions, Is.EqualTo(new[] { 2, 0 }));
+            Assert.That(decoder.ReadEncodeableMatrix<Pair>("T", new ExpandedNodeId(77790u)).Count, Is.Zero);
+            Assert.That(decoder.ReadInt32("B"), Is.EqualTo(9));
         }
 
         /// <summary>
@@ -138,7 +321,93 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             byte[] encoded = EncodeBinary(value);
 
-            Assert.That(encoded, Is.EqualTo(Int32s(7, 2, 0, 3, 0, 9)));
+            Assert.That(encoded, Is.EqualTo(Int32s(7, 2, 0, 3, 9)));
+            Assert.That(
+                DecodeBinary(encoded, BuiltInType.Int32).GetInt32Matrix().Dimensions,
+                Is.EqualTo(new[] { 0, 3 }));
+        }
+
+        /// <summary>
+        /// An inline matrix has at least 2 dimensions: the empty MatrixOf
+        /// (a single zero dimension) is written as the 0 x 0 matrix.
+        /// </summary>
+        [Test]
+        public void BinaryEmptyMatrixOfIsWrittenAsZeroByZero()
+        {
+            byte[] encoded = EncodeBinary(Variant.From(MatrixOf<double>.Empty));
+
+            Assert.That(encoded, Is.EqualTo(Int32s(7, 2, 0, 0, 9)));
+            MatrixOf<double> decoded = DecodeBinary(encoded, BuiltInType.Double).GetDoubleMatrix();
+            Assert.That(decoded.IsNull, Is.False);
+            Assert.That(decoded.Dimensions, Is.EqualTo(new[] { 0, 0 }));
+        }
+
+        /// <summary>
+        /// A non empty matrix with a single dimension cannot be written as an
+        /// inline matrix (it would be taken for an array by nobody and for
+        /// dimensions by the peer) and is rejected.
+        /// </summary>
+        [Test]
+        public void BinaryOneDimensionalMatrixIsRejectedByTheEncoder()
+        {
+            using var encoder = new BinaryEncoder(CreateContext());
+            var value = Variant.From(new double[] { 1, 2 }.ToArrayOf().ToMatrix(2));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => encoder.WriteVariantValue("M", value));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
+
+            ex = Assert.Throws<ServiceResultException>(
+                () => encoder.WriteEncodeableMatrix(
+                    "M",
+                    new Pair[] { new() }.ToArrayOf().ToMatrix(1)));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
+        }
+
+        /// <summary>
+        /// A dimension &lt;= 0 means no values follow (Table 28); a negative
+        /// dimension is decoded as 0.
+        /// </summary>
+        [Test]
+        public void BinaryNegativeDimensionIsAnEmptyMatrix()
+        {
+            MatrixOf<double> decoded = DecodeBinary(Int32s(7, 2, -3, 5, 9), BuiltInType.Double)
+                .GetDoubleMatrix();
+
+            Assert.That(decoded.IsNull, Is.False);
+            Assert.That(decoded.Dimensions, Is.EqualTo(new[] { 0, 5 }));
+        }
+
+        /// <summary>
+        /// A zero dimension makes the matrix empty whatever the product of the
+        /// other dimensions.
+        /// </summary>
+        [Test]
+        public void BinaryZeroDimensionWithHugeOtherDimensionsIsEmpty()
+        {
+            MatrixOf<int> decoded = DecodeBinary(
+                Int32s(7, 3, 65536, 65537, 0, 9),
+                BuiltInType.Int32).GetInt32Matrix();
+
+            Assert.That(decoded.Count, Is.Zero);
+            Assert.That(decoded.Dimensions, Is.EqualTo(new[] { 65536, 65537, 0 }));
+        }
+
+        /// <summary>
+        /// The Variant encoding of a matrix (OPC 10000-6 5.2.2.16) is not
+        /// affected: encoding byte, array length, values, dimensions.
+        /// </summary>
+        [Test]
+        public void VariantMatrixEncodingIsUnchanged()
+        {
+            ServiceMessageContext context = CreateContext();
+            using var encoder = new BinaryEncoder(context);
+            encoder.WriteVariant(null, Variant.From(new int[] { 1, 2, 3, 4, 5, 6 }.ToArrayOf().ToMatrix(2, 3)));
+            byte[] encoded = encoder.CloseAndReturnBuffer();
+
+            byte[] expected = Concat(
+                [(byte)((byte)BuiltInType.Int32 | 0x80 | 0x40)],
+                Int32s(6, 1, 2, 3, 4, 5, 6, 2, 2, 3));
+            Assert.That(encoded, Is.EqualTo(expected));
         }
 
         /// <summary>
@@ -178,38 +447,160 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         /// <summary>
-        /// Earlier versions wrote a null matrix of a DataTypeDefinition driven
-        /// structure as an empty dimensions array and a null values array;
-        /// that is still read as a null matrix.
+        /// An inline matrix has at least 2 dimensions (Table 28); an empty or
+        /// a single dimensions array is rejected, for the Variant value and
+        /// the encodeable matrix alike.
         /// </summary>
-        [Test]
-        public void BinaryLegacyEmptyDimensionsReadAsNullMatrix()
+        [TestCase(0)]
+        [TestCase(1, 3)]
+        [TestCase(1, 0)]
+        public void BinaryInlineMatrixWithFewerThanTwoDimensionsIsRejected(params int[] dimensions)
         {
-            ServiceMessageContext context = CreateContext();
-            using var decoder = new BinaryDecoder(Int32s(7, 0, -1, 9), context);
+            byte[] encoded = Int32s([.. dimensions, 1, 2, 3]);
 
-            Assert.That(decoder.ReadInt32("A"), Is.EqualTo(7));
-            Variant value = decoder.ReadVariantValue(
-                "M",
-                TypeInfo.Create(BuiltInType.Double, ValueRanks.TwoDimensions));
-            Assert.That(decoder.ReadInt32("B"), Is.EqualTo(9));
-            Assert.That(value.GetDoubleMatrix().IsNull, Is.True);
+            AssertDecodingFails(
+                encoded,
+                d => d.ReadVariantValue("M", TypeInfo.Create(BuiltInType.Int32, ValueRanks.TwoDimensions)),
+                StatusCodes.BadDecodingError);
+            AssertDecodingFails(
+                encoded,
+                d => d.ReadEncodeableMatrix<Pair>("M"),
+                StatusCodes.BadDecodingError);
         }
 
         /// <summary>
-        /// Inline matrix dimensions are checked against the values.
+        /// A product of the dimensions beyond Int32 is rejected.
         /// </summary>
         [Test]
-        public void BinaryInlineMatrixWithInconsistentDimensionsIsRejected()
+        public void BinaryInlineMatrixWithOverflowingDimensionsIsRejected()
+        {
+            byte[] encoded = Int32s(2, 65536, 65537);
+
+            AssertDecodingFails(
+                encoded,
+                d => d.ReadVariantValue("M", TypeInfo.Create(BuiltInType.Byte, ValueRanks.TwoDimensions)),
+                StatusCodes.BadDecodingError);
+            AssertDecodingFails(
+                encoded,
+                d => d.ReadEncodeableMatrix<Pair>("M"),
+                StatusCodes.BadDecodingError);
+        }
+
+        /// <summary>
+        /// A product of the dimensions beyond MaxArrayLength is rejected
+        /// before the values are allocated.
+        /// </summary>
+        [Test]
+        public void BinaryInlineMatrixBeyondMaxArrayLengthIsRejected()
+        {
+            byte[] encoded = Int32s(2, 1000, 1000);
+
+            AssertDecodingFails(
+                encoded,
+                d => d.ReadVariantValue("M", TypeInfo.Create(BuiltInType.Double, ValueRanks.TwoDimensions)),
+                StatusCodes.BadEncodingLimitsExceeded);
+            AssertDecodingFails(
+                encoded,
+                d => d.ReadEncodeableMatrix<Pair>("M"),
+                StatusCodes.BadEncodingLimitsExceeded);
+        }
+
+        /// <summary>
+        /// Without an array length limit, dimensions the remaining message
+        /// cannot hold are rejected before the values are allocated.
+        /// </summary>
+        [TestCase(BuiltInType.Double)]
+        [TestCase(BuiltInType.Variant)]
+        [TestCase(BuiltInType.String)]
+        public void BinaryHugeInlineMatrixIsRejectedWithoutAllocation(BuiltInType builtInType)
         {
             ServiceMessageContext context = CreateContext();
-            using var decoder = new BinaryDecoder(Int32s(2, 2, 3, 2, 1, 2), context);
+            context.MaxArrayLength = 0;
+            byte[] encoded = Int32s(2, 46340, 46340, 1, 2, 3);
+            using var decoder = new BinaryDecoder(encoded, context);
 
+#if NET
+            long before = GC.GetAllocatedBytesForCurrentThread();
+#endif
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
-                () => decoder.ReadVariantValue(
-                    "M",
-                    TypeInfo.Create(BuiltInType.Int32, ValueRanks.TwoDimensions)));
+                () => decoder.ReadVariantValue("M", TypeInfo.Create(builtInType, ValueRanks.TwoDimensions)));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+#if NET
+            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            Assert.That(allocated, Is.LessThan(1024 * 1024), "bytes allocated");
+#endif
+        }
+
+        /// <summary>
+        /// Values missing at the end of the message are a decoding error.
+        /// </summary>
+        [Test]
+        public void BinaryTruncatedInlineMatrixIsRejected()
+        {
+            AssertDecodingFails(
+                Int32s(2, 2, 3, 1, 2, 3, 4, 5),
+                d => d.ReadVariantValue("M", TypeInfo.Create(BuiltInType.Int32, ValueRanks.TwoDimensions)),
+                StatusCodes.BadDecodingError);
+            AssertDecodingFails(
+                Int32s(2, 2, 2, 1, 2, 3),
+                d => d.ReadEncodeableMatrix<Pair>("M"),
+                StatusCodes.BadDecodingError);
+        }
+
+        /// <summary>
+        /// JSON and XML write the empty MatrixOf with two zero dimensions and
+        /// reject an inline matrix with fewer than two dimensions.
+        /// </summary>
+        [Test]
+        public void JsonEmptyMatrixOfHasTwoDimensions()
+        {
+            ServiceMessageContext context = CreateContext();
+            string json;
+            using (var encoder = new JsonEncoder(context, JsonEncoderOptions.Verbose))
+            {
+                encoder.WriteVariantValue("M", Variant.From(MatrixOf<double>.Empty));
+                encoder.WriteEncodeableMatrix("E", MatrixOf<Pair>.Empty);
+                json = encoder.CloseAndReturnText();
+            }
+
+            Assert.That(json, Does.Contain("\"M\":{\"Array\":[],\"Dimensions\":[0,0]}"));
+            Assert.That(json, Does.Contain("\"E\":{\"Dimensions\":[0,0],\"Array\":[]}"));
+
+            using var decoder = new JsonDecoder(
+                "{\"M\":{\"Array\":[],\"Dimensions\":[0]},\"E\":{\"Dimensions\":[0],\"Array\":[]}}",
+                context);
+            Assert.That(
+                () => decoder.ReadVariantValue("M", TypeInfo.Create(BuiltInType.Double, ValueRanks.TwoDimensions)),
+                Throws.TypeOf<ServiceResultException>());
+            Assert.That(
+                () => decoder.ReadEncodeableMatrix<Pair>("E"),
+                Throws.TypeOf<ServiceResultException>());
+        }
+
+        private static void AssertDecodingFails(
+            byte[] encoded,
+            Action<BinaryDecoder> read,
+            StatusCode expected)
+        {
+            using var decoder = new BinaryDecoder(encoded, CreateContext());
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => read(decoder));
+            Assert.That(ex.StatusCode, Is.EqualTo(expected));
+        }
+
+        private static Variant DecodeBinary(byte[] encoded, BuiltInType builtInType, int rank = 2)
+        {
+            using var decoder = new BinaryDecoder(encoded, CreateContext());
+            return ReadField(decoder, TypeInfo.Create(builtInType, rank));
+        }
+
+        private static byte[] Doubles(params double[] values)
+        {
+            return values.SelectMany(BitConverter.GetBytes).ToArray();
+        }
+
+        private static byte[] Concat(params byte[][] parts)
+        {
+            return parts.SelectMany(p => p).ToArray();
         }
 
         private static Variant Create(BuiltInType builtInType, Shape shape)
@@ -298,7 +689,12 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
                 return;
             }
-            Assert.That(actual.Dimensions, Is.EqualTo(expected.Dimensions), "dimensions");
+            // An inline matrix has at least two dimensions, the empty MatrixOf
+            // (a single zero dimension) comes back as the 0 x 0 matrix.
+            int[] dimensions = expected.Dimensions.Length < 2 && expected.Count == 0
+                ? [0, 0]
+                : expected.Dimensions;
+            Assert.That(actual.Dimensions, Is.EqualTo(dimensions), "dimensions");
             Assert.That(actual.Span.ToArray(), Is.EqualTo(expected.Span.ToArray()), "values");
         }
 
@@ -393,6 +789,38 @@ namespace Opc.Ua.Types.Tests.Encoders
         private static ServiceMessageContext CreateContext()
         {
             return ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
+        }
+
+        /// <summary>
+        /// A structure with a single Int32 field.
+        /// </summary>
+        public sealed class Pair : IEncodeable
+        {
+            public int X { get; set; }
+
+            public ExpandedNodeId TypeId => new(77790, 0);
+            public ExpandedNodeId BinaryEncodingId => new(77791, 0);
+            public ExpandedNodeId XmlEncodingId => new(77792, 0);
+
+            public void Encode(IEncoder encoder)
+            {
+                encoder.WriteInt32("X", X);
+            }
+
+            public void Decode(IDecoder decoder)
+            {
+                X = decoder.ReadInt32("X");
+            }
+
+            public bool IsEqual(IEncodeable encodeable)
+            {
+                return encodeable is Pair other && other.X == X;
+            }
+
+            public object Clone()
+            {
+                return new Pair { X = X };
+            }
         }
 
         /// <summary>

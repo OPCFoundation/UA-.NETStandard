@@ -1218,6 +1218,25 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <summary>
+        /// The ArrayDimensions a StructureField publishes for the field. A
+        /// StructureField ValueRank is -1 or &gt;= 1, never 0 (OPC 10000-3
+        /// 8.51), and a multi-dimensional field has at least two dimensions
+        /// (OPC 10000-6 5.2.5): a <see cref="ValueRank.OneOrMoreDimensions"/>
+        /// field without ArrayDimensions is a two dimensional matrix of
+        /// unknown lengths. (The validator already normalizes design fields
+        /// that way; this also covers fields it did not see.)
+        /// </summary>
+        public static string GetStructureFieldArrayDimensions(this Parameter field)
+        {
+            if (field.ValueRank == ValueRank.OneOrMoreDimensions &&
+                string.IsNullOrWhiteSpace(field.ArrayDimensions))
+            {
+                return "0,0";
+            }
+            return field.ArrayDimensions;
+        }
+
+        /// <summary>
         /// Maps the MinimumSamplingInterval onto a constant.
         /// </summary>
         public static string GetMinimumSamplingIntervalAsCode(this VariableTypeDesign variableType)
@@ -1357,6 +1376,59 @@ namespace Opc.Ua.Schema.Model
                 throw new ArgumentNullException(nameof(dataType));
             }
             return dataType.BasicDataType != BasicDataType.DiagnosticInfo;
+        }
+
+        /// <summary>
+        /// True if a field or a nested field of the structure (including the
+        /// fields inherited from its base types) is a multi-dimensional array,
+        /// i.e. encoded with the inline matrix representation. Such a
+        /// structure "is not compatible with the deprecated DataTypeDictionary
+        /// mechanism, and shall not be included in a DataTypeDictionary"
+        /// (OPC 10000-6 5.2.5): the dictionary has no way to describe values
+        /// whose count is the product of the dimensions. A field that allows
+        /// subtypes is an ExtensionObject in the dictionary and does not nest.
+        /// </summary>
+        public static bool HasInlineMatrixField(this DataTypeDesign dataType)
+        {
+            return HasInlineMatrixField(dataType, []);
+
+            static bool HasInlineMatrixField(DataTypeDesign dataType, HashSet<DataTypeDesign> visited)
+            {
+                if (dataType == null || !visited.Add(dataType))
+                {
+                    return false;
+                }
+                for (DataTypeDesign type = dataType;
+                    type != null;
+                    type = type.BaseTypeNode as DataTypeDesign)
+                {
+                    if (type.Fields == null || type.IsOptionSet || type.IsEnumeration)
+                    {
+                        continue;
+                    }
+                    foreach (Parameter field in type.Fields)
+                    {
+                        if (field == null)
+                        {
+                            continue;
+                        }
+                        if (field.ValueRank == ValueRank.OneOrMoreDimensions)
+                        {
+                            return true;
+                        }
+                        if (field.ValueRank is ValueRank.Scalar or ValueRank.Array &&
+                            !field.AllowSubTypes &&
+                            field.DataTypeNode is DataTypeDesign fieldType &&
+                            fieldType.BasicDataType == BasicDataType.UserDefined &&
+                            !fieldType.IsEnumeration &&
+                            HasInlineMatrixField(fieldType, visited))
+                        {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
         }
 
         /// <summary>

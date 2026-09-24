@@ -363,16 +363,18 @@ namespace Opc.Ua.SourceGeneration
             string encodeLine;
             if (field.IsMatrix)
             {
-                // Matrices of structures use the typed inline matrix call;
-                // every other element type travels in a Variant (the same
-                // encoding the model driven generator uses for matrices).
+                // A matrix field is an inline matrix (OPC 10000-6 5.2.5):
+                // matrices of structures use the typed inline matrix call,
+                // every other element type the raw Variant value - the calls
+                // the model driven generator and the DataTypeDefinition
+                // driven codec (Structure.EncodeProperty) make.
                 encodeLine = field.IsEncodeable
                     ? CoreUtils.Format(
                         "encoder.WriteEncodeableMatrix(\"{0}\", {1});",
                         field.FieldName.Escape(),
                         field.PropertyName)
                     : CoreUtils.Format(
-                        "encoder.WriteVariant(\"{0}\", global::Opc.Ua.Variant.From({1}));",
+                        "encoder.WriteVariantValue(\"{0}\", global::Opc.Ua.Variant.From({1}));",
                         field.FieldName.Escape(),
                         field.PropertyName);
             }
@@ -476,13 +478,21 @@ namespace Opc.Ua.SourceGeneration
                 }
                 else
                 {
+                    // The inline matrix is read with the field's type info;
+                    // the decoders take the actual rank from the encoded
+                    // dimensions.
+                    string builtInType = field.IsEnum
+                        ? "Enumeration"
+                        : s_matrixGetterMap[field.ElementShortTypeName];
                     decodeLine = CoreUtils.Format(
-                        "{0} = decoder.ReadVariant(\"{1}\").{2};",
+                        "{0} = decoder.ReadVariantValue(\"{1}\", global::Opc.Ua.TypeInfo.Create(" +
+                        "global::Opc.Ua.BuiltInType.{2}, global::Opc.Ua.ValueRanks.TwoDimensions)).{3};",
                         target,
                         field.FieldName.Escape(),
+                        builtInType,
                         field.IsEnum
                             ? $"GetEnumerationMatrix<{field.ElementTypeName}>()"
-                            : $"Get{s_matrixGetterMap[field.ElementShortTypeName]}Matrix()");
+                            : $"Get{builtInType}Matrix()");
                 }
             }
             else if (field.IsEncodeable)
@@ -867,14 +877,20 @@ namespace Opc.Ua.SourceGeneration
                 return false;
             }
 
+            // A StructureField ValueRank is -1 or >= 1, never 0 (OPC 10000-3
+            // 8.51), and a matrix field has at least two dimensions (OPC
+            // 10000-6 5.2.5). MatrixOf<T> does not tell the rank: publish a
+            // two dimensional matrix of unknown lengths.
             string valueRank = field.IsMatrix
-                ? "global::Opc.Ua.ValueRanks.OneOrMoreDimensions"
+                ? "global::Opc.Ua.ValueRanks.TwoDimensions"
                 : field.IsArray
                     ? "global::Opc.Ua.ValueRanks.OneDimension"
                     : "global::Opc.Ua.ValueRanks.Scalar";
-            string arrayDimensions = field.IsArray
-                ? "new uint[] { 0 }"
-                : "default";
+            string arrayDimensions = field.IsMatrix
+                ? "new uint[] { 0, 0 }"
+                : field.IsArray
+                    ? "new uint[] { 0 }"
+                    : "default";
 
             context.Template.AddReplacement(
                 Tokens.FieldName,
@@ -1043,11 +1059,12 @@ namespace Opc.Ua.SourceGeneration
             if (field.IsMatrix)
             {
                 // IEncoder/IDecoder have no typed matrix calls for built-in
-                // or enumerated elements: the matrix travels in a Variant.
+                // or enumerated elements: the inline matrix is the raw value
+                // of a Variant.
                 return field.IsEnum ||
                     (field.ElementShortTypeName != null &&
                         s_matrixGetterMap.ContainsKey(field.ElementShortTypeName))
-                    ? ("WriteVariant", "ReadVariant")
+                    ? ("WriteVariantValue", "ReadVariantValue")
                     : (null, null);
             }
 

@@ -779,9 +779,13 @@ namespace Opc.Ua
                 WriteNull(fieldName);
                 return;
             }
+            // The inline matrix has at least two dimensions (5.4.5, 5.2.5).
+            int[] dimensions = MatrixOf.GetInlineMatrixDimensions(
+                values.Dimensions,
+                values.Count);
             m_writer.WritePropertyName(fieldName!);
             StartObject();
-            WriteInt32Array(JsonProperties.Dimensions, values.Dimensions);
+            WriteInt32Array(JsonProperties.Dimensions, dimensions);
             m_writer.WritePropertyName(JsonProperties.Array);
             StartArray(values.Count);
             for (int i = 0; i < values.Count; i++)
@@ -2354,7 +2358,15 @@ namespace Opc.Ua
                 // inconsistent dimensions (e.g. a zero dimension produced by an
                 // empty matrix) instead of writing wire data a conforming peer
                 // must reject with BadDecodingError. The inline matrix of a
-                // structure field (raw value) may be empty.
+                // structure field (raw value) may be empty but has at least
+                // two dimensions (5.2.5 Table 28, 5.4.5 Table 44): an empty
+                // MatrixOf (single zero dimension) is written as 0 x 0.
+                if (writeRawValue)
+                {
+                    dim = MatrixOf.GetInlineMatrixDimensions(
+                        dim,
+                        dim.Length == 1 ? dim[0] : 0);
+                }
                 if (writeRawValue
                     ? !MatrixOf.IsValidInlineMatrix(dim)
                     : !MatrixOf.IsValidMatrix(dim))

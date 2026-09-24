@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -1167,8 +1168,8 @@ namespace Opc.Ua.Types.Tests.Encoders
                 .. BitConverter.GetBytes(2), // dimensions count
                 .. BitConverter.GetBytes(2), // dim 0
                 .. BitConverter.GetBytes(1),  // dim 1
-                // Elements (2*1 = 2 TestEncodeable values)
-                .. BitConverter.GetBytes(2), // Array count
+                // Elements (2*1 = 2 ExtensionObject values, no length prefix,
+                // OPC 10000-6 5.2.5 Table 28)
                 .. BitConverter.GetBytes((ushort)0x1100), // NodeId
                 0x0, // encoding mask
                 .. BitConverter.GetBytes((ushort)0x1100), // NodeId
@@ -1200,10 +1201,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             List<byte> buffer =
             [
-                // Dimensions array [0]
-                .. BitConverter.GetBytes(1), // dimensions count
-                .. BitConverter.GetBytes(0), // dim 0 = 0
-                .. BitConverter.GetBytes(0)  // empty array
+                // Dimensions array [2, 0], no values follow
+                .. BitConverter.GetBytes(2), // dimensions count
+                .. BitConverter.GetBytes(2), // dim 0 = 2
+                .. BitConverter.GetBytes(0)  // dim 1 = 0
             ];
 
             using var decoder = new BinaryDecoder([.. buffer], messageContext);
@@ -1217,8 +1218,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.IsNull, Is.False);
             MatrixOf<int> resultMatrix = result.GetInt32Matrix();
             Assert.That(resultMatrix.IsNull, Is.False);
-            Assert.That(resultMatrix.Dimensions, Has.Length.EqualTo(1));
+            Assert.That(resultMatrix.Dimensions, Is.EqualTo(new[] { 2, 0 }));
             Assert.That(resultMatrix.Count, Is.Zero);
+            Assert.That(decoder.Position, Is.EqualTo(buffer.Count));
         }
 
         [Test]
@@ -6578,10 +6580,13 @@ namespace Opc.Ua.Types.Tests.Encoders
             Action<BinaryEncoder> writeArray,
             int[] dimensions)
         {
+            // The inline matrix (OPC 10000-6 5.2.5 Table 28) is the
+            // dimensions followed by the values without a length prefix.
             using var encoder = new BinaryEncoder(messageContext);
             encoder.WriteInt32Array(null, dimensions);
-            writeArray(encoder);
-            return encoder.CloseAndReturnBuffer();
+            using var values = new BinaryEncoder(messageContext);
+            writeArray(values);
+            return [.. encoder.CloseAndReturnBuffer(), .. values.CloseAndReturnBuffer().Skip(4)];
         }
 
         // Issue 3546 follow-up: invalid attacker-controlled matrix dimensions
@@ -6592,7 +6597,6 @@ namespace Opc.Ua.Types.Tests.Encoders
         // exception instead of a normal parser-rejected message.
 
         private static readonly int[] s_singleZero = [0];
-        private static readonly int[] s_singleOne = [1];
         private static readonly int[] s_pair12 = [1, 2];
         private static readonly int[] s_overflowDims = [65537, 65537];
         private static readonly int[] s_negativeDim = [-1, 1];
@@ -6620,25 +6624,29 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadMatrixWithNegativeDimensionThrowsBadDecodingError()
+        public void ReadMatrixWithNegativeDimensionIsEmptyMatrix()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetry);
 
-            // Negative dimension is rejected by MatrixOf<T> for security
-            // (downstream Array.CreateInstance / Span<T> would crash on it).
+            // A dimension <= 0 means no values are encoded (OPC 10000-6 5.2.5
+            // Table 28). The negative dimension is normalized to 0, MatrixOf<T>
+            // never sees it (downstream Array.CreateInstance / Span<T> would
+            // crash on it).
             byte[] buffer = CreateMatrixBuffer(
                 messageContext,
-                encoder => encoder.WriteInt32Array(null, s_singleOne),
+                encoder => encoder.WriteInt32Array(null, default),
                 s_negativeDim);
 
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
-            ServiceResultException sre = Assert.Throws<ServiceResultException>(
-                () => decoder.ReadVariantValue(
-                    null,
-                    TypeInfo.Create(BuiltInType.Int32, ValueRanks.TwoDimensions)));
-            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            MatrixOf<int> matrix = decoder.ReadVariantValue(
+                null,
+                TypeInfo.Create(BuiltInType.Int32, ValueRanks.TwoDimensions)).GetInt32Matrix();
+            Assert.That(matrix.IsNull, Is.False);
+            Assert.That(matrix.Count, Is.Zero);
+            Assert.That(matrix.Dimensions, Is.EqualTo(new[] { 0, 1 }));
+            Assert.That(decoder.Position, Is.EqualTo(buffer.Length));
         }
 
         [Test]

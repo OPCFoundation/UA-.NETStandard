@@ -1669,7 +1669,10 @@ namespace Opc.Ua
                 PushNamespace(Namespaces.OpcUaXsd);
                 if (!values.IsNull)
                 {
-                    WriteInt32Array("Dimensions", values.Dimensions);
+                    // The inline matrix has at least two dimensions (5.2.5).
+                    WriteInt32Array("Dimensions", MatrixOf.GetInlineMatrixDimensions(
+                        values.Dimensions,
+                        values.Count));
                     WriteEncodeableArray("Elements", values.ToArrayOf(), encodeableTypeId);
                 }
                 PopNamespace();
@@ -2053,20 +2056,27 @@ namespace Opc.Ua
                             // instead of writing wire data a conforming peer must
                             // reject with BadDecodingError.
                             // The inline matrix of a structure field (raw value)
-                            // may be empty (OPC 10000-6 5.2.5).
+                            // may be empty but has at least two dimensions
+                            // (OPC 10000-6 5.2.5): an empty MatrixOf (single
+                            // zero dimension) is written as 0 x 0.
                             void WriteDimensions<T>(MatrixOf<T> matrix)
                             {
+                                int[] dimensions = writeRawValue
+                                    ? MatrixOf.GetInlineMatrixDimensions(
+                                        matrix.Dimensions,
+                                        matrix.Count)
+                                    : matrix.Dimensions;
                                 if (writeRawValue
-                                    ? !MatrixOf.IsValidInlineMatrix(matrix.Dimensions)
-                                    : !MatrixOf.IsValidMatrix(matrix.Dimensions))
+                                    ? !MatrixOf.IsValidInlineMatrix(dimensions)
+                                    : !MatrixOf.IsValidMatrix(dimensions))
                                 {
                                     throw ServiceResultException.Create(
                                         StatusCodes.BadEncodingError,
                                         "Cannot encode a matrix Variant with " +
                                         "inconsistent Dimensions [{0}].",
-                                        string.Join(",", matrix.Dimensions));
+                                        string.Join(",", dimensions));
                                 }
-                                WriteInt32Array("Dimensions", matrix.Dimensions);
+                                WriteInt32Array("Dimensions", dimensions);
                             }
 
                             PushNamespace(Namespaces.OpcUaXsd);

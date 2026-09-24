@@ -2580,7 +2580,14 @@ namespace Opc.Ua.Schema.Model
         {
             VariableDesign description = null;
 
-            if (!dataType.NotInAddressSpace)
+            // A structure with an inline matrix field shall not be included
+            // in a DataTypeDictionary (OPC 10000-6 5.2.5): the binary schema
+            // leaves it out, so there is no DataTypeDescription to reference.
+            bool isInDictionary =
+                encodingType != EncodingType.Binary ||
+                !dataType.HasInlineMatrixField();
+
+            if (!dataType.NotInAddressSpace && isInDictionary)
             {
                 description = new VariableDesign
                 {
@@ -4762,8 +4769,16 @@ namespace Opc.Ua.Schema.Model
         /// DataTypeDefinition driven decoder reads a plain array. Generate
         /// (type, encoding, schemas) it as the array it is instead of as an
         /// inline matrix.
+        /// A field declared <see cref="ValueRank.OneOrMoreDimensions"/>
+        /// without ArrayDimensions has no known rank, but a StructureField
+        /// ValueRank is -1 or &gt;= 1 (OPC 10000-3 8.51) - never 0 - and a
+        /// multi-dimensional field is an inline matrix with at least two
+        /// dimensions (OPC 10000-6 5.2.5). The field is taken as a two
+        /// dimensional matrix of unknown lengths (ArrayDimensions "0,0"),
+        /// which is what the StructureDefinition publishes and the generated
+        /// code reads.
         /// </summary>
-        private static void NormalizeSingleDimensionMatrixFields(DataTypeDesign dataType)
+        private void NormalizeSingleDimensionMatrixFields(DataTypeDesign dataType)
         {
             if (dataType.Fields == null)
             {
@@ -4772,11 +4787,25 @@ namespace Opc.Ua.Schema.Model
 
             foreach (Parameter field in dataType.Fields)
             {
-                if (field?.ValueRank == ValueRank.OneOrMoreDimensions &&
-                    !string.IsNullOrWhiteSpace(field.ArrayDimensions) &&
-                    field.ArrayDimensions.Split([','], StringSplitOptions.RemoveEmptyEntries).Length == 1)
+                if (field?.ValueRank != ValueRank.OneOrMoreDimensions)
+                {
+                    continue;
+                }
+                int rank = string.IsNullOrWhiteSpace(field.ArrayDimensions)
+                    ? 0
+                    : field.ArrayDimensions.Split([','], StringSplitOptions.RemoveEmptyEntries).Length;
+                if (rank == 1)
                 {
                     field.ValueRank = ValueRank.Array;
+                }
+                else if (rank == 0)
+                {
+                    field.ArrayDimensions = "0,0";
+                    m_logger.LogInformation(
+                        "Field {Field} of data type {DataType} has ValueRank OneOrMoreDimensions " +
+                        "without ArrayDimensions; a two dimensional matrix (ValueRank 2) is assumed.",
+                        field.Name,
+                        dataType.SymbolicId?.Name);
                 }
             }
         }

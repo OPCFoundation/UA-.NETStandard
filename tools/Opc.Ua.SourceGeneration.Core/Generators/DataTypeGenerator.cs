@@ -422,12 +422,15 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(
                 Tokens.DataType,
                 GetNodeIdConstantForDataType(field, m_context.ModelDesign.Namespaces));
+            // Never ValueRank 0 (OneOrMoreDimensions) for a StructureField
+            // (OPC 10000-3 8.51).
+            string arrayDimensions = field.GetStructureFieldArrayDimensions();
             context.Template.AddReplacement(
                 Tokens.ValueRank,
-                field.ValueRank.GetValueRankAsCode(field.ArrayDimensions));
+                field.ValueRank.GetValueRankAsCode(arrayDimensions));
             context.Template.AddReplacement(
                 Tokens.ArrayDimensions,
-                field.ValueRank.GetArrayDimensionsAsCode(field.ArrayDimensions) ?? "default");
+                field.ValueRank.GetArrayDimensionsAsCode(arrayDimensions) ?? "default");
             if (structureType == StructureType.StructureWithOptionalFields)
             {
                 context.Template.AddReplacement(Tokens.IsOptional, field.IsOptional);

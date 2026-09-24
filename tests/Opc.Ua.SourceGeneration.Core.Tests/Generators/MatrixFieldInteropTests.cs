@@ -142,6 +142,125 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         /// <summary>
+        /// A StructureField ValueRank is -1 or &gt;= 1, never 0 (OPC 10000-3
+        /// 8.51): a OneOrMoreDimensions field without ArrayDimensions is
+        /// published (and read) as a two dimensional matrix of unknown
+        /// lengths.
+        /// </summary>
+        [Test]
+        public void UnrankedMatrixFieldIsPublishedAsTwoDimensions()
+        {
+            StructureDefinition definition = CreateDefinition("CreateUnranked");
+            StructureField field = definition.Fields.ToArray().Single(f => f.Name == "M");
+            Assert.That(field.ValueRank, Is.EqualTo(ValueRanks.TwoDimensions));
+            Assert.That(field.ArrayDimensions.ToArray(), Is.EqualTo(s_unknownTwoDimensions));
+            Assert.That(
+                CreateDefinition().Fields.ToArray().Select(f => f.ValueRank),
+                Has.None.EqualTo(ValueRanks.OneOrMoreDimensions));
+
+            string code = m_generated
+                .Where(f => f.Key.EndsWith("DataTypes.g.cs", StringComparison.Ordinal))
+                .Select(f => f.Value)
+                .Single();
+            Assert.That(code, Does.Contain(
+                "M = decoder.ReadVariantValue(\"M\", global::Opc.Ua.TypeInfo.Create(" +
+                "global::Opc.Ua.BuiltInType.Int32, global::Opc.Ua.ValueRanks.TwoDimensions)).GetInt32Matrix();"));
+        }
+
+        /// <summary>
+        /// The generated binary encoding is the inline matrix of OPC 10000-6
+        /// 5.2.5 Table 28: Int32 dimensions (-1 for null) followed by the
+        /// product of the dimensions values, without a length prefix.
+        /// </summary>
+        [TestCase(Content.Null)]
+        [TestCase(Content.Empty)]
+        [TestCase(Content.Full)]
+        public void GeneratedBinaryIsTheInlineMatrix(Content content)
+        {
+            IEncodeable original = CreateGrids(content);
+            ServiceMessageContext context = CreateGeneratedContext();
+            byte[] encoded;
+            using (var encoder = new BinaryEncoder(context))
+            {
+                original.Encode(encoder);
+                encoded = encoder.CloseAndReturnBuffer();
+            }
+
+            byte[] expected;
+            using (var e = new BinaryEncoder(context))
+            {
+                e.WriteInt32(null, 7);
+                switch (content)
+                {
+                    case Content.Null:
+                        for (int ii = 0; ii < 8; ii++)
+                        {
+                            e.WriteInt32(null, -1); // null dimensions, no values
+                        }
+                        e.WriteInt32(null, 0); // Row: the generated default is empty
+                        break;
+                    case Content.Empty:
+                        Dimensions(e, 0, 3); // Doubles
+                        Dimensions(e, 0, 0); // Strings (MatrixOf.Empty)
+                        Dimensions(e, 2, 0); // Colors
+                        Dimensions(e, 1, 0); // Flags
+                        Dimensions(e, 0, 0); // Objects
+                        Dimensions(e, 0, 2); // Values
+                        Dimensions(e, 0, 2); // Cells
+                        Dimensions(e, 0, 0, 0); // Cube
+                        e.WriteInt32(null, 0); // Row
+                        break;
+                    case Content.Full:
+                        Dimensions(e, 2, 3);
+                        foreach (double d in s_doubles)
+                        {
+                            e.WriteDouble(null, d);
+                        }
+                        Dimensions(e, 2, 2);
+                        e.WriteString(null, "a");
+                        e.WriteString(null, null);
+                        e.WriteString(null, "c");
+                        e.WriteString(null, "d");
+                        Dimensions(e, 2, 2);
+                        foreach (int c in s_colors)
+                        {
+                            e.WriteInt32(null, c);
+                        }
+                        Dimensions(e, 2, 2);
+                        foreach (uint f in s_flags)
+                        {
+                            e.WriteUInt32(null, f);
+                        }
+                        Dimensions(e, 1, 2);
+                        e.WriteExtensionObject(null, new ExtensionObject(Cell(11)));
+                        e.WriteExtensionObject(null, ExtensionObject.Null);
+                        Dimensions(e, 2, 1);
+                        e.WriteVariant(null, Variant.From(1));
+                        e.WriteVariant(null, Variant.From("x"));
+                        Dimensions(e, 1, 2);
+                        e.WriteInt32(null, 1); // Cell.V
+                        e.WriteInt32(null, 2);
+                        Dimensions(e, 2, 1, 2);
+                        foreach (int c in s_cube)
+                        {
+                            e.WriteInt32(null, c);
+                        }
+                        e.WriteDoubleArray(null, s_row.ToArrayOf());
+                        break;
+                }
+                e.WriteInt32(null, 9);
+                expected = e.CloseAndReturnBuffer();
+            }
+
+            Assert.That(encoded, Is.EqualTo(expected));
+
+            static void Dimensions(BinaryEncoder encoder, params int[] dimensions)
+            {
+                encoder.WriteInt32Array(null, dimensions.ToArrayOf());
+            }
+        }
+
+        /// <summary>
         /// Generated Encode is read by the DataTypeDefinition driven codec,
         /// whose Encode is read back by the generated Decode, losslessly.
         /// </summary>
@@ -339,10 +458,10 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             instance.GetType().GetProperty(name).SetValue(instance, value);
         }
 
-        private StructureDefinition CreateDefinition()
+        private StructureDefinition CreateDefinition(string factory = "CreateGrids")
         {
             MethodInfo create = m_assembly.GetTypes()
-                .Select(t => t.GetMethod("CreateGrids", BindingFlags.Public | BindingFlags.Static))
+                .Select(t => t.GetMethod(factory, BindingFlags.Public | BindingFlags.Static))
                 .First(m => m != null);
             return (StructureDefinition)create.Invoke(null, [CreateNamespaceTable()]);
         }
@@ -517,12 +636,19 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                   <opc:Field Name="After" DataType="ua:Int32" />
                 </opc:Fields>
               </opc:DataType>
+              <opc:DataType SymbolicName="Unranked" BaseType="ua:Structure">
+                <opc:Fields>
+                  <opc:Field Name="M" DataType="ua:Int32" ValueRank="OneOrMoreDimensions" />
+                  <opc:Field Name="Tail" DataType="ua:Int32" />
+                </opc:Fields>
+              </opc:DataType>
             </opc:ModelDesign>
             """;
 
         private static readonly string[] s_matrixFields =
             ["Doubles", "Strings", "Colors", "Flags", "Objects", "Values", "Cells", "Cube"];
         private static readonly uint[] s_rowDimensions = [5];
+        private static readonly uint[] s_unknownTwoDimensions = [0, 0];
         private static readonly int[] s_emptyRows = [0, 3];
         private static readonly int[] s_emptyCube = [0, 0, 0];
         private static readonly int[] s_emptyColumns = [2, 0];

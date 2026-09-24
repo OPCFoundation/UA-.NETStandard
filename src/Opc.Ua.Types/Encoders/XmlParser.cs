@@ -2062,6 +2062,16 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private static MatrixOf<T> ToMatrixOrThrow<T>(ArrayOf<T> elements, int[] dimensions)
         {
+            // The inline matrix of a structure field has at least two
+            // dimensions (OPC 10000-6 5.2.5 Table 28, 5.3.4).
+            if (!MatrixOf.IsValidInlineMatrix(dimensions, elements.Count))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Encodeable matrix Dimensions [{0}] are inconsistent with {1} element(s).",
+                    string.Join(",", dimensions),
+                    elements.Count);
+            }
             try
             {
                 return elements.ToMatrix(dimensions);

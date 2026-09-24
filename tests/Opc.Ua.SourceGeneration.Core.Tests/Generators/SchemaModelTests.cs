@@ -55,6 +55,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             m_xsd = generated
                 .Single(f => f.Key.EndsWith(".Types.xsd", StringComparison.Ordinal))
                 .Value;
+            m_code = string.Concat(generated
+                .Where(f => f.Key.EndsWith(".cs", StringComparison.Ordinal))
+                .Select(f => f.Value));
         }
 
         /// <summary>
@@ -91,9 +94,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
         /// <summary>
         /// D-13: fields the generated code writes as a Variant are described
-        /// as a Variant, a matrix (D-5: of structures and of built-in types
-        /// alike) as its dimensions followed by the elements, not as a plain
-        /// counted array.
+        /// as a Variant, an array as a counted array.
         /// </summary>
         [Test]
         public void NonArrayValueRanksAreDescribedAsWritten()
@@ -101,16 +102,37 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string ranks = Element(m_bsd, "opc:StructuredType", "Ranks");
             Assert.That(ranks, Does.Contain("<opc:Field Name=\"Loose\" TypeName=\"ua:Variant\" />"));
             Assert.That(ranks, Does.Not.Contain("NoOfLoose"));
-            Assert.That(ranks, Does.Not.Contain("<opc:Field Name=\"Grid\" TypeName=\"ua:Variant\" />"));
-            Assert.That(ranks, Does.Contain(
-                "<opc:Field Name=\"GridDimensions\" TypeName=\"opc:Int32\" LengthField=\"NoOfGridDimensions\" />"));
-            Assert.That(ranks, Does.Contain(
-                "<opc:Field Name=\"Grid\" TypeName=\"opc:Double\" LengthField=\"NoOfGrid\" />"));
-            Assert.That(ranks, Does.Contain(
-                "<opc:Field Name=\"CellsDimensions\" TypeName=\"opc:Int32\" LengthField=\"NoOfCellsDimensions\" />"));
-            Assert.That(ranks, Does.Contain(
-                "LengthField=\"NoOfCells\""));
             Assert.That(ranks, Does.Contain("<opc:Field Name=\"List\" TypeName=\"opc:Int32\" LengthField=\"NoOfList\" />"));
+        }
+
+        /// <summary>
+        /// D-5: a matrix field is an inline matrix whose value count is the
+        /// product of the dimensions, which a DataTypeDictionary cannot
+        /// describe: "any Structure with a field or nested field mapped to an
+        /// inline matrix ... shall not be included in a DataTypeDictionary"
+        /// (OPC 10000-6 5.2.5). It stays in the XML schema, which has the
+        /// Matrix type. A field allowing subtypes is an ExtensionObject and
+        /// does not nest the matrix.
+        /// </summary>
+        [Test]
+        public void StructuresWithInlineMatricesAreNotInTheBinarySchema()
+        {
+            Assert.That(m_bsd, Does.Not.Contain("<opc:StructuredType Name=\"Matrices\""));
+            Assert.That(m_bsd, Does.Not.Contain("<opc:StructuredType Name=\"HoldsMatrices\""));
+            Assert.That(m_bsd, Does.Not.Contain("<opc:StructuredType Name=\"DerivedMatrices\""));
+            Assert.That(m_bsd, Does.Contain("<opc:StructuredType Name=\"BaseA\""));
+            string refers = Element(m_bsd, "opc:StructuredType", "RefersMatrices");
+            Assert.That(refers, Does.Contain("<opc:Field Name=\"Any\" TypeName=\"ua:ExtensionObject\" />"));
+
+            Assert.That(m_xsd, Does.Contain("<xs:complexType name=\"Matrices\""));
+            Assert.That(m_xsd, Does.Contain("<xs:complexType name=\"HoldsMatrices\""));
+
+            // No DataTypeDescription in the binary dictionary node either,
+            // the XML dictionary keeps it.
+            Assert.That(m_code, Does.Not.Contain("BinarySchema_Matrices"));
+            Assert.That(m_code, Does.Not.Contain("BinarySchema_HoldsMatrices"));
+            Assert.That(m_code, Does.Contain("BinarySchema_RefersMatrices"));
+            Assert.That(m_code, Does.Contain("XmlSchema_Matrices"));
         }
 
         /// <summary>
@@ -200,9 +222,28 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
               <opc:DataType SymbolicName="Ranks" BaseType="ua:Structure">
                 <opc:Fields>
                   <opc:Field Name="Loose" DataType="ua:Double" ValueRank="ScalarOrArray" />
+                  <opc:Field Name="List" DataType="ua:Int32" ValueRank="Array" />
+                </opc:Fields>
+              </opc:DataType>
+              <opc:DataType SymbolicName="Matrices" BaseType="ua:Structure">
+                <opc:Fields>
                   <opc:Field Name="Grid" DataType="ua:Double" ValueRank="OneOrMoreDimensions" ArrayDimensions="3,3" />
                   <opc:Field Name="Cells" DataType="BaseA" ValueRank="OneOrMoreDimensions" ArrayDimensions="0,0" />
-                  <opc:Field Name="List" DataType="ua:Int32" ValueRank="Array" />
+                </opc:Fields>
+              </opc:DataType>
+              <opc:DataType SymbolicName="HoldsMatrices" BaseType="ua:Structure">
+                <opc:Fields>
+                  <opc:Field Name="Inner" DataType="Matrices" ValueRank="Array" />
+                </opc:Fields>
+              </opc:DataType>
+              <opc:DataType SymbolicName="DerivedMatrices" BaseType="Matrices">
+                <opc:Fields>
+                  <opc:Field Name="Extra" DataType="ua:Int32" />
+                </opc:Fields>
+              </opc:DataType>
+              <opc:DataType SymbolicName="RefersMatrices" BaseType="ua:Structure">
+                <opc:Fields>
+                  <opc:Field Name="Any" DataType="Matrices" AllowSubTypes="true" />
                 </opc:Fields>
               </opc:DataType>
               <opc:DataType SymbolicName="Opt" BaseType="ua:Structure">
@@ -232,5 +273,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
         private string m_bsd;
         private string m_xsd;
+        private string m_code;
     }
 }

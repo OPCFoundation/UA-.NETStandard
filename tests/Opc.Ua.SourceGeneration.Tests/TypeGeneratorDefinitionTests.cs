@@ -195,6 +195,202 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
+        /// A MatrixOf property is a multi-dimensional structure field: the
+        /// definition publishes a matrix ValueRank (never 0, OPC 10000-3
+        /// 8.51; the rank is unknown from MatrixOf&lt;T&gt;, so 2) and the
+        /// generated code uses the inline matrix calls of the model driven
+        /// generator (OPC 10000-6 5.2.5), not the Variant encoding.
+        /// </summary>
+        [Test]
+        public void MatrixPropertiesAreInlineMatrices()
+        {
+            StructureDefinition definition = GetDefinition("Img");
+            foreach (string name in s_imgMatrices)
+            {
+                StructureField field = definition.Fields.ToArray().Single(f => f.Name == name);
+                Assert.That(field.ValueRank, Is.EqualTo(ValueRanks.TwoDimensions), name);
+                Assert.That(field.ArrayDimensions.ToArray(), Is.EqualTo(s_unknownTwoDimensions), name);
+            }
+
+            Assert.That(m_generated, Does.Contain(
+                "encoder.WriteVariantValue(\"Pixels\", global::Opc.Ua.Variant.From(Pixels));"));
+            Assert.That(m_generated, Does.Contain(
+                "Pixels = decoder.ReadVariantValue(\"Pixels\", global::Opc.Ua.TypeInfo.Create(" +
+                "global::Opc.Ua.BuiltInType.Int32, global::Opc.Ua.ValueRanks.TwoDimensions)).GetInt32Matrix();"));
+            Assert.That(m_generated, Does.Contain(
+                "global::Opc.Ua.BuiltInType.Enumeration, global::Opc.Ua.ValueRanks.TwoDimensions))" +
+                ".GetEnumerationMatrix<"));
+            Assert.That(m_generated, Does.Contain("encoder.WriteEncodeableMatrix(\"Cells\", Cells);"));
+            Assert.That(m_generated, Does.Not.Contain("encoder.WriteVariant(\""));
+            Assert.That(m_generated, Does.Not.Contain("decoder.ReadVariant(\""));
+        }
+
+        /// <summary>
+        /// The binary encoding of MatrixOf properties is the inline matrix:
+        /// Int32 dimensions (-1 for null, at least two) followed by the
+        /// product of the dimensions values without a length prefix.
+        /// </summary>
+        [Test]
+        public void MatrixPropertiesEncodeInlineMatrixBytes()
+        {
+            IEncodeable img = CreateImg();
+
+            byte[] bytes = EncodeBinary(img);
+
+            byte[] expected = Concat(
+                Int32s(2, 2, 3, 1, 2, 3, 4, 5, 6), // Pixels
+                Int32s(2, 1, 2, 7, 0), // Cells: Inner.V of each element
+                Int32s(2, 2, 1, 1, 6), // Perms: Read and Write|Exec as Int32
+                Int32s(2, 0, 0), // Names: MatrixOf.Empty is 0 x 0
+                Int32s(-1), // Objects: null
+                Int32s(2, 1, 1), [(byte)BuiltInType.String], Int32s(1), [(byte)'v'], // Values
+                Int32s(9)); // Tail
+            Assert.That(bytes, Is.EqualTo(expected));
+
+            var decoded = (IEncodeable)Create("Img");
+            using (var decoder = new BinaryDecoder(bytes, m_context))
+            {
+                decoded.Decode(decoder);
+                Assert.That(decoder.Position, Is.EqualTo(bytes.Length));
+            }
+            Assert.That(Get(decoded, "Tail"), Is.EqualTo(9));
+            Assert.That(((MatrixOf<string>)Get(decoded, "Names")).Dimensions, Is.EqualTo(s_emptyDimensions));
+            Assert.That(((MatrixOf<ExtensionObject>)Get(decoded, "Objects")).IsNull, Is.True);
+        }
+
+        /// <summary>
+        /// The generated type and the DataTypeDefinition driven codec reading
+        /// the published definition write the same bytes, in both directions,
+        /// and the matrices survive the JSON and XML encodings.
+        /// </summary>
+        [Test]
+        public void MatrixPropertiesInteroperateWithDefinitionDrivenCodec()
+        {
+            IEncodeable img = CreateImg();
+            ExpandedNodeId typeId = img.TypeId;
+            ServiceMessageContext generatedContext = CreateContext();
+            generatedContext.Factory.Builder.AddEncodeableTypes(m_assembly).Commit();
+            var structureType = new Encoders.Structure(
+                new System.Xml.XmlQualifiedName("Img", NamespaceUri),
+                img.TypeId,
+                img.BinaryEncodingId,
+                img.XmlEncodingId,
+                GetDefinition("Img"),
+                new Dictionary<string, BuiltInType>
+                {
+                    ["Pixels"] = BuiltInType.Int32,
+                    ["Cells"] = BuiltInType.Null,
+                    ["Perms"] = BuiltInType.Enumeration,
+                    ["Names"] = BuiltInType.String,
+                    ["Objects"] = BuiltInType.ExtensionObject,
+                    ["Values"] = BuiltInType.Variant,
+                    ["Tail"] = BuiltInType.Int32
+                });
+            ServiceMessageContext runtimeContext = CreateContext();
+            runtimeContext.Factory.Builder
+                .AddEncodeableType(Create("Inner").GetType())
+                .AddEncodeableType(structureType)
+                .Commit();
+
+            byte[] generatedBytes = EncodeBinary(generatedContext, img, typeId);
+            IEncodeable structure;
+            using (var decoder = new BinaryDecoder(generatedBytes, runtimeContext))
+            {
+                structure = decoder.ReadEncodeable<IEncodeable>(null, typeId);
+            }
+            Assert.That(structure, Is.InstanceOf<Encoders.Structure>());
+            Assert.That(
+                ((IStructure)structure)["Pixels"].GetInt32Matrix(),
+                Is.EqualTo(Get(img, "Pixels")));
+            Assert.That(((IStructure)structure)["Tail"].GetInt32(), Is.EqualTo(9));
+
+            byte[] runtimeBytes = EncodeBinary(runtimeContext, structure, typeId);
+            Assert.That(runtimeBytes, Is.EqualTo(generatedBytes), "both codecs write the same bytes");
+
+            using (var decoder = new BinaryDecoder(runtimeBytes, generatedContext))
+            {
+                IEncodeable back = decoder.ReadEncodeable<IEncodeable>(null, typeId);
+                Assert.That(EncodeBinary(generatedContext, back, typeId), Is.EqualTo(generatedBytes));
+            }
+
+            // JSON and XML round trips of the generated type.
+            object json = JsonRoundTrip(img);
+            Assert.That(EncodeBinary((IEncodeable)json), Is.EqualTo(EncodeBinary(img)), "JSON");
+            object xml = XmlRoundTrip(generatedContext, img, typeId);
+            Assert.That(EncodeBinary((IEncodeable)xml), Is.EqualTo(EncodeBinary(img)), "XML");
+        }
+
+        private IEncodeable CreateImg()
+        {
+            object img = Create("Img");
+            Set(img, "Pixels", new[,] { { 1, 2, 3 }, { 4, 5, 6 } }.ToMatrixOf());
+            object cell = Create("Inner");
+            Set(cell, "V", 7);
+            Type innerType = cell.GetType();
+            var cells = Array.CreateInstance(innerType, 1, 2);
+            cells.SetValue(cell, 0, 0);
+            cells.SetValue(Create("Inner"), 0, 1);
+            Set(img, "Cells", typeof(MatrixOf<>).MakeGenericType(innerType)
+                .GetMethod("CreateFromArray", BindingFlags.Public | BindingFlags.Static)
+                .Invoke(null, [cells]));
+            Type permType = m_assembly.GetType("TestApp.Defs.Perm", throwOnError: true);
+            var perms = Array.CreateInstance(permType, 2, 1);
+            perms.SetValue(Enum.ToObject(permType, 1), 0, 0);
+            perms.SetValue(Enum.ToObject(permType, 6), 1, 0);
+            Set(img, "Perms", typeof(MatrixOf)
+                .GetMethod(nameof(MatrixOf.From), BindingFlags.Public | BindingFlags.Static)
+                .MakeGenericMethod(permType)
+                .Invoke(null, [perms]));
+            Set(img, "Names", MatrixOf<string>.Empty);
+            Set(img, "Values", new[,] { { Variant.From("v") } }.ToMatrixOf());
+            Set(img, "Tail", 9);
+            return (IEncodeable)img;
+        }
+
+        private ServiceMessageContext CreateContext()
+        {
+            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(new TestTelemetry());
+            var namespaceUris = new NamespaceTable();
+            namespaceUris.Append(NamespaceUri);
+            context.NamespaceUris = namespaceUris;
+            return context;
+        }
+
+        private static byte[] EncodeBinary(ServiceMessageContext context, IEncodeable value, ExpandedNodeId typeId)
+        {
+            using var encoder = new BinaryEncoder(context);
+            encoder.WriteEncodeable(null, value, typeId);
+            return encoder.CloseAndReturnBuffer();
+        }
+
+        private static object XmlRoundTrip(ServiceMessageContext context, IEncodeable value, ExpandedNodeId typeId)
+        {
+            string xml;
+            using (var encoder = new XmlEncoder(context))
+            {
+                encoder.PushNamespace(NamespaceUri);
+                encoder.WriteEncodeable("Img", value, typeId);
+                encoder.PopNamespace();
+                xml = encoder.CloseAndReturnText();
+            }
+            using var parser = new XmlParser(xml, context);
+            parser.PushNamespace(NamespaceUri);
+            IEncodeable decoded = parser.ReadEncodeable<IEncodeable>("Img", typeId);
+            parser.PopNamespace();
+            return decoded;
+        }
+
+        private static byte[] Int32s(params int[] values)
+        {
+            return values.SelectMany(BitConverter.GetBytes).ToArray();
+        }
+
+        private static byte[] Concat(params byte[][] parts)
+        {
+            return parts.SelectMany(p => p).ToArray();
+        }
+
+        /// <summary>
         /// D-10: Clone() shared ArrayOf elements with reference semantics
         /// between the original and the clone.
         /// </summary>
@@ -374,6 +570,10 @@ namespace Opc.Ua.SourceGeneration
                     public MatrixOf<int> Pixels { get; set; }
                     public MatrixOf<Inner> Cells { get; set; }
                     public MatrixOf<Perm> Perms { get; set; }
+                    public MatrixOf<string> Names { get; set; }
+                    public MatrixOf<ExtensionObject> Objects { get; set; }
+                    public MatrixOf<Variant> Values { get; set; }
+                    public int Tail { get; set; }
                 }
 
                 [Flags]
@@ -404,6 +604,10 @@ namespace Opc.Ua.SourceGeneration
         private static readonly string[] s_pt3DFields = ["Name", "X", "Child", "Items", "Z"];
         private static readonly int[] s_pixelDimensions = [2, 3];
         private static readonly int[] s_cellDimensions = [1, 2];
+        private static readonly int[] s_emptyDimensions = [0, 0];
+        private static readonly uint[] s_unknownTwoDimensions = [0, 0];
+        private static readonly string[] s_imgMatrices =
+            ["Pixels", "Cells", "Perms", "Names", "Objects", "Values"];
         private Assembly m_assembly;
         private string m_generated;
         private ServiceMessageContext m_context;

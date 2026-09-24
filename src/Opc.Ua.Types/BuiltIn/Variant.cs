@@ -1042,26 +1042,25 @@ namespace Opc.Ua
         /// <summary>
         /// Whether the value is written as an inline matrix (OPC 10000-6
         /// 5.2.5) when it is the raw value of a multi-dimensional structure
-        /// field. This is the case for a matrix type info and for a
-        /// <see cref="MatrixOf{T}"/> value whose shape the type info lost:
-        /// a null matrix has no dimensions (value rank OneOrMoreDimensions)
-        /// and an empty matrix a single zero dimension (value rank
-        /// OneDimension). A non empty single dimension matrix is an array.
+        /// field. This is the case for a matrix type info and for every
+        /// <see cref="MatrixOf{T}"/> value, also one whose shape the type
+        /// info lost: a null matrix has no dimensions (value rank
+        /// OneOrMoreDimensions) and an empty matrix a single zero dimension
+        /// (value rank OneDimension). A non empty matrix with a single
+        /// dimension is rejected by the encoders (see
+        /// <see cref="MatrixOf.GetInlineMatrixDimensions(int[], int)"/>)
+        /// rather than silently written as an array.
         /// </summary>
         /// <param name="isNull">Whether the matrix is null.</param>
         internal bool IsInlineMatrix(out bool isNull)
         {
-            TypeInfo typeInfo = TypeInfo;
             if (m_value is IMatrixOf matrix)
             {
                 isNull = matrix.IsNull;
-                return typeInfo.IsMatrix ||
-                    typeInfo.ValueRank != ValueRanks.OneDimension ||
-                    matrix.IsNull ||
-                    matrix.Count == 0;
+                return true;
             }
             isNull = m_value is null || (m_value is INullable nullable && nullable.IsNull);
-            return typeInfo.IsMatrix;
+            return TypeInfo.IsMatrix;
         }
 
         /// <summary>

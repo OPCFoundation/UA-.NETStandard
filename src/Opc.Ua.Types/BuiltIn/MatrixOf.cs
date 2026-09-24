@@ -35,6 +35,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json.Serialization;
+using Opc.Ua.Types;
 
 namespace Opc.Ua
 {
@@ -191,9 +192,14 @@ namespace Opc.Ua
             int length;
             try
             {
+                // A zero dimension makes the matrix empty whatever the
+                // other dimensions are (e.g. an empty inline matrix,
+                // OPC 10000-6 5.2.5), so the product cannot overflow.
                 length = dimensions.Length == 1 ?
                     dimensions[0] :
-                    checked(dimensions.Aggregate((a, b) => checked(a * b)));
+                    Array.IndexOf(dimensions, 0) >= 0 ?
+                        0 :
+                        checked(dimensions.Aggregate((a, b) => checked(a * b)));
             }
             catch (OverflowException ex)
             {
@@ -650,13 +656,7 @@ namespace Opc.Ua
     /// The shape of a <see cref="MatrixOf{T}"/> independent of its element
     /// type.
     /// </summary>
-    internal interface IMatrixOf : INullable
-    {
-        /// <summary>
-        /// Number of elements in the flattened matrix.
-        /// </summary>
-        int Count { get; }
-    }
+    internal interface IMatrixOf : INullable;
 
     /// <summary>
     /// MatrixOf extensions
@@ -738,28 +738,35 @@ namespace Opc.Ua
 
         /// <summary>
         /// Validates the dimensions of an inline matrix, the representation
-        /// of a multi-dimensional structure field (OPC 10000-6 5.2.5, 5.4.5).
-        /// Unlike a matrix Variant (<see cref="IsValidMatrix(int[], int)"/>)
-        /// a dimension may be zero, in which case no values are encoded. A
-        /// single dimension is only accepted as the zero dimension an empty
-        /// <see cref="MatrixOf{T}"/> carries.
+        /// of a multi-dimensional structure field (OPC 10000-6 5.2.5, 5.3.4,
+        /// 5.4.5). There are at least two dimensions (Table 28). Unlike a
+        /// matrix Variant (<see cref="IsValidMatrix(int[], int)"/>) a
+        /// dimension may be zero, in which case no values are encoded.
         /// </summary>
         internal static bool IsValidInlineMatrix(
             ReadOnlySpan<int> dimensions,
             int elementCount = -1)
         {
-            if (dimensions.Length == 0 ||
-                (dimensions.Length == 1 && dimensions[0] != 0))
+            if (dimensions.Length < 2)
             {
                 return false;
             }
-            long product = 1;
+            bool isEmpty = false;
             for (int ii = 0; ii < dimensions.Length; ii++)
             {
                 if (dimensions[ii] < 0)
                 {
                     return false;
                 }
+                isEmpty |= dimensions[ii] == 0;
+            }
+            if (isEmpty)
+            {
+                return elementCount <= 0;
+            }
+            long product = 1;
+            for (int ii = 0; ii < dimensions.Length; ii++)
+            {
                 product *= dimensions[ii];
                 if (product > int.MaxValue)
                 {
@@ -767,6 +774,38 @@ namespace Opc.Ua
                 }
             }
             return elementCount < 0 || product == elementCount;
+        }
+
+        /// <summary>
+        /// Returns the dimensions a <see cref="MatrixOf{T}"/> is written with
+        /// as the inline matrix of a structure field (OPC 10000-6 5.2.5
+        /// Table 28), which needs at least two dimensions. An empty matrix
+        /// with fewer dimensions (<see cref="MatrixOf{T}.Empty"/> has the
+        /// single dimension 0) is written as the empty 0 x 0 matrix. A non
+        /// empty matrix with fewer than two dimensions is an array, not a
+        /// matrix, and cannot be written as an inline matrix: writing it as an
+        /// array instead would desynchronize a peer that decodes the field by
+        /// its matrix ValueRank.
+        /// </summary>
+        /// <exception cref="ServiceResultException">with
+        /// <see cref="StatusCodes.BadEncodingError"/> for a non empty matrix
+        /// with fewer than two dimensions.</exception>
+        internal static int[] GetInlineMatrixDimensions(int[] dimensions, int elementCount)
+        {
+            if (dimensions.Length >= 2)
+            {
+                return dimensions;
+            }
+            if (elementCount == 0)
+            {
+                return [0, 0];
+            }
+            throw ServiceResultException.Create(
+                StatusCodes.BadEncodingError,
+                "A matrix with {0} dimension(s) and {1} element(s) cannot be encoded " +
+                "as an inline matrix which requires at least 2 dimensions.",
+                dimensions.Length,
+                elementCount);
         }
 
         /// <summary>
