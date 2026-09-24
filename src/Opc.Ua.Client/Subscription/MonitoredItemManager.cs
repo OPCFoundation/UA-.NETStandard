@@ -802,6 +802,34 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     return false;
                 }
 
+                //
+                // Build the handle map before touching the item table. Client
+                // handles are not unique on the server (Part 4 §7.21): a create
+                // whose response was lost and that was then issued again leaves
+                // two server items with the same client handle. Keep one server
+                // item per client handle - preferring the one the local item is
+                // already bound to - and delete the extra ones.
+                //
+                var clientServerHandleMap = new Dictionary<uint, uint>();
+                var duplicateServerHandles = new List<uint>();
+                foreach ((uint serverHandle, uint clientHandle) in serverHandleStateMap)
+                {
+                    if (clientServerHandleMap.TryAdd(clientHandle, serverHandle))
+                    {
+                        continue;
+                    }
+                    if (m_monitoredItems.TryGetValue(clientHandle, out MonitoredItem? bound) &&
+                        bound.ServerId == serverHandle)
+                    {
+                        duplicateServerHandles.Add(clientServerHandleMap[clientHandle]);
+                        clientServerHandleMap[clientHandle] = serverHandle;
+                    }
+                    else
+                    {
+                        duplicateServerHandles.Add(serverHandle);
+                    }
+                }
+
                 IDictionary<uint, MonitoredItem> monitoredItems = m_monitoredItems.ToDictionary();
                 m_monitoredItems.Clear();
 
@@ -810,8 +838,6 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 // handles the case where the CreateMonitoredItems call succeeded on the
                 // server side, but the response was not provided back.
                 //
-                var clientServerHandleMap = serverHandleStateMap
-                    .ToDictionary(m => m.clientHandle, m => m.serverHandle);
                 foreach (KeyValuePair<uint, MonitoredItem> monitoredItem in monitoredItems.ToList())
                 {
                     //
@@ -832,8 +858,13 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 // This handles the case where we are recreating the subscription from a
                 // previously stored state.
                 //
-                var serverClientHandleMap = clientServerHandleMap
-                    .ToDictionary(m => m.Value, m => m.Key);
+                var serverClientHandleMap = new Dictionary<uint, uint>();
+                foreach (KeyValuePair<uint, uint> handles in clientServerHandleMap)
+                {
+                    // A server reporting the same server handle twice is
+                    // broken; keep the first mapping rather than throwing.
+                    serverClientHandleMap.TryAdd(handles.Value, handles.Key);
+                }
                 foreach (KeyValuePair<uint, MonitoredItem> monitoredItem in monitoredItems.ToList())
                 {
                     uint serverHandle = monitoredItem.Value.ServerId;
@@ -850,7 +881,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 }
 
                 m_deletedItems.Clear();
-                itemsToDelete = new ArrayOf<uint>(serverClientHandleMap.Keys.ToArray());
+                itemsToDelete = new ArrayOf<uint>(serverClientHandleMap.Keys
+                    .Concat(duplicateServerHandles)
+                    .Distinct()
+                    .ToArray());
 
                 // Remaining items do not exist anymore on the server and need to be recreated
                 foreach (MonitoredItem? missingOnServer in monitoredItems.Values)

@@ -2022,6 +2022,70 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
+        /// <summary>
+        /// A create whose response was lost and that was then issued again
+        /// leaves two server items with the same client handle (client
+        /// handles need not be unique, Part 4 §7.21). Synchronizing must keep
+        /// the bound item, delete the extra server item and not throw.
+        /// </summary>
+        [Test]
+        public async Task TryCompleteTransferAsyncShouldTolerateDuplicateClientHandlesAsync()
+        {
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 2);
+            await using (sut.ConfigureAwait(false))
+            {
+                OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
+                bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
+                Assert.That(success, Is.True);
+                uint clientId = monitoredItem.ClientHandle;
+                uint serverId = monitoredItem.ServerId;
+                const uint duplicateServerId = 55555u;
+                Assert.That(serverId, Is.Not.EqualTo(duplicateServerId));
+
+                m_mockMethodServices
+                    .Setup(s => s.CallAsync(
+                        It.IsAny<RequestHeader>(),
+                        It.Is<ArrayOf<CallMethodRequest>>(r =>
+                            r.Count == 1 &&
+                            r[0].MethodId == MethodIds.Server_GetMonitoredItems), It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(new CallResponse
+                    {
+                        Results =
+                        [
+                            new ()
+                            {
+                                StatusCode = StatusCodes.Good,
+                                OutputArguments =
+                                [
+                                    new Variant([duplicateServerId, serverId]), // serverHandles
+                                    new Variant([clientId, clientId])  // clientHandles
+                                ]
+                            }
+                        ]
+                    })
+                    .Verifiable(Times.Once);
+                m_mockMonitoredItemServices
+                    .Setup(s => s.DeleteMonitoredItemsAsync(It.IsAny<RequestHeader>(), 2,
+                        It.Is<ArrayOf<uint>>(a => a.Count == 1 && a[0] == duplicateServerId),
+                        It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(new DeleteMonitoredItemsResponse
+                    {
+                        Results = [StatusCodes.Good]
+                    })
+                    .Verifiable(Times.Once);
+
+                success = await sut.TryCompleteTransferAsync([], default).ConfigureAwait(false);
+
+                Assert.That(success, Is.True);
+                Assert.That(monitoredItem.ServerId, Is.EqualTo(serverId));
+                Assert.That(sut.MonitoredItems.TryGetMonitoredItemByClientHandle(
+                    clientId, out IMonitoredItem resolved), Is.True);
+                Assert.That(resolved, Is.SameAs(monitoredItem));
+                m_mockMonitoredItemServices.Verify();
+            }
+        }
+
         [Test]
         public async Task TryCompleteTransferAsyncShouldCallGetMonitoredItemsAsyncAndDeleteItemIfNotInSubscriptionAsync()
         {
