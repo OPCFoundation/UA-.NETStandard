@@ -546,9 +546,11 @@ namespace Opc.Ua.Client.Redundancy.Tests
                     return new ValueTask<IServiceResponse>(new CloseSessionResponse());
                 });
             var channelManager = new Mock<IClientChannelManager>();
+            // Match by URL: ManagedSession.ConfiguredEndpoint reports the inner
+            // session's endpoint, which is an equal but different instance.
             channelManager
                 .Setup(m => m.GetAsync(
-                    endpoint,
+                    It.Is<ConfiguredEndpoint>(e => e.EndpointUrl == endpoint.EndpointUrl),
                     It.IsAny<Func<IManagedTransportChannel, IReconnectParticipant>>(),
                     null,
                     It.IsAny<CancellationToken>()))
@@ -612,9 +614,11 @@ namespace Opc.Ua.Client.Redundancy.Tests
                     StatusCodes.BadSessionIdInvalid,
                     "simulated: the prior leader's session no longer exists on the failover server"));
             var channelManager = new Mock<IClientChannelManager>();
+            // Match by URL: ManagedSession.ConfiguredEndpoint reports the inner
+            // session's endpoint, which is an equal but different instance.
             channelManager
                 .Setup(m => m.GetAsync(
-                    endpoint,
+                    It.Is<ConfiguredEndpoint>(e => e.EndpointUrl == endpoint.EndpointUrl),
                     It.IsAny<Func<IManagedTransportChannel, IReconnectParticipant>>(),
                     null,
                     It.IsAny<CancellationToken>()))
