@@ -148,10 +148,23 @@ namespace Opc.Ua.Server
                 RemoveCompletedRequests();
 
                 // Completion retires admission before exposing the completed task.
-                if (Volatile.Read(ref m_pendingRequestCount) >= m_maxRequestCount)
+                // OPC 10000-4 5.14.5.1: a new request that exceeds the limit de-queues the
+                // oldest queued request, which returns Bad_TooManyPublishRequests. New requests
+                // are added last and requeued ones first, so the head is the oldest. A requeued
+                // request was admitted before every request still queued, so it is itself the
+                // oldest and is the one rejected.
+                while (Volatile.Read(ref m_pendingRequestCount) >= m_maxRequestCount)
                 {
-                    return Task.FromException<ISubscriptionPublishPipeline>(
-                        new ServiceResultException(StatusCodes.BadTooManyPublishRequests));
+                    if (requeue || m_queuedRequests.Count == 0)
+                    {
+                        return Task.FromException<ISubscriptionPublishPipeline>(
+                            new ServiceResultException(StatusCodes.BadTooManyPublishRequests));
+                    }
+
+                    QueuedPublishRequest oldest = m_queuedRequests.First!.Value;
+                    m_queuedRequests.RemoveFirst();
+                    oldest.TrySetException(new ServiceResultException(StatusCodes.BadTooManyPublishRequests));
+                    oldest.Dispose();
                 }
 
                 // add to queue.

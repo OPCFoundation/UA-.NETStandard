@@ -92,8 +92,57 @@ namespace Opc.Ua.Server.Tests
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNoSubscription));
         }
 
+        /// <summary>
+        /// OPC 10000-4 5.14.5.1: a new Publish request that exceeds the limit de-queues the
+        /// oldest Publish request, which is answered with Bad_TooManyPublishRequests.
+        /// </summary>
         [Test]
-        public void PublishAsync_QueueFull_ThrowsBadTooManyPublishRequests()
+        public async Task PublishAsync_QueueFull_DequeuesOldestRequestWithBadTooManyPublishRequestsAsync()
+        {
+            const int maxRequests = 3;
+            using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, maxRequests);
+
+            var subMock = new Mock<ISubscriptionPublishPipeline>();
+            subMock.Setup(s => s.Id).Returns(1);
+            queue.Add(subMock.Object);
+
+            var parked = new List<Task<ISubscriptionPublishPipeline>>();
+            for (int ii = 0; ii < maxRequests; ii++)
+            {
+                parked.Add(queue.PublishAsync("channel1", DateTime.MaxValue, false, null, CancellationToken.None));
+            }
+            Assert.That(parked.TrueForAll(t => !t.IsCompleted), Is.True);
+
+            // the request that exceeds the limit is parked and the oldest one is returned.
+            Task<ISubscriptionPublishPipeline> newest =
+                queue.PublishAsync("channel1", DateTime.MaxValue, false, null, CancellationToken.None);
+            Assert.That(newest.IsCompleted, Is.False, "The new request must be queued.");
+            ServiceResultException ex = Assert.CatchAsync<ServiceResultException>(
+                async () => await parked[0].ConfigureAwait(false));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTooManyPublishRequests));
+            Assert.That(parked[1].IsCompleted, Is.False);
+            Assert.That(parked[2].IsCompleted, Is.False);
+
+            // the admission count stays at the limit: the next request dequeues the next oldest.
+            Task<ISubscriptionPublishPipeline> newest2 =
+                queue.PublishAsync("channel1", DateTime.MaxValue, false, null, CancellationToken.None);
+            Assert.That(newest2.IsCompleted, Is.False);
+            ex = Assert.CatchAsync<ServiceResultException>(async () => await parked[1].ConfigureAwait(false));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTooManyPublishRequests));
+
+            // the remaining requests are served oldest first.
+            queue.PublishCompleted(subMock.Object, true);
+            Assert.That(await parked[2].ConfigureAwait(false), Is.SameAs(subMock.Object));
+            Assert.That(newest.IsCompleted, Is.False);
+            Assert.That(newest2.IsCompleted, Is.False);
+        }
+
+        /// <summary>
+        /// A requeued request was admitted before every request still queued, so when the
+        /// queue is full it is itself the oldest request and is the one returned.
+        /// </summary>
+        [Test]
+        public async Task PublishAsync_QueueFull_RequeuedRequestIsOldestAsync()
         {
             using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, 1);
 
@@ -101,14 +150,16 @@ namespace Opc.Ua.Server.Tests
             subMock.Setup(s => s.Id).Returns(1);
             queue.Add(subMock.Object);
 
-            // First publish request should be queued
-            Task<ISubscriptionPublishPipeline> task1 = queue.PublishAsync("channel1", DateTime.MaxValue, false, null, CancellationToken.None);
-            Assert.That(task1.IsCompleted, Is.False);
+            Task<ISubscriptionPublishPipeline> queued =
+                queue.PublishAsync("channel1", DateTime.MaxValue, false, null, CancellationToken.None);
 
-            // Second publish request should fail because max queue size is 1
-            ServiceResultException ex =
-                Assert.CatchAsync<ServiceResultException>(() => queue.PublishAsync("channel2", DateTime.MaxValue, false, null, CancellationToken.None));
+            ServiceResultException ex = Assert.CatchAsync<ServiceResultException>(
+                () => queue.PublishAsync("channel1", DateTime.MaxValue, true, null, CancellationToken.None));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTooManyPublishRequests));
+            Assert.That(queued.IsCompleted, Is.False);
+
+            queue.PublishCompleted(subMock.Object, true);
+            Assert.That(await queued.ConfigureAwait(false), Is.SameAs(subMock.Object));
         }
 
         [Test]

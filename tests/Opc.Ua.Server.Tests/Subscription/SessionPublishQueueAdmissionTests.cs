@@ -82,12 +82,17 @@ namespace Opc.Ua.Server.Tests
             Task<ISubscriptionPublishPipeline> replacement = queue.PublishAsync(
                 "channel", DateTime.MaxValue, false, null, CancellationToken.None);
             Assert.That(replacement.IsCompleted, Is.False, "Only live Publish requests consume admission capacity.");
+
+            // a request beyond the limit de-queues the oldest live request (OPC 10000-4 5.14.5.1).
+            Task<ISubscriptionPublishPipeline> newest = queue.PublishAsync(
+                "channel", DateTime.MaxValue, false, null, CancellationToken.None);
+            Assert.That(newest.IsCompleted, Is.False);
             ServiceResultException full = Assert.CatchAsync<ServiceResultException>(
-                () => queue.PublishAsync("channel", DateTime.MaxValue, false, null, CancellationToken.None));
+                async () => await replacement.ConfigureAwait(false));
             Assert.That(full.StatusCode, Is.EqualTo(StatusCodes.BadTooManyPublishRequests));
 
             queue.PublishCompleted(subscription, true);
-            Assert.That(await replacement.ConfigureAwait(false), Is.SameAs(subscription));
+            Assert.That(await newest.ConfigureAwait(false), Is.SameAs(subscription));
         }
 
         /// <summary>
@@ -129,14 +134,20 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(first.IsCompleted, Is.False);
                 Assert.That(second.IsCompleted, Is.False);
             });
+
+            // the cancelled request no longer counts, so a request beyond the limit
+            // de-queues the oldest live request (OPC 10000-4 5.14.5.1).
+            Task<ISubscriptionPublishPipeline> third = queue.PublishAsync(
+                "channel", DateTime.MaxValue, false, null, CancellationToken.None);
+            Assert.That(third.IsCompleted, Is.False);
             ServiceResultException full = Assert.CatchAsync<ServiceResultException>(
-                () => queue.PublishAsync("channel", DateTime.MaxValue, false, null, CancellationToken.None));
+                async () => await first.ConfigureAwait(false));
             Assert.That(full.StatusCode, Is.EqualTo(StatusCodes.BadTooManyPublishRequests));
 
             Assert.That(queue.TryPublishCustomStatus(StatusCodes.Good), Is.True);
-            Assert.That(await second.ConfigureAwait(false), Is.Null);
+            Assert.That(await third.ConfigureAwait(false), Is.Null);
             queue.PublishCompleted(subscription, true);
-            Assert.That(await first.ConfigureAwait(false), Is.SameAs(subscription));
+            Assert.That(await second.ConfigureAwait(false), Is.SameAs(subscription));
         }
 
         /// <summary>
