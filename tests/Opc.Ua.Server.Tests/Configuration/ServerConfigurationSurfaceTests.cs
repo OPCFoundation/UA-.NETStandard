@@ -279,6 +279,34 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task ConfigurationFileCloseAndUpdateWithoutTargetsReturnsBadInvalidArgumentAsync()
+        {
+            var provider = new FakeConfigurationFileProvider(s_initialConfig);
+            Harness harness = await CreateHarnessAsync(
+                new ServerConfigurationOptions { ConfigurationFileProvider = provider }).ConfigureAwait(false);
+            using (harness.Manager)
+            {
+                ApplicationConfigurationFileState file = harness.Node.ConfigurationFile!;
+                SessionSystemContext ctx = CreateAdminContextForSession(new NodeId(21, 1));
+
+                OpenMethodStateResult open = await OpenAsync(file, ctx, OpenFileMode.Read | OpenFileMode.Write)
+                    .ConfigureAwait(false);
+                await file.Write!.OnCallAsync!(ctx, file.Write, file.NodeId, open.FileHandle,
+                    ByteString.From([0x01]), CancellationToken.None).ConfigureAwait(false);
+
+                // §7.8.5.2: "There must be at least one target."
+                ConfigurationFileCloseAndUpdateMethodStateResult result = await CloseAndUpdateAsync(
+                    file, ctx, open.FileHandle, versionToUpdate: 1, withoutTargets: true).ConfigureAwait(false);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+                    Assert.That(provider.ApplyCount, Is.Zero);
+                });
+            }
+        }
+
+        [Test]
         public async Task ConfigurationFileCloseDiscardsChangesWithoutApplyingAsync()
         {
             var provider = new FakeConfigurationFileProvider(s_initialConfig);
@@ -993,15 +1021,24 @@ namespace Opc.Ua.Server.Tests
             uint fileHandle,
             uint versionToUpdate,
             double revertAfterTime = 0,
-            double restartDelayTime = 0)
+            double restartDelayTime = 0,
+            bool withoutTargets = false)
         {
+            // §7.8.5.2: "There must be at least one target."
+            ArrayOf<ConfigurationUpdateTargetType> targets = withoutTargets
+                ? ArrayOf<ConfigurationUpdateTargetType>.Empty
+                : [new ConfigurationUpdateTargetType
+                {
+                    Path = "ApplicationIdentity",
+                    UpdateType = ConfigurationUpdateType.InsertOrReplace
+                }];
             return file.CloseAndUpdate!.OnCallAsync!(
                 ctx,
                 file.CloseAndUpdate,
                 file.NodeId,
                 fileHandle,
                 versionToUpdate,
-                ArrayOf<ConfigurationUpdateTargetType>.Empty,
+                targets,
                 revertAfterTime,
                 restartDelayTime,
                 CancellationToken.None);

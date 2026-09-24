@@ -596,13 +596,29 @@ namespace Opc.Ua.Server
                     return FailedUpdate(StatusCodes.BadInvalidState, targets);
                 }
 
+                // §7.8.5.2 Targets: "There must be at least one target."
+                if (targets.Count == 0)
+                {
+                    return FailedUpdate(StatusCodes.BadInvalidArgument, targets);
+                }
+
                 proposed = ByteString.From(m_strm!.ToArray());
             }
+
+            uint oldVersion = m_provider.CurrentVersion;
+            ArrayOf<Variant> inputArguments =
+            [
+                fileHandle,
+                versionToUpdate,
+                Variant.FromStructure(targets),
+                revertAfterTime,
+                restartDelayTime
+            ];
 
             // §7.8.5.2: the VersionToUpdate must match the CurrentVersion.
             if (versionToUpdate != m_provider.CurrentVersion)
             {
-                CloseWriteHandle();
+                CloseWriteHandle(fileHandle);
                 return FailedUpdate(StatusCodes.BadInvalidState, targets);
             }
 
@@ -616,7 +632,9 @@ namespace Opc.Ua.Server
             catch (ServiceResultException ex)
             {
                 m_logger.ConfigurationFileUpdateRejectedDuringValidation(ex);
-                CloseWriteHandle();
+                CloseWriteHandle(fileHandle);
+                ReportConfigurationUpdatedAuditEvent(
+                    context, objectId, method.NodeId, inputArguments, ex.StatusCode, oldVersion, oldVersion);
                 return FailedUpdate(ex.StatusCode, targets);
             }
 
@@ -630,7 +648,9 @@ namespace Opc.Ua.Server
             catch (ServiceResultException ex)
             {
                 m_logger.ConfigurationFileUpdateFailedWhileApplying(ex);
-                CloseWriteHandle();
+                CloseWriteHandle(fileHandle);
+                ReportConfigurationUpdatedAuditEvent(
+                    context, objectId, method.NodeId, inputArguments, ex.StatusCode, oldVersion, oldVersion);
                 return FailedUpdate(ex.StatusCode, targets);
             }
 
@@ -644,7 +664,12 @@ namespace Opc.Ua.Server
 
             RefreshVersionNodes(context);
 
-            CloseWriteHandle();
+            CloseWriteHandle(fileHandle);
+
+            // §7.8.5.2: "If auditing is supported, the Server shall generate
+            // the ConfigurationUpdatedAuditEventType".
+            ReportConfigurationUpdatedAuditEvent(
+                context, objectId, method.NodeId, inputArguments, StatusCodes.Good, oldVersion, newVersion);
 
             m_logger.ConfigurationFileUpdatedToVersion(
                 newVersion,
@@ -743,11 +768,18 @@ namespace Opc.Ua.Server
         /// by <c>CloseAndUpdate</c> for both the successful commit and the
         /// terminal version/validation/apply failures.
         /// </summary>
-        private void CloseWriteHandle()
+        private void CloseWriteHandle(uint fileHandle)
         {
             bool wasWriting;
             lock (m_lock)
             {
+                // The update awaited the provider: a newer Open may have
+                // replaced the handle in the meantime and must survive.
+                if (m_sessionId.IsNull || m_fileHandle != fileHandle)
+                {
+                    return;
+                }
+
                 wasWriting = m_writing;
                 DiscardOpenHandleNoLock();
             }
@@ -779,6 +811,52 @@ namespace Opc.Ua.Server
                 new ActivityTimerState(this, generation),
                 TimeSpan.FromMilliseconds(m_activityTimeout),
                 Timeout.InfiniteTimeSpan);
+        }
+
+        /// <summary>
+        /// Reports the ConfigurationUpdatedAuditEventType (OPC 10000-12
+        /// §7.8.5.8) for a CloseAndUpdate that reached validation or apply.
+        /// </summary>
+        private void ReportConfigurationUpdatedAuditEvent(
+            ISystemContext context,
+            NodeId objectId,
+            NodeId methodId,
+            ArrayOf<Variant> inputArguments,
+            StatusCode statusCode,
+            uint oldVersion,
+            uint newVersion)
+        {
+            try
+            {
+                var e = new ConfigurationUpdatedAuditEventState(null);
+
+                var message = new TranslationInfo(
+                    "ConfigurationUpdatedAuditEvent",
+                    "en-US",
+                    $"ConfigurationUpdatedAuditEvent result is: {statusCode.ToString(null, System.Globalization.CultureInfo.InvariantCulture)}");
+
+                e.Initialize(
+                    context,
+                    null,
+                    EventSeverity.Min,
+                    new LocalizedText(message),
+                    StatusCode.IsGood(statusCode),
+                    DateTime.UtcNow);
+
+                e.SetChildValue(context, BrowseNames.SourceNode, objectId, false);
+                e.SetChildValue(context, BrowseNames.SourceName, "Method/CloseAndUpdate", false);
+                e.SetChildValue(context, BrowseNames.LocalTime, TimeZoneDataType.Local, false);
+                e.SetChildValue(context, BrowseNames.MethodId, methodId, false);
+                e.SetChildValue(context, BrowseNames.InputArguments, inputArguments, false);
+                e.SetChildValue(context, BrowseNames.OldVersion, oldVersion, false);
+                e.SetChildValue(context, BrowseNames.NewVersion, newVersion, false);
+
+                m_node.ReportEvent(context, e);
+            }
+            catch (Exception ex)
+            {
+                m_logger.ErrorWhileReportingConfigurationUpdatedAuditEvent(ex);
+            }
         }
 
         private void RefreshVersionNodes(ISystemContext context)
@@ -998,5 +1076,9 @@ namespace Opc.Ua.Server
         [LoggerMessage(EventId = ServerEventIds.ApplicationConfigurationFile + 6, Level = LogLevel.Error,
             Message = "ConfigurationFile revert of unconfirmed update failed.")]
         public static partial void ConfigurationFileRevertFailed(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.ApplicationConfigurationFile + 7, Level = LogLevel.Error,
+            Message = "Error while reporting the ConfigurationUpdatedAuditEvent.")]
+        public static partial void ErrorWhileReportingConfigurationUpdatedAuditEvent(this ILogger logger, Exception ex);
     }
 }
