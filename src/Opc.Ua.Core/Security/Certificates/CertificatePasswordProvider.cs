@@ -95,7 +95,8 @@ namespace Opc.Ua
             else
             {
                 // Treat the input as raw bytes and base64-encode for storage.
-                char[] charToken = new char[password.Length * 3];
+                // Base64 needs 4 chars per started 3-byte group.
+                char[] charToken = new char[(password.Length + 2) / 3 * 4];
                 int length = Convert.ToBase64CharArray(
                     password,
                     0,
