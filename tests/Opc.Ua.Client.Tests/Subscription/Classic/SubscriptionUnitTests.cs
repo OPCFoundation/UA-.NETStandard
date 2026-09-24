@@ -783,6 +783,54 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
+        /// A late copy of a message that was already processed (the original
+        /// Publish response racing its Republish) must not be delivered again
+        /// (L7-2).
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [CancelAfter(5000)]
+        public async Task LateCopyOfProcessedMessageIsNotDeliveredAgainAsync(
+            bool sequentialPublishing,
+            CancellationToken ct)
+        {
+            var received = new ConcurrentQueue<uint>();
+            var completions = new ConcurrentDictionary<uint, TaskCompletionSource<bool>>();
+            TaskCompletionSource<bool> Completion(uint sequenceNumber) => completions.GetOrAdd(
+                sequenceNumber,
+                _ => new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously));
+            ISession session = BuildSessionMock((_, _) => false);
+            using var subscription = new Subscription(NUnitTelemetryContext.Create())
+            {
+                Session = session,
+                SequentialPublishing = sequentialPublishing,
+                FastDataChangeCallback = (_, notification, _) =>
+                {
+                    received.Enqueue(notification.SequenceNumber);
+                    Completion(notification.SequenceNumber).TrySetResult(true);
+                }
+            };
+            await subscription.CreateAsync(ct).ConfigureAwait(false);
+            NotificationMessage[] messages = BuildMessages(4);
+
+            for (uint sequenceNumber = 1; sequenceNumber <= 3; sequenceNumber++)
+            {
+                subscription.SaveMessageInCache([], messages[sequenceNumber]);
+                await Completion(sequenceNumber).Task.WaitAsync(ct).ConfigureAwait(false);
+            }
+
+            // late copies: 3 still has a processed entry, 2 was cleaned up
+            subscription.SaveMessageInCache([], messages[3]);
+            subscription.SaveMessageInCache([], messages[2]);
+            subscription.SaveMessageInCache([], messages[4]);
+            await Completion(4).Task.WaitAsync(ct).ConfigureAwait(false);
+
+            Assert.That(received, Is.EqualTo(new uint[] { 1, 2, 3, 4 }));
+            Mock.Get(session).Verify(value => value.RepublishAsync(
+                It.IsAny<uint>(), It.IsAny<uint>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
         /// Disposing the subscription from a PublishStatusChanged handler that
         /// the keep-alive timer raised must not wait for the running timer
         /// callback, which is the caller itself (L7-3).

@@ -1950,15 +1950,36 @@ namespace Opc.Ua.Client
                 // create queue for the first time.
                 m_incomingMessages ??= new LinkedList<IncomingMessage>();
 
-                // find or create an entry for the incoming sequence number.
-                IncomingMessage entry = FindOrCreateEntry(now, monotonicTimestamp, message.SequenceNumber);
-
-                // check for keep alive.
-                if (message.NotificationData.Count > 0)
+                // A late copy of a message that was already processed or given
+                // up (the original Publish response racing its Republish, or a
+                // message arriving after its placeholder expired) has no entry
+                // any more. Creating one would deliver it a second time and
+                // fill placeholders for messages that were already processed.
+                if (message.SequenceNumber != 0 &&
+                    !m_resyncLastSequenceNumberProcessed &&
+                    !IsNewerSequenceNumber(message.SequenceNumber, m_lastSequenceNumberProcessed) &&
+                    FindEntry(message.SequenceNumber) == null)
                 {
-                    entry.Message = message;
-                    entry.Processed = false;
+                    m_logger.SubscriptionIdIgnoredAlreadyProcessedSequenceNumber(
+                        Id,
+                        message.SequenceNumber,
+                        m_lastSequenceNumberProcessed,
+                        Session?.SessionId);
                 }
+                else
+                {
+                    // find or create an entry for the incoming sequence number.
+                    IncomingMessage newEntry = FindOrCreateEntry(now, monotonicTimestamp, message.SequenceNumber);
+
+                    // check for keep alive, and never hand a message that was
+                    // already processed to the worker again.
+                    if (message.NotificationData.Count > 0 && !newEntry.Processed)
+                    {
+                        newEntry.Message = message;
+                    }
+                }
+
+                IncomingMessage entry;
 
                 // fill in any gaps in the queue
                 LinkedListNode<IncomingMessage>? node = m_incomingMessages.First;
@@ -2673,6 +2694,17 @@ namespace Opc.Ua.Client
             }
             else
             {
+                // A new server subscription numbers its messages from 1 again:
+                // forget the sequence state of a previous one (this object may
+                // be recreated in place or cloned from a template), otherwise
+                // its first messages look like late copies of processed ones.
+                lock (m_cache)
+                {
+                    m_lastSequenceNumberProcessed = 0;
+                    m_resyncLastSequenceNumberProcessed = false;
+                    m_incomingMessages?.Clear();
+                }
+
                 CurrentPublishingEnabled = PublishingEnabled;
                 TransferId = Id = subscriptionId;
                 m_changeMask |= SubscriptionChangeMask.Created;
@@ -3525,6 +3557,24 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Returns the entry for the sequence number, or null if there is none.
+        /// </summary>
+        private IncomingMessage? FindEntry(uint sequenceNumber)
+        {
+            Debug.Assert(m_cache.IsHeldByCurrentThread);
+            for (LinkedListNode<IncomingMessage>? node = m_incomingMessages?.Last;
+                node != null;
+                node = node.Previous)
+            {
+                if (node.Value.SequenceNumber == sequenceNumber)
+                {
+                    return node.Value;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
         /// Find or create an entry for the incoming sequence number.
         /// </summary>
         /// <param name="utcNow">The current Utc time.</param>
@@ -4296,6 +4346,16 @@ namespace Opc.Ua.Client
             this ILogger logger,
             Exception? exception,
             uint subscriptionId,
+            NodeId? sessionId);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 69, Level = LogLevel.Debug,
+            Message = "SubscriptionId {SubscriptionId}: Ignored late message with sequence number" +
+                " {SequenceNumber}, last processed is {LastSequenceNumber}. SessionId={SessionId}.")]
+        public static partial void SubscriptionIdIgnoredAlreadyProcessedSequenceNumber(
+            this ILogger logger,
+            uint subscriptionId,
+            uint sequenceNumber,
+            uint lastSequenceNumber,
             NodeId? sessionId);
     }
 }
