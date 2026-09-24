@@ -84,9 +84,15 @@ namespace Opc.Ua
         /// <summary>
         /// Get dimensions of the matrix. For default or null matrices
         /// this returns an empty array which is otherwise an invalid
-        /// situation.
+        /// situation. A copy is returned so callers cannot change the
+        /// shape of the (immutable) matrix.
         /// </summary>
-        public int[] Dimensions => m_dimensions ?? [];
+        public int[] Dimensions => m_dimensions == null ? [] : [.. m_dimensions];
+
+        /// <summary>
+        /// The dimensions without copying. Must not be handed out.
+        /// </summary>
+        private int[] DimensionsNoCopy => m_dimensions ?? [];
 
         /// <summary>
         /// Return the content of the matrix as span
@@ -288,9 +294,15 @@ namespace Opc.Ua
             {
                 hashCode.Add(m_memory.Span[i], comparer);
             }
-            foreach (int i in Dimensions)
+            // A one dimensional matrix is equal to the array with the same
+            // elements and must therefore hash like ArrayOf<T>.
+            int[] dimensions = DimensionsNoCopy;
+            if (dimensions.Length > 1)
             {
-                hashCode.Add(i);
+                foreach (int i in dimensions)
+                {
+                    hashCode.Add(i);
+                }
             }
             return hashCode.ToHashCode();
         }
@@ -301,6 +313,20 @@ namespace Opc.Ua
             if (other == null)
             {
                 return IsNull;
+            }
+            // Only zero based arrays whose elements can be T can be equal.
+            // Equals must not throw for arrays of foreign element types.
+            Type? elementType = other.GetType().GetElementType();
+            if (elementType == null || !typeof(T).IsAssignableFrom(elementType))
+            {
+                return false;
+            }
+            for (int rank = 0; rank < other.Rank; rank++)
+            {
+                if (other.GetLowerBound(rank) != 0)
+                {
+                    return false;
+                }
             }
             var m = new MatrixOf<T>(other);
             return Equals(in m, comparer);
@@ -313,7 +339,7 @@ namespace Opc.Ua
             {
                 return IsNull && other.IsNull;
             }
-            return Equals(other.m_memory.Span, other.Dimensions, comparer);
+            return Equals(other.m_memory.Span, other.DimensionsNoCopy, comparer);
         }
 
         /// <inheritdoc/>
@@ -323,7 +349,7 @@ namespace Opc.Ua
             {
                 return IsNull && other.IsNull;
             }
-            int[] dimensions = Dimensions;
+            int[] dimensions = DimensionsNoCopy;
             if (dimensions.Length != 1 || dimensions[0] != other.Count)
             {
                 return false;
@@ -338,13 +364,15 @@ namespace Opc.Ua
             int[] dim,
             IEqualityComparer<T> comparer)
         {
+            // Compare the shape first: empty matrices of different shape
+            // (e.g. [0,5] and [5,0]) are different values.
+            if (!dim.SequenceEqual(DimensionsNoCopy))
+            {
+                return false;
+            }
             if (IsEmpty)
             {
                 return other.IsEmpty;
-            }
-            if (!dim.SequenceEqual(Dimensions))
-            {
-                return false;
             }
 #if !DEBUG && NET8_0_OR_GREATER
             return m_memory.Span.SequenceEqual(other, comparer);
@@ -596,7 +624,7 @@ namespace Opc.Ua
             {
                 values[i] = transform(m_memory.Span[i]);
             }
-            return values.ToMatrixOf(Dimensions);
+            return values.ToMatrixOf(DimensionsNoCopy);
         }
 
         /// <summary>
@@ -611,7 +639,7 @@ namespace Opc.Ua
             {
                 return null;
             }
-            int[] dim = Dimensions;
+            int[] dim = DimensionsNoCopy;
             if (dim.Length <= 1)
             {
                 return m_memory.ToArray();

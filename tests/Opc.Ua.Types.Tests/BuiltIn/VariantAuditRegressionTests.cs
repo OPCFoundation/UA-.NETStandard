@@ -522,5 +522,90 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 Assert.That(array.ReplaceItem(9, 2).ToArray(), Is.EqualTo(s_oneTwoNine));
             });
         }
+
+        [Test]
+        public void LegacyMatrixHashIsConsistentWithEquals()
+        {
+            // T2-1: GetHashCode hashed the array references while Equals
+            // compares the contents.
+#pragma warning disable CS0618 // Type or member is obsolete
+            var a = new Matrix(new int[,] { { 1, 2 }, { 3, 4 } }, BuiltInType.Int32);
+            var b = new Matrix(new int[,] { { 1, 2 }, { 3, 4 } }, BuiltInType.Int32);
+#pragma warning restore CS0618 // Type or member is obsolete
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(IsEqual(a, b), Is.True);
+                Assert.That(a.GetHashCode(), Is.EqualTo(b.GetHashCode()));
+            });
+        }
+
+        [Test]
+        public void EmptyMatricesOfDifferentShapeAreNotEqual()
+        {
+            // T2-2: [0,5] and [5,0] were equal but hashed differently.
+            var a = new MatrixOf<int>(new ReadOnlyMemory<int>(Array.Empty<int>()), [0, 5]);
+            var b = new MatrixOf<int>(new ReadOnlyMemory<int>(Array.Empty<int>()), [5, 0]);
+            var c = new MatrixOf<int>(new ReadOnlyMemory<int>(Array.Empty<int>()), [0, 5]);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(IsEqual(a, b), Is.False);
+                Assert.That(IsEqual(a, c), Is.True);
+                Assert.That(a.GetHashCode(), Is.EqualTo(c.GetHashCode()));
+            });
+        }
+
+        [Test]
+        public void MatrixEqualsForeignArrayReturnsFalse()
+        {
+            // T2-3: Equals(object) threw for arrays of another element type,
+            // arrays with null entries and non zero based arrays.
+            MatrixOf<int> matrix = new int[,] { { 1 } };
+            var nonZeroBased = Array.CreateInstance(typeof(int), [1, 1], [1, 1]);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(IsEqual(matrix, (object)new string[,] { { "x" } }), Is.False);
+                Assert.That(IsEqual(matrix, (object)new int?[1, 1]), Is.False);
+                Assert.That(IsEqual(matrix, (object)nonZeroBased), Is.False);
+                Assert.That(IsEqual(matrix, (object)new int[,] { { 1 } }), Is.True);
+            });
+        }
+
+        [Test]
+        public void MatrixDimensionsCannotBeMutated()
+        {
+            // T2-9: Dimensions handed out the private array.
+            var matrix = new MatrixOf<int>(new int[4], [2, 2]);
+            matrix.Dimensions[0] = 4;
+            matrix.ToArrayOf(out int[] dimensions);
+            dimensions[1] = 7;
+
+            Assert.That(matrix.Dimensions, Is.EqualTo(new[] { 2, 2 }));
+        }
+
+        [Test]
+        public void OneDimensionalMatrixVariantHashesLikeArrayVariant()
+        {
+            // T2-10: equal variants hashed differently.
+            ArrayOf<int> array = s_oneTwoThree.ToArrayOf();
+            var matrix = new MatrixOf<int>(s_oneTwoThree, [3]);
+            Variant a = Variant.From(array);
+            Variant b = Variant.From(matrix);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(IsEqual(a, b), Is.True);
+                Assert.That(IsEqual(b, a), Is.True);
+                Assert.That(a.GetHashCode(), Is.EqualTo(b.GetHashCode()));
+                Assert.That(matrix.GetHashCode(), Is.EqualTo(array.GetHashCode()));
+            });
+        }
+
+        private static bool IsEqual(object left, object right)
+        {
+            return left.Equals(right);
+        }
     }
 }
