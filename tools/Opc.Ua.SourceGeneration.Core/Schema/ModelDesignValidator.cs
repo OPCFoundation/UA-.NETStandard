@@ -843,7 +843,7 @@ namespace Opc.Ua.Schema.Model
             return null;
         }
 
-        private static Parameter ImportField(FieldType field)
+        internal static Parameter ImportField(FieldType field)
         {
             if (field == null)
             {
@@ -870,15 +870,13 @@ namespace Opc.Ua.Schema.Model
             {
                 parameter.ValueRank = ValueRank.Array;
             }
-            else if (field.ValueRank == 2)
+            else if (field.ValueRank >= 2)
             {
-                parameter.ValueRank = ValueRank.Array;
-                parameter.ArrayDimensions = "0";
-
-                for (int ii = 1; ii < field.ValueRank; ii++)
-                {
-                    parameter.ArrayDimensions = ",0";
-                }
+                // a matrix: one "0" (unknown length) per dimension.
+                parameter.ValueRank = ValueRank.OneOrMoreDimensions;
+                parameter.ArrayDimensions = string.Join(
+                    ",",
+                    Enumerable.Repeat("0", field.ValueRank));
             }
             else
             {
@@ -1878,6 +1876,7 @@ namespace Opc.Ua.Schema.Model
         private List<Namespace> GetNamespaceList(IReadOnlyList<string> designFilePaths)
         {
             var namespaces = new List<Namespace>();
+            var imports = new Dictionary<string, List<string>>(StringComparer.Ordinal);
 
             foreach (string path in designFilePaths)
             {
@@ -1921,6 +1920,12 @@ namespace Opc.Ua.Schema.Model
 
                 Namespace target = fileNamespaces[^1];
 
+                if (!imports.TryGetValue(target.Value, out List<string> targetImports))
+                {
+                    targetImports = [];
+                    imports[target.Value] = targetImports;
+                }
+
                 foreach (Namespace ns in fileNamespaces)
                 {
                     if (ns.Value == target.Value)
@@ -1932,31 +1937,101 @@ namespace Opc.Ua.Schema.Model
                     {
                         continue;
                     }
-                    int index1 = FindNamespace(namespaces, target.Value);
-                    int index2 = FindNamespace(namespaces, ns.Value);
-
-                    if (index1 > index2)
+                    if (!targetImports.Contains(ns.Value))
                     {
-                        namespaces.Insert(index2, namespaces[index1]);
-                        namespaces.RemoveAt(index1 + 1);
+                        targetImports.Add(ns.Value);
                     }
                 }
             }
 
-            return namespaces;
+            return SortByImports(namespaces, imports);
         }
 
-        private static int FindNamespace(List<Namespace> namespaces, string uri)
+        /// <summary>
+        /// Orders the namespaces so that every namespace precedes all the
+        /// namespaces it imports (the list is loaded back to front, so an
+        /// imported model is always loaded before the models importing it).
+        /// This is a stable topological sort: among the namespaces whose
+        /// importers have all been placed, the one that was merged first
+        /// wins, so the primary target stays in front unless a design that
+        /// imports it has to precede it. Import cycles are broken
+        /// deterministically by taking the first remaining namespace.
+        /// </summary>
+        private static List<Namespace> SortByImports(
+            List<Namespace> namespaces,
+            Dictionary<string, List<string>> imports)
         {
+            var positions = new Dictionary<string, int>(StringComparer.Ordinal);
             for (int ii = 0; ii < namespaces.Count; ii++)
             {
-                if (uri == namespaces[ii].Value)
+                positions[namespaces[ii].Value] = ii;
+            }
+
+            // number of not yet placed namespaces that import each namespace.
+            int[] importers = new int[namespaces.Count];
+            foreach (KeyValuePair<string, List<string>> entry in imports)
+            {
+                if (!positions.TryGetValue(entry.Key, out int importer))
                 {
-                    return ii;
+                    continue;
+                }
+                foreach (string imported in entry.Value)
+                {
+                    if (positions.TryGetValue(imported, out int index) && index != importer)
+                    {
+                        importers[index]++;
+                    }
                 }
             }
 
-            return -1;
+            bool[] placed = new bool[namespaces.Count];
+            var sorted = new List<Namespace>(namespaces.Count);
+
+            while (sorted.Count < namespaces.Count)
+            {
+                int next = -1;
+                int firstRemaining = -1;
+                for (int ii = 0; ii < namespaces.Count; ii++)
+                {
+                    if (placed[ii])
+                    {
+                        continue;
+                    }
+                    if (firstRemaining < 0)
+                    {
+                        firstRemaining = ii;
+                    }
+                    if (importers[ii] == 0)
+                    {
+                        next = ii;
+                        break;
+                    }
+                }
+
+                if (next < 0)
+                {
+                    // import cycle.
+                    next = firstRemaining;
+                }
+
+                placed[next] = true;
+                sorted.Add(namespaces[next]);
+
+                if (imports.TryGetValue(namespaces[next].Value, out List<string> nextImports))
+                {
+                    foreach (string imported in nextImports)
+                    {
+                        if (positions.TryGetValue(imported, out int index) &&
+                            index != next &&
+                            !placed[index])
+                        {
+                            importers[index]--;
+                        }
+                    }
+                }
+            }
+
+            return sorted;
         }
 
         private string GetXmlNamespace(string modelUri)
@@ -2865,8 +2940,13 @@ namespace Opc.Ua.Schema.Model
             {
                 return false;
             }
+            // the node is the explicit child itself or one of its descendants;
+            // a sibling that merely shares the prefix of the name is not.
             InstanceDesign parent = root.Children.Items.FirstOrDefault(x =>
-                current.RelativePath.StartsWith(x.SymbolicName.Name, StringComparison.Ordinal));
+                string.Equals(current.RelativePath, x.SymbolicName.Name, StringComparison.Ordinal) ||
+                current.RelativePath.StartsWith(
+                    x.SymbolicName.Name + NodeDesign.PathChar,
+                    StringComparison.Ordinal));
 
             if (parent == null)
 
@@ -2941,6 +3021,21 @@ namespace Opc.Ua.Schema.Model
                     StringComparison.Ordinal))
                 {
                     identifiers.Remove(symbolicId.Name);
+                }
+            }
+
+            // Reserve the numeric identifiers pinned in the design (NumericId
+            // attributes) so that the allocator never hands one of them out
+            // to another node of the same namespace.
+            foreach (KeyValuePair<XmlQualifiedName, NodeId> pinned in m_symbolicIdToNodeId)
+            {
+                if (string.Equals(
+                        pinned.Key.Namespace,
+                        dictionary.TargetNamespace,
+                        StringComparison.Ordinal) &&
+                    pinned.Value.TryGetValue(out uint pinnedNumericId))
+                {
+                    assignedIds.Add(pinnedNumericId);
                 }
             }
 
@@ -3870,29 +3965,21 @@ namespace Opc.Ua.Schema.Model
 
                 if (!parameter.IdentifierSpecified)
                 {
-                    parameter.Identifier = ++id;
+                    // An implicit id is taken from a trailing "_<digits>" in
+                    // the name (legacy ModelCompiler convention) and is the
+                    // next sequential value otherwise. An explicitly authored
+                    // Identifier (or BitMask) always wins over the name.
+                    if (TryGetIdentifierFromName(name, out decimal nameId))
+                    {
+                        id = nameId;
+                    }
+                    else
+                    {
+                        id++;
+                    }
+
+                    parameter.Identifier = id;
                     parameter.IdentifierSpecified = true;
-                }
-
-                // update id if specified in name.
-                int index = name.LastIndexOf(NodeDesign.PathChar);
-
-                if (index != -1)
-                {
-                    for (int ii = index + 1; ii < name.Length; ii++)
-                    {
-                        if (!char.IsDigit(name[ii]))
-                        {
-                            index = -1;
-                            break;
-                        }
-                    }
-
-                    if (index > 0 && decimal.TryParse(name[(index + 1)..], out id))
-                    {
-                        parameter.Identifier = id;
-                        parameter.IdentifierSpecified = true;
-                    }
                 }
 
                 if (parameter.Description != null &&
@@ -3915,6 +4002,35 @@ namespace Opc.Ua.Schema.Model
             parameters = [.. filteredParameters];
 
             return parameters != null && parameters.Length != 0;
+        }
+
+        /// <summary>
+        /// Parses the numeric suffix of a parameter name such as
+        /// <c>Value_3</c>.
+        /// </summary>
+        private static bool TryGetIdentifierFromName(string name, out decimal id)
+        {
+            id = 0;
+            int index = name.LastIndexOf(NodeDesign.PathChar);
+
+            if (index <= 0 || index == name.Length - 1)
+            {
+                return false;
+            }
+
+            for (int ii = index + 1; ii < name.Length; ii++)
+            {
+                if (!char.IsDigit(name[ii]))
+                {
+                    return false;
+                }
+            }
+
+            return decimal.TryParse(
+                name[(index + 1)..],
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out id);
         }
 
         /// <summary>
@@ -4384,18 +4500,19 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         private void ValidateInstance(InstanceDesign instance)
         {
-            // set the reference type.
-            if (instance.ReferenceType == null && instance.Parent != null)
-            {
-                ReferenceTypeDesign referenceType = this.FindNode<ReferenceTypeDesign>(
+            // check the reference type (ImportInstance assigns a default).
+            if (!IsNull(instance.ReferenceType) && instance.Parent != null &&
+                (!TryFindNode(
                     instance.ReferenceType,
                     instance.SymbolicId.Name,
-                    "ReferenceType");
-
-                if (referenceType == null)
-                {
-                    m_logger.LogWarning("Reference type {Name} not found", instance.ReferenceType);
-                }
+                    "ReferenceType",
+                    out NodeDesign referenceType) ||
+                    referenceType is not ReferenceTypeDesign))
+            {
+                m_logger.LogWarning(
+                    "Reference type {Name} of {Instance} not found",
+                    instance.ReferenceType,
+                    instance.SymbolicId.Name);
             }
 
             // assign missing fields for object.
@@ -4530,7 +4647,12 @@ namespace Opc.Ua.Schema.Model
                         instance.SymbolicId.Name,
                         "TypeDefinition");
 
-                    method.Description = method.MethodType.Description;
+                    // an authored description of the instance wins over the
+                    // one of the method type it references.
+                    if (method.Description == null || method.Description.IsAutogenerated)
+                    {
+                        method.Description = method.MethodType.Description;
+                    }
 
                     //if (!method.ModellingRuleSpecified || method.ModellingRule == ModellingRule.None)
                     //{
@@ -4578,13 +4700,13 @@ namespace Opc.Ua.Schema.Model
                     {
                         children.AddRange(method.Children.Items);
                     }
-                    if (method.InputArguments != null)
-
+                    // Part 3 only defines the argument properties for
+                    // methods that have arguments of that direction.
+                    if (method.InputArguments.Length > 0)
                     {
                         children.Add(CreateArgumentProperty(method, "InputArguments"));
                     }
-                    if (method.OutputArguments != null)
-
+                    if (method.OutputArguments.Length > 0)
                     {
                         children.Add(CreateArgumentProperty(method, "OutputArguments"));
                     }
@@ -7097,10 +7219,14 @@ namespace Opc.Ua.Schema.Model
                         Variant variant = decoder.ReadVariantValue(null, default);
                         if (!variant.TypeInfo.IsUnknown)
                         {
-                            variable.ValueRank =
-                                variant.TypeInfo.ValueRank == ValueRanks.Scalar ?
-                                    ValueRank.Scalar : ValueRank.Array;
-                            variable.ValueRankSpecified = true;
+                            // Mirror ValidateInstance: the default value only
+                            // supplies the rank when the design did not state
+                            // one - an authored ValueRank is the contract.
+                            if (!variable.ValueRankSpecified)
+                            {
+                                variable.ValueRank = GetValueRank(variant.TypeInfo.ValueRank);
+                                variable.ValueRankSpecified = true;
+                            }
                             variable.DecodedValue =
                                 variant.AsBoxedObject(Variant.BoxingBehavior.Legacy);
                         }
@@ -7160,13 +7286,11 @@ namespace Opc.Ua.Schema.Model
                 // children, so a target instance of the dependency type
                 // materialises them into its hierarchy. Guarded by the
                 // symbolic id so an already validated or linked method is
-                // not extended twice.
+                // not extended twice. Like there, a property is only created
+                // when the method has arguments of that direction.
                 if (method.Parent != null &&
-                    !m_nodes.ContainsKey(new XmlQualifiedName(
-                        NodeDesign.CreateSymbolicId(
-                            method.SymbolicId.Name,
-                            "InputArguments"),
-                        method.SymbolicId.Namespace)))
+                    !HasArgumentProperty(method, "InputArguments") &&
+                    !HasArgumentProperty(method, "OutputArguments"))
                 {
                     var children = new List<InstanceDesign>();
 
@@ -7174,11 +7298,11 @@ namespace Opc.Ua.Schema.Model
                     {
                         children.AddRange(method.Children.Items);
                     }
-                    if (method.InputArguments != null)
+                    if (method.InputArguments.Length > 0)
                     {
                         children.Add(CreateArgumentProperty(method, "InputArguments"));
                     }
-                    if (method.OutputArguments != null)
+                    if (method.OutputArguments.Length > 0)
                     {
                         children.Add(CreateArgumentProperty(method, "OutputArguments"));
                     }
@@ -7192,6 +7316,13 @@ namespace Opc.Ua.Schema.Model
                     }
                 }
             }
+        }
+
+        private bool HasArgumentProperty(MethodDesign method, string type)
+        {
+            return m_nodes.ContainsKey(new XmlQualifiedName(
+                NodeDesign.CreateSymbolicId(method.SymbolicId.Name, type),
+                method.SymbolicId.Namespace));
         }
 
         /// <summary>
