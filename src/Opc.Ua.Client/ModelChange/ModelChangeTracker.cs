@@ -61,6 +61,14 @@ namespace Opc.Ua.Client.ModelChange
         /// the current one.
         /// </summary>
         private long m_trackingEpoch;
+
+        /// <summary>
+        /// Callers of <see cref="StartTrackingAsync"/> still waiting for the
+        /// current generation to become ready. The pump is torn down on an
+        /// abandoned start only when the last of them gives up, so one
+        /// caller's cancellation does not fail another that joined the start.
+        /// </summary>
+        private int m_startWaiters;
         private bool m_disposed;
 
         /// <inheritdoc/>
@@ -101,8 +109,7 @@ namespace Opc.Ua.Client.ModelChange
         {
             ct.ThrowIfCancellationRequested();
 
-            bool ownsStart = false;
-            long startedEpoch = 0;
+            long waitEpoch;
             Task readyTask;
 
             lock (m_stateLock)
@@ -125,36 +132,53 @@ namespace Opc.Ua.Client.ModelChange
                     // StopTrackingAsync (which nulls m_cts) cannot NRE the lambda.
                     CancellationToken pumpToken = m_cts.Token;
                     long epoch = ++m_trackingEpoch;
-                    startedEpoch = epoch;
+                    m_startWaiters = 0;
                     m_startReadyTask = ready.Task;
                     m_pumpTask = Task.Run(
                         () => PumpAsync(ready, epoch, pumpToken),
                         CancellationToken.None);
                     IsTracking = true;
-                    ownsStart = true;
                     readyTask = ready.Task;
                 }
+
+                waitEpoch = m_trackingEpoch;
+                m_startWaiters++;
             }
 
             try
             {
                 // The caller's token bounds this wait; the catch below stops
-                // the pump it started when the wait is abandoned.
+                // the pump when the last waiter abandons it.
                 await readyTask.WaitAsync(ct).ConfigureAwait(false);
             }
             catch
             {
-                if (ownsStart)
+                if (LeaveStartWait(waitEpoch))
                 {
-                    // Only tear down the pump this call started: a failing pump
-                    // clears IsTracking from its own finally, so a concurrent
-                    // caller can have installed a replacement by the time this
-                    // cleanup runs, and stopping unconditionally would cancel
-                    // that replacement instead.
-                    await StopTrackingCoreAsync(startedEpoch, CancellationToken.None)
+                    // Only tear down the generation this call waited for: a
+                    // failing pump clears IsTracking from its own finally, so
+                    // a concurrent caller can have installed a replacement by
+                    // the time this cleanup runs, and stopping unconditionally
+                    // would cancel that replacement instead. A caller that
+                    // joined the start and is still waiting keeps it alive.
+                    await StopTrackingCoreAsync(waitEpoch, CancellationToken.None)
                         .ConfigureAwait(false);
                 }
                 throw;
+            }
+            LeaveStartWait(waitEpoch);
+        }
+
+        /// <summary>
+        /// Leaves the wait for <paramref name="epoch"/> to become ready.
+        /// Returns <c>true</c> when this was the last waiter of the current
+        /// generation.
+        /// </summary>
+        private bool LeaveStartWait(long epoch)
+        {
+            lock (m_stateLock)
+            {
+                return m_trackingEpoch == epoch && --m_startWaiters == 0;
             }
         }
 
