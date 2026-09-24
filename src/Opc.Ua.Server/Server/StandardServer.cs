@@ -4401,6 +4401,13 @@ namespace Opc.Ua.Server
             // halt the registration timer.
             await StopRegistrationAsync().ConfigureAwait(false);
 
+            // StartAsync creates a new watcher and certificate subscription, so release these
+            // to keep a stopped server from reacting and a restart from duplicating handlers.
+            m_configurationWatcher?.Dispose();
+            m_configurationWatcher = null;
+            m_certManagerSubscription?.Dispose();
+            m_certManagerSubscription = null;
+
             if (m_maxRegistrationInterval > 0 && m_registeredWithDiscoveryServer)
             {
                 // unregister from Discovery Server if registered before
