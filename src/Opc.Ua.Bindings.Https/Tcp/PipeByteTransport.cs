@@ -212,8 +212,12 @@ namespace Opc.Ua.Bindings
                         continue;
                     }
 
+                    // Rent for the chunk rather than for the largest one the
+                    // listener accepts: a chunk kept for an incomplete message
+                    // keeps its whole buffer alive, so a client that sends small
+                    // chunks would otherwise hold far more than it sent.
                     rented = m_bufferManager.TakeBuffer(
-                        m_receiveBufferSize,
+                        size,
                         nameof(ReceiveChunkAsync),
                         ct);
                     ReadOnlySequence<byte> chunkSeq = buffer.Slice(0, size);

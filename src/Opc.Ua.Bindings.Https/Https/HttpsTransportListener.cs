@@ -593,7 +593,11 @@ namespace Opc.Ua.Bindings
                 ChannelLifetime = configuration.ChannelLifetime,
                 SecurityTokenLifetime = configuration.SecurityTokenLifetime,
                 CertificateValidator = settings.CertificateValidator,
-                SecurityPolicyRegistry = settings.SecurityPolicyRegistry
+                SecurityPolicyRegistry = settings.SecurityPolicyRegistry,
+                // The opc.wss channels assemble chunked messages like opc.tcp
+                // ones, so they are bounded by the same kind of budget.
+                ChunkReassemblyBudget = settings.ChunkReassemblyBudget ??
+                    new ChunkReassemblyBudget(ChunkReassemblyBudget.GetDefaultMaxBytes(configuration.MaxMessageSize))
             };
 
             // save the callback to the server.

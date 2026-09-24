@@ -98,5 +98,18 @@ namespace Opc.Ua.Bindings
         /// The default lifetime for a security token in milliseconds.
         /// </summary>
         public int SecurityTokenLifetime { get; set; }
+
+        /// <summary>
+        /// The budget that bounds the memory the chunks of incomplete messages
+        /// hold across all the channels created with these quotas, or
+        /// <c>null</c> to bound each channel only by its negotiated message size
+        /// and chunk count.
+        /// </summary>
+        /// <remarks>
+        /// A channel reads this once, when it is created. A transport listener
+        /// sets it before it accepts connections, so that all its channels - and
+        /// all the listeners of a server - share one budget.
+        /// </remarks>
+        public ChunkReassemblyBudget? ChunkReassemblyBudget { get; set; }
     }
 }

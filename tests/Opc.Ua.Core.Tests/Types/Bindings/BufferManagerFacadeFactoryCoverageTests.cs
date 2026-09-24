@@ -31,7 +31,6 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
-using System.Reflection;
 using System.Threading;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
@@ -46,93 +45,6 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
     [Parallelizable]
     public sealed class BufferManagerFacadeFactoryCoverageTests
     {
-        [Test]
-        public void DefaultFactoryEnforcesAFiniteOutstandingBufferBudget()
-        {
-            Assert.That(
-                new BufferManagerFactoryOptions().MaxOutstandingBytesPerProcess,
-                Is.EqualTo(256L * 1024 * 1024));
-            using var factory = new DefaultBufferManagerFactory();
-            Assert.That(
-                factory.Create("default-budget", 1024, NUnitTelemetryContext.Create()),
-                Is.TypeOf<LimitingBufferManager>());
-        }
-
-        [Test]
-        public void FactoryRejectsExhaustionAcrossManagersWithoutWaitingAndRecoversAfterReturn()
-        {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var options = new BufferManagerFactoryOptions
-            {
-                ImplementationKind = BufferManagerImplementationKind.Fast,
-                MaxOutstandingBytesPerProcess = new FastBufferManager("sizing", 32, telemetry).GetExpectedBufferSize(17)
-            };
-            using var factory = new DefaultBufferManagerFactory(options);
-            options.BlockOnExhaustion = true;
-            IBufferManager first = factory.Create("first", 32, telemetry);
-            IBufferManager second = factory.Create("second", 32, telemetry);
-            using var cancellation = new CancellationTokenSource();
-            var limiter = (BufferManagerMemoryLimiter)typeof(DefaultBufferManagerFactory)
-                .GetField("m_memoryLimiter", BindingFlags.Instance | BindingFlags.NonPublic)!
-                .GetValue(factory)!;
-            limiter.BeforeCapacityWaitForTesting = cancellation.Cancel;
-            byte[] held = first.TakeBuffer(17, "held");
-            try
-            {
-                Assert.That(
-                    () => second.TakeBuffer(17, "rejected", cancellation.Token),
-                    Throws.TypeOf<ServiceResultException>()
-                        .With.Property(nameof(ServiceResultException.StatusCode))
-                        .EqualTo(StatusCodes.BadTcpNotEnoughResources));
-                Assert.That(cancellation.IsCancellationRequested, Is.False);
-                Assert.That(limiter.WaitStateForTesting, Is.EqualTo((0, 0)));
-            }
-            finally
-            {
-                first.ReturnBuffer(held, "held");
-            }
-
-            byte[] recovered = second.TakeBuffer(17, "recovered");
-            second.ReturnBuffer(recovered, "recovered");
-        }
-
-        [Test]
-        public void FactoryRejectsSingleRentLargerThanBudgetAsAResourceLimit()
-        {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            int expectedSize = new FastBufferManager("sizing", 32, telemetry).GetExpectedBufferSize(17);
-            using var factory = new DefaultBufferManagerFactory(new BufferManagerFactoryOptions
-            {
-                ImplementationKind = BufferManagerImplementationKind.Fast,
-                MaxOutstandingBytesPerProcess = expectedSize - 1
-            });
-            IBufferManager manager = factory.Create("oversized", 32, telemetry);
-
-            Assert.That(
-                () => manager.TakeBuffer(17, "oversized"),
-                Throws.TypeOf<ServiceResultException>()
-                    .With.Property(nameof(ServiceResultException.StatusCode))
-                    .EqualTo(StatusCodes.BadTcpNotEnoughResources));
-        }
-
-        [TestCase(null)]
-        [TestCase(0L)]
-        public void ExplicitlyDisabledFactoryBudgetPreservesUnrestrictedManagers(long? budget)
-        {
-            using var factory = new DefaultBufferManagerFactory(new BufferManagerFactoryOptions
-            {
-                ImplementationKind = BufferManagerImplementationKind.Fast,
-                MaxOutstandingBytesPerProcess = budget
-            });
-            IBufferManager manager = factory.Create("unrestricted", 32, NUnitTelemetryContext.Create());
-
-            Assert.That(manager, Is.TypeOf<FastBufferManager>());
-            byte[] first = manager.TakeBuffer(17, "first");
-            byte[] second = manager.TakeBuffer(17, "second");
-            manager.ReturnBuffer(first, "first");
-            manager.ReturnBuffer(second, "second");
-        }
-
         [Test]
         public void BufferManagerWithNullImplementationThrowsArgumentNullException()
         {
@@ -258,7 +170,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
         }
 
         [Test]
-        public void FactoryWithNullAndDefaultOptionsEnforcesTheDefaultBudget()
+        public void FactoryWithNullAndDefaultOptionsSelectsBuildDefault()
         {
             using var nullOptionsFactory = new DefaultBufferManagerFactory(null);
             using var defaultOptionsFactory = new DefaultBufferManagerFactory();
@@ -271,8 +183,10 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
                 "default",
                 1024,
                 NUnitTelemetryContext.Create());
-            Assert.That(nullOptionsManager, Is.TypeOf<LimitingBufferManager>());
-            Assert.That(defaultOptionsManager, Is.TypeOf<LimitingBufferManager>());
+            Type expectedType = GetImplementationType(BufferManager.GetDefaultImplementationKind());
+
+            Assert.That(nullOptionsManager.GetType(), Is.EqualTo(expectedType));
+            Assert.That(defaultOptionsManager.GetType(), Is.EqualTo(expectedType));
         }
 
         [TestCase(-1L)]

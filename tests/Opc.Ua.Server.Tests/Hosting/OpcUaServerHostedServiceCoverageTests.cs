@@ -316,6 +316,55 @@ namespace Opc.Ua.Server.Tests.Hosting
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that the budget registered through the fluent builder is the
+        /// one the hosted server bounds incomplete messages with.
+        /// </summary>
+        [Test]
+        public async Task HostedServiceAppliesTheRegisteredChunkReassemblyBudgetAsync()
+        {
+            RegistryCaptureServer.Reset();
+            const long maxBytes = 48L * 1024 * 1024;
+
+            await using HostedServerFixture fixture = await HostedServerFixture.StartAsync(
+                services =>
+                {
+                    services.AddLogging();
+                    services.AddSingleton<ITransportBindingRegistry>(TestTransportBindings.WithAllSchemes());
+                    services.AddSingleton(new ServerComplexTypeOptions { Enabled = false });
+                    services.AddOpcUa()
+                        .AddServer<RegistryCaptureServer>(o => ConfigureHostedOptions(o, "ChunkReassemblyBudget"))
+                        .WithChunkReassemblyBudget(maxBytes);
+                }).ConfigureAwait(false);
+
+            Assert.That(
+                await WaitForAsync(
+                    () => RegistryCaptureServer.StartedServer != null,
+                    TimeSpan.FromSeconds(60)).ConfigureAwait(false),
+                Is.True);
+
+            ChunkReassemblyBudget? budget = RegistryCaptureServer.StartedInstance?.ChunkReassemblyBudget;
+            Assert.That(budget, Is.Not.Null);
+            Assert.That(budget!.MaxBytes, Is.EqualTo(maxBytes));
+            Assert.That(budget.MaxBytesWithoutSession, Is.EqualTo(maxBytes / 2));
+        }
+
+        /// <summary>
+        /// Verifies that the fluent builder rejects a budget that is not positive.
+        /// </summary>
+        [Test]
+        public void WithChunkReassemblyBudgetRejectsABudgetThatIsNotPositive()
+        {
+            IOpcUaServerBuilder builder = new ServiceCollection().AddOpcUa().AddServer(_ => { });
+
+            Assert.That(
+                () => builder.WithChunkReassemblyBudget(0),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
+            Assert.That(
+                () => ((IOpcUaServerBuilder)null!).WithChunkReassemblyBudget(1),
+                Throws.ArgumentNullException);
+        }
+
         private static void ConfigureHostedOptions(OpcUaServerOptions options, string applicationName)
         {
             string testRoot = System.IO.Path.Combine(

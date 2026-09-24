@@ -602,6 +602,11 @@ namespace Opc.Ua.Bindings
                     TcpMessageLimits.MinBufferSize,
                     BufferManager.GetSuggestedBufferSize(ReceiveBufferSize));
 
+                if (Transport is IUaSCByteTransportLimits transportLimits)
+                {
+                    transportLimits.SetReceiveBufferSize(ReceiveBufferSize);
+                }
+
                 // update send buffer size.
                 SendBufferSize = Math.Min(SendBufferSize, (int)sendBufferSize);
                 SendBufferSize = Math.Min(
@@ -1805,6 +1810,26 @@ namespace Opc.Ua.Bindings
             ChannelClosed();
         }
 
+        /// <inheritdoc/>
+        private protected override void ReportChunkReassemblyBudgetExceeded()
+        {
+            try
+            {
+                if (Transport != null)
+                {
+                    SendErrorMessage(ServiceResult.Create(
+                        StatusCodes.BadTcpNotEnoughResources,
+                        "The server cannot retain more chunks of incomplete messages."));
+                }
+            }
+            catch (Exception e)
+            {
+                // Reporting is best effort; the caller must still close the channel
+                // and must not return a chunk whose ownership has already transferred.
+                m_logger.TcpServerReassemblyErrorNotSent(e, ChannelId);
+            }
+        }
+
         /// <summary>
         /// Validate the type of message before it is decoded.
         /// </summary>
@@ -1995,6 +2020,13 @@ namespace Opc.Ua.Bindings
         [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 18, Level = LogLevel.Error,
             Message = "ChannelId {ChannelId}: reconnect handoff failed; closing the unadopted connection.")]
         public static partial void TcpServerReconnectFailed(
+            this ILogger logger,
+            Exception exception,
+            uint channelId);
+
+        [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 19, Level = LogLevel.Debug,
+            Message = "ChannelId {ChannelId}: Could not report exhausted reassembly capacity; closing the channel.")]
+        public static partial void TcpServerReassemblyErrorNotSent(
             this ILogger logger,
             Exception exception,
             uint channelId);

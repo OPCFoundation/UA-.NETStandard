@@ -129,25 +129,19 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
             IBufferManager fast = new DefaultBufferManagerFactory(
                 new BufferManagerFactoryOptions
                 {
-                    ImplementationKind = BufferManagerImplementationKind.Fast,
-                    MaxOutstandingBytesPerProcess = 0
+                    ImplementationKind = BufferManagerImplementationKind.Fast
                 }).Create(nameof(FastBufferManager), 1024, telemetry);
             IBufferManager cookie = new DefaultBufferManagerFactory(
                 new BufferManagerFactoryOptions
                 {
-                    ImplementationKind = BufferManagerImplementationKind.Cookie,
-                    MaxOutstandingBytesPerProcess = 0
+                    ImplementationKind = BufferManagerImplementationKind.Cookie
                 }).Create(nameof(CookieBufferManager), 1024, telemetry);
             IBufferManager tracing = new DefaultBufferManagerFactory(
                 new BufferManagerFactoryOptions
                 {
-                    ImplementationKind = BufferManagerImplementationKind.MemoryTracing,
-                    MaxOutstandingBytesPerProcess = 0
+                    ImplementationKind = BufferManagerImplementationKind.MemoryTracing
                 }).Create(nameof(TracingBufferManager), 1024, telemetry);
-            IBufferManager auto = new DefaultBufferManagerFactory(new BufferManagerFactoryOptions
-            {
-                MaxOutstandingBytesPerProcess = 0
-            }).Create("auto", 1024, telemetry);
+            IBufferManager auto = new DefaultBufferManagerFactory().Create(nameof(auto), 1024, telemetry);
 
             Assert.That(fast, Is.TypeOf<FastBufferManager>());
             Assert.That(cookie, Is.TypeOf<CookieBufferManager>());
@@ -281,8 +275,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
                 new BufferManagerFactoryOptions
                 {
                     ImplementationKind = BufferManagerImplementationKind.Fast,
-                    MaxOutstandingBytesPerProcess = maxOutstandingBytes,
-                    BlockOnExhaustion = true
+                    MaxOutstandingBytesPerProcess = maxOutstandingBytes
                 });
             IBufferManager firstManager = factory.Create("first", maxOutstandingBytes, telemetry);
             IBufferManager secondManager = factory.Create("second", maxOutstandingBytes, telemetry);

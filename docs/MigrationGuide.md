@@ -827,13 +827,20 @@ implementation detail, and can no longer do so.
 
 ## Transport resource limits
 
-Applications migrating from 1.5.x use a default shared outstanding-buffer budget
-of **256 MiB**. The default buffer factory rejects exhausted capacity with
-`BadTcpNotEnoughResources` instead of allowing further allocations or blocking
-transport receive threads. Configure `BufferManagerFactoryOptions` before
-`AddOpcUa()` if the deployment needs a different budget; see
-[buffer managers](DependencyInjection.md#buffer-managers). Explicit `0` or `null`
-budgets disable this protection and are not recommended for exposed servers.
+Applications migrating from 1.5.x have a server-wide budget for retained
+intermediate-message buffers. With the reference server's 4 MiB maximum message
+size, the default budget is **64 MiB**, and channels without an activated session
+may fill only the lower **32 MiB**. A chunk that does not fit discards its partial
+message and closes the channel with `BadTcpNotEnoughResources`. Final chunks,
+single-chunk requests, response buffers, and client buffers are not charged to
+this reassembly budget.
+
+For workloads with many simultaneous large requests, set
+`WithChunkReassemblyBudget(maxBytes)` on the DI server builder or assign
+`ServerBase.ChunkReassemblyBudget` before startup. A host opening listeners
+directly can share a budget through `TransportListenerSettings.ChunkReassemblyBudget`.
+See [incomplete messages](RateLimiting.md#incomplete-messages) for sizing and
+sessionless configuration. General buffer-manager limits remain opt-in.
 
 Server-channel `ChannelLifetime` also bounds an unfinished message from its
 first retained chunk, even if more chunks keep arriving. Size this lifetime

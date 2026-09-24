@@ -90,14 +90,23 @@ and subsequent messages receive a fresh deadline. This applies before an OPC UA
 session is created and to the UA-TCP, Kestrel TCP, and WebSocket bindings using
 the server-channel pipeline.
 
-Per-channel limits alone do not bound memory across many connections. The
-default buffer factory also enforces a shared **256 MiB outstanding-buffer
-budget** and rejects allocation pressure immediately with
-`BadTcpNotEnoughResources`. Server channels release partial messages on faults
-and close when the budget is exhausted, even when there is no capacity to
-encode an error response. See [buffer-manager configuration](DependencyInjection.md#buffer-managers)
-to size the budget for the deployment. `MaxSessionCount` does not limit
-connections that have not created a session.
+Per-channel limits alone do not bound memory across many connections.
+`ChunkReassemblyBudget` counts the actual arrays retained for intermediate
+chunks across all listeners of a server. Its default is **64 MiB** for the
+reference server, with half reserved as headroom for channels carrying activated
+sessions. Reservations are released on completion, replacement, abort, fault, or
+closure. Final chunks and normal response allocations are not charged.
+
+A rejected chunk releases the partial message, reports
+`BadTcpNotEnoughResources` when an error response can be sent, and closes the
+channel permanently. General buffer allocation remains unrestricted by default.
+See [reassembly-budget configuration](RateLimiting.md#incomplete-messages) for
+sizing and scope. `MaxSessionCount` does not limit connections that have not
+created a session.
+
+Hello negotiation also updates TCP and WebSocket receive-buffer sizes. The
+Kestrel pipe transport rents for the actual chunk size instead of the listener
+maximum, avoiding unnecessary retained capacity for small chunks.
 
 ## Assembly layout
 

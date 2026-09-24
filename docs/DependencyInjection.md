@@ -131,20 +131,19 @@ services.AddOpcUa()
 
 Transport listeners and channels resolve `IBufferManagerFactory` from dependency injection. The default factory selects `FastBufferManager` in Release builds, `CookieBufferManager` in Debug builds, and `TracingBufferManager` when the stack is compiled with `TRACK_MEMORY`.
 
-The default factory enforces a **256 MiB outstanding-buffer budget** shared by
-all managers it creates. A rent that cannot fit fails immediately with
-`BadTcpNotEnoughResources`; it does not block a receive thread waiting for a
-peer to finish an incomplete message. The budget counts actual pooled-array
-lengths, including pool rounding and metadata, not just message payload bytes.
+The factory does not limit outstanding buffers by default. Incomplete server
+messages have a separate, enabled-by-default
+[chunk reassembly budget](RateLimiting.md#incomplete-messages), so they do not
+consume the allocation capacity needed for unrelated requests and responses.
 
-Register options before `AddOpcUa()` to select an implementation or adjust the budget:
+Register options before `AddOpcUa()` to select an implementation explicitly or
+opt into an outstanding-buffer budget:
 
 ```csharp
 services.AddSingleton(new BufferManagerFactoryOptions
 {
     ImplementationKind = BufferManagerImplementationKind.Fast,
-    MaxOutstandingBytesPerProcess = 256L * 1024 * 1024,
-    BlockOnExhaustion = false
+    MaxOutstandingBytesPerProcess = 256L * 1024 * 1024
 });
 
 services.AddOpcUa()
@@ -154,21 +153,14 @@ services.AddOpcUa()
 
 When `MaxOutstandingBytesPerProcess` is positive, the singleton factory wraps every
 manager it creates with `LimitingBufferManager` and shares one
-`BufferManagerMemoryLimiter` across them. Reuse that singleton across listeners
-and channels: independently constructed factories have independent budgets.
-The non-DI transport constructors and `new BufferManager(...)` use
-`DefaultBufferManagerFactory.Instance`, which has the same default protection.
-The budget limits outstanding stack buffers, not the whole process heap or
-arrays already returned to the pool.
-
-Setting the budget to `0` or `null` explicitly disables this protection.
-`BlockOnExhaustion = true` opts into synchronous waiting for returned buffers;
-use it only where buffer returns are guaranteed to progress independently,
-**not for transport receive paths**. Direct construction using the two-argument
-`LimitingBufferManager` constructor retains this blocking behavior; its
-three-argument overload accepts `blockOnExhaustion: false`.
-A single rent whose conservative expected size exceeds the budget always fails
-instead of waiting forever.
+`BufferManagerMemoryLimiter` across them. A rent waits synchronously for
+capacity without holding a manager lock. Use this optional policy only where
+buffer returns can progress independently; it is not a substitute for the
+nonblocking server reassembly budget. A single rent whose conservative expected
+size exceeds the budget fails immediately rather than waiting forever.
+Zero or `null` leaves allocation unrestricted. Independently constructed
+factories have independent budgets. Accounting uses actual rented-array lengths,
+including pool rounding and metadata, and excludes arrays returned to the pool.
 
 Capacity changes notify only currently registered renters; idle buffer returns
 do not accumulate wakeups. Cancellation removes any unclaimed wakeup, and
@@ -805,6 +797,13 @@ properties (bindable from `IConfiguration` or set via the
 | `ConfigureLoadedConfiguration` | Code-only callback | Override individual settings of the configuration loaded from `ConfigurationFile` / `ConfigurationStream`. |
 | `ConfigureBuilder` | Code-only callback | Pre-security server-policy and server-option escape hatch, including max failed authentication attempts, sessions, channels, auditing, and HTTPS mutual TLS. |
 | `ConfigureRateLimits` | Code-only callback | Tunes the default connection and session-establishment admission controls. |
+
+Configure incomplete-message capacity with
+`builder.AddServer(...).WithChunkReassemblyBudget(maxBytes)`. This registers one
+`ChunkReassemblyBudget` for all listeners of the hosted server. Without an
+explicit budget, the server sizes one from `MaxMessageSize`; see
+[incomplete messages](RateLimiting.md#incomplete-messages) for the defaults,
+sessionless headroom, and direct-construction equivalent.
 
 ### Server-side reverse connect
 

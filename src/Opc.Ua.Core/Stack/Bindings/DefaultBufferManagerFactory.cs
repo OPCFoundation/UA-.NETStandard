@@ -80,7 +80,7 @@ namespace Opc.Ua
 
             if (m_memoryLimiter != null)
             {
-                manager = new LimitingBufferManager(manager, m_memoryLimiter, m_options.BlockOnExhaustion);
+                manager = new LimitingBufferManager(manager, m_memoryLimiter);
             }
 
             return manager;
@@ -144,8 +144,7 @@ namespace Opc.Ua
             return new BufferManagerFactoryOptions
             {
                 ImplementationKind = options.ImplementationKind,
-                MaxOutstandingBytesPerProcess = options.MaxOutstandingBytesPerProcess,
-                BlockOnExhaustion = options.BlockOnExhaustion
+                MaxOutstandingBytesPerProcess = options.MaxOutstandingBytesPerProcess
             };
         }
 

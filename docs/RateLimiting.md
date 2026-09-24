@@ -10,6 +10,7 @@ Rate limiting is **on by default with conservative limits** sized so normal and 
 
 - **Inbound connections** (`opc.tcp` listener): a per-second token bucket (with a burst) admits new connections; beyond the burst a connection is shed cheaply so the CPU-bound secure-channel handshake is protected. The listener socket backlog is configurable and defaults to 512 (raised from the previous hard-coded 10) so a burst of simultaneous connects is absorbed rather than dropped by the OS.
 - **Session establishment** (`CreateSession` / `ActivateSession`): a concurrency limiter bounds the number of in-flight establishment operations so a connect storm cannot saturate every core and starve steady-state publish delivery. When at capacity the server returns `BadServerTooBusy` with a retry-after hint in the fault, before doing the expensive certificate validation / signing.
+- **Incomplete messages**: one `ChunkReassemblyBudget` bounds retained intermediate-message buffers across the server's UA-TCP, Kestrel TCP, and UA Secure Conversation WebSocket listeners. This capacity limit is independent of `ServerRateLimitOptions.Enabled`.
 
 ### Status codes
 
@@ -18,6 +19,7 @@ Rate limiting is **on by default with conservative limits** sized so normal and 
 | Session establishment at capacity | `BadServerTooBusy` (transient — the client should back off and retry) |
 | Hard session cap reached (`MaxSessionCount`) | `BadTooManySessions` |
 | Connection shed at the listener | the connection is dropped; the client sees a transport error and, together with any subsequent `BadServerTooBusy`, backs off |
+| Incomplete-message budget exhausted | `BadTcpNotEnoughResources` followed by channel closure; if the error cannot be sent, the client observes closure |
 
 ### Configuration
 
@@ -65,6 +67,62 @@ server.RateLimitOptions = new ServerRateLimitOptions { ConnectionsPerSecond = 20
 ```
 
 The `opc.tcp` listener consumes an `IConnectionRateLimiter` and a backlog value through `TransportListenerSettings`, injected by `StandardServer.ConfigureTransportListenerSettings`. A custom server can override that hook to supply its own limiter. The default `TokenBucketConnectionRateLimiter` wraps a `System.Threading.RateLimiting.TokenBucketRateLimiter`.
+
+### Incomplete messages
+
+`ChunkReassemblyBudget` (`Opc.Ua.Bindings`) counts the backing-array length of
+each retained intermediate chunk, including pool rounding and metadata. All
+listeners of a server share the same budget. Completing, replacing, aborting,
+faulting, or closing a partial message releases its reservation.
+
+The budget applies only while messages await further chunks, not to the whole
+process heap, socket buffers, final chunks, decoded requests, or outgoing
+responses. A request that fits in one chunk can still be served while the
+reassembly budget is full. A chunk that exceeds available capacity is rejected
+without waiting; the partial message is discarded and its channel is closed.
+
+The default is sixteen times `TransportQuotas.MaxMessageSize`, clamped to
+64 MiB through 1 GiB, then raised if necessary to accommodate four maximum-sized
+messages. A configuration with unlimited message size receives a 1 GiB budget.
+Both the stack's 2 MiB and the reference server's 4 MiB message limits select
+**64 MiB**. `ChunkReassemblyBudget.GetDefaultMaxBytes(maxMessageSize)` returns
+this value.
+
+Channels without an activated session may reserve only while total usage stays
+at or below `MaxBytesWithoutSession`, which defaults to half of `MaxBytes`.
+Channels with activated sessions can use the remaining headroom. This is a
+capacity policy, not an authentication boundary: an activated anonymous session
+also qualifies. The two-argument constructor sets the sessionless threshold
+explicitly, including the entire budget for sessionless workloads.
+
+Configure the hosted server through its fluent builder:
+
+```csharp
+services.AddOpcUa()
+    .AddServer(options => options.ApplicationName = "MyServer")
+    .WithChunkReassemblyBudget(256L * 1024 * 1024);
+```
+
+For direct construction, assign the budget before startup:
+
+```csharp
+var server = new StandardServer(telemetry)
+{
+    ChunkReassemblyBudget = new ChunkReassemblyBudget(256L * 1024 * 1024)
+};
+```
+
+The same instance can be shared by several servers. A host that opens listeners
+itself passes it through `TransportListenerSettings.ChunkReassemblyBudget`;
+otherwise each standalone listener creates its own appropriately sized budget.
+For DI configuration of the sessionless threshold, register a
+`ChunkReassemblyBudget(maxBytes, maxBytesWithoutSession)` singleton before server
+startup instead of using the one-argument builder method.
+
+Server channels also enforce a fixed assembly deadline using `ChannelLifetime`.
+Continuation traffic cannot restart it. Cleanup is asynchronous and independent
+of listener inactivity sweeps; see
+[incomplete-message resource limits](Transports.md#incomplete-message-resource-limits).
 
 ## HTTPS / Kestrel transport
 

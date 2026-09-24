@@ -585,7 +585,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public async Task FirstChunkExceedingTheRequestChunkLimitReleasesThePartialMessageAsync(bool isFinal)
         {
             var pool = new TrackingArrayPool();
-            using TestServerChannel channel = CreateOpenChannel(pool);
+            var budget = new ChunkReassemblyBudget(1024 * 1024);
+            using TestServerChannel channel = CreateOpenChannel(pool, budget: budget);
             channel.SetMaxRequestChunkCountForTest(1);
 
             await channel.FeedReceivedChunkAsync(
@@ -595,6 +596,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     sequenceNumber: 1,
                     requestId: 1)).ConfigureAwait(false);
             Assert.That(pool.OutstandingCount, Is.EqualTo(1));
+            Assert.That(budget.ReservedBytes, Is.GreaterThan(0));
 
             await channel.FeedReceivedChunkAsync(
                 channel.CreateRequestChunkForTest(
@@ -606,6 +608,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(pool.OutstandingCount, Is.Zero);
             Assert.That(pool.DuplicateReturnCount, Is.Zero);
             Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+            Assert.That(budget.ReservedBytes, Is.Zero);
         }
 
         [TestCase(true)]
@@ -615,12 +618,14 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             const int channelCount = 3;
             var pool = new TrackingArrayPool();
             var clock = new FakeTimeProvider();
+            var budget = new ChunkReassemblyBudget(1024 * 1024);
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var quotas = new ChannelQuotas(ServiceMessageContext.Create(telemetry))
             {
                 MaxBufferSize = 8192,
                 MaxMessageSize = 32768,
-                ChannelLifetime = 1000
+                ChannelLifetime = 1000,
+                ChunkReassemblyBudget = budget
             };
             var buffers = new BufferManager(nameof(TcpServerChannelBufferTests), 8192, telemetry, pool);
             await using var listener = new TcpTransportListener(telemetry, clock);
@@ -661,6 +666,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     .ConfigureAwait(false);
             }
             Assert.That(pool.OutstandingCount, Is.EqualTo(channelCount * 2));
+            Assert.That(budget.ReservedBytes, Is.GreaterThan(0));
             MethodInfo detect = typeof(TcpTransportListener).GetMethod(
                 "DetectInactiveChannels", BindingFlags.Instance | BindingFlags.NonPublic)!;
             clock.Advance(TimeSpan.FromMilliseconds(399));
@@ -678,6 +684,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(registeredChannels, Is.Empty);
             Assert.That(pool.OutstandingCount, Is.Zero);
             Assert.That(pool.DuplicateReturnCount, Is.Zero);
+            Assert.That(budget.ReservedBytes, Is.Zero);
         }
 
         [TestCase(15, true)]
@@ -705,10 +712,12 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public async Task InvalidCloseChunkReleasesAPreviouslyBufferedMessageAsync()
         {
             var pool = new TrackingArrayPool();
-            using TestServerChannel channel = CreateOpenChannel(pool);
+            var budget = new ChunkReassemblyBudget(1024 * 1024);
+            using TestServerChannel channel = CreateOpenChannel(pool, budget: budget);
             await channel.FeedReceivedChunkAsync(
                 channel.CreateRequestChunkForTest(TcpMessageType.Message, false, 1, 1)).ConfigureAwait(false);
             Assert.That(pool.OutstandingCount, Is.EqualTo(1));
+            Assert.That(budget.ReservedBytes, Is.GreaterThan(0));
             ArraySegment<byte> invalidClose = channel.CreateRequestChunkForTest(TcpMessageType.Close, true, 2, 2);
             BitConverter.GetBytes(uint.MaxValue).CopyTo(invalidClose.Array!, 12);
 
@@ -717,50 +726,50 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(pool.OutstandingCount, Is.Zero);
             Assert.That(pool.DuplicateReturnCount, Is.Zero);
             Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Faulted));
+            Assert.That(budget.ReservedBytes, Is.Zero);
         }
 
         [Test]
-        public async Task ExhaustedBudgetStillClosesTheChannelWhenAnErrorResponseCannotBeAllocatedAsync()
+        public async Task ReassemblyExhaustionClosesTheChannelWhenAnErrorResponseCannotBeAllocatedAsync()
         {
             var pool = new TrackingArrayPool();
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var quotas = new ChannelQuotas(ServiceMessageContext.Create(telemetry))
             {
-                MaxBufferSize = 8192
+                MaxBufferSize = 8192,
+                ChunkReassemblyBudget = new ChunkReassemblyBudget(64)
             };
-            using var limiter = new BufferManagerMemoryLimiter(8192 + 1024);
-            var buffers = new BufferManager(new LimitingBufferManager(
-                BufferManager.CreateImplementation(
-                    nameof(TcpServerChannelBufferTests), 8192, telemetry, BufferManagerImplementationKind.Fast, pool),
-                limiter,
-                blockOnExhaustion: false));
+            IBufferManager inner = BufferManager.CreateImplementation(
+                nameof(TcpServerChannelBufferTests), 8192, telemetry, BufferManagerImplementationKind.Fast, pool);
+            var manager = new Mock<IBufferManager>();
+            manager.Setup(value => value.TakeBuffer(It.IsAny<int>(), It.IsAny<string>()))
+                .Returns((int size, string owner) => size == 8192
+                    ? throw new ServiceResultException(StatusCodes.BadTcpNotEnoughResources)
+                    : inner.TakeBuffer(size, owner));
+            manager.Setup(value => value.ReturnBuffer(It.IsAny<byte[]>(), It.IsAny<string>()))
+                .Callback((byte[] buffer, string owner) => inner.ReturnBuffer(buffer, owner));
+            var buffers = new BufferManager(manager.Object);
             var listener = new Mock<ITcpChannelListener>();
             using var channel = new TestServerChannel(
                 listener.Object, buffers, quotas, telemetry, new FakeTimeProvider());
             channel.OpenForTest();
             var transport = new GateByteTransport(expectedSendCount: 1);
             channel.SetTransport(transport);
-            byte[] held = buffers.TakeBuffer(8192, "other-channel");
-            try
-            {
-                ArraySegment<byte> invalid = channel.CreateRequestChunkForTest(TcpMessageType.Message, true, 1, 1);
-                BitConverter.GetBytes(uint.MaxValue).CopyTo(invalid.Array!, 12);
-                await channel.FeedReceivedChunkAsync(invalid).ConfigureAwait(false);
+            await channel.FeedReceivedChunkAsync(
+                channel.CreateRequestChunkForTest(TcpMessageType.Message, false, 1, 1)).ConfigureAwait(false);
+            Assert.That(quotas.ChunkReassemblyBudget.ReservedBytes, Is.EqualTo(32));
+            await channel.FeedReceivedChunkAsync(
+                channel.CreateRequestChunkForTest(TcpMessageType.Message, false, 2, 1)).ConfigureAwait(false);
 
-                listener.Verify(value => value.ChannelClosed(1), Times.Once);
-                Assert.That(transport.FirstSendStarted.IsCompleted, Is.False);
-                Assert.That(
-                    () => channel.SendResponse(1, CreateResponse()),
-                    Throws.TypeOf<ServiceResultException>()
-                        .With.Property(nameof(ServiceResultException.StatusCode))
-                        .EqualTo(StatusCodes.BadSecureChannelClosed));
-                Assert.That(pool.OutstandingCount, Is.EqualTo(1));
-                Assert.That(pool.RentCount, Is.EqualTo(2));
-            }
-            finally
-            {
-                buffers.ReturnBuffer(held, "other-channel");
-            }
+            listener.Verify(value => value.ChannelClosed(1), Times.Once);
+            Assert.That(transport.FirstSendStarted.IsCompleted, Is.False);
+            Assert.That(
+                () => channel.SendResponse(1, CreateResponse()),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadSecureChannelClosed));
+            Assert.That(quotas.ChunkReassemblyBudget.ReservedBytes, Is.Zero);
+            Assert.That(pool.RentCount, Is.EqualTo(2));
             Assert.That(pool.OutstandingCount, Is.Zero);
             Assert.That(pool.DuplicateReturnCount, Is.Zero);
         }
@@ -1174,12 +1183,181 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(pool.DuplicateReturnCount, Is.Zero);
         }
 
+        [TestCase(0)]
+        [TestCase(100)]
+        public async Task IntermediateChunksReserveTheirBackingArraysAndAbortReleasesThemAsync(int bodySize)
+        {
+            var pool = new TrackingArrayPool();
+            var budget = new ChunkReassemblyBudget(1024 * 1024);
+            using TestServerChannel channel = CreateOpenChannel(pool, budget: budget);
+            ArraySegment<byte> first = channel.CreateRequestChunkForTest(
+                TcpMessageType.Message, false, 1, 1, bodySize);
+            ArraySegment<byte> second = channel.CreateRequestChunkForTest(
+                TcpMessageType.Message, false, 2, 1, bodySize);
+            long expected = first.Array!.Length + second.Array!.Length;
+
+            await channel.FeedReceivedChunkAsync(first).ConfigureAwait(false);
+            await channel.FeedReceivedChunkAsync(second).ConfigureAwait(false);
+            Assert.That(budget.ReservedBytes, Is.EqualTo(expected));
+            Assert.That(pool.OutstandingCount, Is.EqualTo(2));
+
+            ArraySegment<byte> abort = channel.CreateRequestChunkForTest(TcpMessageType.Message, true, 3, 1);
+            BitConverter.GetBytes(TcpMessageType.Message | TcpMessageType.Abort).CopyTo(abort.Array!, abort.Offset);
+            await channel.FeedReceivedChunkAsync(abort).ConfigureAwait(false);
+
+            Assert.That(budget.ReservedBytes, Is.Zero);
+            Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Open));
+        }
+
+        [Test]
+        public async Task ChunkBeyondTheBudgetClosesWithNotEnoughResourcesAsync()
+        {
+            var pool = new TrackingArrayPool();
+            using TestServerChannel probe = CreateOpenChannel(pool);
+            int rented = probe.GetRentedLengthForTest(32);
+            var budget = new ChunkReassemblyBudget(2L * rented, rented);
+            using TestServerChannel channel = CreateOpenChannel(pool, budget: budget);
+            var transport = new GateByteTransport(1, captureSentChunks: true);
+            transport.Complete();
+            channel.SetTransport(transport);
+
+            await channel.FeedReceivedChunkAsync(
+                channel.CreateRequestChunkForTest(TcpMessageType.Message, false, 1, 1)).ConfigureAwait(false);
+            Assert.That(budget.ReservedBytes, Is.EqualTo(rented));
+            await channel.FeedReceivedChunkAsync(
+                channel.CreateRequestChunkForTest(TcpMessageType.Message, false, 2, 1)).ConfigureAwait(false);
+
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+            Assert.That(budget.ReservedBytes, Is.Zero);
+            Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+            byte[] sent = transport.LastSentChunk;
+            Assert.That(sent, Is.Not.Null);
+            Assert.That(BitConverter.ToUInt32(sent, 0), Is.EqualTo(TcpMessageType.Error));
+            ErrorMessage error = TcpMessageParsers.ReadErrorMessage(new ArraySegment<byte>(sent, 8, sent.Length - 8));
+            Assert.That(error.StatusCode, Is.EqualTo((uint)StatusCodes.BadTcpNotEnoughResources));
+            Assert.That(
+                () => channel.SendResponse(1, CreateResponse()),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadSecureChannelClosed));
+        }
+
+        [Test]
+        public async Task SessionlessChannelsLeaveBudgetHeadroomForActivatedSessionsAsync()
+        {
+            var pool = new TrackingArrayPool();
+            using TestServerChannel probe = CreateOpenChannel(pool);
+            int rented = probe.GetRentedLengthForTest(32);
+            var budget = new ChunkReassemblyBudget(2L * rented, rented);
+            using TestServerChannel sessionless = CreateOpenChannel(pool, budget: budget);
+            using TestServerChannel refusedSessionless = CreateOpenChannel(pool, budget: budget);
+            using TestServerChannel session = CreateOpenChannel(pool, budget: budget);
+            using TestServerChannel refusedSession = CreateOpenChannel(pool, budget: budget);
+            session.ActivateSessionForTest();
+            refusedSession.ActivateSessionForTest();
+
+            foreach (TestServerChannel channel in new[] { sessionless, refusedSessionless, session, refusedSession })
+            {
+                await channel.FeedReceivedChunkAsync(
+                    channel.CreateRequestChunkForTest(TcpMessageType.Message, false, 1, 1)).ConfigureAwait(false);
+            }
+
+            Assert.That(sessionless.CurrentState, Is.EqualTo(TcpChannelState.Open));
+            Assert.That(refusedSessionless.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+            Assert.That(session.CurrentState, Is.EqualTo(TcpChannelState.Open));
+            Assert.That(refusedSession.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+            Assert.That(budget.ReservedBytes, Is.EqualTo(budget.MaxBytes));
+            sessionless.Dispose();
+            session.Dispose();
+            Assert.That(budget.ReservedBytes, Is.Zero);
+            Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task FinalChunkIsProcessedWhileTheReassemblyBudgetIsFullAsync(bool hasIntermediate)
+        {
+            var pool = new TrackingArrayPool();
+            using TestServerChannel probe = CreateOpenChannel(pool);
+            int rented = probe.GetRentedLengthForTest(8192);
+            var budget = new ChunkReassemblyBudget(rented, rented);
+            using TestServerChannel holder = CreateOpenChannel(pool, budget: budget);
+            using TestServerChannel receiver = CreateOpenChannel(pool, budget: budget);
+            int delivered = 0;
+            receiver.SetRequestReceivedCallback((_, _, request) =>
+            {
+                Assert.That(request.RequestHeader.RequestHandle, Is.EqualTo(123u));
+                delivered++;
+            });
+            var request = new ReadRequest { RequestHeader = new RequestHeader { RequestHandle = 123 } };
+            TestServerChannel owner = hasIntermediate ? receiver : holder;
+            await owner.FeedReceivedChunkAsync(
+                owner.CreateRequestChunkForTest(1, 1, request, intermediate: true)).ConfigureAwait(false);
+            Assert.That(budget.ReservedBytes, Is.EqualTo(budget.MaxBytes));
+
+            ArraySegment<byte> final = hasIntermediate
+                ? receiver.CreateRequestChunkForTest(TcpMessageType.Message, true, 2, 1, bodySize: 0)
+                : receiver.CreateRequestChunkForTest(1, 1, request, intermediate: false);
+            await receiver.FeedReceivedChunkAsync(final).ConfigureAwait(false);
+
+            Assert.That(delivered, Is.EqualTo(1));
+            Assert.That(receiver.CurrentState, Is.EqualTo(TcpChannelState.Open));
+            Assert.That(budget.ReservedBytes, Is.EqualTo(hasIntermediate ? 0 : budget.MaxBytes));
+            holder.Dispose();
+            Assert.That(budget.ReservedBytes, Is.Zero);
+            Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+        }
+
+        [Test]
+        public async Task ReplacementRequestReusesTheDiscardedMessagesReservationAsync()
+        {
+            var pool = new TrackingArrayPool();
+            using TestServerChannel probe = CreateOpenChannel(pool);
+            int rented = probe.GetRentedLengthForTest(32);
+            var budget = new ChunkReassemblyBudget(rented, rented);
+            using TestServerChannel channel = CreateOpenChannel(pool, budget: budget);
+            for (uint requestId = 1; requestId <= 3; requestId++)
+            {
+                await channel.FeedReceivedChunkAsync(
+                    channel.CreateRequestChunkForTest(TcpMessageType.Message, false, requestId, requestId))
+                    .ConfigureAwait(false);
+                Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Open));
+                Assert.That(budget.ReservedBytes, Is.EqualTo(rented));
+                Assert.That(pool.OutstandingCount, Is.EqualTo(1));
+            }
+            channel.Dispose();
+            Assert.That(budget.ReservedBytes, Is.Zero);
+            Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+        }
+
+        [Test]
+        public void ClosedChannelsDoNotAcquireNewReassemblyReservations()
+        {
+            var pool = new TrackingArrayPool();
+            var budget = new ChunkReassemblyBudget(1024 * 1024);
+            using TestServerChannel channel = CreateOpenChannel(pool, budget: budget);
+            byte[] buffer = channel.TakeBufferForTest(32);
+            channel.CloseForTest();
+            channel.SaveReceivedPartForTest(1, new ArraySegment<byte>(buffer));
+
+            Assert.That(budget.ReservedBytes, Is.Zero);
+            Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+        }
+
         private static TestServerChannel CreateOpenChannel(
             TrackingArrayPool pool,
             int maxBufferSize = 64 * 1024,
             int? maxStringLength = null,
             FakeTimeProvider clock = null,
-            int? channelLifetime = null)
+            int? channelLifetime = null,
+            ChunkReassemblyBudget budget = null)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var context = ServiceMessageContext.Create(telemetry);
@@ -1190,7 +1368,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             var quotas = new ChannelQuotas(context)
             {
                 MaxBufferSize = maxBufferSize,
-                MaxMessageSize = 4 * 1024 * 1024
+                MaxMessageSize = 4 * 1024 * 1024,
+                ChunkReassemblyBudget = budget
             };
             if (channelLifetime.HasValue)
             {
@@ -1416,6 +1595,19 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             public byte[] TakeBufferForTest(int size)
             {
                 return BufferManager.TakeBuffer(size, nameof(TakeBufferForTest));
+            }
+
+            public int GetRentedLengthForTest(int size)
+            {
+                byte[] buffer = BufferManager.TakeBuffer(size, nameof(GetRentedLengthForTest));
+                int length = buffer.Length;
+                BufferManager.ReturnBuffer(buffer, nameof(GetRentedLengthForTest));
+                return length;
+            }
+
+            public void ActivateSessionForTest()
+            {
+                AddSession();
             }
 
             /// <summary>

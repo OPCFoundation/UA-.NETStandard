@@ -52,25 +52,10 @@ namespace Opc.Ua.Bindings
         public LimitingBufferManager(
             IBufferManager innerBufferManager,
             BufferManagerMemoryLimiter memoryLimiter)
-            : this(innerBufferManager, memoryLimiter, blockOnExhaustion: true)
-        {
-        }
-
-        /// <summary>
-        /// Initializes the wrapper with an explicit budget-exhaustion policy.
-        /// </summary>
-        /// <param name="innerBufferManager">The inner manager to wrap.</param>
-        /// <param name="memoryLimiter">The shared byte-budget limiter.</param>
-        /// <param name="blockOnExhaustion">Whether to wait instead of rejecting an exhausted budget.</param>
-        public LimitingBufferManager(
-            IBufferManager innerBufferManager,
-            BufferManagerMemoryLimiter memoryLimiter,
-            bool blockOnExhaustion)
         {
             m_innerBufferManager = innerBufferManager ??
                 throw new ArgumentNullException(nameof(innerBufferManager));
             m_memoryLimiter = memoryLimiter ?? throw new ArgumentNullException(nameof(memoryLimiter));
-            m_blockOnExhaustion = blockOnExhaustion;
         }
 
         /// <inheritdoc/>
@@ -104,7 +89,7 @@ namespace Opc.Ua.Bindings
             System.Threading.CancellationToken ct)
         {
             int expectedBufferSize = m_innerBufferManager.GetExpectedBufferSize(size);
-            long reservationId = m_memoryLimiter.Reserve(expectedBufferSize, ct, m_blockOnExhaustion);
+            long reservationId = m_memoryLimiter.Reserve(expectedBufferSize, ct);
 
             byte[] buffer;
 
@@ -176,6 +161,5 @@ namespace Opc.Ua.Bindings
 
         private readonly IBufferManager m_innerBufferManager;
         private readonly BufferManagerMemoryLimiter m_memoryLimiter;
-        private readonly bool m_blockOnExhaustion;
     }
 }

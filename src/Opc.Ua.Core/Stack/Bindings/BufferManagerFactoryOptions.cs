@@ -71,19 +71,8 @@ namespace Opc.Ua
         /// Gets or sets the shared process-wide outstanding byte budget.
         /// </summary>
         /// <remarks>
-        /// Defaults to 256 MiB, shared by all managers created by the factory.
-        /// Zero or null explicitly disables <see cref="Bindings.LimitingBufferManager"/> wrapping.
+        /// A value greater than zero enables <see cref="Bindings.LimitingBufferManager"/> wrapping.
         /// </remarks>
-        public long? MaxOutstandingBytesPerProcess { get; set; } = 256L * 1024 * 1024;
-
-        /// <summary>
-        /// Gets or sets whether an exhausted budget waits for buffers to be returned.
-        /// </summary>
-        /// <remarks>
-        /// Defaults to false: rents fail with <see cref="StatusCodes.BadTcpNotEnoughResources"/>.
-        /// Blocking is intended only for callers that can guarantee independent buffer returns;
-        /// it must not be enabled for transport receive paths.
-        /// </remarks>
-        public bool BlockOnExhaustion { get; set; }
+        public long? MaxOutstandingBytesPerProcess { get; set; }
     }
 }

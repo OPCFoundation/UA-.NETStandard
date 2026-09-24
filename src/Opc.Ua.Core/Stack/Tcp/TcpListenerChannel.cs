@@ -379,6 +379,9 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public bool UsedBySession => Volatile.Read(ref m_sessionCount) > 0;
 
+        /// <inheritdoc/>
+        private protected override bool ServesActivatedSession => UsedBySession;
+
         /// <summary>
         /// Records an active session on the channel.
         /// </summary>

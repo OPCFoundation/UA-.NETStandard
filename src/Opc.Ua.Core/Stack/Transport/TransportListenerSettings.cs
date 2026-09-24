@@ -130,6 +130,20 @@ namespace Opc.Ua
         public IConnectionRateLimiter? ConnectionRateLimiter { get; set; }
 
         /// <summary>
+        /// The budget that bounds the memory the chunks of incomplete messages
+        /// hold across all the channels of the listener. Pass the same instance
+        /// to every listener of a server to bound them together.
+        /// </summary>
+        /// <remarks>
+        /// When <c>null</c> (the default) the listener creates a budget of its
+        /// own, sized by <see cref="ChunkReassemblyBudget.GetDefaultMaxBytes(int)"/>
+        /// from the maximum message size of its endpoint configuration. Honored
+        /// by the listeners that carry UA Secure Conversation: <c>opc.tcp</c> and
+        /// <c>opc.wss</c>.
+        /// </remarks>
+        public ChunkReassemblyBudget? ChunkReassemblyBudget { get; set; }
+
+        /// <summary>
         /// Indicates if Http listener requires mutual TLS
         /// Handled only by HttpsTransportListener
         /// In case true, the client should provide it's own valid TLS certificate to the TLS layer for the connection to succeed.

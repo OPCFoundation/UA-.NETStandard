@@ -56,25 +56,19 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public async Task IncompleteOpenMessagesStayWithinSharedBudgetAndANewClientConnectsAfterCleanupAsync()
         {
-            const long budget = 64 * 1024;
+            var budget = new ChunkReassemblyBudget(64 * 1024);
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var clock = new FakeTimeProvider();
             using var factory = new DefaultBufferManagerFactory(new BufferManagerFactoryOptions
             {
-                ImplementationKind = BufferManagerImplementationKind.Fast,
-                MaxOutstandingBytesPerProcess = budget
+                ImplementationKind = BufferManagerImplementationKind.Fast
             });
-            var limiter = (BufferManagerMemoryLimiter)typeof(DefaultBufferManagerFactory)
-                .GetField("m_memoryLimiter", BindingFlags.Instance | BindingFlags.NonPublic)!
-                .GetValue(factory)!;
-            FieldInfo outstandingBytes = typeof(BufferManagerMemoryLimiter)
-                .GetField("m_outstandingBytes", BindingFlags.Instance | BindingFlags.NonPublic)!;
-            long GetOutstandingBytes() => (long)outstandingBytes.GetValue(limiter)!;
             await using var harness = new AcceptHarness(
                 telemetry, maxChannels: 8, bufferManagerFactory: factory, clock: clock);
             harness.Quotas.MaxBufferSize = 8192;
             harness.Quotas.MaxMessageSize = 32768;
             harness.Quotas.ChannelLifetime = 1000;
+            harness.Quotas.ChunkReassemblyBudget = budget;
             var clients = new List<Socket>();
             try
             {
@@ -110,20 +104,20 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                             peerClosed = true;
                             break;
                         }
-                        Assert.That(GetOutstandingBytes(), Is.LessThanOrEqualTo(budget));
+                        Assert.That(budget.ReservedBytes, Is.LessThanOrEqualTo(budget.MaxBytesWithoutSession));
                     }
                 }
 
                 await WaitForAsync(() => harness.Channels.Count < 3).ConfigureAwait(false);
-                Assert.That(GetOutstandingBytes(), Is.LessThanOrEqualTo(budget));
+                Assert.That(budget.ReservedBytes, Is.LessThanOrEqualTo(budget.MaxBytesWithoutSession));
                 clock.Advance(TimeSpan.FromSeconds(2));
-                await WaitForAsync(() => harness.Channels.IsEmpty && GetOutstandingBytes() == 0)
+                await WaitForAsync(() => harness.Channels.IsEmpty && budget.ReservedBytes == 0)
                     .ConfigureAwait(false);
 
                 using Socket healthy = await harness.ConnectAsync().ConfigureAwait(false);
                 await CompleteHelloAsync(harness, healthy).ConfigureAwait(false);
                 Assert.That(harness.Channels, Has.Count.EqualTo(1));
-                Assert.That(GetOutstandingBytes(), Is.LessThanOrEqualTo(budget));
+                Assert.That(budget.ReservedBytes, Is.Zero);
             }
             finally
             {

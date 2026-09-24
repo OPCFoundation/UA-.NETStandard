@@ -252,6 +252,34 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         }
 
         /// <summary>
+        /// A chunk is received into a buffer rented for its own size, not for
+        /// the largest chunk the listener accepts: a chunk kept for an
+        /// incomplete message keeps its whole buffer alive.
+        /// </summary>
+        [Test]
+        public async Task ReceiveChunkAsyncRentsForTheChunkSizeAsync()
+        {
+            using var ctx = new TestConnectionContext();
+            using var transport = new PipeByteTransport(ctx, m_bufferManager, kBufferSize, m_telemetry);
+
+            byte[] chunk = BuildValidChunk(size: 32);
+            await WriteToServerInputAsync(ctx, chunk).ConfigureAwait(false);
+
+            ArraySegment<byte> received = await transport
+                .ReceiveChunkAsync(CancellationToken.None)
+                .ConfigureAwait(false);
+            try
+            {
+                Assert.That(received, Has.Count.EqualTo(chunk.Length));
+                Assert.That(received.Array!, Has.Length.LessThan(kBufferSize));
+            }
+            finally
+            {
+                m_bufferManager.ReturnBuffer(received.Array, nameof(ReceiveChunkAsyncRentsForTheChunkSizeAsync));
+            }
+        }
+
+        /// <summary>
         /// When the declared size in the UASC header exceeds
         /// <c>receiveBufferSize</c> the transport must throw with
         /// <see cref="StatusCodes.BadTcpMessageTooLarge"/>.
