@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Threading;
 using Opc.Ua.Schema.Model;
 
 namespace Opc.Ua.SourceGeneration
@@ -190,6 +191,7 @@ namespace Opc.Ua.SourceGeneration
 
             foreach (DesignFileCollection model in designFiles.Group(identifierFiles))
             {
+                options.Cancellation.ThrowIfCancellationRequested();
                 IModelDesign modelDesign = fileSystem.OpenModelDesign(
                     model,
                     options.Exclusions,
@@ -913,6 +915,7 @@ namespace Opc.Ua.SourceGeneration
 
             foreach (string modelUri in nodesets.ModelUris)
             {
+                options.Cancellation.ThrowIfCancellationRequested();
                 List<string> designFilesForModel =
                     nodesets.GetDesignFileListForModel(
                         modelUri,
@@ -1087,6 +1090,7 @@ namespace Opc.Ua.SourceGeneration
             GeneratorOptions options = null)
         {
             options ??= new GeneratorOptions();
+            options.Cancellation.ThrowIfCancellationRequested();
             // Combine with embedded resources in this assembly.
             fileSystem = typeof(Generators).Assembly
                 .AsFileSystem("Opc.Ua.SourceGeneration.Design")
@@ -1125,10 +1129,13 @@ namespace Opc.Ua.SourceGeneration
             {
                 var clientApiGenerator = new ClientApiGenerator(generatorContext);
                 clientApiGenerator.Emit();
+                options.Cancellation.ThrowIfCancellationRequested();
                 var serverApiGenerator = new ServerApiGenerator(generatorContext);
                 serverApiGenerator.Emit();
+                options.Cancellation.ThrowIfCancellationRequested();
                 var endpointsGenerator = new EndpointsGenerator(generatorContext);
                 endpointsGenerator.Emit();
+                options.Cancellation.ThrowIfCancellationRequested();
                 // Emit ObjectType client proxies for every standard UA
                 // ObjectType so downstream model proxies (e.g. GDS) can
                 // derive from them. Proxies are emitted into the model's
@@ -1153,6 +1160,7 @@ namespace Opc.Ua.SourceGeneration
                     };
                     var stackProxyGenerator = new ObjectTypeProxyGenerator(stackProxyContext);
                     stackProxyGenerator.Emit();
+                    options.Cancellation.ThrowIfCancellationRequested();
                 }
 
                 // Event records depend on EventRecord and decoder runtime
@@ -1183,10 +1191,13 @@ namespace Opc.Ua.SourceGeneration
             {
                 var attributesGenerator = new AttributesGenerator(generatorContext);
                 attributesGenerator.Emit();
+                options.Cancellation.ThrowIfCancellationRequested();
                 var statusCodesGenerator = new StatusCodesGenerator(generatorContext);
                 statusCodesGenerator.Emit();
+                options.Cancellation.ThrowIfCancellationRequested();
                 var serverCapabilitiesGenerator = new ServerCapabilitiesGenerator(generatorContext);
                 serverCapabilitiesGenerator.Emit();
+                options.Cancellation.ThrowIfCancellationRequested();
 
                 Generate(generatorContext, !options.OptimizeForCompileSpeed);
             }
@@ -1220,6 +1231,12 @@ namespace Opc.Ua.SourceGeneration
             DesignFileOptions designOptions = null,
             bool accessorsOnly = false)
         {
+            // Cancellation is observed between generators: each emitter is a
+            // bounded unit of work, and checking inside their node loops would
+            // put the check on the hot path for little gain.
+            CancellationToken ct = context.Options?.Cancellation ?? default;
+            ct.ThrowIfCancellationRequested();
+
             // The model types live in a referenced assembly: emit the
             // fluent surface over them, and the node manager when one was
             // bound, but none of the model itself.
@@ -1239,7 +1256,9 @@ namespace Opc.Ua.SourceGeneration
                         GenerateNodeSetImportSupport = true,
                         ImportSupportOnly = true
                     }.Emit();
+                    ct.ThrowIfCancellationRequested();
                     EmitNodeManager(context, designOptions);
+                    ct.ThrowIfCancellationRequested();
                 }
                 new FluentBuilderGenerator(context)
                 {
@@ -1257,6 +1276,7 @@ namespace Opc.Ua.SourceGeneration
                 ValidateOutput = validateSchemas
             };
             IEnumerable<Resource> xmlSchemaResource = xmlSchemaGenerator.Emit();
+            ct.ThrowIfCancellationRequested();
             var binarySchemaGenerator = new BinarySchemaGenerator(context)
             {
                 ValidateOutput = validateSchemas
@@ -1268,12 +1288,15 @@ namespace Opc.Ua.SourceGeneration
                 "XmlSchemas",
                 false,
                 [.. binarySchemaResource, .. xmlSchemaResource]);
+            ct.ThrowIfCancellationRequested();
 
             // Must run after schema generation to initilize the dictionaries.
             var constantsGenerator = new ConstantsGenerator(context);
             constantsGenerator.Emit();
+            ct.ThrowIfCancellationRequested();
             var nodeIdGenerator = new NodeIdGenerator(context);
             nodeIdGenerator.Emit();
+            ct.ThrowIfCancellationRequested();
             var nodeStateCodeGenerator = new NodeStateGenerator(context)
             {
                 // The provider references Opc.Ua.Server contracts, so it is
@@ -1281,12 +1304,15 @@ namespace Opc.Ua.SourceGeneration
                 GenerateNodeSetImportSupport = designOptions?.GenerateNodeManager == true
             };
             nodeStateCodeGenerator.Emit();
+            ct.ThrowIfCancellationRequested();
             var dataTypesGenerator = new DataTypeGenerator(context);
             dataTypesGenerator.Emit();
+            ct.ThrowIfCancellationRequested();
 
             if (designOptions?.GenerateNodeManager == true)
             {
                 EmitNodeManager(context, designOptions);
+                ct.ThrowIfCancellationRequested();
             }
 
             // FluentBuilderGenerator emits per-ObjectType typed-accessor
@@ -1308,17 +1334,20 @@ namespace Opc.Ua.SourceGeneration
                     GenerateManagerWrappers = designOptions?.GenerateNodeManager == true,
                     EmitFluentAccessors = emitTypedAccessors
                 }.Emit();
+                ct.ThrowIfCancellationRequested();
             }
 
             if (context.Options?.OmitObjectTypeProxies != true)
             {
                 var objectTypeProxyGenerator = new ObjectTypeProxyGenerator(context);
                 objectTypeProxyGenerator.Emit();
+                ct.ThrowIfCancellationRequested();
             }
             if (context.Options?.OmitStateMachineIds != true)
             {
                 var stateMachineIdsGenerator = new StateMachineIdsGenerator(context);
                 stateMachineIdsGenerator.Emit();
+                ct.ThrowIfCancellationRequested();
             }
             if (context.Options?.EmitDependencyMetadata != false)
             {
