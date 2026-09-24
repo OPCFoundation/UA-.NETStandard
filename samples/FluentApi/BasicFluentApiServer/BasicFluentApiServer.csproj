@@ -1,0 +1,34 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>BasicFluentApiServer</AssemblyName>
+    <PackageId>BasicFluentApiServer</PackageId>
+    <Company>OPC Foundation</Company>
+    <Description>Self-contained .NET console OPC UA server demonstrating FluentAPI NodeManagers + the typed fluent OnCall surface for methods with arguments. Native AOT compatible.</Description>
+    <Copyright>Copyright © 2004-2025 OPC Foundation, Inc</Copyright>
+    <RootNamespace>BasicFluentApiServer</RootNamespace>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);CA1822</NoWarn>
+    <PublishAot>true</PublishAot>
+    <!-- Opt into the root Directory.Build.targets no-op shape on
+         per-TFM CI matrix entries that pin CustomTestTarget to a
+         legacy TFM this app cannot target. -->
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+  </ItemGroup>
+  <ItemGroup>
+    <AssemblyAttribute Include="System.CLSCompliantAttribute">
+      <_Parameter1>false</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+</Project>
