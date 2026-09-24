@@ -562,7 +562,7 @@ The runner is injected into the manager via the factory. The base
   `LoadPredefinedNodesAsync` → `CreateFluentBuilder(...)` →
   `ConfigureAsync(builder, ct)` → `RegisterAuthoredNodesAsync` →
   `CompleteConfigureAsync` → `PostSetupRunner.RunAsync(this, ct)` →
-  `builder.SealAsync(ct)` in that order. Sealing comes last because the
+  `SealConfigurationAsync(builder, ct)` in that order. Sealing comes last because the
   fluent registries (simulations, event sources) are owned by the manager,
   not by a single builder, and sealing starts them — a post-setup
   configurator must still be able to register a simulation loop.
@@ -599,7 +599,7 @@ sequenceDiagram
     Base->>Run: await RunAsync(this, ct)
     Note over Run: configurators still register simulation<br/>loops and event sources here
 
-    Base->>B: await SealAsync(ct)
+    Base->>B: await SealConfigurationAsync(builder, ct)
     Note over B: drain staged root notifiers,<br/>then start the simulations
 ```
 

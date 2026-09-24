@@ -359,8 +359,11 @@ namespace Opc.Ua.Di.Server
             // would lock them out of registering simulation loops of their
             // own. Configurators that build their own context seal it
             // themselves; this second seal is then a no-op for the shared
-            // registries and only closes this builder.
-            await builder.SealAsync(cancellationToken).ConfigureAwait(false);
+            // registries and only closes this builder. Sealing through
+            // SealConfigurationAsync replays NotifyNodeAdded, so OnNodeAdded
+            // handlers wired in ConfigureAsync fire as they do for managers
+            // that use the FluentNodeManagerBase pipeline.
+            await SealConfigurationAsync(builder, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
