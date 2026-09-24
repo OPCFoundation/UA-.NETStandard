@@ -50,6 +50,15 @@ namespace Opc.Ua.WotCon.Server.Assets
         internal async ValueTask<ServiceResult> RestoreAssetAsync(
             string assetName, ThingDescription td, ByteString content, CancellationToken ct)
         {
+            lock (m_assetsLock)
+            {
+                if (m_byName.TryGetValue(assetName, out AssetEntry? pending) && pending.RegistryDeleteRequiresRecovery)
+                {
+                    pending.FileManager?.UpdatePersistedContent(content.Span.ToArray());
+                    return ServiceResult.Create(StatusCodes.GoodResultsMayBeIncomplete,
+                        "The pending deletion's document was restored without reactivating or mirroring its asset.");
+                }
+            }
             var candidate = new AssetEntry(assetName, new IWoTAssetState(null)
             {
                 NodeId = m_manager.AllocateAssetNodeId(assetName)

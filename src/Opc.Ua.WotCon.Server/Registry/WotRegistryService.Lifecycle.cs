@@ -50,6 +50,22 @@ namespace Opc.Ua.WotCon.Server.Registry
                 Interlocked.CompareExchange(ref m_lifecycleCoordinator, null, coordinator));
         }
 
+        internal async ValueTask<bool> IsRecoveredDeletionConfirmedAsync(
+            string groupId, string resourceId, long previousGeneration, CancellationToken cancellationToken)
+        {
+            await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                EnsureMutationAllowed();
+                return m_snapshot.Generation > previousGeneration &&
+                    m_snapshot.FindResource(groupId, resourceId) is null;
+            }
+            finally
+            {
+                m_mutex.Release();
+            }
+        }
+
         internal async ValueTask<WotRegistryLifecyclePlan> PlanVersionLifecycleAsync(
             string groupId, string resourceId, string versionId, WoTDeletePolicyEnum policy,
             long? expectedEpoch, CancellationToken cancellationToken)

@@ -290,6 +290,39 @@ After the durable decision, publication completes without using caller
 cancellation to undo it. An unresolved prior publication keeps lifecycle
 mutations fenced until authoritative runtime recovery completes.
 
+### Legacy asset bridge deletion
+
+The optional legacy bridge retains the registry instance and assigned logical
+Resource identity returned by mirroring. `DeleteAsset` asks that registry to
+delete the Resource before removing the legacy provider, native graph, file
+handles or persisted TD. A hosted registry applies its coordinated lifecycle
+and delete policy on this path too. A rejected or confirmed noncommitted
+deletion leaves the legacy asset intact and returns a failure instead of `Good`.
+Initial mirroring remains optional; a failed initial mirror does not invalidate
+an otherwise usable legacy asset.
+
+Once backing deletion commits, local cleanup ignores caller cancellation.
+Committed durability or observer warnings return `GoodResultsMayBeIncomplete`,
+not a rollback result. An indeterminate decision preserves the legacy asset and
+requires authoritative registry recovery before deletion can complete. Retrying
+after recovery does not repeat a deletion already confirmed by the recovered
+snapshot.
+
+If local cleanup fails after commitment, `DeleteAsset` reports the incomplete
+cleanup and retains the asset entry for a retry. That retry uses the retained
+decision rather than deleting the backing Resource again. Replacement uploads
+are rejected while a deletion is unresolved or local cleanup is incomplete.
+
+With legacy document persistence enabled, a bounded `.delete-pending` record
+retains the assigned identity and last confirmed registry generation before the
+backing decision. It is an intent, not evidence that deletion committed. After
+an interrupted deletion, startup restores a management entry and its retained
+TD bytes, but does not reconnect the provider or remirror the document.
+Initialize or recover the same backing registry, then retry `DeleteAsset`.
+An uninitialized empty snapshot cannot prove deletion. Invalid recovery records
+or a missing backing registry fail startup rather than activating an unbridged
+replacement. Successful cleanup removes the TD and the recovery record.
+
 ## Captured dependency metadata
 
 `IWotRefreshCaptureProvider` resolves to the registered

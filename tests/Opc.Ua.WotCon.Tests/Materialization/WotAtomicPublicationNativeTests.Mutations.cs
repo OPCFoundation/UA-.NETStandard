@@ -489,9 +489,17 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Path.Combine(directory, "manifest.json"));
             m_indeterminateDecision = false;
 
+            await m_registry.InitializeAsync().ConfigureAwait(false);
+            await Assert.ThatAsync(async () => await m_registry.IsRecoveredDeletionConfirmedAsync(
+                resource.GroupId, resource.ResourceId, previous.Generation, CancellationToken.None).ConfigureAwait(false),
+                Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
+
             Assert.That(await m_coordinator.RecoverAsync().ConfigureAwait(false), Is.True);
 
             Assert.That(m_coordinator.Generation, Is.EqualTo(committed ? 2u : 1u));
+            Assert.That(await m_registry.IsRecoveredDeletionConfirmedAsync(
+                resource.GroupId, resource.ResourceId, previous.Generation, CancellationToken.None).ConfigureAwait(false),
+                Is.EqualTo(committed));
             Assert.That(m_registry.Current.FindResourceByXid(resource.Xid), committed ? Is.Null : Is.Not.Null);
             Assert.That((await ReadNodeClassAsync(StockNode("Source")).ConfigureAwait(false)).StatusCode,
                 Is.EqualTo(committed ? StatusCodes.BadNodeIdUnknown : StatusCodes.Good));

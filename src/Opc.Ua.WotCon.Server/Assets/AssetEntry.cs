@@ -58,6 +58,10 @@ namespace Opc.Ua.WotCon.Server.Assets
 
         public AssetRegistryMirror? RegistryMirror { get; set; }
 
+        public ServiceResult? DeletionStatus { get; set; }
+
+        public bool RegistryDeleteRequiresRecovery { get; set; }
+
         /// <summary>
         /// Variables created from TD properties keyed by NodeId.
         /// </summary>
@@ -96,5 +100,6 @@ namespace Opc.Ua.WotCon.Server.Assets
     /// <summary>
     /// The registry and assigned resource identity backing a mirrored asset.
     /// </summary>
-    internal sealed record AssetRegistryMirror(IWotRegistryService Registry, WotResource Resource);
+    internal sealed record AssetRegistryMirror(
+        IWotRegistryService Registry, string GroupId, string ResourceId, long Generation);
 }

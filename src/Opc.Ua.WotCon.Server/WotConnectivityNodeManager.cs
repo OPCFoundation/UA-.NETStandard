@@ -301,6 +301,7 @@ namespace Opc.Ua.WotCon.Server
             await base.CreateAddressSpaceAsync(externalReferences, cancellationToken).ConfigureAwait(false);
 
             // Reload any persisted assets so they survive restarts.
+            await m_registry.RestorePendingDeletionsAsync(cancellationToken).ConfigureAwait(false);
             await foreach ((string name, ThingDescription td, ByteString content) in
                 m_registry.EnumeratePersistedDocumentsAsync(cancellationToken).ConfigureAwait(false))
             {

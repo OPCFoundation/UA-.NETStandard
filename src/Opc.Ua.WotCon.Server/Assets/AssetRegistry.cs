@@ -225,34 +225,97 @@ namespace Opc.Ua.WotCon.Server.Assets
                         return ServiceResult.Create(StatusCodes.BadNotFound, "Asset not found.");
                     }
                 }
-                if (entry.NativeGraph is { } graph)
+                ServiceResult decision;
+                try
                 {
-                    await ClearNativeReferencesAsync(entry, graph, deletingOwner: false, ct).ConfigureAwait(false);
-                }
-                lock (m_assetsLock)
-                {
-                    m_byName.Remove(entry.Name);
-                    m_byNodeId.Remove(assetId);
-                }
-
-                if (entry.Provider != null)
-                {
-                    try
+                    if (entry.DeletionStatus is { } previousDecision)
                     {
-                        await entry.Provider.DisposeAsync().ConfigureAwait(false);
+                        decision = previousDecision;
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        m_logger.ProviderForAssetThrewOnDisposal(ex, entry.Name);
+                        await PersistDeletionIntentAsync(entry, ct).ConfigureAwait(false);
+                        decision = await RemoveFromRegistryAsync(entry, ct).ConfigureAwait(false);
                     }
                 }
-                entry.FileManager?.Dispose();
+                catch (OperationCanceledException)
+                {
+                    if (!entry.RegistryDeleteRequiresRecovery)
+                    {
+                        entry.RegistryDeleteRequiresRecovery = ServiceResult.IsBad(
+                            DeleteTdFromDisk(entry.Name, DeletionIntentSuffix));
+                    }
+                    throw;
+                }
+                catch (ServiceResultException exception)
+                {
+                    return exception.Result;
+                }
+                if (ServiceResult.IsBad(decision))
+                {
+                    if (!entry.RegistryDeleteRequiresRecovery)
+                    {
+                        entry.RegistryDeleteRequiresRecovery = ServiceResult.IsBad(
+                            DeleteTdFromDisk(entry.Name, DeletionIntentSuffix));
+                    }
+                    return decision;
+                }
+                entry.DeletionStatus = decision;
 
-                await ClearNativeGraphAsync(entry, deletingOwner: true, ct).ConfigureAwait(false);
-                await m_manager.DeleteAssetNodeAsync(entry.Asset, ct).ConfigureAwait(false);
-                DeleteTdFromDisk(entry.Name);
-                await RemoveFromRegistryAsync(entry, ct).ConfigureAwait(false);
-                return ServiceResult.Good;
+                // A confirmed backing decision cannot be undone by cancellation during local cleanup.
+                try
+                {
+                    entry.EventGeneration = new object();
+                    if (entry.NativeGraph is { } graph)
+                    {
+                        await ClearNativeReferencesAsync(entry, graph, deletingOwner: false, CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
+                    await ClearDynamicChildrenAsync(entry, CancellationToken.None).ConfigureAwait(false);
+                    await ClearNativeGraphAsync(entry, deletingOwner: true, CancellationToken.None).ConfigureAwait(false);
+                    await m_manager.DeleteAssetNodeAsync(entry.Asset, CancellationToken.None).ConfigureAwait(false);
+                    ServiceResult fileDeleted = DeleteTdFromDisk(entry.Name);
+                    if (ServiceResult.IsBad(fileDeleted))
+                    {
+                        return ServiceResult.Create(fileDeleted.StatusCode,
+                            "Asset deletion was accepted, but local document cleanup is incomplete. Retry DeleteAsset.");
+                    }
+                    ServiceResult intentDeleted = DeleteTdFromDisk(entry.Name, DeletionIntentSuffix);
+                    if (ServiceResult.IsBad(intentDeleted))
+                    {
+                        return ServiceResult.Create(intentDeleted.StatusCode,
+                            "Asset deletion was accepted, but its recovery record still requires cleanup. Retry DeleteAsset.");
+                    }
+
+                    if (entry.Provider is { } provider)
+                    {
+                        try
+                        {
+                            await provider.DisposeAsync().ConfigureAwait(false);
+                        }
+                        catch (Exception ex) when (ex is not OutOfMemoryException)
+                        {
+                            m_logger.ProviderForAssetThrewOnDisposal(ex, entry.Name);
+                            decision = ServiceResult.Create(StatusCodes.GoodResultsMayBeIncomplete,
+                                "The asset was deleted, but its provider reported a cleanup warning.");
+                        }
+                        entry.Provider = null;
+                    }
+                    entry.FileManager?.Dispose();
+                    entry.FileManager = null;
+                    lock (m_assetsLock)
+                    {
+                        m_byName.Remove(entry.Name);
+                        m_byNodeId.Remove(assetId);
+                    }
+                    return decision;
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    m_logger.AssetDeletionCleanupFailed(ex, entry.Name);
+                    return ServiceResult.Create(StatusCodes.BadInvalidState,
+                        "Asset deletion was accepted, but local cleanup is incomplete. Retry DeleteAsset.");
+                }
             }
             finally
             {
@@ -566,6 +629,11 @@ namespace Opc.Ua.WotCon.Server.Assets
             {
                 throw new ArgumentNullException(nameof(td));
             }
+            if (entry.DeletionStatus is not null || entry.RegistryDeleteRequiresRecovery)
+            {
+                return ServiceResult.Create(StatusCodes.BadInvalidState,
+                    "The asset has an unfinished deletion. Resolve and complete that deletion before replacing it.");
+            }
             if (content.IsNull)
             {
                 content = ByteString.From(
@@ -619,10 +687,18 @@ namespace Opc.Ua.WotCon.Server.Assets
                 return ToClientStatus(ex, MapToStatusCode(ex), "Asset rebuild");
             }
 
-            await m_writeLock.WaitAsync(ct).ConfigureAwait(false);
+            bool acquired = false;
+            bool adopted = false;
             int skippedAffordances = 0;
             try
             {
+                await m_writeLock.WaitAsync(ct).ConfigureAwait(false);
+                acquired = true;
+                if (entry.DeletionStatus is not null || entry.RegistryDeleteRequiresRecovery)
+                {
+                    return ServiceResult.Create(StatusCodes.BadInvalidState,
+                        "The asset has an unfinished deletion. Resolve and complete that deletion before replacing it.");
+                }
                 if (entry.Provider != null)
                 {
                     // Retire the outgoing generation before the provider goes
@@ -641,6 +717,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                     }
                 }
                 entry.Provider = provider;
+                adopted = true;
 
                 await ClearDynamicChildrenAsync(entry, ct).ConfigureAwait(false);
                 await ClearNativeGraphAsync(entry, deletingOwner: false, ct).ConfigureAwait(false);
@@ -757,7 +834,21 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
             finally
             {
-                m_writeLock.Release();
+                if (acquired)
+                {
+                    m_writeLock.Release();
+                }
+                if (!adopted)
+                {
+                    try
+                    {
+                        await provider.DisposeAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception ex) when (ex is not OutOfMemoryException)
+                    {
+                        m_logger.ProviderForAssetThrewOnDisposal(ex, entry.Name);
+                    }
+                }
             }
 
             // Still Good - the asset is usable and IsGood callers are
@@ -1389,22 +1480,24 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
         }
 
-        private async ValueTask PersistTdToDiskAsync(string name, ByteString content, CancellationToken ct)
+        private async ValueTask PersistTdToDiskAsync(
+            string name, ByteString content, CancellationToken ct, string suffix = "")
         {
             string? folder = m_options.ThingDescriptionStorageFolder;
             if (string.IsNullOrEmpty(folder))
             {
                 return;
             }
-            Directory.CreateDirectory(folder);
             if (!WotAssetNameValidator.TryGetSafeFileName(name, folder, out string? path))
             {
                 m_logger.RefusingToPersistTd(name, folder);
                 throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Invalid persisted asset name.");
             }
+            path += suffix;
             string stagedPath = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
             try
             {
+                Directory.CreateDirectory(folder);
                 byte[] bytes = content.Span.ToArray();
                 using (var stream = new FileStream(
                     stagedPath,
@@ -1412,7 +1505,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                     FileAccess.Write,
                     FileShare.None,
                     bufferSize: 4096,
-                    options: FileOptions.Asynchronous))
+                    options: FileOptions.Asynchronous | FileOptions.WriteThrough))
                 {
 #if NETSTANDARD2_1_OR_GREATER || NET
                     await stream.WriteAsync(bytes.AsMemory(), ct).ConfigureAwait(false);
@@ -1452,28 +1545,32 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
         }
 
-        private void DeleteTdFromDisk(string name)
+        private ServiceResult DeleteTdFromDisk(string name, string suffix = "")
         {
             string? folder = m_options.ThingDescriptionStorageFolder;
             if (string.IsNullOrEmpty(folder))
             {
-                return;
+                return ServiceResult.Good;
             }
             try
             {
                 if (!WotAssetNameValidator.TryGetSafeFileName(name, folder!, out string? path))
                 {
                     m_logger.RefusingToDeleteTd(name, folder);
-                    return;
+                    return ServiceResult.Create(StatusCodes.BadInvalidArgument,
+                        "The asset's persisted document path is invalid.");
                 }
+                path += suffix;
                 if (File.Exists(path))
                 {
                     File.Delete(path);
                 }
+                return ServiceResult.Good;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 m_logger.FailedToDeleteTd(ex, name);
+                return ToClientStatus(ex, StatusCodes.BadResourceUnavailable, "Deleting the persisted Thing Description");
             }
         }
 
@@ -1492,8 +1589,8 @@ namespace Opc.Ua.WotCon.Server.Assets
                 WotRegistryMutationResult result = await registry.UpsertResourceAsync(
                     new WotUpsertResourceRequest
                     {
-                        GroupId = previous?.Resource.GroupId ?? m_options.RegistryBridgeGroupId,
-                        ResourceId = previous?.Resource.ResourceId ?? entry.Name,
+                        GroupId = previous?.GroupId ?? m_options.RegistryBridgeGroupId,
+                        ResourceId = previous?.ResourceId ?? entry.Name,
                         Kind = WoTDocumentKindEnum.ThingDescription,
                         Content = content,
                         ContentType = "application/td+json",
@@ -1508,7 +1605,8 @@ namespace Opc.Ua.WotCon.Server.Assets
                 }
                 else if (result.Resource is not null)
                 {
-                    entry.RegistryMirror = new AssetRegistryMirror(registry, result.Resource);
+                    entry.RegistryMirror = new AssetRegistryMirror(
+                        registry, result.Resource.GroupId, result.Resource.ResourceId, result.Generation);
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -1517,28 +1615,71 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
         }
 
-        private async ValueTask RemoveFromRegistryAsync(AssetEntry entry, CancellationToken ct)
+        private async ValueTask<ServiceResult> RemoveFromRegistryAsync(AssetEntry entry, CancellationToken ct)
         {
+            ct.ThrowIfCancellationRequested();
             AssetRegistryMirror? mirror = entry.RegistryMirror;
             if (mirror is null)
             {
-                return;
+                return ServiceResult.Good;
             }
 
             try
             {
+                if (entry.RegistryDeleteRequiresRecovery &&
+                    mirror.Registry is WotRegistryService registry &&
+                    await registry.IsRecoveredDeletionConfirmedAsync(
+                        mirror.GroupId, mirror.ResourceId, mirror.Generation, ct).ConfigureAwait(false))
+                {
+                    entry.RegistryDeleteRequiresRecovery = false;
+                    return ServiceResult.Create(StatusCodes.GoodResultsMayBeIncomplete,
+                        "The backing deletion was confirmed by registry recovery; local cleanup will complete.");
+                }
                 WotRegistryMutationResult result = await mirror.Registry.DeleteResourceAsync(
-                    mirror.Resource.GroupId,
-                    mirror.Resource.ResourceId,
+                    mirror.GroupId,
+                    mirror.ResourceId,
                     cancellationToken: ct).ConfigureAwait(false);
-                if (result.Outcome is WoTOutcomeEnum.Rejected or WoTOutcomeEnum.Failed)
+                if (result.Outcome is not (WoTOutcomeEnum.Success or WoTOutcomeEnum.Warning or WoTOutcomeEnum.Unchanged))
                 {
                     m_logger.RegistryBridgeDeleteRejected(entry.Name, result.Outcome, result.Message);
+                    return ServiceResult.Create(
+                        StatusCode.IsBad(result.StatusCode) ? result.StatusCode : StatusCodes.BadInvalidState,
+                        "The backing registry refused asset deletion. The legacy asset was retained.");
                 }
+                entry.RegistryDeleteRequiresRecovery = false;
+                if (result.Outcome == WoTOutcomeEnum.Warning)
+                {
+                    m_logger.RegistryBridgeDeleteCommittedWarning(null, entry.Name);
+                    return ServiceResult.Create(StatusCodes.GoodResultsMayBeIncomplete,
+                        "The backing deletion committed with a warning.");
+                }
+                return ServiceResult.Good;
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (WotRegistryCommitDurabilityUncertainException ex)
+            {
+                entry.RegistryDeleteRequiresRecovery = false;
+                m_logger.RegistryBridgeDeleteCommittedWarning(ex, entry.Name);
+                return ServiceResult.Create(StatusCodes.GoodResultsMayBeIncomplete,
+                    "The backing deletion committed, but its completion reported a warning.");
+            }
+            catch (WotRegistryCommitIndeterminateException ex)
+            {
+                entry.RegistryDeleteRequiresRecovery = true;
+                m_logger.RegistryBridgeDeleteFailed(ex, entry.Name);
+                return ServiceResult.Create(StatusCodes.BadInvalidState,
+                    "The backing deletion requires authoritative registry recovery. The legacy asset was retained.");
+            }
+            catch (WotRegistryCommitNotCommittedException ex)
             {
                 m_logger.RegistryBridgeDeleteFailed(ex, entry.Name);
+                return ToClientStatus(ex, StatusCodes.BadResourceUnavailable, "Deleting the backing registry Resource");
+            }
+            catch (Exception ex) when (ex is not (OperationCanceledException or OutOfMemoryException))
+            {
+                entry.RegistryDeleteRequiresRecovery = true;
+                m_logger.RegistryBridgeDeleteFailed(ex, entry.Name);
+                return ToClientStatus(ex, ex is ServiceResultException service ? service.StatusCode : MapToStatusCode(ex),
+                    "Deleting the backing registry Resource");
             }
         }
 
@@ -2066,5 +2207,18 @@ namespace Opc.Ua.WotCon.Server.Assets
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 34, Level = LogLevel.Warning,
             Message = "Registry bridge failed to delete resource for asset {AssetName}")]
         public static partial void RegistryBridgeDeleteFailed(this ILogger logger, Exception ex, string assetName);
+
+        [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 41, Level = LogLevel.Warning,
+            Message = "Registry bridge deletion committed with a warning for asset {AssetName}")]
+        public static partial void RegistryBridgeDeleteCommittedWarning(
+            this ILogger logger, Exception? ex, string assetName);
+
+        [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 42, Level = LogLevel.Warning,
+            Message = "Accepted deletion of asset {AssetName} requires another local cleanup attempt")]
+        public static partial void AssetDeletionCleanupFailed(this ILogger logger, Exception ex, string assetName);
+
+        [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 43, Level = LogLevel.Warning,
+            Message = "Legacy asset {AssetName} has a pending backing deletion; its provider was not restored")]
+        public static partial void RestoredPendingAssetDeletion(this ILogger logger, string assetName);
     }
 }
