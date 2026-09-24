@@ -30,8 +30,10 @@
 #nullable enable
 
 using System;
+using System.Collections;
 using System.Globalization;
 using System.IO;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -592,6 +594,79 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
 
             // Unregistering a known hash should not throw.
             Assert.That(() => manager.UnregisterWaitingConnection(hashCode), Throws.Nothing);
+        }
+
+        /// <summary>
+        /// Undefined is documented to default to Once; it must not behave as
+        /// Always (L8-1).
+        /// </summary>
+        [TestCase(ReverseConnectManager.ReverseConnectStrategy.Undefined,
+            ReverseConnectManager.ReverseConnectStrategy.Once)]
+        [TestCase(ReverseConnectManager.ReverseConnectStrategy.Any,
+            ReverseConnectManager.ReverseConnectStrategy.AnyOnce)]
+        [TestCase(ReverseConnectManager.ReverseConnectStrategy.Always,
+            ReverseConnectManager.ReverseConnectStrategy.Always)]
+        public void RegisterWaitingConnection_UndefinedStrategy_DefaultsToOnce(
+            ReverseConnectManager.ReverseConnectStrategy requested,
+            ReverseConnectManager.ReverseConnectStrategy expected)
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            using var manager = new ReverseConnectManager(telemetry);
+
+            manager.RegisterWaitingConnection(
+                new Uri("opc.tcp://localhost:54329/"),
+                null,
+                (_, _) => { },
+                requested);
+
+            FieldInfo registrationsField = typeof(ReverseConnectManager).GetField(
+                "m_registrations",
+                BindingFlags.NonPublic | BindingFlags.Instance)!;
+            var registrations = (IList)registrationsField.GetValue(manager)!;
+            Assert.That(registrations, Has.Count.EqualTo(1));
+            object registration = registrations[0]!;
+            object strategy = registration.GetType()
+                .GetField("ReverseConnectStrategy")!
+                .GetValue(registration)!;
+            Assert.That(strategy, Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// Re-adding an endpoint disposes the host it replaces (L8-2).
+        /// </summary>
+        [Test]
+        public async Task AddEndpoint_SameUrlTwice_DisposesReplacedHostAsync()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            using var manager = new ReverseConnectManager(telemetry);
+            var uri = new Uri("opc.tcp://localhost:54330/");
+
+            manager.AddEndpoint(uri);
+            ReverseConnectHost first = GetManualHost(manager, uri);
+            Assert.That(first.HasListener, Is.True);
+
+            manager.AddEndpoint(uri);
+            ReverseConnectHost second = GetManualHost(manager, uri);
+
+            Assert.That(second, Is.Not.SameAs(first));
+            Assert.That(second.HasListener, Is.True);
+            for (int ii = 0; ii < 100 && first.HasListener; ii++)
+            {
+                await Task.Delay(50).ConfigureAwait(false);
+            }
+            Assert.That(first.HasListener, Is.False, "The replaced host must be disposed.");
+        }
+
+        private static ReverseConnectHost GetManualHost(ReverseConnectManager manager, Uri uri)
+        {
+            FieldInfo endpointsField = typeof(ReverseConnectManager).GetField(
+                "m_manualEndpoints",
+                BindingFlags.NonPublic | BindingFlags.Instance)!;
+            var endpoints = (IDictionary)endpointsField.GetValue(manager)!;
+            object info = endpoints[uri]!;
+            return (ReverseConnectHost)info.GetType()
+                .GetField("ReverseConnectHost")!
+                .GetValue(info)!;
         }
 
         [Test]
