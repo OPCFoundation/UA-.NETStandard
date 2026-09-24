@@ -255,5 +255,36 @@ namespace Opc.Ua.Client.Tests.FileSystem
             // cache and not call Translate again for the leaf segment.
             Assert.That(translateCalls, Is.EqualTo(firstCount));
         }
+
+        [Test]
+        public async Task EnumeratedFullPathRoundTripsForColonAndNamespaceZeroNamesAsync()
+        {
+            // A namespace-zero child with ':' in its name inside a directory
+            // of a namespaced provider: its FullPath must resolve back to it.
+            var harness = FileSystemSessionHarness.Create();
+            NodeId dir = harness.RegisterDirectory(
+                harness.Root,
+                new QualifiedName("Logs", 3),
+                new NodeId(7100, 3));
+            NodeId file = harness.RegisterFile(dir, new QualifiedName("12:30.log"));
+            var client = new FileSystemClient(harness.Session, harness.Root);
+
+            UaFileSystemInfo entry = null;
+            await foreach (UaFileSystemInfo child in client.EnumerateAsync("/3:Logs")
+                .ConfigureAwait(false))
+            {
+                entry = child;
+            }
+            Assert.That(entry, Is.Not.Null);
+            Assert.That(entry.FullPath, Is.EqualTo("/3:Logs/12&:30.log"));
+
+            // Fresh client so the path cache does not mask the resolution.
+            var fresh = new FileSystemClient(harness.Session, harness.Root);
+            UaFileSystemInfo resolved = await fresh.GetInfoAsync(entry.FullPath)
+                .ConfigureAwait(false);
+            Assert.That(resolved, Is.Not.Null);
+            Assert.That(resolved.NodeId, Is.EqualTo(file));
+            Assert.That(resolved.BrowseName, Is.EqualTo(new QualifiedName("12:30.log")));
+        }
     }
 }

@@ -31,6 +31,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client.FileSystem;
 
@@ -251,6 +252,69 @@ namespace Opc.Ua.Client.Tests.FileSystem
                 r.MethodId.TryGetValue(out uint mid) &&
                 mid == Methods.FileDirectoryType_DeleteFileSystemObject), Is.False);
             return Task.CompletedTask;
+        }
+
+        [Test]
+        public Task DeleteAsyncWithoutRecursiveRefusesDirectoryHoldingFilteredSubtypeAsync()
+        {
+            // The subtype filter hides a TrustListType child from
+            // EnumerateAsync, but the server's Delete would still remove it
+            // (Part 20 §4.3.5), so the directory is not empty.
+            var harness = FileSystemSessionHarness.Create();
+            var typeTree = new Mock<ITypeTable>(MockBehavior.Loose);
+            typeTree
+                .Setup(t => t.IsTypeOf(It.IsAny<NodeId>(), It.IsAny<NodeId>()))
+                .Returns<NodeId, NodeId>((sub, super) => sub.Equals(super) ||
+                    (sub.Equals(ObjectTypeIds.TrustListType) && super.Equals(ObjectTypeIds.FileType)));
+            harness.SessionMock.SetupGet(s => s.TypeTree).Returns(typeTree.Object);
+            NodeId subdir = harness.RegisterDirectory(harness.Root, new QualifiedName("subdir"));
+            harness.RegisterObject(subdir, new QualifiedName("TrustList"), ObjectTypeIds.TrustListType);
+            var client = new FileSystemClient(
+                harness.Session,
+                harness.Root,
+                new FileSystemClientOptions { IncludeFileTypeSubtypes = false });
+
+            Assert.ThrowsAsync<IOException>(
+                async () => await client
+                    .DeleteAsync("/subdir", recursive: false)
+                    .ConfigureAwait(false));
+            Assert.That(harness.CallRequests.Any(r =>
+                r.MethodId.TryGetValue(out uint mid) &&
+                mid == Methods.FileDirectoryType_DeleteFileSystemObject), Is.False);
+            return Task.CompletedTask;
+        }
+
+        [Test]
+        public async Task ExistsAsyncReturnsFalseForExternallyDeletedCachedNodeAsync()
+        {
+            var harness = FileSystemSessionHarness.Create();
+            NodeId dir = harness.RegisterDirectory(harness.Root, new QualifiedName("dir"));
+            NodeId file = harness.RegisterFile(dir, new QualifiedName("a.txt"));
+            var client = new FileSystemClient(harness.Session, harness.Root);
+            Assert.That(await client.ExistsAsync("/dir/a.txt").ConfigureAwait(false), Is.True);
+
+            // Another client deletes the file; the path cache still maps it.
+            harness.RemoveNode(file);
+
+            Assert.That(await client.ExistsAsync("/dir/a.txt").ConfigureAwait(false), Is.False);
+        }
+
+        [Test]
+        public async Task GetInfoAsyncResolvesExternallyRecreatedDirectoryAsync()
+        {
+            var harness = FileSystemSessionHarness.Create();
+            NodeId dir = harness.RegisterDirectory(harness.Root, new QualifiedName("dir"));
+            var client = new FileSystemClient(harness.Session, harness.Root);
+            Assert.That(await client.ExistsAsync("/dir").ConfigureAwait(false), Is.True);
+
+            // Deleted and recreated elsewhere: same name, new NodeId.
+            harness.RemoveNode(dir);
+            NodeId recreated = harness.RegisterDirectory(harness.Root, new QualifiedName("dir"));
+            NodeId file = harness.RegisterFile(recreated, new QualifiedName("b.txt"));
+
+            UaFileSystemInfo info = await client.GetInfoAsync("/dir/b.txt").ConfigureAwait(false);
+            Assert.That(info, Is.Not.Null);
+            Assert.That(info.NodeId, Is.EqualTo(file));
         }
 
         [Test]

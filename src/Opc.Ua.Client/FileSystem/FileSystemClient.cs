@@ -189,13 +189,58 @@ namespace Opc.Ua.Client.FileSystem
             {
                 return Root;
             }
-            ResolvedNode? resolved = await ResolveSegmentsAsync(segments, throwOnMissing: false, ct)
-                .ConfigureAwait(false);
+            var usedCache = new StrongBox<bool>();
+            try
+            {
+                UaFileSystemInfo? info = await TryGetInfoAsync(segments, usedCache, ct)
+                    .ConfigureAwait(false);
+                if (info != null || !usedCache.Value)
+                {
+                    return info;
+                }
+            }
+            catch (ServiceResultException ex) when (usedCache.Value && IsStaleNodeError(ex))
+            {
+                // Fall through: retry below without the cache.
+            }
+
+            // A cached parent -> child NodeId is only a hint: another client
+            // (or the server itself) may have deleted, moved or recreated the
+            // node since. Resolve once more straight from the server; that
+            // also replaces or evicts the stale cache entries.
+            segments = UaPath.Parse(path);
+            try
+            {
+                return await TryGetInfoAsync(segments, usedCache: null, ct).ConfigureAwait(false);
+            }
+            catch (ServiceResultException ex) when (IsStaleNodeError(ex))
+            {
+                // Deleted between the resolution and the classification.
+                return null;
+            }
+        }
+
+        private async ValueTask<UaFileSystemInfo?> TryGetInfoAsync(
+            QualifiedName[] segments,
+            StrongBox<bool>? usedCache,
+            CancellationToken ct)
+        {
+            ResolvedNode? resolved = await ResolveSegmentsAsync(
+                segments,
+                throwOnMissing: false,
+                usedCache,
+                ct).ConfigureAwait(false);
             if (resolved == null)
             {
                 return null;
             }
             return await BuildInfoAsync(resolved.Value, segments, ct).ConfigureAwait(false);
+        }
+
+        private static bool IsStaleNodeError(ServiceResultException ex)
+        {
+            uint code = ex.StatusCode.Code;
+            return code == StatusCodes.BadNodeIdUnknown || code == StatusCodes.BadNoMatch;
         }
 
         /// <summary>
@@ -253,9 +298,10 @@ namespace Opc.Ua.Client.FileSystem
             {
                 bool isLast = i == segments.Length - 1;
                 QualifiedName inputSegment = segments[i];
-                QualifiedName segment = Qualify(inputSegment, current.NodeId);
-                NodeId? childId = await TryResolveSingleAsync(current.NodeId, segment, ct)
-                    .ConfigureAwait(false);
+                (NodeId? childId, QualifiedName segment) = await TryResolveChildAsync(
+                    current.NodeId,
+                    inputSegment,
+                    ct).ConfigureAwait(false);
                 if (childId != null)
                 {
                     segments[i] = segment;
@@ -605,6 +651,67 @@ namespace Opc.Ua.Client.FileSystem
             }
         }
 
+        /// <summary>
+        /// Returns <c>true</c> when <paramref name="directory"/> has any
+        /// FileType or FileDirectoryType (or subtype) child, regardless of the
+        /// <see cref="FileSystemClientOptions"/> subtype filters.
+        /// </summary>
+        private async ValueTask<bool> HasFileSystemChildrenAsync(
+            UaDirectoryInfo directory,
+            CancellationToken ct)
+        {
+            await EnsureTypeTreeFetchedAsync(ct).ConfigureAwait(false);
+            ITypeTable typeTree = Session.TypeTree;
+
+            ByteString continuation;
+            ArrayOf<ReferenceDescription> references;
+            (_, continuation, references) = await Session.BrowseAsync(
+                requestHeader: null,
+                view: null,
+                directory.NodeId,
+                maxResultsToReturn: 0,
+                BrowseDirection.Forward,
+                ReferenceTypeIds.HierarchicalReferences,
+                includeSubtypes: true,
+                (uint)NodeClass.Object,
+                ct).ConfigureAwait(false);
+            try
+            {
+                while (true)
+                {
+                    for (int i = 0; i < references.Count; i++)
+                    {
+                        var typeDef = ExpandedNodeId.ToNodeId(
+                            references[i].TypeDefinition,
+                            Session.MessageContext.NamespaceUris);
+                        if (!typeDef.IsNull &&
+                            (typeDef.Equals(kFileTypeId) ||
+                            typeDef.Equals(kFileDirectoryTypeId) ||
+                            typeTree.IsTypeOf(typeDef, kFileTypeId) ||
+                            typeTree.IsTypeOf(typeDef, kFileDirectoryTypeId)))
+                        {
+                            return true;
+                        }
+                    }
+                    if (continuation.IsNull || continuation.Length == 0)
+                    {
+                        return false;
+                    }
+                    (_, continuation, references) = await Session.BrowseNextAsync(
+                        requestHeader: null,
+                        releaseContinuationPoint: false,
+                        continuation,
+                        ct).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                // Part 4 §5.9.3.2: release a point we stop following.
+                await Session.ReleaseContinuationPointAsync(continuation, m_logger)
+                    .ConfigureAwait(false);
+            }
+        }
+
         internal async ValueTask<UaDirectoryInfo> CreateDirectoryInAsync(
             UaDirectoryInfo parent,
             string name,
@@ -669,14 +776,15 @@ namespace Opc.Ua.Client.FileSystem
                 throw new IOException("Cannot delete the root directory.");
             }
 
-            if (target is UaDirectoryInfo dir && !recursive)
+            // Empty-check before delegating to the server, whose Delete on a
+            // directory always removes everything below it (Part 20 §4.3.5).
+            // The check must see every file / directory child, including the
+            // subtypes EnumerateAsync filters out through the options.
+            if (target is UaDirectoryInfo dir && !recursive &&
+                await HasFileSystemChildrenAsync(dir, ct).ConfigureAwait(false))
             {
-                // Empty-check before delegating to server.
-                await foreach (UaFileSystemInfo _ in dir.EnumerateAsync(ct).ConfigureAwait(false))
-                {
-                    throw new IOException(
-                        $"Directory '{target.FullPath}' is not empty; pass recursive: true to delete recursively.");
-                }
+                throw new IOException(
+                    $"Directory '{target.FullPath}' is not empty; pass recursive: true to delete recursively.");
             }
 
             try
@@ -933,9 +1041,20 @@ namespace Opc.Ua.Client.FileSystem
             return file;
         }
 
+        /// <summary>
+        /// Resolves <paramref name="segments"/> to a node.
+        /// </summary>
+        /// <param name="segments">The path segments; qualified in place.</param>
+        /// <param name="throwOnMissing">Throw instead of returning null.</param>
+        /// <param name="usedCache">When supplied, cached entries are used and
+        /// the flag records whether any was; when <c>null</c> every segment is
+        /// resolved from the server (bypassing, refreshing and evicting stale
+        /// cache entries).</param>
+        /// <param name="ct">Cancellation token.</param>
         private async ValueTask<ResolvedNode?> ResolveSegmentsAsync(
             QualifiedName[] segments,
             bool throwOnMissing,
+            StrongBox<bool>? usedCache,
             CancellationToken ct)
         {
             // Walk segment-by-segment, leveraging the path cache when
@@ -949,22 +1068,29 @@ namespace Opc.Ua.Client.FileSystem
             for (int i = 0; i < segments.Length; i++)
             {
                 bool isLast = i == segments.Length - 1;
-                QualifiedName segment = Qualify(segments[i], currentParent);
-                NodeId? cached = m_pathCache.TryGet(currentParent, segment);
+                QualifiedName input = segments[i];
+                (NodeId Id, QualifiedName Name)? cached = usedCache != null
+                    ? TryGetCachedChild(currentParent, Qualify(input, currentParent), input)
+                    : null;
                 if (cached != null)
                 {
-                    segments[i] = segment;
+                    usedCache!.Value = true;
+                    segments[i] = cached.Value.Name;
                     if (isLast)
                     {
-                        return new ResolvedNode(cached.Value, segment);
+                        return new ResolvedNode(cached.Value.Id, cached.Value.Name);
                     }
-                    currentParent = cached.Value;
+                    currentParent = cached.Value.Id;
                     continue;
                 }
-                NodeId? resolved = await TryResolveSingleAsync(currentParent, segment, ct)
-                    .ConfigureAwait(false);
+                (NodeId? resolved, QualifiedName segment) = await TryResolveChildAsync(
+                    currentParent,
+                    input,
+                    ct).ConfigureAwait(false);
                 if (resolved == null)
                 {
+                    m_pathCache.Invalidate(currentParent, segment);
+                    m_pathCache.Invalidate(currentParent, input);
                     if (throwOnMissing)
                     {
                         throw FileSystemErrors.NotFound(
@@ -1000,26 +1126,58 @@ namespace Opc.Ua.Client.FileSystem
             return new QualifiedName(segment.Name, parent.NamespaceIndex);
         }
 
-        private async ValueTask<NodeId?> TryResolveSingleAsync(
+        /// <summary>
+        /// Looks up the cached child for <paramref name="segment"/> (already
+        /// qualified) or, failing that, for the namespace-zero
+        /// <paramref name="input"/> (see <see cref="TryResolveChildAsync"/>).
+        /// </summary>
+        private (NodeId Id, QualifiedName Name)? TryGetCachedChild(
             NodeId parent,
             QualifiedName segment,
+            QualifiedName input)
+        {
+            NodeId? cached = m_pathCache.TryGet(parent, segment);
+            if (cached != null)
+            {
+                return (cached.Value, segment);
+            }
+            if (!segment.Equals(input))
+            {
+                cached = m_pathCache.TryGet(parent, input);
+                if (cached != null)
+                {
+                    return (cached.Value, input);
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Resolves the child of <paramref name="parent"/> named by the path
+        /// segment <paramref name="input"/>. An unprefixed (namespace-zero)
+        /// segment is first looked up in the parent's namespace
+        /// (<see cref="Qualify"/>) and, when nothing matches there, as the
+        /// namespace-zero name itself, so a namespace-zero child of a
+        /// namespaced directory stays addressable by the path its
+        /// <see cref="UaFileSystemInfo.FullPath"/> reports. Both candidates go
+        /// out in one TranslateBrowsePathsToNodeIds call.
+        /// </summary>
+        private async ValueTask<(NodeId? Id, QualifiedName Name)> TryResolveChildAsync(
+            NodeId parent,
+            QualifiedName input,
             CancellationToken ct)
         {
-            var element = new RelativePathElement
+            QualifiedName segment = Qualify(input, parent);
+            bool withFallback = !segment.Equals(input);
+            var browsePathList = new List<BrowsePath>(2)
             {
-                ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
-                IsInverse = false,
-                IncludeSubtypes = true,
-                TargetName = segment
+                CreateChildBrowsePath(parent, segment)
             };
-            ArrayOf<BrowsePath> browsePaths = new[]
+            if (withFallback)
             {
-                new BrowsePath
-                {
-                    StartingNode = parent,
-                    RelativePath = new RelativePath { Elements = [element] }
-                }
-            }.ToArrayOf();
+                browsePathList.Add(CreateChildBrowsePath(parent, input));
+            }
+            ArrayOf<BrowsePath> browsePaths = browsePathList.ToArrayOf();
 
             TranslateBrowsePathsToNodeIdsResponse response = await Session
                 .TranslateBrowsePathsToNodeIdsAsync(null, browsePaths, ct)
@@ -1027,7 +1185,38 @@ namespace Opc.Ua.Client.FileSystem
             ClientBase.ValidateResponse(response.Results, browsePaths);
             ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, browsePaths);
 
-            BrowsePathResult result = response.Results[0];
+            NodeId? resolved = GetSingleTarget(response.Results[0], segment);
+            if (resolved != null || !withFallback)
+            {
+                return (resolved, segment);
+            }
+            resolved = GetSingleTarget(response.Results[1], input);
+            return resolved != null ? (resolved, input) : (null, segment);
+        }
+
+        private static BrowsePath CreateChildBrowsePath(NodeId parent, QualifiedName segment)
+        {
+            return new BrowsePath
+            {
+                StartingNode = parent,
+                RelativePath = new RelativePath
+                {
+                    Elements =
+                    [
+                        new RelativePathElement
+                        {
+                            ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
+                            IsInverse = false,
+                            IncludeSubtypes = true,
+                            TargetName = segment
+                        }
+                    ]
+                }
+            };
+        }
+
+        private NodeId? GetSingleTarget(BrowsePathResult result, QualifiedName segment)
+        {
             uint code = result.StatusCode.Code;
             if (code == StatusCodes.BadNoMatch ||
                 code == StatusCodes.BadNodeIdUnknown)
@@ -1068,6 +1257,7 @@ namespace Opc.Ua.Client.FileSystem
                     ResolvedNode parent = (await ResolveSegmentsAsync(
                         parentSegments,
                         throwOnMissing: true,
+                        usedCache: new StrongBox<bool>(),
                         ct).ConfigureAwait(false))!.Value;
                     parentInfo = new UaDirectoryInfo(
                         this,
