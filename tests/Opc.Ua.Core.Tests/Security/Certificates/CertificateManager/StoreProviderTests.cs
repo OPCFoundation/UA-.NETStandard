@@ -27,7 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
@@ -76,10 +78,50 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public void InMemoryStoreProviderSupportsInMemoryPath()
         {
-            var provider = new InMemoryStoreProvider();
+            using var provider = new InMemoryStoreProvider();
 
             Assert.That(provider.SupportsStorePath("InMemory:TestStore"), Is.True);
             Assert.That(provider.StoreTypeName, Is.EqualTo("InMemory"));
+        }
+
+        /// <summary>
+        /// Stores opened on the same InMemory path share their certificates, so a
+        /// certificate written through one store instance (a trust list update)
+        /// is seen by the next (the validator). Before the fix every open
+        /// returned a fresh empty store.
+        /// </summary>
+        [Test]
+        public async Task InMemoryStoreProviderSharesCertificatesPerPathAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using Certificate certificate = CertificateBuilder
+                .Create("CN=InMemory Store Test")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using var provider = new InMemoryStoreProvider();
+
+            using (ICertificateStore writer = provider.CreateStore(telemetry))
+            {
+                writer.Open("InMemory:peers");
+                await writer.AddAsync(certificate).ConfigureAwait(false);
+            }
+
+            using (ICertificateStore reader = provider.CreateStore(telemetry))
+            {
+                reader.Open("InMemory:Peers");
+                using CertificateCollection found = await reader
+                    .FindByThumbprintAsync(certificate.Thumbprint)
+                    .ConfigureAwait(false);
+                Assert.That(found, Has.Count.EqualTo(1));
+                Assert.That(reader.StorePath, Is.EqualTo("InMemory:Peers"));
+            }
+
+            using (ICertificateStore other = provider.CreateStore(telemetry))
+            {
+                other.Open("InMemory:users");
+                using CertificateCollection all = await other.EnumerateAsync().ConfigureAwait(false);
+                Assert.That(all, Is.Empty);
+            }
         }
 
         [Test]
