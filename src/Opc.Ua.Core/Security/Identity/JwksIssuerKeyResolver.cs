@@ -46,6 +46,9 @@ namespace Opc.Ua.Identity
     /// The resolver fetches keys on first use, caches them, and refreshes on
     /// <c>kid</c> misses no more frequently than the configured minimum refresh
     /// interval. Only RSA and EC public signing keys are materialized.
+    /// Published keys are collected with their underlying cryptographic handles
+    /// after the last reader releases them; refresh and disposal do not invalidate
+    /// an already returned key.
     /// </remarks>
     public sealed class JwksIssuerKeyResolver : IIssuerKeyResolver, IDisposable
     {
@@ -57,7 +60,10 @@ namespace Opc.Ua.Identity
         private readonly TimeSpan m_minRefreshInterval;
         private readonly HashSet<string>? m_allowedAlgorithms;
         private readonly SemaphoreSlim m_refreshLock = new(1, 1);
+        private readonly Lock m_lifetimeLock = new();
+        private int m_activeRequests;
         private KeyCache m_cache = KeyCache.Empty;
+        private DateTimeOffset m_lastRefreshAttempt = DateTimeOffset.MinValue;
         private bool m_disposed;
 
         /// <summary>
@@ -150,40 +156,74 @@ namespace Opc.Ua.Identity
             string? keyId,
             CancellationToken ct = default)
         {
-            ThrowIfDisposed();
-
-            if (!m_cache.HasValue)
+            BeginRequest();
+            try
             {
-                await EnsureCacheAsync(ct).ConfigureAwait(false);
-            }
+                if (!Volatile.Read(ref m_cache).HasValue)
+                {
+                    await EnsureCacheAsync(ct).ConfigureAwait(false);
+                }
 
-            KeyCache cache = m_cache;
-            IReadOnlyList<IssuerVerificationKey> keys = cache.Get(keyId);
-            if (keyId == null || keys.Count != 0)
-            {
+                ThrowIfDisposed();
+                KeyCache cache = Volatile.Read(ref m_cache);
+                IReadOnlyList<IssuerVerificationKey> keys = cache.Get(keyId);
+                if (keyId == null || keys.Count != 0)
+                {
+                    return keys;
+                }
+
+                if (CanRefresh(cache))
+                {
+                    await RefreshAfterMissAsync(cache.RefreshTime, ct).ConfigureAwait(false);
+                    ThrowIfDisposed();
+                    keys = Volatile.Read(ref m_cache).Get(keyId);
+                }
+
                 return keys;
             }
-
-            if (CanRefresh(cache))
+            finally
             {
-                await RefreshAfterMissAsync(cache.RefreshTime, ct).ConfigureAwait(false);
-                keys = m_cache.Get(keyId);
+                EndRequest();
             }
-
-            return keys;
         }
 
         /// <inheritdoc/>
         public void Dispose()
         {
-            if (m_disposed)
+            lock (m_lifetimeLock)
             {
-                return;
-            }
+                if (m_disposed)
+                {
+                    return;
+                }
 
-            m_disposed = true;
-            m_cache.Dispose();
-            m_refreshLock.Dispose();
+                Volatile.Write(ref m_disposed, true);
+                Volatile.Write(ref m_cache, KeyCache.Empty);
+                if (m_activeRequests == 0)
+                {
+                    m_refreshLock.Dispose();
+                }
+            }
+        }
+
+        private void BeginRequest()
+        {
+            lock (m_lifetimeLock)
+            {
+                ThrowIfDisposed();
+                m_activeRequests++;
+            }
+        }
+
+        private void EndRequest()
+        {
+            lock (m_lifetimeLock)
+            {
+                if (--m_activeRequests == 0 && m_disposed)
+                {
+                    m_refreshLock.Dispose();
+                }
+            }
         }
 
         private async ValueTask EnsureCacheAsync(CancellationToken ct)
@@ -192,9 +232,15 @@ namespace Opc.Ua.Identity
             try
             {
                 ThrowIfDisposed();
-                if (!m_cache.HasValue)
+                if (!m_cache.HasValue && CanRefresh(m_cache))
                 {
-                    await RefreshCoreAsync(ct).ConfigureAwait(false);
+                    try
+                    {
+                        await RefreshCoreAsync(ct).ConfigureAwait(false);
+                    }
+                    catch when (m_cache.HasValue)
+                    {
+                    }
                 }
             }
             finally
@@ -219,7 +265,23 @@ namespace Opc.Ua.Identity
                     return;
                 }
 
-                await RefreshCoreAsync(ct).ConfigureAwait(false);
+                try
+                {
+                    await RefreshCoreAsync(ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (ObjectDisposedException)
+                {
+                    throw;
+                }
+                catch
+                {
+                    // Retain the last usable snapshot after a failed refresh.
+                    // The failed attempt timestamp still throttles retries.
+                }
             }
             finally
             {
@@ -229,11 +291,15 @@ namespace Opc.Ua.Identity
 
         private async ValueTask RefreshCoreAsync(CancellationToken ct)
         {
+            m_lastRefreshAttempt = m_timeProvider.GetUtcNow();
             IReadOnlyList<IssuerVerificationKey> keys = await FetchKeysAsync(ct).ConfigureAwait(false);
-            var replacement = new KeyCache(keys, m_timeProvider.GetUtcNow(), hasValue: true);
-            KeyCache previous = m_cache;
-            m_cache = replacement;
-            previous.Dispose();
+            DateTimeOffset refreshTime = m_timeProvider.GetUtcNow();
+            var replacement = new KeyCache(keys, refreshTime, hasValue: true);
+            lock (m_lifetimeLock)
+            {
+                ThrowIfDisposed();
+                Volatile.Write(ref m_cache, replacement);
+            }
         }
 
         private async ValueTask<IReadOnlyList<IssuerVerificationKey>> FetchKeysAsync(CancellationToken ct)
@@ -263,7 +329,25 @@ namespace Opc.Ua.Identity
             var keys = new List<IssuerVerificationKey>();
             foreach (JsonElement jwk in keysElement.EnumerateArray())
             {
-                AddJwkKeys(jwk, keys);
+                try
+                {
+                    AddJwkKeys(jwk, keys);
+                }
+                catch (ArgumentException)
+                {
+                }
+                catch (CryptographicException)
+                {
+                }
+                catch (FormatException)
+                {
+                }
+                catch (InvalidOperationException)
+                {
+                }
+                catch (NotSupportedException)
+                {
+                }
             }
 
             return keys.AsReadOnly();
@@ -410,12 +494,15 @@ namespace Opc.Ua.Identity
 
         private bool CanRefresh(KeyCache cache)
         {
-            return !cache.HasValue || cache.RefreshTime + m_minRefreshInterval <= m_timeProvider.GetUtcNow();
+            DateTimeOffset lastAttempt = cache.HasValue && cache.RefreshTime > m_lastRefreshAttempt
+                ? cache.RefreshTime
+                : m_lastRefreshAttempt;
+            return lastAttempt + m_minRefreshInterval <= m_timeProvider.GetUtcNow();
         }
 
         private void ThrowIfDisposed()
         {
-            if (m_disposed)
+            if (Volatile.Read(ref m_disposed))
             {
                 throw new ObjectDisposedException(nameof(JwksIssuerKeyResolver));
             }
@@ -515,7 +602,7 @@ namespace Opc.Ua.Identity
             return Convert.FromBase64String(padded);
         }
 
-        private sealed class KeyCache : IDisposable
+        private sealed class KeyCache
         {
             public static readonly KeyCache Empty = new(
                 [],
@@ -524,7 +611,6 @@ namespace Opc.Ua.Identity
 
             private readonly IReadOnlyList<IssuerVerificationKey> m_keys;
             private readonly Dictionary<string, IReadOnlyList<IssuerVerificationKey>> m_keysById;
-            private bool m_disposed;
 
             public KeyCache(
                 IReadOnlyList<IssuerVerificationKey> keys,
@@ -572,20 +658,6 @@ namespace Opc.Ua.Identity
                 return m_keysById.TryGetValue(keyId, out IReadOnlyList<IssuerVerificationKey>? keys)
                     ? keys
                     : [];
-            }
-
-            public void Dispose()
-            {
-                if (m_disposed)
-                {
-                    return;
-                }
-
-                m_disposed = true;
-                foreach (IssuerVerificationKey key in m_keys)
-                {
-                    key.Dispose();
-                }
             }
         }
     }

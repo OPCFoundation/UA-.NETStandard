@@ -1192,6 +1192,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
                     typeof(bool),
                     typeof(bool),
                     typeof(NetworkRedundancyOptions),
+                    typeof(ServerRedundancyOptions),
                     typeof(IClientChannelManager),
                     typeof(IClientConnectGate)
                 ],
@@ -1217,6 +1218,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
                 false,
                 false,
                 false,
+                null,
                 null,
                 null,
                 null

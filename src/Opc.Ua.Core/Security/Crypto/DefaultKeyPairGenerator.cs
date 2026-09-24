@@ -61,10 +61,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(builder));
             }
 
-            if (certificateType.IsNull ||
-                certificateType == ObjectTypeIds.ApplicationCertificateType ||
-                certificateType == ObjectTypeIds.RsaMinApplicationCertificateType ||
-                certificateType == ObjectTypeIds.RsaSha256ApplicationCertificateType)
+            if (CertificateIdentifier.IsRsaCertificateType(certificateType))
             {
                 ushort keySize = keySizeInBits == 0
                     ? CertificateFactory.DefaultKeySize

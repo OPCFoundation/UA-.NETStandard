@@ -1,0 +1,356 @@
+name: Run .NET tests
+description: >-
+  Builds and runs one batch of test projects on a GitHub-hosted runner, then
+  publishes its results, dumps and coverage. Shared by the pull-request
+  workflow and the manual full-scope nightly workflow so both execute the
+  matrix produced by .github/scripts/get-ci-matrix.ps1 identically.
+
+inputs:
+  projects:
+    description: Semicolon-separated repository-relative test project paths.
+    required: true
+  custom-test-target:
+    description: >-
+      Value for /p:CustomTestTarget. This, not --framework on its own, is what
+      pins every project and its dependencies to a single target framework.
+    required: true
+  framework:
+    description: >-
+      Target framework the tests execute on. Differs from custom-test-target for
+      netstandard2.0 (hosted on net48) and netstandard2.1 (hosted on net8.0).
+    required: true
+  configuration:
+    description: Debug or Release.
+    required: true
+  dotnet:
+    description: Newline-separated .NET SDK versions to install, newest last.
+    required: true
+  filter:
+    description: NUnit category filter; empty runs every category.
+    required: false
+    default: ''
+  hang-timeout:
+    description: --blame-hang-timeout for a single test.
+    required: false
+    default: 10m
+  per-project-timeout:
+    description: Wall-clock ceiling in minutes for one project's build or test run.
+    required: false
+    default: '30'
+  coverage:
+    description: Collect Cobertura coverage ('true' or 'false').
+    required: false
+    default: 'false'
+  artifact-name:
+    description: Name of the artifact that receives the results of this batch.
+    required: true
+
+runs:
+  using: composite
+  steps:
+  - name: Setup .NET
+    uses: actions/setup-dotnet@v6
+    with:
+      dotnet-version: ${{ inputs.dotnet }}
+
+  - name: Set cloud version
+    shell: pwsh
+    run: ./.azurepipelines/set-version.ps1
+
+  # SoftHSM2 stands in for a hardware token so the PKCS#11 store is exercised
+  # against a real module rather than a substitute. The tests skip themselves
+  # when no module is present or the token is not provisioned, so this step only
+  # ever adds coverage. It is deliberately strict: if provisioning breaks, the
+  # step fails here rather than silently reducing the batch to a no-op.
+  - name: Setup SoftHSM2
+    if: ${{ contains(inputs.projects, 'Opc.Ua.Security.Pkcs11.Tests') && runner.os != 'Windows' }}
+    shell: bash
+    run: |
+      set -euo pipefail
+      if [ "${{ runner.os }}" = "Linux" ]; then
+        sudo apt-get update
+        sudo apt-get install -y softhsm2 opensc libc6-dev
+        SOFTHSM_MODULE=$(ls /usr/lib/softhsm/libsofthsm2.so \
+          /usr/lib/*/softhsm/libsofthsm2.so 2>/dev/null | head -n1)
+
+        # Pkcs11Interop reaches the module through DllImport("libdl"). glibc
+        # 2.34 folded libdl into libc and ships only the libdl.so.2 ABI stub,
+        # which the .NET loader will not bind "libdl" to, so provide the name
+        # it looks for. Consumers on a modern distribution need the same.
+        if ! ldconfig -p | grep -q "libdl\.so "; then
+          DL_STUB=$(ldconfig -p | awk '/libdl\.so\.2/ {print $NF; exit}')
+          test -n "$DL_STUB"
+          sudo ln -sf "$DL_STUB" "$(dirname "$DL_STUB")/libdl.so"
+          sudo ldconfig
+        fi
+      else
+        brew install softhsm opensc
+        SOFTHSM_MODULE=$(ls "$(brew --prefix)"/lib/softhsm/libsofthsm2.so | head -n1)
+      fi
+      test -n "$SOFTHSM_MODULE"
+
+      # A token has to be provisioned before it can be opened, exactly as a real
+      # device would be by its vendor tooling.
+      export SOFTHSM2_CONF="$HOME/softhsm2.conf"
+      mkdir -p "$HOME/softhsm-tokens"
+      echo "directories.tokendir = $HOME/softhsm-tokens" > "$SOFTHSM2_CONF"
+
+      softhsm2-util --init-token --free --label opcua-test \
+        --pin 1234 --so-pin 123456
+
+      # Build the key and certificate in software, then import both onto the
+      # token. Generating on-token and then issuing a certificate for that key
+      # would need the OpenSSL pkcs11 engine, which OpenSSL 3.x on the hosted
+      # images no longer provides. Importing is equivalent for this test:
+      # SoftHSM stores an imported private key with CKA_SENSITIVE=true and
+      # CKA_EXTRACTABLE=false, so it is non-extractable once it is on the token,
+      # which is the property under test.
+      openssl req -x509 -newkey rsa:2048 -nodes -days 365 \
+        -subj "/CN=Pkcs11TestServer" -keyout /tmp/pkcs11-key.pem -out /tmp/pkcs11-cert.pem
+      openssl rsa  -in /tmp/pkcs11-key.pem  -outform DER -out /tmp/pkcs11-key.der
+      openssl x509 -in /tmp/pkcs11-cert.pem -outform DER -out /tmp/pkcs11-cert.der
+
+      pkcs11-tool --module "$SOFTHSM_MODULE" --login --pin 1234 \
+        --write-object /tmp/pkcs11-key.der  --type privkey --label opcua-server --id 01
+      pkcs11-tool --module "$SOFTHSM_MODULE" --login --pin 1234 \
+        --write-object /tmp/pkcs11-cert.der --type cert    --label opcua-server --id 01
+
+      # Fail here rather than let the tests quietly skip everything.
+      pkcs11-tool --module "$SOFTHSM_MODULE" --login --pin 1234 --list-objects | tee /tmp/pkcs11-objects.txt
+      grep -q "Certificate Object" /tmp/pkcs11-objects.txt
+      grep -q "Private Key Object" /tmp/pkcs11-objects.txt
+
+      {
+        echo "SOFTHSM2_CONF=$SOFTHSM2_CONF"
+        echo "OPCUA_PKCS11_MODULE=$SOFTHSM_MODULE"
+        echo "OPCUA_PKCS11_TOKEN=opcua-test"
+        echo "OPCUA_PKCS11_PIN=1234"
+      } >> "$GITHUB_ENV"
+
+  # Hosted Linux images need msquic to exercise QUIC rather than silently skip
+  # the transport tests. Keep provisioning strict for both PR and nightly runs.
+  - name: Setup msquic
+    if: ${{ contains(inputs.projects, 'Opc.Ua.Core.DataChannels.Tests') && runner.os == 'Linux' }}
+    shell: bash
+    run: |
+      set -euo pipefail
+      . /etc/os-release
+      curl -fsSL "https://packages.microsoft.com/config/${ID}/${VERSION_ID}/packages-microsoft-prod.deb" \
+        -o /tmp/packages-microsoft-prod.deb
+      sudo dpkg -i /tmp/packages-microsoft-prod.deb
+      sudo apt-get update
+      sudo apt-get install -y libmsquic
+
+      ldconfig -p | grep libmsquic
+      echo "UA_REQUIRE_QUIC=1" >> "$GITHUB_ENV"
+
+  - name: Enable native core dumps
+    # Issue #4447: on run 34158052372 the testhost was lost to a glibc abort -
+    # `double free or corruption (out)` - and no dump was produced at all,
+    # leaving a native memory-corruption bug in the security stack with no call
+    # stack to work from. Neither dump path this action already configures can
+    # be relied on for that class of failure:
+    #   --blame-crash-dump-type mini goes through the runtime's createdump,
+    #     which the runtime invokes only for crashes it handles itself; a raw
+    #     SIGABRT out of glibc's malloc consistency check is not one of them.
+    #   --blame-hang-dump-type mini asks the testhost to dump itself over the
+    #     diagnostics socket, so it needs a runtime healthy enough to service
+    #     the request. On that run it answered 'Collect dump was enabled but no
+    #     dump file was generated'.
+    # A kernel core is written by the kernel and depends on neither, so it is
+    # the one artifact that survives heap corruption. Nothing is written unless
+    # a process actually dies on a signal, so healthy runs pay nothing.
+    #
+    # Cores land outside the workspace on purpose, so that 'Upload test
+    # results' cannot sweep a multi-gigabyte file in by accident. 'Stage Linux
+    # core dumps' below collects them deliberately, and only on failure.
+    #
+    # This step is diagnostics only, so it warns rather than fails: losing the
+    # ability to collect a core is not a reason to stop the tests from running.
+    if: ${{ runner.os == 'Linux' }}
+    shell: bash
+    run: |
+      set -uo pipefail
+      set +e   # `shell: bash` runs with -e; each command is checked explicitly
+
+      if ! (sudo mkdir -p /tmp/coredumps && sudo chmod 1777 /tmp/coredumps); then
+          echo '::warning::Could not create /tmp/coredumps; no core dumps will be collected.'
+          exit 0
+      fi
+
+      # Ubuntu pipes cores to apport by default, which discards them for
+      # processes it does not own. Write plain files instead.
+      if ! sudo sysctl -w kernel.core_pattern='/tmp/coredumps/core.%e.%p'; then
+          echo '::warning::Could not set kernel.core_pattern; a native abort will not leave a core dump.'
+      fi
+
+      # yama defaults to 1 (a tracer may only attach to its own descendants).
+      # createdump is forked by the target and traces its parent, which is not
+      # that relation; the runtime asks for an exemption via PR_SET_PTRACER,
+      # but relaxing the scope also lets `gdb -p` and `dotnet-dump collect`
+      # attach to a wedged testhost, so a live follow-up is not blocked on it.
+      if [ -e /proc/sys/kernel/yama/ptrace_scope ]; then
+          sudo sysctl -w kernel.yama.ptrace_scope=0 \
+              || echo '::warning::Could not relax kernel.yama.ptrace_scope.'
+      fi
+
+      echo "core_pattern=$(cat /proc/sys/kernel/core_pattern)"
+
+  - name: Build and test
+    shell: pwsh
+    # Inputs are passed through the environment rather than interpolated into
+    # the script text: a filter such as 'TestCategory!=X&TestCategory!=Y' must
+    # not be re-parsed, and workflow inputs must never be able to inject
+    # PowerShell.
+    # No timeout-minutes: a composite step cannot carry one. The executor
+    # enforces per-project-timeout itself, which is better than a step timeout
+    # because the failure names the project that hung.
+    env:
+      CI_PROJECTS: ${{ inputs.projects }}
+      CI_CUSTOM_TEST_TARGET: ${{ inputs.custom-test-target }}
+      CI_FRAMEWORK: ${{ inputs.framework }}
+      CI_CONFIGURATION: ${{ inputs.configuration }}
+      CI_FILTER: ${{ inputs.filter }}
+      CI_HANG_TIMEOUT: ${{ inputs.hang-timeout }}
+      CI_PER_PROJECT_TIMEOUT: ${{ inputs.per-project-timeout }}
+      CI_COVERAGE: ${{ inputs.coverage }}
+    run: |
+      # The core_pattern set by 'Enable native core dumps' only takes effect for
+      # a process whose RLIMIT_CORE is non-zero, and the limit is inherited, not
+      # global - so it has to be raised here, on the shell that launches the test
+      # host, rather than in that step's own shell. Raising the hard limit needs
+      # root; if that fails the run continues without a core, since the managed
+      # blame dumps are unaffected either way.
+      if ($IsLinux)
+      {
+        & sudo prlimit --pid $PID --core=unlimited
+        if ($LASTEXITCODE -ne 0)
+        {
+          Write-Host "::warning::Could not raise RLIMIT_CORE (prlimit exited with code $LASTEXITCODE); a native abort will not leave a core dump."
+        }
+        Write-Host "RLIMIT_CORE (soft) for this shell: $(& bash -c 'ulimit -c')"
+      }
+
+      ./.github/scripts/run-dotnet-tests.ps1 `
+        -Projects $env:CI_PROJECTS `
+        -CustomTestTarget $env:CI_CUSTOM_TEST_TARGET `
+        -Framework $env:CI_FRAMEWORK `
+        -Configuration $env:CI_CONFIGURATION `
+        -Filter $env:CI_FILTER `
+        -HangTimeout $env:CI_HANG_TIMEOUT `
+        -PerProjectTimeoutMinutes ([int]$env:CI_PER_PROJECT_TIMEOUT) `
+        -ResultsDirectory 'TestResults' `
+        -Coverage:($env:CI_COVERAGE -eq 'true')
+
+  # Apple Crash Reporter writes .crash (legacy) and .ips (JSON, macOS 12+)
+  # diagnostic reports to ~/Library/Logs/DiagnosticReports/ when a process
+  # crashes. These are separate from the VSTest blame collector dumps and carry
+  # the native crash stack and OS thread state needed to root-cause a testhost
+  # SIGABRT or SIGSEGV. Only reports whose base name mentions 'testhost' or
+  # 'dotnet' are collected, which excludes unrelated crashes on shared runners.
+  - name: Stage macOS crash reports
+    if: ${{ failure() && runner.os == 'macOS' }}
+    shell: pwsh
+    run: |
+      $src = [System.IO.Path]::Combine($env:HOME, 'Library', 'Logs', 'DiagnosticReports')
+      $dst = 'TestResults/mac-diagnostics'
+      if (-not (Test-Path $src)) {
+          Write-Host "No DiagnosticReports directory found at '$src'; skipping."
+          exit 0
+      }
+      $cutoff = (Get-Date).AddHours(-2)
+      $files = @(Get-ChildItem -Path $src -File -ErrorAction SilentlyContinue |
+          Where-Object { ($_.Extension -ieq '.crash' -or $_.Extension -ieq '.ips') -and
+                         ($_.BaseName -ilike '*testhost*' -or $_.BaseName -ilike '*dotnet*') -and
+                         $_.LastWriteTime -ge $cutoff })
+      if ($files.Count -eq 0) {
+          Write-Host 'No recent macOS crash reports found.'
+          exit 0
+      }
+      $null = New-Item -ItemType Directory -Path $dst -Force
+      foreach ($f in $files) {
+          Copy-Item -Path $f.FullName -Destination $dst -Force
+          Write-Host "Staged: $($f.Name)"
+      }
+      Write-Host "Staged $($files.Count) macOS crash report(s) to '$dst'."
+
+  - name: Stage Linux core dumps
+    # Counterpart of 'Stage macOS crash reports' for the kernel cores enabled by
+    # 'Enable native core dumps'. A core of a .NET test host runs to several
+    # gigabytes, which is not worth uploading whole, and the part that actually
+    # names the code that corrupted the heap is the native backtrace. So the
+    # backtrace is extracted here and always kept; the core itself is kept only
+    # when it compresses to something small enough to be worth transferring.
+    # Both land in TestResults, which 'Upload test results' already publishes.
+    if: ${{ failure() && runner.os == 'Linux' }}
+    shell: bash
+    run: |
+      set -uo pipefail
+      set +e   # one unprocessable core must not abandon the rest
+
+      src=/tmp/coredumps
+      dst=TestResults/linux-diagnostics
+      # An artifact bigger than this costs more upload time than the evidence
+      # is worth; the backtrace is kept regardless, so nothing is lost outright.
+      max_compressed=$((2 * 1024 * 1024 * 1024))
+
+      shopt -s nullglob
+      cores=("$src"/core.*)
+      if [ ${#cores[@]} -eq 0 ]; then
+          echo "No core dumps found in $src."
+          exit 0
+      fi
+
+      mkdir -p "$dst"
+      if ! command -v gdb >/dev/null 2>&1; then
+          echo 'gdb not present; installing it to extract backtraces.'
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends gdb
+      fi
+
+      for core in "${cores[@]}"; do
+          name=$(basename "$core")
+          archive=''
+          echo "Found $core ($(stat -c %s "$core") bytes)"
+
+          if command -v gdb >/dev/null 2>&1; then
+              # %e in core_pattern is the executable's base name, which for a
+              # test host is always `dotnet`; pass the binary so gdb can resolve
+              # symbols for the native frames.
+              gdb -batch -nx \
+                  -ex 'set pagination off' \
+                  -ex 'info registers' \
+                  -ex 'thread apply all bt full' \
+                  "$(command -v dotnet)" "$core" \
+                  > "$dst/$name.backtrace.txt" 2>&1
+              echo "Wrote $dst/$name.backtrace.txt"
+          else
+              echo "::warning::gdb unavailable; no backtrace extracted for $name."
+          fi
+
+          if command -v zstd >/dev/null 2>&1; then
+              zstd -q -3 -T0 -o "$dst/$name.zst" "$core" && archive="$dst/$name.zst"
+          else
+              gzip -1 -c "$core" > "$dst/$name.gz" && archive="$dst/$name.gz"
+          fi
+
+          if [ -f "$archive" ]; then
+              size=$(stat -c %s "$archive")
+              if [ "$size" -gt "$max_compressed" ]; then
+                  echo "::warning::$(basename "$archive") is $size bytes; dropping it and keeping only the backtrace."
+                  rm -f "$archive"
+              else
+                  echo "Staged $archive ($size bytes)"
+              fi
+          fi
+      done
+
+      ls -la "$dst"
+
+  - name: Upload test results
+    # always(): the results of a failed run are the reason to keep them.
+    if: ${{ always() }}
+    uses: actions/upload-artifact@v7
+    with:
+      name: ${{ inputs.artifact-name }}
+      path: TestResults
+      if-no-files-found: error

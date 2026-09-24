@@ -858,6 +858,11 @@ namespace Opc.Ua
             /// The discovery URL for the address.
             /// </summary>
             public Uri? DiscoveryUrl { get; set; }
+
+            /// <summary>
+            /// Gets the transport profiles explicitly requested for this base address.
+            /// </summary>
+            internal ArrayOf<string> RequestedProfiles { get; init; }
         }
 
         /// <summary>
@@ -1249,22 +1254,24 @@ namespace Opc.Ua
             }
 
             var filteredAddresses = new List<BaseAddress>();
+            ArrayOf<string> requestedProfiles = profileUris.ConvertAll(Profiles.NormalizeUri);
 
             foreach (BaseAddress baseAddress in baseAddresses)
             {
-                foreach (string profileUri in profileUris)
+                string baseProfile = TransportProfileIdentity.GetEffective(baseAddress.ProfileUri, baseAddress.Url.ToString());
+                foreach (string profileUri in requestedProfiles)
                 {
-                    string normalized = Profiles.NormalizeUri(profileUri);
-
-                    // A base address carries only the profile its URL scheme
-                    // implies, so a client asking for the JSON or OpenAPI profile
-                    // would match nothing and get an empty endpoint list back -
-                    // the same mismatch TranslateEndpointDescriptions works
-                    // around when it decides which endpoints belong here.
-                    if (baseAddress.ProfileUri == normalized ||
-                        ServesSameScheme(baseAddress.ProfileUri, normalized))
+                    if (baseProfile == profileUri ||
+                        ServesSameScheme(baseProfile, profileUri))
                     {
-                        filteredAddresses.Add(baseAddress);
+                        filteredAddresses.Add(new BaseAddress
+                        {
+                            Url = baseAddress.Url,
+                            AlternateUrls = baseAddress.AlternateUrls,
+                            ProfileUri = baseProfile,
+                            DiscoveryUrl = baseAddress.DiscoveryUrl,
+                            RequestedProfiles = requestedProfiles
+                        });
                         break;
                     }
                 }
@@ -1296,14 +1303,16 @@ namespace Opc.Ua
                     {
                         if (alternateUrl.IdnHost == endpointUrl.IdnHost)
                         {
-                            if (!accessibleAddresses.Any(item => item.Url == alternateUrl))
+                            if (!accessibleAddresses.Any(item =>
+                                item.Url == alternateUrl && item.ProfileUri == baseAddress.ProfileUri))
                             {
                                 accessibleAddresses.Add(
                                     new BaseAddress
                                     {
                                         Url = alternateUrl,
                                         ProfileUri = baseAddress.ProfileUri,
-                                        DiscoveryUrl = alternateUrl
+                                        DiscoveryUrl = alternateUrl,
+                                        RequestedProfiles = baseAddress.RequestedProfiles
                                     });
                             }
                             break;
@@ -1427,20 +1436,20 @@ namespace Opc.Ua
                 foreach (EndpointDescription endpoint in endpoints)
                 {
                     var endpointUrl = new UriBuilder(endpoint.EndpointUrl!);
+                    string endpointProfile = TransportProfileIdentity.GetEffective(
+                        endpoint.TransportProfileUri, endpoint.EndpointUrl!);
 
                     // find matching base address.
                     foreach (BaseAddress baseAddress in baseAddresses)
                     {
-                        // A base address carries the one profile its URL scheme
-                        // implies, but a listener publishes every profile it
-                        // serves on that scheme - HTTPS serves binary, JSON and
-                        // OpenAPI; WSS serves binary, JSON and OpenAPI too.
-                        // Without this those twins match no base address and
-                        // GetEndpoints drops them.
-                        if (endpoint.TransportProfileUri != baseAddress.ProfileUri &&
-                            !ServesSameScheme(
-                                baseAddress.ProfileUri,
-                                endpoint.TransportProfileUri))
+                        string baseProfile = TransportProfileIdentity.GetEffective(
+                            baseAddress.ProfileUri, baseAddress.Url.ToString());
+                        if (!baseAddress.RequestedProfiles.IsEmpty &&
+                            !baseAddress.RequestedProfiles.Contains(endpointProfile))
+                        {
+                            continue;
+                        }
+                        if (endpointProfile != baseProfile && !ServesSameScheme(baseProfile, endpointProfile))
                         {
                             continue;
                         }
@@ -1475,7 +1484,7 @@ namespace Opc.Ua
                         translation.SecurityMode = endpoint.SecurityMode;
                         translation.SecurityPolicyUri = endpoint.SecurityPolicyUri;
                         translation.ServerCertificate = endpoint.ServerCertificate;
-                        translation.TransportProfileUri = endpoint.TransportProfileUri;
+                        translation.TransportProfileUri = endpointProfile;
                         translation.UserIdentityTokens = endpoint.UserIdentityTokens;
                         translation.Server = application;
 
@@ -1530,10 +1539,9 @@ namespace Opc.Ua
             string? baseAddressProfileUri,
             string? endpointProfileUri)
         {
-            if (Profiles.IsHttpsBinary(baseAddressProfileUri))
+            if (TransportProfileIdentity.IsHttps(baseAddressProfileUri))
             {
-                return Profiles.IsHttpsJson(endpointProfileUri) ||
-                    Profiles.IsHttpsOpenApi(endpointProfileUri);
+                return TransportProfileIdentity.IsHttps(endpointProfileUri);
             }
 
             if (Profiles.IsWssBinary(baseAddressProfileUri))

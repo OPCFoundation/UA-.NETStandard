@@ -70,26 +70,27 @@ namespace Opc.Ua.Redundancy.Server
             }
 
             ISystemContext context = server.DefaultSystemContext;
-            ApplyLevel(server, serverObject, context, m_serviceLevelProvider.GetServiceLevel());
-            m_serviceLevelProvider.ServiceLevelChanged += level => ApplyLevel(server, serverObject, context, level);
+            Action<byte> publishLevel = server is IServerServiceLevelControl control
+                ? control.ClaimServiceLevelControl()
+                : level =>
+                {
+                    serverObject.ServiceLevel.Value = level;
+                    serverObject.ServiceLevel.ClearChangeMasks(context, false);
+                };
+            ApplyLevel(server, publishLevel, m_serviceLevelProvider.GetServiceLevel());
+            m_serviceLevelProvider.ServiceLevelChanged += level => ApplyLevel(server, publishLevel, level);
             return default;
         }
 
         private static void ApplyLevel(
             IServerContext server,
-            ServerObjectState serverObject,
-            ISystemContext context,
+            Action<byte> publishLevel,
             byte level)
         {
-            if (serverObject.ServiceLevel == null)
-            {
-                return;
-            }
-            serverObject.ServiceLevel.Value =
+            publishLevel(
                 server is INodeIdFactoryProvider { NodeIdFactory: ReplicaNodeIdFactory { IsCompatible: false } }
                     ? (byte)0
-                    : level;
-            serverObject.ServiceLevel.ClearChangeMasks(context, false);
+                    : level);
         }
 
         private readonly IServiceLevelProvider m_serviceLevelProvider;

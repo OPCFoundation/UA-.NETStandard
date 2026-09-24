@@ -189,34 +189,24 @@ namespace Alarms
 
             int level = m_alarmController.GetValue();
 
-            if (Analog)
+            // Discrete alarms use the same bands as the limit alarms, so all conditions
+            // report on the same ticks (see AlarmController.TypicalGetValue).
+            if (level <= AlarmDefines.LOWLOW_ALARM)
             {
-                if (level <= AlarmDefines.LOWLOW_ALARM && Analog)
-                {
-                    severity = AlarmDefines.LOWLOW_SEVERITY;
-                }
-                // Level is Low
-                else if (level <= AlarmDefines.LOW_ALARM)
-                {
-                    severity = AlarmDefines.LOW_SEVERITY;
-                }
-                // Level is HighHigh
-                else if (level >= AlarmDefines.HIGHHIGH_ALARM && Analog)
-                {
-                    severity = AlarmDefines.HIGHHIGH_SEVERITY;
-                }
-                // Level is High
-                else if (level >= AlarmDefines.HIGH_ALARM)
-                {
-                    severity = AlarmDefines.HIGH_SEVERITY;
-                }
+                severity = AlarmDefines.LOWLOW_SEVERITY;
             }
-            else if (level <= AlarmDefines.BOOL_LOW_ALARM)
+            // Level is Low
+            else if (level <= AlarmDefines.LOW_ALARM)
             {
                 severity = AlarmDefines.LOW_SEVERITY;
             }
+            // Level is HighHigh
+            else if (level >= AlarmDefines.HIGHHIGH_ALARM)
+            {
+                severity = AlarmDefines.HIGHHIGH_SEVERITY;
+            }
             // Level is High
-            else if (level >= AlarmDefines.BOOL_HIGH_ALARM)
+            else if (level >= AlarmDefines.HIGH_ALARM)
             {
                 severity = AlarmDefines.HIGH_SEVERITY;
             }

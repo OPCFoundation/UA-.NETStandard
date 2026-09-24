@@ -271,7 +271,6 @@ namespace Alarms
 
         public string AlarmNodeName => m_alarm.NodeId.ToString();
 
-        public bool Analog => m_analog;
         public bool Optional => m_optional;
 
         public bool SupportsBranching => m_supportsBranching;
@@ -365,7 +364,6 @@ namespace Alarms
         protected BaseDataVariableState m_trigger;
         protected string m_alarmRootName = string.Empty;
         protected string m_mapName = string.Empty;
-        protected bool m_analog = true;
         protected bool m_optional;
         protected int m_interval;
         protected uint m_branchCounter;

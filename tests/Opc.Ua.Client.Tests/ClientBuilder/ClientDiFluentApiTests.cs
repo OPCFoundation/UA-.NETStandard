@@ -448,6 +448,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                     typeof(bool),
                     typeof(bool),
                     typeof(NetworkRedundancyOptions),
+                    typeof(ServerRedundancyOptions),
                     typeof(IClientChannelManager),
                     typeof(IClientConnectGate)
                 ],
@@ -470,6 +471,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 false,
                 false,
                 false,
+                null,
                 null,
                 null,
                 null

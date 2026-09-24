@@ -35,7 +35,10 @@ using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
 {
-    public partial class Session : IReconnectParticipant, IRecreateAwareReconnectParticipant
+    public partial class Session :
+        IReconnectParticipant,
+        IRecreateAwareReconnectParticipant,
+        IChannelRecoveryParticipant
     {
         /// <summary>
         /// Stable participant identifier used by
@@ -92,9 +95,29 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        async ValueTask<ParticipantReconnectResult> IReconnectParticipant.OnReconnectAsync(
+        ValueTask<ParticipantReconnectResult> IReconnectParticipant.OnReconnectAsync(
             IManagedTransportChannel channel,
             int reconnectAttempt,
+            CancellationToken ct)
+        {
+            return ReconnectParticipantAsync(channel, reconnectAttempt, null, ct);
+        }
+
+        /// <inheritdoc/>
+        async ValueTask<ParticipantReconnectResult> IChannelRecoveryParticipant.OnReconnectAsync(
+            IManagedTransportChannel channel,
+            ITransportChannel recoveryChannel,
+            int reconnectAttempt,
+            CancellationToken ct)
+        {
+            using var client = new RecoverySessionClient(this, recoveryChannel);
+            return await ReconnectParticipantAsync(channel, reconnectAttempt, client, ct).ConfigureAwait(false);
+        }
+
+        private async ValueTask<ParticipantReconnectResult> ReconnectParticipantAsync(
+            IManagedTransportChannel channel,
+            int reconnectAttempt,
+            SessionClient? recoveryClient,
             CancellationToken ct)
         {
             if (reconnectAttempt < 0)
@@ -120,14 +143,8 @@ namespace Opc.Ua.Client
 
             try
             {
-                // Pass the wrapper back in as the "channel" so the
-                // existing legacy path hits the "set channel" no-op
-                // branch (the wrapper IS the current channel) and goes
-                // straight to ActivateSession. The wrapper's
-                // SendRequestAsync bypasses the ready-state gate while
-                // the manager is in the participant-reactivation
-                // scope, so ActivateSession can complete.
-                await ReconnectAsync(connection: null, channel: channel, ct: ct)
+                await ReconnectCoreAsync(
+                    connection: null, channel, budget: null, ct, recoveryClient)
                     .ConfigureAwait(false);
                 return ParticipantReconnectResult.Reactivated;
             }
@@ -224,6 +241,71 @@ namespace Opc.Ua.Client
             await RecreateInPlaceAsync(ct: ct).ConfigureAwait(false);
         }
 
+        /// <inheritdoc/>
+        async ValueTask IChannelRecoveryParticipant.RecreateAsync(
+            IManagedTransportChannel channel,
+            ITransportChannel recoveryChannel,
+            CancellationToken ct)
+        {
+            using var client = new RecoverySessionClient(this, recoveryChannel);
+            await RecreateInPlaceCoreAsync(
+                endpoint: null, connection: null, channel, budget: null, ct, recoveryClient: client)
+                .ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        ValueTask IChannelRecoveryParticipant.CompleteRecoveryAsync(CancellationToken ct)
+        {
+            return new ValueTask(CompleteSessionRecoveryAsync(ct));
+        }
+
+        private sealed class RecoverySessionClient : SessionClientBatched
+        {
+            public RecoverySessionClient(Session owner, ITransportChannel channel)
+                : base(channel, owner.m_telemetry)
+            {
+                m_owner = owner;
+                OperationLimits.MaxNodesPerRead = owner.OperationLimits.MaxNodesPerRead;
+            }
+
+            protected override void UpdateRequestHeader(IServiceRequest request, bool useDefaults)
+            {
+                m_owner.UpdateRequestHeader(request, useDefaults);
+            }
+
+            protected override void Dispose(bool disposing)
+            {
+                ReleaseChannel();
+                base.Dispose(disposing);
+            }
+
+            private readonly Session m_owner;
+        }
+
+        private sealed record PendingSubscriptionRecovery(NodeId PreviousSessionId, bool ReusedSession);
+
+        /// <summary>
+        /// Defers callback-dependent restoration to the outer session owner's completion phase.
+        /// </summary>
+        internal IDisposable DeferSubscriptionRecovery()
+        {
+            Interlocked.Increment(ref m_subscriptionRecoveryDeferrals);
+            return new SubscriptionRecoveryDeferral(this);
+        }
+
+        private sealed class SubscriptionRecoveryDeferral(Session owner) : IDisposable
+        {
+            public void Dispose()
+            {
+                if (Interlocked.Exchange(ref m_disposed, 1) == 0)
+                {
+                    Interlocked.Decrement(ref owner.m_subscriptionRecoveryDeferrals);
+                }
+            }
+
+            private int m_disposed;
+        }
+
         private static ValueTask ReconnectManagedChannelAsync(
             IClientChannelManager manager,
             IManagedTransportChannel channel,
@@ -246,6 +328,8 @@ namespace Opc.Ua.Client
 
         private IClientChannelManager? m_channelManager;
         private IManagedTransportChannel? m_managedChannel;
+        private PendingSubscriptionRecovery? m_pendingSubscriptionRecovery;
+        private int m_subscriptionRecoveryDeferrals;
 
         /// <summary>
         /// Creates a new <see cref="Session"/> bound to a centrally
@@ -325,7 +409,7 @@ namespace Opc.Ua.Client
             if (secPolicy != SecurityPolicies.None)
             {
                 using CertificateEntry clientEntry = await LoadInstanceCertificateEntryAsync(
-                    configuration, secPolicy, probeContext.Telemetry, ct)
+                    configuration, secPolicy, probeContext.Telemetry, useCertificateRegistry: true, ct)
                     .ConfigureAwait(false);
 #pragma warning disable CA2000 // ownership of the chain transfers to the channel manager, which disposes it
                 manager.UpdateClientCertificate(
@@ -348,7 +432,7 @@ namespace Opc.Ua.Client
                             channel,
                             configuration,
                             endpoint,
-                            probeContext,
+                            channel.MessageContext,
                             engineFactory,
                             timeProvider,
                             securityPolicies);
@@ -421,5 +505,4 @@ namespace Opc.Ua.Client
             Exception? exception,
             NodeId? sessionId);
     }
-
 }

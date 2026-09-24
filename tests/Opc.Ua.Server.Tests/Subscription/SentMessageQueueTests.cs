@@ -44,6 +44,9 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable]
     public class SentMessageQueueTests
     {
+        /// <summary>
+        /// Verifies that restoration preserves sequence state and dequeues an independent copy of the queued message.
+        /// </summary>
         [Test]
         public void CreateRestoredPreservesQueueStateAndDequeuesExistingMessages()
         {
@@ -71,7 +74,8 @@ namespace Opc.Ua.Server.Tests
             {
                 Assert.That(queue.NextSequenceNumber, Is.EqualTo(42u));
                 Assert.That(queue.LastSentMessage, Is.EqualTo(2));
-                Assert.That(result, Is.SameAs(messages[1]));
+                Assert.That(result, Is.Not.SameAs(messages[1]));
+                Assert.That(result!.IsEqual(messages[1]), Is.True);
                 Assert.That(availableSequenceNumbers, Has.Count.EqualTo(2));
                 Assert.That(moreNotifications, Is.False);
             });
@@ -170,6 +174,32 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(queue.NextSequenceNumber, Is.EqualTo(100u));
                 Assert.That(queue.LastSentMessage, Is.EqualTo(2));
                 Assert.That(queue.AvailableSequenceNumbersForRetransmission(), Has.Count.EqualTo(2));
+            });
+        }
+
+        [Test]
+        public void EnqueueWithZeroCapacityStillReturnsNotification()
+        {
+            var queue = new SentMessageQueue(
+                () => 14,
+                maxMessageCount: 0,
+                retransmissionStore: null,
+                Mock.Of<ILogger>());
+            var availableSequenceNumbers = new List<uint>();
+
+            NotificationMessage published = queue.Enqueue(
+                [CreateMessage(1)],
+                availableSequenceNumbers,
+                out bool moreNotifications,
+                out uint newlyUnacknowledgedCount);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(published.SequenceNumber, Is.EqualTo(1u));
+                Assert.That(queue.SentCount, Is.EqualTo(1));
+                Assert.That(moreNotifications, Is.False);
+                Assert.That(newlyUnacknowledgedCount, Is.Zero);
+                Assert.That(availableSequenceNumbers, Has.Count.EqualTo(1));
             });
         }
 

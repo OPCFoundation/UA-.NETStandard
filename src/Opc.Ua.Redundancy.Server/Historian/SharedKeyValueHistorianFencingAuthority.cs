@@ -190,6 +190,7 @@ namespace Opc.Ua.Redundancy.Server
                 span[(sizeof(int) + 16 + sizeof(long))..],
                 lease.ExpiresAt.UtcTicks);
             ByteString record = m_protector.Protect(
+                RecordProtectionContext.Create("historian-fence", kFenceKey),
                 ByteString.From(plaintext));
             if (record.IsEmpty)
             {
@@ -202,7 +203,8 @@ namespace Opc.Ua.Redundancy.Server
         private FenceLease Decode(ByteString record)
         {
             if (record.IsEmpty ||
-                !m_protector.TryUnprotect(record, out ByteString plaintext))
+                !m_protector.TryUnprotect(
+                    RecordProtectionContext.Create("historian-fence", kFenceKey), record, out ByteString plaintext))
             {
                 throw new ServiceResultException(
                     StatusCodes.BadSecurityChecksFailed,

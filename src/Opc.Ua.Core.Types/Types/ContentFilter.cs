@@ -40,6 +40,11 @@ namespace Opc.Ua
     public partial class ContentFilter : IFormattable
     {
         /// <summary>
+        /// Maximum number of elements accepted by validation and evaluation.
+        /// </summary>
+        public const int MaxElementCount = 1024;
+
+        /// <summary>
         /// Set the default StringComparison to use when evaluating the Equals operator.
         /// This property is meant to be set as a config setting and not set / reset on
         /// a per context basis, to ensure consistency
@@ -89,6 +94,17 @@ namespace Opc.Ua
             // check for empty filter.
             if (m_elements.IsEmpty)
             {
+                return result;
+            }
+
+            if (m_elements.Count > MaxElementCount)
+            {
+                result.Status = StatusCodes.BadContentFilterInvalid;
+                result.ElementResults.Add(new ElementResult(ServiceResult.Create(
+                    StatusCodes.BadEventFilterInvalid,
+                    "ContentFilter contains too many elements ({0}); the maximum is {1}.",
+                    m_elements.Count,
+                    MaxElementCount)));
                 return result;
             }
 

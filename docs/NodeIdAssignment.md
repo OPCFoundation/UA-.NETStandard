@@ -310,6 +310,22 @@ The default is `NodeIdAssignmentMode.Numeric`, so a manager that overrides
 nothing gets compact deterministic browse-path identifiers, checked for
 collisions.
 
+When `AddNodes` receives no `RequestedNewNodeId`, the preferred identifier may
+already belong to a live node, for example after that node's BrowseName was
+changed. The manager then asks the configured factory for a fresh counter
+identifier, skipping identifiers already registered or reserved by another
+in-flight `AddNodes` request. It reserves the choice before asynchronous
+registration and releases the reservation if registration fails or is canceled.
+The existing node and its references are not replaced. Clients must use the
+`addedNodeId` returned by the service rather than assuming the preferred
+browse-path identifier was available.
+
+A client-supplied `RequestedNewNodeId` is never substituted: an occupied or
+reserved identifier returns `BadNodeIdExists`. Duplicate BrowseNames and invalid
+namespaces are still rejected. Factory errors remain visible; a counter factory
+that repeats an occupied identifier reports `BadConfigurationError` instead of
+causing an unbounded retry.
+
 ### FluentNodeManagerBase and the fluent builders
 
 `FluentNodeManagerBase` derives from `AsyncCustomNodeManager` and inherits

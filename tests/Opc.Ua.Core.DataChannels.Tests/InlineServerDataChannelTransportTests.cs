@@ -31,8 +31,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Server;
@@ -52,6 +54,72 @@ namespace Opc.Ua.Core.DataChannels.Tests
     [Category("DataChannels")]
     public sealed class InlineServerDataChannelTransportTests
     {
+        /// <summary>
+        /// Both attachment paths register the channel and notify the bound transport before receiving.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ListenerAttachmentRegistersDataChannelsAndDisposalUnbindsAsync(bool useSocket)
+        {
+            using TcpListenerChannel channel = CreateListenerChannel();
+            Mock<IUaSCByteTransport> transport = CreateIdleBoundTransport();
+            channel.TransportDecorator = _ => transport.Object;
+            using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+
+            if (useSocket)
+            {
+                channel.Attach(1, socket);
+            }
+            else
+            {
+                channel.Attach(1, transport.Object);
+            }
+
+            Assert.That(UaSCSecureChannelRegistry.TryGet(channel.GlobalChannelId, out UaSCUaBinaryChannel? registered),
+                Is.True);
+            Assert.That(registered, Is.SameAs(channel));
+            transport.As<IUaSCSecureChannelBoundTransport>()
+                .Verify(bound => bound.OnSecureChannelAttached(channel.GlobalChannelId), Times.Once);
+
+            IUaSCByteTransport? detached = await channel.DetachTransportAsync().ConfigureAwait(false);
+            Assert.That(detached, Is.SameAs(transport.Object));
+            detached?.Close();
+            channel.Dispose();
+
+            Assert.That(UaSCSecureChannelRegistry.TryGet(channel.GlobalChannelId, out _), Is.False);
+        }
+
+        /// <summary>
+        /// Disposal during the binding callback must not leave a disposed channel registered or start receiving.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ListenerDisposedDuringAttachmentIsNotRegistered(bool useSocket)
+        {
+            using TcpListenerChannel channel = CreateListenerChannel();
+            Mock<IUaSCByteTransport> transport = CreateIdleBoundTransport();
+            transport.As<IUaSCSecureChannelBoundTransport>()
+                .Setup(bound => bound.OnSecureChannelAttached(It.IsAny<string>()))
+                .Callback<string>(_ => channel.Dispose());
+            channel.TransportDecorator = _ => transport.Object;
+            using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+
+            Assert.That(() =>
+            {
+                if (useSocket)
+                {
+                    channel.Attach(1, socket);
+                }
+                else
+                {
+                    channel.Attach(1, transport.Object);
+                }
+            }, Throws.TypeOf<ObjectDisposedException>());
+
+            Assert.That(UaSCSecureChannelRegistry.TryGet(channel.GlobalChannelId, out _), Is.False);
+            transport.Verify(value => value.ReceiveChunkAsync(It.IsAny<CancellationToken>()), Times.Never);
+        }
+
         [Test]
         public async Task ManagerResolvedForAnInlineSecureChannelActuallyEmitsFramesAsync()
         {
@@ -161,6 +229,37 @@ namespace Opc.Ua.Core.DataChannels.Tests
             {
                 UaSCSecureChannelRegistry.Unbind(secureChannelId, channel);
             }
+        }
+
+        /// <summary>
+        /// Creates an unsecured listener channel with an independent registry identity.
+        /// </summary>
+        private static TcpListenerChannel CreateListenerChannel()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            return new TcpListenerChannel(
+                Guid.NewGuid().ToString(),
+                Mock.Of<ITcpChannelListener>(),
+                new BufferManager("listener-binding", 8192, telemetry),
+                new ChannelQuotas(ServiceMessageContext.CreateEmpty(telemetry)),
+                serverCertificates: null!,
+                endpoints: [],
+                telemetry);
+        }
+
+        /// <summary>
+        /// Creates a transport whose pending receive exits when the channel cancels its lifetime.
+        /// </summary>
+        private static Mock<IUaSCByteTransport> CreateIdleBoundTransport()
+        {
+            var pending = new TaskCompletionSource<ArraySegment<byte>>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var transport = new Mock<IUaSCByteTransport>();
+            transport.As<IUaSCSecureChannelBoundTransport>();
+            transport.Setup(value => value.ReceiveChunkAsync(It.IsAny<CancellationToken>()))
+                .Returns((CancellationToken ct) =>
+                    new ValueTask<ArraySegment<byte>>(pending.Task.WaitAsync(ct)));
+            return transport;
         }
 
         private static SecureChannelContext SecureChannel(string secureChannelId, string profile)

@@ -62,6 +62,16 @@ namespace Opc.Ua.SourceGeneration
                 {
                     {{Tokens.ListOfNamespaceUris}}
                 }
+
+                [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+                [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+                public static partial class ModelVersions
+                {
+                    /// <summary>
+                    /// The version of the target OPC UA model.
+                    /// </summary>
+                    public const string Target = "{{Tokens.ModelVersion}}";
+                }
             }
             """);
 

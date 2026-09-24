@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -36,28 +37,14 @@ using ISession = Opc.Ua.Client.ISession;
 namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
-    /// Dedicated fixture for tests that require the
-    /// <see cref="ServerDiagnosticsState.EnabledFlag"/> to be writable.
-    ///
-    /// <para>
-    /// The shared <see cref="TestFixture"/> deliberately leaves the
-    /// EnabledFlag <see cref="AccessLevels.CurrentRead"/>-only because
-    /// the in-process <c>ServerInternalData.SetDiagnosticsEnabled</c>
-    /// implementation deletes the diagnostic child nodes when the flag
-    /// is set to <c>false</c>, and re-enabling the flag does not
-    /// recreate them — toggling on the shared server breaks ~5
-    /// neighboring diagnostic tests.
-    /// </para>
-    ///
-    /// <para>
-    /// This fixture inherits <see cref="TestFixture"/> (so it gets a
-    /// fresh in-process server, client session, and PKI store) and
-    /// flips the <c>EnabledFlag.AccessLevel</c> to read+write
-    /// <em>after</em> server startup. The fixture is intentionally
-    /// minimal — only the EnabledFlag-toggle-related tests live here
-    /// — so the side-effects of toggling are confined to this class.
-    /// </para>
+    /// Dedicated fixture for the tests that toggle
+    /// <see cref="ServerDiagnosticsState.EnabledFlag"/> (Part 5 §6.3.3,
+    /// CTT Base Info Diagnostics 018-1/018-2/018-3).
     /// </summary>
+    /// <remarks>
+    /// The fixture gets its own in-process server so that disabling the
+    /// diagnostics collection does not affect neighboring diagnostics tests.
+    /// </remarks>
     [TestFixture]
     [Category("Conformance")]
     [Category("BaseInfo")]
@@ -65,103 +52,219 @@ namespace Opc.Ua.InformationModel.Tests
     [NonParallelizable]
     public class BaseInfoEnabledFlagToggleTests : TestFixture
     {
-        [OneTimeSetUp]
-        public Task EnableEnabledFlagWriteAsync()
-        {
-            // Allow the EnabledFlag to be written. The
-            // OnSimpleWriteValue hook (registered in
-            // ServerInternalData.CreateServerObject) delegates to
-            // DiagnosticsNodeManager.SetDiagnosticsEnabledAsync, which
-            // is the spec-conformant toggle path.
-            ServerDiagnosticsState diag =
-                ReferenceServer.CurrentInstance?.ServerObject?.ServerDiagnostics;
-            if (diag != null)
-            {
-                diag.EnabledFlag.AccessLevel = AccessLevels.CurrentReadOrWrite;
-                diag.EnabledFlag.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-            }
-            return Task.CompletedTask;
-        }
-
         [Test]
         public async Task Diagnostics015VerifyEnabledFlagToggleAsync()
         {
             ISession admin = await ConnectAsSysAdminAsync().ConfigureAwait(false);
+            if (admin == null)
+            {
+                Assert.Ignore("The server has no UserName endpoint for the administrator.");
+            }
+
             try
             {
-                ISession session = admin ?? Session;
-                DataValue dv = await ReadAttributeAsync(
-                    VariableIds.Server_ServerDiagnostics_EnabledFlag,
-                    Attributes.Value, session)
-                    .ConfigureAwait(false);
+                DataValue dv = await ReadValueAsync(
+                    admin,
+                    VariableIds.Server_ServerDiagnostics_EnabledFlag).ConfigureAwait(false);
                 Assert.That(StatusCode.IsGood(dv.StatusCode), Is.True,
                     "EnabledFlag must be readable.");
 
                 bool original = dv.GetValue(false);
                 bool toggled = !original;
 
-                WriteResponse writeResp = await session.WriteAsync(
-                    null,
-                    new WriteValue[]
-                    {
-                        new() {
-                            NodeId = VariableIds.Server_ServerDiagnostics_EnabledFlag,
-                            AttributeId = Attributes.Value,
-                            Value = new DataValue(new Variant(toggled))
-                        }
-                    }.ToArrayOf(),
-                    CancellationToken.None).ConfigureAwait(false);
+                StatusCode writeResult = await WriteEnabledFlagAsync(admin, toggled).ConfigureAwait(false);
+                Assert.That(StatusCode.IsGood(writeResult), Is.True,
+                    $"EnabledFlag write must succeed (got {writeResult}).");
 
-                Assert.That(StatusCode.IsGood(writeResp.Results[0]), Is.True,
-                    $"EnabledFlag write must succeed (got {writeResp.Results[0]}).");
-
-                DataValue after = await ReadAttributeAsync(
-                    VariableIds.Server_ServerDiagnostics_EnabledFlag,
-                    Attributes.Value, session)
-                    .ConfigureAwait(false);
+                DataValue after = await ReadValueAsync(
+                    admin,
+                    VariableIds.Server_ServerDiagnostics_EnabledFlag).ConfigureAwait(false);
                 Assert.That(after.GetValue(original), Is.EqualTo(toggled),
                     "EnabledFlag must reflect the toggled value after write.");
 
-                // Restore original — note: the
-                // SetDiagnosticsEnabledAsync(false)/(true) round trip
-                // recreates child diagnostic nodes only on the
-                // false→true transition for the FIRST setup; this
-                // restore is best-effort to leave a tidy fixture state.
-                await session.WriteAsync(
-                    null,
-                    new WriteValue[]
-                    {
-                        new() {
-                            NodeId = VariableIds.Server_ServerDiagnostics_EnabledFlag,
-                            AttributeId = Attributes.Value,
-                            Value = new DataValue(new Variant(original))
-                        }
-                    }.ToArrayOf(),
-                    CancellationToken.None).ConfigureAwait(false);
+                writeResult = await WriteEnabledFlagAsync(admin, original).ConfigureAwait(false);
+                Assert.That(StatusCode.IsGood(writeResult), Is.True);
             }
             finally
             {
-                if (admin != null)
-                {
-                    try
-                    {
-                        await admin.CloseAsync(5000, true).ConfigureAwait(false);
-                    }
-                    catch
-                    {
-                        // best effort
-                    }
-                    admin.Dispose();
-                }
+                await CloseAsync(admin).ConfigureAwait(false);
             }
         }
 
-        private async Task<DataValue> ReadAttributeAsync(
-            NodeId nodeId,
-            uint attributeId,
-            ISession session = null)
+        [Test]
+        public async Task EnabledFlagIsNotWritableWithoutAdministratorAccessAsync()
         {
-            ReadResponse response = await (session ?? Session).ReadAsync(
+            DataValue userAccessLevel = await ReadAttributeAsync(
+                Session,
+                VariableIds.Server_ServerDiagnostics_EnabledFlag,
+                Attributes.UserAccessLevel).ConfigureAwait(false);
+            Assert.That(
+                userAccessLevel.GetValue<byte>(0) & AccessLevels.CurrentWrite,
+                Is.Zero,
+                "The anonymous session must not get write access to EnabledFlag.");
+
+            StatusCode writeResult = await WriteEnabledFlagAsync(Session, false).ConfigureAwait(false);
+            Assert.That(writeResult.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+
+            DataValue flag = await ReadValueAsync(
+                Session,
+                VariableIds.Server_ServerDiagnostics_EnabledFlag).ConfigureAwait(false);
+            Assert.That(flag.GetValue(false), Is.True);
+        }
+
+        [Test]
+        public async Task DisabledDiagnosticsAreNotReadableAndRestoredWhenEnabledAsync()
+        {
+            ISession admin = await ConnectAsSysAdminAsync().ConfigureAwait(false);
+            if (admin == null)
+            {
+                Assert.Ignore("The server has no UserName endpoint for the administrator.");
+            }
+
+            try
+            {
+                NodeId[] staticNodes =
+                [
+                    VariableIds.Server_ServerDiagnostics_ServerDiagnosticsSummary,
+                    VariableIds.Server_ServerDiagnostics_ServerDiagnosticsSummary_CumulatedSessionCount,
+                    VariableIds.Server_ServerDiagnostics_ServerDiagnosticsSummary_CurrentSubscriptionCount,
+                    VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray,
+                    VariableIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionDiagnosticsArray
+                ];
+
+                DataValue cumulated = await ReadValueAsync(
+                    admin,
+                    VariableIds.Server_ServerDiagnostics_ServerDiagnosticsSummary_CumulatedSessionCount)
+                    .ConfigureAwait(false);
+                Assert.That(StatusCode.IsGood(cumulated.StatusCode), Is.True);
+                uint cumulatedBefore = cumulated.GetValue<uint>(0);
+                Assert.That(
+                    await CountSessionNodesAsync(admin).ConfigureAwait(false),
+                    Is.GreaterThanOrEqualTo(2),
+                    "The fixture session and the administrator session must be listed.");
+
+                StatusCode writeResult = await WriteEnabledFlagAsync(admin, false).ConfigureAwait(false);
+                Assert.That(StatusCode.IsGood(writeResult), Is.True, writeResult.ToString());
+
+                try
+                {
+                    // static diagnostic variables return Bad_NotReadable without a value.
+                    ArrayOf<DataValue> disabled = await ReadValuesAsync(admin, staticNodes).ConfigureAwait(false);
+                    for (int ii = 0; ii < staticNodes.Length; ii++)
+                    {
+                        Assert.That(disabled[ii].StatusCode.Code, Is.EqualTo(StatusCodes.BadNotReadable),
+                            staticNodes[ii].ToString());
+                        Assert.That(disabled[ii].WrappedValue.IsNull, Is.True, staticNodes[ii].ToString());
+                    }
+
+                    // the flag itself stays readable.
+                    DataValue flag = await ReadValueAsync(
+                        admin,
+                        VariableIds.Server_ServerDiagnostics_EnabledFlag).ConfigureAwait(false);
+                    Assert.That(StatusCode.IsGood(flag.StatusCode), Is.True);
+                    Assert.That(flag.GetValue(true), Is.False);
+
+                    // dynamic session nodes are removed from the address space.
+                    Assert.That(await CountSessionNodesAsync(admin).ConfigureAwait(false), Is.Zero);
+                    DataValue ownSession = await ReadAttributeAsync(
+                        admin,
+                        admin.SessionId,
+                        Attributes.BrowseName).ConfigureAwait(false);
+                    Assert.That(ownSession.StatusCode.Code, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                }
+                finally
+                {
+                    writeResult = await WriteEnabledFlagAsync(admin, true).ConfigureAwait(false);
+                    Assert.That(StatusCode.IsGood(writeResult), Is.True, writeResult.ToString());
+                }
+
+                // enabling restores readable values, the live sessions and cumulative counters.
+                ArrayOf<DataValue> enabled = await ReadValuesAsync(admin, staticNodes).ConfigureAwait(false);
+                for (int ii = 0; ii < staticNodes.Length; ii++)
+                {
+                    Assert.That(StatusCode.IsGood(enabled[ii].StatusCode), Is.True,
+                        $"{staticNodes[ii]}: {enabled[ii].StatusCode}");
+                }
+                Assert.That(enabled[1].GetValue<uint>(0), Is.EqualTo(cumulatedBefore),
+                    "Toggling the flag must not reset or increment the cumulative counters.");
+
+                Assert.That(
+                    await CountSessionNodesAsync(admin).ConfigureAwait(false),
+                    Is.GreaterThanOrEqualTo(2),
+                    "The diagnostics nodes of the live sessions must be restored.");
+                DataValue sessionName = await ReadAttributeAsync(
+                    admin,
+                    admin.SessionId,
+                    Attributes.BrowseName).ConfigureAwait(false);
+                Assert.That(StatusCode.IsGood(sessionName.StatusCode), Is.True,
+                    "The session diagnostics node keeps its NodeId.");
+
+                ArrayOf<DataValue> sessionArray = await ReadValuesAsync(
+                    admin,
+                    [VariableIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionDiagnosticsArray])
+                    .ConfigureAwait(false);
+                Assert.That(sessionArray[0].WrappedValue.TryGetValue(out ArrayOf<ExtensionObject> sessions), Is.True);
+                Assert.That(
+                    sessions.ToArray().Select(s => s.TryGetValue(out SessionDiagnosticsDataType d) ? d.SessionId : default),
+                    Does.Contain(admin.SessionId));
+            }
+            finally
+            {
+                await CloseAsync(admin).ConfigureAwait(false);
+            }
+        }
+
+        private async Task<int> CountSessionNodesAsync(ISession session)
+        {
+            BrowseResponse response = await session.BrowseAsync(
+                null,
+                null,
+                0,
+                new BrowseDescription[]
+                {
+                    new()
+                    {
+                        NodeId = ObjectIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary,
+                        BrowseDirection = BrowseDirection.Forward,
+                        ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                        IncludeSubtypes = false,
+                        NodeClassMask = (uint)NodeClass.Object,
+                        ResultMask = (uint)BrowseResultMask.All
+                    }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+            Assert.That(StatusCode.IsGood(response.Results[0].StatusCode), Is.True);
+            return response.Results[0].References.Count;
+        }
+
+        private static async Task<StatusCode> WriteEnabledFlagAsync(ISession session, bool enabled)
+        {
+            WriteResponse response = await session.WriteAsync(
+                null,
+                new WriteValue[]
+                {
+                    new()
+                    {
+                        NodeId = VariableIds.Server_ServerDiagnostics_EnabledFlag,
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue(new Variant(enabled))
+                    }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+            return response.Results[0];
+        }
+
+        private static Task<DataValue> ReadValueAsync(ISession session, NodeId nodeId)
+        {
+            return ReadAttributeAsync(session, nodeId, Attributes.Value);
+        }
+
+        private static async Task<DataValue> ReadAttributeAsync(
+            ISession session,
+            NodeId nodeId,
+            uint attributeId)
+        {
+            ReadResponse response = await session.ReadAsync(
                 null, 0, TimestampsToReturn.Both,
                 new ReadValueId[]
                 {
@@ -169,6 +272,32 @@ namespace Opc.Ua.InformationModel.Tests
                 }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
             return response.Results[0];
+        }
+
+        private static async Task<ArrayOf<DataValue>> ReadValuesAsync(ISession session, NodeId[] nodeIds)
+        {
+            ReadResponse response = await session.ReadAsync(
+                null, 0, TimestampsToReturn.Both,
+                nodeIds.Select(n => new ReadValueId { NodeId = n, AttributeId = Attributes.Value }).ToArray().ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+            return response.Results;
+        }
+
+        private static async Task CloseAsync(ISession session)
+        {
+            if (session == null)
+            {
+                return;
+            }
+            try
+            {
+                await session.CloseAsync(5000, true).ConfigureAwait(false);
+            }
+            catch
+            {
+                // best effort
+            }
+            session.Dispose();
         }
     }
 }

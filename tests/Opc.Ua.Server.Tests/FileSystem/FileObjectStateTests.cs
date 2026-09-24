@@ -32,6 +32,7 @@
 using System;
 using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
@@ -146,6 +147,80 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(firstHandle, Is.Not.Zero);
             Assert.That(secondHandle, Is.Not.Zero);
             Assert.That(secondHandle, Is.Not.EqualTo(firstHandle));
+        }
+
+        [TestCase("DATA.TXT")]
+        [TestCase("data.txt.")]
+        [TestCase("data.txt.. ")]
+        public async Task FileAliasesShareOpenCountAndWriterExclusionOnWindowsAsync(string alternatePath)
+        {
+            FileObjectState original = CreateFileState("data.txt", "payload");
+            bool sameFile = Path.DirectorySeparatorChar == '\\';
+            if (!sameFile)
+            {
+                // Unix mounts can also be case-insensitive; these are deliberately distinct entries.
+                alternatePath = "distinct-" + alternatePath;
+                await m_manager.Provider.CreateFileAsync(alternatePath, CancellationToken.None).ConfigureAwait(false);
+            }
+            var alternate = new FileObjectState(m_context,
+                FileSystemNodeId.BuildFile(alternatePath, m_manager.NamespaceIndex), alternatePath, alternatePath);
+            uint opened = await FileReadRegressionTests.OpenAsync(original, m_context, 2).ConfigureAwait(false);
+
+            (ServiceResult result, DataValue value) = await alternate.OpenCount!.ReadAttributeAsync(
+                m_context, Attributes.Value, NumericRange.Null, QualifiedName.Null, default).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(value.WrappedValue.TryGetValue(out ushort count), Is.True);
+            Assert.That(count, Is.EqualTo(sameFile ? 1 : 0));
+            if (sameFile)
+            {
+                OpenMethodStateResult second = await alternate.Open!.OnCallAsync!(
+                    m_context, alternate.Open, alternate.NodeId, 6, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(second.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(second.FileHandle, Is.Zero);
+            }
+
+            FileState closingFile = sameFile ? alternate : original;
+            Assert.That(closingFile.Close!.OnCall!(
+                m_context, closingFile.Close, closingFile.NodeId, opened).StatusCode, Is.EqualTo(StatusCodes.Good));
+        }
+
+        [TestCase(BrowseNames.Size)]
+        [TestCase(BrowseNames.MimeType)]
+        [TestCase(BrowseNames.LastModifiedTime)]
+        [TestCase(BrowseNames.Writable)]
+        [TestCase(BrowseNames.UserWritable)]
+        [TestCase(BrowseNames.OpenCount)]
+        public async Task MetadataReadsDoNotRetainFileHandleStateAsync(string property)
+        {
+            for (int ii = 0; ii < 128; ii++)
+            {
+                FileObjectState file = CreateFileState("metadata-" + ii + ".txt", "payload");
+                NodeState variable = file.FindChild(m_context, new QualifiedName(property))!;
+                (ServiceResult result, DataValue value) = await variable.ReadAttributeAsync(
+                    m_context, Attributes.Value, NumericRange.Null, QualifiedName.Null, default).ConfigureAwait(false);
+                Assert.That(result.StatusCode, Is.EqualTo(
+                    property == BrowseNames.MimeType ? StatusCodes.Uncertain : StatusCodes.Good));
+                Assert.That(value.StatusCode, Is.EqualTo(
+                    property == BrowseNames.MimeType ? StatusCodes.Uncertain : StatusCodes.Good));
+            }
+
+            Assert.That(m_manager.TrackedFileCount, Is.Zero,
+                "Read-only metadata requests must not retain one handle bag per requested path.");
+        }
+
+        [Test]
+        public async Task ClosingTheLastStreamReleasesIdleFileHandleStateAsync()
+        {
+            for (int ii = 0; ii < 32; ii++)
+            {
+                FileObjectState file = CreateFileState("open-" + ii + ".txt", "payload");
+                uint opened = await FileReadRegressionTests.OpenAsync(file, m_context).ConfigureAwait(false);
+                Assert.That(m_manager.TrackedFileCount, Is.EqualTo(1));
+                Assert.That(file.Close!.OnCall!(m_context, file.Close, file.NodeId, opened).StatusCode,
+                    Is.EqualTo(StatusCodes.Good));
+                Assert.That(m_manager.TrackedFileCount, Is.Zero);
+            }
         }
 
         [Test]
@@ -298,7 +373,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 m_context, state.Read, state.NodeId, fileHandle, 1, ref data);
             ServiceResult otherReadResult = state.Read.OnCall!(
                 otherContext, state.Read, state.NodeId, otherFileHandle, 1, ref data);
-            Variant openCount = ReadProperty(state.OpenCount!);
+            Variant openCount = await ReadPropertyAsync(state.OpenCount!).ConfigureAwait(false);
 
             Assert.That(readResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidState));
             Assert.That(ServiceResult.IsGood(otherReadResult), Is.True);
@@ -437,60 +512,58 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         [Test]
-        public void SizePropertyReadReturnsFileLength()
+        public async Task SizePropertyReadReturnsFileLengthAsync()
         {
             FileObjectState state = CreateFileState("data.txt", "hello");
 
-            Variant value = ReadProperty(state.Size!);
+            Variant value = await ReadPropertyAsync(state.Size!).ConfigureAwait(false);
 
             Assert.That(value.TryGetValue(out ulong size), Is.True);
             Assert.That(size, Is.EqualTo(5u));
         }
 
         [Test]
-        public void WritablePropertyReadReturnsTrueForWritableProvider()
+        public async Task WritablePropertyReadReturnsTrueForWritableProviderAsync()
         {
             FileObjectState state = CreateFileState("data.txt", "hello");
 
-            Variant value = ReadProperty(state.Writable!);
+            Variant value = await ReadPropertyAsync(state.Writable!).ConfigureAwait(false);
 
             Assert.That(value.TryGetValue(out bool writable), Is.True);
             Assert.That(writable, Is.True);
         }
 
         [Test]
-        public void MimeTypePropertyReadReturnsValue()
+        public async Task MimeTypePropertyReadReturnsValueAsync()
         {
             FileObjectState state = CreateFileState("data.txt", "hello");
 
-            var value = default(Variant);
-            var statusCode = default(StatusCode);
-            var timestamp = default(DateTimeUtc);
-            ServiceResult result = state.MimeType!.OnReadValue!(
-                m_context, state.MimeType, default, QualifiedName.Null,
-                ref value, ref statusCode, ref timestamp);
+            (ServiceResult result, DataValue value) = await state.MimeType!.ReadAttributeAsync(
+                m_context, Attributes.Value, NumericRange.Null, QualifiedName.Null, default).ConfigureAwait(false);
 
-            Assert.That(ServiceResult.IsGood(result), Is.True);
-            Assert.That(statusCode.Code, Is.EqualTo(StatusCodes.Uncertain));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Uncertain));
+            Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Uncertain));
+            Assert.That(value.WrappedValue.TryGetValue(out string mimeType), Is.True);
+            Assert.That(mimeType, Is.EqualTo("text/plain"));
         }
 
         [Test]
-        public void LastModifiedTimePropertyReadReturnsValue()
+        public async Task LastModifiedTimePropertyReadReturnsValueAsync()
         {
             FileObjectState state = CreateFileState("data.txt", "hello");
 
-            Variant value = ReadProperty(state.LastModifiedTime!);
+            Variant value = await ReadPropertyAsync(state.LastModifiedTime!).ConfigureAwait(false);
 
             Assert.That(value.TryGetValue(out DateTimeUtc modified), Is.True);
             Assert.That(modified, Is.Not.Default);
         }
 
         [Test]
-        public void OpenCountPropertyReadReturnsZeroWhenNotOpen()
+        public async Task OpenCountPropertyReadReturnsZeroWhenNotOpenAsync()
         {
             FileObjectState state = CreateFileState("data.txt", "hello");
 
-            Variant value = ReadProperty(state.OpenCount!);
+            Variant value = await ReadPropertyAsync(state.OpenCount!).ConfigureAwait(false);
 
             Assert.That(value.TryGetValue(out ushort count), Is.True);
             Assert.That(count, Is.Zero);
@@ -530,16 +603,12 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(foundParent, Is.True);
         }
 
-        private Variant ReadProperty(BaseVariableState variable)
+        private async ValueTask<Variant> ReadPropertyAsync(BaseVariableState variable)
         {
-            var value = default(Variant);
-            var statusCode = default(StatusCode);
-            var timestamp = default(DateTimeUtc);
-            ServiceResult result = variable.OnReadValue!(
-                m_context, variable, default, QualifiedName.Null,
-                ref value, ref statusCode, ref timestamp);
+            (ServiceResult result, DataValue value) = await variable.ReadAttributeAsync(
+                m_context, Attributes.Value, NumericRange.Null, QualifiedName.Null, default).ConfigureAwait(false);
             Assert.That(ServiceResult.IsGood(result), Is.True);
-            return value;
+            return value.WrappedValue;
         }
     }
 }

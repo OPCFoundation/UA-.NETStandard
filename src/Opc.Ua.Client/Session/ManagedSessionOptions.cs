@@ -139,6 +139,14 @@ namespace Opc.Ua.Client
         public NetworkRedundancyOptions NetworkRedundancy { get; init; } = new();
 
         /// <summary>
+        /// Bounds applied to the best-effort server-redundancy refresh so an
+        /// unavailable or slow server cannot delay connect, reconnect, or
+        /// failover. Defaults to two seconds for both the metadata read and
+        /// each peer lookup; raise them on a high-latency link.
+        /// </summary>
+        public ServerRedundancyOptions ServerRedundancy { get; init; } = new();
+
+        /// <summary>
         /// Optional subscription engine factory. When null, defaults to the
         /// V2 engine (<see cref="DefaultSubscriptionEngineFactory"/>) so the
         /// session's V2 subscription manager (see

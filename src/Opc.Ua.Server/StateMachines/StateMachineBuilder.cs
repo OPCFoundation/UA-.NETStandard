@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server.StateMachines
 {
@@ -66,12 +67,9 @@ namespace Opc.Ua.Server.StateMachines
     /// holder — subsequent <see cref="AddState"/> / etc. calls throw.
     /// </para>
     /// <para>
-    /// The builder is intentionally <em>not</em> <see cref="IDisposable"/>.
-    /// Lifecycle hooks attach to the state machine's own
-    /// <c>OnBeforeTransition</c> / <c>OnAfterTransition</c> delegate
-    /// fields; the dispatcher (with its timers and per-state handler
-    /// tables) is kept alive by those delegates and garbage-collected
-    /// when the state machine itself becomes unreachable.
+    /// Lifecycle hooks remain attached to the state machine. Call
+    /// <see cref="StopTimedTransitions"/> when automatic transitions are
+    /// no longer needed to retire timers and reject queued callbacks.
     /// </para>
     /// </remarks>
     public sealed class StateMachineBuilder<TState>
@@ -126,6 +124,14 @@ namespace Opc.Ua.Server.StateMachines
                 FreezeDefinition();
                 return m_stateMachine;
             }
+        }
+
+        /// <summary>
+        /// Stops automatic transitions without removing the state machine.
+        /// </summary>
+        public void StopTimedTransitions()
+        {
+            m_dispatcher.StopTimers();
         }
 
         /// <summary>
@@ -848,6 +854,7 @@ namespace Opc.Ua.Server.StateMachines
                     {
                         materializedChild.SetState(ctx, 0);
                     }
+                    childBuilder.m_dispatcher.SynchronizeInitialState(ctx, 0);
                     materializedChild.SetSuspended(ctx, true);
                     return;
                 }
@@ -862,7 +869,13 @@ namespace Opc.Ua.Server.StateMachines
                 if (!preserveOnReentry || !childHasState)
                 {
                     materializedChild.SetState(ctx, initialChildStateId);
+                    materializedChild.ClearChangeMasks(ctx, true);
                 }
+                childBuilder.m_dispatcher.SynchronizeInitialState(
+                    ctx,
+                    StateMachineBuilder.ResolveStateId(
+                        materializedChild,
+                        materializedChild.CurrentState?.Id?.Value ?? NodeId.Null));
             }
 
             SyncChildToParentState(m_context, ExtractCurrentStateId(m_stateMachine));
@@ -872,7 +885,11 @@ namespace Opc.Ua.Server.StateMachines
             m_dispatcher.AddEnterStateHandler(parentStateId,
                 (ctx, parent) => SyncChildToParentState(ctx, parentStateId));
             m_dispatcher.AddExitStateHandler(parentStateId,
-                (ctx, parent) => materializedChild.SetSuspended(ctx, true));
+                (ctx, parent) =>
+                {
+                    childBuilder.m_dispatcher.SynchronizeInitialState(ctx, 0);
+                    materializedChild.SetSuspended(ctx, true);
+                });
 
             return this;
         }
@@ -1450,26 +1467,35 @@ namespace Opc.Ua.Server.StateMachines
             List<Func<ISystemContext, TState, uint, uint, CancellationToken, System.Threading.Tasks.ValueTask>>
                 m_transitionObserversAsync = [];
 
-        private readonly StateMachineTransitionHandler? m_originalBefore;
-        private readonly StateMachineTransitionHandler? m_originalAfter;
-        private bool m_installed;
+        /// <summary>
+        /// Preserves the machine's callback factory for composition with builder callbacks.
+        /// </summary>
+        private readonly StateMachineTransitionCallbackFactory? m_originalCallbacks;
 
         /// <summary>
-        /// Thread-keyed pending-from-state so concurrent transitions
-        /// do not clobber each other's stash. OPC UA service requests
-        /// can hit a node manager concurrently; each DoTransition runs
-        /// synchronously on one thread (DispatchBefore -> state update
-        /// -> DispatchAfter all on the same thread), so a thread-id
-        /// keyed slot is sufficient.
+        /// Protects timed-transition registrations and their shutdown state.
         /// </summary>
-        private readonly System.Collections.Concurrent.ConcurrentDictionary<int, uint>
-            m_pendingFromByThread = new();
+        private readonly Lock m_timerLock = new();
+
+        /// <summary>
+        /// Reports timed-transition failures and rejected transitions.
+        /// </summary>
+        private readonly ILogger m_logger;
+
+        /// <summary>
+        /// Prevents timed transitions from being registered or armed after timer shutdown.
+        /// </summary>
+        private bool m_disposed;
+        private bool m_installed;
 
         public StateMachineDispatcher(TState stateMachine, ISystemContext context)
             : this(stateMachine, context, TimeProvider.System)
         {
         }
 
+        /// <summary>
+        /// Creates a transition dispatcher using the supplied clock and the machine's existing callback factory.
+        /// </summary>
         public StateMachineDispatcher(
             TState stateMachine,
             ISystemContext context,
@@ -1478,8 +1504,36 @@ namespace Opc.Ua.Server.StateMachines
             m_stateMachine = stateMachine;
             m_context = context;
             m_timeProvider = timeProvider ?? TimeProvider.System;
-            m_originalBefore = stateMachine.OnBeforeTransition;
-            m_originalAfter = stateMachine.OnAfterTransition;
+            m_originalCallbacks = stateMachine.TransitionCallbackFactory;
+            m_logger = context.Telemetry.CreateLogger<StateMachineDispatcher<TState>>();
+        }
+
+        /// <summary>
+        /// Stops admitting timed transitions and cancels all active timer registrations.
+        /// </summary>
+        public void StopTimers()
+        {
+            List<TimedTransitionRegistration> timers = [];
+            lock (m_timerLock)
+            {
+                if (m_disposed)
+                {
+                    return;
+                }
+                m_disposed = true;
+                foreach (TimedTransitionEntry entry in m_timedTransitions.Values)
+                {
+                    TimedTransitionRegistration? active = Interlocked.Exchange(ref entry.Active, null);
+                    if (active != null)
+                    {
+                        timers.Add(active);
+                    }
+                }
+            }
+            foreach (TimedTransitionRegistration timer in timers)
+            {
+                timer.Dispose();
+            }
         }
 
         public void AddEnterStateHandler(
@@ -1521,7 +1575,16 @@ namespace Opc.Ua.Server.StateMachines
                 SafeInvoke(() => synchronizer(context, stateId));
             }
 
-            foreach (KeyValuePair<uint, TimedTransitionEntry> timed in m_timedTransitions)
+            KeyValuePair<uint, TimedTransitionEntry>[] snapshot;
+            lock (m_timerLock)
+            {
+                if (m_disposed)
+                {
+                    return;
+                }
+                snapshot = [.. m_timedTransitions];
+            }
+            foreach (KeyValuePair<uint, TimedTransitionEntry> timed in snapshot)
             {
                 if (timed.Key == stateId)
                 {
@@ -1620,17 +1683,23 @@ namespace Opc.Ua.Server.StateMachines
             // at the node's construction value (true) and a client can
             // only discover the answer by calling and being refused.
             method.OnReadExecutable =
-                (ISystemContext ctx, NodeState node, ref bool value) => {
+                (ctx, node, ref value) =>
+                {
                     value = m_stateMachine.IsCausePermitted(ctx, causeId, false);
                     return ServiceResult.Good;
                 };
             method.OnReadUserExecutable =
-                (ISystemContext ctx, NodeState node, ref bool value) => {
+                (ctx, node, ref value) =>
+                {
                     value = m_stateMachine.IsCausePermitted(ctx, causeId, true);
                     return ServiceResult.Good;
                 };
         }
 
+        /// <summary>
+        /// Replaces a state's timed transition and arms it immediately when that state is already current.
+        /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
         public void AddTimedTransition(
             uint fromStateId,
             TimeSpan timeout,
@@ -1643,7 +1712,14 @@ namespace Opc.Ua.Server.StateMachines
             CancelTimer(fromStateId);
 
             var entry = new TimedTransitionEntry(timeout, transitionId, causeId);
-            m_timedTransitions[fromStateId] = entry;
+            lock (m_timerLock)
+            {
+                if (m_disposed)
+                {
+                    throw new ObjectDisposedException(nameof(StateMachineDispatcher<>));
+                }
+                m_timedTransitions[fromStateId] = entry;
+            }
             EnsureInstalled();
 
             // If the machine is already in the matching from-state,
@@ -1658,6 +1734,9 @@ namespace Opc.Ua.Server.StateMachines
             }
         }
 
+        /// <summary>
+        /// Installs this dispatcher's composed transition-callback factory once.
+        /// </summary>
         private void EnsureInstalled()
         {
             if (m_installed)
@@ -1665,75 +1744,88 @@ namespace Opc.Ua.Server.StateMachines
                 return;
             }
             m_installed = true;
-            m_stateMachine.OnBeforeTransition = DispatchBefore;
-            m_stateMachine.OnAfterTransition = DispatchAfter;
+            m_stateMachine.TransitionCallbackFactory = CreateCallbacks;
         }
 
+        /// <summary>
+        /// Composes original and builder callbacks with source and destination snapshots for one transition.
+        /// </summary>
+        private (StateMachineTransitionHandler? Before, StateMachineTransitionHandler? After) CreateCallbacks(
+            uint from,
+            uint to,
+            StateMachineTransitionHandler? before,
+            StateMachineTransitionHandler? after)
+        {
+            if (m_originalCallbacks != null)
+            {
+                (before, after) = m_originalCallbacks(from, to, before, after);
+            }
+            return (
+                (context, machine, transition, cause, inputs, outputs) =>
+                    DispatchBefore(context, machine, transition, cause, inputs, outputs, before),
+                (context, machine, transition, cause, inputs, outputs) =>
+                    DispatchAfter(context, machine, transition, cause, inputs, outputs, from, to, after));
+        }
+
+        /// <summary>
+        /// Evaluates builder guards before invoking the original pre-transition callback.
+        /// </summary>
         private ServiceResult DispatchBefore(
             ISystemContext context,
             StateMachineState machine,
             uint transitionId,
             uint causeId,
             ArrayOf<Variant> inputArguments,
-            List<Variant>? outputArguments)
+            List<Variant>? outputArguments,
+            StateMachineTransitionHandler? originalBefore)
         {
-            // Capture from-state BEFORE the framework updates
-            // CurrentState. Stored per-thread to support concurrent
-            // transitions safely (each DoTransition call is fully
-            // synchronous on one thread).
-            m_pendingFromByThread[Environment.CurrentManagedThreadId] = ExtractStateId(
-                m_stateMachine.CurrentState?.Id?.Value ?? NodeId.Null);
-
             // Builder guards run before any pre-existing OnBefore.
             foreach (Func<ISystemContext, TState, uint, uint, ServiceResult> g in m_guards)
             {
                 ServiceResult r = g(context, m_stateMachine, transitionId, causeId);
                 if (ServiceResult.IsBad(r))
                 {
-                    // Clear the per-thread stash on veto — DispatchAfter
-                    // won't run, so leave-no-trace.
-                    m_pendingFromByThread.TryRemove(
-                        Environment.CurrentManagedThreadId, out _);
                     return r;
                 }
             }
-            if (m_originalBefore != null)
+            if (originalBefore != null)
             {
-                ServiceResult r = m_originalBefore(
+                return originalBefore(
                     context, machine, transitionId, causeId,
                     inputArguments, outputArguments);
-                if (ServiceResult.IsBad(r))
-                {
-                    m_pendingFromByThread.TryRemove(
-                        Environment.CurrentManagedThreadId, out _);
-                }
-                return r;
             }
             return ServiceResult.Good;
         }
 
+        /// <summary>
+        /// Dispatches ordered lifecycle observers with captured states and arms timers only for the current revision.
+        /// </summary>
         private ServiceResult DispatchAfter(
             ISystemContext context,
             StateMachineState machine,
             uint transitionId,
             uint causeId,
             ArrayOf<Variant> inputArguments,
-            List<Variant>? outputArguments)
+            List<Variant>? outputArguments,
+            uint from,
+            uint to,
+            StateMachineTransitionHandler? originalAfter)
         {
+            long revision = m_stateMachine.StateRevision;
+            if (from != 0)
+            {
+                CancelTimer(from);
+            }
             // Pre-existing OnAfter runs first so its side effects (e.g.
             // stack-shipped state-change reporting) complete before the
             // builder's observers see the new state.
             ServiceResult? originalResult = null;
-            if (m_originalAfter != null)
+            if (originalAfter != null)
             {
-                originalResult = m_originalAfter(
+                originalResult = originalAfter(
                     context, machine, transitionId, causeId,
                     inputArguments, outputArguments);
             }
-
-            m_pendingFromByThread.TryRemove(
-                Environment.CurrentManagedThreadId, out uint from);
-            uint to = ExtractStateId(m_stateMachine.CurrentState?.Id?.Value ?? NodeId.Null);
 
             // Exit handlers fire first, then transition observers, then
             // enter handlers (standard reactive-FSM lifecycle order).
@@ -1781,13 +1873,12 @@ namespace Opc.Ua.Server.StateMachines
                 }
             }
 
-            // Cancel timer armed on the from state (if any), then arm
-            // the timer for the to state.
-            if (from != 0)
+            TimedTransitionEntry? armEntry;
+            lock (m_timerLock)
             {
-                CancelTimer(from);
+                m_timedTransitions.TryGetValue(to, out armEntry);
             }
-            if (to != 0 && m_timedTransitions.TryGetValue(to, out TimedTransitionEntry? armEntry))
+            if (to != 0 && armEntry != null && m_stateMachine.StateRevision == revision)
             {
                 ArmTimer(to, armEntry);
             }
@@ -1795,43 +1886,78 @@ namespace Opc.Ua.Server.StateMachines
             return originalResult ?? ServiceResult.Good;
         }
 
+        /// <summary>
+        /// Arms a one-shot transition whose callback must still own its registration and state revision when fired.
+        /// </summary>
         private void ArmTimer(uint stateId, TimedTransitionEntry entry)
         {
-            var cts = new CancellationTokenSource();
-            entry.Cts = cts;
-            entry.Timer = m_timeProvider.CreateTimer(_ =>
+            TimedTransitionRegistration? previous;
+            TimedTransitionRegistration registration;
+            lock (m_timerLock)
             {
-                if (cts.IsCancellationRequested)
+                if (m_disposed ||
+                    !m_timedTransitions.TryGetValue(stateId, out TimedTransitionEntry? current) ||
+                    !ReferenceEquals(entry, current))
                 {
                     return;
                 }
-                try
+                registration = new TimedTransitionRegistration();
+                previous = Interlocked.Exchange(ref entry.Active, registration);
+            }
+            previous?.Dispose();
+            long revision = m_stateMachine.StateRevision;
+            try
+            {
+                registration.SetTimer(m_timeProvider.CreateTimer(_ =>
                 {
-                    m_stateMachine.DoTransition(
-                        m_context,
-                        entry.TransitionId,
-                        entry.CauseId,
-                        default,
-                        []);
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine(
-                        "StateMachineBuilder timed transition for state " +
-                        $"{stateId} threw: {ex}");
-                }
-            }, null, entry.Timeout, Timeout.InfiniteTimeSpan);
+                    try
+                    {
+                        ServiceResult result = m_stateMachine.TryTimedTransition(
+                            m_context, stateId, revision, entry.TransitionId, entry.CauseId,
+                            () => !registration.IsDisposed &&
+                                ReferenceEquals(Interlocked.CompareExchange(ref entry.Active, null, registration), registration));
+                        if (ServiceResult.IsGood(result))
+                        {
+                            m_stateMachine.ClearChangeMasks(m_context, true);
+                        }
+                        if (ServiceResult.IsBad(result) && result.StatusCode != StatusCodes.BadInvalidState)
+                        {
+                            m_logger.TimedTransitionRejected(stateId, result);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.TimedTransitionFailed(ex, stateId);
+                    }
+                    finally
+                    {
+                        Interlocked.CompareExchange(ref entry.Active, null, registration);
+                        registration.Dispose();
+                    }
+                }, null, entry.Timeout, Timeout.InfiniteTimeSpan));
+            }
+            catch
+            {
+                Interlocked.CompareExchange(ref entry.Active, null, registration);
+                registration.Dispose();
+                throw;
+            }
         }
 
+        /// <summary>
+        /// Detaches and disposes the active timer registration for a state.
+        /// </summary>
         private void CancelTimer(uint stateId)
         {
-            if (m_timedTransitions.TryGetValue(stateId, out TimedTransitionEntry? entry))
+            TimedTransitionRegistration? active = null;
+            lock (m_timerLock)
             {
-                entry.Cts?.Cancel();
-                entry.Timer?.Dispose();
-                entry.Cts = null;
-                entry.Timer = null;
+                if (m_timedTransitions.TryGetValue(stateId, out TimedTransitionEntry? entry))
+                {
+                    active = Interlocked.Exchange(ref entry.Active, null);
+                }
             }
+            active?.Dispose();
         }
 
         private uint ExtractStateId(NodeId nodeId)
@@ -1898,8 +2024,14 @@ namespace Opc.Ua.Server.StateMachines
             });
         }
 
+        /// <summary>
+        /// Describes a timed transition and retains its current one-shot registration.
+        /// </summary>
         private sealed class TimedTransitionEntry
         {
+            /// <summary>
+            /// Captures the delay, transition identifier, and associated cause for a timed transition.
+            /// </summary>
             public TimedTransitionEntry(TimeSpan timeout, uint transitionId, uint causeId)
             {
                 Timeout = timeout;
@@ -1907,11 +2039,85 @@ namespace Opc.Ua.Server.StateMachines
                 CauseId = causeId;
             }
 
+            /// <summary>
+            /// Gets the delay from state entry until the transition may fire.
+            /// </summary>
             public TimeSpan Timeout { get; }
+
+            /// <summary>
+            /// Gets the transition executed when the registration remains current at expiry.
+            /// </summary>
             public uint TransitionId { get; }
+
+            /// <summary>
+            /// Gets the cause reported with the timed transition.
+            /// </summary>
             public uint CauseId { get; }
-            public CancellationTokenSource? Cts { get; set; }
-            public ITimer? Timer { get; set; }
+
+            /// <summary>
+            /// Holds the currently armed registration, or null after cancellation or callback ownership transfer.
+            /// </summary>
+            public TimedTransitionRegistration? Active;
         }
+
+        /// <summary>
+        /// Coordinates timer attachment and disposal so retired timed transitions cannot retain a live timer.
+        /// </summary>
+        private sealed class TimedTransitionRegistration : IDisposable
+        {
+            /// <summary>
+            /// Gets whether this registration has been retired and must no longer fire its transition.
+            /// </summary>
+            public bool IsDisposed => Volatile.Read(ref m_disposed) != 0;
+
+            /// <summary>
+            /// Attaches the timer, disposing it immediately if the registration was already retired.
+            /// </summary>
+            public void SetTimer(ITimer timer)
+            {
+                Interlocked.Exchange(ref m_timer, timer)?.Dispose();
+                if (IsDisposed)
+                {
+                    Interlocked.Exchange(ref m_timer, null)?.Dispose();
+                }
+            }
+
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+                Interlocked.Exchange(ref m_disposed, 1);
+                Interlocked.Exchange(ref m_timer, null)?.Dispose();
+            }
+
+            /// <summary>
+            /// Atomically records that the registration is no longer eligible to fire.
+            /// </summary>
+            private int m_disposed;
+
+            /// <summary>
+            /// Holds the timer owned by this registration until replacement or disposal.
+            /// </summary>
+            private ITimer? m_timer;
+        }
+    }
+
+    /// <summary>
+    /// Records failures and rejections from state-machine timer callbacks.
+    /// </summary>
+    internal static partial class StateMachineBuilderLog
+    {
+        /// <summary>
+        /// Reports an exception raised while executing a timed transition.
+        /// </summary>
+        [LoggerMessage(EventId = ServerEventIds.StateMachineBuilder, Level = LogLevel.Error,
+            Message = "Timed transition from state {StateId} failed.")]
+        public static partial void TimedTransitionFailed(this ILogger logger, Exception exception, uint stateId);
+
+        /// <summary>
+        /// Reports a timed transition rejected while its source state remains current.
+        /// </summary>
+        [LoggerMessage(EventId = ServerEventIds.StateMachineBuilder + 1, Level = LogLevel.Warning,
+            Message = "Timed transition from state {StateId} was rejected: {Result}.")]
+        public static partial void TimedTransitionRejected(this ILogger logger, uint stateId, ServiceResult result);
     }
 }

@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Text;
 using System.Threading;
@@ -319,6 +320,11 @@ namespace Opc.Ua.Bindings
 
             using (Gate.Enter())
             {
+                if (Volatile.Read(ref m_disposed) != 0 ||
+                    State is TcpChannelState.Closed or TcpChannelState.Closing)
+                {
+                    throw new ServiceResultException(StatusCodes.BadTcpSecureChannelUnknown);
+                }
                 // make sure the same client certificate is being used.
                 CompareCertificates(ClientCertificate, clientCertificate, false);
 
@@ -328,6 +334,7 @@ namespace Opc.Ua.Bindings
                     throw new ServiceResultException(StatusCodes.BadSequenceNumberInvalid);
                 }
 
+                IUaSCByteTransport? dropped = null;
                 try
                 {
                     m_logger.TcpServerLog0(
@@ -335,7 +342,20 @@ namespace Opc.Ua.Bindings
                         transport.RemoteEndpoint,
                         ChannelId);
 
-                    // replace the transport and (re)start the receive loop on it.
+                    // need to assign a new token id.
+                    token.ChannelId = ChannelId;
+                    token.TokenId = GetNewTokenId();
+                    token.PreviousSecret = CurrentToken?.Secret;
+                    ReplaceNonces(token);
+                    if (Volatile.Read(ref m_disposed) != 0)
+                    {
+                        throw new ObjectDisposedException(nameof(TcpServerChannel));
+                    }
+
+                    // put channel back in open state.
+                    ActivateToken(token);
+                    State = TcpChannelState.Open;
+
                     if (transport is IUaSCByteTransportLimits transportLimits)
                     {
                         transportLimits.SetReceiveBufferSize(ReceiveBufferSize);
@@ -347,25 +367,14 @@ namespace Opc.Ua.Bindings
                     // cancellation, and its error path faults the channel - on
                     // the new transport, after this method has already reported
                     // the reconnect as successful.
-                    IUaSCByteTransport? dropped = DetachTransport();
+                    dropped = DetachTransport();
 
                     Transport = transport;
-
-                    // The socket this channel used before the client dropped it
-                    // is nobody's any more.
-                    if (dropped != null && !ReferenceEquals(dropped, transport))
+                    if (Volatile.Read(ref m_disposed) != 0)
                     {
-                        dropped.Close();
+                        throw new ObjectDisposedException(nameof(TcpServerChannel));
                     }
-
                     StartReceiveLoop();
-
-                    // need to assign a new token id.
-                    token.TokenId = GetNewTokenId();
-
-                    // put channel back in open state.
-                    ActivateToken(token);
-                    State = TcpChannelState.Open;
 
                     // send response.
                     SendOpenSecureChannelResponse(requestId, token, request, true);
@@ -373,16 +382,24 @@ namespace Opc.Ua.Bindings
                     // send any queued responses.
                     ResetQueuedResponses(OnChannelReconnected);
                 }
-                catch (Exception e)
+                catch
                 {
-                    SendServiceFault(
-                        token,
-                        requestId,
-                        ServiceResult.Create(
-                            e,
-                            StatusCodes.BadTcpInternalError,
-                            "Unexpected error processing request."),
-                        request.RequestHeader?.RequestHandle ?? 0);
+                    try
+                    {
+                        ChannelClosed();
+                    }
+                    finally
+                    {
+                        Dispose();
+                    }
+                    throw;
+                }
+                finally
+                {
+                    if (dropped != null && !ReferenceEquals(dropped, transport))
+                    {
+                        dropped.Close();
+                    }
                 }
             }
         }
@@ -495,7 +512,10 @@ namespace Opc.Ua.Bindings
             {
                 try
                 {
-                    SendResponse(response.Key, response.Value);
+                    if (!SendResponse(response.Key, response.Value))
+                    {
+                        (response.Value as IPooledEncodeable)?.Reuse();
+                    }
                 }
                 catch (Exception e)
                 {
@@ -693,7 +713,7 @@ namespace Opc.Ua.Bindings
             uint requestId = 0;
             uint sequenceNumber = 0;
 
-            ArraySegment<byte> messageBody;
+            ArraySegment<byte> messageBody = default;
 
             try
             {
@@ -721,19 +741,16 @@ namespace Opc.Ua.Bindings
                     : null;
 
                 // check for replay attacks.
-                if (!VerifySequenceNumber(sequenceNumber, "ProcessOpenSecureChannelRequest"))
+                bool reconnecting = State == TcpChannelState.Opening && channelId != 0 && channelId != ChannelId;
+                if (!VerifySequenceNumberCore(sequenceNumber, "ProcessOpenSecureChannelRequest", reconnecting))
                 {
-                    // The decrypted body sits in a buffer of its own that only
-                    // the chunk collection below ever returns, and that does not
-                    // exist yet - so it has to go back here.
-                    ReturnDecryptedBuffer(messageBody);
-                    messageBody = default;
-
                     throw new ServiceResultException(StatusCodes.BadSequenceNumberInvalid);
                 }
             }
             catch (Exception e)
             {
+                ReturnDecryptedBuffer(messageBody);
+
                 const string errorSecurityChecksFailed
                     = "Could not verify security on OpenSecureChannel request.";
 
@@ -748,45 +765,10 @@ namespace Opc.Ua.Bindings
                 // dispose the client certificate since it will not be stored
                 clientCertificate?.Dispose();
 
-                // If the certificate structure, signature and trust list checks pass,
-                // return the other specific validation errors instead of BadSecurityChecksFailed.
-                // The certificate validation failure is thrown directly as a
-                // ServiceResultException carrying the specific status code (see
-                // UaSCBinaryChannel.Asymmetric ValidateAsync path), so inspect the caught
-                // exception itself as well as any inner exception before falling back to the
-                // generic code — otherwise BadCertificateTimeInvalid / BadCertificateUseNotAllowed
-                // (Part 4 §7.39 / Part 6 §6.7.4) would always be masked as BadSecurityChecksFailed.
-                if ((e as ServiceResultException ?? e.InnerException as ServiceResultException)
-                    is ServiceResultException innerException)
+                if (TryGetReportableCertificateError(e, out ServiceResultException? reportable))
                 {
-                    if (innerException.StatusCode == StatusCodes.BadCertificateUntrusted ||
-                        innerException.StatusCode == StatusCodes.BadCertificateChainIncomplete ||
-                        innerException.StatusCode == StatusCodes.BadCertificateRevoked ||
-                        innerException.StatusCode == StatusCodes.BadCertificateInvalid ||
-                        innerException.StatusCode == StatusCodes.BadCertificatePolicyCheckFailed ||
-                        (
-                            innerException.InnerResult != null &&
-                            innerException.InnerResult.StatusCode == StatusCodes
-                                .BadCertificateUntrusted))
-                    {
-                        ForceChannelFaultCore(
-                            StatusCodes.BadSecurityChecksFailed,
-                            errorSecurityChecksFailed);
-                        return false;
-                    }
-                    if (innerException.StatusCode == StatusCodes.BadCertificateTimeInvalid ||
-                        innerException.StatusCode == StatusCodes.BadCertificateIssuerTimeInvalid ||
-                        innerException.StatusCode == StatusCodes.BadCertificateHostNameInvalid ||
-                        innerException.StatusCode == StatusCodes.BadCertificateUriInvalid ||
-                        innerException.StatusCode == StatusCodes.BadCertificateUseNotAllowed ||
-                        innerException.StatusCode == StatusCodes.BadCertificateIssuerUseNotAllowed ||
-                        innerException.StatusCode == StatusCodes.BadCertificateRevocationUnknown ||
-                        innerException.StatusCode == StatusCodes.BadCertificateIssuerRevocationUnknown ||
-                        innerException.StatusCode == StatusCodes.BadCertificateIssuerRevoked)
-                    {
-                        ForceChannelFaultCore(innerException, innerException.StatusCode, e.Message);
-                        return false;
-                    }
+                    ForceChannelFaultCore(reportable, reportable.StatusCode, e.Message);
+                    return false;
                 }
 
                 ForceChannelFaultCore(StatusCodes.BadSecurityChecksFailed, errorSecurityChecksFailed);
@@ -796,6 +778,7 @@ namespace Opc.Ua.Bindings
             BufferCollection? chunksToProcess = null;
             OpenSecureChannelRequest? request = null;
             ChannelToken? token = null;
+            bool bodyOwned = true;
             try
             {
                 bool firstCall = ClientCertificate == null;
@@ -820,14 +803,17 @@ namespace Opc.Ua.Bindings
                         clientCertificate?.Dispose();
                     }
                 }
+                clientCertificate = null;
 
                 // check if it is necessary to wait for more chunks.
                 if (!TcpMessageType.IsFinal(messageType))
                 {
+                    bodyOwned = false;
                     SaveIntermediateChunk(requestId, messageBody, true, gateHeld: true);
                     return false;
                 }
                 // get the chunks to process.
+                bodyOwned = false;
                 chunksToProcess = GetSavedChunks(requestId, messageBody, true, gateHeld: true);
 
                 using var openRequestStream = new ArraySegmentStream(chunksToProcess);
@@ -876,6 +862,11 @@ namespace Opc.Ua.Bindings
                 // check the request type.
                 SecurityTokenRequestType requestType = request.RequestType;
 
+                if (requestType == SecurityTokenRequestType.Issue && channelId != 0)
+                {
+                    throw new ServiceResultException(StatusCodes.BadTcpSecureChannelUnknown);
+                }
+
                 if (requestType == SecurityTokenRequestType.Issue &&
                     State != TcpChannelState.Opening)
                 {
@@ -889,6 +880,13 @@ namespace Opc.Ua.Bindings
                     // may be reconnecting to a dropped channel.
                     if (State == TcpChannelState.Opening)
                     {
+                        if (channelId == 0 || channelId == ChannelId)
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadTcpSecureChannelUnknown,
+                                "Do not recognize the secure channel id provided.");
+                        }
+
                         // The transport moves to the existing channel, which
                         // reads from it and answers on it from here on. Detach it
                         // first, which also stops this channel's receive loop:
@@ -905,31 +903,38 @@ namespace Opc.Ua.Bindings
                                 StatusCodes.BadConnectionClosed,
                                 "The transport was closed while reconnecting to an existing channel.");
 
-                        System.Net.EndPoint? remoteEndpoint = handedOver.RemoteEndpoint;
+                        System.Net.EndPoint? remoteEndpoint;
 
                         try
                         {
+                            clientCertificate = ClientCertificate?.AddRef();
+                            remoteEndpoint = handedOver.RemoteEndpoint;
+                            TransferNonces(token);
                             // tell the listener to find the channel that can process the request.
-                            Listener.ReconnectToExistingChannel(
+                            if (!Listener.ReconnectToExistingChannel(
+                                this,
                                 handedOver,
                                 requestId,
                                 sequenceNumber,
                                 channelId,
-                                ClientCertificate!,
+                                clientCertificate!,
                                 token,
-                                request);
+                                request))
+                            {
+                                throw new ServiceResultException(StatusCodes.BadTcpSecureChannelUnknown);
+                            }
                         }
-                        catch
+                        catch (Exception e)
                         {
-                            // The hand-over did not happen - an unknown channel
-                            // id, or a listener that does not support it - so this
-                            // channel still owns the socket. Put it back and read
-                            // from it again: the enclosing catch only sends a
-                            // fault and returns, so without the loop the channel
-                            // would sit on an open socket nobody reads, until the
-                            // idle reclaim finally takes it.
-                            Transport = handedOver;
-                            StartReceiveLoop();
+                            m_logger.TcpServerReconnectFailed(e, channelId);
+                            try
+                            {
+                                handedOver.Close();
+                            }
+                            finally
+                            {
+                                ChannelClosed();
+                            }
                             throw;
                         }
 
@@ -1026,25 +1031,59 @@ namespace Opc.Ua.Bindings
             catch (Exception e)
             {
                 // report the audit event for open secure channel
-                ReportAuditOpenSecureChannelEvent?.Invoke(this, request!, ClientCertificate, e);
+                ReportAuditOpenSecureChannelEvent?.Invoke(this, request!, clientCertificate ?? ClientCertificate, e);
 
-                SendServiceFault(
-                    requestId,
-                    State == TcpChannelState.Open,
-                    ServiceResult.Create(
-                        e,
-                        StatusCodes.BadTcpInternalError,
-                        "Unexpected error processing OpenSecureChannel request."),
-                    request?.RequestHeader?.RequestHandle ?? ReadRequestHandle(chunksToProcess));
+                if (State is not TcpChannelState.Closed and not TcpChannelState.Closing)
+                {
+                    SendServiceFault(
+                        requestId,
+                        State == TcpChannelState.Open,
+                        ServiceResult.Create(
+                            e,
+                            StatusCodes.BadTcpInternalError,
+                            "Unexpected error processing OpenSecureChannel request."),
+                        request?.RequestHeader?.RequestHandle ?? ReadRequestHandle(chunksToProcess));
+                }
 
                 CompleteReverseHello(e);
                 return false;
             }
             finally
             {
+                clientCertificate?.Dispose();
                 token?.Dispose();
+                if (bodyOwned)
+                {
+                    ReturnDecryptedBuffer(messageBody);
+                }
                 chunksToProcess?.Release(BufferManager, "ProcessOpenSecureChannelRequest");
             }
+        }
+
+        /// <summary>
+        /// Returns the certificate validation error that may be reported to the client of a
+        /// failed OpenSecureChannel request (see <see cref="CertificateErrorReporting"/>).
+        /// Every other failure is reported as Bad_SecurityChecksFailed.
+        /// </summary>
+        /// <param name="e">The exception that failed the request.</param>
+        /// <param name="reportable">The exception carrying the code to report.</param>
+        /// <returns><c>false</c> when Bad_SecurityChecksFailed must be reported.</returns>
+        internal static bool TryGetReportableCertificateError(
+            Exception e,
+            [NotNullWhen(true)] out ServiceResultException? reportable)
+        {
+            // the certificate validation failure is thrown directly or as the inner exception.
+            if ((e as ServiceResultException ?? e.InnerException as ServiceResultException)
+                    is ServiceResultException error &&
+                CertificateErrorReporting.IsReportedToClient(
+                    CertificateErrorReporting.GetClientStatusCode(error.Result)))
+            {
+                reportable = error;
+                return true;
+            }
+
+            reportable = null;
+            return false;
         }
 
         /// <inheritdoc/>
@@ -1393,13 +1432,10 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="RequestId">The request identifier.</param>
         /// <param name="Request">The decoded request.</param>
-        /// <summary>
-        /// A request that has been decoded but not yet handed to the server.
-        /// </summary>
         /// <param name="Chunks">
-        /// The buffers the request was decoded from. The decoder does not copy
-        /// everything it reads, so these must outlive the handler and are
-        /// released only once it returns.
+        /// The buffers used during decoding, retained until the request callback returns.
+        /// Stream decoding copies the request's strings and byte strings; an asynchronous
+        /// callback may continue after these buffers are released.
         /// </param>
         private sealed record PendingRequestDispatch(
             uint RequestId,
@@ -1475,20 +1511,14 @@ namespace Opc.Ua.Bindings
                 return false;
             }
 
-            int countForDisconnect = 5;
-            while (ChannelFull && countForDisconnect > 0)
+            if (ChannelFull)
             {
                 m_logger.TcpServerLog13(Id);
-
-                // delay reading from channel
-                Thread.Sleep(1000);
-
-                if (--countForDisconnect == 0 && ChannelFull)
-                {
-                    m_logger.TcpServerLog14(Id);
-                    ChannelClosed();
-                    return false;
-                }
+                m_logger.TcpServerLog14(Id);
+                ForceChannelFaultCore(
+                    StatusCodes.BadTcpNotEnoughResources,
+                    "The channel write queue is full.");
+                return false;
             }
 
             BufferCollection? chunksToProcess = null;
@@ -1606,10 +1636,8 @@ namespace Opc.Ua.Bindings
                 // arbitrary request processing serialises the whole channel on
                 // it. The caller dispatches this once it has left the gate.
                 //
-                // Ownership of the chunks transfers with it. The decoder above
-                // does not copy everything it reads, so returning them to the
-                // pool here would let the request be overwritten underneath the
-                // handler by the next message on this channel.
+                // Transfer chunk cleanup to dispatch. Stream decoding has copied
+                // the request values, so they do not borrow these pooled arrays.
                 pending = new PendingRequestDispatch(requestId, request, chunksToProcess);
                 chunksToProcess = null;
 
@@ -1657,9 +1685,10 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Sends the response for the specified request.
         /// </summary>
+        /// <returns><c>true</c> if the response was retained for delivery after reconnect.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="response"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
-        public void SendResponse(uint requestId, IServiceResponse response)
+        public bool SendResponse(uint requestId, IServiceResponse response)
         {
             if (response == null)
             {
@@ -1672,7 +1701,7 @@ namespace Opc.Ua.Bindings
                 if (State == TcpChannelState.Faulted)
                 {
                     m_queuedResponses[requestId] = response;
-                    return;
+                    return true;
                 }
 
                 // if the channel is closed no response can be sent, throw exception to end processing in this specific channel.
@@ -1711,7 +1740,7 @@ namespace Opc.Ua.Bindings
                             "Could not encode outgoing message."),
                         response.ResponseHeader?.RequestHandle ?? 0);
 
-                    return;
+                    return false;
                 }
 
                 try
@@ -1724,7 +1753,7 @@ namespace Opc.Ua.Bindings
                     buffers?.Release(BufferManager, "SendResponse");
 
                     m_queuedResponses[requestId] = response;
-                    return;
+                    return true;
                 }
 
                 if (response is ActivateSessionResponse activateSessionResponse &&
@@ -1737,6 +1766,8 @@ namespace Opc.Ua.Bindings
                 {
                     RemoveSession();
                 }
+
+                return false;
             }
         }
 
@@ -1793,9 +1824,16 @@ namespace Opc.Ua.Bindings
             // read the type of the message before more chunks are processed, and
             // finish reading before the body can change hands below.
             NodeId typeId;
-            using (var decoder = new BinaryDecoder(messageBody, Quotas.MessageContext))
+            try
             {
+                using var decoder = new BinaryDecoder(messageBody, Quotas.MessageContext);
                 typeId = decoder.ReadNodeId(null);
+            }
+            catch
+            {
+                // ProcessRequestMessage reports ownership even when decoding fails.
+                ReturnBuffer(messageBody, nameof(ValidateDiscoveryServiceCall));
+                throw;
             }
 
             if (typeId != ObjectIds.GetEndpointsRequest_Encoding_DefaultBinary &&
@@ -1839,7 +1877,7 @@ namespace Opc.Ua.Bindings
         public static partial void TcpServerLog0(
             this ILogger logger,
             string channel,
-            global::System.Net.EndPoint? remoteEndpoint,
+            System.Net.EndPoint? remoteEndpoint,
             uint channelId);
 
         [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 1, Level = LogLevel.Debug,
@@ -1858,7 +1896,7 @@ namespace Opc.Ua.Bindings
             Message = "Unexpected error re-sending request (ID={Id}).")]
         public static partial void TcpServerLog4(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             uint id);
 
         [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 5, Level = LogLevel.Information,
@@ -1867,7 +1905,7 @@ namespace Opc.Ua.Bindings
         public static partial void TcpServerLog5(
             this ILogger logger,
             string channel,
-            global::System.Net.EndPoint? remoteEndpoint,
+            System.Net.EndPoint? remoteEndpoint,
             uint channelId,
             uint tokenId);
 
@@ -1875,7 +1913,7 @@ namespace Opc.Ua.Bindings
             Message = "Error raising StatusChanged event.")]
         public static partial void TcpServerLog6(
             this ILogger logger,
-            global::System.Exception? exception);
+            Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 7, Level = LogLevel.Debug,
             Message = "ChannelId {Id}: Request {RequestId}: SendServiceFault={ServiceFault}")]
@@ -1883,16 +1921,16 @@ namespace Opc.Ua.Bindings
             this ILogger logger,
             uint id,
             uint requestId,
-            global::Opc.Ua.StatusCode serviceFault);
+            StatusCode serviceFault);
 
         [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 8, Level = LogLevel.Error,
             Message = "ChannelId {Id}: Request {RequestId}: SendServiceFault={ServiceFault}: Unexpected error.")]
         public static partial void TcpServerLog8(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             uint id,
             uint requestId,
-            global::Opc.Ua.StatusCode serviceFault);
+            StatusCode serviceFault);
 
         [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 9, Level = LogLevel.Debug,
             Message = "ChannelId {Id}: SendOpenSecureChannelResponse()")]
@@ -1902,7 +1940,7 @@ namespace Opc.Ua.Bindings
             Message = "Unexpected error processing CloseSecureChannel request.")]
         public static partial void TcpServerLog10(
             this ILogger logger,
-            global::System.Exception? exception);
+            Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 11, Level = LogLevel.Information,
             Message = "{Channel} ProcessCloseSecureChannelRequest success, ChannelId={ChannelId}, " +
@@ -1912,7 +1950,7 @@ namespace Opc.Ua.Bindings
             string channel,
             uint? channelId,
             uint? tokenId,
-            global::System.Net.EndPoint? remoteEndpoint);
+            System.Net.EndPoint? remoteEndpoint);
 
         [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 12, Level = LogLevel.Information,
             Message = "ChannelId {Id}: Server Current Token #{CurrentToken}, Revoked Token #{PreviousToken}.")]
@@ -1941,12 +1979,20 @@ namespace Opc.Ua.Bindings
             Message = "Unexpected error processing request.")]
         public static partial void TcpServerLog16(
             this ILogger logger,
-            global::System.Exception? exception);
+            Exception? exception);
+
         [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 17, Level = LogLevel.Error,
             Message = "Could not verify security on OpenSecureChannel request.")]
         public static partial void TcpServerLog17(
             this ILogger logger,
-            global::System.Exception? exception);
+            Exception? exception);
+
+        [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 18, Level = LogLevel.Error,
+            Message = "ChannelId {ChannelId}: reconnect handoff failed; closing the unadopted connection.")]
+        public static partial void TcpServerReconnectFailed(
+            this ILogger logger,
+            Exception exception,
+            uint channelId);
 
         [LoggerMessage(
             EventId = CoreEventIds.CoreSendResponse,
@@ -1957,7 +2003,5 @@ namespace Opc.Ua.Bindings
             this ILogger logger,
             int channelId,
             int requestId);
-
     }
-
 }

@@ -72,7 +72,8 @@ namespace Opc.Ua.Server
         IAsyncDisposable,
         ITimeProviderProvider,
         ISecurityPolicyRegistryProvider,
-        INodeIdFactoryProvider
+        INodeIdFactoryProvider,
+        IServerServiceLevelControl
     {
         /// <summary>
         /// Initializes the datastore with the server configuration.
@@ -216,7 +217,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            List<Exception>? historianDisposalErrors = null;
+            List<Exception>? disposalErrors = null;
             Historian.HistorianBuilder[] historianBuilders;
             lock (m_historianBuildersLock)
             {
@@ -231,13 +232,38 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception exception)
                 {
-                    historianDisposalErrors ??= [];
-                    historianDisposalErrors.Add(exception);
+                    disposalErrors ??= [];
+                    disposalErrors.Add(exception);
                 }
             }
 
-            m_roleStateBinding?.Dispose();
-            m_roleStateBinding = null;
+            try
+            {
+                await DrainRoleStateBindingAsync().ConfigureAwait(false);
+            }
+            catch (Exception exception)
+            {
+                disposalErrors ??= [];
+                disposalErrors.Add(exception);
+            }
+
+            try
+            {
+                if (NodeManager is IAsyncDisposable asyncNodeManager)
+                {
+                    await asyncNodeManager.DisposeAsync().ConfigureAwait(false);
+                }
+                else
+                {
+                    (NodeManager as IDisposable)?.Dispose();
+                }
+            }
+            catch (Exception exception)
+            {
+                disposalErrors ??= [];
+                disposalErrors.Add(exception);
+            }
+
             (RoleManager as IDisposable)?.Dispose();
             RoleManager = null!;
             ResourceManager?.Dispose();
@@ -250,7 +276,6 @@ namespace Opc.Ua.Server
             ModellingRulesManager = null!;
             ConformanceUnitsManager?.Dispose();
             ConformanceUnitsManager = null!;
-            (NodeManager as IDisposable)?.Dispose();
             NodeManager = null!;
             DiagnosticsNodeManager = null!;
             ConfigurationNodeManager = null!;
@@ -270,11 +295,11 @@ namespace Opc.Ua.Server
             MonitoredItemQueueFactory = null!;
             (AliasNameStoreRegistry as IDisposable)?.Dispose();
             (HistorianRegistry as IDisposable)?.Dispose();
-            if (historianDisposalErrors != null)
+            if (disposalErrors != null)
             {
                 throw new AggregateException(
-                    "One or more historian pipelines failed during shutdown.",
-                    historianDisposalErrors);
+                    "One or more server resources failed during shutdown.",
+                    disposalErrors);
             }
         }
 
@@ -292,6 +317,19 @@ namespace Opc.Ua.Server
             lock (m_historianBuildersLock)
             {
                 m_historianBuilders.Add(builder);
+            }
+        }
+
+        /// <summary>
+        /// Stops role reconciliation before shutdown deletes the address space.
+        /// </summary>
+        internal async ValueTask DrainRoleStateBindingAsync()
+        {
+            RoleStateBinding? binding = m_roleStateBinding;
+            if (binding != null)
+            {
+                await binding.DisposeAsync().ConfigureAwait(false);
+                Interlocked.CompareExchange(ref m_roleStateBinding, null, binding);
             }
         }
 
@@ -987,12 +1025,22 @@ namespace Opc.Ua.Server
                 return;
             }
 
+            CancellationToken closeCancellationToken = CancellationToken.None;
+
             try
             {
-                await NodeManager.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken)
+                await NodeManager.SessionClosingAsync(
+                    context,
+                    sessionId,
+                    deleteSubscriptions,
+                    closeCancellationToken)
                     .ConfigureAwait(false);
                 await SubscriptionManager
-                    .SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken)
+                    .SessionClosingAsync(
+                        context,
+                        sessionId,
+                        deleteSubscriptions,
+                        closeCancellationToken)
                     .ConfigureAwait(false);
             }
             finally
@@ -1000,7 +1048,7 @@ namespace Opc.Ua.Server
                 // The Session is marked closing for good, so it must not be left registered and
                 // serving when a NodeManager or the SubscriptionManager fails to tear its state
                 // down. The original failure still propagates to the caller.
-                await SessionManager.CloseSessionAsync(sessionId, cancellationToken).ConfigureAwait(false);
+                await SessionManager.CloseSessionAsync(sessionId, closeCancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -1160,6 +1208,34 @@ namespace Opc.Ua.Server
             ReportEvent(context, e);
         }
 
+        /// <inheritdoc/>
+        public Action<byte> ClaimServiceLevelControl()
+        {
+            lock (m_serviceLevelLock)
+            {
+                if (m_hasServiceLevelOwner)
+                {
+                    throw new InvalidOperationException("Server.ServiceLevel already has an explicit provider.");
+                }
+                if (ServerObject?.ServiceLevel == null)
+                {
+                    throw new InvalidOperationException("Server.ServiceLevel is not available.");
+                }
+                m_hasServiceLevelOwner = true;
+                return PublishServiceLevel;
+            }
+        }
+
+        private void PublishServiceLevel(byte level)
+        {
+            lock (m_serviceLevelLock)
+            {
+                ServerObject.ServiceLevel!.Value = level;
+                ServerObject.ServiceLevel.Timestamp = TimeProvider.GetUtcNow().UtcDateTime;
+                ServerObject.ServiceLevel.ClearChangeMasks(DefaultSystemContext, false);
+            }
+        }
+
         /// <summary>
         /// Updates Server.ServiceLevel after the session count changes.
         /// </summary>
@@ -1186,9 +1262,18 @@ namespace Opc.Ua.Server
 
             lock (m_serviceLevelLock)
             {
+                if (m_hasServiceLevelOwner)
+                {
+                    return;
+                }
                 byte currentServiceLevel = Convert.ToByte(
                     ServerObject.ServiceLevel.Value,
                     CultureInfo.InvariantCulture);
+
+                if (currentServiceLevel < ServiceLevels.HealthyMinimum)
+                {
+                    return;
+                }
 
                 if (!ServerServiceLevelCalculator.ShouldUpdate(currentServiceLevel, targetServiceLevel))
                 {
@@ -1323,14 +1408,17 @@ namespace Opc.Ua.Server
             serverObject.ServerArray!.OnSimpleReadValue = OnReadServerArray;
             serverObject.ServerArray.MinimumSamplingInterval = 1000;
 
-            // dynamic change of enabledFlag is disabled to pass CTT
-            serverObject.ServerDiagnostics!.EnabledFlag!.AccessLevel = AccessLevels.CurrentRead;
+            // the diagnostics collection can be enabled and disabled by an administrator
+            // (Part 5 §6.3.3); the user access level grants the write access.
+            serverObject.ServerDiagnostics!.EnabledFlag!.AccessLevel = AccessLevels.CurrentReadOrWrite;
             serverObject.ServerDiagnostics.EnabledFlag.UserAccessLevel = AccessLevels
-                .CurrentRead;
+                .CurrentReadOrWrite;
+            serverObject.ServerDiagnostics.EnabledFlag.OnReadUserAccessLevel
+                = OnReadDiagnosticsEnabledFlagUserAccessLevel;
             serverObject.ServerDiagnostics.EnabledFlag.OnSimpleReadValue
                 = OnReadDiagnosticsEnabledFlag;
-            serverObject.ServerDiagnostics.EnabledFlag.OnSimpleWriteValue
-                = OnWriteDiagnosticsEnabledFlag;
+            serverObject.ServerDiagnostics.EnabledFlag.OnSimpleWriteValueAsync
+                = OnWriteDiagnosticsEnabledFlagAsync;
             serverObject.ServerDiagnostics.EnabledFlag.MinimumSamplingInterval = 1000;
 
             // initialize status.
@@ -1528,16 +1616,56 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Sets the Diagnostics.EnabledFlag
         /// </summary>
-        private ServiceResult OnWriteDiagnosticsEnabledFlag(
+        private async ValueTask<AttributeWriteResult> OnWriteDiagnosticsEnabledFlagAsync(
             ISystemContext context,
             NodeState node,
-            ref Variant value)
+            Variant value,
+            CancellationToken cancellationToken)
         {
-            bool enabled = (bool)value;
-            DiagnosticsNodeManager.SetDiagnosticsEnabledAsync(DefaultSystemContext, enabled)
-                .AsTask().GetAwaiter().GetResult();
+            if (!value.TryGetValue(out bool enabled))
+            {
+                return new AttributeWriteResult(StatusCodes.BadTypeMismatch);
+            }
+
+            await DiagnosticsNodeManager.SetDiagnosticsEnabledAsync(
+                DefaultSystemContext,
+                enabled,
+                cancellationToken).ConfigureAwait(false);
+
+            return new AttributeWriteResult(ServiceResult.Good);
+        }
+
+        /// <summary>
+        /// Grants write access to Diagnostics.EnabledFlag only to a user with the
+        /// SecurityAdmin or ConfigureAdmin role on an encrypted channel.
+        /// </summary>
+        private static ServiceResult OnReadDiagnosticsEnabledFlagUserAccessLevel(
+            ISystemContext context,
+            NodeState node,
+            ref byte value)
+        {
+            if (!HasDiagnosticsAdminAccess(context))
+            {
+                value &= unchecked((byte)~AccessLevels.CurrentWrite);
+            }
 
             return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Returns true if the session of the context may change the diagnostics settings.
+        /// </summary>
+        private static bool HasDiagnosticsAdminAccess(ISystemContext context)
+        {
+            if (context is not SessionSystemContext { OperationContext: OperationContext operationContext } session ||
+                operationContext.ChannelContext?.EndpointDescription?.SecurityMode != MessageSecurityMode.SignAndEncrypt)
+            {
+                return false;
+            }
+
+            ArrayOf<NodeId> roles = session.UserIdentity?.GrantedRoleIds ?? default;
+            return roles.Contains(ObjectIds.WellKnownRole_SecurityAdmin) ||
+                roles.Contains(ObjectIds.WellKnownRole_ConfigureAdmin);
         }
 
         /// <summary>
@@ -1598,6 +1726,7 @@ namespace Opc.Ua.Server
         private readonly List<Historian.HistorianBuilder> m_historianBuilders = [];
         private readonly Lock m_historianBuildersLock = new();
         private readonly Lock m_serviceLevelLock = new();
+        private bool m_hasServiceLevelOwner;
         private RoleStateBinding? m_roleStateBinding;
         private volatile IReadOnlyList<ITransportListener>? m_transportListeners;
         private ArrayOf<EndpointDescription> m_serverEndpoints;

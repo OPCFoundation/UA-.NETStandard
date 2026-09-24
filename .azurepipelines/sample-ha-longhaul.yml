@@ -40,7 +40,7 @@ steps:
   displayName: 'Install .NET 10 SDK'
   inputs:
     packageType: sdk
-    version: '10.0.x'
+    version: '10.0.401'
 
 - pwsh: ./.azurepipelines/set-version.ps1
   displayName: 'Set Cloud Version'

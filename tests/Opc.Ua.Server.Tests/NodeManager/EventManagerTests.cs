@@ -253,7 +253,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             // EventQueueOverflowEvent, so compare the exact payloads.
             Assert.That(
                 notifications.Select(n => n.EventFields[0].GetString()),
-                Is.EqualTo(new[] { "event0", "event1", "event2" }));
+                Is.EqualTo(s_eventBurst));
         }
 
         /// <summary>
@@ -317,7 +317,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             Assert.That(
                 notifications.Select(n => n.EventFields[0].GetString()),
-                Is.EqualTo(new[] { "event0", "event1", "event2" }));
+                Is.EqualTo(s_eventBurst));
         }
 
         [Test]
@@ -497,5 +497,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             item1.Verify(m => m.QueueEvent(filterTarget.Object), Times.Once);
             item2.Verify(m => m.QueueEvent(filterTarget.Object), Times.Once);
         }
+
+        /// <summary>
+        /// Defines the ordered event payloads expected after publishing a three-event burst.
+        /// </summary>
+        private static readonly string[] s_eventBurst = ["event0", "event1", "event2"];
     }
 }

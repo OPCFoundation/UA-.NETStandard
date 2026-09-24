@@ -255,6 +255,7 @@
     <File Path="docs/ProvisioningMode.md" />
     <File Path="docs/PubSub.md" />
     <File Path="docs/README.md" />
+    <File Path="docs/ReleaseProcess.md" />
     <File Path="docs/ReverseConnect.md" />
     <File Path="docs/RoleBasedUserManagement.md" />
     <File Path="docs/Sessions.md" />

@@ -51,7 +51,7 @@ namespace Opc.Ua.Server
 
             if (currentSessionCount >= maxSessionCount)
             {
-                return MinRunningServiceLevel;
+                return HealthyMinimumServiceLevel;
             }
 
             double usedFraction = (double)currentSessionCount / maxSessionCount;
@@ -61,10 +61,10 @@ namespace Opc.Ua.Server
             }
 
             double normalizedHeadroom = (1d - usedFraction) / (1d - FullServiceLevelUsedFraction);
-            int serviceLevel = MinRunningServiceLevel +
-                (int)Math.Round((MaxServiceLevel - MinRunningServiceLevel) * normalizedHeadroom);
+            int serviceLevel = HealthyMinimumServiceLevel +
+                (int)Math.Round((MaxServiceLevel - HealthyMinimumServiceLevel) * normalizedHeadroom);
 
-            return (byte)Math.Max(MinRunningServiceLevel, Math.Min(MaxServiceLevel, serviceLevel));
+            return (byte)Math.Max(HealthyMinimumServiceLevel, Math.Min(MaxServiceLevel, serviceLevel));
         }
 
         /// <summary>
@@ -75,7 +75,7 @@ namespace Opc.Ua.Server
         /// <returns><c>true</c> when the server should publish the new value.</returns>
         internal static bool ShouldUpdate(byte currentServiceLevel, byte targetServiceLevel)
         {
-            if (targetServiceLevel is MaxServiceLevel or MinRunningServiceLevel)
+            if (targetServiceLevel is MaxServiceLevel or HealthyMinimumServiceLevel)
             {
                 return currentServiceLevel != targetServiceLevel;
             }
@@ -88,7 +88,7 @@ namespace Opc.Ua.Server
             return delta >= UpdateThreshold;
         }
 
-        private const byte MinRunningServiceLevel = 1;
+        private const byte HealthyMinimumServiceLevel = 200;
         private const byte MaxServiceLevel = 255;
         private const double FullServiceLevelUsedFraction = 0.2d;
         private const int UpdateThreshold = 5;

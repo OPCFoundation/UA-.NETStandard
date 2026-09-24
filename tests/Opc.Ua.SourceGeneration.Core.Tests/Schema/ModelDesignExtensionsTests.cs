@@ -52,6 +52,22 @@ namespace Opc.Ua.Schema.Model.Tests
     [Parallelizable]
     public class ModelDesignExtensionsTests
     {
+        [TestCase(null)]
+        [TestCase("")]
+        [TestCase("Identifier")]
+        public void SetIdentifierPreservesStringIdentifier(string identifier)
+        {
+            var node = new ObjectDesign();
+
+            node.SetIdentifier(identifier);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(node.GetIdentifier(), Is.EqualTo(identifier));
+                Assert.That(node.HasIdentifier(), Is.EqualTo(identifier != null));
+            });
+        }
+
         [Test]
         public void AssignMethodArgumentCodeNamesAllocatesInputsBeforeOutputs()
         {

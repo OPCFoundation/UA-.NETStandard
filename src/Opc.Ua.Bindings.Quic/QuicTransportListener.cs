@@ -416,6 +416,7 @@ namespace Opc.Ua.Bindings
 
         /// <inheritdoc/>
         public bool ReconnectToExistingChannel(
+            TcpListenerChannel reconnectingChannel,
             IUaSCByteTransport transport,
             uint requestId,
             uint sequenceNumber,
@@ -951,7 +952,8 @@ namespace Opc.Ua.Bindings
                     RequestEncoding.Binary,
                     channel.ClientCertificate?.RawData,
                     channel.ServerCertificate?.RawData,
-                    channel.ChannelThumbprint);
+                    channel.ChannelThumbprint,
+                    (channel.Transport?.RemoteEndpoint as IPEndPoint)?.Address);
 
                 IServiceResponse response = await m_callback
                     .ProcessRequestAsync(context, request)

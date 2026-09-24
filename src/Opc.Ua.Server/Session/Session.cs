@@ -273,9 +273,15 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
+                Nonce? retired;
+                lock (m_lock)
+                {
+                    m_userTokenNonceStopped = true;
+                    m_userTokenSecurityPolicyUri = null;
+                    retired = ReplaceUserTokenNonce(null);
+                }
+                retired?.Dispose();
                 m_continuationPoints.Clear();
-                m_userTokenNonce?.Dispose();
-                m_userTokenNonce = null;
 
                 IdentityToken = null!;
 
@@ -301,12 +307,33 @@ namespace Opc.Ua.Server
         public IUserIdentity EffectiveIdentity { get; private set; } = null!;
 
         /// <inheritdoc/>
-        public bool IsIdentityStale => Volatile.Read(ref m_identityStale) != 0;
+        public bool IsIdentityStale
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_identityRefreshGeneration != m_identityGeneration;
+                }
+            }
+        }
+
+        /// <inheritdoc/>
+        public IdentityRefreshSnapshot CaptureIdentityRefreshSnapshot()
+        {
+            lock (m_lock)
+            {
+                return new IdentityRefreshSnapshot(Identity, m_identityGeneration);
+            }
+        }
 
         /// <inheritdoc/>
         public void MarkIdentityStale()
         {
-            Volatile.Write(ref m_identityStale, 1);
+            lock (m_lock)
+            {
+                m_identityGeneration++;
+            }
         }
 
         /// <inheritdoc/>
@@ -320,10 +347,37 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 EffectiveIdentity = effectiveIdentity;
-                // Clearing the stale flag while holding the session lock
-                // ensures any subsequent IsIdentityStale read observes a
-                // consistent (refreshed identity, cleared flag) pair.
-                Volatile.Write(ref m_identityStale, 0);
+                m_identityRefreshGeneration = m_identityGeneration;
+            }
+        }
+
+        /// <inheritdoc/>
+        public bool TryRefreshEffectiveIdentity(
+            IUserIdentity expectedIdentity,
+            long expectedGeneration,
+            IUserIdentity effectiveIdentity)
+        {
+            if (expectedIdentity == null)
+            {
+                throw new ArgumentNullException(nameof(expectedIdentity));
+            }
+            if (effectiveIdentity == null)
+            {
+                throw new ArgumentNullException(nameof(effectiveIdentity));
+            }
+
+            lock (m_lock)
+            {
+                if (!ReferenceEquals(Identity, expectedIdentity) ||
+                    m_identityGeneration != expectedGeneration ||
+                    m_identityRefreshGeneration == m_identityGeneration)
+                {
+                    return false;
+                }
+
+                EffectiveIdentity = effectiveIdentity;
+                m_identityRefreshGeneration = m_identityGeneration;
+                return true;
             }
         }
 
@@ -497,39 +551,66 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Set the ECC security policy URI
         /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
         public virtual void SetUserTokenSecurityPolicy(string securityPolicyUri)
         {
+            Nonce? retired;
             lock (m_lock)
             {
+                if (m_userTokenNonceStopped)
+                {
+                    throw new ObjectDisposedException(nameof(Session));
+                }
                 m_userTokenSecurityPolicyUri = securityPolicyUri;
-                m_userTokenNonce = null;
+                retired = ReplaceUserTokenNonce(null);
             }
+            retired?.Dispose();
         }
 
         /// <summary>
         /// Create new ECC ephemeral key
         /// </summary>
         /// <returns>A new ephemeral key</returns>
+        /// <exception cref="ObjectDisposedException"></exception>
         public virtual EphemeralKeyType? GetNewEphemeralKey()
         {
+            Nonce? retired;
+            EphemeralKeyType key;
             lock (m_lock)
             {
+                if (m_userTokenNonceStopped)
+                {
+                    throw new ObjectDisposedException(nameof(Session));
+                }
                 if (m_userTokenSecurityPolicyUri == null)
                 {
                     return null;
                 }
-
-                m_userTokenNonce = Nonce.CreateNonce(m_userTokenSecurityPolicyUri);
-
-                return new EphemeralKeyType
+                var nonce = Nonce.CreateNonce(m_userTokenSecurityPolicyUri);
+                bool retained = false;
+                try
                 {
-                    PublicKey = m_userTokenNonce.Data.ToByteString(),
-                    Signature = CryptoUtils.Sign(
-                        new ArraySegment<byte>(m_userTokenNonce.Data!),
-                        m_serverCertificate,
-                        m_userTokenSecurityPolicyUri).ToByteString()
-                };
+                    key = new EphemeralKeyType
+                    {
+                        PublicKey = nonce.Data.ToByteString(),
+                        Signature = CryptoUtils.Sign(
+                            new ArraySegment<byte>(nonce.Data!),
+                            m_serverCertificate,
+                            m_userTokenSecurityPolicyUri).ToByteString()
+                    };
+                    retired = ReplaceUserTokenNonce(nonce);
+                    retained = true;
+                }
+                finally
+                {
+                    if (!retained)
+                    {
+                        nonce.Dispose();
+                    }
+                }
             }
+            retired?.Dispose();
+            return key;
         }
 
         /// <summary>
@@ -919,6 +1000,11 @@ namespace Opc.Ua.Server
             return ServiceResult.Good;
         }
 
+        /// <summary>
+        /// Resolves the endpoint's user-token policy and verifies the identity token
+        /// while retaining its decryption nonce.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private async ValueTask<(
             IUserIdentityTokenHandler IdentityToken,
             UserTokenPolicy? UserTokenPolicy)> ValidateUserIdentityTokenAsync(
@@ -1044,6 +1130,13 @@ namespace Opc.Ua.Server
                     StatusCodes.BadIdentityTokenInvalid,
                     "User token policy not supported.");
 
+            if (policy.TokenType != token.TokenType)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadIdentityTokenInvalid,
+                    "The identity token type does not match its user token policy.");
+            }
+
             token.UpdatePolicy(policy);
 
             // determine the security policy uri.
@@ -1062,6 +1155,7 @@ namespace Opc.Ua.Server
                     throw ServiceResultException.ConfigurationError(
                         "ApplicationCertificate cannot be found.");
 
+                Nonce? userTokenNonce = AcquireUserTokenNonce();
                 try
                 {
                     await token.DecryptAsync(
@@ -1069,7 +1163,7 @@ namespace Opc.Ua.Server
                         m_serverNonce,
                         securityPolicyUri!,
                         m_server.MessageContext,
-                        m_userTokenNonce,
+                        userTokenNonce,
                         ClientCertificate,
                         m_clientIssuerCertificates,
                         ct: cancellationToken).ConfigureAwait(false);
@@ -1081,6 +1175,10 @@ namespace Opc.Ua.Server
                         StatusCodes.BadIdentityTokenInvalid,
                         e,
                         "Could not decrypt identity token.");
+                }
+                finally
+                {
+                    ReleaseUserTokenNonce(userTokenNonce);
                 }
 
                 // verify the signature.
@@ -1139,14 +1237,14 @@ namespace Opc.Ua.Server
                                     cancellationToken).ConfigureAwait(false))
                             {
                                 throw new ServiceResultException(
-                                    StatusCodes.BadIdentityTokenRejected,
+                                    StatusCodes.BadUserSignatureInvalid,
                                     "Invalid user signature!");
                             }
                         }
                         else
                         {
                             throw new ServiceResultException(
-                                StatusCodes.BadIdentityTokenRejected,
+                                StatusCodes.BadUserSignatureInvalid,
                                 "Invalid user signature!");
                         }
                     }
@@ -1154,6 +1252,74 @@ namespace Opc.Ua.Server
             }
 
             return (token, policy);
+        }
+
+        /// <summary>
+        /// Borrows the current user-token nonce so replacement cannot dispose it during token validation.
+        /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
+        private Nonce? AcquireUserTokenNonce()
+        {
+            lock (m_lock)
+            {
+                if (m_userTokenNonceStopped)
+                {
+                    throw new ObjectDisposedException(nameof(Session));
+                }
+                Nonce? nonce = m_userTokenNonce;
+                if (nonce != null)
+                {
+                    m_userTokenNonceBorrows ??= [];
+                    m_userTokenNonceBorrows.TryGetValue(nonce, out int borrowers);
+                    m_userTokenNonceBorrows[nonce] = borrowers + 1;
+                }
+                return nonce;
+            }
+        }
+
+        /// <summary>
+        /// Releases a nonce borrow and disposes a retired nonce after its final borrower finishes.
+        /// </summary>
+        private void ReleaseUserTokenNonce(Nonce? nonce)
+        {
+            if (nonce == null)
+            {
+                return;
+            }
+            Nonce? retired = null;
+            lock (m_lock)
+            {
+                int borrowers = m_userTokenNonceBorrows![nonce] - 1;
+                if (borrowers == 0)
+                {
+                    m_userTokenNonceBorrows.Remove(nonce);
+                    if (m_retiredUserTokenNonces?.Remove(nonce) == true)
+                    {
+                        retired = nonce;
+                    }
+                }
+                else
+                {
+                    m_userTokenNonceBorrows[nonce] = borrowers;
+                }
+            }
+            retired?.Dispose();
+        }
+
+        /// <summary>
+        /// Replaces the user-token nonce, returning the old nonce for disposal unless borrowers still need it.
+        /// </summary>
+        private Nonce? ReplaceUserTokenNonce(Nonce? replacement)
+        {
+            Nonce? previous = m_userTokenNonce;
+            m_userTokenNonce = replacement;
+            if (previous != null && m_userTokenNonceBorrows?.ContainsKey(previous) == true)
+            {
+                m_retiredUserTokenNonces ??= [];
+                m_retiredUserTokenNonces.Add(previous);
+                return null;
+            }
+            return previous;
         }
 
         /// <summary>
@@ -1184,6 +1350,8 @@ namespace Opc.Ua.Server
                 // always save the new identity since it may have additional information that does not affect equality.
                 IdentityToken = identityToken;
                 Identity = identity;
+                m_identityGeneration++;
+                m_identityRefreshGeneration = m_identityGeneration;
                 EffectiveIdentity = effectiveIdentity!;
 
                 // update diagnostics.
@@ -1194,8 +1362,22 @@ namespace Opc.Ua.Server
                         identity);
                     m_securityDiagnostics.ClientUserIdOfSession = clientUserId;
                     m_securityDiagnostics.AuthenticationMechanism = identity.TokenType.ToString();
-                    m_securityDiagnostics.ClientUserIdHistory =
-                        m_securityDiagnostics.ClientUserIdHistory.AddItem(clientUserId!);
+                    ArrayOf<string> history = m_securityDiagnostics.ClientUserIdHistory;
+                    if (history.Count == 0 ||
+                        !string.Equals(
+                            history[^1],
+                            clientUserId,
+                            StringComparison.Ordinal))
+                    {
+                        int retainedCount = Math.Min(history.Count, kMaxClientUserIdHistory - 1);
+                        string[] updatedHistory = new string[retainedCount + 1];
+                        if (retainedCount > 0)
+                        {
+                            history.Span[^retainedCount..].CopyTo(updatedHistory);
+                        }
+                        updatedHistory[retainedCount] = clientUserId!;
+                        m_securityDiagnostics.ClientUserIdHistory = updatedHistory.ToArrayOf();
+                    }
                 }
 
                 return changed;
@@ -1361,6 +1543,7 @@ namespace Opc.Ua.Server
         /// <see cref="UpdateDiagnostics"/> and <see cref="ReadDiagnostics{TResult}"/>.
         /// </summary>
         private readonly Lock m_diagnosticsLock = new();
+        private const int kMaxClientUserIdHistory = 100;
         private int m_closing;
         private readonly ILogger m_eventLogger;
         private readonly IServerInternal m_server;
@@ -1370,11 +1553,27 @@ namespace Opc.Ua.Server
         private Nonce m_serverNonce;
         private string? m_userTokenSecurityPolicyUri;
         private Nonce? m_userTokenNonce;
+
+        /// <summary>
+        /// Counts active validation operations borrowing each user-token nonce.
+        /// </summary>
+        private Dictionary<Nonce, int>? m_userTokenNonceBorrows;
+
+        /// <summary>
+        /// Retains replaced nonces until their outstanding validation operations release them.
+        /// </summary>
+        private HashSet<Nonce>? m_retiredUserTokenNonces;
+
+        /// <summary>
+        /// Prevents new nonce borrows after session disposal starts.
+        /// </summary>
+        private bool m_userTokenNonceStopped;
         private readonly CertificateCollection? m_clientIssuerCertificates;
         private readonly SessionContinuationPoints m_continuationPoints;
         private readonly SessionSecurityDiagnosticsDataType m_securityDiagnostics;
         private long m_lastContactTickCount;
-        private int m_identityStale;
+        private long m_identityGeneration;
+        private long m_identityRefreshGeneration;
     }
 
     /// <summary>

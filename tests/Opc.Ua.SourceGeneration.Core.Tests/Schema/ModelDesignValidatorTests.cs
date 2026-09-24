@@ -36,6 +36,7 @@ using System.Xml;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Export;
+using Opc.Ua.SourceGeneration.Dependency;
 using Opc.Ua.Tests;
 using SchemaTypes = Opc.Ua.Schema.Types;
 
@@ -70,6 +71,37 @@ namespace Opc.Ua.Schema.Model.Tests
         {
             m_fileSystem?.Dispose();
             m_fileSystem = null;
+        }
+
+        [TestCase(null)]
+        [TestCase("")]
+        [TestCase("AQID")]
+        public void ImportDependencyPreservesOpaqueIdentifier(string opaqueId)
+        {
+            ModelDesignValidator validator = CreateValidator();
+            var dependency = new ModelDependencyV1 { ModelUri = TargetNamespaceUri };
+            dependency.Nodes.Add(new DependencyNode
+            {
+                SymbolicName = "OpaqueType",
+                SymbolicNamespace = TargetNamespaceUri,
+                ClassName = "OpaqueType",
+                Kind = DependencyNodeKind.ObjectType,
+                OpaqueId = opaqueId
+            });
+
+            validator.ImportDependency(
+                ModelDependencyV1.FromBase64Payload(dependency.ToBase64Payload()), "Data", "Data");
+            validator.ApplyPendingDependencies();
+
+            Assert.That(validator.TryFindNode(
+                new XmlQualifiedName("OpaqueType", TargetNamespaceUri),
+                "Test", "Dependency", out NodeDesign node), Is.True);
+            Assert.Multiple(() =>
+            {
+                Assert.That(node.OpaqueId,
+                    Is.EqualTo(opaqueId == null ? null : Convert.FromBase64String(opaqueId)));
+                Assert.That(node.HasIdentifier(), Is.EqualTo(opaqueId != null));
+            });
         }
 
         [Test]

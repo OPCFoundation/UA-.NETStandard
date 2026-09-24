@@ -62,6 +62,8 @@ namespace Opc.Ua.Server.Tests
         private const string kClientApplicationUri =
             "urn:localhost:opcfoundation.org:ReferenceServerTests";
 
+        private static readonly int[] s_staticMatrixDimensions = [5, 5];
+
         private ITelemetryContext m_telemetry;
         private ServerFixture<ReferenceServer> m_fixture;
         private ReferenceServer m_server;
@@ -89,6 +91,12 @@ namespace Opc.Ua.Server.Tests
                 UseSamplingGroupsInReferenceNodeManager = false,
                 AutoAccept = true
             };
+            await m_fixture.LoadConfigurationAsync().ConfigureAwait(false);
+            m_fixture.Config.ServerConfiguration.UserTokenPolicies =
+            [
+                new UserTokenPolicy(UserTokenType.Anonymous),
+                new UserTokenPolicy(UserTokenType.UserName)
+            ];
             m_server = await m_fixture.StartAsync().ConfigureAwait(false);
         }
 
@@ -686,12 +694,13 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Tests that AccessLevelEx retains the same base access bits as AccessLevel.
         /// </summary>
-        [Test]
-        public async Task ReferenceNodeManagerNonatomicAccessLevelsAreConsistentAsync()
+        [TestCase("Scalar_Static_NonatomicReadWrite")]
+        [TestCase("AccessRights_AccessAll_NonatomicReadWrite")]
+        public async Task ReferenceNodeManagerNonatomicAccessLevelsAreConsistentAsync(string identifier)
         {
             ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
                 Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
-            var nodeId = new NodeId("Scalar_Static_NonatomicReadWrite", namespaceIndex);
+            var nodeId = new NodeId(identifier, namespaceIndex);
             ArrayOf<ReadValueId> nodesToRead =
             [
                 new ReadValueId { NodeId = nodeId, AttributeId = Attributes.AccessLevel },
@@ -725,6 +734,339 @@ namespace Opc.Ua.Server.Tests
             Assert.That(
                 accessLevelEx & (uint)AccessLevelExType.NonatomicWrite,
                 Is.EqualTo((uint)AccessLevelExType.NonatomicWrite));
+        }
+
+        /// <summary>
+        /// The ArrayItemType engineering units and axis definitions carry a UNECE unit, and the
+        /// Float AnalogItemType has a non-empty EURange, so the CTT Engineering Units and
+        /// PercentDeadband test cases do not skip the nodes.
+        /// </summary>
+        [Test]
+        public async Task ReferenceNodeManagerDataAccessUnitsAndRangesAreConfiguredAsync()
+        {
+            ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
+            string[] arrayItems = ["YArray", "XYArray", "Image", "Cube", "NDimension"];
+            var nodesToRead = new List<ReadValueId>();
+            foreach (string item in arrayItems)
+            {
+                nodesToRead.Add(new ReadValueId
+                {
+                    NodeId = new NodeId(
+                        $"DataAccess_ArrayItemType_DataAccess_ArrayItemType_{item}_EngineeringUnits",
+                        namespaceIndex),
+                    AttributeId = Attributes.Value
+                });
+            }
+            nodesToRead.Add(new ReadValueId
+            {
+                NodeId = new NodeId(
+                    "DataAccess_ArrayItemType_DataAccess_ArrayItemType_Cube_ZAxisDefinition",
+                    namespaceIndex),
+                AttributeId = Attributes.Value
+            });
+            nodesToRead.Add(new ReadValueId
+            {
+                NodeId = new NodeId(
+                    "DataAccess_AnalogType_DataAccess_AnalogType_Float_EURange",
+                    namespaceIndex),
+                AttributeId = Attributes.Value
+            });
+
+            var requestHeader = (RequestHeader)m_requestHeader.Clone();
+            requestHeader.Timestamp = DateTimeUtc.Now;
+            ReadResponse response = await m_server.ReadAsync(
+                m_secureChannelContext,
+                requestHeader,
+                kMaxAge,
+                TimestampsToReturn.Neither,
+                nodesToRead.ToArrayOf(),
+                RequestLifetime.None).ConfigureAwait(false);
+
+            Assert.That(response.Results, Has.Count.EqualTo(nodesToRead.Count));
+            for (int ii = 0; ii < arrayItems.Length; ii++)
+            {
+                Assert.That(response.Results[ii].StatusCode, Is.EqualTo(StatusCodes.Good), arrayItems[ii]);
+                Assert.That(response.Results[ii].WrappedValue.TryGetValue(out ExtensionObject extension), Is.True);
+                Assert.That(extension.TryGetValue(out EUInformation units), Is.True, arrayItems[ii]);
+                Assert.That(units.NamespaceUri, Is.EqualTo("http://www.opcfoundation.org/UA/units/un/cefact"));
+                Assert.That(units.UnitId, Is.EqualTo(12890), arrayItems[ii]);
+                Assert.That(units.DisplayName.Text, Is.EqualTo("mV"));
+                Assert.That(units.Description.Text, Is.EqualTo("millivolt"));
+            }
+
+            DataValue axis = response.Results[arrayItems.Length];
+            Assert.That(axis.WrappedValue.TryGetValue(out ExtensionObject axisExtension), Is.True);
+            Assert.That(axisExtension.TryGetValue(out AxisInformation axisInformation), Is.True);
+            Assert.That(axisInformation.EngineeringUnits.UnitId, Is.EqualTo(5457219));
+            Assert.That(axisInformation.EngineeringUnits.DisplayName.Text, Is.EqualTo("s"));
+
+            DataValue range = response.Results[arrayItems.Length + 1];
+            Assert.That(range.WrappedValue.TryGetValue(out ExtensionObject rangeExtension), Is.True);
+            Assert.That(rangeExtension.TryGetValue(out Range euRange), Is.True);
+            Assert.That(euRange.High, Is.GreaterThan(euRange.Low));
+        }
+
+        /// <summary>
+        /// Every static two-dimensional sample array is 5x5 so that the CTT multi-dimensional
+        /// IndexRange test cases (for example "0,2:4") can use it.
+        /// </summary>
+        [Test]
+        public async Task ReferenceNodeManagerStaticMatricesAreFiveByFiveAsync()
+        {
+            ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
+            string[] suffixes =
+            [
+                "Boolean", "Byte", "ByteString", "DateTime", "Double", "Duration", "Float", "Guid",
+                "Int16", "Int32", "Int64", "Integer", "LocaleId", "LocalizedText", "NodeId", "Number",
+                "QualifiedName", "SByte", "String", "UInt16", "UInt32", "UInt64", "UInteger", "UtcTime",
+                "Variant", "XmlElement"
+            ];
+            var nodesToRead = new List<ReadValueId>();
+            foreach (string suffix in suffixes)
+            {
+                var nodeId = new NodeId("Scalar_Static_Arrays2D_" + suffix, namespaceIndex);
+                nodesToRead.Add(new ReadValueId { NodeId = nodeId, AttributeId = Attributes.ArrayDimensions });
+                nodesToRead.Add(new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value });
+            }
+
+            var requestHeader = (RequestHeader)m_requestHeader.Clone();
+            requestHeader.Timestamp = DateTimeUtc.Now;
+            ReadResponse response = await m_server.ReadAsync(
+                m_secureChannelContext,
+                requestHeader,
+                kMaxAge,
+                TimestampsToReturn.Neither,
+                nodesToRead.ToArrayOf(),
+                RequestLifetime.None).ConfigureAwait(false);
+
+            Assert.That(response.Results, Has.Count.EqualTo(nodesToRead.Count));
+            for (int ii = 0; ii < suffixes.Length; ii++)
+            {
+                DataValue dimensions = response.Results[2 * ii];
+                DataValue value = response.Results[(2 * ii) + 1];
+                Assert.That(dimensions.StatusCode, Is.EqualTo(StatusCodes.Good), suffixes[ii]);
+                Assert.That(dimensions.WrappedValue.TryGetValue(out ArrayOf<uint> arrayDimensions), Is.True, suffixes[ii]);
+                Assert.That(arrayDimensions.ToArray(), Is.EqualTo(s_staticMatrixDimensions), suffixes[ii]);
+                Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good), suffixes[ii]);
+                Assert.That(value.WrappedValue.TypeInfo.ValueRank, Is.EqualTo(ValueRanks.TwoDimensions), suffixes[ii]);
+                Assert.That(value.WrappedValue.AsBoxedObject(), Is.InstanceOf<IConvertableToMatrix>(), suffixes[ii]);
+                var matrix = ((IConvertableToMatrix)value.WrappedValue.AsBoxedObject())
+                    .ToMatrix(value.WrappedValue.TypeInfo.BuiltInType);
+                Assert.That(matrix.Dimensions, Is.EqualTo(s_staticMatrixDimensions), suffixes[ii]);
+            }
+        }
+
+        /// <summary>
+        /// DataAccess_DataItem_String does not provide the optional MinimumSamplingInterval attribute
+        /// (CTT Base Info Server Capabilities 2 002.js).
+        /// </summary>
+        [Test]
+        public async Task ReferenceNodeManagerDataItemHasNoMinimumSamplingIntervalAsync()
+        {
+            ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
+            var nodeId = new NodeId("DataAccess_DataItem_String", namespaceIndex);
+            ArrayOf<ReadValueId> nodesToRead =
+            [
+                new ReadValueId { NodeId = nodeId, AttributeId = Attributes.MinimumSamplingInterval },
+                new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }
+            ];
+
+            var requestHeader = (RequestHeader)m_requestHeader.Clone();
+            requestHeader.Timestamp = DateTimeUtc.Now;
+            ReadResponse response = await m_server.ReadAsync(
+                m_secureChannelContext,
+                requestHeader,
+                kMaxAge,
+                TimestampsToReturn.Neither,
+                nodesToRead,
+                RequestLifetime.None).ConfigureAwait(false);
+
+            Assert.That(response.Results, Has.Count.EqualTo(nodesToRead.Count));
+            Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadAttributeIdInvalid));
+            Assert.That(response.Results[1].StatusCode, Is.EqualTo(StatusCodes.Good));
+
+            // the node can still be monitored; the sampling interval is revised as usual.
+            var services = new ServerTestServices(m_server, m_secureChannelContext);
+            CreateSubscriptionResponse subscription = await services.CreateSubscriptionAsync(
+                requestHeader,
+                100,
+                100,
+                10,
+                0,
+                true,
+                0).ConfigureAwait(false);
+            try
+            {
+                CreateMonitoredItemsResponse items = await services.CreateMonitoredItemsAsync(
+                    requestHeader,
+                    subscription.SubscriptionId,
+                    TimestampsToReturn.Neither,
+                    [
+                        new MonitoredItemCreateRequest
+                        {
+                            ItemToMonitor = new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value },
+                            MonitoringMode = MonitoringMode.Reporting,
+                            RequestedParameters = new MonitoringParameters
+                            {
+                                ClientHandle = 1,
+                                SamplingInterval = 0,
+                                QueueSize = 1,
+                                DiscardOldest = true
+                            }
+                        }
+                    ]).ConfigureAwait(false);
+                Assert.That(items.Results, Has.Count.EqualTo(1));
+                Assert.That(items.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(items.Results[0].RevisedSamplingInterval, Is.GreaterThanOrEqualTo(0));
+            }
+            finally
+            {
+                await services.DeleteSubscriptionsAsync(
+                    requestHeader,
+                    [subscription.SubscriptionId]).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Scalar_Static_NonHistorizing_Boolean advertises HistoryRead access but is not
+        /// historized; a HistoryRead returns Bad_HistoryOperationUnsupported (Part 4 §5.11.3,
+        /// CTT Historical Access Read Raw Err-025.js).
+        /// </summary>
+        [Test]
+        public async Task HistoryReadNonHistorizingNodeIsUnsupportedAsync()
+        {
+            ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
+            var nodeId = new NodeId("Scalar_Static_NonHistorizing_Boolean", namespaceIndex);
+            ArrayOf<ReadValueId> nodesToRead =
+            [
+                new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Historizing },
+                new ReadValueId { NodeId = nodeId, AttributeId = Attributes.AccessLevel },
+                new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }
+            ];
+
+            var requestHeader = (RequestHeader)m_requestHeader.Clone();
+            requestHeader.Timestamp = DateTimeUtc.Now;
+            ReadResponse readResponse = await m_server.ReadAsync(
+                m_secureChannelContext,
+                requestHeader,
+                kMaxAge,
+                TimestampsToReturn.Neither,
+                nodesToRead,
+                RequestLifetime.None).ConfigureAwait(false);
+
+            Assert.That(readResponse.Results, Has.Count.EqualTo(nodesToRead.Count));
+            Assert.That(readResponse.Results[0].WrappedValue.GetBoolean(), Is.False);
+            Assert.That(
+                readResponse.Results[1].WrappedValue.GetByte() & AccessLevels.HistoryRead,
+                Is.EqualTo(AccessLevels.HistoryRead));
+            Assert.That(readResponse.Results[2].StatusCode, Is.EqualTo(StatusCodes.Good));
+
+            var historyReadDetails = new ReadRawModifiedDetails
+            {
+                StartTime = DateTimeUtc.Now.SubtractMilliseconds(60 * 60 * 1000),
+                EndTime = DateTimeUtc.Now,
+                NumValuesPerNode = 10,
+                IsReadModified = false,
+                ReturnBounds = false
+            };
+
+            requestHeader.Timestamp = DateTimeUtc.Now;
+            HistoryReadResponse historyReadResponse = await m_server.HistoryReadAsync(
+                m_secureChannelContext,
+                requestHeader,
+                new ExtensionObject(historyReadDetails),
+                TimestampsToReturn.Source,
+                false,
+                [new HistoryReadValueId { NodeId = nodeId }],
+                RequestLifetime.None).ConfigureAwait(false);
+
+            Assert.That(historyReadResponse.Results, Has.Count.EqualTo(1));
+            Assert.That(
+                historyReadResponse.Results[0].StatusCode.Code,
+                Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported));
+        }
+
+        /// <summary>
+        /// The Server object references nodes with HasComponent and with its subtype HasAddIn and
+        /// has more than three references, so it can back the CTT setting
+        /// "/Server Test/NodeIds/References/Has References of a ReferenceType and SubType"
+        /// (View Basic 2 005/015/016/020, View Minimum Continuation Point 01 010/011).
+        /// </summary>
+        [Test]
+        public async Task ServerObjectHasReferencesOfATypeAndItsSubtypeAsync()
+        {
+            var requestHeader = (RequestHeader)m_requestHeader.Clone();
+            requestHeader.Timestamp = DateTimeUtc.Now;
+            BrowseResponse response = await m_server.BrowseAsync(
+                m_secureChannelContext,
+                requestHeader,
+                null,
+                0,
+                [
+                    new BrowseDescription
+                    {
+                        NodeId = ObjectIds.Server,
+                        BrowseDirection = BrowseDirection.Forward,
+                        ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                        IncludeSubtypes = true,
+                        ResultMask = (uint)BrowseResultMask.All
+                    }
+                ],
+                RequestLifetime.None).ConfigureAwait(false);
+
+            Assert.That(response.Results, Has.Count.EqualTo(1));
+            ReferenceDescription[] references = response.Results[0].References.ToArray();
+            Assert.That(
+                references.Count(r => r.ReferenceTypeId == ReferenceTypeIds.HasComponent),
+                Is.GreaterThanOrEqualTo(3));
+            Assert.That(
+                references.Count(r => r.ReferenceTypeId == ReferenceTypeIds.HasAddIn),
+                Is.GreaterThanOrEqualTo(1));
+        }
+
+        /// <summary>
+        /// The Method and View node class sample nodes reference at least two nodes of their
+        /// own NodeClass (CTT View Minimum Continuation Point 01 012.js, View Basic 2 018.js).
+        /// </summary>
+        [Test]
+        [TestCase("Methods_Void", NodeClass.Method)]
+        [TestCase("Views_Operations", NodeClass.View)]
+        public async Task NodeClassSampleNodesReferenceTheirOwnNodeClassAsync(string identifier, NodeClass nodeClass)
+        {
+            ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
+            ArrayOf<BrowseDescription> nodesToBrowse =
+            [
+                new BrowseDescription
+                {
+                    NodeId = new NodeId(identifier, namespaceIndex),
+                    BrowseDirection = BrowseDirection.Both,
+                    ReferenceTypeId = ReferenceTypeIds.References,
+                    IncludeSubtypes = true,
+                    NodeClassMask = 0,
+                    ResultMask = (uint)BrowseResultMask.All
+                }
+            ];
+
+            var requestHeader = (RequestHeader)m_requestHeader.Clone();
+            requestHeader.Timestamp = DateTimeUtc.Now;
+            BrowseResponse response = await m_server.BrowseAsync(
+                m_secureChannelContext,
+                requestHeader,
+                null,
+                0,
+                nodesToBrowse,
+                RequestLifetime.None).ConfigureAwait(false);
+
+            Assert.That(response.Results, Has.Count.EqualTo(1));
+            Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            ArrayOf<ReferenceDescription> references = response.Results[0].References;
+            Assert.That(references.ToArray().Count(r => r.NodeClass == nodeClass), Is.GreaterThanOrEqualTo(2));
+            Assert.That(references.ToArray().Count(r => r.NodeClass != nodeClass), Is.GreaterThanOrEqualTo(1));
         }
 
         /// <summary>
@@ -1076,7 +1418,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Create multiple sessions, each with a subscription.
         /// Close all sessions without deleting subscriptions (abandoning them).
-        /// Concurrently delete the abandoned subscriptions from the main session.
+        /// Concurrently delete the abandoned subscriptions through server-owned cleanup.
         /// Verifies that the concurrent dictionary backing abandoned subscriptions
         /// handles parallel access correctly (fix for issue #3612).
         /// </summary>
@@ -1085,6 +1427,8 @@ namespace Opc.Ua.Server.Tests
         {
             const int sessionCount = 5;
             var subscriptionIds = new List<uint>();
+            var subscriptionManager = (SubscriptionManager)m_server.CurrentInstance.SubscriptionManager;
+            int originalSubscriptionCount = subscriptionManager.GetSubscriptions().Count;
 
             NamespaceTable namespaceUris = m_server.CurrentInstance.NamespaceUris;
             NodeId[] testSet =
@@ -1113,28 +1457,42 @@ namespace Opc.Ua.Server.Tests
                     .ConfigureAwait(false);
             }
 
-            // Concurrently delete all abandoned subscriptions from the main session.
-            var mainServices = new ServerTestServices(m_server, m_secureChannelContext);
-            var deleteTasks = new List<Task<DeleteSubscriptionsResponse>>();
+            Assert.That(subscriptionIds, Has.Count.EqualTo(sessionCount));
+            Assert.That(subscriptionIds, Is.Unique);
             foreach (uint id in subscriptionIds)
             {
-                ArrayOf<uint> singleId = [id];
-                m_requestHeader.Timestamp = DateTimeUtc.Now;
-                deleteTasks.Add(
-                    mainServices.DeleteSubscriptionsAsync(m_requestHeader, singleId)
-                        .AsTask());
+                Assert.That(subscriptionManager.TryGetSubscription(id, out ISubscription subscription), Is.True);
+                Assert.That(subscription.Session, Is.Null);
             }
+            Assert.That(subscriptionManager.CaptureAbandonedPublishTimerSnapshot()
+                .Select(subscription => subscription.Id), Is.SupersetOf(subscriptionIds));
 
-            DeleteSubscriptionsResponse[] responses = await Task.WhenAll(deleteTasks)
-                .ConfigureAwait(false);
+            // A session cannot delete another session's abandoned subscription.
+            // Server-owned cleanup uses the same null context as ServerInternalData.
+            var deleteStart = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task<StatusCode>[] deleteTasks =
+            [
+                .. subscriptionIds.Select(async id =>
+                {
+                    await deleteStart.Task.ConfigureAwait(false);
+                    return await subscriptionManager.DeleteSubscriptionAsync(null!, id).ConfigureAwait(false);
+                })
+            ];
+            deleteStart.SetResult(true);
+            StatusCode[] results = await Task.WhenAll(deleteTasks).ConfigureAwait(false);
 
-            // All deletions should succeed.
-            foreach (DeleteSubscriptionsResponse response in responses)
+            Assert.That(results, Has.Length.EqualTo(sessionCount));
+            foreach (StatusCode result in results)
             {
-                Assert.AreEqual(StatusCodes.Good, response.ResponseHeader.ServiceResult);
-                Assert.AreEqual(1, response.Results.Count);
-                Assert.AreEqual(StatusCodes.Good, (uint)response.Results[0]);
+                Assert.That(result, Is.EqualTo(StatusCodes.Good));
             }
+            foreach (uint id in subscriptionIds)
+            {
+                Assert.That(subscriptionManager.TryGetSubscription(id, out _), Is.False);
+            }
+            Assert.That(subscriptionManager.GetSubscriptions(), Has.Count.EqualTo(originalSubscriptionCount));
+            Assert.That(subscriptionManager.CaptureAbandonedPublishTimerSnapshot()
+                .Select(subscription => subscription.Id).Intersect(subscriptionIds), Is.Empty);
         }
 
         /// <summary>
@@ -2514,9 +2872,15 @@ namespace Opc.Ua.Server.Tests
             }
             MatrixOf<Variant> matrix = decodedResults[1].WrappedValue.GetVariantMatrix();
             Assert.That(matrix.Dimensions, Has.Length.EqualTo(2));
-            Assert.That(matrix.Dimensions[0], Is.EqualTo(3));
-            Assert.That(matrix.Dimensions[1], Is.EqualTo(3));
-            Assert.That(matrix.Count, Is.EqualTo(9));
+            Assert.That(matrix.Dimensions[0], Is.EqualTo(5));
+            Assert.That(matrix.Dimensions[1], Is.EqualTo(5));
+            Assert.That(matrix.Count, Is.EqualTo(25));
+            // CTT multi-dimensional IndexRange tests need scalar elements of a simple type.
+            foreach (Variant element in matrix.Span)
+            {
+                Assert.That(element.TypeInfo.ValueRank, Is.EqualTo(ValueRanks.Scalar));
+                Assert.That(element.TypeInfo.BuiltInType, Is.LessThan(BuiltInType.XmlElement));
+            }
         }
 
         /// <summary>
@@ -2547,11 +2911,13 @@ namespace Opc.Ua.Server.Tests
 
             try
             {
-                MatrixOf<int> matrix = new int[3, 3]
+                MatrixOf<int> matrix = new int[5, 5]
                 {
-                    { 1, 2, 3 },
-                    { 4, 5, 6 },
-                    { 7, 8, 9 }
+                    { 1, 2, 3, 4, 5 },
+                    { 6, 7, 8, 9, 10 },
+                    { 11, 12, 13, 14, 15 },
+                    { 16, 17, 18, 19, 20 },
+                    { 21, 22, 23, 24, 25 }
                 };
                 ArrayOf<WriteValue> wholeMatrixWrite =
                 [
@@ -2594,9 +2960,9 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(row.Dimensions[0], Is.EqualTo(1));
                 Assert.That(row.Dimensions[1], Is.EqualTo(3));
                 Assert.That(row.Count, Is.EqualTo(3));
-                Assert.That(row.Span[0], Is.EqualTo(4));
-                Assert.That(row.Span[1], Is.EqualTo(5));
-                Assert.That(row.Span[2], Is.EqualTo(6));
+                Assert.That(row.Span[0], Is.EqualTo(6));
+                Assert.That(row.Span[1], Is.EqualTo(7));
+                Assert.That(row.Span[2], Is.EqualTo(8));
 
                 MatrixOf<int> replacement = new int[1, 2] { { 40, 50 } };
                 ArrayOf<WriteValue> rangeWrite =
@@ -2630,7 +2996,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(updatedRow.Dimensions[0], Is.EqualTo(1));
                 Assert.That(updatedRow.Dimensions[1], Is.EqualTo(3));
                 Assert.That(updatedRow.Count, Is.EqualTo(3));
-                Assert.That(updatedRow.Span[0], Is.EqualTo(4));
+                Assert.That(updatedRow.Span[0], Is.EqualTo(6));
                 Assert.That(updatedRow.Span[1], Is.EqualTo(40));
                 Assert.That(updatedRow.Span[2], Is.EqualTo(50));
             }
@@ -2700,9 +3066,12 @@ namespace Opc.Ua.Server.Tests
         /// Test that the HasReferenceTypeAndSubType node exists and has the expected references.
         /// </summary>
         [Test]
-        public async Task ReferencesHasReferenceTypeAndSubTypeNodeExistsAsync()
+        public async Task ReferencesHasReferenceTypeAndSubTypePreservesBrowseReferencesAsync()
         {
-            var nodeId = new NodeId("References_HasReferenceTypeAndSubType", 2);
+            int namespaceIndex = m_server.CurrentInstance.NamespaceUris.GetIndex(
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
+            Assert.That(namespaceIndex, Is.GreaterThan(0));
+            var nodeId = new NodeId("References_HasReferenceTypeAndSubType", (ushort)namespaceIndex);
             m_requestHeader.Timestamp = DateTimeUtc.Now;
             ArrayOf<ReadValueId> nodesToRead =
             [
@@ -2719,6 +3088,86 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, nodesToRead);
             Assert.That(readResponse.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good),
                 "Read of References_HasReferenceTypeAndSubType should succeed");
+
+            var instructionsId = new NodeId("Scalar_Instructions", (ushort)namespaceIndex);
+            var booleanId = new NodeId("Scalar_Static_Boolean", (ushort)namespaceIndex);
+            ArrayOf<BrowseDescription> nodesToBrowse =
+            [
+                Describe(nodeId, ReferenceTypeIds.HasComponent, BrowseDirection.Forward),
+                Describe(nodeId, ReferenceTypeIds.HasComponent, BrowseDirection.Forward, includeSubtypes: true),
+                Describe(instructionsId, ReferenceTypeIds.HasComponent, BrowseDirection.Inverse),
+                Describe(booleanId, ReferenceTypeIds.HasOrderedComponent, BrowseDirection.Inverse),
+                Describe(nodeId, ReferenceTypeIds.References, BrowseDirection.Both, includeSubtypes: true),
+                Describe(instructionsId, ReferenceTypeIds.Organizes, BrowseDirection.Inverse),
+                Describe(booleanId, ReferenceTypeIds.Organizes, BrowseDirection.Inverse)
+            ];
+            BrowseResponse response = await m_server.BrowseAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                null,
+                0,
+                nodesToBrowse,
+                RequestLifetime.None).ConfigureAwait(false);
+            ServerFixtureUtils.ValidateResponse(response.ResponseHeader, response.Results, nodesToBrowse);
+            for (int index = 0; index < response.Results.Count; index++)
+            {
+                Assert.That(response.Results[index].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(response.Results[index].ContinuationPoint.IsEmpty, Is.True);
+            }
+            Assert.Multiple(() =>
+            {
+                Assert.That(response.Results[0].References.Count, Is.EqualTo(1));
+                Assert.That(response.Results[1].References.Count, Is.EqualTo(2));
+                Assert.That(response.Results[2].References.Count, Is.EqualTo(1));
+                Assert.That(response.Results[3].References.Count, Is.EqualTo(1));
+            });
+            ReferenceDescription component = response.Results[0].References[0];
+            ReferenceDescription orderedComponent = response.Results[1].References.ToArray()
+                .Single(reference => reference.ReferenceTypeId == ReferenceTypeIds.HasOrderedComponent);
+            ReferenceDescription[] allReferences = response.Results[4].References.ToArray();
+            Assert.Multiple(() =>
+            {
+                Assert.That(component.ReferenceTypeId, Is.EqualTo(ReferenceTypeIds.HasComponent));
+                Assert.That(component.IsForward, Is.True);
+                Assert.That(component.NodeId, Is.EqualTo(new ExpandedNodeId(instructionsId)));
+                Assert.That(orderedComponent.IsForward, Is.True);
+                Assert.That(orderedComponent.NodeId, Is.EqualTo(new ExpandedNodeId(booleanId)));
+                Assert.That(response.Results[2].References[0].IsForward, Is.False);
+                Assert.That(response.Results[2].References[0].NodeId, Is.EqualTo(new ExpandedNodeId(nodeId)));
+                Assert.That(response.Results[3].References[0].IsForward, Is.False);
+                Assert.That(response.Results[3].References[0].NodeId, Is.EqualTo(new ExpandedNodeId(nodeId)));
+                Assert.That(allReferences, Has.Length.EqualTo(4));
+                Assert.That(allReferences.Any(reference =>
+                    reference.ReferenceTypeId == ReferenceTypeIds.HasTypeDefinition &&
+                    reference.IsForward &&
+                    reference.NodeId == VariableTypeIds.BaseDataVariableType), Is.True);
+                Assert.That(allReferences.Any(reference =>
+                    reference.ReferenceTypeId == ReferenceTypeIds.Organizes &&
+                    !reference.IsForward &&
+                    reference.NodeId == new NodeId("References", (ushort)namespaceIndex)), Is.True);
+                Assert.That(response.Results[5].References.ToArray().Any(reference =>
+                    !reference.IsForward &&
+                    reference.NodeId == new NodeId("Scalar", (ushort)namespaceIndex)), Is.True);
+                Assert.That(response.Results[6].References.ToArray().Any(reference =>
+                    !reference.IsForward &&
+                    reference.NodeId == new NodeId("Scalar_Static", (ushort)namespaceIndex)), Is.True);
+            });
+
+            static BrowseDescription Describe(
+                NodeId id,
+                NodeId referenceTypeId,
+                BrowseDirection direction,
+                bool includeSubtypes = false)
+            {
+                return new BrowseDescription
+                {
+                    NodeId = id,
+                    BrowseDirection = direction,
+                    ReferenceTypeId = referenceTypeId,
+                    IncludeSubtypes = includeSubtypes,
+                    ResultMask = (uint)BrowseResultMask.All
+                };
+            }
         }
 
         /// <summary>
@@ -2745,6 +3194,9 @@ namespace Opc.Ua.Server.Tests
         /// 6. Session B publishes: no DataChangeNotification for the restricted node should
         ///    be present, proving that permissions were correctly re-evaluated.
         /// </remarks>
+        /// <exception cref="AssertionException">
+        /// The fixture has no TCP or HTTPS endpoint, or the selected endpoint has no Username token policy.
+        /// </exception>
         [Test]
         public async Task PermissionsRevalidatedAfterTransferSubscriptionsAndReactivationAsync()
         {
@@ -2753,13 +3205,18 @@ namespace Opc.Ua.Server.Tests
             // for WellKnownRole_AuthenticatedUser; anonymous sessions cannot read it.
             var restrictedNodeId = new NodeId("AccessRights_RolePermissions_AuthenticatedUser", 2);
 
-            // Username token for user1 (AuthenticatedUser role). PolicyId "1" is the first
-            // user-token policy registered by the ReferenceServer (username with Basic256Sha256).
+            EndpointDescription endpoint = m_server.GetEndpoints().Find(e =>
+                e.TransportProfileUri is Profiles.UaTcpTransport or Profiles.HttpsBinaryTransport)
+                ?? throw new AssertionException("The fixture requires a TCP or HTTPS endpoint.");
+            UserTokenPolicy userNamePolicy = endpoint.UserIdentityTokens.Find(
+                policy => policy.TokenType == UserTokenType.UserName)
+                ?? throw new AssertionException("The endpoint must advertise a Username token policy.");
+
             var usernameToken = new UserNameIdentityToken
             {
                 UserName = "user1",
                 Password = System.Text.Encoding.UTF8.GetBytes("password").ToByteString(),
-                PolicyId = "1"
+                PolicyId = userNamePolicy.PolicyId
             };
 
             // Session A: authenticate as user1.

@@ -187,13 +187,11 @@ namespace Opc.Ua.Server.FileSystem
                 return null;
             }
 
-            if (m_pending.Count == 0)
+            if (m_pendingIndex >= m_pending.Count)
             {
                 return null;
             }
-            FileSystemEntry head = m_pending[0];
-            m_pending.RemoveAt(0);
-            return CreateReference(head);
+            return CreateReference(m_pending[m_pendingIndex++]);
         }
 
         private NodeStateReference CreateReference(FileSystemEntry entry)
@@ -214,6 +212,7 @@ namespace Opc.Ua.Server.FileSystem
         private readonly IFileSystemHost m_host;
         private readonly DirectoryObjectState m_source;
         private List<FileSystemEntry>? m_pending;
+        private int m_pendingIndex;
         private Stage m_stage;
     }
 }

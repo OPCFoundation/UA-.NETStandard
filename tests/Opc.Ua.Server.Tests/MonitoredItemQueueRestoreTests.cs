@@ -356,15 +356,15 @@ namespace Opc.Ua.Server.Tests
             return new MasterNodeManagerFixture(fixture, serverMock, manager, telemetry);
         }
 
-        private static async Task InvokePreHydrateAsync(
+        private static ValueTask InvokePreHydrateAsync(
             MasterNodeManager manager,
             IList<IStoredMonitoredItem> items)
         {
-            MethodInfo method = typeof(MasterNodeManager).GetMethod(
-                "PreHydrateMonitoredItemQueuesAsync",
-                BindingFlags.Instance | BindingFlags.NonPublic)!;
-            var task = (ValueTask)method.Invoke(manager, [items, CancellationToken.None])!;
-            await task.ConfigureAwait(false);
+            FieldInfo field = typeof(MasterNodeManager).GetField(
+                "m_serviceDispatch", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null);
+            var dispatcher = (NodeManagerServiceDispatcher)field!.GetValue(manager)!;
+            return dispatcher.PreHydrateMonitoredItemQueuesAsync(items, CancellationToken.None);
         }
 
         private sealed class MasterNodeManagerFixture : IAsyncDisposable
@@ -411,9 +411,19 @@ namespace Opc.Ua.Server.Tests
                 return m_meter;
             }
 
+            public Meter CreateMeter(Assembly assembly)
+            {
+                return m_meter;
+            }
+
             public ILoggerFactory LoggerFactory { get; }
 
             public ActivitySource ActivitySource { get; }
+
+            public ActivitySource GetActivitySource(Assembly assembly)
+            {
+                return ActivitySource;
+            }
 
             private readonly Meter m_meter;
 

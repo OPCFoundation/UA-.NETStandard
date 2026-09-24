@@ -1047,6 +1047,66 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             });
         }
 
+        [TestCase("Device_Source", 49u, false, 3002u, false)]
+        [TestCase("Device_Target", 49u, true, 3001u, false)]
+        [TestCase("Device_Source", 47u, false, 85u, false)]
+        [TestCase("Device_Source", 35u, false, 85u, false)]
+        [TestCase("Device_Source", 35u, true, 85u, false)]
+        [TestCase("Device_Source", 35u, false, 85u, true)]
+        [TestCase("RecursiveType_Peer_Placeholder", 47u, false, 4001u, false)]
+        public void HierarchicalReferencesResolveInheritedTargetsWithoutDuplicates(
+            string source,
+            uint referenceTypeId,
+            bool inverse,
+            uint targetId,
+            bool standardNamespace)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+            Dictionary<string, string> files = GenerateFromNodeSet("HierarchicalReferences.NodeSet2.xml", telemetry);
+            string code = files.Single(
+                file => file.Key.EndsWith(".NodeStates.ex.g.cs", StringComparison.Ordinal)).Value;
+            MethodDeclarationSyntax factory = CSharpSyntaxTree.ParseText(code).GetRoot()
+                .DescendantNodes().OfType<MethodDeclarationSyntax>()
+                .Single(method => method.Identifier.ValueText == "Create" + source);
+            string referenceTypeCode =
+                $"global::Opc.Ua.NodeId.Create({referenceTypeId}u, " +
+                "global::Opc.Ua.Namespaces.OpcUa, context.NamespaceUris)";
+            string targetNamespace = standardNamespace
+                ? "global::Opc.Ua.Namespaces.OpcUa"
+                : "global::HierarchicalReferences.Namespaces.HierarchicalReferences";
+            string targetCode = $"global::Opc.Ua.NodeId.Create({targetId}u, {targetNamespace}, context.NamespaceUris)";
+            InvocationExpressionSyntax[] references =
+            [
+                .. factory.DescendantNodes()
+                    .OfType<InvocationExpressionSyntax>()
+                    .Where(invocation => invocation.Expression.ToString() == "state.AddReference")
+            ];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(references.Select(reference => reference.ToString()), Is.Unique, factory.ToString());
+                Assert.That(
+                    references.Count(reference =>
+                        reference.ArgumentList.Arguments[0].ToString() == referenceTypeCode &&
+                        reference.ArgumentList.Arguments[1].ToString() == (inverse ? "true" : "false") &&
+                        reference.ArgumentList.Arguments[2].ToString() == targetCode),
+                    Is.EqualTo(1),
+                    factory.ToString());
+            });
+        }
+
+        [Test]
+        public void HierarchicalReferencesGenerateDeterministicCompilableCode()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+            Dictionary<string, string> files = GenerateFromNodeSet("HierarchicalReferences.NodeSet2.xml", telemetry);
+            Dictionary<string, string> repeatedFiles =
+                GenerateFromNodeSet("HierarchicalReferences.NodeSet2.xml", telemetry);
+
+            Assert.That(repeatedFiles, Is.EquivalentTo(files));
+            Assert.That(CompileGeneratedAssembly(files), Is.Not.Null);
+        }
+
         [Test]
         public void MethodArgumentDataTypesUseRuntimeNamespaceTable()
         {

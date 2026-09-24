@@ -106,18 +106,39 @@ namespace Opc.Ua.Server.FileSystem
         FileHandle? GetOrCreateHandle(NodeId nodeId, string providerPath);
 
         /// <summary>
+        /// Looks up existing handle state without allocating it for a metadata request.
+        /// </summary>
+        /// <param name="providerPath">The provider-relative path whose handle state is requested.</param>
+        /// <returns>The retained handle, or null if no handle state exists.</returns>
+        FileHandle? FindHandle(string providerPath);
+
+        /// <summary>
+        /// Releases retained handle state when no open stream or pending reservation still needs it.
+        /// </summary>
+        /// <param name="handle">The handle whose idle state may be released.</param>
+        void ReleaseHandle(FileHandle handle);
+
+        /// <summary>
         /// Drops the handle tracked for a node.
         /// </summary>
         /// <param name="nodeId">The file NodeId.</param>
         void ForgetHandle(NodeId nodeId);
 
         /// <summary>
-        /// Notifies the host that the provider's contents changed so it can
-        /// refresh whatever it has materialised.
+        /// Applies an admitted provider mutation and reconciles the hosted address space.
         /// </summary>
+        /// <param name="kind">The operation to apply.</param>
+        /// <param name="path">The created, deleted, moved or copied provider path.</param>
+        /// <param name="targetPath">The destination for a move or copy.</param>
+        /// <param name="sourceNodeId">The source node whose handles must be retired for a delete or move.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
-        /// <returns>A task that completes once the host caught up.</returns>
-        ValueTask OnProviderChangedAsync(CancellationToken cancellationToken);
+        /// <returns>A task that completes once the mutation has been applied.</returns>
+        ValueTask ApplyMutationAsync(
+            FileSystemMutationKind kind,
+            string path,
+            string targetPath,
+            NodeId sourceNodeId,
+            CancellationToken cancellationToken);
 
         /// <summary>
         /// Resolves a NodeId back to the provider path it represents.
@@ -130,5 +151,36 @@ namespace Opc.Ua.Server.FileSystem
         /// <c>true</c> when the NodeId belongs to this host.
         /// </returns>
         bool TryGetProviderPath(NodeId nodeId, out string providerPath, out bool isDirectory, out bool isRoot);
+    }
+
+    /// <summary>
+    /// Identifies the provider mutation admitted by a file-system host.
+    /// </summary>
+    internal enum FileSystemMutationKind
+    {
+        /// <summary>
+        /// Creates a file at the supplied provider path.
+        /// </summary>
+        CreateFile,
+
+        /// <summary>
+        /// Creates a directory at the supplied provider path.
+        /// </summary>
+        CreateDirectory,
+
+        /// <summary>
+        /// Deletes the selected file-system entry and retires its handles.
+        /// </summary>
+        Delete,
+
+        /// <summary>
+        /// Moves an entry to a destination path and retires its source handles.
+        /// </summary>
+        Move,
+
+        /// <summary>
+        /// Copies an entry to a destination path without retiring its source handles.
+        /// </summary>
+        Copy
     }
 }

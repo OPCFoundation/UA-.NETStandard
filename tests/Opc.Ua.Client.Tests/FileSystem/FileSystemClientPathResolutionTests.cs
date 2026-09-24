@@ -74,9 +74,15 @@ namespace Opc.Ua.Client.Tests.FileSystem
 
             UaFileInfo file = await client.GetFileAsync("Reports/data.csv")
                 .ConfigureAwait(false);
-            Assert.That(file.NodeId, Is.EqualTo(fileId));
-            Assert.That(file.Name, Is.EqualTo("data.csv"));
-            Assert.That(file.FullPath, Is.EqualTo("/Reports/data.csv"));
+            Assert.Multiple(() =>
+            {
+                Assert.That(file.NodeId, Is.EqualTo(fileId));
+                Assert.That(file.Name, Is.EqualTo("data.csv"));
+                Assert.That(file.FullPath, Is.EqualTo("/Reports/data.csv"));
+                Assert.That(file.Parent, Is.Not.Null);
+                Assert.That(file.Parent!.NodeId, Is.EqualTo(reports));
+                Assert.That(file.Parent.Parent, Is.SameAs(client.Root));
+            });
         }
 
         [Test]

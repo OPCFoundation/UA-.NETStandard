@@ -67,7 +67,7 @@ namespace Opc.Ua.Redundancy.Server
     /// dispose the returned <see cref="Certificate"/>.
     /// </para>
     /// </remarks>
-    public sealed class SharedKeyValuePendingCertificateKeyStore : IPendingCertificateKeyStore
+    public sealed class SharedKeyValuePendingCertificateKeyStore : IPeekablePendingCertificateKeyStore
     {
         /// <summary>
         /// Creates a distributed pending-key store over a shared key/value
@@ -79,8 +79,12 @@ namespace Opc.Ua.Redundancy.Server
         /// Optional record protector applied to every stored pending key
         /// (authenticated encryption); defaults to a no-op pass-through.
         /// Configure an <see cref="AesCbcHmacRecordProtector"/> in production so
-        /// the shared store can be treated as untrusted.
+        /// the shared store can be treated as untrusted. A supplied protector must implement
+        /// <see cref="IOwnedRecordProtector"/> so decrypted private-key buffers can be erased without copying.
         /// </param>
+        /// <exception cref="ArgumentException">
+        /// The protector cannot transfer ownership of decrypted plaintext.
+        /// </exception>
         public SharedKeyValuePendingCertificateKeyStore(
             ISharedKeyValueStore store,
             DistributedPushConfigurationOptions options,
@@ -92,14 +96,42 @@ namespace Opc.Ua.Redundancy.Server
                 throw new ArgumentNullException(nameof(options));
             }
             m_prefix = options.PendingKeyPrefix;
-            m_protector = protector ?? NullRecordProtector.Instance;
+            m_protector = protector switch
+            {
+                null => NullRecordProtector.Instance,
+                IOwnedRecordProtector owned => owned,
+                _ => throw new ArgumentException(
+                    "Pending certificate keys require an IOwnedRecordProtector.", nameof(protector))
+            };
         }
 
         /// <inheritdoc/>
-        public async ValueTask<bool> SaveAsync(
+        public ValueTask<bool> SaveAsync(
             PendingCertificateKeyContext context,
             Certificate certificateWithPrivateKey,
             CancellationToken cancellationToken = default)
+        {
+            return SaveCoreAsync(context, certificateWithPrivateKey, false, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<bool> TryRestoreAsync(
+            PendingCertificateKeyContext context,
+            Certificate certificateWithPrivateKey,
+            CancellationToken cancellationToken = default)
+        {
+            return SaveCoreAsync(context, certificateWithPrivateKey, true, cancellationToken);
+        }
+
+        /// <summary>
+        /// Protects and stores an exportable pending private key, optionally restoring it only into an empty slot.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        private async ValueTask<bool> SaveCoreAsync(
+            PendingCertificateKeyContext context,
+            Certificate certificateWithPrivateKey,
+            bool onlyIfAbsent,
+            CancellationToken cancellationToken)
         {
             if (context == null)
             {
@@ -109,6 +141,7 @@ namespace Opc.Ua.Redundancy.Server
             {
                 throw new ArgumentNullException(nameof(certificateWithPrivateKey));
             }
+            cancellationToken.ThrowIfCancellationRequested();
 
             char[] passcode = GeneratePasscode();
             byte[]? passcodeBytes = null;
@@ -120,7 +153,7 @@ namespace Opc.Ua.Redundancy.Server
                 {
                     pkcs12 = certificateWithPrivateKey.Export(X509ContentType.Pfx, passcode);
                 }
-                catch (CryptographicException)
+                catch (CryptographicException) when (!onlyIfAbsent)
                 {
                     // The private key is not extractable, so it cannot be staged
                     // in a shared store for another replica to pick up. The key
@@ -134,21 +167,35 @@ namespace Opc.Ua.Redundancy.Server
                 blob = EncodeRecord(passcodeBytes, pkcs12);
 
                 var plaintext = new ByteString(blob);
-                ByteString payload = m_protector.Protect(plaintext);
-                await m_store.SetAsync(KeyFor(context), payload, cancellationToken).ConfigureAwait(false);
-
-                // The no-op protector stores the plaintext buffer verbatim, so
-                // wiping it here would corrupt the stored record; a real
-                // protector produces an independent ciphertext envelope, so the
-                // plaintext buffer can (and must) be wiped.
-                if (!payload.Equals(plaintext))
+                string recordKey = KeyFor(context);
+                ByteString payload = m_protector.Protect(
+                    RecordProtectionContext.Create("pending-certificate-key", recordKey), plaintext);
+                if (payload.Equals(plaintext))
                 {
-                    CryptoUtils.ZeroMemory(blob);
+                    // Keep the pass-through store's buffer independent of the working plaintext.
+                    payload = ByteString.From(payload.ToArray());
                 }
-                return true;
+                bool stored = true;
+                if (onlyIfAbsent)
+                {
+                    (bool found, ByteString current) = await m_store.TryGetAsync(recordKey, cancellationToken)
+                        .ConfigureAwait(false);
+                    stored = (!found || current.IsNull || current.IsEmpty) &&
+                        await m_store.CompareAndSwapAsync(
+                            recordKey, found ? current : default, payload, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    await m_store.SetAsync(recordKey, payload, cancellationToken).ConfigureAwait(false);
+                }
+                return stored;
             }
             finally
             {
+                if (blob != null)
+                {
+                    CryptoUtils.ZeroMemory(blob);
+                }
                 if (pkcs12 != null)
                 {
                     CryptoUtils.ZeroMemory(pkcs12);
@@ -162,9 +209,48 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         /// <inheritdoc/>
-        public async ValueTask<Certificate?> TryTakeAsync(
+        public ValueTask<Certificate?> TryTakeAsync(
             PendingCertificateKeyContext context,
             CancellationToken cancellationToken = default)
+        {
+            return TryTakeCoreAsync(context, null, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<Certificate?> TryTakeMatchingAsync(
+            PendingCertificateKeyContext context,
+            Certificate certificate,
+            CancellationToken cancellationToken = default)
+        {
+            if (certificate == null)
+            {
+                throw new ArgumentNullException(nameof(certificate));
+            }
+            return TryTakeCoreAsync(context, certificate, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<Certificate?> TryPeekMatchingAsync(
+            PendingCertificateKeyContext context,
+            Certificate certificate,
+            CancellationToken cancellationToken = default)
+        {
+            if (certificate == null)
+            {
+                throw new ArgumentNullException(nameof(certificate));
+            }
+            return TryTakeCoreAsync(context, certificate, cancellationToken, consume: false);
+        }
+
+        /// <summary>
+        /// Validates a pending key and optionally claims the exact stored record after matching it.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        private async ValueTask<Certificate?> TryTakeCoreAsync(
+            PendingCertificateKeyContext context,
+            Certificate? matchingCertificate,
+            CancellationToken cancellationToken,
+            bool consume = true)
         {
             if (context == null)
             {
@@ -172,6 +258,7 @@ namespace Opc.Ua.Redundancy.Server
             }
 
             string key = KeyFor(context);
+            cancellationToken.ThrowIfCancellationRequested();
             (bool found, ByteString value) = await m_store
                 .TryGetAsync(key, cancellationToken)
                 .ConfigureAwait(false);
@@ -192,23 +279,13 @@ namespace Opc.Ua.Redundancy.Server
             // mutating the store's input buffer (which the pass-through protector
             // would otherwise alias) and without leaving a second, unwipeable
             // copy behind.
-            byte[] plainBytes;
-            if (m_protector is IOwnedRecordProtector ownedProtector)
-            {
-                if (!ownedProtector.TryUnprotectOwned(value, out plainBytes))
-                {
-                    return null;
-                }
-            }
-            else if (m_protector.TryUnprotect(value, out ByteString plaintext))
-            {
-                plainBytes = plaintext.ToArray();
-            }
-            else
+            if (!m_protector.TryUnprotectOwned(
+                RecordProtectionContext.Create("pending-certificate-key", key), value, out byte[] plainBytes))
             {
                 return null;
             }
 
+            Certificate? pending = null;
             try
             {
                 if (!TryLocateRecord(plainBytes, out int passcodeOffset, out int passcodeLength,
@@ -217,24 +294,29 @@ namespace Opc.Ua.Redundancy.Server
                     return null;
                 }
 
-                // Claim the entry atomically: swap the value to an empty
-                // tombstone only if it is unchanged, so exactly one replica
-                // consumes a pending key even under a cross-replica race.
-                bool claimed = await m_store
-                    .CompareAndSwapAsync(key, value, ByteString.Empty, cancellationToken)
-                    .ConfigureAwait(false);
-                if (!claimed)
+                pending = ImportCertificate(
+                    plainBytes, passcodeOffset, passcodeLength, pkcs12Offset, pkcs12Length);
+                if (matchingCertificate != null && !X509Utils.VerifyKeyPair(matchingCertificate, pending))
                 {
                     return null;
                 }
 
-                await m_store.DeleteAsync(key, cancellationToken).ConfigureAwait(false);
+                // Delete exactly the validated record, never a concurrent replacement.
+                cancellationToken.ThrowIfCancellationRequested();
+                if (consume &&
+                    !await m_store
+                        .CompareAndSwapAsync(key, value, default, cancellationToken).ConfigureAwait(false))
+                {
+                    return null;
+                }
 
-                return ImportCertificate(
-                    plainBytes, passcodeOffset, passcodeLength, pkcs12Offset, pkcs12Length);
+                Certificate taken = pending;
+                pending = null;
+                return taken;
             }
             finally
             {
+                pending?.Dispose();
                 CryptoUtils.ZeroMemory(plainBytes);
             }
         }
@@ -382,6 +464,6 @@ namespace Opc.Ua.Redundancy.Server
 
         private readonly ISharedKeyValueStore m_store;
         private readonly string m_prefix;
-        private readonly IRecordProtector m_protector;
+        private readonly IOwnedRecordProtector m_protector;
     }
 }

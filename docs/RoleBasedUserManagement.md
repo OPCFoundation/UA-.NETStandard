@@ -118,7 +118,7 @@ require both a role and a group simultaneously, implement a custom
 
 ### Typed-proxy address-space binding
 
-`RoleStateBinding.Bind(diagnosticsNodeManager, roleManager, auditServer)` uses the source-generated typed proxies (`RoleSetState`, `RoleState`, `AddIdentityMethodState`, `AddRoleMethodState`, ...). Each typed `OnCallAsync` delegate:
+`RoleStateBinding.BindAsync(diagnosticsNodeManager, roleManager, auditServer)` uses the source-generated typed proxies (`RoleSetState`, `RoleState`, `AddIdentityMethodState`, `AddRoleMethodState`, ...). Each typed `OnCallAsync` delegate:
 
 1. Enforces `RoleAuthorizationGate.CheckAdmin` (SecurityAdmin role over a `SignAndEncrypt` channel) - returns `Bad_SecurityModeInsufficient` or `Bad_UserAccessDenied` otherwise (Part 18 4.2 / 4.4).
 2. Delegates to `IRoleManager`.
@@ -127,6 +127,12 @@ require both a role and a group simultaneously, implement a custom
 
 `DiagnosticsNodeManager.AddBehaviourToPredefinedNodeAsync` upgrades passive `BaseObjectState` instances of `RoleSetType` and `RoleType` to the typed `RoleSetState` and `RoleState` proxies at predefined-node load time.
 
+Queued removal retains the exact binding generation and node reference it owns.
+Re-adding a role advances that generation, even when the same well-known NodeId
+and RoleState are reused. Cleanup rechecks the role manager and conditionally
+claims the removed generation before deleting the node. A failed AddRole that
+never acquired a binding cannot delete the foreign node that caused its collision.
+
 ### Default impersonation flow
 
 Per Part 3 4.9 and Part 18 4.3 the default `RoleManager` rules already grant:
@@ -134,6 +140,12 @@ Per Part 3 4.9 and Part 18 4.3 the default `RoleManager` rules already grant:
 - `Anonymous` for sessions without authentication;
 - `AuthenticatedUser` for any session with a non-anonymous token;
 - `TrustedApplication` when the session was authenticated with a trusted ApplicationInstance certificate over a signed channel.
+
+Any nonempty `Applications` filter requires a signed channel and an
+application certificate, including when `ApplicationsExclude` is true.
+The `Thumbprint` and `X509Subject` identity criteria evaluate the authenticated
+**user** certificate, not the application's channel certificate. `Application`
+and `TrustedApplication` criteria continue to evaluate application identity.
 
 Additional identity-mapping rules are evaluated by `IRoleManager.ResolveGrantedRoles` after authentication. New integrations should expose claims through `IIdentityClaims` and add `IdentityMappingRuleType` entries to the role manager.
 
@@ -144,8 +156,9 @@ The Part 18 §5 `UserManagementType` is bound to the standard
 Integrators inject an `IUserManagement` instance via
 `IServerInternal.SetUserManagement` before the configuration node manager
 binds the address space; the default `UserManagement` implementation wraps
-an existing `IUserDatabase` for credential persistence and stores the
-per-user `UserConfigurationMask` and description in memory:
+an existing `IUserDatabase` for credential persistence. Built-in
+`LinqUserDatabase` and `JsonUserDatabase` also persist the per-user
+`UserConfigurationMask` and description:
 
 ```csharp
 using Opc.Ua.Server.UserDatabase;
@@ -165,14 +178,29 @@ var userManagement = new UserManagement(
 serverInternal.SetUserManagement(userManagement);
 ```
 
+`IUserDatabase` commits credentials and metadata together, so disabled and
+`MustChangePassword` decisions survive a restart. A custom database implements
+`CreateUser`, `ResetPassword` and `UpdateUserMetadata` alongside the credential
+members; each mutation must be one transaction, and a rejected or failed write
+must leave the live and persisted records unchanged.
+
 `UserManagementBinding.Bind` (called automatically by
 `ConfigurationNodeManager.CreateServerConfiguration` when an
 `IUserManagement` is injected) wires the typed `AddUser`, `ModifyUser`,
 `RemoveUser` and `ChangePassword` method-state proxies, enforces
 `RoleAuthorizationGate.CheckAdmin` on the admin methods (SecurityAdmin +
 SignAndEncrypt) and `RoleAuthorizationGate.CheckSelfUserName` on
-`ChangePassword`, and closes any active sessions for a deactivated user
-via the supplied `ISessionManager`.
+`ChangePassword`, and closes a deactivated user's sessions **and
+subscriptions** through the server's coordinated teardown. `ModifyUser`
+and `RemoveUser` wait for that teardown and return the user-change result.
+A session-close failure is logged; it does not turn a committed user change
+into a failed method result.
+The binding resolves the server's session manager when needed because
+the diagnostics address space is created before the session manager.
+External deactivation notifications are tracked; `DisposeAsync` drains
+accepted work. The master drains configuration shutdown work before acquiring
+the address-space teardown gate, so pending session-close notifications can
+complete without deadlocking shutdown.
 
 Spec result codes honoured:
 
@@ -189,6 +217,34 @@ The `IUserDatabase` interface (`Opc.Ua.Server.UserDatabase.IUserDatabase`) remai
 
 - `LinqUserDatabase` - in-memory.
 - `JsonUserDatabase` - JSON file backed.
+
+The JSON testing/sample database publishes a complete temporary snapshot
+through atomic file replacement. Failed writes leave the previous file
+intact, and saves are serialized per database instance. Missing files
+initialize an empty database; malformed or inaccessible files are logged
+and reported as errors instead of silently becoming empty databases.
+Authentication reads committed credential and role records without waiting
+for snapshot I/O; the pending replacement is visible only to snapshot
+persistence until the write succeeds. A failed write never publishes its
+candidate credentials.
+
+Self-service password changes verify the captured credential and derive the
+replacement outside the credential-store and metadata-reader locks, retaining
+100,000-iteration PBKDF2-SHA512. The store commits only if the user's identity
+and captured verifier still match, so a concurrent password reset or change
+cannot be overwritten by stale verification. The password and cleared
+`MustChangePassword` flag remain one atomic persisted update, preserving the
+latest other metadata. Management mutations remain serialized separately from
+authentication reads; self-service hashing and snapshot I/O do not hold the
+metadata write lock. Administrative mutations retain their existing metadata
+publication semantics.
+
+Password verification uses the shared fixed-time comparison with the
+expected derived-key width and clears working key/password buffers on
+every exit. Unknown users perform bounded dummy-key verification, and
+inactive users still perform credential verification before access is
+denied. This equalizes the expensive verification work; it is not a claim
+that all surrounding application behavior has constant execution time.
 
 External implementations may be provided by integrators (e.g. backed by SQL, LDAP, or a vendor-specific store).
 

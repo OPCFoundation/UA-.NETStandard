@@ -35,7 +35,7 @@ The UA .NET Standard stack supports the following certificate stores:
 
 ### X509Store on Windows
 
-Starting with Version 1.5.xx of the UA .NET Standard Stack the X509Store supports the storage and retrieval of CRLS, if used on the **Windows OS**.
+On the **Windows OS** the X509Store supports the storage and retrieval of CRLs.
 This enables the usage of the X509Store instead of the Directory Store for stores requiring the use of crls, e.g. the issuer or the directory Store.
 
 ### Certificate and CertificateCollection Types
@@ -525,6 +525,14 @@ Three store types are supported out of the box. Custom store types can be regist
 3. **InMemory**: In-memory certificate store for testing
    - Prefix: `InMemory:`
    - No persistence — certificates are lost when the store is disposed
+
+On Windows, private-key directories grant inheritable access to the application
+account, SYSTEM, and Administrators, preserving access to existing keys during
+upgrades. The .NET 8+ Unix implementation uses owner-only directory/file modes
+(`0700`/`0600`). A permission-update failure aborts the write unless the path
+already existed and its current permissions are verified to restrict key access
+to the trusted Windows identities or the Unix owner. That exception is logged;
+unverifiable or overly broad permissions are never silently accepted.
 
 #### Certificate List Population
 

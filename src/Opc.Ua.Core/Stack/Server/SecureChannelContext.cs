@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Net;
 
 namespace Opc.Ua
 {
@@ -45,13 +46,15 @@ namespace Opc.Ua
         /// <param name="clientChannelCertificate">The client certificate used to establish the secure channel.</param>
         /// <param name="serverChannelCertificate">The server certificate used to establish the secure channel.</param>
         /// <param name="channelThumbprint">The unique hash for the secure channel calculated during channel creation.</param>
+        /// <param name="peerAddress">The observed network address of the peer, when available.</param>
         public SecureChannelContext(
             string secureChannelId,
             EndpointDescription? endpointDescription,
             RequestEncoding messageEncoding,
             byte[]? clientChannelCertificate = null,
             byte[]? serverChannelCertificate = null,
-            byte[]? channelThumbprint = null)
+            byte[]? channelThumbprint = null,
+            IPAddress? peerAddress = null)
         {
             SecureChannelId = secureChannelId;
             EndpointDescription = endpointDescription;
@@ -59,6 +62,7 @@ namespace Opc.Ua
             ClientChannelCertificate = clientChannelCertificate;
             ServerChannelCertificate = serverChannelCertificate;
             ChannelThumbprint = channelThumbprint;
+            PeerAddress = peerAddress;
         }
 
         /// <summary>
@@ -96,6 +100,11 @@ namespace Opc.Ua
         /// The server certificate used to establsih the secure channel.
         /// </summary>
         public byte[]? ServerChannelCertificate { get; }
+
+        /// <summary>
+        /// The observed network address of the peer, when the transport exposes one.
+        /// </summary>
+        public IPAddress? PeerAddress { get; }
 
         /// <summary>
         /// Optional upstream user identity established by an outer

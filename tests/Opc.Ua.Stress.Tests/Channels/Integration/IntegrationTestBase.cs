@@ -34,6 +34,7 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Bindings;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
@@ -68,13 +69,19 @@ namespace Opc.Ua.Stress.Tests.Channels.Integration
             return base.OneTimeTearDownAsync();
         }
 
+        /// <summary>
+        /// Creates a manager using the live client configuration and optional reconnect, telemetry, and transport
+        /// providers.
+        /// </summary>
         protected ClientChannelManager CreateChannelManager(
             IChannelReconnectPolicy? reconnectPolicy = null,
-            ITelemetryContext? telemetry = null)
+            ITelemetryContext? telemetry = null,
+            ITransportChannelBindings? channelBindings = null)
         {
             return new ClientChannelManager(
                 ClientFixture.Config,
                 telemetry ?? Telemetry,
+                channelBindings,
                 reconnectPolicy: reconnectPolicy);
         }
 

@@ -34,29 +34,39 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Client.Subscriptions
 {
     /// <summary>
-    /// Non sdk interface that allows subscription manager to manage
-    /// subcriptions. Must be implemented by subscriptions to be
-    /// manageable by the subscription manager.
+    /// Internal lifecycle contract used by the subscription manager to coordinate physical subscriptions.
     /// </summary>
     internal interface IManagedSubscription : ISubscription, IMessageProcessor
     {
         /// <summary>
-        /// Called after the subscription was transferred.
+        /// Gets whether a CreateSubscription request is awaiting its server identifier.
         /// </summary>
-        /// <param name="availableSequenceNumbers">A list of sequence number
-        /// ranges that identify NotificationMessages that are in the
-        /// Subscription’s retransmission queue.
+        /// <value>
+        /// <c>true</c> while creation is in progress; otherwise, <c>false</c>.
+        /// </value>
+        bool IsCreationInProgress { get; }
+
+        /// <summary>
+        /// Completes a successful server transfer by synchronizing monitored-item handles and recovering notifications.
+        /// </summary>
+        /// <param name="availableSequenceNumbers">
+        /// Sequence numbers of notification messages retained in the server's retransmission queue.
         /// </param>
-        /// <param name="ct">The cancellation token.</param>
+        /// <param name="ct">The token used to cancel synchronization and notification recovery.</param>
+        /// <returns>
+        /// <c>true</c> if local transfer completion succeeds; <c>false</c> if monitored-item handles cannot
+        /// be synchronized.
+        /// </returns>
         ValueTask<bool> TryCompleteTransferAsync(
             IReadOnlyList<uint> availableSequenceNumbers,
             CancellationToken ct = default);
 
         /// <summary>
-        /// Notify subscription that the subscription manager has paused or
-        /// resumed operations.
+        /// Notifies the subscription that the subscription manager has paused or resumed publishing.
         /// </summary>
-        /// <param name="paused"></param>
+        /// <param name="paused">
+        /// <c>true</c> when publishing is paused; <c>false</c> when publishing resumes.
+        /// </param>
         void NotifySubscriptionManagerPaused(bool paused);
     }
 }

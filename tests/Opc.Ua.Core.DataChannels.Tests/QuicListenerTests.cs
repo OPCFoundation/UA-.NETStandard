@@ -574,6 +574,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
             ServiceResultException exception = Assert.Throws<ServiceResultException>(() =>
                 listener.ReconnectToExistingChannel(
                     null!,
+                    null!,
                     1,
                     1,
                     1,

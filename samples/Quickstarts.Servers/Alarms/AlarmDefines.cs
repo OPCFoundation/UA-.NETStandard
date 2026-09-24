@@ -40,9 +40,6 @@ namespace Alarms
         public const int LOW_ALARM = 30;
         public const int LOWLOW_ALARM = 10;
 
-        public const int BOOL_HIGH_ALARM = 80;
-        public const int BOOL_LOW_ALARM = 20;
-
         public const int INACTIVE_SEVERITY = 100;
 
         public const int HIGHHIGH_SEVERITY = 850;

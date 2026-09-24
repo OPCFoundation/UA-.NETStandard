@@ -34,11 +34,9 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client.TestFramework;
-using Opc.Ua.Identity;
 using Opc.Ua.Tests;
 using ManagedSessionClass = Opc.Ua.Client.ManagedSession;
 
@@ -58,11 +56,11 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         private SessionMock m_innerSession;
 
         [SetUp]
-        public void SetUp()
+        public async Task SetUpAsync()
         {
             m_innerSession = SessionMock.Create();
             m_innerSession.SetConnected();
-            m_managedSession = CreateManagedSessionWithInner(m_innerSession);
+            m_managedSession = await CreateManagedSessionWithInnerAsync(m_innerSession).ConfigureAwait(false);
         }
 
         [TearDown]
@@ -235,15 +233,15 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         [Test]
-        public void ChannelStateChangedForwardsManagedChannelTransitions()
+        public async Task ChannelStateChangedForwardsManagedChannelTransitions()
         {
             var innerSession = SessionMock.Create();
             innerSession.SetConnected();
             Mock<IManagedTransportChannel> channel = CreateManagedChannelMock(
                 out Action<ChannelStateChange> raiseStateChanged);
-            using ManagedSessionClass managedSession = CreateManagedSessionWithInner(
+            await using ManagedSessionClass managedSession = await CreateManagedSessionWithInnerAsync(
                 innerSession,
-                channel.Object);
+                channel.Object).ConfigureAwait(false);
             var observedChanges = new List<ChannelStateChange>();
             ManagedSessionClass observedSender = null;
 
@@ -304,15 +302,15 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         [Test]
-        public void ConnectionStateChangedIncludesUnderlyingChannelStateWhenChannelFaulted()
+        public async Task ConnectionStateChangedIncludesUnderlyingChannelStateWhenChannelFaulted()
         {
             var innerSession = SessionMock.Create();
             innerSession.SetConnected();
             Mock<IManagedTransportChannel> channel = CreateManagedChannelMock(
                 out Action<ChannelStateChange> raiseStateChanged);
-            using ManagedSessionClass managedSession = CreateManagedSessionWithInner(
+            await using ManagedSessionClass managedSession = await CreateManagedSessionWithInnerAsync(
                 innerSession,
-                channel.Object);
+                channel.Object).ConfigureAwait(false);
             ConnectionStateChangedEventArgs observedArgs = null;
             var error = new ServiceResult(StatusCodes.BadSecureChannelClosed);
             var channelChange = new ChannelStateChange(
@@ -321,9 +319,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 error,
                 3);
 
-            SetStateMachineState(
-                managedSession.StateMachine,
-                ConnectionState.Connected);
+            Assert.That(managedSession.StateMachine.State, Is.EqualTo(ConnectionState.Connected));
             managedSession.ConnectionStateChanged += (_, e) =>
             {
                 if (e.NewState == ConnectionState.Reconnecting)
@@ -702,18 +698,14 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         /// <summary>
-        /// Creates a <see cref="ManagedSessionClass"/> with
-        /// the given inner session injected via reflection, bypassing
-        /// the async factory that needs a real server.
+        /// Connects a managed session through a mock factory so its worker and service gate follow the real lifecycle.
         /// </summary>
-        private static ManagedSessionClass
-            CreateManagedSessionWithInner(
+        private static async Task<ManagedSessionClass>
+            CreateManagedSessionWithInnerAsync(
                 Session innerSession,
                 IManagedTransportChannel managedChannel = null)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ILogger<ManagedSessionClass> logger = telemetry.CreateLogger<ManagedSessionClass>();
-
             var configuration = new ApplicationConfiguration(telemetry)
             {
                 ClientConfiguration = new ClientConfiguration()
@@ -729,63 +721,22 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     UserIdentityTokens = [new UserTokenPolicy()]
                 });
 
-            var reconnectPolicy = new ReconnectPolicy();
             var sessionFactory = new Mock<ISessionFactory>();
             sessionFactory.SetupGet(f => f.Telemetry)
                 .Returns(telemetry);
-
-            ConstructorInfo ctor = typeof(ManagedSessionClass)
-                .GetConstructor(
-                    BindingFlags.NonPublic | BindingFlags.Instance,
-                    null,
-                    [
-                        typeof(ApplicationConfiguration),
-                        typeof(ConfiguredEndpoint),
-                        typeof(ISessionFactory),
-                        typeof(IReconnectPolicy),
-                        typeof(IServerRedundancyHandler),
-                        typeof(ILogger),
-                        typeof(IUserIdentity),
-                        typeof(IClientIdentityProvider),
-                        typeof(TimeProvider),
-                        typeof(ArrayOf<string>),
-                        typeof(string),
-                        typeof(uint),
-                        typeof(bool),
-                        typeof(bool),
-                        typeof(bool),
-                        typeof(bool),
-                        typeof(NetworkRedundancyOptions),
-                        typeof(IClientChannelManager),
-                        typeof(IClientConnectGate)
-                    ],
-                    null);
-
-            Assert.That(ctor, Is.Not.Null);
-
-            var managed =
-                (ManagedSessionClass)ctor.Invoke(
-                [
+            sessionFactory.SetupGet(f => f.SubscriptionEngineFactory)
+                .Returns(DefaultSubscriptionEngineFactory.Instance);
+            sessionFactory.Setup(f => f.CreateAsync(
                     configuration,
                     endpoint,
-                    sessionFactory.Object,
-                    reconnectPolicy,
-                    null,
-                    logger,
-                    null,
-                    null,
-                    null,
-                    default(ArrayOf<string>),
-                    "TestManagedSession",
-                    60000u,
                     false,
                     false,
-                    false,
-                    false,
-                    null,
-                    null,
-                    null
-                ]);
+                    It.IsAny<string>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<IUserIdentity>(),
+                    It.IsAny<ArrayOf<string>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(innerSession);
 
             if (managedChannel != null)
             {
@@ -795,21 +746,16 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     managedChannel);
             }
 
-            // Inject the inner session.
-            typeof(ManagedSessionClass)
-                .GetField(
-                    "m_session",
-                    BindingFlags.NonPublic | BindingFlags.Instance)
-                .SetValue(managed, innerSession);
-
-            // Wire events so the ManagedSession forwards inner
-            // session events to its own subscribers.
-            typeof(ManagedSessionClass)
-                .GetMethod(
-                    "WireSessionEvents",
-                    BindingFlags.NonPublic | BindingFlags.Instance)
-                .Invoke(managed, [innerSession]);
-
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            ManagedSessionClass managed = await ManagedSessionClass.CreateAsync(
+                configuration,
+                endpoint,
+                sessionFactory.Object,
+                sessionName: "TestManagedSession",
+                updateBeforeConnect: false,
+                ct: timeout.Token).ConfigureAwait(false);
+            Assert.That(managed.InnerSession, Is.SameAs(innerSession));
+            Assert.That(managed.StateMachine.State, Is.EqualTo(ConnectionState.Connected));
             return managed;
         }
 
@@ -822,16 +768,6 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 channel.Object,
                 change);
             return channel;
-        }
-
-        private static void SetStateMachineState(
-            ConnectionStateMachine stateMachine,
-            ConnectionState state)
-        {
-            FieldInfo field = typeof(ConnectionStateMachine).GetField(
-                "m_state",
-                BindingFlags.NonPublic | BindingFlags.Instance);
-            field.SetValue(stateMachine, state);
         }
 
         private static void RaiseKeepAliveOnInner(
