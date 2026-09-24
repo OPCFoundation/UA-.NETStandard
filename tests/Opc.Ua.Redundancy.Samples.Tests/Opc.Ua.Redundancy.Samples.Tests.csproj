@@ -2,17 +2,21 @@
   <PropertyGroup>
     <!--
       These are process-level integration tests that launch the RedundantServer,
-      RedundantClient and RedundantPubSub sample applications (which target
-      net10.0 only) and assert on their high-availability log output. The tests
-      are therefore net10.0 only. The project also exposes a net48 placeholder
-      target with no test code so Azure DevOps can restore/build the project
-      with CustomTestTarget=net48 and subsequently invoke `dotnet test -f
-      net48` without that property. Other legacy per-TFM matrix entries map to
-      the same placeholder target.
+      RedundantClient and RedundantPubSub sample applications and assert on
+      their high-availability log output. The samples are .NET 8+ only and
+      follow CustomTestTarget, so the tests do too: a net8.0 / net9.0 / net10.0
+      profile builds and runs them on that framework. On the legacy profiles
+      (net48, net472, netstandard2.0, netstandard2.1) the samples are empty
+      RestrictForLegacyTfm shells, so RestrictForLegacyTfm makes this project
+      an explicit not-applicable shell there as well.
+
+      Without CustomTestTarget the project also exposes a net48 placeholder
+      target with no test code, so the Azure DevOps leg that invokes
+      `dotnet test -f net48` without CustomTestTarget finds a runnable target.
     -->
     <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net48;net10.0</TargetFrameworks>
-    <TargetFrameworks Condition="'$(CustomTestTarget)' == 'net10.0'">net10.0</TargetFrameworks>
-    <TargetFrameworks Condition="'$(CustomTestTarget)' != '' AND '$(CustomTestTarget)' != 'net10.0'">net48</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' != ''">$(CustomTestTarget)</TargetFrameworks>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
     <_SamplesPlaceholder Condition="'$(TargetFramework)' == 'net48'">true</_SamplesPlaceholder>
     <EnableDefaultCompileItems Condition="'$(_SamplesPlaceholder)' == 'true'">false</EnableDefaultCompileItems>
     <RootNamespace>Opc.Ua.Redundancy.Samples.Tests</RootNamespace>
@@ -60,7 +64,7 @@
     because the tests launch the apps as external processes rather than calling
     into their assemblies directly.
   -->
-  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+  <ItemGroup Condition="'$(_SamplesPlaceholder)' != 'true'">
     <ProjectReference Include="..\..\samples\Redundancy\RedundantServer\RedundantServer.csproj"
                       ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\..\samples\Redundancy\RedundantClient\RedundantClient.csproj"
