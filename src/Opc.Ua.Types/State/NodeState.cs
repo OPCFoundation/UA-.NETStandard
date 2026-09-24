@@ -5916,36 +5916,22 @@ namespace Opc.Ua
                 return WriteAttribute(context, attributeId, default, value);
             }
 
-            List<BaseInstanceState>? children = null;
+            // find the child at the current level. FindChild also reaches the children
+            // generated types keep in fields, which are not stored in m_children.
+            BaseInstanceState? child = FindChild(context, componentPath[index], false, null);
 
-            lock (m_childrenLock)
+            if (child == null)
             {
-                if (m_children != null)
-                {
-                    children = [.. m_children];
-                }
+                return StatusCodes.BadNodeIdUnknown;
             }
 
             // recursively update children.
-            if (children != null)
-            {
-                for (int ii = 0; ii < children.Count; ii++)
-                {
-                    if (componentPath[index] != children[ii].BrowseName)
-                    {
-                        continue;
-                    }
-
-                    return children[ii].WriteChildAttribute(
-                        context,
-                        componentPath,
-                        index + 1,
-                        attributeId,
-                        value);
-                }
-            }
-
-            return StatusCodes.BadNodeIdUnknown;
+            return child.WriteChildAttribute(
+                context,
+                componentPath,
+                index + 1,
+                attributeId,
+                value);
         }
 
         /// <summary>
