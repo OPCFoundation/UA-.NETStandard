@@ -513,9 +513,9 @@ namespace Opc.Ua.Server
 
             ServiceResult? translatedError = error;
 
-            // Only translate if ServiceLocalizedText is set, as DiagnosticInfo only uses
-            // the translation for ServiceLocalizedText, not OperationLocalizedText
-            if ((context.DiagnosticsMask & DiagnosticsMasks.ServiceLocalizedText) != 0)
+            // The DiagnosticInfo is created at operation level, so it emits the localized
+            // text when the client requested OperationLocalizedText.
+            if ((context.DiagnosticsMask & DiagnosticsMasks.OperationLocalizedText) != 0)
             {
                 translatedError = server.ResourceManager.Translate(context.PreferredLocales, error);
             }
