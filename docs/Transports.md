@@ -241,8 +241,9 @@ multiplexes requests, so an outstanding Publish does not block other services.
 It assigns unique, nonzero wire request handles for that connection while
 preserving caller-owned request objects and caller-visible response handles.
 Concurrent requests must use distinct caller handles; a handle can be reused
-after completion, cancellation or timeout. Terminal requests release their
-pending state without waiting for a server reply, and late replies cannot
+after completion, cancellation or timeout. The shared `ClientBase` caller-handle
+sequence can wrap; it is separate from the connection-local wire allocator.
+Terminal requests release their pending state without waiting for a server reply, and late replies cannot
 complete a newer request.
 
 `CancelRequest.RequestHandle` is translated to the wire handle of the currently

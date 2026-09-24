@@ -255,8 +255,12 @@ namespace Opc.Ua
         public bool Disposed { get; private set; }
 
         /// <summary>
-        /// Generates a unique request handle.
+        /// Generates a nonzero caller request handle from the shared client sequence.
         /// </summary>
+        /// <remarks>
+        /// The caller sequence can wrap. Transports that require non-reused wire identifiers,
+        /// such as WSS OpenAPI, allocate them independently for each connection.
+        /// </remarks>
         public uint NewRequestHandle()
         {
             return NewSharedRequestHandle();

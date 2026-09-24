@@ -437,6 +437,10 @@ namespace Opc.Ua.Server
                         context, handle, element, targetIds, externalTargetIds, cancellationToken)
                         .ConfigureAwait(false);
                 }
+                catch (ServiceResultException)
+                {
+                    throw;
+                }
                 catch (Exception e) when (
                     e is not OperationCanceledException and not OutOfMemoryException and
                         not StackOverflowException and not AccessViolationException)
@@ -1985,12 +1989,21 @@ namespace Opc.Ua.Server
                         errors[ii] = StatusCodes.BadNodeIdUnknown;
                         continue;
                     }
-                    NodeMetadata nodeMetadata = await nodeManager!.GetNodeMetadataAsync(
+                    NodeMetadata nodeMetadata;
+                    try
+                    {
+                        nodeMetadata = await nodeManager!.GetNodeMetadataAsync(
                             context,
                             handle,
                             BrowseResultMask.All,
                             cancellationToken)
-                        .ConfigureAwait(false);
+                            .ConfigureAwait(false);
+                    }
+                    catch (ServiceResultException exception)
+                    {
+                        errors[ii] = new ServiceResult(exception);
+                        continue;
+                    }
 
                     errors[ii] = MasterNodeManager.ValidateRolePermissions(
                         context,
@@ -3359,10 +3372,18 @@ namespace Opc.Ua.Server
             }
 
             // Method resolution fallback is provided by the IAsyncNodeManager adapter path.
-            MethodState method = await nodeManager.FindMethodStateAsync(
-                operationContext,
-                callMethodRequest,
-                cancellationToken).ConfigureAwait(false);
+            MethodState method;
+            try
+            {
+                method = await nodeManager.FindMethodStateAsync(
+                    operationContext,
+                    callMethodRequest,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            catch (ServiceResultException exception)
+            {
+                return new ServiceResult(exception);
+            }
 
             if (method != null)
             {
@@ -3591,27 +3612,35 @@ namespace Opc.Ua.Server
             // First attempt to retrieve just the Permission metadata with or without cache optimization
             // If it happens that nodemanager does not fully implement GetPermissionMetadata,
             // fallback to GetNodeMetadataAsync
-            NodeMetadata? nodeMetadata = await nodeManager.GetPermissionMetadataAsync(
-                    context,
-                    nodeHandle,
-                    BrowseResultMask.NodeClass,
-                    uniqueNodesServiceAttributes!,
-                    permissionsOnly,
-                    cancellationToken)
-                .ConfigureAwait(false);
-
-            // If GetPermissionMetadataAsync returns null, or a caller needs a NodeClass
-            // that the optimized metadata path did not populate, read the full metadata.
-            if (nodeMetadata == null ||
-                (metadataRequired && nodeMetadata.NodeClass == NodeClass.Unspecified))
+            NodeMetadata? nodeMetadata;
+            try
             {
-                NodeMetadata? fullMetadata = await nodeManager.GetNodeMetadataAsync(
+                nodeMetadata = await nodeManager.GetPermissionMetadataAsync(
                         context,
                         nodeHandle,
                         BrowseResultMask.NodeClass,
+                        uniqueNodesServiceAttributes!,
+                        permissionsOnly,
                         cancellationToken)
                     .ConfigureAwait(false);
-                nodeMetadata = fullMetadata ?? nodeMetadata;
+
+                // If GetPermissionMetadataAsync returns null, or a caller needs a NodeClass
+                // that the optimized metadata path did not populate, read the full metadata.
+                if (nodeMetadata == null ||
+                    (metadataRequired && nodeMetadata.NodeClass == NodeClass.Unspecified))
+                {
+                    NodeMetadata? fullMetadata = await nodeManager.GetNodeMetadataAsync(
+                            context,
+                            nodeHandle,
+                            BrowseResultMask.NodeClass,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                    nodeMetadata = fullMetadata ?? nodeMetadata;
+                }
+            }
+            catch (ServiceResultException exception)
+            {
+                return (new ServiceResult(exception), null);
             }
 
             if (nodeMetadata == null)

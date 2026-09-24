@@ -1364,8 +1364,15 @@ normal node validation. Overlapping predicates fail with
 
 The resolver may return `null` for a syntactically valid id whose backing
 object does not exist. A returned node with `NodeId.Null` receives the
-requested id; a conflicting non-null id is rejected. The stack caches the
-result only in its existing per-operation and monitored-component caches:
+requested id; a conflicting non-null id is rejected with `BadNodeIdInvalid`.
+Resolver `ServiceResultException` failures and callback-template validation
+errors retain their exact status and are not cached as missing nodes.
+Batched operations report these errors only for the affected item and
+continue processing other items. During stored monitored-item restoration,
+a validation failure is logged and that item is skipped without aborting
+the remaining items. Request cancellation still stops the operation.
+
+The stack caches results only in its existing per-operation and monitored-component caches:
 virtual nodes are never inserted into `PredefinedNodes`.
 
 The returned `IVirtualNodeBuilder` applies one callback template to every

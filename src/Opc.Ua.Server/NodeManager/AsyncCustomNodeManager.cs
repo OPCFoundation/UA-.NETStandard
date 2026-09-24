@@ -940,7 +940,10 @@ namespace Opc.Ua.Server
                     cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is not OutOfMemoryException &&
-                changed && handle != null && monitoredNode != null && eventSource != null)
+                changed &&
+                handle != null &&
+                monitoredNode != null &&
+                eventSource != null)
             {
                 var compensationFailures = new List<Exception>();
                 MonitoredNode2? restoredNode = null;
@@ -4746,7 +4749,8 @@ namespace Opc.Ua.Server
                 NodeHandle handle = nodesToValidate[ii];
 
                 // validate node.
-                NodeState source = await ValidateNodeAsync(context, handle, cache, cancellationToken).ConfigureAwait(false);
+                NodeState? source = await ValidateNodeForOperationAsync(
+                    context, handle, cache, errors, cancellationToken).ConfigureAwait(false);
 
                 if (source == null)
                 {
@@ -5343,7 +5347,8 @@ namespace Opc.Ua.Server
                 using (await AcquireSemaphoreAsync(m_writeSemaphore, cancellationToken).ConfigureAwait(false))
                 {
                     // validate node.
-                    NodeState source = await ValidateNodeAsync(context, handle, cache, cancellationToken).ConfigureAwait(false);
+                    NodeState? source = await ValidateNodeForOperationAsync(
+                        context, handle, cache, errors, cancellationToken).ConfigureAwait(false);
 
                     if (source == null)
                     {
@@ -5687,7 +5692,8 @@ namespace Opc.Ua.Server
                 NodeHandle handle = nodesToProcess[ii];
 
                 // validate node.
-                NodeState source = await ValidateNodeAsync(context, handle, cache, cancellationToken).ConfigureAwait(false);
+                NodeState? source = await ValidateNodeForOperationAsync(
+                    context, handle, cache, errors, cancellationToken).ConfigureAwait(false);
 
                 if (source == null)
                 {
@@ -5721,7 +5727,8 @@ namespace Opc.Ua.Server
             {
                 NodeHandle handle = nodesToProcess[ii];
 
-                NodeState source = await ValidateNodeAsync(context, handle, cache, cancellationToken).ConfigureAwait(false);
+                NodeState? source = await ValidateNodeForOperationAsync(
+                    context, handle, cache, errors, cancellationToken).ConfigureAwait(false);
                 if (source == null)
                 {
                     continue;
@@ -5814,7 +5821,8 @@ namespace Opc.Ua.Server
             {
                 NodeHandle handle = nodesToProcess[ii];
 
-                NodeState source = await ValidateNodeAsync(context, handle, cache, cancellationToken).ConfigureAwait(false);
+                NodeState? source = await ValidateNodeForOperationAsync(
+                    context, handle, cache, errors, cancellationToken).ConfigureAwait(false);
                 if (source == null)
                 {
                     continue;
@@ -5884,7 +5892,8 @@ namespace Opc.Ua.Server
             {
                 NodeHandle handle = nodesToProcess[ii];
 
-                NodeState source = await ValidateNodeAsync(context, handle, cache, cancellationToken).ConfigureAwait(false);
+                NodeState? source = await ValidateNodeForOperationAsync(
+                    context, handle, cache, errors, cancellationToken).ConfigureAwait(false);
                 if (source == null)
                 {
                     continue;
@@ -5947,7 +5956,8 @@ namespace Opc.Ua.Server
             {
                 NodeHandle handle = nodesToProcess[ii];
 
-                NodeState source = await ValidateNodeAsync(context, handle, cache, cancellationToken).ConfigureAwait(false);
+                NodeState? source = await ValidateNodeForOperationAsync(
+                    context, handle, cache, errors, cancellationToken).ConfigureAwait(false);
                 if (source == null)
                 {
                     continue;
@@ -6003,10 +6013,11 @@ namespace Opc.Ua.Server
                 var providerNodes = new List<NodeHandle>(nodesToProcess.Count);
                 foreach (NodeHandle handle in nodesToProcess)
                 {
-                    NodeState source = await ValidateNodeAsync(
+                    NodeState? source = await ValidateNodeForOperationAsync(
                         context,
                         handle,
                         cache,
+                        errors,
                         cancellationToken).ConfigureAwait(false);
                     if (source == null)
                     {
@@ -6500,7 +6511,8 @@ namespace Opc.Ua.Server
             {
                 NodeHandle handle = nodesToProcess[ii];
 
-                NodeState source = await ValidateNodeAsync(context, handle, cache, cancellationToken).ConfigureAwait(false);
+                NodeState? source = await ValidateNodeForOperationAsync(
+                    context, handle, cache, errors, cancellationToken).ConfigureAwait(false);
                 if (source == null)
                 {
                     continue;
@@ -6557,7 +6569,8 @@ namespace Opc.Ua.Server
             {
                 NodeHandle handle = nodesToProcess[ii];
 
-                NodeState source = await ValidateNodeAsync(context, handle, cache, cancellationToken).ConfigureAwait(false);
+                NodeState? source = await ValidateNodeForOperationAsync(
+                    context, handle, cache, errors, cancellationToken).ConfigureAwait(false);
                 if (source == null)
                 {
                     continue;
@@ -6646,7 +6659,8 @@ namespace Opc.Ua.Server
             {
                 NodeHandle handle = nodesToProcess[ii];
 
-                NodeState source = await ValidateNodeAsync(context, handle, cache, cancellationToken).ConfigureAwait(false);
+                NodeState? source = await ValidateNodeForOperationAsync(
+                    context, handle, cache, errors, cancellationToken).ConfigureAwait(false);
                 if (source == null)
                 {
                     continue;
@@ -6692,7 +6706,8 @@ namespace Opc.Ua.Server
             {
                 NodeHandle handle = nodesToProcess[ii];
 
-                NodeState source = await ValidateNodeAsync(context, handle, cache, cancellationToken).ConfigureAwait(false);
+                NodeState? source = await ValidateNodeForOperationAsync(
+                    context, handle, cache, errors, cancellationToken).ConfigureAwait(false);
                 if (source == null)
                 {
                     continue;
@@ -6748,7 +6763,8 @@ namespace Opc.Ua.Server
             {
                 NodeHandle handle = nodesToProcess[ii];
 
-                NodeState source = await ValidateNodeAsync(context, handle, cache, cancellationToken).ConfigureAwait(false);
+                NodeState? source = await ValidateNodeForOperationAsync(
+                    context, handle, cache, errors, cancellationToken).ConfigureAwait(false);
                 if (source == null)
                 {
                     continue;
@@ -6804,7 +6820,8 @@ namespace Opc.Ua.Server
             {
                 NodeHandle handle = nodesToProcess[ii];
 
-                NodeState source = await ValidateNodeAsync(context, handle, cache, cancellationToken).ConfigureAwait(false);
+                NodeState? source = await ValidateNodeForOperationAsync(
+                    context, handle, cache, errors, cancellationToken).ConfigureAwait(false);
                 if (source == null)
                 {
                     continue;
@@ -6931,17 +6948,27 @@ namespace Opc.Ua.Server
                 // owned by this node manager.
                 methodToCall.Processed = true;
 
-                // validate the source node.
-                if (await ValidateNodeAsync(systemContext, handle, operationCache, cancellationToken).ConfigureAwait(false) == null)
+                MethodState? method;
+                try
                 {
-                    errors[ii] = StatusCodes.BadNodeIdUnknown;
+                    // validate the source node.
+                    if (await ValidateNodeAsync(systemContext, handle, operationCache, cancellationToken)
+                        .ConfigureAwait(false) == null)
+                    {
+                        errors[ii] = StatusCodes.BadNodeIdUnknown;
+                        continue;
+                    }
+
+                    method = await FindMethodStateAsync(
+                        context,
+                        methodToCall,
+                        cancellationToken).ConfigureAwait(false);
+                }
+                catch (ServiceResultException exception)
+                {
+                    errors[ii] = new ServiceResult(exception);
                     continue;
                 }
-
-                MethodState? method = await FindMethodStateAsync(
-    context,
-    methodToCall,
-    cancellationToken).ConfigureAwait(false);
 
                 if (method == null)
                 {
@@ -7679,19 +7706,28 @@ namespace Opc.Ua.Server
                 {
                     NodeHandle handle = nodesToValidate[ii];
 
+                    NodeState source;
+                    try
+                    {
+                        source = await ValidateNodeAsync(
+                            systemContext, handle, operationCache, cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (ServiceResultException exception)
+                    {
+                        m_logger.MonitoredItemRestoreFailed(exception, handle.NodeId);
+                        continue;
+                    }
+
+                    if (source == null)
+                    {
+                        continue;
+                    }
+
                     bool success;
                     IMonitoredItem? monitoredItem = null;
 
                     try
                     {
-                        // validate node.
-                        NodeState source = await ValidateNodeAsync(systemContext, handle, operationCache, cancellationToken).ConfigureAwait(false);
-
-                        if (source == null)
-                        {
-                            continue;
-                        }
-
                         IStoredMonitoredItem itemToCreate = itemsToRestore[handle.Index];
 
                         // create monitored item.
@@ -7848,8 +7884,8 @@ namespace Opc.Ua.Server
                 MonitoringFilterResult? filterResult;
                 IMonitoredItem? monitoredItem;
 
-                NodeState source = await ValidateNodeAsync(
-                    systemContext, handle, operationCache, cancellationToken).ConfigureAwait(false);
+                NodeState? source = await ValidateNodeForOperationAsync(
+                    systemContext, handle, operationCache, errors, cancellationToken).ConfigureAwait(false);
 
                 if (source == null)
                 {
@@ -10068,6 +10104,24 @@ namespace Opc.Ua.Server
             }
         }
 
+        private async ValueTask<NodeState?> ValidateNodeForOperationAsync(
+            ServerSystemContext context,
+            NodeHandle handle,
+            IDictionary<NodeId, NodeState> cache,
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                return await ValidateNodeAsync(context, handle, cache, cancellationToken).ConfigureAwait(false);
+            }
+            catch (ServiceResultException exception)
+            {
+                errors[handle.Index] = new ServiceResult(exception);
+                return null;
+            }
+        }
+
         private IReadOnlyList<string>? m_namespaceUris;
         private ushort[] m_namespaceIndexes;
         private NodeIdDictionary<CacheEntry>? m_componentCache;
@@ -10200,15 +10254,22 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// Source-generated diagnostics for deferred node-manager resource cleanup.
+    /// Source-generated diagnostics for asynchronous node management.
     /// </summary>
     internal static partial class AsyncCustomNodeManagerLog
     {
         /// <summary>
         /// Reports a cleanup failure that is retained in the shared asynchronous disposal result.
         /// </summary>
-        [LoggerMessage(EventId = ServerEventIds.NodeManagerDisposal, Level = LogLevel.Error,
+        [LoggerMessage(EventId = ServerEventIds.AsyncCustomNodeManager, Level = LogLevel.Error,
             Message = "Deferred node-manager resource cleanup failed.")]
         public static partial void NodeManagerDeferredCleanupFailed(this ILogger logger, Exception exception);
+
+        /// <summary>
+        /// Reports an item-level restoration failure without aborting the remaining stored items.
+        /// </summary>
+        [LoggerMessage(EventId = ServerEventIds.AsyncCustomNodeManager + 1, Level = LogLevel.Error,
+            Message = "Could not restore monitored item for node {NodeId}.")]
+        public static partial void MonitoredItemRestoreFailed(this ILogger logger, Exception exception, NodeId nodeId);
     }
 }

@@ -930,6 +930,10 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw;
             }
+            catch (ServiceResultException)
+            {
+                throw;
+            }
             catch (Exception error) when (
                 error is not OutOfMemoryException and not StackOverflowException and not AccessViolationException)
             {

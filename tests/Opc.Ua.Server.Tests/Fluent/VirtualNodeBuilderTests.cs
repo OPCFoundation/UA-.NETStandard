@@ -32,9 +32,11 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Fluent;
+using Opc.Ua.Server.Tests.NodeManager;
 
 #nullable enable
 
@@ -50,6 +52,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         [TestCase("resolver")]
         [TestCase("id")]
         [TestCase("type")]
+        [TestCase("service")]
         [TestCase("ambiguity")]
         [TestCase("unrelated-cancellation")]
         public async Task VirtualResolutionFailureDoesNotAbortReadBatchAsync(string failure)
@@ -68,6 +71,10 @@ namespace Opc.Ua.Server.Tests.Fluent
                         if (failure == "unrelated-cancellation")
                         {
                             throw new OperationCanceledException("Backend cancelled its own lookup.");
+                        }
+                        if (failure == "service")
+                        {
+                            throw new ServiceResultException(StatusCodes.BadCommunicationError);
                         }
                         if (failure == "type")
                         {
@@ -110,13 +117,517 @@ namespace Opc.Ua.Server.Tests.Fluent
                     new ReadValueId { NodeId = good, AttributeId = Attributes.Value }
                 ], values, errors).ConfigureAwait(false);
 
+            StatusCode expectedStatus = failure switch
+            {
+                "id" => StatusCodes.BadNodeIdInvalid,
+                "type" => StatusCodes.BadTypeMismatch,
+                "service" => StatusCodes.BadCommunicationError,
+                _ => StatusCodes.BadNodeIdUnknown
+            };
             Assert.That(ServiceResult.IsGood(errors[0]), Is.True);
-            Assert.That(errors[1].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            Assert.That(errors[1].StatusCode, Is.EqualTo(expectedStatus));
             Assert.That(ServiceResult.IsGood(errors[2]), Is.True);
             Assert.That(values[0].WrappedValue.TryGetValue(out int first), Is.True);
             Assert.That(first, Is.EqualTo(42));
             Assert.That(values[2].WrappedValue.TryGetValue(out int last), Is.True);
             Assert.That(last, Is.EqualTo(42));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task VirtualValidationFailureDoesNotAbortDispatchedReadAsync(bool withIdentity)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using MonitoredItemQueueFactory queueFactory = queues;
+            await using var manager = new TestVirtualManager(server.Object);
+            using MasterNodeManager master = CreateMaster(server, manager);
+            NodeId good = manager.VirtualId("good");
+            NodeId bad = manager.VirtualId("bad");
+            RegisterVariables(manager, bad);
+            await manager.Builder.SealAsync().ConfigureAwait(false);
+            using var context = new OperationContext(
+                new RequestHeader(), null, RequestType.Read, RequestLifetime.None,
+                withIdentity ? new UserIdentity() : null);
+
+            (ArrayOf<DataValue> values, _) = await master.ReadAsync(
+                context, 0, TimestampsToReturn.Both,
+                [
+                    new ReadValueId { NodeId = good, AttributeId = Attributes.Value },
+                    new ReadValueId { NodeId = bad, AttributeId = Attributes.Value },
+                    new ReadValueId { NodeId = good, AttributeId = Attributes.Value }
+                ]).ConfigureAwait(false);
+
+            Assert.That(values, Has.Count.EqualTo(3));
+            Assert.That(values[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(values[1].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
+            Assert.That(values[2].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(values[0].WrappedValue, Is.EqualTo(Variant.From(42)));
+            Assert.That(values[2].WrappedValue, Is.EqualTo(Variant.From(42)));
+        }
+
+        [Test]
+        public async Task VirtualValidationFailureDoesNotAbortWriteBatchAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using MonitoredItemQueueFactory queueFactory = queues;
+            await using var manager = new TestVirtualManager(server.Object);
+            NodeId good = manager.VirtualId("good");
+            NodeId bad = manager.VirtualId("bad");
+            var written = new List<Variant>();
+            RegisterVariables(manager, bad).OnWrite((_, _, ref value) =>
+            {
+                written.Add(value);
+                return ServiceResult.Good;
+            });
+            await manager.Builder.SealAsync().ConfigureAwait(false);
+            using var context = new OperationContext(
+                new RequestHeader(), null, RequestType.Write, RequestLifetime.None);
+            ServiceResult[] errors = CreateBatchErrors();
+
+            await manager.WriteAsync(context,
+                [
+                    new WriteValue { NodeId = new NodeId("foreign", 0), AttributeId = Attributes.Value },
+                    new WriteValue
+                    {
+                        NodeId = good, AttributeId = Attributes.Value, Value = new DataValue(Variant.From(1))
+                    },
+                    new WriteValue
+                    {
+                        NodeId = bad, AttributeId = Attributes.Value, Value = new DataValue(Variant.From(2))
+                    },
+                    new WriteValue
+                    {
+                        NodeId = good, AttributeId = Attributes.Value, Value = new DataValue(Variant.From(3))
+                    }
+                ], errors).ConfigureAwait(false);
+
+            AssertIsolatedValidationFailure(errors);
+            Assert.That(written, Is.EqualTo([Variant.From(1), Variant.From(3)]));
+        }
+
+        [TestCase("raw")]
+        [TestCase("modified")]
+        [TestCase("processed")]
+        [TestCase("at-time")]
+        [TestCase("events")]
+        [TestCase("release")]
+        public async Task VirtualValidationFailureDoesNotAbortHistoryReadBatchAsync(string operation)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using MonitoredItemQueueFactory queueFactory = queues;
+            await using var manager = new TestVirtualManager(server.Object);
+            NodeId good = manager.VirtualId("good");
+            NodeId bad = manager.VirtualId("bad");
+            var handled = new List<NodeId>();
+            RegisterVariables(manager, bad).OnHistoryRead((_, source, _, _, release, _, result) =>
+            {
+                Assert.That(release, Is.EqualTo(operation == "release"));
+                handled.Add(source.NodeId);
+                result.ContinuationPoint = [42];
+                return ServiceResult.Good;
+            });
+            await manager.Builder.SealAsync().ConfigureAwait(false);
+            var start = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            HistoryReadDetails details = operation switch
+            {
+                "processed" => new ReadProcessedDetails
+                {
+                    StartTime = start,
+                    EndTime = start.AddHours(1),
+                    ProcessingInterval = 1000,
+                    AggregateType =
+                    [
+                        ObjectIds.AggregateFunction_Average, ObjectIds.AggregateFunction_Average,
+                        ObjectIds.AggregateFunction_Average, ObjectIds.AggregateFunction_Average
+                    ]
+                },
+                "at-time" => new ReadAtTimeDetails { ReqTimes = [start] },
+                "events" => new ReadEventDetails(),
+                _ => new ReadRawModifiedDetails
+                {
+                    StartTime = start,
+                    EndTime = start.AddHours(1),
+                    IsReadModified = operation == "modified"
+                }
+            };
+            using var context = new OperationContext(
+                new RequestHeader(), null, RequestType.HistoryRead, RequestLifetime.None);
+            NodeId[] ids = [new NodeId("foreign", 0), good, bad, good];
+            var requests = new HistoryReadValueId[ids.Length];
+            for (int ii = 0; ii < ids.Length; ii++)
+            {
+                requests[ii] = new HistoryReadValueId
+                {
+                    NodeId = ids[ii],
+                    ContinuationPoint = operation == "events" ? ByteString.From([1]) : default
+                };
+            }
+            ServiceResult[] errors = CreateBatchErrors();
+            var results = new HistoryReadResult[ids.Length];
+
+            await manager.HistoryReadAsync(
+                context, details, TimestampsToReturn.Both, operation == "release",
+                requests, results, errors).ConfigureAwait(false);
+
+            AssertIsolatedValidationFailure(errors);
+            Assert.That(handled, Is.EqualTo([good, good]));
+            Assert.That(results[1].ContinuationPoint, Is.EqualTo(ByteString.From([42])));
+            Assert.That(results[3].ContinuationPoint, Is.EqualTo(ByteString.From([42])));
+        }
+
+        [TestCase("data")]
+        [TestCase("structure")]
+        [TestCase("events")]
+        [TestCase("delete-raw")]
+        [TestCase("delete-at-time")]
+        [TestCase("delete-events")]
+        public async Task VirtualValidationFailureDoesNotAbortHistoryUpdateBatchAsync(string operation)
+        {
+            await using var manager = new TestVirtualManager();
+            NodeId good = manager.VirtualId("good");
+            NodeId bad = manager.VirtualId("bad");
+            var handled = new List<NodeId>();
+            RegisterVariables(manager, bad).OnHistoryUpdate((_, source, _, result) =>
+            {
+                handled.Add(source.NodeId);
+                result.OperationResults = [StatusCodes.Good];
+                return ServiceResult.Good;
+            });
+            await manager.Builder.SealAsync().ConfigureAwait(false);
+            using var context = new OperationContext(
+                new RequestHeader(), null, RequestType.HistoryUpdate, RequestLifetime.None);
+            NodeId[] ids = [new NodeId("foreign", 0), good, bad, good];
+            var requests = new HistoryUpdateDetails[ids.Length];
+            for (int ii = 0; ii < ids.Length; ii++)
+            {
+                requests[ii] = operation switch
+                {
+                    "data" => new UpdateDataDetails(),
+                    "structure" => new UpdateStructureDataDetails(),
+                    "events" => new UpdateEventDetails(),
+                    "delete-raw" => new DeleteRawModifiedDetails(),
+                    "delete-at-time" => new DeleteAtTimeDetails(),
+                    "delete-events" => new DeleteEventDetails(),
+                    _ => throw new ArgumentOutOfRangeException(nameof(operation))
+                };
+                requests[ii].NodeId = ids[ii];
+            }
+            ServiceResult[] errors = CreateBatchErrors();
+            var results = new HistoryUpdateResult[ids.Length];
+
+            await manager.HistoryUpdateAsync(
+                context, requests[0].GetType(), requests, results, errors).ConfigureAwait(false);
+
+            AssertIsolatedValidationFailure(errors);
+            Assert.That(handled, Is.EqualTo([good, good]));
+            Assert.That(results[1].OperationResults, Has.Count.EqualTo(1));
+            Assert.That(results[1].OperationResults[0], Is.EqualTo(StatusCodes.Good));
+            Assert.That(results[3].OperationResults, Has.Count.EqualTo(1));
+            Assert.That(results[3].OperationResults[0], Is.EqualTo(StatusCodes.Good));
+        }
+
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task VirtualValidationFailureDoesNotAbortCallBatchAsync(
+            bool throughDispatcher, bool failSecondResolution)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using MonitoredItemQueueFactory queueFactory = queues;
+            await using var manager = new TestVirtualManager(server.Object);
+            using MasterNodeManager master = CreateMaster(server, manager);
+            NodeId good = manager.VirtualId("good");
+            NodeId bad = manager.VirtualId("bad");
+            NodeId methodId = manager.VirtualId("method");
+            int badResolutions = 0;
+            var called = new List<NodeId>();
+            manager.Builder.ResolveNodes(id => id == good || id == bad, (_, id, _) =>
+            {
+                if (id == bad && ++badResolutions == (failSecondResolution ? 2 : 1))
+                {
+                    throw new ServiceResultException(StatusCodes.BadCommunicationError);
+                }
+                var source = new BaseObjectState(null) { NodeId = id };
+                source.AddChild(new MethodState(source)
+                {
+                    NodeId = methodId,
+                    BrowseName = new QualifiedName("method", id.NamespaceIndex),
+                    Executable = true,
+                    UserExecutable = true,
+                    OnCallMethod2Async = (_, _, objectId, _, _, _) =>
+                    {
+                        called.Add(objectId);
+                        return new ValueTask<ServiceResult>(ServiceResult.Good);
+                    }
+                });
+                return new ValueTask<NodeState?>(source);
+            });
+            await manager.Builder.SealAsync().ConfigureAwait(false);
+            using var context = new OperationContext(
+                new RequestHeader(), null, RequestType.Call, RequestLifetime.None);
+            ArrayOf<CallMethodRequest> requests =
+            [
+                new CallMethodRequest { ObjectId = new NodeId("foreign", 0), MethodId = methodId },
+                new CallMethodRequest { ObjectId = good, MethodId = methodId },
+                new CallMethodRequest { ObjectId = bad, MethodId = methodId },
+                new CallMethodRequest { ObjectId = good, MethodId = methodId }
+            ];
+            ServiceResult[] errors = CreateBatchErrors();
+            if (throughDispatcher)
+            {
+                (ArrayOf<CallMethodResult> results, _) = await master.CallAsync(context, requests)
+                    .ConfigureAwait(false);
+                for (int ii = 0; ii < errors.Length; ii++)
+                {
+                    errors[ii] = results[ii].StatusCode;
+                }
+            }
+            else
+            {
+                await manager.CallAsync(context, requests, new CallMethodResult[4], errors).ConfigureAwait(false);
+            }
+
+            Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            Assert.That(ServiceResult.IsGood(errors[1]), Is.True);
+            Assert.That(errors[2].StatusCode, Is.EqualTo(StatusCodes.BadCommunicationError));
+            Assert.That(ServiceResult.IsGood(errors[3]), Is.True);
+            Assert.That(called, Is.EqualTo([good, good]));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task VirtualValidationFailureDoesNotAbortMonitoredItemBatchAsync(bool restore)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using MonitoredItemQueueFactory queueFactory = queues;
+            server.SetupGet(value => value.IsRunning).Returns(false);
+            var logger = new Mock<ILogger>();
+            logger.Setup(value => value.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
+            var loggerFactory = new Mock<ILoggerFactory>();
+            loggerFactory.Setup(value => value.CreateLogger(It.IsAny<string>())).Returns(logger.Object);
+            Mock.Get(server.Object.Telemetry).SetupGet(value => value.LoggerFactory).Returns(loggerFactory.Object);
+            await using var manager = new TestVirtualManager(server.Object);
+            NodeId good = manager.VirtualId("good");
+            NodeId bad = manager.VirtualId("bad");
+            RegisterVariables(manager, bad);
+            await manager.Builder.SealAsync().ConfigureAwait(false);
+            NodeId[] ids = [new NodeId("foreign", 0), good, bad, good];
+            var monitoredItems = new IMonitoredItem[ids.Length];
+
+            if (restore)
+            {
+                var requests = new IStoredMonitoredItem[ids.Length];
+                for (int ii = 0; ii < ids.Length; ii++)
+                {
+                    var stored = new Mock<IStoredMonitoredItem>();
+                    stored.SetupAllProperties();
+                    stored.Object.NodeId = ids[ii];
+                    stored.Object.Id = (uint)ii + 1;
+                    stored.Object.SubscriptionId = 1;
+                    stored.Object.AttributeId = Attributes.Value;
+                    stored.Object.QueueSize = 1;
+                    stored.Object.SamplingInterval = 1000;
+                    stored.Object.MonitoringMode = MonitoringMode.Disabled;
+                    stored.Object.LastValue = new DataValue(Variant.From(42));
+                    stored.Object.LastError = ServiceResult.Good;
+                    requests[ii] = stored.Object;
+                }
+                await manager.RestoreMonitoredItemsAsync(requests, monitoredItems, new UserIdentity())
+                    .ConfigureAwait(false);
+
+                Assert.That(requests[0].IsRestored, Is.False);
+                Assert.That(requests[1].IsRestored, Is.True);
+                Assert.That(requests[2].IsRestored, Is.True);
+                Assert.That(requests[3].IsRestored, Is.True);
+                logger.Verify(value => value.Log(
+                    LogLevel.Error,
+                    It.Is<EventId>(id => id.Name == "MonitoredItemRestoreFailed"),
+                    It.IsAny<It.IsAnyType>(),
+                    It.Is<Exception>(error => error is ServiceResultException &&
+                        ((ServiceResultException)error).StatusCode == StatusCodes.BadNodeIdInvalid),
+                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Once);
+            }
+            else
+            {
+                var requests = new MonitoredItemCreateRequest[ids.Length];
+                for (int ii = 0; ii < ids.Length; ii++)
+                {
+                    requests[ii] = new MonitoredItemCreateRequest
+                    {
+                        ItemToMonitor = new ReadValueId { NodeId = ids[ii], AttributeId = Attributes.Value },
+                        MonitoringMode = MonitoringMode.Disabled,
+                        RequestedParameters = new MonitoringParameters { QueueSize = 1, SamplingInterval = 1000 }
+                    };
+                }
+                using var context = new OperationContext(
+                    new RequestHeader(), null, RequestType.CreateMonitoredItems, RequestLifetime.None);
+                ServiceResult[] errors = CreateBatchErrors();
+                await manager.CreateMonitoredItemsAsync(
+                    context, 1, 1000, TimestampsToReturn.Both, requests, errors,
+                    new MonitoringFilterResult[ids.Length], monitoredItems, false, new MonitoredItemIdFactory())
+                    .ConfigureAwait(false);
+                AssertIsolatedValidationFailure(errors);
+            }
+
+            Assert.That(monitoredItems[0], Is.Null);
+            Assert.That(monitoredItems[1], Is.Not.Null);
+            Assert.That(monitoredItems[1].NodeId, Is.EqualTo(good));
+            Assert.That(monitoredItems[2], Is.Null);
+            Assert.That(monitoredItems[3], Is.Not.Null);
+            Assert.That(monitoredItems[3].NodeId, Is.EqualTo(good));
+        }
+
+        [Test]
+        public async Task VirtualValidationFailureDoesNotAbortEventCreationBatchAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using MonitoredItemQueueFactory queueFactory = queues;
+            using var events = new EventManager(server.Object, 100, 100);
+            server.SetupGet(value => value.EventManager).Returns(events);
+            await using var manager = new TestVirtualManager(server.Object);
+            using MasterNodeManager master = CreateMaster(server, manager);
+            NodeId good = manager.VirtualId("good");
+            NodeId bad = manager.VirtualId("bad");
+            manager.Builder.ResolveNodes(id => id == good || id == bad, (_, id, _) =>
+                new ValueTask<NodeState?>(new BaseObjectState(null)
+                {
+                    NodeId = id == bad ? manager.VirtualId("wrong") : id,
+                    EventNotifier = EventNotifiers.SubscribeToEvents
+                }));
+            await manager.Builder.SealAsync().ConfigureAwait(false);
+            NodeId[] ids = [good, bad, good];
+            var requests = new MonitoredItemCreateRequest[ids.Length];
+            for (int ii = 0; ii < ids.Length; ii++)
+            {
+                requests[ii] = new MonitoredItemCreateRequest
+                {
+                    ItemToMonitor = new ReadValueId { NodeId = ids[ii], AttributeId = Attributes.EventNotifier },
+                    MonitoringMode = MonitoringMode.Reporting,
+                    RequestedParameters = new MonitoringParameters
+                    {
+                        QueueSize = 1,
+                        Filter = new ExtensionObject(new EventFilter
+                        {
+                            SelectClauses =
+                            [
+                                new SimpleAttributeOperand
+                                {
+                                    TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                                    AttributeId = Attributes.Value,
+                                    BrowsePath = [new QualifiedName(BrowseNames.EventId)]
+                                }
+                            ]
+                        })
+                    }
+                };
+            }
+            using var context = new OperationContext(
+                new RequestHeader(), null, RequestType.CreateMonitoredItems, RequestLifetime.None);
+            var errors = new ServiceResult[ids.Length];
+            var monitoredItems = new IMonitoredItem[ids.Length];
+
+            await master.CreateMonitoredItemsAsync(
+                context, 1, 1000, TimestampsToReturn.Both, requests, errors,
+                new MonitoringFilterResult[ids.Length], monitoredItems, false).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(errors[0]), Is.True);
+            Assert.That(errors[1].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
+            Assert.That(ServiceResult.IsGood(errors[2]), Is.True);
+            Assert.That(monitoredItems[0].NodeId, Is.EqualTo(good));
+            Assert.That(monitoredItems[1], Is.Null);
+            Assert.That(monitoredItems[2].NodeId, Is.EqualTo(good));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task VirtualValidationFailureDoesNotAbortTranslateBatchAsync(bool withIdentity)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using MonitoredItemQueueFactory queueFactory = queues;
+            await using var manager = new TestVirtualManager(server.Object);
+            using MasterNodeManager master = CreateMaster(server, manager);
+            NodeId good = manager.VirtualId("good");
+            NodeId bad = manager.VirtualId("bad");
+            NodeId target = manager.VirtualId("target");
+            var targetName = new QualifiedName("Target", manager.TestNamespaceIndex);
+            manager.Builder.ResolveNodes(id => id == good || id == bad || id == target, (_, id, _) =>
+            {
+                var source = new BaseObjectState(null)
+                {
+                    NodeId = id == bad ? manager.VirtualId("wrong") : id,
+                    BrowseName = targetName
+                };
+                if (id == good)
+                {
+                    source.AddReference(ReferenceTypeIds.HasComponent, false, target);
+                }
+                return new ValueTask<NodeState?>(source);
+            });
+            await manager.Builder.SealAsync().ConfigureAwait(false);
+            NodeId[] ids = [good, bad, good];
+            var requests = new BrowsePath[ids.Length];
+            for (int ii = 0; ii < ids.Length; ii++)
+            {
+                requests[ii] = new BrowsePath
+                {
+                    StartingNode = ids[ii],
+                    RelativePath = new RelativePath
+                    {
+                        Elements =
+                        [
+                            new RelativePathElement
+                            {
+                                ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                                TargetName = targetName
+                            }
+                        ]
+                    }
+                };
+            }
+            using var context = new OperationContext(
+                new RequestHeader(), null, RequestType.TranslateBrowsePathsToNodeIds, RequestLifetime.None,
+                withIdentity ? new UserIdentity() : null);
+
+            (ArrayOf<BrowsePathResult> results, _) = await master.TranslateBrowsePathsToNodeIdsAsync(context, requests)
+                .ConfigureAwait(false);
+
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(results[1].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
+            Assert.That(results[2].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(results[0].Targets, Has.Count.EqualTo(1));
+            Assert.That(results[0].Targets[0].TargetId, Is.EqualTo(new ExpandedNodeId(target)));
+            Assert.That(results[2].Targets, Has.Count.EqualTo(1));
+            Assert.That(results[2].Targets[0].TargetId, Is.EqualTo(new ExpandedNodeId(target)));
+        }
+
+        [Test]
+        public async Task VirtualResolverCancellationStopsReadBatchAsync()
+        {
+            await using var manager = new TestVirtualManager();
+            using var cancellation = new CancellationTokenSource();
+            NodeId cancelled = manager.VirtualId("cancelled");
+            NodeId later = manager.VirtualId("later");
+            var resolved = new List<NodeId>();
+            manager.Builder.ResolveNodes(id => id == cancelled || id == later, (_, id, token) =>
+            {
+                resolved.Add(id);
+                cancellation.Cancel();
+                return new ValueTask<NodeState?>(Task.FromCanceled<NodeState?>(token));
+            });
+            await manager.Builder.SealAsync().ConfigureAwait(false);
+            using var context = new OperationContext(
+                new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+            ServiceResult[] errors = [StatusCodes.BadNodeIdUnknown, StatusCodes.BadNodeIdUnknown];
+
+            Assert.CatchAsync<OperationCanceledException>(async () => await manager.ReadAsync(
+                context, 0,
+                [
+                    new ReadValueId { NodeId = cancelled, AttributeId = Attributes.Value },
+                    new ReadValueId { NodeId = later, AttributeId = Attributes.Value }
+                ], new DataValue[2], errors, cancellation.Token).ConfigureAwait(false));
+
+            Assert.That(resolved, Is.EqualTo([cancelled]));
         }
 
         [TestCase(false)]
@@ -248,7 +759,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                         variable.Value = 0;
                         return new ValueTask<NodeState?>(variable);
                     })
-                .OnRead((ISystemContext context, NodeState node, ref Variant value) =>
+                .OnRead((context, node, ref value) =>
                 {
                     value = Variant.From(42);
                     return ServiceResult.Good;
@@ -276,7 +787,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                     browser.Add(ReferenceTypeIds.HasComponent, false, childId);
                     return browser;
                 });
-            await manager.Builder.SealAsync();
+            await manager.Builder.SealAsync().ConfigureAwait(false);
 
             var cache = new Dictionary<NodeId, NodeState>();
             (NodeHandle? handle, NodeState? node) = await manager
@@ -334,7 +845,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                             BrowseName = new QualifiedName("Cached", id.NamespaceIndex)
                         });
                 });
-            await manager.Builder.SealAsync();
+            await manager.Builder.SealAsync().ConfigureAwait(false);
 
             var cache = new Dictionary<NodeId, NodeState>();
             (_, NodeState? first) = await manager.ResolveAsync(requestedId, cache)
@@ -364,7 +875,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                     resolverCalls++;
                     return new ValueTask<NodeState?>((NodeState?)null);
                 });
-            await manager.Builder.SealAsync();
+            await manager.Builder.SealAsync().ConfigureAwait(false);
 
             var cache = new Dictionary<NodeId, NodeState>();
             (_, NodeState? first) = await manager.ResolveAsync(requestedId, cache)
@@ -394,17 +905,22 @@ namespace Opc.Ua.Server.Tests.Fluent
                 id => id == requestedId,
                 static (context, id, cancellationToken) =>
                     new ValueTask<NodeState?>((NodeState?)null));
-            await manager.Builder.SealAsync();
+            await manager.Builder.SealAsync().ConfigureAwait(false);
 
             object handle = await manager.GetManagerHandleAsync(requestedId).ConfigureAwait(false);
             Assert.That(handle, Is.Null);
         }
 
+        /// <summary>
+        /// Rejects a mismatched resolver result without caching it or preventing a corrected retry.
+        /// </summary>
         [Test]
         public async Task ConflictingMaterializedNodeIdIsRejectedAsync()
         {
             using var manager = new TestVirtualManager();
             NodeId requestedId = manager.VirtualId("Requested");
+            NodeId conflictingId = manager.VirtualId("Different");
+            int resolverCalls = 0;
 
             manager.Builder.ResolveNodes(
                 id => id == requestedId,
@@ -412,13 +928,102 @@ namespace Opc.Ua.Server.Tests.Fluent
                     new ValueTask<NodeState?>(
                         new BaseObjectState(null)
                         {
-                            NodeId = manager.VirtualId("Different")
+                            NodeId = ++resolverCalls == 1 ? conflictingId : id
                         }));
-            await manager.Builder.SealAsync();
+            await manager.Builder.SealAsync().ConfigureAwait(false);
 
-            (_, NodeState? node) = await manager.ResolveAsync(requestedId, new Dictionary<NodeId, NodeState>())
+            var cache = new Dictionary<NodeId, NodeState>();
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await manager.ResolveAsync(requestedId, cache).ConfigureAwait(false))!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
+                Assert.That(exception.Message, Does.Contain(conflictingId.ToString()));
+                Assert.That(exception.Message, Does.Contain(requestedId.ToString()));
+                Assert.That(cache, Is.Empty);
+                Assert.That(manager.ContainsPredefined(requestedId), Is.False);
+            });
+
+            (_, NodeState? node) = await manager.ResolveAsync(requestedId, cache)
                 .ConfigureAwait(false);
-            Assert.That(node, Is.Null);
+            Assert.Multiple(() =>
+            {
+                Assert.That(node, Is.Not.Null);
+                Assert.That(node!.NodeId, Is.EqualTo(requestedId));
+                Assert.That(resolverCalls, Is.EqualTo(2));
+                Assert.That(cache[requestedId], Is.SameAs(node));
+                Assert.That(manager.ContainsPredefined(requestedId), Is.False);
+            });
+        }
+
+        /// <summary>
+        /// Preserves resolver service errors and retries instead of turning them into cached misses.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ResolverServiceExceptionIsPreservedWithoutNegativeCachingAsync(bool asynchronous)
+        {
+            using var manager = new TestVirtualManager();
+            NodeId requestedId = manager.VirtualId("Unavailable");
+            var failure = new ServiceResultException(StatusCodes.BadCommunicationError, "Device lookup failed.");
+            int resolverCalls = 0;
+            manager.Builder.ResolveNodes(id => id == requestedId, (_, id, _) =>
+            {
+                if (++resolverCalls == 1)
+                {
+                    if (asynchronous)
+                    {
+                        return new ValueTask<NodeState?>(Task.FromException<NodeState?>(failure));
+                    }
+                    throw failure;
+                }
+                return new ValueTask<NodeState?>(new BaseObjectState(null) { NodeId = id });
+            });
+            await manager.Builder.SealAsync().ConfigureAwait(false);
+
+            var cache = new Dictionary<NodeId, NodeState>();
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await manager.ResolveAsync(requestedId, cache).ConfigureAwait(false))!;
+            Assert.That(exception, Is.SameAs(failure));
+            Assert.That(cache, Is.Empty);
+
+            (_, NodeState? node) = await manager.ResolveAsync(requestedId, cache).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(node, Is.Not.Null);
+                Assert.That(node!.NodeId, Is.EqualTo(requestedId));
+                Assert.That(resolverCalls, Is.EqualTo(2));
+                Assert.That(cache[requestedId], Is.SameAs(node));
+            });
+        }
+
+        [Test]
+        public async Task VirtualHandlerTypeMismatchDoesNotPoisonOperationCacheAsync()
+        {
+            await using var manager = new TestVirtualManager();
+            NodeId requestedId = manager.VirtualId("variable");
+            int resolverCalls = 0;
+            manager.Builder.ResolveNodes(id => id == requestedId, (_, id, _) =>
+                    new ValueTask<NodeState?>(++resolverCalls == 1
+                        ? new BaseObjectState(null) { NodeId = id }
+                        : new BaseDataVariableState(null) { NodeId = id }))
+                .OnRead((_, _, ref value) =>
+                {
+                    value = Variant.From(42);
+                    return ServiceResult.Good;
+                });
+            await manager.Builder.SealAsync().ConfigureAwait(false);
+            var cache = new Dictionary<NodeId, NodeState>();
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await manager.ResolveAsync(requestedId, cache).ConfigureAwait(false))!;
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
+            Assert.That(cache, Is.Empty);
+
+            (_, NodeState? node) = await manager.ResolveAsync(requestedId, cache).ConfigureAwait(false);
+            Assert.That(node, Is.TypeOf<BaseDataVariableState>());
+            Assert.That(cache[requestedId], Is.SameAs(node));
+            Assert.That(resolverCalls, Is.EqualTo(2));
         }
 
         [Test]
@@ -432,18 +1037,20 @@ namespace Opc.Ua.Server.Tests.Fluent
                 static (context, id, cancellationToken) =>
                     new ValueTask<NodeState?>(
                         Task.FromCanceled<NodeState?>(cancellationToken)));
-            await manager.Builder.SealAsync();
+            await manager.Builder.SealAsync().ConfigureAwait(false);
 
             using var cts = new CancellationTokenSource();
             cts.Cancel();
+            var cache = new Dictionary<NodeId, NodeState>();
 
             Assert.CatchAsync<OperationCanceledException>(
                 async () => await manager
                     .ResolveAsync(
                         requestedId,
-                        new Dictionary<NodeId, NodeState>(),
+                        cache,
                         cts.Token)
                     .ConfigureAwait(false));
+            Assert.That(cache, Is.Empty);
         }
 
         [Test]
@@ -483,7 +1090,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                     result.StatusCode = StatusCodes.Good;
                     return ServiceResult.Good;
                 });
-            await manager.Builder.SealAsync();
+            await manager.Builder.SealAsync().ConfigureAwait(false);
 
             var nodeToRead = new HistoryReadValueId
             {
@@ -566,7 +1173,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                         samples[source.NodeId] = count + 1;
                         return new ValueTask<int>(count + 1);
                     });
-            await manager.Builder.SealAsync();
+            await manager.Builder.SealAsync().ConfigureAwait(false);
 
             var firstCache = new Dictionary<NodeId, NodeState>();
             (NodeHandle? firstHandle, _) = await manager.ResolveAsync(
@@ -622,7 +1229,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                             NodeId = id,
                             BrowseName = new QualifiedName("FirstBuilder")
                         }));
-            await manager.Builder.SealAsync();
+            await manager.Builder.SealAsync().ConfigureAwait(false);
 
             NodeManagerBuilder secondBuilder = manager.CreateAdditionalBuilder();
             secondBuilder.ResolveNodes(
@@ -634,7 +1241,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                             NodeId = id,
                             BrowseName = new QualifiedName("SecondBuilder")
                         }));
-            await secondBuilder.SealAsync();
+            await secondBuilder.SealAsync().ConfigureAwait(false);
 
             (_, NodeState? first) = await manager.ResolveAsync(
                 firstId,
@@ -650,19 +1257,6 @@ namespace Opc.Ua.Server.Tests.Fluent
             });
         }
 
-        private static Mock<ISampledDataChangeMonitoredItem> CreateMonitoredItem(
-            uint id,
-            NodeId nodeId)
-        {
-            var item = new Mock<ISampledDataChangeMonitoredItem>();
-            item.SetupGet(value => value.Id).Returns(id);
-            item.SetupGet(value => value.NodeId).Returns(nodeId);
-            item.SetupGet(value => value.MonitoringMode)
-                .Returns(MonitoringMode.Reporting);
-            item.SetupGet(value => value.SamplingInterval).Returns(100);
-            return item;
-        }
-
         /// <summary>
         /// Verifies that deleting the address space releases each monitored virtual source still active at shutdown.
         /// </summary>
@@ -675,7 +1269,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             var released = new List<NodeId>();
             manager.Builder.ResolveNodes(id => Array.IndexOf(ids, id) >= 0, (_, id, _) =>
                 {
-                    BaseDataVariableState<int> node = BaseDataVariableState<int>.With<VariantBuilder>(null!);
+                    var node = BaseDataVariableState<int>.With<VariantBuilder>(null!);
                     node.NodeId = id;
                     node.BrowseName = new QualifiedName("Live", id.NamespaceIndex);
                     node.DataType = DataTypeIds.Int32;
@@ -708,10 +1302,77 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(released, Is.EquivalentTo(ids));
         }
 
+        private static IVirtualNodeBuilder RegisterVariables(TestVirtualManager manager, NodeId invalid)
+        {
+            return manager.Builder.ResolveNodes(id => id.NamespaceIndex == manager.TestNamespaceIndex, (_, id, _) =>
+                new ValueTask<NodeState?>(new BaseDataVariableState(null)
+                {
+                    NodeId = id == invalid ? manager.VirtualId("wrong") : id,
+                    BrowseName = new QualifiedName("Value", manager.TestNamespaceIndex),
+                    DataType = DataTypeIds.Int32,
+                    ValueRank = ValueRanks.Scalar,
+                    AccessLevel =
+                        AccessLevels.CurrentReadOrWrite | AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
+                    UserAccessLevel =
+                        AccessLevels.CurrentReadOrWrite | AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
+                    Value = 42
+                }));
+        }
+
+        private static ServiceResult[] CreateBatchErrors()
+        {
+            return
+            [
+                StatusCodes.BadNodeIdUnknown, StatusCodes.BadNodeIdUnknown,
+                StatusCodes.BadNodeIdUnknown, StatusCodes.BadNodeIdUnknown
+            ];
+        }
+
+        private static void AssertIsolatedValidationFailure(ServiceResult[] errors)
+        {
+            Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            Assert.That(ServiceResult.IsGood(errors[1]), Is.True);
+            Assert.That(errors[2].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
+            Assert.That(ServiceResult.IsGood(errors[3]), Is.True);
+        }
+
+        private static MasterNodeManager CreateMaster(Mock<IServerInternal> server, TestVirtualManager manager)
+        {
+            var factory = new Mock<IMainNodeManagerFactory>();
+            factory.Setup(value => value.CreateConfigurationNodeManager())
+                .Returns(new Mock<IConfigurationNodeManager>().Object);
+            factory.Setup(value => value.CreateCoreNodeManager(It.IsAny<ushort>()))
+                .Returns(new Mock<ICoreNodeManager>().Object);
+            server.SetupGet(value => value.MainNodeManagerFactory).Returns(factory.Object);
+            var master = new MasterNodeManager(server.Object,
+                new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() }, null, [manager]);
+            server.SetupGet(value => value.NodeManager).Returns(master);
+            return master;
+        }
+
+        private static Mock<ISampledDataChangeMonitoredItem> CreateMonitoredItem(
+            uint id,
+            NodeId nodeId)
+        {
+            var item = new Mock<ISampledDataChangeMonitoredItem>();
+            item.SetupGet(value => value.Id).Returns(id);
+            item.SetupGet(value => value.NodeId).Returns(nodeId);
+            item.SetupGet(value => value.MonitoringMode)
+                .Returns(MonitoringMode.Reporting);
+            item.SetupGet(value => value.SamplingInterval).Returns(100);
+            return item;
+        }
+
         private sealed class TestVirtualManager : FluentNodeManagerBase
         {
             public TestVirtualManager()
                 : base(CreateMockServer(), kNamespaceUri)
+            {
+                Builder = CreateFluentBuilder(TestNamespaceIndex);
+            }
+
+            public TestVirtualManager(IServerInternal server)
+                : base(server, kNamespaceUri)
             {
                 Builder = CreateFluentBuilder(TestNamespaceIndex);
             }
