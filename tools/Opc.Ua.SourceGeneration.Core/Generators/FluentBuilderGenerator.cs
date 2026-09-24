@@ -180,9 +180,19 @@ namespace Opc.Ua.SourceGeneration
             using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, FluentBuilderTemplates.File);
 
+            // Advertise the accessors only when they are emitted, keyed by the
+            // model's C# prefix: that is what a downstream accessors-only build
+            // compares against to avoid emitting a second, ambiguous set
+            // (CS0121). The manager namespace the accessors are placed in when
+            // a [NodeManager] binding overrides it is not that prefix.
             template.AddReplacement(
-                Tokens.ModelUri,
-                EscapeStringLiteral(m_context.ModelDesign.TargetNamespace.Value));
+                Tokens.AssemblyAttributes,
+                EmitFluentAccessors
+                    ? CoreUtils.Format(
+                        "[assembly: global::Opc.Ua.ModelFluentAccessorProviderAttribute(\"{0}\", \"{1}\")]",
+                        EscapeStringLiteral(m_context.ModelDesign.TargetNamespace.Value),
+                        EscapeStringLiteral(nsPrefix))
+                    : null);
             template.AddReplacement(Tokens.NamespacePrefix, outputNamespace);
 
             // Render the typed manager interface, the typed manager

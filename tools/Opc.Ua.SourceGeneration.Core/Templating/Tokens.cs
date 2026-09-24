@@ -203,6 +203,7 @@ namespace Opc.Ua.SourceGeneration
         public static string ModelName => nameof(ModelName);
         public static string ModelPayload => nameof(ModelPayload);
         public static string AccessModifier => nameof(AccessModifier);
+        public static string AssemblyAttributes => nameof(AssemblyAttributes);
         public static string IdentifierReflection => nameof(IdentifierReflection);
         public static string ListOfNodeStateInitializers => nameof(ListOfNodeStateInitializers);
         public static string ListOfNodeStateTypeFactories => nameof(ListOfNodeStateTypeFactories);

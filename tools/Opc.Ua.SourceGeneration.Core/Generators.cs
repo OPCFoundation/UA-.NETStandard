@@ -244,23 +244,26 @@ namespace Opc.Ua.SourceGeneration
                     ? model.Targets[0]
                     : string.Empty;
 
+                bool emitFluentAccessors = true;
                 if (accessorsOnly &&
-                    (!ValidateFluentAccessorsOnlyTarget(
-                        target?.Value,
-                        target?.Prefix,
-                        modelPath,
-                        referencedModelProviders,
-                        referencedAccessorProviders,
-                        reportFluentAccessorsOnlyDiagnostic) ||
-                    !ValidateFluentAccessorsOnlyOptions(
+                    !CanEmitFluentAccessorsOnly(
                         target?.Value,
                         target?.Prefix,
                         modelPath,
                         options,
                         effectiveOptions,
-                        reportFluentAccessorsOnlyDiagnostic)))
+                        referencedModelProviders,
+                        referencedAccessorProviders,
+                        reportFluentAccessorsOnlyDiagnostic))
                 {
-                    continue;
+                    // The [NodeManager] binding asked for the manager, which
+                    // does not depend on (re-)emitting the accessors: emit it
+                    // without them instead of dropping the whole binding.
+                    if (!(targetProvidedByReference && boundToNodeManager))
+                    {
+                        continue;
+                    }
+                    emitFluentAccessors = false;
                 }
 
                 var context = new GeneratorContext
@@ -276,7 +279,8 @@ namespace Opc.Ua.SourceGeneration
                 context,
                 validateSchemas: false,
                 designOptions: effectiveOptions,
-                accessorsOnly: accessorsOnly);
+                accessorsOnly: accessorsOnly,
+                emitFluentAccessors: emitFluentAccessors);
                 // When the model itself is supplied by a referenced
                 // assembly, that assembly carries its event records too.
                 // Emitting them again here would duplicate every record
@@ -551,6 +555,48 @@ namespace Opc.Ua.SourceGeneration
                 }
             }
             return true;
+        }
+
+        /// <summary>
+        /// Whether the fluent accessors of a model supplied by a reference may be
+        /// emitted here. Diagnostics are only reported when fluent-accessors-only
+        /// mode was requested explicitly; a run that exists only because of a
+        /// <c>[NodeManager]</c> binding silently emits the manager without them.
+        /// </summary>
+        private static bool CanEmitFluentAccessorsOnly(
+            string modelUri,
+            string prefix,
+            string path,
+            GeneratorOptions options,
+            DesignFileOptions designOptions,
+            IReadOnlyList<ModelDependencyReference> referencedModelProviders,
+            IReadOnlyList<ModelFluentAccessorProviderReference> referencedAccessorProviders,
+            Action<string, string, string, string> reportDiagnostic)
+        {
+            if (!options.FluentAccessorsOnly)
+            {
+                return ValidateFluentAccessorsOnlyTarget(
+                    modelUri,
+                    prefix,
+                    path,
+                    referencedModelProviders,
+                    referencedAccessorProviders,
+                    null);
+            }
+            return ValidateFluentAccessorsOnlyTarget(
+                    modelUri,
+                    prefix,
+                    path,
+                    referencedModelProviders,
+                    referencedAccessorProviders,
+                    reportDiagnostic) &&
+                ValidateFluentAccessorsOnlyOptions(
+                    modelUri,
+                    prefix,
+                    path,
+                    options,
+                    designOptions,
+                    reportDiagnostic);
         }
 
         private static bool ValidateFluentAccessorsOnlyOptions(
@@ -991,23 +1037,24 @@ namespace Opc.Ua.SourceGeneration
                     totalDesigns,
                     out _);
 
+                bool emitFluentAccessors = true;
                 if (accessorsOnly &&
-                    (!ValidateFluentAccessorsOnlyTarget(
-                        modelUri,
-                        nodeset.Info.Prefix,
-                        nodeset.FileName,
-                        referencedModelProviders,
-                        referencedAccessorProviders,
-                        reportFluentAccessorsOnlyDiagnostic) ||
-                    !ValidateFluentAccessorsOnlyOptions(
+                    !CanEmitFluentAccessorsOnly(
                         modelUri,
                         nodeset.Info.Prefix,
                         nodeset.FileName,
                         options,
                         effectiveOptions,
-                        reportFluentAccessorsOnlyDiagnostic)))
+                        referencedModelProviders,
+                        referencedAccessorProviders,
+                        reportFluentAccessorsOnlyDiagnostic))
                 {
-                    continue;
+                    // See the design-file path: a bound manager is still emitted.
+                    if (!(targetProvidedByReference && boundToNodeManager))
+                    {
+                        continue;
+                    }
+                    emitFluentAccessors = false;
                 }
 
                 var context = new GeneratorContext
@@ -1023,7 +1070,8 @@ namespace Opc.Ua.SourceGeneration
                 context,
                 validateSchemas: false,
                 designOptions: effectiveOptions,
-                accessorsOnly: accessorsOnly);
+                accessorsOnly: accessorsOnly,
+                emitFluentAccessors: emitFluentAccessors);
                 // When the model itself is supplied by a referenced
                 // assembly, that assembly carries its event records too.
                 // Emitting them again here would duplicate every record
@@ -1229,7 +1277,8 @@ namespace Opc.Ua.SourceGeneration
             GeneratorContext context,
             bool validateSchemas = false,
             DesignFileOptions designOptions = null,
-            bool accessorsOnly = false)
+            bool accessorsOnly = false,
+            bool emitFluentAccessors = true)
         {
             // Cancellation is observed between generators: each emitter is a
             // bounded unit of work, and checking inside their node loops would
@@ -1265,7 +1314,7 @@ namespace Opc.Ua.SourceGeneration
                     OverrideManagerNamespace = designOptions?.NodeManagerNamespace,
                     OverrideManagerClassName = designOptions?.NodeManagerClassName,
                     GenerateManagerWrappers = generateManager,
-                    EmitFluentAccessors = true
+                    EmitFluentAccessors = emitFluentAccessors
                 }.Emit();
                 return;
             }
