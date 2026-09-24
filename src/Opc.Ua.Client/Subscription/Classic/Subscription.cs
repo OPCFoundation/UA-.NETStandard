@@ -1900,11 +1900,34 @@ namespace Opc.Ua.Client
             ArrayOf<uint> availableSequenceNumbers,
             NotificationMessage message)
         {
+            SaveMessageInCache(availableSequenceNumbers, message, true);
+        }
+
+        /// <summary>
+        /// Adds a notification message received in a Republish response to
+        /// the internal cache. A Republish response carries no available
+        /// sequence numbers, so the ones from the last Publish response are
+        /// kept: otherwise every other missing message would be given up
+        /// while the server still holds it.
+        /// </summary>
+        internal void SaveRepublishedMessageInCache(NotificationMessage message)
+        {
+            SaveMessageInCache(default, message, false);
+        }
+
+        private void SaveMessageInCache(
+            ArrayOf<uint> availableSequenceNumbers,
+            NotificationMessage message,
+            bool updateAvailableSequenceNumbers)
+        {
             PublishStateChangedEventHandler? callback = null;
 
             lock (m_cache)
             {
-                m_availableSequenceNumbers = availableSequenceNumbers;
+                if (updateAvailableSequenceNumbers)
+                {
+                    m_availableSequenceNumbers = availableSequenceNumbers;
+                }
 
                 if (message == null)
                 {

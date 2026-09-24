@@ -652,12 +652,22 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Processes the response from a publish request.
         /// </summary>
+        /// <param name="responseHeader">The response header.</param>
+        /// <param name="subscriptionId">The subscription the message belongs to.</param>
+        /// <param name="availableSequenceNumbers">The sequence numbers the
+        /// server still holds for the subscription.</param>
+        /// <param name="moreNotifications">Whether more notifications are pending.</param>
+        /// <param name="notificationMessage">The notification message.</param>
+        /// <param name="republished">The message came from a Republish
+        /// response, which carries no available sequence numbers: the empty
+        /// list then does not mean the server holds nothing.</param>
         internal void ProcessPublishResponse(
             ResponseHeader responseHeader,
             uint subscriptionId,
             ArrayOf<uint> availableSequenceNumbers,
             bool moreNotifications,
-            NotificationMessage notificationMessage)
+            NotificationMessage notificationMessage,
+            bool republished = false)
         {
             Subscription? subscription = null;
             var availableSequenceNumberList = availableSequenceNumbers.ToList();
@@ -700,6 +710,12 @@ namespace Opc.Ua.Client
 
                     if (acknowledgement.SubscriptionId != subscriptionId)
                     {
+                        acknowledgementsToSend.Add(acknowledgement);
+                    }
+                    else if (republished)
+                    {
+                        // a republish response cannot tell which messages the
+                        // server still holds, so keep every pending ack.
                         acknowledgementsToSend.Add(acknowledgement);
                     }
                     else if (availableSequenceNumberList.Remove(acknowledgement.SequenceNumber))
@@ -818,7 +834,14 @@ namespace Opc.Ua.Client
                 notificationMessage.StringTable = responseHeader.StringTable;
 
                 // update subscription cache.
-                subscription.SaveMessageInCache(availableSequenceNumbers, notificationMessage);
+                if (republished)
+                {
+                    subscription.SaveRepublishedMessageInCache(notificationMessage);
+                }
+                else
+                {
+                    subscription.SaveMessageInCache(availableSequenceNumbers, notificationMessage);
+                }
 
                 // raise the notification.
                 var args = new NotificationEventArgs(

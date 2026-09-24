@@ -4179,7 +4179,8 @@ namespace Opc.Ua.Client
                     subscriptionId,
                     default,
                     false,
-                    notificationMessage);
+                    notificationMessage,
+                    republished: true);
 
                 return (true, ServiceResult.Good);
             }
