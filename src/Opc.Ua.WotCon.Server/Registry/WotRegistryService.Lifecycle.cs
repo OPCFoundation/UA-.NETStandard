@@ -163,23 +163,42 @@ namespace Opc.Ua.WotCon.Server.Registry
                 var unloaded = new HashSet<string>(StringComparer.Ordinal);
                 var failed = new HashSet<string>(StringComparer.Ordinal);
                 var unreadable = new HashSet<string>(StringComparer.Ordinal);
+                bool changedMembers = false;
                 ArrayOf<string> cohort = group.Resources.Values.Select(resource => resource.Xid).ToArrayOf();
                 foreach (WotResource resource in group.Resources.Values)
                 {
                     WotRegistryLifecyclePlan plan = await PlanResourceLifecycleLockedAsync(
                         desired, resource, true, policy, cancellationToken, cohort).ConfigureAwait(false);
-                    if (plan.Mutation is null)
+                    if (plan.Mutation is { } mutation)
+                    {
+                        desired = mutation.Desired;
+                        changed.UnionWith(mutation.ChangedResourceXids.ToList());
+                        changedMembers = true;
+                    }
+                    else if (plan.Result.Outcome != WoTOutcomeEnum.Unchanged)
                     {
                         return new WotRegistryLifecyclePlan(null, null, plan.Result);
                     }
-                    desired = plan.Mutation.Desired;
-                    changed.UnionWith(plan.Mutation.ChangedResourceXids.ToList());
                     dependents.UnionWith(plan.Result.Dependents);
                     unloaded.UnionWith(plan.Result.Unloaded);
                     failed.UnionWith(plan.Result.Failed);
                     unreadable.UnionWith(plan.Result.Unreadable);
                 }
                 bool retainGroup = policy == WoTDeletePolicyEnum.Retire && !group.Resources.IsEmpty;
+                ImmutableArray<string> dependentXids = dependents.OrderBy(xid => xid, StringComparer.Ordinal)
+                    .ToImmutableArray();
+                ImmutableArray<string> unloadedXids = unloaded.OrderBy(xid => xid, StringComparer.Ordinal)
+                    .ToImmutableArray();
+                ImmutableArray<string> failedXids = failed.OrderBy(xid => xid, StringComparer.Ordinal).ToImmutableArray();
+                ImmutableArray<string> unreadableXids = unreadable.OrderBy(xid => xid, StringComparer.Ordinal)
+                    .ToImmutableArray();
+                if (retainGroup && !changedMembers)
+                {
+                    return new WotRegistryLifecyclePlan(null, null, new WotDeleteResult(
+                        WoTOutcomeEnum.Unchanged, policy, previous.Generation, deleted: false, retired: true,
+                        dependentXids, unloadedXids, failedXids, unreadableXids,
+                        "The group Resources are already retired and remain resolvable."));
+                }
                 if (!retainGroup)
                 {
                     desired = desired.WithoutGroup(groupId, previous.Generation);
@@ -187,8 +206,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 return new WotRegistryLifecyclePlan(new WotRegistryMutationImage(
                     previous, desired, changed.ToArrayOf()), null, new WotDeleteResult(
                         WoTOutcomeEnum.Success, policy, previous.Generation + 1, !retainGroup, true,
-                        dependents.ToImmutableArray(), unloaded.ToImmutableArray(), failed.ToImmutableArray(),
-                        unreadable.ToImmutableArray(), retainGroup
+                        dependentXids, unloadedXids, failedXids, unreadableXids, retainGroup
                             ? "The group Resources were retired and remain resolvable."
                             : "The group and its Resources were deleted."));
             }

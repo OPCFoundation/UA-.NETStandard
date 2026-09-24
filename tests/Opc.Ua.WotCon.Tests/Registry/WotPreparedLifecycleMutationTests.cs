@@ -125,6 +125,44 @@ namespace Opc.Ua.WotCon.Tests.Registry
             }
         }
 
+        [Test]
+        public async Task UnchangedGroupRetirementRetainsEveryMembersDependentDiagnostics()
+        {
+            using var registry = new WotRegistryService();
+            var expected = new List<string>();
+            string[] names = ["left", "right"];
+            foreach (string name in names)
+            {
+                WotRegistryMutationResult model = await registry.UpsertResourceAsync(new WotUpsertResourceRequest
+                {
+                    GroupId = WotRegistryGroups.ThingModels, ResourceId = name, VersionId = "v1",
+                    Kind = WoTDocumentKindEnum.ThingModel, Content = ByteString.From(TestMaterialization.Tm("urn:" + name))
+                }).ConfigureAwait(false);
+                WotRegistryMutationResult dependent = await registry.UpsertResourceAsync(new WotUpsertResourceRequest
+                {
+                    GroupId = WotRegistryGroups.ThingDescriptions, ResourceId = "consumer-" + name, VersionId = "v1",
+                    Kind = WoTDocumentKindEnum.ThingDescription,
+                    Content = ByteString.From(TestMaterialization.Td("urn:consumer-" + name, extendsHrefs: "urn:" + name))
+                }).ConfigureAwait(false);
+                Assert.That(model.Changed, Is.True, model.Message);
+                Assert.That(dependent.Changed, Is.True, dependent.Message);
+                expected.Add(dependent.Resource!.Xid);
+                WotDeleteResult retired = await registry.DeleteResourceAsync(
+                    model.Resource!.GroupId, model.Resource.ResourceId, WoTDeletePolicyEnum.Retire).ConfigureAwait(false);
+                Assert.That(retired.Retired, Is.True);
+            }
+            WotRegistrySnapshot before = registry.Current;
+
+            WotRegistryLifecyclePlan plan = await registry.PlanGroupLifecycleAsync(
+                WotRegistryGroups.ThingModels, WoTDeletePolicyEnum.Retire, null, default).ConfigureAwait(false);
+
+            Assert.That(plan.Mutation, Is.Null);
+            Assert.That(plan.Result.Outcome, Is.EqualTo(WoTOutcomeEnum.Unchanged));
+            Assert.That(plan.Result.Dependents, Is.EqualTo(expected));
+            Assert.That(plan.Result.Unreadable, Is.Empty);
+            Assert.That(registry.Current, Is.SameAs(before));
+        }
+
         private string m_root = null!;
     }
 }

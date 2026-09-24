@@ -333,6 +333,73 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Is.EqualTo(StatusCodes.Good));
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task GroupRetirementContinuesPastAlreadyRetiredMembers(bool retiredFirst)
+        {
+            await m_server.NodeManagerLifecycle.AddAsync(new WotRegistryNodeManagerFactory(
+                new WotRegistryServerOptions { AutoRefresh = false, DeletePolicy = WoTDeletePolicyEnum.Retire },
+                m_registry, m_coordinator), callerContext: null).ConfigureAwait(false);
+            WotResource first = await AddAsync("mixed-retire-first").ConfigureAwait(false);
+            await AddAsync("mixed-retire-second").ConfigureAwait(false);
+            await m_coordinator.RefreshAsync(HandoffRequest("before-mixed-group-retire")).ConfigureAwait(false);
+            WotResource[] ordered = m_registry.Current.FindGroup(first.GroupId)!.Resources.Values.ToArray();
+            WotResource alreadyRetired = ordered[retiredFirst ? 0 : 1];
+            WotResource active = ordered[retiredFirst ? 1 : 0];
+            await m_registry.DeleteResourceAsync(alreadyRetired.GroupId, alreadyRetired.ResourceId)
+                .ConfigureAwait(false);
+            WotRegistrySnapshot before = m_registry.Current;
+            long retiredEpoch = before.FindResourceByXid(alreadyRetired.Xid)!.MetaEpoch;
+            Assert.That(before.FindResourceByXid(alreadyRetired.Xid)!.LoadState, Is.EqualTo(WoTLoadStateEnum.Retired));
+            Assert.That((await ReadNodeClassAsync(Root(active)).ConfigureAwait(false)).StatusCode,
+                Is.EqualTo(StatusCodes.Good));
+
+            WotRegistryMutationResult result = await m_registry.DeleteGroupAsync(first.GroupId).ConfigureAwait(false);
+
+            Assert.That(result.Changed, Is.True,
+                "An unchanged member must not discard or prevent the other member's retirement.");
+            Assert.That(m_registry.Current.Generation, Is.EqualTo(before.Generation + 1));
+            Assert.That(m_registry.Current.FindResourceByXid(alreadyRetired.Xid)!.MetaEpoch, Is.EqualTo(retiredEpoch));
+            WotResourceGroup retained = m_registry.Current.FindGroup(first.GroupId)!;
+            Assert.That(retained.Resources, Has.Count.EqualTo(2));
+            foreach (WotResource resource in retained.Resources.Values)
+            {
+                Assert.That(resource.LoadState, Is.EqualTo(WoTLoadStateEnum.Retired));
+                Assert.That(resource.Enabled, Is.False);
+                Assert.That(resource.ActiveVersionId, Is.Null);
+                Assert.That(resource.RootNodeId.IsNull, Is.True);
+                Assert.That(resource.FindVersion("v1"), Is.Not.Null);
+                Assert.That((await ReadNodeClassAsync(Root(resource)).ConfigureAwait(false)).StatusCode,
+                    Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            }
+        }
+
+        [Test]
+        public async Task GroupRetirementOfOnlyRetiredMembersDoesNotRepublish()
+        {
+            await m_server.NodeManagerLifecycle.AddAsync(new WotRegistryNodeManagerFactory(
+                new WotRegistryServerOptions { AutoRefresh = false, DeletePolicy = WoTDeletePolicyEnum.Retire },
+                m_registry, m_coordinator), callerContext: null).ConfigureAwait(false);
+            WotResource first = await AddAsync("retired-group-first").ConfigureAwait(false);
+            WotResource second = await AddAsync("retired-group-second").ConfigureAwait(false);
+            await m_coordinator.RefreshAsync(HandoffRequest("before-complete-group-retire")).ConfigureAwait(false);
+            await m_registry.DeleteResourceAsync(first.GroupId, first.ResourceId).ConfigureAwait(false);
+            await m_registry.DeleteResourceAsync(second.GroupId, second.ResourceId).ConfigureAwait(false);
+            WotRegistrySnapshot before = m_registry.Current;
+            int changes = 0;
+            m_registry.Changed += (_, _) => changes++;
+            m_events.Clear();
+
+            WotRegistryMutationResult result = await m_registry.DeleteGroupAsync(first.GroupId).ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Unchanged));
+            Assert.That(m_registry.Current, Is.SameAs(before));
+            Assert.That(m_coordinator.Generation, Is.EqualTo(before.RefreshGeneration));
+            Assert.That(changes, Is.Zero);
+            Assert.That(m_events, Is.Empty);
+            Assert.That(before.FindGroup(first.GroupId)!.Resources, Has.Count.EqualTo(2));
+        }
+
         [Test]
         public async Task LifecycleMutationKeepsUnselectedPendingVersionsUnactivated()
         {
