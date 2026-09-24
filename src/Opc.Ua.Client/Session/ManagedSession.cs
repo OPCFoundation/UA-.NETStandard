@@ -2425,6 +2425,13 @@ namespace Opc.Ua.Client
                 TimeSpan delay = GetIdentityRefreshDelay(provider.ExpiresAt, retryAttempt == 0);
                 try
                 {
+                    // Timers reject a due time above ~49.7 days; wait for a
+                    // far-away expiry in chunks and re-evaluate after each.
+                    while (delay > MaxTimerDueTime)
+                    {
+                        await DelayAsync(MaxTimerDueTime, ct).ConfigureAwait(false);
+                        delay = GetIdentityRefreshDelay(provider.ExpiresAt, retryAttempt == 0);
+                    }
                     await DelayAsync(delay, ct).ConfigureAwait(false);
                     await RefreshIdentityOnceAsync(provider, ct).ConfigureAwait(false);
                     retryAttempt = 0;
@@ -2762,6 +2769,7 @@ namespace Opc.Ua.Client
         private readonly IReconnectPolicy m_reconnectPolicy;
         private readonly IServerRedundancyHandler? m_redundancyHandler;
         private static readonly TimeSpan IdentityRefreshSafetyMargin = TimeSpan.FromSeconds(60);
+        private static readonly TimeSpan MaxTimerDueTime = TimeSpan.FromMilliseconds(uint.MaxValue - 1);
 
         private readonly ILogger m_logger;
 
