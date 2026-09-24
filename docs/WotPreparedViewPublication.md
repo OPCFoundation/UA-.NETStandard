@@ -270,6 +270,8 @@ Mutation planning leaves committed generations unchanged. Preparation uses
 retained committed inputs for affected survivors, not unrelated pending default
 Versions. `Retire` keeps the target document resolvable without recreating its
 activation owner; `Cascade` and `Force` retain their distinct dependent outcomes.
+An empty group's mutation has no activation selection. Group `Retire` retains
+the containing group and its resolvable documents while retiring their projections.
 Optimistic checks use the addressed Resource, Version or group epoch.
 `WotRegistryServerOptions.DeletePolicy` supplies the hosted coordinator's policy.
 Deleting an active exact Version retires that owner while retaining the surviving

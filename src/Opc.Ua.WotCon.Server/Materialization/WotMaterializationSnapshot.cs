@@ -338,6 +338,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     }
                     original = original.WithGroup(group.WithResources(resources, group.Epoch), original.Generation);
                 }
+                if (selectors.IsEmpty)
+                {
+                    return new WotMaterializationSnapshot(
+                        original, [], false, [], ImmutableDictionary<string, ByteString>.Empty, []);
+                }
             }
             ArrayOf<WotSelectedResource> selection = SelectResources(original, selectors, includeDependents);
             if (removed.Count != 0)

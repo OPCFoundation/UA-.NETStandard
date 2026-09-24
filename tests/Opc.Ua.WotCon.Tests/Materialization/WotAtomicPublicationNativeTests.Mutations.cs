@@ -288,6 +288,52 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         [Test]
+        public async Task EmptyGroupDeletionDoesNotAcquireUnrelatedPendingResources()
+        {
+            using var views = new LifecycleWotViewProjectionHost(m_server.NodeManagerLifecycle);
+            await ConfigureStockViewsAsync(views, converter: m_converter).ConfigureAwait(false);
+            WotResource pending = await AddAsync("pending-outside-empty-group").ConfigureAwait(false);
+            WotResourceGroup empty = await m_registry.GetOrCreateGroupAsync(
+                WotRegistryGroups.ThingModels, WoTDocumentKindEnum.ThingModel).ConfigureAwait(false);
+            WotRegistrySnapshot before = m_registry.Current;
+
+            WotRegistryMutationResult result = await m_registry.DeleteGroupAsync(empty.GroupId).ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Success), result.Message);
+            Assert.That(m_registry.Current.FindGroup(empty.GroupId), Is.Null);
+            Assert.That(m_registry.Current.FindResourceByXid(pending.Xid), Is.SameAs(pending));
+            Assert.That(m_registry.Current.RefreshGeneration, Is.EqualTo(before.RefreshGeneration));
+            Assert.That((await ReadNodeClassAsync(Root(pending)).ConfigureAwait(false)).StatusCode,
+                Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+        }
+
+        [Test]
+        public async Task GroupRetireKeepsItsDocumentsResolvableForExternalActiveDependents()
+        {
+            await m_server.NodeManagerLifecycle.AddAsync(new WotRegistryNodeManagerFactory(
+                new WotRegistryServerOptions { AutoRefresh = false, DeletePolicy = WoTDeletePolicyEnum.Retire },
+                m_registry, m_coordinator), callerContext: null).ConfigureAwait(false);
+            WotResource model = await AddUnitModelAsync("retire-group-model").ConfigureAwait(false);
+            WotResource dependent = await AddAsync("outside-retire-group").ConfigureAwait(false);
+            await SetUnitDependencyAsync(dependent, model.ResourceId).ConfigureAwait(false);
+            await m_coordinator.RefreshAsync(HandoffRequest("before-group-retire")).ConfigureAwait(false);
+
+            WotRegistryMutationResult result = await m_registry.DeleteGroupAsync(model.GroupId).ConfigureAwait(false);
+
+            Assert.That(result.Changed, Is.True, result.Message);
+            Assert.That(m_registry.Current.FindGroup(model.GroupId), Is.Not.Null);
+            WotResource? retained = m_registry.Current.FindResourceByXid(model.Xid);
+            Assert.That(retained, Is.Not.Null);
+            Assert.That(retained!.FindVersion("v1"), Is.Not.Null);
+            Assert.That(retained.Enabled, Is.False);
+            Assert.That(retained.ActiveVersionId, Is.Null);
+            Assert.That((await ReadNodeClassAsync(Root(model)).ConfigureAwait(false)).StatusCode,
+                Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            Assert.That((await ReadNodeClassAsync(Root(dependent)).ConfigureAwait(false)).StatusCode,
+                Is.EqualTo(StatusCodes.Good));
+        }
+
+        [Test]
         public async Task LifecycleMutationKeepsUnselectedPendingVersionsUnactivated()
         {
             using var views = new LifecycleWotViewProjectionHost(m_server.NodeManagerLifecycle);

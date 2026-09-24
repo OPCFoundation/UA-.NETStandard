@@ -163,12 +163,18 @@ namespace Opc.Ua.WotCon.Server.Registry
                     failed.UnionWith(plan.Result.Failed);
                     unreadable.UnionWith(plan.Result.Unreadable);
                 }
-                desired = desired.WithoutGroup(groupId, previous.Generation);
+                bool retainGroup = policy == WoTDeletePolicyEnum.Retire && !group.Resources.IsEmpty;
+                if (!retainGroup)
+                {
+                    desired = desired.WithoutGroup(groupId, previous.Generation);
+                }
                 return new WotRegistryLifecyclePlan(new WotRegistryMutationImage(
                     previous, desired, changed.ToArrayOf()), null, new WotDeleteResult(
-                        WoTOutcomeEnum.Success, policy, previous.Generation + 1, true, true,
+                        WoTOutcomeEnum.Success, policy, previous.Generation + 1, !retainGroup, true,
                         dependents.ToImmutableArray(), unloaded.ToImmutableArray(), failed.ToImmutableArray(),
-                        unreadable.ToImmutableArray(), "The group and its Resources were deleted."));
+                        unreadable.ToImmutableArray(), retainGroup
+                            ? "The group Resources were retired and remain resolvable."
+                            : "The group and its Resources were deleted."));
             }
             finally
             {
