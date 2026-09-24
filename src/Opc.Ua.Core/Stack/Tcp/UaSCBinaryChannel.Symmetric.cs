@@ -703,7 +703,7 @@ namespace Opc.Ua.Bindings
                 useClientKeys ? token.ClientHmac : token.ServerHmac,
                 SecurityMode == MessageSecurityMode.Sign,
                 token.TokenId,
-                (uint)(m_localSequenceNumber - 1), // already incremented to create this message. need the last one sent.
+                LastSentSequenceNumber, // already incremented to create this message. need the last one sent.
                 m_symmetricProvider);
         }
 

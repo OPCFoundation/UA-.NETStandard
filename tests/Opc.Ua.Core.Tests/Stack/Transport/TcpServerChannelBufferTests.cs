@@ -366,11 +366,39 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             using TestServerChannel channel = CreateOpenChannel(pool);
             channel.SetMaxRequestMessageSizeForTest(1);
             byte[] first = channel.TakeBufferForTest(32);
-            channel.SaveReceivedPartForTest(1, new ArraySegment<byte>(first, 0, 2));
+            channel.SaveReceivedPartForTest(1, new ArraySegment<byte>(first, 0, 1));
+            Assert.That(pool.OutstandingCount, Is.EqualTo(1), "a chunk at the size limit is kept.");
+
+            // The incoming chunk counts towards the limit: 1 + 1 bytes exceed it.
             byte[] second = channel.TakeBufferForTest(32);
             channel.SaveReceivedPartForTest(1, new ArraySegment<byte>(second, 0, 1));
 
             Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(pool.ReturnCount, Is.EqualTo(pool.RentCount));
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// Verifies the chunk that exceeds the request chunk limit is itself counted,
+        /// so a message never grows to MaxChunkCount + 1 chunks.
+        /// </summary>
+        [Test]
+        public void IntermediateChunkBeyondTheChunkLimitIsRejected()
+        {
+            var pool = new TrackingArrayPool();
+            using TestServerChannel channel = CreateOpenChannel(pool);
+            channel.SetMaxRequestChunkCountForTest(2);
+            for (int ii = 0; ii < 2; ii++)
+            {
+                byte[] buffer = channel.TakeBufferForTest(32);
+                channel.SaveReceivedPartForTest(1, new ArraySegment<byte>(buffer, 0, 8));
+            }
+            Assert.That(pool.OutstandingCount, Is.EqualTo(2), "chunks up to the limit are kept.");
+
+            byte[] third = channel.TakeBufferForTest(32);
+            channel.SaveReceivedPartForTest(1, new ArraySegment<byte>(third, 0, 8));
+
+            Assert.That(pool.OutstandingCount, Is.Zero, "the third chunk exceeds a limit of two.");
             Assert.That(pool.ReturnCount, Is.EqualTo(pool.RentCount));
             Assert.That(pool.DuplicateReturnCount, Is.Zero);
         }
