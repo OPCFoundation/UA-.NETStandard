@@ -112,6 +112,11 @@ CreateSession, or ActivateSession may be refused until occupancy drops.
 Per-caller fairness and guaranteed bootstrap reservations require a separate
 isolation policy; the shared budget alone does not provide them.
 
+The staged [resource-isolation capacity planner](ResourceIsolation.md) can
+validate prospective floors without changing these totals or runtime behavior.
+Its Balanced default is for planning only; it does not enable protected
+reservations or fair scheduling.
+
 Configure the hosted server through its fluent builder:
 
 ```csharp
