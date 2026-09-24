@@ -2055,9 +2055,7 @@ namespace Opc.Ua.Server
             try
             {
                 ValidateOperationLimits(historyUpdateDetails);
-                ValidateOperationLimits(
-                    historyUpdateDetails.Count,
-                    GetHistoryUpdateOperationLimit(historyUpdateDetails));
+                ValidateHistoryUpdateOperationLimits(historyUpdateDetails);
 
                 (ArrayOf<HistoryUpdateResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await ServerInternal.NodeManager.HistoryUpdateAsync(
@@ -2092,9 +2090,15 @@ namespace Opc.Ua.Server
             }
         }
 
-        private PropertyState<uint>? GetHistoryUpdateOperationLimit(
+        /// <summary>
+        /// Validates the historyUpdateDetails array against the limit of every kind of
+        /// update it contains, so a mixed batch is bounded by the smaller limit.
+        /// </summary>
+        private void ValidateHistoryUpdateOperationLimits(
             ArrayOf<ExtensionObject> historyUpdateDetails)
         {
+            bool hasEventDetails = false;
+            bool hasDataDetails = false;
             foreach (ExtensionObject details in historyUpdateDetails)
             {
                 if (details.IsNull || !details.TryGetValue(out HistoryUpdateDetails? historyUpdateDetail))
@@ -2106,21 +2110,30 @@ namespace Opc.Ua.Server
                 if (detailsType == typeof(UpdateEventDetails) ||
                     detailsType == typeof(DeleteEventDetails))
                 {
-                    return OperationLimits.MaxNodesPerHistoryUpdateEvents;
+                    hasEventDetails = true;
                 }
-
-                if (detailsType == typeof(UpdateDataDetails) ||
+                else if (detailsType == typeof(UpdateDataDetails) ||
                     detailsType == typeof(UpdateStructureDataDetails) ||
                     detailsType == typeof(DeleteRawModifiedDetails) ||
                     detailsType == typeof(DeleteAtTimeDetails))
                 {
-                    return OperationLimits.MaxNodesPerHistoryUpdateData;
+                    hasDataDetails = true;
                 }
-
-                break;
             }
 
-            return null;
+            if (hasEventDetails)
+            {
+                ValidateOperationLimits(
+                    historyUpdateDetails.Count,
+                    OperationLimits.MaxNodesPerHistoryUpdateEvents);
+            }
+
+            if (hasDataDetails)
+            {
+                ValidateOperationLimits(
+                    historyUpdateDetails.Count,
+                    OperationLimits.MaxNodesPerHistoryUpdateData);
+            }
         }
 
         /// <inheritdoc/>
