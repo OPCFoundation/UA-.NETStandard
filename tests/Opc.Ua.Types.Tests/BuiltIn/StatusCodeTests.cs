@@ -228,6 +228,14 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
+        public void WithSubCodeKeepsSeverityAndFlagBits()
+        {
+            StatusCode result = new StatusCode(0x80348400).WithSubCode(0x00350000);
+            Assert.That(result.Code, Is.EqualTo(0x80358400));
+            Assert.That(StatusCode.IsBad(result), Is.True);
+        }
+
+        [Test]
         public void StructureChangedReturnsTrueWhenBitSet()
         {
             // kStructureChangedBit = 0x8000

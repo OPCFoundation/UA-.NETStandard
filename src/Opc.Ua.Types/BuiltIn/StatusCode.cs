@@ -335,7 +335,11 @@ namespace Opc.Ua
         [Pure]
         public StatusCode WithSubCode(uint subCode)
         {
-            return new StatusCode(0x0FFF0000 & subCode, SymbolicId);
+            // keep the severity and flag bits (Part 4 7.38.1).
+            uint code = Code;
+            code &= ~0x0FFF0000u;
+            code |= subCode & 0x0FFF0000;
+            return new StatusCode(code, SymbolicId);
         }
 
         /// <summary>
