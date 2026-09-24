@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Numerics;
@@ -291,27 +292,104 @@ namespace Opc.Ua
                 return new Decimal(BigInteger.Zero, 0);
             }
 
-            while (scale > 0)
+            if (scale > 0)
             {
-                BigInteger quotient = BigInteger.DivRem(unscaled, s_ten, out BigInteger remainder);
+                unscaled = StripTrailingZeros(unscaled, scale, out int stripped);
+                scale -= stripped;
+            }
+
+            // A negative scale means trailing zeroes the lexical space must
+            // spell out, because xs:decimal has no exponent notation. One
+            // multiplication instead of one per digit.
+            if (scale < 0)
+            {
+                unscaled *= BigInteger.Pow(s_ten, -scale);
+                scale = 0;
+            }
+
+            return new Decimal(unscaled, (short)scale);
+        }
+
+        /// <summary>
+        /// Removes up to <paramref name="maxZeros"/> trailing decimal zeroes
+        /// from <paramref name="value"/> with a logarithmic number of
+        /// divisions (by 10, 10^2, 10^4, ...) rather than one division per
+        /// digit, so a wire supplied scale cannot force tens of thousands of
+        /// full size divisions.
+        /// </summary>
+        private static BigInteger StripTrailingZeros(
+            BigInteger value,
+            int maxZeros,
+            out int stripped)
+        {
+            stripped = 0;
+            if (value.IsZero || maxZeros <= 0)
+            {
+                return value;
+            }
+
+            // Upper bound for the number of decimal digits of the value. A
+            // divisor with more digits than that cannot divide it.
+            double digits = Math.Floor(BigInteger.Log10(BigInteger.Abs(value))) + 1;
+            var powers = new List<(int Step, BigInteger Power)>();
+            int step = 1;
+            BigInteger power = s_ten;
+            while (step <= maxZeros - stripped && step <= digits)
+            {
+                BigInteger quotient = BigInteger.DivRem(value, power, out BigInteger remainder);
                 if (!remainder.IsZero)
                 {
                     break;
                 }
-
-                unscaled = quotient;
-                scale--;
+                value = quotient;
+                stripped += step;
+                powers.Add((step, power));
+                step *= 2;
+                if (step > maxZeros - stripped || step > digits)
+                {
+                    break;
+                }
+                power *= power;
             }
 
-            // A negative scale means trailing zeroes the lexical space must
-            // spell out, because xs:decimal has no exponent notation.
-            while (scale < 0)
+            // The remaining trailing zeroes are fewer than the last step, so
+            // each smaller power is needed at most once.
+            for (int ii = powers.Count - 1; ii >= 0; ii--)
             {
-                unscaled *= s_ten;
-                scale++;
+                (int smallerStep, BigInteger smallerPower) = powers[ii];
+                if (smallerStep > maxZeros - stripped)
+                {
+                    continue;
+                }
+                BigInteger quotient = BigInteger.DivRem(value, smallerPower, out BigInteger remainder);
+                if (remainder.IsZero)
+                {
+                    value = quotient;
+                    stripped += smallerStep;
+                }
             }
 
-            return new Decimal(unscaled, (short)scale);
+            return value;
+        }
+
+        /// <summary>
+        /// Returns the number represented modulo the prime 2^31-1. Equal
+        /// numbers have the same residue whatever their scale, because 10 is
+        /// invertible modulo the prime, and it costs one linear pass over the
+        /// unscaled value instead of a canonicalization.
+        /// </summary>
+        private long GetResidue()
+        {
+            long unscaled = (long)(UnscaledValue % kResiduePrime);
+            if (unscaled < 0)
+            {
+                unscaled += kResiduePrime;
+            }
+            // value = unscaled * 10^-scale = unscaled * (10^-1)^scale.
+            BigInteger factor = Scale >= 0
+                ? BigInteger.ModPow(s_tenInverse, Scale, kResiduePrime)
+                : BigInteger.ModPow(s_ten, -Scale, kResiduePrime);
+            return (long)(unscaled * factor % kResiduePrime);
         }
 
         /// <summary>
@@ -355,10 +433,34 @@ namespace Opc.Ua
             }
 
             // Equality is on the number represented, not on the spelling:
-            // 1.50 and 1.5 are the same value at different scales.
-            Decimal left = Canonicalize();
-            Decimal right = other.Canonicalize();
-            return left.Scale == right.Scale && left.UnscaledValue == right.UnscaledValue;
+            // 1.50 and 1.5 are the same value at different scales. The scales
+            // are wire controlled, so no canonicalization (one division per
+            // scale step) is done; instead both are brought to the same scale
+            // with a single multiplication after the cheap checks.
+            if (UnscaledValue.Sign != other.UnscaledValue.Sign)
+            {
+                return false;
+            }
+            if (UnscaledValue.IsZero || Scale == other.Scale)
+            {
+                return UnscaledValue == other.UnscaledValue;
+            }
+            if (GetResidue() != other.GetResidue())
+            {
+                return false;
+            }
+            Decimal coarse = Scale < other.Scale ? this : other;
+            Decimal fine = Scale < other.Scale ? other : this;
+            int difference = fine.Scale - coarse.Scale;
+            // The finer value has at least as many digits as the scale
+            // difference adds; a large gap in magnitude is not equal.
+            double coarseDigits = BigInteger.Log10(BigInteger.Abs(coarse.UnscaledValue));
+            double fineDigits = BigInteger.Log10(BigInteger.Abs(fine.UnscaledValue));
+            if (Math.Abs(coarseDigits + difference - fineDigits) > 1)
+            {
+                return false;
+            }
+            return coarse.UnscaledValue * BigInteger.Pow(s_ten, difference) == fine.UnscaledValue;
         }
 
         /// <inheritdoc/>
@@ -370,8 +472,9 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override int GetHashCode()
         {
-            Decimal canonical = Canonicalize();
-            return HashCode.Combine(canonical.UnscaledValue, canonical.Scale);
+            // The residue is scale independent, so equal numbers at different
+            // scales hash alike without canonicalizing.
+            return GetResidue().GetHashCode();
         }
 
         /// <summary>
@@ -527,6 +630,9 @@ namespace Opc.Ua
         }
 
         private static readonly BigInteger s_ten = new(10);
+        private const long kResiduePrime = int.MaxValue;
+        private static readonly BigInteger s_tenInverse =
+            BigInteger.ModPow(s_ten, kResiduePrime - 2, kResiduePrime);
 
         private static readonly ExpandedNodeId s_typeId = new(DataTypes.Decimal);
     }

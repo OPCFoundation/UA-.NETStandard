@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 using Moq;
 using NUnit.Framework;
 
@@ -633,6 +634,59 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 Assert.That(value.CompareTo(ByteString.Empty), Is.GreaterThan(0));
                 Assert.That(ByteString.Empty.CompareTo(Array.Empty<byte>()), Is.Zero);
             });
+        }
+
+        [Test]
+        public void DecimalEqualityAndHashWithExtremeScales()
+        {
+            // T2-7: equality and hashing canonicalized with one division
+            // (or multiplication) per scale step.
+            var sevenAtMaxScale = new Opc.Ua.Decimal(
+                BigInteger.Pow(10, short.MaxValue) * 7,
+                short.MaxValue);
+            var seven = new Opc.Ua.Decimal(7, 0);
+            var oneAtMinScale = new Opc.Ua.Decimal(BigInteger.One, short.MinValue);
+            var oneExpanded = new Opc.Ua.Decimal(BigInteger.Pow(10, -short.MinValue), 0);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(IsEqual(sevenAtMaxScale, seven), Is.True);
+                Assert.That(sevenAtMaxScale.GetHashCode(), Is.EqualTo(seven.GetHashCode()));
+                Assert.That(IsEqual(oneAtMinScale, oneExpanded), Is.True);
+                Assert.That(oneAtMinScale.GetHashCode(), Is.EqualTo(oneExpanded.GetHashCode()));
+                Assert.That(IsEqual(oneAtMinScale, seven), Is.False);
+                Assert.That(IsEqual(new Opc.Ua.Decimal(15, 1), new Opc.Ua.Decimal(150, 2)), Is.True);
+                Assert.That(IsEqual(new Opc.Ua.Decimal(15, 1), new Opc.Ua.Decimal(151, 2)), Is.False);
+                Assert.That(IsEqual(new Opc.Ua.Decimal(-15, 1), new Opc.Ua.Decimal(150, 2)), Is.False);
+                Assert.That(new Opc.Ua.Decimal(5, -3).Canonicalize().UnscaledValue, Is.EqualTo(new BigInteger(5000)));
+                Assert.That(new Opc.Ua.Decimal(100_000_000_000, 5).Canonicalize().UnscaledValue, Is.EqualTo(new BigInteger(1_000_000)));
+                Assert.That(new Opc.Ua.Decimal(100_000_000_000, 5).Canonicalize().Scale, Is.Zero);
+                Assert.That(new Opc.Ua.Decimal(1_500, 3).Canonicalize().Scale, Is.EqualTo((short)1));
+            });
+        }
+
+        [Test]
+        public void DecimalEqualityMatchesCanonicalFormForManyValues()
+        {
+            // T2-7: the scale independent comparison must agree with the
+            // canonical form for ordinary values.
+            var random = new Random(4242);
+            for (int ii = 0; ii < 500; ii++)
+            {
+                var left = new Opc.Ua.Decimal(
+                    new BigInteger(random.Next(-1000, 1000)) * BigInteger.Pow(10, random.Next(0, 6)),
+                    (short)random.Next(-4, 8));
+                var right = new Opc.Ua.Decimal(
+                    new BigInteger(random.Next(-1000, 1000)) * BigInteger.Pow(10, random.Next(0, 6)),
+                    (short)random.Next(-4, 8));
+                Opc.Ua.Decimal cl = left.Canonicalize();
+                Opc.Ua.Decimal cr = right.Canonicalize();
+                bool expected = cl.Scale == cr.Scale && cl.UnscaledValue == cr.UnscaledValue;
+
+                Assert.That(IsEqual(left, right), Is.EqualTo(expected), $"{left} == {right}");
+                Assert.That(IsEqual(left, cl), Is.True, $"{left} == {cl}");
+                Assert.That(left.GetHashCode(), Is.EqualTo(cl.GetHashCode()), $"{left} hash");
+            }
         }
 
         [Test]
