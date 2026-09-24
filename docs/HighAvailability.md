@@ -412,6 +412,8 @@ ArrayOf<TransferResult> results = await coordinator.TransferActiveSubscriptionsA
     ct);
 ```
 
+A transferred subscription needs a client-side owner on the backup session, otherwise the backup's publish engine sees an unknown `SubscriptionId` and deletes it (or never publishes and it expires). Prepare the backup before the takeover: restore the active client's subscriptions with `ISession.Load` (or add `Subscription` objects whose `TransferId` is the active client's subscription id and whose monitored items carry the same client handles). The coordinator then transfers those through the session, which binds them and resumes publishing; ids without a prepared subscription are still moved with the raw service and are left to the caller.
+
 OPC UA does not standardize how active and backup clients exchange `SessionId` or subscription ids. In this stack the client replica set coordinates through the registered client-side shared store (`AddRedundantClientSharedStore` / `AddRaftClientSharedStore` — a CRDT- or [Raft](https://raft.github.io/)-backed `ISharedKeyValueStore` that the `ClientReplicaCoordinator` consumes).
 
 ## Network redundancy (as per Part 4 §6.6.4)

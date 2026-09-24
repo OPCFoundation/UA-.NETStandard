@@ -316,6 +316,141 @@ namespace Opc.Ua.Client.Redundancy.Tests
                 "the coordinator must not be left holding the broken, half-reactivated session");
         }
 
+        [TestCase(ClientStandbyMode.Warm)]
+        [TestCase(ClientStandbyMode.Hot)]
+        public async Task DemotedWarmOrHotLeaderReplacesItsLeaderSessionWithAFreshStandbyAsync(
+            ClientStandbyMode mode)
+        {
+            using var store = new InMemorySharedKeyValueStore();
+            var endpoint = new ConfiguredEndpoint(null!, new EndpointDescription("opc.tcp://demote:4840"));
+            ManagedSession leaderSession = CreateManagedSessionForTokenReuse(endpoint, NodeId.Parse("s=auth"));
+            ManagedSession standbySession = CreateManagedSessionForTokenReuse(endpoint, NodeId.Parse("s=auth"));
+            int created = 0;
+            var configured = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var demoted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var election = new ControllableLeaderElection();
+
+            var options = new ClientReplicaOptions
+            {
+                Mode = mode,
+                EnableTokenReuse = false,
+                CreateSessionAsync = _ =>
+                {
+                    created++;
+                    return new ValueTask<ManagedSession>(created == 1 ? leaderSession : standbySession);
+                },
+                ConfigureLeaderAsync = (_, fastActivated, _) =>
+                {
+                    configured.TrySetResult(fastActivated);
+                    return default;
+                }
+            };
+            await using var coordinator = new ClientReplicaCoordinator(
+                options, election, store, NullRecordProtector.Instance, m_telemetry);
+            coordinator.RoleChanged += isLeader =>
+            {
+                if (!isLeader)
+                {
+                    demoted.TrySetResult(true);
+                }
+            };
+
+            await coordinator.StartAsync().ConfigureAwait(false);
+            election.SetLeader(true);
+            await configured.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            Assert.That(coordinator.CurrentSession, Is.SameAs(leaderSession));
+
+            // The leader loses the lease while still alive.
+            election.SetLeader(false);
+            await demoted.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+
+            Assert.That(
+                leaderSession.Disposed,
+                Is.True,
+                "the ex-leader must not keep running the leader session next to the new leader");
+            Assert.That(coordinator.CurrentSession, Is.SameAs(standbySession));
+            Assert.That(created, Is.EqualTo(2));
+        }
+
+        [Test]
+        public async Task TokenReusePromotionClosesTheFollowersOwnSessionBeforeAdoptingTheLeaderSessionAsync()
+        {
+            using var store = new InMemorySharedKeyValueStore();
+            using var seedSession = SessionMock.Create();
+            seedSession.SetConnected();
+            SetServerNonce(seedSession, [1, 2, 3, 4]);
+            using var stream = new MemoryStream();
+            seedSession.SaveSessionConfiguration(stream);
+            await store.SetAsync("client-replica/session", new ByteString(stream.ToArray())).ConfigureAwait(false);
+
+            ConfiguredEndpoint expectedEndpoint = seedSession.ConfiguredEndpoint;
+            var followerToken = NodeId.Parse("s=follower-auth");
+            var closedTokens = new List<(NodeId Token, bool DeleteSubscriptions)>();
+            ManagedSession followerSession = CreateManagedSessionForTokenReuse(
+                expectedEndpoint,
+                NodeId.Parse("s=auth"),
+                followerToken,
+                closedTokens);
+            var configured = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            var options = new ClientReplicaOptions
+            {
+                Mode = ClientStandbyMode.Warm,
+                EnableTokenReuse = true,
+                CreateSessionAsync = _ => new ValueTask<ManagedSession>(followerSession),
+                ConfigureLeaderAsync = (_, fastActivated, _) =>
+                {
+                    configured.TrySetResult(fastActivated);
+                    return default;
+                }
+            };
+            await using var coordinator = new ClientReplicaCoordinator(
+                options,
+                new StaticLeaderElection(true),
+                store,
+                NullRecordProtector.Instance,
+                m_telemetry);
+
+            await coordinator.StartAsync().ConfigureAwait(false);
+
+            bool fastActivated = await configured.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+
+            Assert.That(fastActivated, Is.True);
+            Assert.That(
+                closedTokens,
+                Has.Count.EqualTo(1),
+                "the follower's own server session must be closed, not orphaned");
+            Assert.That(closedTokens[0].Token, Is.EqualTo(followerToken));
+            Assert.That(closedTokens[0].DeleteSubscriptions, Is.True);
+        }
+
+        private sealed class ControllableLeaderElection : ILeaderElection
+        {
+            public bool IsLeader { get; private set; }
+
+            public event Action<bool> LeadershipChanged;
+
+            public void SetLeader(bool isLeader)
+            {
+                IsLeader = isLeader;
+                LeadershipChanged?.Invoke(isLeader);
+            }
+
+            public ValueTask<bool> TryAcquireOrRenewAsync(CancellationToken ct = default)
+            {
+                return new ValueTask<bool>(IsLeader);
+            }
+
+            public void Start()
+            {
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                return default;
+            }
+        }
+
         private sealed class FakeNetworkedStore : ISharedKeyValueStore
         {
             public ValueTask<(bool Found, ByteString Value)> TryGetAsync(string key, CancellationToken ct = default)
@@ -356,7 +491,9 @@ namespace Opc.Ua.Client.Redundancy.Tests
 
         private static ManagedSession CreateManagedSessionForTokenReuse(
             ConfiguredEndpoint endpoint,
-            NodeId expectedAuthenticationToken)
+            NodeId expectedAuthenticationToken,
+            NodeId ownAuthenticationToken = default,
+            List<(NodeId Token, bool DeleteSubscriptions)> closedTokens = null)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             ApplicationConfiguration configuration = new(telemetry)
@@ -398,6 +535,16 @@ namespace Opc.Ua.Client.Redundancy.Tests
                     DiagnosticInfos = []
                 }))
                 .Verifiable(Times.Once);
+            // The standby's own session still runs on its original channel until the
+            // mirrored reactivation builds a new one.
+            innerSession.Channel
+                .Setup(c => c.SendRequestAsync(It.IsAny<CloseSessionRequest>(), It.IsAny<CancellationToken>()))
+                .Returns((IServiceRequest request, CancellationToken _) =>
+                {
+                    var close = (CloseSessionRequest)request;
+                    closedTokens?.Add((close.RequestHeader.AuthenticationToken, close.DeleteSubscriptions));
+                    return new ValueTask<IServiceResponse>(new CloseSessionResponse());
+                });
             var channelManager = new Mock<IClientChannelManager>();
             channelManager
                 .Setup(m => m.GetAsync(
@@ -412,6 +559,10 @@ namespace Opc.Ua.Client.Redundancy.Tests
                     "BindManagedChannel",
                     BindingFlags.NonPublic | BindingFlags.Instance)!
                 .Invoke(innerSession, [channelManager.Object, managedChannel.Object]);
+            if (!ownAuthenticationToken.IsNull)
+            {
+                innerSession.SessionCreated(NodeId.Parse("s=follower-session"), ownAuthenticationToken);
+            }
 
             ManagedSession managedSession = CreateManagedSessionWithInner(
                 configuration,
