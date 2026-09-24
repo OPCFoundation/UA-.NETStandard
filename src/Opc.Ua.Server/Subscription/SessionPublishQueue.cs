@@ -154,6 +154,7 @@ namespace Opc.Ua.Server
                 // queued request is failed instead (OPC 10000-4, 5.14.5.1). Completion
                 // retires admission before exposing the completed task.
                 if (!requeue &&
+                    m_queuedRequests.Count > 0 &&
                     Volatile.Read(ref m_pendingRequestCount) >= GetMaxRequestCount())
                 {
                     FailOldestRequest();
@@ -900,25 +901,18 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// De-queues the oldest live Publish request and fails it with
+        /// De-queues the oldest Publish request and fails it with
         /// Bad_TooManyPublishRequests to make room for a new request.
         /// </summary>
         private void FailOldestRequest()
         {
-            while (m_queuedRequests.Count > 0)
-            {
-                QueuedPublishRequest request = m_queuedRequests.First!.Value;
-                m_queuedRequests.RemoveFirst();
+            QueuedPublishRequest request = m_queuedRequests.First!.Value;
+            m_queuedRequests.RemoveFirst();
 
-                // A request completed concurrently already released its admission slot.
-                bool failed = request.TrySetException(
-                    new ServiceResultException(StatusCodes.BadTooManyPublishRequests));
-                request.Dispose();
-                if (failed)
-                {
-                    return;
-                }
-            }
+            // If the request completed concurrently (cancelled or timed out) it already
+            // released its admission slot, so the new request still fits the limit.
+            request.TrySetException(new ServiceResultException(StatusCodes.BadTooManyPublishRequests));
+            request.Dispose();
         }
 
         /// <summary>
