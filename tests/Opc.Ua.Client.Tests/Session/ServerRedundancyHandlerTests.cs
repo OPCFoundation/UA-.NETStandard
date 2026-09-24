@@ -111,12 +111,20 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             ConfiguredEndpoint available = CreateEndpoint("urn:available", "opc.tcp://available:4840");
             var blocked = new TaskCompletionSource<ConfiguredEndpoint?>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
+            var secondLookup = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int lookups = 0;
             m_resolver.Setup(resolver => resolver.ResolveAsync(
                     "urn:offline", It.IsAny<ConfiguredEndpoint>(), It.IsAny<CancellationToken>()))
                 .Returns((string _, ConfiguredEndpoint _, CancellationToken ct) =>
-                    new ValueTask<ConfiguredEndpoint?>(ignoreCancellation
+                {
+                    if (Interlocked.Increment(ref lookups) == 2)
+                    {
+                        secondLookup.TrySetResult(true);
+                    }
+                    return new ValueTask<ConfiguredEndpoint?>(ignoreCancellation
                         ? blocked.Task
-                        : blocked.Task.WaitAsync(ct)));
+                        : blocked.Task.WaitAsync(ct));
+                });
             m_resolver.Setup(resolver => resolver.ResolveAsync(
                     "urn:available", It.IsAny<ConfiguredEndpoint>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(available);
@@ -145,6 +153,13 @@ namespace Opc.Ua.Client.Tests.ManagedSession
 
                 Task<ServerRedundancyInfo> retry = cache.ResolveCachedEndpointsAsync(
                     resolved, session.Object.ConfiguredEndpoint, CancellationToken.None).AsTask();
+                if (!ignoreCancellation)
+                {
+                    // The timed-out lookup drains on the thread pool, so the retry may first join it and only
+                    // start its own lookup once it has drained. Advancing the clock before then would expire
+                    // the retry's bound too, so wait for the fresh lookup.
+                    await secondLookup.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
                 time.Advance(TimeSpan.FromSeconds(2));
                 await retry.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
                 m_resolver.Verify(resolver => resolver.ResolveAsync(
