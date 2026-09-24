@@ -377,6 +377,160 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             Assert.That(Filter(equals, bitwise).Evaluate(m_context, m_target), Is.True);
         }
 
+        /// <summary>
+        /// OPC 10000-4 7.7.3: an element with a NULL operand evaluates to NULL
+        /// (not to an ordered comparison with NULL sorted first).
+        /// </summary>
+        [TestCase(FilterOperator.Equals, true, true)]
+        [TestCase(FilterOperator.Equals, true, false)]
+        [TestCase(FilterOperator.GreaterThan, true, false)]
+        [TestCase(FilterOperator.GreaterThan, false, true)]
+        [TestCase(FilterOperator.GreaterThanOrEqual, true, false)]
+        [TestCase(FilterOperator.GreaterThanOrEqual, false, true)]
+        [TestCase(FilterOperator.LessThan, true, false)]
+        [TestCase(FilterOperator.LessThan, false, true)]
+        [TestCase(FilterOperator.LessThanOrEqual, true, false)]
+        [TestCase(FilterOperator.LessThanOrEqual, false, true)]
+        public void RelationalOperatorWithNullOperandIsNull(
+            FilterOperator op,
+            bool lhsNull,
+            bool rhsNull)
+        {
+            Variant lhs = lhsNull ? Variant.Null : Variant.From(100.0);
+            Variant rhs = rhsNull ? Variant.Null : Variant.From(100.0);
+            ContentFilterElement compare = Element(
+                op,
+                new LiteralOperand(lhs),
+                new LiteralOperand(rhs));
+
+            // the element result itself is NULL, so it neither passes nor
+            // turns into TRUE when negated.
+            Assert.That(BinaryFilter(op, lhs, rhs).Evaluate(m_context, m_target), Is.False);
+            Assert.That(
+                Filter(Element(FilterOperator.IsNull, new ElementOperand(1)), compare)
+                    .Evaluate(m_context, m_target),
+                Is.True);
+            Assert.That(
+                Filter(Element(FilterOperator.Not, new ElementOperand(1)), compare)
+                    .Evaluate(m_context, m_target),
+                Is.False);
+        }
+
+        [Test]
+        public void LessThanMissingFieldDoesNotPassFilter()
+        {
+            // A field missing from the event resolves to NULL; NULL < 100 must
+            // not be TRUE.
+            Assert.That(
+                BinaryFilter(FilterOperator.LessThan, Variant.Null, Variant.From(100.0))
+                    .Evaluate(m_context, m_target),
+                Is.False);
+        }
+
+        [TestCase(true, false, false)]
+        [TestCase(false, true, false)]
+        [TestCase(false, false, true)]
+        public void BetweenWithNullOperandIsNull(bool valueNull, bool minNull, bool maxNull)
+        {
+            ContentFilterElement between = Element(
+                FilterOperator.Between,
+                new LiteralOperand(valueNull ? Variant.Null : Variant.From(5)),
+                new LiteralOperand(minNull ? Variant.Null : Variant.From(1)),
+                new LiteralOperand(maxNull ? Variant.Null : Variant.From(10)));
+            Assert.That(Filter(between).Evaluate(m_context, m_target), Is.False);
+            Assert.That(
+                Filter(Element(FilterOperator.IsNull, new ElementOperand(1)), between)
+                    .Evaluate(m_context, m_target),
+                Is.True);
+        }
+
+        [Test]
+        public void InListWithNullValueIsNull()
+        {
+            ContentFilterElement inList = Element(
+                FilterOperator.InList,
+                new LiteralOperand(Variant.Null),
+                new LiteralOperand(Variant.Null),
+                new LiteralOperand(Variant.From(1)));
+            Assert.That(
+                Filter(Element(FilterOperator.IsNull, new ElementOperand(1)), inList)
+                    .Evaluate(m_context, m_target),
+                Is.True);
+        }
+
+        [Test]
+        public void InListWithNullEntryAndNoMatchIsNull()
+        {
+            ContentFilterElement inList = Element(
+                FilterOperator.InList,
+                new LiteralOperand(Variant.From(1)),
+                new LiteralOperand(Variant.Null),
+                new LiteralOperand(Variant.From(2)));
+            Assert.That(
+                Filter(Element(FilterOperator.IsNull, new ElementOperand(1)), inList)
+                    .Evaluate(m_context, m_target),
+                Is.True);
+        }
+
+        [Test]
+        public void InListWithNullEntryAndMatchYieldsTrue()
+        {
+            ContentFilterElement inList = Element(
+                FilterOperator.InList,
+                new LiteralOperand(Variant.From(1)),
+                new LiteralOperand(Variant.Null),
+                new LiteralOperand(Variant.From(1)));
+            Assert.That(Filter(inList).Evaluate(m_context, m_target), Is.True);
+        }
+
+        /// <summary>
+        /// OPC 10000-4 7.7.3: the bitwise result matches the size of the largest
+        /// operand.
+        /// </summary>
+        [TestCase(FilterOperator.BitwiseOr, 0x101u)]
+        [TestCase(FilterOperator.BitwiseAnd, 0x0u)]
+        public void BitwiseResultHasSizeOfLargestOperand(FilterOperator op, uint expected)
+        {
+            ContentFilterElement equals = Element(
+                FilterOperator.Equals,
+                new ElementOperand(1),
+                new LiteralOperand(Variant.From(expected)));
+            ContentFilterElement bitwise = Element(
+                op,
+                new LiteralOperand(Variant.From((byte)0x01)),
+                new LiteralOperand(Variant.From(0x100u)));
+            Assert.That(Filter(equals, bitwise).Evaluate(m_context, m_target), Is.True);
+        }
+
+        [TestCase(FilterOperator.BitwiseAnd)]
+        [TestCase(FilterOperator.BitwiseOr)]
+        public void BitwiseWithNonIntegerOperandsIsNull(FilterOperator op)
+        {
+            ContentFilterElement bitwise = Element(
+                op,
+                new LiteralOperand(Variant.From(true)),
+                new LiteralOperand(Variant.From(true)));
+            Assert.That(
+                Filter(Element(FilterOperator.IsNull, new ElementOperand(1)), bitwise)
+                    .Evaluate(m_context, m_target),
+                Is.True);
+        }
+
+        [Test]
+        public void GreaterThanOrdersStringsOrdinally()
+        {
+            // 'a' (0x61) sorts after 'B' (0x42) ordinally; a culture aware
+            // comparison puts "a" first.
+            Assert.That(
+                BinaryFilter(FilterOperator.GreaterThan, Variant.From("a"), Variant.From("B"))
+                    .Evaluate(m_context, m_target),
+                Is.True);
+            Assert.That(
+                BinaryFilter(FilterOperator.LessThan, Variant.From("a"), Variant.From("B"))
+                    .Evaluate(m_context, m_target),
+                Is.False);
+        }
+
         [Test]
         public void OfTypeWithNonNodeIdOperandYieldsFalse()
         {

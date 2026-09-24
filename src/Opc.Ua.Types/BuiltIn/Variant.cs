@@ -7461,7 +7461,7 @@ namespace Opc.Ua
             if (TryGetIntegerBits(lhs, out ulong lhsBits) &&
                 TryGetIntegerBits(rhs, out ulong rhsBits))
             {
-                return FromIntegerBits(lhs.m_typeInfo, lhsBits & rhsBits, lhs.m_value);
+                return FromIntegerBits(lhs, rhs, lhsBits & rhsBits);
             }
             return default;
         }
@@ -7479,7 +7479,7 @@ namespace Opc.Ua
             if (TryGetIntegerBits(lhs, out ulong lhsBits) &&
                 TryGetIntegerBits(rhs, out ulong rhsBits))
             {
-                return FromIntegerBits(lhs.m_typeInfo, lhsBits | rhsBits, lhs.m_value);
+                return FromIntegerBits(lhs, rhs, lhsBits | rhsBits);
             }
             return default;
         }
@@ -7505,8 +7505,36 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Narrows the result of a bitwise operation back into the type of the
-        /// left hand operand instead of widening it to Int32.
+        /// Narrows the result of a bitwise operation into the type of the larger
+        /// operand (OPC 10000-4 7.7.3: the result matches the size of the largest
+        /// operand). Operands of the same size keep the left hand operand's type.
+        /// </summary>
+        private static Variant FromIntegerBits(Variant lhs, Variant rhs, ulong bits)
+        {
+            Variant result =
+                GetIntegerSize(rhs.m_typeInfo.BuiltInType) >
+                GetIntegerSize(lhs.m_typeInfo.BuiltInType) ? rhs : lhs;
+            return FromIntegerBits(result.m_typeInfo, bits, result.m_value);
+        }
+
+        /// <summary>
+        /// Size in bytes of an integer built in type, 0 for other types.
+        /// </summary>
+        private static int GetIntegerSize(BuiltInType builtInType)
+        {
+            return builtInType switch
+            {
+                BuiltInType.SByte or BuiltInType.Byte => 1,
+                BuiltInType.Int16 or BuiltInType.UInt16 => 2,
+                BuiltInType.Int32 or BuiltInType.UInt32 or BuiltInType.Enumeration => 4,
+                BuiltInType.Int64 or BuiltInType.UInt64 => 8,
+                _ => 0
+            };
+        }
+
+        /// <summary>
+        /// Narrows the bits of a bitwise operation into the given integer type
+        /// instead of widening it to Int32.
         /// </summary>
         private static Variant FromIntegerBits(TypeInfo typeInfo, ulong bits, object? source)
         {
@@ -7608,7 +7636,16 @@ namespace Opc.Ua
             {
                 return int.MinValue;
             }
-            if (GetStoredValue() is IComparable lhs && other.GetStoredValue() is IComparable rhs)
+            object? lhsValue = GetStoredValue();
+            object? rhsValue = other.GetStoredValue();
+            if (lhsValue is string lhsString && rhsValue is string rhsString)
+            {
+                // IComparable.CompareTo on string uses the current culture, so the
+                // order (and filter results) would depend on the process locale
+                // and disagree with the case sensitive, ordinal equality.
+                return Math.Sign(string.CompareOrdinal(lhsString, rhsString));
+            }
+            if (lhsValue is IComparable lhs && rhsValue is IComparable rhs)
             {
                 return lhs.CompareTo(rhs);
             }

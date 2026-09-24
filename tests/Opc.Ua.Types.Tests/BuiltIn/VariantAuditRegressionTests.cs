@@ -443,8 +443,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             Assert.Multiple(() =>
             {
-                Assert.That((lhs & rhs).GetByte(), Is.Zero);
-                Assert.That((lhs | rhs).GetByte(), Is.EqualTo((byte)0xFF));
+                // The result takes the size of the larger operand.
+                Assert.That((lhs & rhs).GetInt32(), Is.Zero);
+                Assert.That((lhs | rhs).GetInt32(), Is.EqualTo(0x01FF));
 
                 // A non integer right hand operand is not usable at all.
                 Assert.That((lhs & new Variant("text")).IsNull, Is.True);
@@ -465,6 +466,36 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 Assert.That(
                     (new Variant((ushort)0xFF00) | new Variant((ushort)0x00FF)).GetUInt16(),
                     Is.EqualTo((ushort)0xFFFF));
+            });
+        }
+
+        [Test]
+        public void BitwiseOperatorsWidenToTheLargerOperandType()
+        {
+            // OPC 10000-4 7.7.3: the result matches the size of the largest
+            // operand, so bits of a wider right hand operand are not lost.
+            Variant or = new Variant((byte)0x01) | new Variant(0x100u);
+            Variant and = new Variant((short)-1) & new Variant(0x1_0000_000FL);
+            Assert.Multiple(() =>
+            {
+                Assert.That(or.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.UInt32));
+                Assert.That(or.GetUInt32(), Is.EqualTo(0x101u));
+                Assert.That(and.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Int64));
+                Assert.That(and.GetInt64(), Is.EqualTo(0x1_0000_000FL));
+            });
+        }
+
+        [Test]
+        public void CompareToOrdersStringsOrdinally()
+        {
+            // string.CompareTo(object) is culture aware: "a" sorts before "B"
+            // there, but after it ordinally.
+            Assert.Multiple(() =>
+            {
+                Assert.That(new Variant("a").CompareTo(new Variant("B")), Is.EqualTo(1));
+                Assert.That(new Variant("B").CompareTo(new Variant("a")), Is.EqualTo(-1));
+                Assert.That(new Variant("a­b").CompareTo(new Variant("ab")), Is.Not.Zero);
+                Assert.That(new Variant("ab").CompareTo(new Variant("ab")), Is.Zero);
             });
         }
 

@@ -447,8 +447,8 @@ namespace Opc.Ua
             Variant lhs = GetValue(operands[0]);
             Variant rhs = GetValue(operands[1]);
 
-            // an element with a null operand evaluates to NULL (§7.7.3).
-            if (IsNullValue(lhs) || IsNullValue(rhs))
+            // the operands must resolve to integers, anything else is NULL.
+            if (!IsIntegerOperand(lhs) || !IsIntegerOperand(rhs))
             {
                 return default;
             }
@@ -466,13 +466,27 @@ namespace Opc.Ua
             Variant lhs = GetValue(operands[0]);
             Variant rhs = GetValue(operands[1]);
 
-            // an element with a null operand evaluates to NULL (§7.7.3).
-            if (IsNullValue(lhs) || IsNullValue(rhs))
+            // the operands must resolve to integers, anything else is NULL.
+            if (!IsIntegerOperand(lhs) || !IsIntegerOperand(rhs))
             {
                 return default;
             }
 
             return lhs | rhs;
+        }
+
+        /// <summary>
+        /// Whether a bitwise operand is an integer scalar (OPC 10000-4 7.7.3).
+        /// </summary>
+        private static bool IsIntegerOperand(Variant value)
+        {
+            return value.TypeInfo.IsScalar &&
+                value.TypeInfo.BuiltInType is
+                    BuiltInType.SByte or BuiltInType.Byte or
+                    BuiltInType.Int16 or BuiltInType.UInt16 or
+                    BuiltInType.Int32 or BuiltInType.UInt32 or
+                    BuiltInType.Int64 or BuiltInType.UInt64 or
+                    BuiltInType.Enumeration;
         }
 
         /// <summary>
