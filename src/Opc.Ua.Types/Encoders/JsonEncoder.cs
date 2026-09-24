@@ -2501,6 +2501,7 @@ namespace Opc.Ua
         private void StartArray(int count)
         {
             CheckArrayLength(count);
+            CheckNestingLevel();
             MaybeFlush();
             m_writer.WriteStartArray();
         }
@@ -2549,8 +2550,10 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private void CheckNestingLevel()
         {
-            // check the nesting level for avoiding a stack overflow.
-            if (m_writer.CurrentDepth > Context.MaxEncodingNestingLevels)
+            // check the nesting level for avoiding a stack overflow. The
+            // container about to be opened must stay within the MaxDepth the
+            // JsonDecoder parses with (MaxEncodingNestingLevels).
+            if (m_writer.CurrentDepth >= Context.MaxEncodingNestingLevels)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,

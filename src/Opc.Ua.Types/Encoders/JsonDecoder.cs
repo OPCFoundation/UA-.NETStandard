@@ -2816,12 +2816,26 @@ namespace Opc.Ua
                                 case 1: // binary
                                     if (TryGetByteStringFromElement(uaBody, out ByteString bytes))
                                     {
-                                        using var decoder = new BinaryDecoder(bytes.ToArray(), Context);
+                                        byte[] body = bytes.ToArray();
+                                        using var decoder = new BinaryDecoder(body, Context);
+
+                                        // The embedded body continues this message's
+                                        // nesting budget (approximated by the JSON
+                                        // element depth) and spans the whole buffer.
                                         decoder.InheritDecodingState(
                                             m_namespaceMappings,
                                             m_serverMappings,
-                                            0);
+                                            (uint)m_stack.Count,
+                                            body.Length);
                                         value = decoder.ReadEncodeable<T>(null, typeId);
+                                        if (decoder.Position != body.Length)
+                                        {
+                                            throw ServiceResultException.Create(
+                                                StatusCodes.BadDecodingError,
+                                                "Binary UaBody of type {0} has {1} unused byte(s).",
+                                                typeId,
+                                                body.Length - decoder.Position);
+                                        }
                                         return true;
                                     }
                                     break;
@@ -2837,7 +2851,7 @@ namespace Opc.Ua
                                         decoder.InheritDecodingState(
                                             m_namespaceMappings,
                                             m_serverMappings,
-                                            0);
+                                            (uint)m_stack.Count);
                                         decoder.PushNamespace(xmlElement.NamespaceURI);
                                         value = decoder.ReadEncodeable<T>(xmlElement.LocalName, typeId);
                                         decoder.PopNamespace();
