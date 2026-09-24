@@ -609,6 +609,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(pool.DuplicateReturnCount, Is.Zero);
             Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
             Assert.That(budget.ReservedBytes, Is.Zero);
+            Assert.That(pool.ReturnCount, Is.EqualTo(pool.RentCount));
         }
 
         [TestCase(true)]
@@ -1103,6 +1104,35 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 fault.ResponseHeader.ServiceResult,
                 Is.EqualTo((StatusCode)StatusCodes.BadSecurityPolicyRejected));
             Assert.That(fault.ResponseHeader.RequestHandle, Is.EqualTo(815u));
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task DiscoveryQuotaRejectionDoesNotSendAServiceFaultAfterClosureAsync(bool isFinal)
+        {
+            var pool = new TrackingArrayPool();
+            var budget = new ChunkReassemblyBudget(1024 * 1024);
+            using TestServerChannel channel = CreateOpenChannel(pool, budget: budget);
+            channel.MakeDiscoveryOnlyForTest();
+            var transport = new GateByteTransport(1, captureSentChunks: true);
+            transport.Complete();
+            channel.SetTransport(transport);
+            byte[] body = BinaryEncoder.EncodeMessage(
+                new ReadRequest { RequestHeader = new RequestHeader { RequestHandle = 815 } },
+                ServiceMessageContext.Create(NUnitTelemetryContext.Create()));
+            channel.SetMaxRequestMessageSizeForTest(body.Length - 1);
+
+            await channel.FeedReceivedChunkAsync(
+                channel.CreateRequestChunkForTest(TcpMessageType.Message, isFinal, 1, 5, body: body))
+                .ConfigureAwait(false);
+
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+            Assert.That(pool.RentCount, Is.EqualTo(1), "A rejected request must not allocate an outgoing fault.");
+            Assert.That(pool.ReturnCount, Is.EqualTo(pool.RentCount));
+            Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+            Assert.That(budget.ReservedBytes, Is.Zero);
+            Assert.That(transport.LastSentChunk, Is.Null);
         }
 
         /// <summary>

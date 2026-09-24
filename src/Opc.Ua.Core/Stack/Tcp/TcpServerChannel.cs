@@ -1874,6 +1874,10 @@ namespace Opc.Ua.Bindings
                 // every request; read it before the body changes hands.
                 uint requestHandle = RequestHandleReader.FromBinary(messageBody);
                 chunksToProcess = GetSavedChunks(requestId, messageBody, true, gateHeld: true);
+                if (State == TcpChannelState.Closed)
+                {
+                    return false;
+                }
                 SendServiceFault(
                     token,
                     requestId,

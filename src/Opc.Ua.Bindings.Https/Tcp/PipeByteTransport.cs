@@ -63,7 +63,7 @@ namespace Opc.Ua.Bindings
     /// not dialed outbound by the transport.
     /// </para>
     /// </remarks>
-    internal sealed class PipeByteTransport : IUaSCByteTransport, IDisposable
+    internal sealed class PipeByteTransport : IUaSCByteTransport, IUaSCByteTransportLimits, IDisposable
     {
         public PipeByteTransport(
             ConnectionContext connection,
@@ -154,6 +154,7 @@ namespace Opc.Ua.Bindings
         public async ValueTask<ArraySegment<byte>> ReceiveChunkAsync(CancellationToken ct)
         {
             PipeReader reader = m_connection.Transport.Input;
+            int receiveBufferSize = Volatile.Read(ref m_receiveBufferSize);
             byte[]? rented = null;
             try
             {
@@ -187,14 +188,14 @@ namespace Opc.Ua.Bindings
                             "Invalid UASC chunk size {0}.",
                             size);
                     }
-                    if (size > m_receiveBufferSize)
+                    if (size > receiveBufferSize)
                     {
                         reader.AdvanceTo(buffer.End);
                         throw ServiceResultException.Create(
                             StatusCodes.BadTcpMessageTooLarge,
                             "UASC chunk size {0} exceeds receive buffer size {1}.",
                             size,
-                            m_receiveBufferSize);
+                            receiveBufferSize);
                     }
 
                     if (buffer.Length < size)
@@ -253,6 +254,16 @@ namespace Opc.Ua.Bindings
             }
         }
 
+        /// <inheritdoc/>
+        void IUaSCByteTransportLimits.SetReceiveBufferSize(int receiveBufferSize)
+        {
+            if (receiveBufferSize <= TcpMessageLimits.MessageTypeAndSize)
+            {
+                throw new ArgumentOutOfRangeException(nameof(receiveBufferSize));
+            }
+            Volatile.Write(ref m_receiveBufferSize, receiveBufferSize);
+        }
+
         public void Close()
         {
             if (Interlocked.Exchange(ref m_closed, 1) != 0)
@@ -300,7 +311,7 @@ namespace Opc.Ua.Bindings
 
         private readonly ConnectionContext m_connection;
         private readonly BufferManager m_bufferManager;
-        private readonly int m_receiveBufferSize;
+        private int m_receiveBufferSize;
         private readonly ILogger m_logger;
         private readonly SemaphoreSlim m_sendLock;
         private int m_closed;

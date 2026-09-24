@@ -140,6 +140,21 @@ namespace Opc.Ua.Bindings
         public long ReservedBytes => Interlocked.Read(ref m_reservedBytes);
 
         /// <summary>
+        /// Creates a reassembly budget from the endpoint's maximum message size.
+        /// </summary>
+        /// <param name="configuration">
+        /// The endpoint configuration, or null to use the default transport message size.
+        /// </param>
+        /// <returns>
+        /// A new budget with half of its capacity available to channels without an activated session.
+        /// </returns>
+        public static ChunkReassemblyBudget CreateDefault(EndpointConfiguration? configuration)
+        {
+            int maxMessageSize = configuration?.MaxMessageSize ?? TcpMessageLimits.DefaultMaxMessageSize;
+            return new ChunkReassemblyBudget(GetDefaultMaxBytes(maxMessageSize));
+        }
+
+        /// <summary>
         /// Returns the budget a listener uses when none is configured.
         /// </summary>
         /// <param name="maxMessageSize">

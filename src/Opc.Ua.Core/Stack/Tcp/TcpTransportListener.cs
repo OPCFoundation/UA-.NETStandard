@@ -443,7 +443,7 @@ namespace Opc.Ua.Bindings
             // negotiated maximum message size alive by never sending a final
             // chunk, and enough connections exhaust the memory of the process.
             m_quotas.ChunkReassemblyBudget = settings.ChunkReassemblyBudget ??
-                new ChunkReassemblyBudget(ChunkReassemblyBudget.GetDefaultMaxBytes(m_quotas.MaxMessageSize));
+                global::Opc.Ua.Bindings.ChunkReassemblyBudget.CreateDefault(configuration);
 
             // save the server certificate.
             m_serverCertificates = settings.ServerCertificates!;

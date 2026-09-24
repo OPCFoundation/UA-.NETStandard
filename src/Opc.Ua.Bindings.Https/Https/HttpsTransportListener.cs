@@ -597,7 +597,7 @@ namespace Opc.Ua.Bindings
                 // The opc.wss channels assemble chunked messages like opc.tcp
                 // ones, so they are bounded by the same kind of budget.
                 ChunkReassemblyBudget = settings.ChunkReassemblyBudget ??
-                    new ChunkReassemblyBudget(ChunkReassemblyBudget.GetDefaultMaxBytes(configuration.MaxMessageSize))
+                    ChunkReassemblyBudget.CreateDefault(configuration)
             };
 
             // save the callback to the server.

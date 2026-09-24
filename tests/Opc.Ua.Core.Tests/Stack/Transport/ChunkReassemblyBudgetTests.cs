@@ -171,6 +171,32 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(ChunkReassemblyBudget.GetDefaultMaxBytes(maxMessageSize), Is.EqualTo(expected));
         }
 
+        [TestCase(0, ChunkReassemblyBudget.MaxDefaultMaxBytes)]
+        [TestCase(4 * 1024 * 1024, ChunkReassemblyBudget.MinDefaultMaxBytes)]
+        [TestCase(16 * 1024 * 1024, 256L * 1024 * 1024)]
+        public void DefaultFactoryUsesEndpointConfiguration(int maxMessageSize, long expected)
+        {
+            var configuration = EndpointConfiguration.Create();
+            configuration.MaxMessageSize = maxMessageSize;
+
+            ChunkReassemblyBudget budget = ChunkReassemblyBudget.CreateDefault(configuration);
+
+            Assert.That(budget.MaxBytes, Is.EqualTo(expected));
+            Assert.That(budget.MaxBytesWithoutSession, Is.EqualTo(expected / 2));
+            Assert.That(budget.ReservedBytes, Is.Zero);
+            Assert.That(ChunkReassemblyBudget.CreateDefault(configuration), Is.Not.SameAs(budget));
+        }
+
+        [Test]
+        public void DefaultFactoryUsesTransportDefaultsWithoutConfiguration()
+        {
+            ChunkReassemblyBudget budget = ChunkReassemblyBudget.CreateDefault(null);
+
+            Assert.That(budget.MaxBytes, Is.EqualTo(ChunkReassemblyBudget.MinDefaultMaxBytes));
+            Assert.That(budget.MaxBytesWithoutSession, Is.EqualTo(ChunkReassemblyBudget.MinDefaultMaxBytes / 2));
+            Assert.That(budget.ReservedBytes, Is.Zero);
+        }
+
         [Test]
         public void DefaultBudgetLetsAChannelWithoutASessionAssembleAMaximumMessage()
         {

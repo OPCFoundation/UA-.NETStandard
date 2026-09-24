@@ -154,7 +154,7 @@ services.AddOpcUa()
 When `MaxOutstandingBytesPerProcess` is positive, the singleton factory wraps every
 manager it creates with `LimitingBufferManager` and shares one
 `BufferManagerMemoryLimiter` across them. A rent waits synchronously for
-capacity without holding a manager lock. Use this optional policy only where
+capacity. Use this optional policy only where
 buffer returns can progress independently; it is not a substitute for the
 nonblocking server reassembly budget. A single rent whose conservative expected
 size exceeds the budget fails immediately rather than waiting forever.

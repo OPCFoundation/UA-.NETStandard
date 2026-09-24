@@ -836,7 +836,7 @@ single-chunk requests, response buffers, and client buffers are not charged to
 this reassembly budget.
 
 For workloads with many simultaneous large requests, set
-`WithChunkReassemblyBudget(maxBytes)` on the DI server builder or assign
+`WithChunkReassemblyBudget(maxBytes)` on the Dependency Injection (DI) server builder or assign
 `ServerBase.ChunkReassemblyBudget` before startup. A host opening listeners
 directly can share a budget through `TransportListenerSettings.ChunkReassemblyBudget`.
 See [incomplete messages](RateLimiting.md#incomplete-messages) for sizing and

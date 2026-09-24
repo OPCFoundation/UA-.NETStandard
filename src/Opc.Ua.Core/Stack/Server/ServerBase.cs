@@ -1047,8 +1047,8 @@ namespace Opc.Ua
                 // One budget for all the listeners, so that a peer cannot hold
                 // the budget of each by spreading its connections across them.
                 ChunkReassemblyBudget chunkReassemblyBudget = ChunkReassemblyBudget ??
-                    (m_defaultChunkReassemblyBudget ??= new ChunkReassemblyBudget(
-                        ChunkReassemblyBudget.GetDefaultMaxBytes(endpointConfiguration.MaxMessageSize)));
+                    (m_defaultChunkReassemblyBudget ??=
+                        global::Opc.Ua.Bindings.ChunkReassemblyBudget.CreateDefault(endpointConfiguration));
 
                 var settings = new TransportListenerSettings
                 {

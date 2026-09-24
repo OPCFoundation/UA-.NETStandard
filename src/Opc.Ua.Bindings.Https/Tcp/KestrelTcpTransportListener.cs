@@ -204,7 +204,7 @@ namespace Opc.Ua.Bindings
             }
             m_quotas.CertificateValidator = settings.CertificateValidator;
             m_quotas.ChunkReassemblyBudget = settings.ChunkReassemblyBudget ??
-                new ChunkReassemblyBudget(ChunkReassemblyBudget.GetDefaultMaxBytes(m_quotas.MaxMessageSize));
+                ChunkReassemblyBudget.CreateDefault(configuration);
 
             m_serverCertificates = settings.ServerCertificates!;
             m_bufferManager = new BufferManager(

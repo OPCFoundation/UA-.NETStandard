@@ -86,7 +86,8 @@ The default is sixteen times `TransportQuotas.MaxMessageSize`, clamped to
 messages. A configuration with unlimited message size receives a 1 GiB budget.
 Both the stack's 2 MiB and the reference server's 4 MiB message limits select
 **64 MiB**. `ChunkReassemblyBudget.GetDefaultMaxBytes(maxMessageSize)` returns
-this value.
+this value, and `ChunkReassemblyBudget.CreateDefault(configuration)` creates a
+budget from an `EndpointConfiguration` using the same sizing policy.
 
 Channels without an activated session may reserve only while total usage stays
 at or below `MaxBytesWithoutSession`, which defaults to half of `MaxBytes`.
