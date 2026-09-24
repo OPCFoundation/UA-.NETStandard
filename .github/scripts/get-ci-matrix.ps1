@@ -244,6 +244,20 @@ $mainlineProjects = @($allTestProjects | Where-Object { $MainlineExclusions -not
 $durableProjects = @($allTestProjects | Where-Object { (Split-Path $_ -Leaf) -eq $DurableProject })
 $solutions = Find-RepositoryFile '*.slnx'
 
+$assuranceCatalog = Get-Content -LiteralPath (
+    Join-Path $RepositoryRoot '.azurepipelines/assurance/profiles.json') -Raw | ConvertFrom-Json
+$assuranceProjects = @($assuranceCatalog.profiles |
+    Where-Object { $_.id -in @('security-net10', 'fuzz-replay-net10') } |
+    ForEach-Object { $_.jobs } | ForEach-Object {
+        [ordered]@{ id = $_.id; project = $_.project }
+    })
+$requiredProjects = @($assuranceProjects.project) + @($assuranceCatalog.additionalReplayProjects.project)
+foreach ($project in $requiredProjects) {
+    if ($mainlineProjects -cnotcontains $project) {
+        throw 'A required security or committed-public replay project is missing from discovery.'
+    }
+}
+
 if ($mainlineProjects.Count -eq 0) {
     throw "Discovery found no mainline test projects beneath '$RepositoryRoot'. A matrix that runs nothing would report success without testing anything."
 }
@@ -515,6 +529,8 @@ if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_OUTPUT)) {
     "batch_size=$batchSize" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
     "test_entry_count=$($testEntries.Count)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
     "build_entry_count=$($buildEntries.Count)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+    "assurance_projects=$(ConvertTo-Json -InputObject $assuranceProjects -Compress)" |
+        Out-File -FilePath $env:GITHUB_OUTPUT -Append
 }
 else {
     Write-Output $testsJson

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "repository": "OPCFoundation/UA-.NETStandard",
+  "workflow": ".github/workflows/nuget-publish.yml",
+  "runId": "42",
+  "ref": "refs/heads/master",
+  "commit": "1111111111111111111111111111111111111111",
+  "packageVersion": "2.0.0",
+  "packageCount": 0,
+  "symbolPackageCount": 0,
+  "debugPackageCount": 0,
+  "archives": []
+}

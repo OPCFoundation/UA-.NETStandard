@@ -978,11 +978,11 @@ namespace Opc.Ua.Schema.Model {
         private string stringIdField;
         
         private System.Guid guidIdField;
-        
+
         private bool guidIdFieldSpecified;
-        
+
         private byte[] opaqueIdField;
-        
+
         private uint writeAccessField;
         
         private uint partNoField;
@@ -1209,7 +1209,7 @@ namespace Opc.Ua.Schema.Model {
                 this.guidIdField = value;
             }
         }
-        
+
         /// <remarks/>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         public bool GuidIdSpecified {
@@ -1220,7 +1220,7 @@ namespace Opc.Ua.Schema.Model {
                 this.guidIdFieldSpecified = value;
             }
         }
-        
+
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute(DataType="base64Binary")]
         public byte[] OpaqueId {
@@ -1231,7 +1231,7 @@ namespace Opc.Ua.Schema.Model {
                 this.opaqueIdField = value;
             }
         }
-        
+
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
         [System.ComponentModel.DefaultValueAttribute(typeof(uint), "0")]

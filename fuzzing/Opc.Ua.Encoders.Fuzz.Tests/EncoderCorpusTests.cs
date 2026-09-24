@@ -148,6 +148,11 @@ namespace Opc.Ua.Fuzzing
             Assert.That(EncoderTestMessages.Encode(decoded, wire), Is.EqualTo(first));
         }
 
+        /// <summary>
+        /// Compares each copied, bucket-preserving corpus asset with its deterministic generator.
+        /// </summary>
+        /// <param name="seedName">The rich message seed to compare.</param>
+        /// <param name="wire">The encoding format and corresponding corpus bucket.</param>
         [TestCaseSource(nameof(PersistentRichCorpusCases))]
         public async Task CheckedInRichCorpusMatchesTheDeterministicGeneratorAsync(string seedName, string wire)
         {
@@ -155,11 +160,12 @@ namespace Opc.Ua.Fuzzing
             string path = Path.Combine(
                 AppContext.BaseDirectory,
                 "Testcases",
+                wire,
                 seedName.ToLowerInvariant() + "." + extension);
-            using var source = File.OpenRead(path);
+            using FileStream source = File.OpenRead(path);
             using var buffer = new MemoryStream();
             await source.CopyToAsync(buffer).ConfigureAwait(false);
-            ByteString actual = ByteString.From(buffer.ToArray());
+            var actual = ByteString.From(buffer.ToArray());
 
             // XmlWriter indents with Environment.NewLine, so generated XML is CRLF on
             // Windows and LF on Linux. The corpus is stored byte-for-byte (see

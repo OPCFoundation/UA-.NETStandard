@@ -45,7 +45,7 @@ jobs:
   - name: nugetpublicversion
     value: '$(NBGV_NuGetPackageVersion)'
   - name: signinglist
-    value: '.azurepipelines/signlist${{parameters.config}}.txt'
+    value: '.azurepipelines/nuget/signlist${{parameters.config}}.txt'
   steps:
   - task: UseDotNet@2
     displayName: 'Install .NET 10.0'
@@ -124,7 +124,7 @@ jobs:
     displayName: Validate source generator packages
     condition: and(succeeded(), eq('${{parameters.config}}', 'Release'))
     inputs:
-      filePath: '.azurepipelines/validate-source-generator-packages.ps1'
+      filePath: '.azurepipelines/nuget/validate-source-generator-packages.ps1'
       arguments: '-PackageDirectory "$(Build.ArtifactStagingDirectory)"'
   - task: NuGetCommand@2
     displayName: Pack Nuget Legacy Preview
@@ -175,7 +175,7 @@ jobs:
     name: packageVersionPolicy
     inputs:
       targetType: filePath
-      filePath: ./.azurepipelines/validate-nuget-package-set.ps1
+      filePath: ./.azurepipelines/nuget/validate-package-set.ps1
       arguments: '-PackageDirectory "$(Build.ArtifactStagingDirectory)" -ManifestPath "$(Build.ArtifactStagingDirectory)/package-set.json" -ExpectedVersion "$(NBGV_NuGetPackageVersion)"'
       pwsh: true
   - task: PowerShell@2

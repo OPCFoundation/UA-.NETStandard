@@ -1,0 +1,3 @@
+# Keep the licensed upstream assets byte-for-byte identical to their pinned source.
+spdx-2.3.schema.json -text
+spdx-2.3.LICENSE.txt -text

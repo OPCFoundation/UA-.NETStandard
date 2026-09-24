@@ -12,6 +12,21 @@ dotnet run --project samples\Isa95\MinimalIsa95Server\MinimalIsa95Server.csproj
 
 The server listens on `opc.tcp://localhost:62545/MinimalIsa95Server` by default (override with `--port`).
 
+## Trust and startup configuration
+
+Provision and trust both application certificates before connecting. The server
+rejects untrusted client certificates by default and does not expose SecurityPolicy
+None. For isolated development, `--auto-accept` (aliases `--autoaccept`, `-a`) accepts
+untrusted client certificates with a warning on stderr. Other certificate checks and
+message security remain enabled. Omission or explicit `false` keeps trust enforcement;
+JSON/configuration cannot enable this sample flag.
+
+`--help` has no host/PKI side effects. Unknown or malformed switches fail on stderr;
+`--port` accepts 1–65535. Named options override positional `key=value` settings,
+then forwarded host arguments and normal JSON/environment configuration. Forward
+other host switches after the sample's `--`, for example
+`--auto-accept=false -- --Logging:LogLevel:Default Warning`.
+
 ## What this sample demonstrates
 
 - Server registration via `services.AddOpcUa().AddServer(...).AddIsa95Server().ConfigureModel(...)`.

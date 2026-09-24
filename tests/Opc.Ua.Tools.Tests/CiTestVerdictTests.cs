@@ -120,47 +120,45 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
-        /// VSTest has more non-passing counters than failed/error/timeout. A
-        /// partial run can contain passing tests and still be inconclusive,
-        /// disconnected, not runnable, or unfinished. The executor must sum the
-        /// same complete set as the Azure gate before asking for a verdict.
+        /// The executor must use the strict sanitized proof rather than deciding
+        /// completion from aggregate counters alone.
         /// </summary>
         [Test]
-        public async Task ExecutorCountsEveryNonPassingTrxCounterAsync()
+        public async Task ExecutorRequiresStrictSanitizedResultProofAsync()
         {
             string executor = Path.Combine(FindRepositoryRoot(), ".github", "scripts", "run-dotnet-tests.ps1");
             string source = await File.ReadAllTextAsync(executor).ConfigureAwait(false);
             int start = source.IndexOf("function Measure-TestResults", StringComparison.Ordinal);
-            int end = source.IndexOf("\nfunction Get-CounterValue", start, StringComparison.Ordinal);
+            int end = source.IndexOf("\n$records =", start, StringComparison.Ordinal);
             Assert.That(start, Is.GreaterThanOrEqualTo(0));
             Assert.That(end, Is.GreaterThan(start));
             string measure = source[start..end];
 
-            string[] expected =
-            [
-                "failed",
-                "error",
-                "timeout",
-                "aborted",
-                "passedButRunAborted",
-                "inconclusive",
-                "notRunnable",
-                "disconnected",
-                "warning",
-                "completed",
-                "inProgress",
-                "pending"
-            ];
+            Assert.Multiple(() =>
+            {
+                Assert.That(measure, Does.Contain("'results.ps1'"));
+                Assert.That(measure, Does.Contain("-StrictTrx"));
+                Assert.That(measure, Does.Contain("$proof.status -ceq 'completed'"));
+                Assert.That(source, Does.Contain("-ReportsCompleted $results.Completed"));
+            });
+        }
+
+        /// <summary>
+        /// Passing counters cannot excuse an aborted report or run-level error.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(1)]
+        public async Task UnverifiedCompletionRejectsGreenCountersAsync(int exitCode)
+        {
+            Verdict verdict = await InvokeAsync(
+                trxFileCount: 1, total: 256, passed: 256, failed: 0, exitCode: exitCode,
+                timedOut: false, reportsCompleted: false).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
-                foreach (string counter in expected)
-                {
-                    Assert.That(
-                        measure,
-                        Does.Contain($"'{counter}'"),
-                        $"Measure-TestResults must reject the TRX '{counter}' counter.");
-                }
+                Assert.That(verdict.Passed, Is.False);
+                Assert.That(verdict.Tolerated, Is.False);
+                Assert.That(verdict.Reason, Does.Contain("do not prove completed"));
             });
         }
 
@@ -309,7 +307,8 @@ namespace Opc.Ua.Tools.Tests
             int failed,
             int exitCode,
             bool timedOut,
-            int timeoutMinutes = 30)
+            int timeoutMinutes = 30,
+            bool reportsCompleted = true)
         {
             string root = FindRepositoryRoot();
             string script = Path.Combine(root, ".github", "scripts", "get-test-verdict.ps1");
@@ -319,7 +318,7 @@ namespace Opc.Ua.Tools.Tests
             string command = string.Format(
                 CultureInfo.InvariantCulture,
                 ". '{0}'; Get-TestRunVerdict -TrxFileCount {1} -Total {2} -Passed {3} -Failed {4} -ExitCode {5} " +
-                "-TimedOut ${6} -TimeoutMinutes {7} | ConvertTo-Json -Compress",
+                "-TimedOut ${6} -TimeoutMinutes {7} -ReportsCompleted ${8} | ConvertTo-Json -Compress",
                 script.Replace("'", "''", StringComparison.Ordinal),
                 trxFileCount,
                 total,
@@ -327,7 +326,8 @@ namespace Opc.Ua.Tools.Tests
                 failed,
                 exitCode,
                 timedOut ? "true" : "false",
-                timeoutMinutes);
+                timeoutMinutes,
+                reportsCompleted ? "true" : "false");
 
             using var process = new Process();
             process.StartInfo.FileName = "pwsh";

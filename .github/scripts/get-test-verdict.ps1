@@ -11,12 +11,9 @@
     file lets it be tested without building or running anything.
 
     The emitted TRX decides the verdict, not the 'dotnet test' exit code. A
-    non-zero exit is tolerated when - and only when - the results record at least
-    one *passing* test and no failure of any kind, which means the host died
-    during process exit after the last test and every teardown had already run.
-    This matches the Azure gate in .azurepipelines/test.yml. A host that dies
-    mid-run leaves a non-zero failed/aborted/passedButRunAborted counter and is
-    rejected, and a suite whose tests were all skipped is rejected as well.
+    non-zero exit is tolerated only after the strict TRX evaluator established
+    completed reports with consistent counters, recorded results and no run-level
+    errors. Green aggregate counters alone cannot establish completion.
 #>
 
 <#
@@ -48,6 +45,9 @@
  .PARAMETER TimeoutMinutes
     The ceiling that was applied, used only to phrase the reason.
 
+ .PARAMETER ReportsCompleted
+    Whether strict validation of the actual result documents succeeded.
+
  .OUTPUTS
     An object with Passed (bool), Tolerated (bool) and Reason (string). Tolerated
     is only ever true alongside Passed, and always carries a reason so the
@@ -63,6 +63,7 @@ function Get-TestRunVerdict
         [Parameter(Mandatory = $true)] [int] $Failed,
         [Parameter(Mandatory = $true)] [int] $ExitCode,
         [Parameter(Mandatory = $true)] [bool] $TimedOut,
+        [Parameter(Mandatory = $true)] [bool] $ReportsCompleted,
         [Parameter(Mandatory = $false)] [int] $TimeoutMinutes = 0
     )
 
@@ -119,6 +120,14 @@ function Get-TestRunVerdict
         }
     }
 
+    if (-not $ReportsCompleted) {
+        return [pscustomobject]@{
+            Passed    = $false
+            Tolerated = $false
+            Reason    = 'The result documents do not prove completed, consistent, successful execution.'
+        }
+    }
+
     if ($ExitCode -ne 0) {
         return [pscustomobject]@{
             Passed    = $true
@@ -129,4 +138,127 @@ function Get-TestRunVerdict
     }
 
     return [pscustomobject]@{ Passed = $true; Tolerated = $false; Reason = '' }
+}
+
+<#
+.SYNOPSIS
+Distinguishes an intentionally empty matrix from missing or malformed discovery.
+#>
+function Test-CiMatrixSelected
+{
+    param([Parameter(Mandatory = $true)][string] $Matrix)
+
+    $entries = ConvertFrom-Json -InputObject $Matrix -NoEnumerate -ErrorAction Stop
+    if ($entries -isnot [array]) {
+        throw 'Discovery did not produce a matrix array.'
+    }
+    return $entries.Count -gt 0
+}
+
+<#
+.SYNOPSIS
+Requires success for selected jobs and permits skips only for unselected jobs.
+#>
+function Get-CiJobVerdict
+{
+    param(
+        [Parameter(Mandatory = $true)][System.Collections.IDictionary] $Results,
+        [Parameter(Mandatory = $true)][System.Collections.IDictionary] $Expected
+    )
+
+    $bad = @()
+    foreach ($name in $Expected.Keys) {
+        if (-not $Results.Contains($name) -or $Expected[$name] -isnot [bool]) {
+            $bad += "$name=missing selection or result"
+        }
+    }
+    foreach ($name in $Results.Keys) {
+        $result = $Results[$name]
+        if (-not $Expected.Contains($name) -or
+            ($result -cne 'success' -and -not ($result -ceq 'skipped' -and $Expected[$name] -eq $false))) {
+            $bad += "$name=$result"
+        }
+    }
+    return [pscustomobject]@{ Passed = $bad.Count -eq 0; Failures = $bad }
+}
+
+<#
+.SYNOPSIS
+Requires each selected batch and each applicable coverage-enabled project fragment.
+#>
+function Assert-CiCoverage
+{
+    param(
+        [Parameter(Mandatory = $true)][string] $Matrix,
+        [Parameter(Mandatory = $true)][string] $ArtifactsDirectory
+    )
+
+    $null = Test-CiMatrixSelected $Matrix
+    $entries = @(ConvertFrom-Json -InputObject $Matrix)
+    $artifacts = @()
+    if (Test-Path -LiteralPath $ArtifactsDirectory) {
+        $artifacts = @(Get-ChildItem -LiteralPath $ArtifactsDirectory -Directory -Filter 'dotnet-results-*')
+    }
+    if ($artifacts.Count -ne $entries.Count) {
+        throw 'Expected test-job artifacts are missing or duplicated; coverage is incomplete.'
+    }
+    $ids = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+    $reports = 0
+    foreach ($entry in $entries) {
+        if ($entry.id -cnotmatch '^[A-Za-z0-9._-]+$' -or -not $ids.Add($entry.id) -or
+            $entry.coverage -isnot [bool]) {
+            throw 'Invalid or duplicate coverage matrix entry.'
+        }
+        $artifact = Join-Path $ArtifactsDirectory "dotnet-results-$($entry.id)"
+        $summaryPath = Join-Path $artifact 'batch-summary.json'
+        if (-not (Test-Path -LiteralPath $summaryPath -PathType Leaf)) {
+            throw 'A selected batch did not publish its per-project result summary.'
+        }
+        $summary = Get-Content -LiteralPath $summaryPath -Raw | ConvertFrom-Json
+        if ($summary.customTestTarget -cne $entry.customTestTarget -or
+            $summary.framework -cne $entry.framework -or $summary.configuration -cne $entry.configuration -or
+            $summary.filter -cne $entry.filter -or $summary.coverage -isnot [bool] -or
+            $summary.coverage -ne $entry.coverage -or $summary.inputScope -cne 'public') {
+            throw 'The batch summary does not match the selected public CI profile.'
+        }
+        $projects = @($entry.projects -split ';' | Where-Object { $_ })
+        if ($projects.Count -eq 0 -or @($summary.projects).Count -ne $projects.Count -or
+            @($projects | Select-Object -Unique).Count -ne $projects.Count) {
+            throw 'The batch summary does not cover exactly the selected projects.'
+        }
+        foreach ($project in $projects) {
+            $records = @($summary.projects | Where-Object { $_.project -ceq $project })
+            if ($records.Count -ne 1) {
+                throw 'A selected project has a missing or duplicate result.'
+            }
+            $record = $records[0]
+            if ($record.outcome -ceq 'not-applicable') {
+                $explicitlyUnsupported = $record.notApplicableRule -ceq 'SupportedTestTargets' -and
+                    @($record.supportedTestTargets).Count -gt 0 -and
+                    $entry.customTestTarget -cnotin @($record.supportedTestTargets)
+                if ($record.notApplicableRule -cne 'RestrictForLegacyTfm' -and -not $explicitlyUnsupported) {
+                    throw 'An unverified project skip cannot excuse missing coverage.'
+                }
+                continue
+            }
+            if ($record.outcome -cne 'passed' -or $record.passed -le 0 -or
+                $record.total -lt $record.passed -or $record.failed -ne 0) {
+                throw 'A selected applicable project did not complete successfully.'
+            }
+            if (-not $entry.coverage) {
+                continue
+            }
+            $stem = [System.IO.Path]::GetFileNameWithoutExtension($project)
+            $directory = Join-Path $artifact $stem
+            $fragments = @()
+            if (Test-Path -LiteralPath $directory -PathType Container) {
+                $fragments = @(Get-ChildItem -LiteralPath $directory -Recurse -File -Filter '*.cobertura.xml')
+            }
+            if ($fragments.Count -eq 0) {
+                throw 'A selected coverage-enabled project did not publish its coverage fragment.'
+            }
+            $reports += $fragments.Count
+        }
+    }
+    return [pscustomobject]@{ Reports = $reports; HasReports = $reports -gt 0 }
 }

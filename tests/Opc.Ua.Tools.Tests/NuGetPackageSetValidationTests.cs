@@ -43,7 +43,7 @@ using NUnit.Framework;
 namespace Opc.Ua.Tools.Tests
 {
     /// <summary>
-    /// Regression tests for .azurepipelines/validate-nuget-package-set.ps1:
+    /// Regression tests for .azurepipelines/nuget/validate-package-set.ps1:
     /// the script nuget-publish.yml and release.yml both rely on to accept
     /// only an intentional mix of a stable (or preview) root version and the
     /// numbered preview-only package families. See docs/ReleaseProcess.md.
@@ -369,7 +369,7 @@ namespace Opc.Ua.Tools.Tests
                 bool requireDebug = false)
             {
                 string manifestPath = Path.Combine(_directory, "manifest.json");
-                string scriptPath = Path.Combine(FindRepositoryRoot(), ".azurepipelines", "validate-nuget-package-set.ps1");
+                string scriptPath = Path.Combine(FindRepositoryRoot(), ".azurepipelines", "nuget", "validate-package-set.ps1");
 
                 using var process = new Process();
                 process.StartInfo.FileName = "pwsh";
@@ -427,7 +427,7 @@ namespace Opc.Ua.Tools.Tests
             string? current = TestContext.CurrentContext.TestDirectory;
             while (!string.IsNullOrWhiteSpace(current))
             {
-                if (File.Exists(Path.Combine(current, ".azurepipelines", "validate-nuget-package-set.ps1")))
+                if (File.Exists(Path.Combine(current, ".azurepipelines", "nuget", "validate-package-set.ps1")))
                 {
                     return current;
                 }

@@ -82,9 +82,8 @@ jobs:
       env:
         INCLUDE_MACOS: ${{ github.event_name == 'schedule' || inputs.include_macos }}
       run: |
-        # Windows is included here and not in the pull-request workflow: it is
-        # the leg the Azure `testaot` stage owns today, so a full-scope run on
-        # Actions has to cover it before that stage can be retired.
+        # The full scope always includes Windows; CI also selects it on the
+        # current release lines to produce the fixed Windows assurance proof.
         $matrix = @(
             @{ os = 'ubuntu-latest'; rid = 'linux-x64' }
             @{ os = 'windows-latest'; rid = 'win-x64' }
@@ -170,6 +169,8 @@ jobs:
         per-project-timeout: ${{ matrix.entry.perProjectTimeout }}
         coverage: ${{ matrix.entry.coverage }}
         artifact-name: dotnet-results-${{ matrix.entry.id }}
+        assurance-workflow: .github/workflows/nightly.yml
+        assurance-artifact-name: assurance-batch-${{ matrix.entry.id }}-${{ github.run_id }}-${{ github.run_attempt }}-tests
 
   aot:
     name: aot-${{ matrix.os }}
@@ -213,25 +214,12 @@ jobs:
             $stem = [System.IO.Path]::GetFileNameWithoutExtension($project)
             Write-Host "::group::$stem ($($env:RID))"
             try {
-                dotnet publish $project --configuration $env:CONFIGURATION
+                ./.azurepipelines/assurance/native.ps1 -Project $project `
+                    -RuntimeIdentifier $env:RID -Configuration $env:CONFIGURATION `
+                    -WorkDirectory (Join-Path $env:RUNNER_TEMP "native-$stem") `
+                    -OutputPath "./TestResults/$stem/native-proof.json"
                 if ($LASTEXITCODE -ne 0) {
-                    throw "Publish failed with exit code $LASTEXITCODE."
-                }
-
-                $publishDir = Join-Path (Split-Path $project -Parent) "bin/$($env:CONFIGURATION)/net10.0/$($env:RID)/publish"
-                $executable = Get-ChildItem -LiteralPath $publishDir -File |
-                    Where-Object { $_.BaseName -eq $stem -and ($_.Extension -eq '' -or $_.Extension -ieq '.exe') } |
-                    Select-Object -First 1
-                if ($null -eq $executable) {
-                    # A managed publish that silently fell back from NativeAOT
-                    # would leave a .dll here and nothing to run; that is a
-                    # failure, not an empty pass.
-                    throw "No NativeAOT executable was produced in '$publishDir'."
-                }
-
-                & $executable.FullName --results-directory "./TestResults/$stem"
-                if ($LASTEXITCODE -ne 0) {
-                    throw "The NativeAOT test run exited with code $LASTEXITCODE."
+                    throw 'Native publication or independently observed execution failed.'
                 }
             }
             catch {
@@ -251,9 +239,8 @@ jobs:
       uses: actions/upload-artifact@v7
       with:
         name: aot-results-${{ matrix.os }}-${{ matrix.rid }}
-        path: |
-          **/TestResults/**
-          **/*-report.html
+        path: TestResults/*/native-proof.json
+        if-no-files-found: error
 
   coverage:
     name: coverage
@@ -282,23 +269,12 @@ jobs:
       id: probe
       shell: pwsh
       env:
-        TESTS_RESULT: ${{ needs.tests.result }}
+        TEST_MATRIX: ${{ needs.discover.outputs.tests }}
       run: |
-        $reports = @(Get-ChildItem -Path coverage-artifacts -Recurse -File -Filter *.cobertura.xml -ErrorAction SilentlyContinue)
-        Write-Host "Found $($reports.Count) Cobertura report(s)."
-        "has_reports=$(($reports.Count -gt 0).ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-        if ($reports.Count -gt 0) {
-            exit 0
-        }
-
-        # Whether "no coverage" is expected depends on whether the matrix ran. A
-        # matrix that completed and published nothing means the collector is
-        # broken, and reporting green would hide that indefinitely.
-        if ($env:TESTS_RESULT -eq 'success') {
-            Write-Host '::error title=Coverage::The test matrix completed but published no coverage at all; the collector is not working.'
-            exit 1
-        }
-        Write-Host "::warning title=Coverage::The test matrix did not complete (result: $($env:TESTS_RESULT)), so there is no coverage to evaluate."
+        . ./.github/scripts/get-test-verdict.ps1
+        $coverage = Assert-CiCoverage -Matrix $env:TEST_MATRIX -ArtifactsDirectory coverage-artifacts
+        Write-Host "Found $($coverage.Reports) verified per-project Cobertura report(s)."
+        "has_reports=$($coverage.HasReports.ToString().ToLowerInvariant())" | Out-File $env:GITHUB_OUTPUT -Append
 
     - name: Merge coverage report
       if: ${{ steps.probe.outputs.has_reports == 'true' }}
@@ -330,7 +306,7 @@ jobs:
       if: ${{ steps.probe.outputs.has_reports == 'true' }}
       shell: pwsh
       run: |
-        ./.azurepipelines/check-coverage.ps1 `
+        ./.azurepipelines/coverage/check.ps1 `
             -CoberturaPath CodeCoverage/Cobertura.xml `
             -ThresholdsPath coverage-thresholds.json `
             -RepoRoot '${{ github.workspace }}' `
@@ -419,32 +395,32 @@ jobs:
         FUZZ_CORPUS_SHA256: ${{ vars.FUZZ_CORPUS_SHA256 }}
       run: |
         $ErrorActionPreference = 'Stop'
+        $ProgressPreference = 'SilentlyContinue'
         $archive = Join-Path '${{ runner.temp }}' 'FuzzingArtifacts.zip'
-        az storage blob download `
-            --auth-mode login `
-            --account-name $env:FUZZ_CORPUS_ACCOUNT `
-            --container-name $env:FUZZ_CORPUS_CONTAINER `
-            --name $env:FUZZ_CORPUS_BLOB `
-            --file $archive `
-            --no-progress `
-            --only-show-errors | Out-Null
-        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $archive)) {
-            throw "The private corpus could not be downloaded (exit code $LASTEXITCODE)."
+        $log = Join-Path '${{ runner.temp }}' 'private-corpus-provisioning.log'
+        try {
+            az storage blob download `
+                --auth-mode login `
+                --account-name $env:FUZZ_CORPUS_ACCOUNT `
+                --container-name $env:FUZZ_CORPUS_CONTAINER `
+                --name $env:FUZZ_CORPUS_BLOB `
+                --file $archive --no-progress --only-show-errors *> $log
+            if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $archive)) {
+                throw 'The private corpus could not be downloaded.'
+            }
+            $actual = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+            $expected = $env:FUZZ_CORPUS_SHA256.Trim().ToLowerInvariant()
+            if ($expected -cnotmatch '^[0-9a-f]{64}$' -or $actual -cne $expected) {
+                throw 'The private corpus digest does not match the approved archive.'
+            }
+            Expand-Archive -LiteralPath $archive -DestinationPath './fuzzing/Opc.Ua.Encoders.Fuzz.Tests' -Force *>> $log
+            Remove-Item -LiteralPath $archive -Force
+            Write-Host "Private corpus verified: sha256:$actual"
         }
-
-        # Pinned digest: the corpus is an immutable input to this run, and a
-        # changed archive has to be re-approved rather than silently replayed.
-        $actual = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
-        $expected = $env:FUZZ_CORPUS_SHA256.Trim().ToLowerInvariant()
-        if ($actual -ne $expected) {
-            throw "The private corpus digest does not match: expected $expected, got $actual."
+        catch {
+            $_ | Out-String | Out-File -LiteralPath $log -Append
+            throw 'Private corpus provisioning failed; details remain private on the runner.'
         }
-
-        # Same overlay location the Azure template extracts to, so the assets
-        # land where FuzzTargetTestsBase enumerates them.
-        Expand-Archive -LiteralPath $archive -DestinationPath './fuzzing/Opc.Ua.Encoders.Fuzz.Tests' -Force
-        Remove-Item -LiteralPath $archive -Force
-        Write-Host "Corpus verified ($actual) and extracted."
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v6
@@ -475,6 +451,7 @@ jobs:
           -HangTimeout $env:CI_HANG_TIMEOUT `
           -PerProjectTimeoutMinutes ([int]$env:CI_PER_PROJECT_TIMEOUT) `
           -ResultsDirectory '${{ runner.temp }}/private-results' `
+          -InputScope private `
           -QuietOutput
 
     # Evidence without content: outcomes, counts and a digest per result file,
@@ -489,18 +466,26 @@ jobs:
             Write-Host '::warning title=Private corpus::No results were produced.'
             exit 0
         }
-        $lines = @(
-            "### private corpus - ${{ matrix.entry.name }}",
-            '',
-            '| Evidence | SHA-256 | Bytes |',
-            '| --- | --- | ---: |')
-        foreach ($file in Get-ChildItem -LiteralPath $root -Recurse -File | Sort-Object FullName) {
-            $relative = [System.IO.Path]::GetRelativePath($root, $file.FullName).Replace('\', '/')
-            $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-            $lines += "| $relative | $hash | $($file.Length) |"
+        try {
+            $lines = @(
+                "### private corpus - ${{ matrix.entry.name }}",
+                '',
+                '| Hashed identity | SHA-256 | Bytes |',
+                '| --- | --- | ---: |')
+            foreach ($file in Get-ChildItem -LiteralPath $root -Recurse -File | Sort-Object FullName) {
+                $relative = [System.IO.Path]::GetRelativePath($root, $file.FullName).Replace('\', '/')
+                $identity = [Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData(
+                    [System.Text.Encoding]::UTF8.GetBytes($relative))).ToLowerInvariant()
+                $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+                $lines += "| sha256:$identity | sha256:$hash | $($file.Length) |"
+            }
+            $lines += ''
+            $lines | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
         }
-        $lines += ''
-        $lines | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+        catch {
+            $_ | Out-String | Out-File -LiteralPath (Join-Path $root 'evidence-error.log') -Append
+            throw 'Private evidence hashing failed; details remain private on the runner.'
+        }
 
     # Belt and braces: the results tree is under RUNNER_TEMP and no step uploads
     # it, but an accidental upload added later would publish reproducer bytes, so
@@ -525,6 +510,7 @@ jobs:
     if: ${{ always() }}
     needs: [discover, build-solutions, tests, aot, coverage, private-corpus]
     steps:
+    - uses: actions/checkout@v7
     - name: Evaluate job results
       shell: pwsh
       env:
@@ -535,7 +521,12 @@ jobs:
         COVERAGE_RESULT: ${{ needs.coverage.result }}
         PRIVATE_RESULT: ${{ needs.private-corpus.result }}
         PRIVATE_REQUESTED: ${{ inputs.run_private_corpus }}
+        TEST_MATRIX: ${{ needs.discover.outputs.tests }}
+        BUILD_MATRIX: ${{ needs.discover.outputs.builds }}
+        AOT_MATRIX: ${{ needs.discover.outputs.aot_matrix }}
+        PRIVATE_MATRIX: ${{ needs.discover.outputs.private_tests }}
       run: |
+        . ./.github/scripts/get-test-verdict.ps1
         $results = [ordered]@{
           'discover'        = $env:DISCOVER_RESULT
           'build-solutions' = $env:BUILD_RESULT
@@ -545,27 +536,30 @@ jobs:
           'private-corpus'  = $env:PRIVATE_RESULT
         }
 
-        $bad = @()
-        foreach ($job in $results.GetEnumerator()) {
-          Write-Host "$($job.Key): $($job.Value)"
-          if (@('success', 'skipped') -notcontains $job.Value) {
-            $bad += "$($job.Key)=$($job.Value)"
-          }
+        $privateSelected = Test-CiMatrixSelected $env:PRIVATE_MATRIX
+        if ($env:PRIVATE_REQUESTED -eq 'true' -and -not $privateSelected) {
+            throw 'Private replay was requested without any selected execution.'
         }
+        $expected = [ordered]@{
+          'discover' = $true
+          'build-solutions' = (Test-CiMatrixSelected $env:BUILD_MATRIX)
+          'tests' = (Test-CiMatrixSelected $env:TEST_MATRIX)
+          'aot' = (Test-CiMatrixSelected $env:AOT_MATRIX)
+          'coverage' = (Test-CiMatrixSelected $env:TEST_MATRIX)
+          'private-corpus' = $env:PRIVATE_REQUESTED -eq 'true'
+        }
+        $verdict = Get-CiJobVerdict -Results $results -Expected $expected
 
         # Coverage of the private corpus is the one part of the Azure full-scope
         # workload that cannot run from public inputs, so a run without it is
         # explicitly labelled incomplete rather than presented as full parity.
-        if ($env:PRIVATE_REQUESTED -eq 'true' -and $env:PRIVATE_RESULT -eq 'skipped') {
-          $bad += 'private-corpus=requested but did not run'
-        }
         $complete = $env:PRIVATE_REQUESTED -eq 'true' -and $env:PRIVATE_RESULT -eq 'success'
         $scope = if ($complete) { 'full (public + private corpus)' } else { 'public only - INCOMPLETE for Azure parity' }
         Write-Host "Validation scope: $scope"
         "### Nightly validation scope: $scope" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
 
-        if ($bad.Count -gt 0) {
-          Write-Host "::error::Nightly jobs did not succeed: $($bad -join ', ')"
+        if (-not $verdict.Passed) {
+          Write-Host "::error::Nightly jobs did not succeed: $($verdict.Failures -join ', ')"
           exit 1
         }
         Write-Host 'All nightly jobs succeeded or were intentionally skipped.'

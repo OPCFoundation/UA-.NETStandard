@@ -23,6 +23,7 @@ The C# language version is pinned (`LangVersion` 14) and analyzer/style rules ar
 | `tools/` | Source generators, migration analyzers, and the installable `Opc.Ua.Mcp` tool. Each analyzer and generator has a build project and — for the source generators — a `*.Pack` project that packages it under a Roslyn-versioned analyzer folder. |
 | `docs/` | This documentation set (indexed by [docs/README.md](README.md)). |
 | `fuzzing/` | SharpFuzz / libFuzzer fuzz targets (see [Fuzzing.md](../fuzzing/Fuzzing.md)). |
+| `.azurepipelines/` | Azure YAML pipelines/templates and cross-cutting helpers at the root; scenario scripts and contracts in `assurance/`, `containers/`, `nuget/`, `release/`, and `coverage/`. See the [pipeline helper layout](../.azurepipelines/README.md). |
 
 Central build configuration lives at the repository root and is imported by every project:
 
@@ -221,7 +222,11 @@ logger.ReadArrayZeroDimension(index, dimensions);
 
 ### Released packages
 
-The following NuGet packages are released on a monthly cadence (with hot fixes for security issues). The `OPCFoundation` prefix is reserved, and the assemblies and packages are signed by the OPC Foundation.
+The following NuGet packages are published by the OPC Foundation. The `OPCFoundation`
+prefix is reserved, and the assemblies and packages are signed by the OPC Foundation.
+The [canonical maintenance matrix](../SECURITY.md#supported-versions) defines the
+maintained release lines and backport scope; it does not promise a fixed release
+cadence or security-patch deadline.
 
 - [OPCFoundation.NetStandard.Opc.Ua](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/) — a convenience meta-package that pulls in everything except PubSub. Prefer referencing the individual packages below to reduce your dependency surface.
 - [OPCFoundation.NetStandard.Opc.Ua.Types](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Types/)
@@ -239,7 +244,39 @@ In-development previews are published **only** to the [GitHub Packages feed](htt
 select *Include prerelease* in Visual Studio. No additional package source or
 credentials are required for nuget.org; the GitHub Packages feed needs a classic PAT with `read:packages`.
 
-The full set of packages the preview pipeline produces is pinned in [`.azurepipelines/expected-packages.txt`](../.azurepipelines/expected-packages.txt). `.azurepipelines/validate-source-generator-packages.ps1` fails the build when the packed output does not match it, so adding, removing or renaming a shipped package has to be done deliberately in the same pull request. That script also validates the analyzer packages: their `analyzers/dotnet/roslyn<major>.<minor>/cs` layout, that they carry their runtime closure privately, that the model generator's auto-imported `build/<PackageId>.props` is named after the package id, and — end to end — that a standalone project consuming the packed generator with a NodeSet actually gets code generated.
+The full set of packages the preview pipeline produces is pinned in [`.azurepipelines/nuget/expected-packages.txt`](../.azurepipelines/nuget/expected-packages.txt). `.azurepipelines/nuget/validate-source-generator-packages.ps1` fails the build when the packed output does not match it, so adding, removing or renaming a shipped package has to be done deliberately in the same pull request. That script also validates the analyzer packages: their `analyzers/dotnet/roslyn<major>.<minor>/cs` layout, that they carry their runtime closure privately, that the model generator's auto-imported `build/<PackageId>.props` is named after the package id, and — end to end — that a standalone project consuming the packed generator with a NodeSet actually gets code generated.
+
+### Release assurance and stewardship
+
+The [Release Evidence contract](ReleaseEvidence.md) defines the engineering
+controls for current `master`/2.0 NuGet packages and designated published container
+images. The contract is **active**, with `stage: required`: failed or missing
+controls block in-scope stable publication. In the configured release workflow,
+the protected controller authenticates production trust and producer evidence,
+and the isolated writer rechecks authorization before publishing verified bytes.
+The [administrator setup checklist](../plans/ReleaseEvidenceAdministration.md)
+tracks initial integration, platform configuration and qualification separately
+from these operating instructions.
+
+Official previews and rolling development builds retain advisory applicability
+for these controls. They are release channels, not maturity modes of the contract,
+and must not be represented as satisfying the required stable profile. Dispatch
+parameters cannot weaken required stable gates. Existing required signing, build,
+test and security checks remain required in every channel.
+
+SBOMs, provenance, artifact verification, risk-to-test evidence and the maintenance
+matrix are chosen engineering practices, not additional Article 24 mandates.
+The [Security Stewardship annex](SecurityStewardship.md) explains the Foundation's
+OSS steward duties and distinguishes pending approval, ownership, platform readiness
+and exercise records from established operations.
+
+For changes affecting release evidence, identify the affected artifact group and
+source revision, actual checks/results, missing coverage and reviewed dispositions
+under the contract. Do not equate a configured job, a skipped suite or a successful
+aggregate check with proof that all applicable tests ran. Publish only reviewed,
+sanitized evidence. Route novel vulnerabilities, sensitive fuzz inputs and logs
+through [confidential intake](../SECURITY.md#reporting-a-vulnerability); do not
+attach them to public PRs or CI artifacts.
 
 ### Supported target frameworks
 
@@ -285,9 +322,15 @@ that always sorts above every already-published preview — see
 [Release process](ReleaseProcess.md)) and `2.0.0` for the other packages. The
 same policy applies to the Robotics and Vision MCP extensions and the
 OpenUSD connector tools. The package validation manifest
-(`.azurepipelines/validate-nuget-package-set.ps1`) records the root package
+(`.azurepipelines/nuget/validate-package-set.ps1`) records the root package
 version, a `preview`/`stable` `channel`, and the distinct family versions so
 the signed release workflow can promote an intentional mixed-version set.
+
+NBGV public-release configuration is not itself a stable-release classification:
+an official version containing a preview suffix is still a prerelease. The
+[Release Evidence contract](ReleaseEvidence.md) classifies the actual version and
+authorized release intent; neither a branch name nor a moving container tag such
+as `latest` establishes eligibility for a stable-release profile.
 
 > The earlier 1.x packages used a different, spec-derived scheme in which the first two digits encoded the embedded NodeSet spec version (for example `1.5.378.x` corresponds to OPC UA spec V1.05, mapped to release branches such as `release/1.4.372`). That scheme no longer applies from 2.0 onward.
 
@@ -307,7 +350,7 @@ One table describes the entire migrated workload: `$Profiles` and `$BuildProfile
 | --- | --- | --- |
 | Test profiles | Windows net48, Windows/Linux/macOS net10.0 | the above plus net472, net9.0, net8.0, netstandard2.0, netstandard2.1, the Debug legs, and the tiers that lift the category filter |
 | Solution builds | every `.slnx` on Windows for net48/net10.0 × Debug/Release, `UA.slnx` for net472/netstandard2.0 and the Linux TFMs | every `.slnx` on Windows for all seven TFMs × Debug/Release, plus the Linux legs |
-| Native AoT | linux-x64, osx-x64, osx-arm64 | the above plus win-x64 |
+| Native AoT | linux-x64, osx-x64, osx-arm64; win-x64 on current master/release-2 targets for the release profile | all four RIDs |
 | Coverage | project floors and the graduated patch gate | project floors only |
 | Trigger | every push and pull request | weekly schedule and `workflow_dispatch` |
 
@@ -319,11 +362,34 @@ The executor fails a project when its build fails, when the TRX counters report 
 
 That per-project ceiling is a **single combined budget** covering the project's build *and* its test run, measured by one stopwatch. The matrix derives each job's `timeout-minutes` from it as `20 + projectCount × perProjectTimeout`, so spending it twice per project would let a batch outlive its job: GitHub would cancel the run, and a cancelled job produces neither the executor's per-project annotation nor its results. A batch whose budgets add up past the job ceiling is an error in `get-ci-matrix.ps1` rather than a clamped `timeout-minutes`, for the same reason. `CiMatrixScriptTests` pins both halves of that arithmetic.
 
-The verdict comes from the emitted TRX rather than from the `dotnet test` exit code, and lives in [`.github/scripts/get-test-verdict.ps1`](../.github/scripts/get-test-verdict.ps1) so it can be tested on its own — see [`CiTestVerdictTests`](../tests/Opc.Ua.Tools.Tests/CiTestVerdictTests.cs). A non-zero exit is tolerated when, and only when, the results record at least one **passing** test and no failure, error, timeout, abort or `passedButRunAborted`. That combination means the host died during process **exit**, after the last test and every teardown had already run; failing it would report a false red. It is not a macOS quirk — Windows hosts do it too (run 35714133848, `test-windows-net48 (5/30)`: `Opc.Ua.Client.Tests` reported 256 passed, 0 failed, host exit 1). A host that dies mid-run leaves a non-zero counter and is still rejected, and a run in which every test was skipped is rejected whatever the exit code says. Every tolerated run raises a warning annotation and is labelled in the job summary, so a host that keeps dying stays visible. This matches the Azure gate in [`.azurepipelines/test.yml`](../.azurepipelines/test.yml).
+The verdict lives in [`.github/scripts/get-test-verdict.ps1`](../.github/scripts/get-test-verdict.ps1)
+and the shared strict evaluator
+[`.azurepipelines/assurance/evaluate-test-results.ps1`](../.azurepipelines/assurance/evaluate-test-results.ps1).
+Every TRX must explicitly report a completed/passed run, consistent result rows
+and counters, no run-level errors, and at least one passing test. A failed,
+aborted or incomplete run is rejected even if its partial counters are green.
+A nonzero process exit is tolerated only after that complete TRX proof succeeds;
+the discrepancy remains visible in the job summary. Exit-only baseline fallback
+for a supported MTP host does not establish release assurance, which requires
+actual structured execution proof. No-test and all-skipped suites remain failures.
+
+The shared runner freezes committed public replay inputs before building, verifies
+the copied bytes before execution, and stages only allow-listed public proof and
+coverage files for fuzz projects. Untracked or modified overlays cannot earn
+public replay credit. Dedicated Windows net10 jobs retain the exact job/artifact
+identities used by the seven-job release profile; broader batched CI results do
+not implicitly substitute for those unfiltered profile runs.
 
 #### Why a project can be skipped
 
 `RestrictForLegacyTfm` in [`targets.props`](../targets.props) turns a project that does not support the requested `CustomTestTarget` into an empty shell with `IsTestProject=false`. Running `dotnet test` against one of those produces no TRX, which the executor treats as a failure — so it first probes `dotnet msbuild -getProperty:IsTestProject` and records the project as **not applicable** instead. Those rows appear in the job summary, so a project that quietly stops being applicable everywhere is visible rather than invisible.
+
+A fixed-framework project can also declare `SupportedTestTargets`, as the
+.NET-10-only release-evidence tests do. Its existing `IsTestProject=false`
+condition is accepted only when the requested target is outside that declared
+support and its evaluated frameworks agree with the declaration. A disabled
+supported target, unexplained exclusion or required assurance job still fails;
+not-applicable rows never count as executed tests.
 
 ### Test tiers
 
@@ -355,8 +421,10 @@ The checked-in corpus under [`fuzzing/`](../fuzzing) runs on every pull request.
 - runs in the protected `fuzz-private-corpus` environment, so a reviewer approves each run;
 - never runs from a fork or from an unreviewed ref;
 - verifies the downloaded archive against a pinned SHA-256 before extracting it;
-- runs the executor with `-QuietOutput`, so no reproducer ever reaches a public log;
-- publishes hash-only evidence and discards the extracted inputs.
+- runs the executor with `-QuietOutput -InputScope private`, so raw reproducer
+  data and result files remain in the runner-private directory;
+- emits no public coverage or release-assurance proof from private overlays,
+  and discards the extracted inputs after the approved run.
 
 It is skipped unless a maintainer has provisioned the environment:
 
@@ -378,7 +446,10 @@ Three concerns are deliberately kept apart:
 | Every sample container image built | **`images summary`** | **Eligible — require it** |
 | Coverage meets the thresholds | **`code coverage`** | **No — advisory** |
 
-`build-and-test summary` is a single rollup job on purpose. The jobs underneath it are matrix-generated, so their names change whenever a test project or a profile is added; requiring a generated name would break as soon as the matrix changed. The job runs on `always()` and inspects `needs.*.result` itself, calling `exit 1` on anything that is neither `success` nor `skipped` — a failing dependency therefore shows as a red X.
+`build-and-test summary` is a single rollup job on purpose. Matrix-generated names
+change as projects and profiles change. The `always()` summary checks both the
+selected matrices and `needs.*.result`: failure, cancellation and an unexpectedly
+skipped selected job all fail. Only genuinely unselected scope may be skipped.
 
 `always()` is not optional here: a job *skipped* because a dependency failed surfaces to GitHub as `skipped`, and a required check reporting `skipped` is treated as **satisfied**. Without `always()` the rollup would wave a red build straight through.
 
@@ -396,9 +467,14 @@ The coverage check reports a clean failure when the thresholds are missed, so a 
 
 Every test matrix entry collects coverage while it runs and publishes its raw Cobertura fragment as an artifact. The coverage job then downloads every fragment the run produced, merges them **once** with ReportGenerator, and evaluates the merged report. It never re-runs the tests — doing so serialises a suite that was deliberately fanned out across matrix jobs and blows the job timeout.
 
+Coverage completeness is checked per applicable project within each selected
+coverage-enabled batch, not just by counting batch artifacts. A missing project
+fragment fails the coverage result; legacy hosts and explicitly non-coverage
+profiles are not assigned fabricated fragment expectations.
+
 Coverage is collected only on .NET 8.0 and newer hosts. `coverlet.collector` 10.x ships build assets for net8.0+ only, so a .NET Framework test host cannot load the `XPlat Code Coverage` collector at all — VSTest merely warns and writes nothing. The expander therefore never requests coverage on a `net4*` profile, and `CiMatrixScriptTests` asserts that. The long-running and durable tiers also opt out: they re-run projects the filtered legs already covered, so folding their numbers in would double-count them.
 
-The evaluation is [`.azurepipelines/check-coverage.ps1`](../.azurepipelines/check-coverage.ps1), driven by [`coverage-thresholds.json`](../coverage-thresholds.json):
+The evaluation is [`.azurepipelines/coverage/check.ps1`](../.azurepipelines/coverage/check.ps1), driven by [`coverage-thresholds.json`](../coverage-thresholds.json):
 
 | Check | Behaviour |
 | --- | --- |
@@ -462,7 +538,7 @@ Both also publish the merged HTML report as a `coverage-report` artifact.
 To reproduce a coverage failure locally, generate the same report with [`tests/codecoverage.cmd`](../tests/codecoverage.cmd) (or [`tests/codecoverage.sh`](../tests/codecoverage.sh)) and run the script against it:
 
 ```powershell
-./.azurepipelines/check-coverage.ps1 -CoberturaPath ./CodeCoverage/Cobertura.xml -BaseRef master -SummaryPath ./coverage-summary.md
+./.azurepipelines/coverage/check.ps1 -CoberturaPath ./CodeCoverage/Cobertura.xml -BaseRef master -SummaryPath ./coverage-summary.md
 ```
 
 Omit `-BaseRef` to check only the project floor, and `-SummaryPath` to skip the markdown summary.
@@ -520,8 +596,11 @@ The weekly full-scope schedule now lives in `nightly.yml`; keep Azure's service-
 ## Contributing and pull requests
 
 - Fork the repository (or, if you have write access, push a branch prefixed with your username) and open a pull request. You must agree to the [Contributor License Agreement](https://opcfoundation.org/license/cla/ContributorLicenseAgreementv1.0.pdf); the "I AGREE" prompt appears automatically on your first PR. See [CONTRIBUTING.md](../CONTRIBUTING.md).
+- For an undisclosed vulnerability, use [confidential intake](../SECURITY.md#reporting-a-vulnerability) instead of opening a public issue or PR. The Security WG coordinates disclosure and any public fix/tests. This also applies to obsolete APIs; no GCVE, CVE or GHSA identifier is needed.
 - Before submitting: all tests pass, code analysis is clean (no new warnings), the change keeps backward compatibility, and security implications are reviewed.
 - The pull-request template asks you to confirm the CLA, added tests/coverage, documentation, a warning-free build, that the `UA.slnx` suite passed on **.NET Framework 4.8** and **.NET 10.0**, and that CI and CodeQL are green.
+- Mark checklist items only when verified; state applicable validation and unperformed checks without exposing sensitive details. Documentation-only changes need local link and whitespace checks, not a build.
+- Release-evidence changes follow the [active contract](ReleaseEvidence.md); incomplete evidence blocks in-scope stable publication. Preserve advisory applicability for preview/development channels and all existing required checks.
 - You can run the `opc-ua-codestyle-enforcer` agent to drive analyzer warnings to zero before opening the PR.
 
 ## Related documentation
@@ -530,6 +609,7 @@ The weekly full-scope schedule now lives in `nightly.yml`; keep Azure's service-
 - [Diagnostics](Diagnostics.md) — telemetry context, logging runtime, metrics, audit events, server diagnostics nodes, and packet capture.
 - [Dependency Injection](DependencyInjection.md), [Certificates](Certificates.md) / [Certificate Manager](CertificateManager.md), [NativeAOT](NativeAoT.md), [Migration Guide](MigrationGuide.md), [What's New in 2.0](WhatsNewIn2.0.md).
 - [Fuzz testing](../fuzzing/Fuzzing.md).
+- [Security policy and maintenance](../SECURITY.md), [Security Stewardship](SecurityStewardship.md), and [Release Evidence](ReleaseEvidence.md).
 
 Fuzz replay has a dedicated GitHub Actions matrix and a local
 [`fuzzing/Scripts/test-fuzzing.ps1`](../fuzzing/Scripts/test-fuzzing.ps1) entry point.
@@ -541,3 +621,14 @@ alter the general coverage policy. Fuzz scripts also set `FuzzCoverage=true` to 
 data-type coverage-exclusion attributes only in those builds; an include filter alone cannot
 override a compiled exclusion attribute. Internal OneFuzz drops must remain uninstrumented locally
 and require owner-supplied configuration and actual worker execution evidence.
+
+Timeout and slow regressions execute in watchdog-controlled child processes; only
+successful replay is added to the hashed release-assurance execution ledger.
+External-corpus fidelity findings remain separate from robustness failures, while
+curated regressions remain strict. Public test output contains sanitized outcomes.
+Bounded reproducer bytes and exception/child-process details are retained only under
+the runner's temporary `opcua-fuzz-private` directory, not attached to NUnit results
+or uploaded as public artifacts. Each diagnostic sink retains at most 60 inputs of
+up to 4096 bytes each; diagnostic text is truncated after 65,536 characters.
+Authorized operators must retrieve those restricted diagnostics through the
+controlled incident process before the runner is discarded.

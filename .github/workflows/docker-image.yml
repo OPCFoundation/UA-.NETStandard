@@ -22,12 +22,14 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 env:
   REGISTRY: ghcr.io
-  DOCKERSIGN: false
+  DOCKER_BUILD_RECORD_UPLOAD: 'false'
+  # Public registry response bytes verified against Docker-Content-Digest, 2026-09-08; scanner 1.12.0.
+  SBOM_SCANNER: docker.io/docker/buildkit-syft-scanner@sha256:ae4f3b554449e7e25548e7d8ccc029d17357348e30c6e3df01b92bc93654d6a9
 
 jobs:
   discover:
@@ -79,41 +81,42 @@ jobs:
         "relevant_changes=$($relevantChanges.ToString().ToLowerInvariant())" |
             Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
-  build-and-push-image:
+  select-images:
     needs: discover
-    # Skipped rather than filtered out when nothing image-relevant changed, so
-    # the summary below still reports a result.
     if: ${{ needs.discover.outputs.relevant_changes == 'true' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      images: ${{ steps.matrix.outputs.images }}
+      groups: ${{ steps.matrix.outputs.groups }}
+    steps:
+    - uses: actions/checkout@v7
+    - name: Select catalog images and independent groups
+      id: matrix
+      shell: pwsh
+      run: |
+        $selection = & ./.azurepipelines/containers/matrix.ps1 `
+          -EventName $env:GITHUB_EVENT_NAME -Ref $env:GITHUB_REF `
+          -Repository $env:GITHUB_REPOSITORY | ConvertFrom-Json
+        "images=$(ConvertTo-Json -InputObject $selection.images -Depth 8 -Compress)" >> $env:GITHUB_OUTPUT
+        "groups=$(ConvertTo-Json -InputObject $selection.groups -Depth 8 -Compress)" >> $env:GITHUB_OUTPUT
+
+  build-and-push-image:
+    needs: select-images
+    if: ${{ needs.select-images.result == 'success' }}
+    runs-on: ubuntu-latest
+    concurrency:
+      group: container-image-${{ github.repository }}-${{ matrix.image }}-${{ github.ref }}
+      cancel-in-progress: false
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          # Sample servers
-          - image: refserver
-            dockerfile: ./samples/Reference/ConsoleReferenceServer/Dockerfile
-          - image: ldsserver
-            dockerfile: ./samples/Lds/ConsoleLdsServer/Dockerfile
-          - image: boilerserver
-            dockerfile: ./samples/MinimalApi/MinimalBoilerServer/Dockerfile
-          - image: calcserver
-            dockerfile: ./samples/MinimalApi/MinimalCalcServer/Dockerfile
-          - image: mcpserver
-            dockerfile: ./tools/Opc.Ua.Mcp/Dockerfile
-          - image: redundantserver
-            dockerfile: ./samples/Redundancy/RedundantServer/Dockerfile
-          - image: pumpserver
-            dockerfile: ./samples/DI/PumpDeviceIntegrationServer/Dockerfile
-          # Redundant client
-          - image: redundantclient
-            dockerfile: ./samples/Redundancy/RedundantClient/Dockerfile
-          # PubSub samples
-          - image: redundantpubsub
-            dockerfile: ./samples/Redundancy/RedundantPubSub/Dockerfile
-          - image: pubsubclient
-            dockerfile: ./samples/PubSub/ConsoleReferencePubSubClient/Dockerfile
+      matrix: ${{ fromJSON(needs.select-images.outputs.images) }}
     env:
       IMAGE_NAME: ${{ matrix.image }}
+      IMAGE_GROUP: ${{ matrix.group }}
+      IMAGE_REPOSITORY: ${{ matrix.repository }}
+      EVIDENCE_IMAGE: ${{ matrix.evidenceImage }}
       IS_NOT_PR: ${{ !github.head_ref && true }}
     permissions:
       contents: read
@@ -123,6 +126,11 @@ jobs:
       id-token: write
 
     steps:
+    - name: Initialize runner-local evidence work location
+      shell: pwsh
+      run: |
+        "EVIDENCE_WORK=$(Join-Path $env:RUNNER_TEMP 'container-evidence')" >> $env:GITHUB_ENV
+
     - uses: actions/checkout@v7
       with:
         fetch-depth: 0
@@ -135,14 +143,6 @@ jobs:
     - name: Set Version
       shell: pwsh
       run: ./.azurepipelines/set-version.ps1
-
-    # Install the cosign tool except on PR
-    # https://github.com/sigstore/cosign-installer
-    - name: Install cosign
-      if: github.event_name != 'pull_request' && env.DOCKERSIGN == 'true'
-      uses: sigstore/cosign-installer@main
-      with:
-        cosign-release: 'v1.13.1'
 
     # https://github.com/docker/build-push-action
     - name: Setup Docker buildx
@@ -158,33 +158,12 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Prepare Tag Repo Info
-      env:
-        # Same rule as the ref below: pass values into the script as data
-        # rather than interpolating them into its source.
-        SOURCE_REPOSITORY: ${{ github.repository }}
+    - name: Prepare image version
       run: |
         set -euo pipefail
-        repository=$(printf '%s' "$SOURCE_REPOSITORY" \
-          | tr '[:upper:]' '[:lower:]' \
-          | awk '{gsub(/-|\./, "")}1')
-        echo "IMAGE_REPOSITORY=${REGISTRY}/${repository}/${IMAGE_NAME}" >> "$GITHUB_ENV"
-        # Use NBGV's canonical NuGet SemVer rather than NBGV_Version, whose
-        # fourth component is a git-height build number. Stable image tags
-        # must align with the explicit M.m.p package release version.
-        #
-        # Strip any "+<metadata>" before the value becomes a tag: '+' is not
-        # a legal Docker tag character, so build-push-action would fail on it.
-        # With version.json's current "nugetPackageVersion.semVer: 2" NBGV
-        # already folds the commit id into a prerelease segment instead
-        # (measured on nbgv 3.7.115: "2.0.0-preview.24.gd602b190a4", no '+'),
-        # so this is a no-op today and exists so a version.json change cannot
-        # silently break every image build.
         version="${NBGV_NuGetPackageVersion%%+*}"
-        # Fail closed on anything else a tag may not contain, rather than
-        # letting the registry reject the push after the whole image is built.
         if ! printf '%s' "$version" | grep -Eq '^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$'; then
-          echo "Version '${NBGV_NuGetPackageVersion}' does not yield a usable Docker tag." >&2
+          echo "Version does not yield a usable Docker tag." >&2
           exit 1
         fi
         echo "IMAGE_VERSION=${version}" >> "$GITHUB_ENV"
@@ -257,6 +236,14 @@ jobs:
         fi
         echo "TAG_LATEST=${IMAGE_REPOSITORY}:latest${latest_suffix}" >> "$GITHUB_ENV"
 
+    # This is a refusal guard, not a protected publisher or a completed promotion implementation.
+    - name: Refuse unsupported required stable publication
+      if: github.event_name != 'pull_request'
+      shell: pwsh
+      run: |
+        ./.azurepipelines/containers/evidence.ps1 -Operation Preflight -Group $env:IMAGE_GROUP `
+          -Image $env:IMAGE_NAME -Version $env:IMAGE_VERSION -Work $env:EVIDENCE_WORK
+
     - name: Prepare Release tags
       if: ${{ env.NBGV_PublicRelease == 'True' && env.NBGV_PrereleaseVersion == '' && env.IS_NOT_PR == 'true' }}
       run: |
@@ -278,6 +265,7 @@ jobs:
         images: ${{ env.IMAGE_REPOSITORY }}
 
     - name: Set up QEMU
+      if: contains(matrix.platforms, 'arm64')
       uses: docker/setup-qemu-action@v4
 
     # Build and push Docker image with Buildx (don't push on PR)
@@ -288,30 +276,164 @@ jobs:
       with:
         context: .
         build-args: |
-          Version=${{ env.NBGV_Version }}
+          Version=${{ env.IMAGE_VERSION }}
           SimpleVersion=${{ env.NBGV_SimpleVersion }}
+          FileVersion=${{ env.NBGV_SimpleVersion }}
           InformationalVersion=${{ env.NBGV_AssemblyInformationalVersion }}
+          SourceRevisionId=${{ github.sha }}
+          SourceRepositoryUrl=${{ github.server_url }}/${{ github.repository }}
         push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ env.TAG_BRANCH }},${{ env.TAG_LATEST }}${{ env.TAG_RELEASE }}
-        platforms: linux/amd64,linux/arm64/v8
+        platforms: ${{ matrix.platforms }}
         file: ${{ matrix.dockerfile }}
-        labels: ${{ steps.meta.outputs.labels }}
-        provenance: false
+        labels: |
+          ${{ steps.meta.outputs.labels }}
+          org.opencontainers.image.version=${{ env.IMAGE_VERSION }}
+          org.opencontainers.image.revision=${{ github.sha }}
+          org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+        provenance: mode=min
+        sbom: generator=${{ env.SBOM_SCANNER }}
         cache-from: type=gha,scope=${{ matrix.image }}
         # setup-buildx-action@v4 installs Buildx and BuildKit versions that support ignore-error.
         cache-to: type=gha,mode=max,scope=${{ matrix.image }},ignore-error=true
 
-    # Sign the resulting Docker image digest except on PRs.
-    # https://github.com/sigstore/cosign
-    - name: Sign the published Docker image
-      if: github.event_name != 'pull_request' && env.DOCKERSIGN == 'true'
+    - name: Record immutable build identity
+      id: record
+      if: github.event_name != 'pull_request' && steps.build-and-push.outcome == 'success'
+      continue-on-error: true
+      shell: pwsh
       env:
-        COSIGN_EXPERIMENTAL: "true"
-      # This step uses the identity token to provision an ephemeral certificate
-      # against the sigstore community Fulcio instance.
+        ROOT_DIGEST: ${{ steps.build-and-push.outputs.digest }}
       run: |
-        echo Signing ${{ env.IMAGE_REPOSITORY }}@${{ steps.build-and-push.outputs.digest }}
-        echo "${{ env.IMAGE_REPOSITORY }}" | xargs -I {} cosign sign {}@${{ steps.build-and-push.outputs.digest }}
+        ./.azurepipelines/containers/evidence.ps1 -Operation Record -Group $env:IMAGE_GROUP `
+          -Image $env:IMAGE_REPOSITORY -RootDigest $env:ROOT_DIGEST -Version $env:IMAGE_VERSION `
+          -Work $env:EVIDENCE_WORK -BuildState success
+
+    - name: Prepare offline OCI reader
+      if: steps.record.outcome == 'success'
+      continue-on-error: true
+      shell: pwsh
+      run: |
+        dotnet build ./tools/Opc.Ua.ReleaseEvidence/Opc.Ua.ReleaseEvidence.csproj -c Release -f net10.0 `
+          --nologo *> "$env:EVIDENCE_WORK/tool-build.log"
+        if ($LASTEXITCODE -ne 0) { Write-Warning 'OCI reader unavailable; container evidence remains incomplete.' }
+        exit $LASTEXITCODE
+
+    - name: Read back complete OCI blobs by digest
+      id: collect
+      if: steps.record.outcome == 'success'
+      continue-on-error: true
+      shell: pwsh
+      env:
+        GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        ./.azurepipelines/containers/evidence.ps1 -Operation Collect -Group $env:IMAGE_GROUP `
+          -Image $env:IMAGE_REPOSITORY -Version $env:IMAGE_VERSION -Work $env:EVIDENCE_WORK -BuildState success
+
+    - name: Reconcile runnable subjects and native attestations
+      id: reconcile
+      if: steps.collect.outcome == 'success'
+      continue-on-error: true
+      shell: pwsh
+      run: |
+        ./.azurepipelines/containers/evidence.ps1 -Operation VerifyLocal -Group $env:IMAGE_GROUP `
+          -Image $env:IMAGE_REPOSITORY -Version $env:IMAGE_VERSION -Work $env:EVIDENCE_WORK -BuildState success
+
+    - name: Install pinned cosign
+      id: cosign
+      if: steps.reconcile.outcome == 'success'
+      continue-on-error: true
+      uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
+      with:
+        cosign-release: 'v3.1.3'
+
+    - name: Sign and verify root and runnable subjects (publisher boundary pending)
+      if: steps.cosign.outcome == 'success'
+      continue-on-error: true
+      shell: pwsh
+      env:
+        GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        ./.azurepipelines/containers/evidence.ps1 -Operation Sign -Group $env:IMAGE_GROUP `
+          -Image $env:IMAGE_REPOSITORY -Version $env:IMAGE_VERSION -Work $env:EVIDENCE_WORK -BuildState success
+
+    - name: Always produce sanitized per-image status
+      if: always()
+      continue-on-error: true
+      shell: pwsh
+      env:
+        BUILD_STATE: ${{ steps.build-and-push.outcome }}
+      run: |
+        $public = Join-Path $env:EVIDENCE_WORK 'public'
+        $null = New-Item -ItemType Directory -Force -Path $public
+        $status = Join-Path $public 'status.json'
+        @{
+          schemaVersion = 1; status = 'incomplete'; group = $env:IMAGE_GROUP
+          image = $env:EVIDENCE_IMAGE
+          collectorState = 'unavailable'; observedSubjects = @(); observedAttestations = @()
+          unmetControls = @('PRODUCER_NOT_READY', 'PUBLISHER_BOUNDARY')
+        } | ConvertTo-Json | Set-Content -LiteralPath $status
+        $reportExit = 2
+        if (Test-Path ./.azurepipelines/containers/evidence.ps1) {
+          & ./.azurepipelines/containers/evidence.ps1 -Operation Status -Group $env:IMAGE_GROUP `
+            -Image $env:IMAGE_NAME -Version $env:IMAGE_VERSION -Work $env:EVIDENCE_WORK `
+            -BuildState $env:BUILD_STATE -Output $status
+          $reportExit = $LASTEXITCODE
+        }
+        Write-Warning 'Container evidence is incomplete; status is not authorization or baseline success.'
+        # continue-on-error applies only to reporting, never to the baseline build/push.
+        exit $reportExit
+
+    - name: Upload sanitized status only
+      if: always()
+      continue-on-error: true
+      uses: actions/upload-artifact@v4
+      with:
+        name: container-status-${{ matrix.group }}-${{ matrix.image }}
+        path: ${{ runner.temp }}/container-evidence/public/status.json
+        if-no-files-found: error
+
+    - name: Retain per-subject public signature bundles
+      if: github.event_name != 'pull_request' && steps.cosign.outcome == 'success'
+      continue-on-error: true
+      uses: actions/upload-artifact@v4
+      with:
+        name: container-signature-bundles-${{ matrix.group }}-${{ matrix.image }}
+        # Explicit signature material only; never upload the work directory, native predicates or raw tool logs.
+        path: |
+          ${{ runner.temp }}/container-evidence/subject-proofs/*.bundle.json
+        if-no-files-found: error
+
+  container-group-status:
+    if: always() && needs.select-images.result == 'success'
+    needs: [select-images, build-and-push-image]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.select-images.outputs.groups) }}
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@v7
+    - uses: actions/download-artifact@v4
+      continue-on-error: true
+      with:
+        pattern: container-status-${{ matrix.id }}-*
+        path: ${{ runner.temp }}/container-statuses
+    - name: Reconcile catalog membership without inventing missing platforms
+      if: always()
+      shell: pwsh
+      run: |
+        ./.azurepipelines/containers/evidence.ps1 -Operation Aggregate -Group '${{ matrix.id }}' `
+          -Inputs "${{ runner.temp }}/container-statuses" `
+          -Output "${{ runner.temp }}/artifact-group-manifest.json"
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: ${{ matrix.manifestArtifact }}
+        path: ${{ runner.temp }}/artifact-group-manifest.json
+        if-no-files-found: error
 
   images-summary:
     # The single fixed-name check for every image in the matrix above. Matrix
@@ -326,6 +448,7 @@ jobs:
     if: ${{ always() }}
     needs:
     - discover
+    - select-images
     - build-and-push-image
     steps:
     - name: Evaluate job results
@@ -333,6 +456,7 @@ jobs:
       env:
         RELEVANT_CHANGES: ${{ needs.discover.outputs.relevant_changes }}
         DISCOVER_RESULT: ${{ needs.discover.result }}
+        SELECTION_RESULT: ${{ needs.select-images.result }}
         IMAGES_RESULT: ${{ needs.build-and-push-image.result }}
       run: |
         if ($env:RELEVANT_CHANGES -eq 'true') {
@@ -344,16 +468,15 @@ jobs:
 
         $results = [ordered]@{
           'discover'             = $env:DISCOVER_RESULT
+          'select-images'        = $env:SELECTION_RESULT
           'build-and-push-image' = $env:IMAGES_RESULT
         }
 
         $bad = @()
         foreach ($job in $results.GetEnumerator()) {
           Write-Host "$($job.Key): $($job.Value)"
-          # A matrix job aggregates to 'success' only when every leg succeeded,
-          # so one broken image fails this gate. 'skipped' is a valid outcome -
-          # nothing image-relevant changed for this event.
-          if (@('success', 'skipped') -notcontains $job.Value) {
+          $expected = $job.Key -eq 'discover' -or $env:RELEVANT_CHANGES -eq 'true'
+          if ($job.Value -ne 'success' -and -not ($job.Value -eq 'skipped' -and -not $expected)) {
             $bad += "$($job.Key)=$($job.Value)"
           }
         }

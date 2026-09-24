@@ -24,7 +24,7 @@ without any other context.
   root version is an exact stable release. The full, single source of truth
   for which package IDs this covers is `_IsPreviewPackage` in
   `version.targets` (build-time) and `Test-PreviewPackageId` in
-  `.azurepipelines/package-version-policy.ps1` (validation-time) - both must
+  `.azurepipelines/nuget/package-version-policy.ps1` (validation-time) - both must
   always list the same families.
 - **Channel** - `stable` when the root version has no prerelease label or
   build metadata (e.g. `2.0.0`); `preview` otherwise (e.g. `2.0.0-preview.6`,
@@ -104,7 +104,7 @@ Every procedure below starts here.
    root version to stable) before proceeding.
 
    This manual sampling is only a headroom estimate. The authoritative check
-   is `.azurepipelines/validate-preview-package-ordering.ps1`, which queries
+   is `.azurepipelines/nuget/validate-preview-package-ordering.ps1`, which queries
    **every** preview-family package ID in a candidate's manifest against both
    feeds. `nuget-publish.yml` and `release.yml` both run it automatically for
    stable candidates, and both fail if any already-published version is not
@@ -181,8 +181,8 @@ Every procedure below starts here.
   from an already published `2.1.x`. The check fails closed: if the newest
   line cannot be determined, the build is treated as superseded and only
   publishes line-specific aliases. Non-release builds keep their existing
-  branch-suffixed `latest-<branch>` alias, and the master-only pump image
-  publishes `preview` rather than `latest`.
+  branch-suffixed `latest-<branch>` alias. The dual-platform `pumpserver`
+  image follows the same rules as the other images.
 
 ## First stable release
 
@@ -417,9 +417,9 @@ maintainer can subsequently approve [Approved promotion](#approved-promotion).
 3. To prove the set is eligible for promotion **without publishing anything**,
    run the exact validation `release.yml` itself performs:
    ```powershell
-   . ./.azurepipelines/package-version-policy.ps1
+   . ./.azurepipelines/nuget/package-version-policy.ps1
    $manifest = Get-Content ./candidate/release-manifest.json | ConvertFrom-Json
-   ./.azurepipelines/validate-nuget-package-set.ps1 `
+   ./.azurepipelines/nuget/validate-package-set.ps1 `
      -PackageDirectory ./candidate `
      -ManifestPath ./candidate/current-package-set.json `
      -ExpectedVersion $manifest.basePackageVersion `
@@ -448,7 +448,7 @@ maintainer can subsequently approve [Approved promotion](#approved-promotion).
    script both workflows run:
    ```powershell
    $env:GITHUB_TOKEN = (gh auth token)
-   ./.azurepipelines/validate-preview-package-ordering.ps1 `
+   ./.azurepipelines/nuget/validate-preview-package-ordering.ps1 `
      -ManifestPath ./candidate/current-package-set.json `
      -GitHubPackagesOwner OPCFoundation
    ```
@@ -464,11 +464,11 @@ maintainer can subsequently approve [Approved promotion](#approved-promotion).
    different build, using the gate `release.yml` runs before either push:
    ```powershell
    $env:GITHUB_TOKEN = (gh auth token)
-   ./.azurepipelines/assert-published-packages-match.ps1 `
+   ./.azurepipelines/nuget/assert-published-packages-match.ps1 `
      -PackageDirectory ./candidate `
      -ManifestPath ./candidate/current-package-set.json `
      -Feed 'nuget.org' -ExcludeDebugPackages
-   ./.azurepipelines/assert-published-packages-match.ps1 `
+   ./.azurepipelines/nuget/assert-published-packages-match.ps1 `
      -PackageDirectory ./candidate `
      -ManifestPath ./candidate/current-package-set.json `
      -Feed 'GitHub Packages'
@@ -736,10 +736,10 @@ on `release/2.0`.
 
 Update this file, and the worked examples above, in the same pull request as
 any change to `version.json`, `version.props`, `version.targets`,
-`preview-version.props`, `.azurepipelines/package-version-policy.ps1`,
-`.azurepipelines/validate-nuget-package-set.ps1`,
-`.azurepipelines/validate-preview-package-ordering.ps1`,
-`.azurepipelines/assert-published-packages-match.ps1`,
+`preview-version.props`, `.azurepipelines/nuget/package-version-policy.ps1`,
+`.azurepipelines/nuget/validate-package-set.ps1`,
+`.azurepipelines/nuget/validate-preview-package-ordering.ps1`,
+`.azurepipelines/nuget/assert-published-packages-match.ps1`,
 `.github/workflows/nuget-publish.yml`, `.github/workflows/release.yml`, or
 the Docker/container tagging workflows. A release procedure that no longer
 matches the scripts it describes is worse than no documentation at all.

@@ -1,8 +1,9 @@
 name: Run .NET tests
 description: >-
   Builds and runs one batch of test projects on a GitHub-hosted runner, then
-  publishes its results, dumps and coverage. Shared by the pull-request
-  workflow and the manual full-scope nightly workflow so both execute the
+  publishes safe per-project results and coverage. Fuzz logs, raw results and
+  dumps remain private on the runner. Shared by PR and scheduled/manual nightly
+  workflows so both execute the
   matrix produced by .github/scripts/get-ci-matrix.ps1 identically.
 
 inputs:
@@ -44,6 +45,18 @@ inputs:
   artifact-name:
     description: Name of the artifact that receives the results of this batch.
     required: true
+  assurance-workflow:
+    description: Source workflow path recorded in sanitized profile evidence.
+    required: false
+    default: ''
+  assurance-artifact-name:
+    description: Optional artifact containing only sanitized profile records and proofs.
+    required: false
+    default: ''
+  require-assurance:
+    description: Require complete unfiltered evidence for one selected release-profile project.
+    required: false
+    default: 'false'
 
 runs:
   using: composite
@@ -197,6 +210,8 @@ runs:
       CI_HANG_TIMEOUT: ${{ inputs.hang-timeout }}
       CI_PER_PROJECT_TIMEOUT: ${{ inputs.per-project-timeout }}
       CI_COVERAGE: ${{ inputs.coverage }}
+      CI_ASSURANCE_WORKFLOW: ${{ inputs.assurance-workflow }}
+      CI_REQUIRE_ASSURANCE: ${{ inputs.require-assurance }}
     run: |
       # The core_pattern set by 'Enable native core dumps' only takes effect for
       # a process whose RLIMIT_CORE is non-zero, and the limit is inherited, not
@@ -222,7 +237,11 @@ runs:
         -Filter $env:CI_FILTER `
         -HangTimeout $env:CI_HANG_TIMEOUT `
         -PerProjectTimeoutMinutes ([int]$env:CI_PER_PROJECT_TIMEOUT) `
-        -ResultsDirectory 'TestResults' `
+        -ResultsDirectory (Join-Path $env:RUNNER_TEMP 'ci-test-results') `
+        -PublicResultsDirectory 'TestResults' `
+        -AssuranceDirectory 'AssuranceResults' `
+        -AssuranceWorkflow $env:CI_ASSURANCE_WORKFLOW `
+        -RequireAssurance:($env:CI_REQUIRE_ASSURANCE -eq 'true') `
         -Coverage:($env:CI_COVERAGE -eq 'true')
 
   # Apple Crash Reporter writes .crash (legacy) and .ips (JSON, macOS 12+)
@@ -232,7 +251,10 @@ runs:
   # SIGABRT or SIGSEGV. Only reports whose base name mentions 'testhost' or
   # 'dotnet' are collected, which excludes unrelated crashes on shared runners.
   - name: Stage macOS crash reports
-    if: ${{ failure() && runner.os == 'macOS' }}
+    # A batch containing fuzz replay can leave private process state in any
+    # diagnostic file. Keep all such diagnostics on the runner, even for a
+    # different project in the same batch.
+    if: ${{ failure() && runner.os == 'macOS' && !contains(inputs.projects, 'fuzzing/') }}
     shell: pwsh
     run: |
       $src = [System.IO.Path]::Combine($env:HOME, 'Library', 'Logs', 'DiagnosticReports')
@@ -265,7 +287,7 @@ runs:
     # backtrace is extracted here and always kept; the core itself is kept only
     # when it compresses to something small enough to be worth transferring.
     # Both land in TestResults, which 'Upload test results' already publishes.
-    if: ${{ failure() && runner.os == 'Linux' }}
+    if: ${{ failure() && runner.os == 'Linux' && !contains(inputs.projects, 'fuzzing/') }}
     shell: bash
     run: |
       set -uo pipefail
@@ -337,3 +359,11 @@ runs:
       name: ${{ inputs.artifact-name }}
       path: TestResults
       if-no-files-found: error
+
+  - name: Upload sanitized profile evidence
+    if: ${{ always() && inputs.assurance-artifact-name != '' }}
+    uses: actions/upload-artifact@v7
+    with:
+      name: ${{ inputs.assurance-artifact-name }}
+      path: AssuranceResults
+      if-no-files-found: ${{ inputs.require-assurance == 'true' && 'error' || 'ignore' }}

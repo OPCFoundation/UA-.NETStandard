@@ -425,7 +425,7 @@ namespace Opc.Ua.Tools.Tests
             string? current = TestContext.CurrentContext.TestDirectory;
             while (!string.IsNullOrWhiteSpace(current))
             {
-                string script = Path.Combine(current, ".azurepipelines", "evaluate-test-results.ps1");
+                string script = Path.Combine(current, ".azurepipelines", "assurance", "evaluate-test-results.ps1");
                 if (File.Exists(script))
                 {
                     return script;

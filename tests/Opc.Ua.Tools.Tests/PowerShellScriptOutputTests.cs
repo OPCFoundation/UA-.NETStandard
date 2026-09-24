@@ -46,7 +46,7 @@ namespace Opc.Ua.Tools.Tests
         {
             // Verbatim ConciseView output from a 80-column Linux agent.
             const string wrapped =
-                "Exception: /home/runner/work/x/.azurepipelines/validate-nuget-package-set.ps1:137\n" +
+                "Exception: /home/runner/work/x/.azurepipelines/nuget/validate-package-set.ps1:137\n" +
                 "Line |\n" +
                 " 137 |      throw 'Expected at least one OPCFoundation.NetStandard.Opc.Ua.Cor \u2026\n" +
                 "     |      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n" +

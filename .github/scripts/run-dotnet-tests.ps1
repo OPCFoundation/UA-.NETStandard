@@ -14,21 +14,20 @@
     RestrictForLegacyTfm into an empty no-op shell on the legacy profiles, and
     marks the shell 'IsTestProject=false'. A shell is recorded as not applicable
     with its reason - it is explicitly not counted as a passing test run.
+    Fixed-framework projects can declare SupportedTestTargets. An existing
+    IsTestProject=false is accepted only outside that supported set and when
+    the evaluated frameworks are consistent with it; required assurance cannot
+    use either exclusion.
 
     A project that is applicable must produce a TRX recording at least one
     executed test. A run that emits nothing, or emits a TRX with no results, is a
     broken discovery rather than a pass, and fails here.
 
-    The recorded results decide the verdict, not the 'dotnet test' exit code. A
-    non-zero exit is tolerated when - and only when - the TRX records at least
-    one test and no failure, error, timeout, abort or passedButRunAborted: that
-    combination means the host died during process exit, after the last test and
-    every teardown had already run. This matches the Azure gate in
-    .azurepipelines/test.yml. It was originally assumed to be a macOS-only
-    quirk, but Windows hosts do it too (observed on run 35714133848, job
-    'test-windows-net48 (5/30)', where Opc.Ua.Client.Tests reported 256 passed
-    and 0 failed and the host still exited 1). A host that dies mid-run is not
-    tolerated - that leaves a non-zero counter, which fails above.
+    The strict TRX evaluator must establish run completion before an exit-code
+    discrepancy can be tolerated. Public replay inventories are frozen before
+    building and checked against the actual output before testing. Fuzz output,
+    raw result documents and dumps remain in the runner-private results tree.
+    Only sanitized proofs and coverage are staged for public upload.
 
  .PARAMETER Projects
     Semicolon-separated, repository-relative project paths to run in order.
@@ -67,8 +66,16 @@
     results - before the executor ever reached the ceiling it promises here.
 
  .PARAMETER ResultsDirectory
-    Directory that receives one subdirectory of results per project, plus the
-    machine-readable batch summary.
+    Fresh runner-private directory for per-project results and diagnostics.
+
+ .PARAMETER PublicResultsDirectory
+    Separate fresh staging directory. Fuzz projects contribute only explicit
+    sanitized proof files and coverage; raw TRX, logs and dumps stay private.
+
+ .PARAMETER InputScope
+    Public replays require frozen inventories and copied-input verification.
+    Private replays may consume approved overlays, but cannot publish results,
+    collect public coverage, or produce release assurance.
 
  .PARAMETER Coverage
     Collect Cobertura coverage. Never set for a .NET Framework test host:
@@ -97,6 +104,12 @@ Param(
     [int]    $PerProjectTimeoutMinutes = 30,
     [Parameter(Mandatory = $true)]
     [string] $ResultsDirectory,
+    [string] $PublicResultsDirectory = '',
+    [string] $AssuranceDirectory = '',
+    [string] $AssuranceWorkflow = '',
+    [switch] $RequireAssurance,
+    [ValidateSet('public', 'private')]
+    [string] $InputScope = 'public',
     [switch] $Coverage,
     [switch] $QuietOutput
 )
@@ -107,13 +120,65 @@ $ErrorActionPreference = 'Stop'
 # running anything - see tests/Opc.Ua.Tools.Tests/CiTestVerdictTests.cs.
 . (Join-Path $PSScriptRoot 'get-test-verdict.ps1')
 
-$projectList = @($Projects -split ';' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+$projectList = @($Projects -split ';' | ForEach-Object {
+    $path = $_.Trim().Replace('\', '/')
+    while ($path.StartsWith('./')) { $path = $path.Substring(2) }
+    if ([System.IO.Path]::IsPathRooted($path) -or '..' -in $path.Split('/')) {
+        throw 'Projects must be repository-relative paths without parent traversal.'
+    }
+    $path
+} | Where-Object { $_ })
 if ($projectList.Count -eq 0) {
     throw 'No projects were supplied. An entry that runs nothing would report success without testing anything.'
 }
+if ($Coverage -and $Framework.StartsWith('net4')) {
+    throw 'Coverage is not supported by the selected .NET Framework test host.'
+}
+if ($InputScope -eq 'private' -and ($PublicResultsDirectory -or $AssuranceDirectory -or
+    $AssuranceWorkflow -or $RequireAssurance -or $Coverage)) {
+    throw 'Private replay cannot publish results, collect public coverage, or produce release assurance.'
+}
+if ($RequireAssurance -and ($projectList.Count -ne 1 -or -not $AssuranceDirectory -or -not $AssuranceWorkflow)) {
+    throw 'A required assurance entry must select exactly one project and an evidence destination.'
+}
+$stems = @($projectList | ForEach-Object { [System.IO.Path]::GetFileNameWithoutExtension($_) })
+if (@($stems | Select-Object -Unique).Count -ne $projectList.Count) {
+    throw 'Project result directories must be unique within a batch.'
+}
 
-$null = New-Item -ItemType Directory -Path $ResultsDirectory -Force
-$resultsRoot = (Resolve-Path -LiteralPath $ResultsDirectory).Path
+function New-ResultDirectory([string] $path)
+{
+    if (Test-Path -LiteralPath $path) {
+        if (@(Get-ChildItem -LiteralPath $path -Force).Count -gt 0) {
+            throw 'Result directories must be fresh; stale evidence cannot be reused.'
+        }
+    }
+    $null = New-Item -ItemType Directory -Path $path -Force
+    return (Resolve-Path -LiteralPath $path).Path
+}
+
+$resultsRoot = New-ResultDirectory $ResultsDirectory
+$publicRoot = ''
+if ($PublicResultsDirectory) {
+    $publicRoot = [System.IO.Path]::GetFullPath($PublicResultsDirectory)
+    if ($publicRoot -eq $resultsRoot -or
+        $publicRoot.StartsWith($resultsRoot + [System.IO.Path]::DirectorySeparatorChar,
+            [System.StringComparison]::OrdinalIgnoreCase) -or
+        $resultsRoot.StartsWith($publicRoot + [System.IO.Path]::DirectorySeparatorChar,
+            [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Public staging and private results must be separate directory trees.'
+    }
+    $publicRoot = New-ResultDirectory $publicRoot
+}
+$assuranceRoot = ''
+if ($AssuranceDirectory) {
+    $assuranceRoot = New-ResultDirectory $AssuranceDirectory
+}
+$repositoryRoot = Split-Path (Split-Path $PSScriptRoot)
+$assuranceScripts = Join-Path $repositoryRoot '.azurepipelines/assurance'
+$catalog = Get-Content -LiteralPath (Join-Path $assuranceScripts 'profiles.json') -Raw | ConvertFrom-Json
+$replayDefinitions = @($catalog.profiles.jobs | Where-Object { $_.corpusRoot }) +
+    @($catalog.additionalReplayProjects)
 
 <#
  .SYNOPSIS
@@ -137,7 +202,12 @@ function Invoke-Dotnet(
     [int] $budgetMinutes,
     [string] $logPath)
 {
-    Write-Host "dotnet $($arguments -join ' ')"
+    if ($captureOutput) {
+        Write-Host "dotnet $($arguments[0]) (output retained privately on the runner)"
+    }
+    else {
+        Write-Host "dotnet $($arguments -join ' ')"
+    }
 
     $remainingMs = ([long]$budgetMinutes * 60 * 1000) - $budget.ElapsedMilliseconds
     if ($remainingMs -le 0) {
@@ -155,17 +225,18 @@ function Invoke-Dotnet(
 
     $writer = $null
     $subscriptions = @()
-    if ($QuietOutput) {
+    if ($captureOutput) {
         $startInfo.RedirectStandardOutput = $true
         $startInfo.RedirectStandardError = $true
-        $writer = [System.IO.StreamWriter]::new($logPath, $true)
-        $writer.AutoFlush = $true
+        $streamWriter = [System.IO.StreamWriter]::new($logPath, $true)
+        $streamWriter.AutoFlush = $true
+        $writer = [System.IO.TextWriter]::Synchronized($streamWriter)
     }
 
     $process = [System.Diagnostics.Process]::new()
     $process.StartInfo = $startInfo
     try {
-        if ($QuietOutput) {
+        if ($captureOutput) {
             # Event-driven rather than ReadToEnd on both streams in turn, which
             # deadlocks as soon as one pipe buffer fills.
             $handler = {
@@ -178,7 +249,7 @@ function Invoke-Dotnet(
         }
 
         $null = $process.Start()
-        if ($QuietOutput) {
+        if ($captureOutput) {
             $process.BeginOutputReadLine()
             $process.BeginErrorReadLine()
         }
@@ -190,7 +261,7 @@ function Invoke-Dotnet(
             $null = $process.WaitForExit(60 * 1000)
             return [pscustomobject]@{ ExitCode = -1; TimedOut = $true }
         }
-        if ($QuietOutput) {
+        if ($captureOutput) {
             # The timed overload returns as soon as the process exits; only the
             # parameterless one waits for the asynchronous readers to drain, and
             # without it the tail of the log is lost.
@@ -214,13 +285,19 @@ function Invoke-Dotnet(
     Evaluates the properties that decide whether a project takes part in this
     profile, without restoring or building it.
 #>
-function Get-ProjectProperties([string] $project)
+function Get-ProjectProperties([string] $project, [switch] $InnerBuild)
 {
-    $output = & dotnet msbuild $project `
-        '-getProperty:IsTestProject;TargetFrameworks;TargetFramework' `
-        "-p:CustomTestTarget=$CustomTestTarget" `
-        "-p:Configuration=$Configuration" `
-        -nologo | Out-String
+    $arguments = @(
+        'msbuild', $project, '-nologo',
+        '-getProperty:IsTestProject;TargetFrameworks;TargetFramework;_RestrictedToLegacyTfm;SupportedTestTargets;TargetDir',
+        "-p:CustomTestTarget=$CustomTestTarget", "-p:Configuration=$Configuration")
+    # Never override a project's pinned framework while deciding applicability.
+    # Once selected, an inner evaluation resolves the actual output directory.
+    if ($InnerBuild) { $arguments += "-p:TargetFramework=$Framework" }
+    $output = & dotnet @arguments 2>&1 | Out-String
+    if ($captureOutput) {
+        $output | Out-File -LiteralPath $logPath -Append
+    }
     if ($LASTEXITCODE -ne 0) {
         throw "Could not evaluate '$project' for CustomTestTarget=$CustomTestTarget (exit code $LASTEXITCODE)."
     }
@@ -238,61 +315,35 @@ function Get-ProjectProperties([string] $project)
 
 <#
  .SYNOPSIS
-    Sums the counters of every TRX below a directory.
+    Reads counts only from a sanitized, strictly validated result proof.
 #>
-function Measure-TestResults([string] $directory)
+function Measure-TestResults([string] $directory, [string] $kind)
 {
-    $total = 0
-    $passed = 0
-    $failed = 0
-    $nonPassingCounters = @(
-        'failed',
-        'error',
-        'timeout',
-        'aborted',
-        'passedButRunAborted',
-        'inconclusive',
-        'notRunnable',
-        'disconnected',
-        'warning',
-        'completed',
-        'inProgress',
-        'pending')
-    $trxFiles = @(Get-ChildItem -LiteralPath $directory -Recurse -File -Filter *.trx -ErrorAction SilentlyContinue)
-    foreach ($trxFile in $trxFiles) {
-        # XmlDocument.Load rather than [xml](Get-Content): PubSub emits several
-        # megabytes of results and the array-of-lines cast fails on files that
-        # size.
-        $document = [System.Xml.XmlDocument]::new()
-        $document.XmlResolver = $null
-        $document.Load($trxFile.FullName)
-        foreach ($counters in $document.GetElementsByTagName('Counters')) {
-            $total += Get-CounterValue $counters 'total'
-            $passed += Get-CounterValue $counters 'passed'
-            foreach ($name in $nonPassingCounters) {
-                $failed += Get-CounterValue $counters $name
-            }
-        }
+    $proofPath = Join-Path $directory 'public-results.json'
+    & (Join-Path $assuranceScripts 'results.ps1') -ResultsPath $directory -Kind $kind `
+        -OutputPath $proofPath -StrictTrx
+    if ($LASTEXITCODE -ne 0) { throw 'The result proof producer failed.' }
+    $proof = Get-Content -LiteralPath $proofPath -Raw | ConvertFrom-Json
+    return [pscustomobject]@{
+        Files = @($proof.documents).Count
+        Total = [long] $proof.counts.total
+        Passed = [long] $proof.counts.passed
+        Failed = [long] $proof.counts.failed
+        Completed = $proof.status -ceq 'completed'
     }
-    return [pscustomobject]@{ Files = $trxFiles.Count; Total = $total; Passed = $passed; Failed = $failed }
-}
-
-<#
- .SYNOPSIS
-    Reads a TRX counter attribute, treating an absent attribute as zero.
-#>
-function Get-CounterValue([System.Xml.XmlElement] $element, [string] $name)
-{
-    $raw = $element.GetAttribute($name)
-    if ([string]::IsNullOrEmpty($raw)) {
-        return 0
-    }
-    return [int]$raw
 }
 
 $records = @()
 foreach ($project in $projectList) {
+    $project = $project.Replace('\', '/')
     $stem = [System.IO.Path]::GetFileNameWithoutExtension($project)
+    $captureOutput = $QuietOutput -or $InputScope -eq 'private' -or $project.StartsWith('fuzzing/')
+    $projectResults = Join-Path $resultsRoot $stem
+    $null = New-Item -ItemType Directory -Path $projectResults
+    $logPath = Join-Path $projectResults 'build-and-test.log'
+    $previousReplayPath = $env:OPCUA_ASSURANCE_REPLAY_PATH
+    $replay = @($replayDefinitions | Where-Object { $_.project -ceq $project })
+    $kind = if ($replay.Count -eq 1 -and $InputScope -eq 'public') { 'fuzz-replay' } else { 'trx' }
     Write-Host "::group::$stem ($CustomTestTarget / $Framework / $Configuration)"
 
     $record = [ordered]@{
@@ -305,6 +356,8 @@ foreach ($project in $projectList) {
         total         = 0
         passed        = 0
         failed        = 0
+        notApplicableRule = ''
+        supportedTestTargets = @()
     }
 
     try {
@@ -322,11 +375,25 @@ foreach ($project in $projectList) {
         }
 
         if ($properties.IsTestProject -eq 'false') {
-            # Directory.Build.targets emptied the project for this profile. The
-            # reason is recorded so a profile that skips everything is visible
-            # rather than looking like a clean run.
+            $supported = @($properties.SupportedTestTargets -split ';' |
+                ForEach-Object { $_.Trim() } | Where-Object { $_ })
+            $explicitlyUnsupported = $supported.Count -gt 0 -and $declared.Count -gt 0 -and
+                $CustomTestTarget -cnotin $supported -and
+                @($declared | Where-Object { $_ -cnotin $supported }).Count -eq 0
+            if (($properties._RestrictedToLegacyTfm -ne 'true' -and -not $explicitlyUnsupported) -or
+                $RequireAssurance) {
+                throw 'The selected project has no verified applicability exclusion.'
+            }
             $record.outcome = 'not-applicable'
-            $record.reason = "RestrictForLegacyTfm makes this an empty shell for CustomTestTarget=$CustomTestTarget."
+            if ($properties._RestrictedToLegacyTfm -eq 'true') {
+                $record.notApplicableRule = 'RestrictForLegacyTfm'
+                $record.reason = "RestrictForLegacyTfm makes this an empty shell for CustomTestTarget=$CustomTestTarget."
+            }
+            else {
+                $record.notApplicableRule = 'SupportedTestTargets'
+                $record.supportedTestTargets = $supported
+                $record.reason = "The project declares test support for [$($supported -join ', ')], not $CustomTestTarget."
+            }
             Write-Host "Not applicable: $($record.reason)"
             continue
         }
@@ -337,9 +404,15 @@ foreach ($project in $projectList) {
                 "project's TargetFrameworks or set RestrictForLegacyTfm so the profile skips it explicitly.")
         }
 
-        $projectResults = Join-Path $resultsRoot $stem
-        $null = New-Item -ItemType Directory -Path $projectResults -Force
-        $logPath = Join-Path $projectResults 'build-and-test.log'
+        if ($replay.Count -gt 1 -or
+            ($InputScope -eq 'public' -and $project.EndsWith('.Fuzz.Tests.csproj') -and $replay.Count -ne 1)) {
+            throw 'The selected replay project has no unique committed-public input definition.'
+        }
+        if ($kind -eq 'fuzz-replay') {
+            & (Join-Path $assuranceScripts 'fuzz-inputs.ps1') -Project $project `
+                -OutputPath (Join-Path $projectResults 'public-inputs.json') -RequireCommitted
+            if ($LASTEXITCODE -ne 0) { throw 'The public replay inventory could not be frozen.' }
+        }
 
         $buildArguments = @(
             'build', $project,
@@ -371,6 +444,20 @@ foreach ($project in $projectList) {
         if ($build.ExitCode -ne 0) {
             throw "The build failed with exit code $($build.ExitCode)."
         }
+        if ($kind -eq 'fuzz-replay') {
+            $builtProperties = Get-ProjectProperties $project -InnerBuild
+            if (-not $builtProperties.TargetDir) { throw 'The evaluated build output directory is missing.' }
+            & (Join-Path $assuranceScripts 'fuzz-inputs.ps1') -Project $project `
+                -BuildOutput $builtProperties.TargetDir -OutputPath (Join-Path $projectResults 'copied-inputs.json') `
+                -RequireCommitted
+            if ($LASTEXITCODE -ne 0) { throw 'The built public replay inputs could not be verified.' }
+            $before = Get-Content -LiteralPath (Join-Path $projectResults 'public-inputs.json') -Raw | ConvertFrom-Json
+            $after = Get-Content -LiteralPath (Join-Path $projectResults 'copied-inputs.json') -Raw | ConvertFrom-Json
+            if ($before.inventoryDigest -cne $after.inventoryDigest) {
+                throw 'Public replay inputs changed after selection.'
+            }
+        }
+        $env:OPCUA_ASSURANCE_REPLAY_PATH = Join-Path $projectResults 'fuzz-replay.xml'
 
         $testArguments = @(
             'test', $project,
@@ -405,7 +492,7 @@ foreach ($project in $projectList) {
 
         $test = Invoke-Dotnet $testArguments $projectBudget $PerProjectTimeoutMinutes $logPath
 
-        $results = Measure-TestResults $projectResults
+        $results = Measure-TestResults $projectResults $kind
         $record.total = $results.Total
         $record.passed = $results.Passed
         $record.failed = $results.Failed
@@ -422,6 +509,7 @@ foreach ($project in $projectList) {
             -Failed $results.Failed `
             -ExitCode $test.ExitCode `
             -TimedOut $test.TimedOut `
+            -ReportsCompleted $results.Completed `
             -TimeoutMinutes $PerProjectTimeoutMinutes
         if (-not $verdict.Passed) {
             throw $verdict.Reason
@@ -432,30 +520,98 @@ foreach ($project in $projectList) {
             $record.reason = $verdict.Reason
             Write-Host "::warning title=$stem ($CustomTestTarget/$Configuration)::$($verdict.Reason)"
         }
+        if ($Coverage -and
+            @(Get-ChildItem -LiteralPath $projectResults -Recurse -File -Filter '*.cobertura.xml').Count -eq 0) {
+            throw 'The selected coverage-enabled project did not produce a coverage fragment.'
+        }
 
         $record.outcome = 'passed'
         Write-Host "Passed: $($results.Passed)/$($results.Total)."
     }
     catch {
         $record.outcome = 'failed'
-        $record.reason = $_.Exception.Message
+        $_ | Out-String | Out-File -LiteralPath (Join-Path $projectResults 'runner-error.log') -Append
+        $record.reason = if ($captureOutput) {
+            'Build, execution, or evidence verification failed; details remain private on the runner.'
+        } else {
+            $_.Exception.Message
+        }
         Write-Host "::error title=$stem ($CustomTestTarget/$Configuration)::$($record.reason)"
     }
     finally {
+        $env:OPCUA_ASSURANCE_REPLAY_PATH = $previousReplayPath
+        try {
+            if ($assuranceRoot -and $AssuranceWorkflow -and $InputScope -eq 'public' -and
+                $project -cin @($catalog.profiles.jobs.project)) {
+                $destination = if ($RequireAssurance) { $assuranceRoot } else { Join-Path $assuranceRoot $stem }
+                $null = New-Item -ItemType Directory -Path $destination -Force
+                & (Join-Path $assuranceScripts 'write-job.ps1') -Project $project -ResultsPath $projectResults `
+                    -OutputPath (Join-Path $destination 'evidence.job.json') -Workflow $AssuranceWorkflow `
+                    -HostTfm $Framework -LibraryTfm $CustomTestTarget -Configuration $Configuration `
+                    -Filter $Filter -StrictTrx -ExecutionFailed:($record.outcome -ne 'passed')
+                if ($LASTEXITCODE -ne 0) { throw 'The assurance record could not be produced.' }
+                if ($RequireAssurance) {
+                    $proof = Get-Content -LiteralPath (Join-Path $destination 'evidence.job.results.json') -Raw |
+                        ConvertFrom-Json
+                    if ($proof.status -cne 'completed' -or
+                        ($proof.kind -ceq 'trx' -and $proof.counts.skipped -ne 0)) {
+                        throw 'Selected profile execution was not complete.'
+                    }
+                }
+            }
+            elseif ($RequireAssurance) {
+                throw 'No release profile applies to the selected project.'
+            }
+
+            if ($publicRoot) {
+                $destination = Join-Path $publicRoot $stem
+                $null = New-Item -ItemType Directory -Path $destination -Force
+                if ($captureOutput) {
+                    foreach ($name in @('public-inputs.json', 'public-results.json')) {
+                        $file = Join-Path $projectResults $name
+                        if (Test-Path -LiteralPath $file -PathType Leaf) {
+                            Copy-Item -LiteralPath $file -Destination $destination
+                        }
+                    }
+                    $index = 0
+                    foreach ($file in Get-ChildItem -LiteralPath $projectResults -Recurse -File -Filter '*.cobertura.xml') {
+                        $index++
+                        Copy-Item -LiteralPath $file.FullName -Destination (
+                            Join-Path $destination "coverage-$index.cobertura.xml")
+                    }
+                }
+                else {
+                    Get-ChildItem -LiteralPath $projectResults -Force |
+                        Copy-Item -Destination $destination -Recurse
+                }
+            }
+        }
+        catch {
+            $_ | Out-String | Out-File -LiteralPath (Join-Path $projectResults 'runner-error.log') -Append
+            $record.outcome = 'failed'
+            $record.reason = 'The selected result or assurance evidence could not be published safely.'
+            Write-Host "::error title=$stem ($CustomTestTarget/$Configuration)::$($record.reason)"
+        }
         $records += [pscustomobject]$record
         Write-Host '::endgroup::'
     }
 }
 
-$summaryPath = Join-Path $resultsRoot 'batch-summary.json'
-[ordered]@{
+$summary = [ordered]@{
     customTestTarget = $CustomTestTarget
     framework        = $Framework
     configuration    = $Configuration
     filter           = $Filter
     coverage         = [bool]$Coverage
+    inputScope       = $InputScope
     projects         = $records
-} | ConvertTo-Json -Depth 5 | Out-File -LiteralPath $summaryPath -Encoding utf8
+}
+$summary | ConvertTo-Json -Depth 5 |
+    Out-File -LiteralPath (Join-Path $resultsRoot 'batch-summary.json') -Encoding utf8
+if ($publicRoot) {
+    $summary | ConvertTo-Json -Depth 5 |
+        Out-File -LiteralPath (Join-Path $publicRoot 'batch-summary.json') -Encoding utf8
+}
 
 $lines = @(
     "### $CustomTestTarget / $Framework / $Configuration",

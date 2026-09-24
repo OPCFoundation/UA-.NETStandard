@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "title": "SPDX Specification 2.3 JSON schema",
+  "attribution": "SPDX specification contributors",
+  "project": "https://spdx.dev/",
+  "repository": "https://github.com/spdx/spdx-spec",
+  "upstreamTag": "v2.3",
+  "upstreamCommit": "aadf3b0b8dbbabdb4d880b0fc714255fea436ff7",
+  "upstreamPath": "schemas/spdx-schema.json",
+  "source": "https://raw.githubusercontent.com/spdx/spdx-spec/aadf3b0b8dbbabdb4d880b0fc714255fea436ff7/schemas/spdx-schema.json",
+  "upstreamGitBlob": "ee61e6686e885f8139c132647fd0b4f483b8fb81",
+  "path": "spdx-2.3.schema.json",
+  "digest": "sha256:239208b7ac287b3cf5d9a9af23f9d69863971102a5e1587a27a398b43490b89b",
+  "size": 45312,
+  "license": "CC-BY-3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+  "licensePath": "spdx-2.3.LICENSE.txt",
+  "licenseSource": "https://raw.githubusercontent.com/spdx/spdx-spec/aadf3b0b8dbbabdb4d880b0fc714255fea436ff7/LICENSE",
+  "licenseDigest": "sha256:017e38491cccbd2bdb6da0a32a33db9ec245b5dab30fdcd09f2c742c975e5b35",
+  "modifications": "None. Both upstream files are preserved byte-for-byte under local filenames.",
+  "embeddedResource": "Opc.Ua.ReleaseEvidence.Schemas.spdx-2.3.schema.json"
+}

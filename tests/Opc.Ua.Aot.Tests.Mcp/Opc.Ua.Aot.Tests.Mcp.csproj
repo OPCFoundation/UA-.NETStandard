@@ -24,6 +24,7 @@
   <ItemGroup>
     <Compile Include="..\Opc.Ua.Aot.Tests\McpAotTests.cs" Link="McpAotTests.cs" />
     <Compile Include="..\Opc.Ua.Aot.Tests\LeakDetectionSetup.cs" Link="LeakDetectionSetup.cs" />
+    <Compile Include="..\Opc.Ua.Aot.Tests\NativeAssuranceHooks.cs" Link="NativeAssuranceHooks.cs" />
     <Compile Include="..\Opc.Ua.Aot.Tests\Properties\AssemblyInfo.cs" Link="Properties\AssemblyInfo.cs" />
   </ItemGroup>
 </Project>

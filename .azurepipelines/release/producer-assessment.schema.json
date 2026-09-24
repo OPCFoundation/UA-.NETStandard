@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opcfoundation.org/schemas/ua-netstandard/producer-assessment-v1.schema.json",
+  "title": "Versioned producer finding classifications, separate from the closed v2 envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "kind", "source", "producer", "release", "artifacts",
+    "unmetControls", "pendingControls", "observedControls"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "producer-assessment" },
+    "source": { "$ref": "evidence.schema.json#/$defs/source" },
+    "producer": { "$ref": "evidence.schema.json#/$defs/producer" },
+    "release": { "$ref": "evidence.schema.json#/properties/release" },
+    "artifacts": { "$ref": "evidence.schema.json#/properties/artifacts" },
+    "unmetControls": { "$ref": "#/$defs/controls" },
+    "pendingControls": { "$ref": "#/$defs/controls" },
+    "observedControls": { "$ref": "#/$defs/controls" }
+  },
+  "$defs": {
+    "controls": {
+      "type": "array", "uniqueItems": true,
+      "items": { "$ref": "evidence.schema.json#/$defs/control" }
+    }
+  }
+}

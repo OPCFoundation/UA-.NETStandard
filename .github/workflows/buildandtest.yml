@@ -5,14 +5,7 @@ on:
     branches: [ master, main, master378, develop/*, release/* ]
   pull_request:
     branches: [ master, main, master378, develop/*, release/* ]
-    # NOTE: deliberately no `paths:` filter. A workflow that is filtered out by
-    # `paths` never reports its checks at all, and a required status check that
-    # never reports leaves a pull request permanently "Expected — waiting for
-    # status to be reported". Since `build-and-test summary` below is the check
-    # branch protection requires, this workflow has to trigger on every pull
-    # request. The path allow-list is applied inside the `discover` job instead,
-    # which skips the expensive jobs while still letting the summary report.
-  # Manual dispatch can opt out of the macOS runners that are enabled by default.
+    # No paths filter: the required summary must report even for documentation.
   workflow_dispatch:
     inputs:
       include_macos:
@@ -23,37 +16,12 @@ on:
 permissions:
   contents: read
 
-# This workflow owns pull-request validation. The complete build and test
-# workload runs here, on GitHub-hosted runners, for every triggering branch.
-# There is deliberately no switch that hands any of it back to another CI
-# system: a configuration that shrinks this matrix would reduce what a pull
-# request is actually tested against without changing any check name, and the
-# reduction would not be visible on the pull request. Azure Pipelines still runs
-# its own legs during the migration overlap (see docs/DeveloperGuide.md); that
-# duplicates coverage rather than replacing it.
-#
-# The full workload - every remaining target framework, the Debug legs and the
-# tiers that lift the category filter - lives in .github/workflows/nightly.yml,
-# which expands the same table through the same expander.
+# GitHub owns the complete PR workload. Scheduled full validation uses the same
+# expander and runner in nightly.yml; no setting delegates PR scope to Azure.
 env:
-  # Nerdbank.GitVersioning's SetCloudBuildVersionVars target runs once per
-  # project and appends the NBGV_*/Git* variables to $GITHUB_ENV. A solution
-  # build evaluates ~100 projects in parallel, so those appends interleave and
-  # tear a line, and the runner then fails the step with "Unable to process
-  # file command 'env' successfully. Invalid format '2.0.0'" - after a build
-  # that reported "0 Error(s)". It is a race, so it hits a different job on
-  # every run (observed on run 35708624724, build-UA net9.0 Release (linux)).
-  # The emission is redundant anyway: the `Set cloud version` step runs
-  # `nbgv cloud -c -a` once per job, which exports the same variables safely.
-  # Disabling it does not change any computed version - those come from
-  # GetBuildVersion, which this does not touch.
+  # nbgv cloud exports these once per job. Parallel per-project appends tear
+  # GITHUB_ENV; disabling that writer does not change computed versions.
   NBGV_SetCloudBuildVersionVars: 'false'
-  # Upload the merged coverage report to codecov.io. Reporting only - the
-  # enforced rules live in coverage-thresholds.json and are applied by
-  # check-coverage.ps1 in the `code-coverage` job below, so a codecov outage can
-  # never fail a build. Set to 'false' to turn the upload off; it is skipped
-  # anyway when the CODECOV_TOKEN secret is unavailable, which is the case for
-  # pull requests from forks.
   ENABLE_CODECOV: 'true'
 
 concurrency:
@@ -68,14 +36,14 @@ jobs:
       tests: ${{ steps.matrix.outputs.tests }}
       builds: ${{ steps.matrix.outputs.builds }}
       batch_size: ${{ steps.matrix.outputs.batch_size }}
+      assurance_projects: ${{ steps.matrix.outputs.assurance_projects }}
+      assurance_selected: ${{ steps.list.outputs.assurance_selected }}
       aot_matrix: ${{ steps.list.outputs.aot_matrix }}
       relevant_changes: ${{ steps.list.outputs.relevant_changes }}
       include_macos: ${{ steps.list.outputs.include_macos }}
     steps:
     - uses: actions/checkout@v7
       with:
-        # Full history so the path-relevance check below can diff a pull request
-        # against its base commit.
         fetch-depth: 0
     - name: Validate migration plugin
       shell: pwsh
@@ -87,59 +55,40 @@ jobs:
         EVENT_NAME: ${{ github.event_name }}
         INCLUDE_MACOS: ${{ github.event.inputs.include_macos }}
         BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        TARGET_REF: ${{ github.base_ref || github.ref_name }}
       run: |
-        # macOS is included by default on pull_request, push, and schedule events
-        # so platform-specific failures are caught before merge. When dispatched
-        # manually the include_macos input can be flipped to false to skip.
         $includeMac = switch ($env:EVENT_NAME) {
             'workflow_dispatch' { $env:INCLUDE_MACOS -eq 'true' }
             default { $true }
         }
-
-        # Path relevance. This replaces the `paths:` filter that used to sit on
-        # the pull_request trigger: filtering the whole workflow out would stop
-        # `build-and-test summary` from ever reporting, and a required status
-        # check that never reports blocks the pull request forever. Deciding
-        # relevance here skips the expensive jobs instead, while the summary job
-        # still reports.
-        #
-        # The rule itself lives in .github/scripts/get-path-relevance.ps1 so it
-        # can be tested: getting it wrong in the "irrelevant" direction skips
-        # the build, test and AOT jobs while the required summary still reports
-        # success. See CiPathRelevanceTests.
         $relevantChanges = $true
         if ($env:EVENT_NAME -eq 'pull_request' -and -not [string]::IsNullOrWhiteSpace($env:BASE_SHA)) {
-            # Triple-dot: diff from the merge base, not from the current base
-            # branch head. A two-dot diff would also report commits that landed
-            # on the base branch after this one was cut, which would make an
-            # unrelated base-branch change look like a build-relevant change here.
             $changed = @(& git diff --name-only "$($env:BASE_SHA)...HEAD")
             if ($LASTEXITCODE -ne 0) {
-                throw (
-                    "Could not diff pull-request base '$($env:BASE_SHA)' against HEAD " +
-                    "(git exit code $LASTEXITCODE). Refusing to skip required CI work.")
+                throw 'Could not diff the pull-request base. Refusing to skip required CI work.'
             }
             $relevantChanges = [bool](& ./.github/scripts/get-path-relevance.ps1 -ChangedFile $changed)
             Write-Host "Changed files: $(@($changed).Count); build-relevant: $relevantChanges"
         }
 
+        $releaseLine = $env:TARGET_REF -eq 'master' -or $env:TARGET_REF -like 'release/2.*'
+        $assuranceSelected = $relevantChanges -and $releaseLine -and $env:EVENT_NAME -ne 'pull_request'
         $aotMatrix = @()
         if ($relevantChanges) {
             $aotMatrix += @{ os = 'ubuntu-latest'; rid = 'linux-x64' }
+            if ($releaseLine) {
+                $aotMatrix += @{ os = 'windows-2025'; rid = 'win-x64' }
+            }
+            if ($includeMac) {
+                $aotMatrix += @{ os = 'macos-15-intel'; rid = 'osx-x64' }
+                $aotMatrix += @{ os = 'macos-latest'; rid = 'osx-arm64' }
+            }
         }
-        if ($includeMac -and $relevantChanges) {
-            $aotMatrix += @{ os = 'macos-15-intel'; rid = 'osx-x64'  }
-            $aotMatrix += @{ os = 'macos-latest'; rid = 'osx-arm64' }
-        }
-        Write-Host "Event=$($env:EVENT_NAME); include_macos=$includeMac"
-        "relevant_changes=$($relevantChanges.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-        "include_macos=$($includeMac.ToString().ToLowerInvariant())"         | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-        "aot_matrix=$(ConvertTo-Json -InputObject @($aotMatrix) -Compress)"  | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        "relevant_changes=$($relevantChanges.ToString().ToLowerInvariant())" | Out-File $env:GITHUB_OUTPUT -Append
+        "include_macos=$($includeMac.ToString().ToLowerInvariant())" | Out-File $env:GITHUB_OUTPUT -Append
+        "assurance_selected=$($assuranceSelected.ToString().ToLowerInvariant())" | Out-File $env:GITHUB_OUTPUT -Append
+        "aot_matrix=$(ConvertTo-Json -InputObject @($aotMatrix) -Compress)" | Out-File $env:GITHUB_OUTPUT -Append
 
-    # The pull-request scope of the same expander the manual full-scope workflow
-    # uses, so both fan out from one inventory instead of two hand-maintained
-    # lists. Emits empty matrices when the pull request changed nothing
-    # build-relevant, which the jobs below test for.
     - name: Expand the pull-request test and build matrix
       id: matrix
       shell: pwsh
@@ -148,28 +97,18 @@ jobs:
         INCLUDE_MACOS: ${{ steps.list.outputs.include_macos }}
       run: |
         if ($env:RELEVANT_CHANGES -ne 'true') {
-            Write-Host 'Nothing to expand: the pull request changed no build-relevant file.'
-            'tests=[]' | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-            'builds=[]' | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-            'batch_size=0' | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            'tests=[]', 'builds=[]', 'assurance_projects=[]', 'batch_size=0' |
+                Out-File -FilePath $env:GITHUB_OUTPUT -Append
             exit 0
         }
         ./.github/scripts/get-ci-matrix.ps1 -Scope pr -ExcludeMacOS:($env:INCLUDE_MACOS -ne 'true')
 
   build-and-test:
-    needs: discover
     name: test-${{ matrix.entry.name }}
-    runs-on: ${{ matrix.entry.runsOn }}
-    # Bound the job well below the 360-minute default. The expander sizes this
-    # from the batch: a hang inside the test host is named by
-    # --blame-hang-timeout long before it fires, and the executor kills a
-    # project that outlives its own ceiling, so this is only the backstop for a
-    # hang outside both (observed on run 30988867402, where entries sat for ~6
-    # hours and blocked the pull-request gate with no diagnostic information).
-    timeout-minutes: ${{ matrix.entry.timeoutMinutes }}
-    # Empty when the pull request changed nothing build-relevant; skip rather
-    # than fan out to nothing.
+    needs: discover
     if: ${{ needs.discover.outputs.tests != '[]' }}
+    runs-on: ${{ matrix.entry.runsOn }}
+    timeout-minutes: ${{ matrix.entry.timeoutMinutes }}
     strategy:
       fail-fast: false
       matrix:
@@ -177,10 +116,7 @@ jobs:
     steps:
     - uses: actions/checkout@v7
       with:
-        # Full history: Nerdbank.GitVersioning refuses to compute a version from
-        # a shallow clone, which fails the build before any test runs.
         fetch-depth: 0
-
     - uses: ./.github/actions/run-dotnet-tests
       with:
         projects: ${{ matrix.entry.projects }}
@@ -192,100 +128,119 @@ jobs:
         hang-timeout: ${{ matrix.entry.hangTimeout }}
         per-project-timeout: ${{ matrix.entry.perProjectTimeout }}
         coverage: ${{ matrix.entry.coverage }}
-        # code-coverage below collects every artifact matching dotnet-results-*.
         artifact-name: dotnet-results-${{ matrix.entry.id }}
+        assurance-workflow: .github/workflows/buildandtest.yml
+        assurance-artifact-name: assurance-batch-${{ matrix.entry.id }}-${{ github.run_id }}-${{ github.run_attempt }}-build-and-test
 
+  assurance-windows:
+    name: assurance-${{ matrix.project.id }}
+    needs: discover
+    if: ${{ needs.discover.outputs.assurance_selected == 'true' }}
+    runs-on: windows-2025
+    timeout-minutes: 70
+    strategy:
+      fail-fast: false
+      matrix:
+        project: ${{ fromJSON(needs.discover.outputs.assurance_projects) }}
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+    - uses: ./.github/actions/run-dotnet-tests
+      with:
+        projects: ${{ matrix.project.project }}
+        custom-test-target: net10.0
+        framework: net10.0
+        configuration: Release
+        dotnet: '10.0.401'
+        filter: ''
+        hang-timeout: 10m
+        per-project-timeout: '45'
+        coverage: 'false'
+        artifact-name: assurance-test-results-${{ matrix.project.id }}-${{ github.run_id }}-${{ github.run_attempt }}
+        assurance-workflow: .github/workflows/buildandtest.yml
+        assurance-artifact-name: assurance-${{ matrix.project.id }}-${{ github.run_id }}-${{ github.run_attempt }}-assurance-windows
+        require-assurance: 'true'
+
+  assurance-summary:
+    name: release assurance
+    needs: [discover, build-and-test, assurance-windows, aot-test]
+    if: ${{ always() && needs.discover.result == 'success' && needs.discover.outputs.relevant_changes == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+    - uses: actions/download-artifact@v8
+      continue-on-error: true
+      with:
+        pattern: assurance-*
+        path: assurance-records
+    - name: Collect profile scope without inventing external results
+      shell: pwsh
+      run: |
+        # Local summary, not authenticated cross-workflow release retrieval.
+        $sha = (& git rev-parse HEAD).Trim()
+        if ($LASTEXITCODE -ne 0) { throw 'Cannot identify checked-out source.' }
+        ./.azurepipelines/assurance/collect.ps1 -RecordsPath assurance-records `
+          -OutputPath assurance-component/assurance.json -ExpectedSourceSha $sha `
+          -ExpectedRunId "$env:GITHUB_RUN_ID" -ExpectedAttempt "$env:GITHUB_RUN_ATTEMPT" `
+          -ExpectedWorkflow '.github/workflows/buildandtest.yml' -ExpectedDefinitionSha "$env:GITHUB_WORKFLOW_SHA"
+    - uses: actions/upload-artifact@v7
+      with:
+        name: assurance-component-${{ github.run_id }}-${{ github.run_attempt }}-assurance-summary
+        path: assurance-component/*.json
+        if-no-files-found: error
+
+  # Advisory: coverage does not replace any selected build, test or proof job.
   code-coverage:
     name: code coverage
     needs: [discover, build-and-test]
     runs-on: ubuntu-latest
-    # always(): the coverage of a run whose tests failed is still worth
-    # reporting. Gated on the same condition build-and-test itself uses, so a
-    # run that expanded no matrix does not wait for fragments that will never
-    # be uploaded.
     if: ${{ always() && needs.discover.outputs.tests != '[]' && needs.discover.outputs.relevant_changes == 'true' }}
     permissions:
       contents: read
-      # Required to upsert the sticky coverage comment. Note that on a
-      # pull_request from a fork the token is read-only regardless of what this
-      # block says, which the comment step below handles.
       pull-requests: write
     env:
-      # The `secrets` context is not available to a step's `if`, so the presence
-      # of the token is resolved once here (job-level `env` can read `secrets`)
-      # and tested as a plain string below. Fork pull requests get no secrets,
-      # so this is 'false' there and the upload is skipped rather than failing.
       HAS_CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN != '' }}
     steps:
     - uses: actions/checkout@v7
       with:
-        # Full history: the changed-lines (patch) gate diffs against the base
-        # branch, which a shallow clone cannot do.
         fetch-depth: 0
-
     - name: Setup .NET
       uses: actions/setup-dotnet@v6
       with:
         dotnet-version: '10.0.401'
-
     - name: Download test results
       uses: actions/download-artifact@v8
       with:
         pattern: dotnet-results-*
         path: coverage-artifacts
-
     - name: Detect coverage
       id: probe
       shell: pwsh
       env:
-        TESTS_RESULT: ${{ needs.build-and-test.result }}
+        TEST_MATRIX: ${{ needs.discover.outputs.tests }}
       run: |
-        $reports = @(Get-ChildItem -Path coverage-artifacts -Recurse -File -Filter *.cobertura.xml -ErrorAction SilentlyContinue)
-        Write-Host "Found $($reports.Count) Cobertura report(s)."
-        "has_reports=$(($reports.Count -gt 0).ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-        if ($reports.Count -gt 0) {
-            exit 0
-        }
-
-        # Nothing to evaluate. Whether that is expected depends on whether the
-        # test matrix actually ran: if it was skipped there is genuinely no
-        # coverage to collect, but a matrix that completed and published nothing
-        # means the collector is broken, and silently reporting green would hide
-        # that indefinitely.
-        if ($env:TESTS_RESULT -eq 'success') {
-            Write-Host '::error title=Code coverage::The test matrix completed but published no coverage at all; the collector is not working.'
-            exit 1
-        }
-
-        Write-Host "::warning title=Code coverage::The test matrix did not complete (result: $($env:TESTS_RESULT)), so there is no coverage to evaluate."
-
+        . ./.github/scripts/get-test-verdict.ps1
+        $coverage = Assert-CiCoverage -Matrix $env:TEST_MATRIX -ArtifactsDirectory coverage-artifacts
+        Write-Host "Found $($coverage.Reports) verified per-project Cobertura report(s)."
+        "has_reports=$($coverage.HasReports.ToString().ToLowerInvariant())" | Out-File $env:GITHUB_OUTPUT -Append
     - name: Merge coverage report
       if: ${{ steps.probe.outputs.has_reports == 'true' }}
       shell: pwsh
       run: |
-        $ErrorActionPreference = 'Stop'
         dotnet tool install --tool-path tools dotnet-reportgenerator-globaltool
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         ./tools/reportgenerator `
             '-reports:coverage-artifacts/**/*.cobertura.xml' `
-            '-targetdir:CodeCoverage' `
-            '-reporttypes:Cobertura;HtmlSummary' `
-            '-title:UA .Net Standard Test Coverage' `
-            '-assemblyfilters:-*.Tests'
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "::error title=Code coverage::ReportGenerator failed with exit code $LASTEXITCODE."
-            exit $LASTEXITCODE
-        }
-
+            '-targetdir:CodeCoverage' '-reporttypes:Cobertura;HtmlSummary' `
+            '-title:UA .Net Standard Test Coverage' '-assemblyfilters:-*.Tests'
+        exit $LASTEXITCODE
     - name: Upload merged coverage report
       if: ${{ steps.probe.outputs.has_reports == 'true' }}
       uses: actions/upload-artifact@v7
       with:
         name: coverage-report
         path: CodeCoverage
-
-    # Reporting only, and deliberately continue-on-error: the verdict comes from
-    # the gate below, never from codecov.io being reachable. Skipped when the
-    # secret is unavailable, which is how fork pull requests behave.
     - name: Upload to codecov.io
       if: ${{ steps.probe.outputs.has_reports == 'true' && env.ENABLE_CODECOV == 'true' && env.HAS_CODECOV_TOKEN == 'true' }}
       continue-on-error: true
@@ -296,40 +251,23 @@ jobs:
         flags: actions
         disable_search: true
         fail_ci_if_error: false
-
-    # Writes the markdown summary even when the gate fails, so the numbers reach
-    # the summary and the pull request either way. The gate's exit code is
-    # captured here and replayed by the last step.
     - name: Evaluate coverage
       id: gate
       if: ${{ steps.probe.outputs.has_reports == 'true' }}
       shell: pwsh
       env:
-        # Empty on push/schedule, in which case check-coverage.ps1 enforces the
-        # project floor only and skips the changed-lines gate.
         BASE_REF: ${{ github.base_ref }}
       run: |
-        ./.azurepipelines/check-coverage.ps1 `
-            -CoberturaPath CodeCoverage/Cobertura.xml `
-            -ThresholdsPath coverage-thresholds.json `
-            -RepoRoot '${{ github.workspace }}' `
-            -BaseRef $env:BASE_REF `
-            -SummaryPath coverage-summary.md
+        ./.azurepipelines/coverage/check.ps1 `
+            -CoberturaPath CodeCoverage/Cobertura.xml -ThresholdsPath coverage-thresholds.json `
+            -RepoRoot '${{ github.workspace }}' -BaseRef $env:BASE_REF -SummaryPath coverage-summary.md
         "outcome=$LASTEXITCODE" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-
         if (Test-Path coverage-summary.md) {
             Get-Content coverage-summary.md | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
         }
         exit 0
-
-    # Sticky comment: upsert a single comment keyed on an HTML marker rather
-    # than adding one per run. Uses actions/github-script rather than a
-    # community action to keep this workflow on first-party actions only.
     - name: Comment coverage on the pull request
       if: ${{ steps.probe.outputs.has_reports == 'true' && github.event_name == 'pull_request' }}
-      # A pull_request from a fork gets a read-only GITHUB_TOKEN no matter what
-      # `permissions:` says, so commenting fails there. The step summary still
-      # carries the numbers, so a failure here must not fail the job.
       continue-on-error: true
       uses: actions/github-script@v9
       with:
@@ -343,26 +281,21 @@ jobs:
           const body = marker + '\n' + fs.readFileSync('coverage-summary.md', 'utf8');
           const { owner, repo } = context.repo;
           const issue_number = context.issue.number;
-
           const comments = await github.paginate(github.rest.issues.listComments, {
             owner, repo, issue_number, per_page: 100,
           });
           const existing = comments.find(c => c.body && c.body.includes(marker));
-
           if (existing) {
             await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
-            core.info(`Updated coverage comment ${existing.id}.`);
           } else {
             await github.rest.issues.createComment({ owner, repo, issue_number, body });
-            core.info('Created the coverage comment.');
           }
-
     - name: Report coverage gate result
       if: ${{ steps.probe.outputs.has_reports == 'true' }}
       shell: pwsh
       run: |
         if ('${{ steps.gate.outputs.outcome }}' -ne '0') {
-            Write-Host '::error title=Code coverage::Coverage thresholds were not met. This check is advisory and does not block the merge - see the job summary for the numbers.'
+            Write-Host '::error title=Code coverage::Coverage thresholds were not met. This check remains advisory.'
             exit 1
         }
         Write-Host 'Coverage gate passed.'
@@ -375,80 +308,63 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # OS + RID pairs computed by `discover`. Windows AoT is covered by the
-        # full-scope workflow, which publishes and runs all four RIDs.
         include: ${{ fromJSON(needs.discover.outputs.aot_matrix) }}
-
     env:
       AOTPROJECT: './tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj'
-      # Companion NativeAOT test executable that hosts the distributed shared
-      # historian round-trip scenario. It is kept out of the monolithic
-      # Opc.Ua.Aot.Tests binary to bound the native linker's input. Every
-      # binary is published and run on every AOT platform.
       AOTPROJECT_HISTORIAN: './tests/Opc.Ua.Aot.Tests.Historian/Opc.Ua.Aot.Tests.Historian.csproj'
       AOTPROJECT_MCP: './tests/Opc.Ua.Aot.Tests.Mcp/Opc.Ua.Aot.Tests.Mcp.csproj'
       DOTNET_VERSION: '10.0.401'
       CONFIGURATION: 'Release'
-
     steps:
     - uses: actions/checkout@v7
       with:
         fetch-depth: 0
-
-    - name: Setup .NET ${{ env.DOTNET_VERSION }}
+    - name: Setup .NET
       uses: actions/setup-dotnet@v6
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
-
     - name: Set Cloud Version
       shell: pwsh
       run: ./.azurepipelines/set-version.ps1
-
-    - name: Publish NativeAOT
-      run: dotnet publish ${{ env.AOTPROJECT }} --configuration ${{ env.CONFIGURATION }}
-
-    - name: Run NativeAOT Tests
-      run: >-
-        ./tests/Opc.Ua.Aot.Tests/bin/${{ env.CONFIGURATION }}/net10.0/${{ matrix.rid }}/publish/Opc.Ua.Aot.Tests
-        --results-directory ./TestResults/aot-main
-
-    - name: Publish NativeAOT (Historian)
-      run: dotnet publish ${{ env.AOTPROJECT_HISTORIAN }} --configuration ${{ env.CONFIGURATION }}
-
-    - name: Run NativeAOT Tests (Historian)
-      run: >-
-        ./tests/Opc.Ua.Aot.Tests.Historian/bin/${{ env.CONFIGURATION }}/net10.0/${{ matrix.rid }}/publish/Opc.Ua.Aot.Tests.Historian
-        --results-directory ./TestResults/aot-historian
-
-    - name: Publish NativeAOT (MCP)
-      run: dotnet publish ${{ env.AOTPROJECT_MCP }} --configuration ${{ env.CONFIGURATION }}
-
-    - name: Run NativeAOT Tests (MCP)
-      run: >-
-        ./tests/Opc.Ua.Aot.Tests.Mcp/bin/${{ env.CONFIGURATION }}/net10.0/${{ matrix.rid }}/publish/Opc.Ua.Aot.Tests.Mcp
-        --results-directory ./TestResults/aot-mcp
-
-    - name: Upload test results
+    - name: Publish and independently observe NativeAOT execution
+      shell: pwsh
+      run: |
+        ./.azurepipelines/assurance/native.ps1 -Project '${{ env.AOTPROJECT }}' `
+          -RuntimeIdentifier '${{ matrix.rid }}' -Configuration '${{ env.CONFIGURATION }}' `
+          -WorkDirectory '.assurance/native-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.rid }}' `
+          -OutputPath '.assurance/native-proof.json'
+        exit $LASTEXITCODE
+    - name: Record source-bound native execution proof
+      if: ${{ always() }}
+      shell: pwsh
+      run: |
+        ./.azurepipelines/assurance/write-job.ps1 -Project 'tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj' `
+          -ResultsPath '.assurance/native-proof.json' -Kind native-aot -OutputPath ./assurance/evidence.job.json `
+          -Workflow '.github/workflows/buildandtest.yml'
+    - name: Publish and independently observe NativeAOT execution (Historian)
+      shell: pwsh
+      run: |
+        ./.azurepipelines/assurance/native.ps1 -Project '${{ env.AOTPROJECT_HISTORIAN }}' `
+          -RuntimeIdentifier '${{ matrix.rid }}' -Configuration '${{ env.CONFIGURATION }}' `
+          -WorkDirectory '.assurance/native-historian-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.rid }}' `
+          -OutputPath '.assurance/native-historian-proof.json'
+        exit $LASTEXITCODE
+    - name: Publish and independently observe NativeAOT execution (MCP)
+      shell: pwsh
+      run: |
+        ./.azurepipelines/assurance/native.ps1 -Project '${{ env.AOTPROJECT_MCP }}' `
+          -RuntimeIdentifier '${{ matrix.rid }}' -Configuration '${{ env.CONFIGURATION }}' `
+          -WorkDirectory '.assurance/native-mcp-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.rid }}' `
+          -OutputPath '.assurance/native-mcp-proof.json'
+        exit $LASTEXITCODE
+    - name: Upload sanitized native proof
+      if: ${{ always() }}
       uses: actions/upload-artifact@v7
       with:
-        name: aot-results-${{ matrix.os }}
-        path: '**/TestResults/**'
-      if: ${{ always() }}
+        name: assurance-native-aot-${{ github.run_id }}-${{ github.run_attempt }}-aot-test-${{ matrix.os }}
+        path: assurance/*.json
+        if-no-files-found: error
 
-    - name: Upload HTML Test Report
-      uses: actions/upload-artifact@v7
-      with:
-        name: TestReport-aot-${{ matrix.os }}
-        path: '**/*-report.html'
-      if: ${{ always() }}
-
-  # Every solution in the repository, built for every target framework the
-  # runner can host, in parallel with the unit tests. Windows carries the .NET
-  # Framework and netstandard2.0 targets because they need the .NET Framework
-  # reference assemblies; Linux carries the modern .NET and netstandard2.1
-  # targets. Each entry pins the solution to one TFM through CustomTestTarget,
-  # so one broken TFM is reported as its own failed job rather than hidden
-  # behind the first failure in a loop.
   build-solutions:
     name: build-${{ matrix.entry.name }}
     needs: discover
@@ -462,19 +378,14 @@ jobs:
     steps:
     - uses: actions/checkout@v7
       with:
-        # Full history: Nerdbank.GitVersioning refuses to compute a version from
-        # a shallow clone.
         fetch-depth: 0
-
     - name: Setup .NET
       uses: actions/setup-dotnet@v6
       with:
         dotnet-version: ${{ matrix.entry.dotnet }}
-
     - name: Set cloud version
       shell: pwsh
       run: ./.azurepipelines/set-version.ps1
-
     - name: Build ${{ matrix.entry.solution }} (${{ matrix.entry.customTestTarget }})
       shell: pwsh
       env:
@@ -482,14 +393,9 @@ jobs:
         CI_CUSTOM_TEST_TARGET: ${{ matrix.entry.customTestTarget }}
         CI_CONFIGURATION: ${{ matrix.entry.configuration }}
       run: |
-        dotnet build $env:CI_SOLUTION `
-          --configuration $env:CI_CONFIGURATION `
+        dotnet build $env:CI_SOLUTION --configuration $env:CI_CONFIGURATION `
           "/p:CustomTestTarget=$($env:CI_CUSTOM_TEST_TARGET)"
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "::error title=Solution build::$($env:CI_SOLUTION) failed to build for $($env:CI_CUSTOM_TEST_TARGET) ($($env:CI_CONFIGURATION))."
-            exit $LASTEXITCODE
-        }
-
+        exit $LASTEXITCODE
 
   fuzz-drop:
     name: fuzz-public-drop
@@ -500,8 +406,6 @@ jobs:
     steps:
     - uses: actions/checkout@v7
       with:
-        # Full history: Nerdbank.GitVersioning refuses to compute a version from
-        # a shallow clone, which fails the build before any test runs.
         fetch-depth: 0
     - uses: actions/setup-dotnet@v6
       with:
@@ -517,11 +421,9 @@ jobs:
         dotnet test ./fuzzing/OneFuzz/Opc.Ua.OneFuzz.Validator.Tests/Opc.Ua.OneFuzz.Validator.Tests.csproj `
           -c Release -f net10.0 -m:1 --results-directory $results --logger 'trx;LogFileName=contracts.trx'
         if ($LASTEXITCODE -ne 0) { throw "Published-library contract tests failed: $LASTEXITCODE" }
-        [xml]$trx = Get-Content -LiteralPath (Join-Path $results 'contracts.trx') -Raw
-        $counts = $trx.TestRun.ResultSummary.Counters
-        if ([int]$counts.executed -le 0 -or [int]$counts.failed -ne 0 -or [int]$counts.notExecuted -ne 0) {
-          throw 'Published-library contracts must execute without failures or skips.'
-        }
+        ./.azurepipelines/assurance/results.ps1 -ResultsPath $results -Kind trx -StrictTrx `
+          -RequireNoSkipped -Enforce -OutputPath (Join-Path $env:RUNNER_TEMP 'contracts-proof.json')
+        exit $LASTEXITCODE
     - name: Publish and replay uninstrumented callbacks
       shell: pwsh
       run: ./fuzzing/Scripts/build-onefuzz.ps1 -OutputDirectory '${{ runner.temp }}/onefuzz-drop'
@@ -553,8 +455,6 @@ jobs:
     steps:
     - uses: actions/checkout@v7
       with:
-        # Full history: Nerdbank.GitVersioning refuses to compute a version from
-        # a shallow clone, which fails the build before any test runs.
         fetch-depth: 0
     - uses: actions/setup-dotnet@v6
       with:
@@ -562,76 +462,98 @@ jobs:
           8.0.x
           9.0.x
           10.0.401
-    - name: Run fuzz regressions
+    - name: Run fuzz regressions with private diagnostics
       shell: pwsh
-      run: ./fuzzing/Scripts/test-fuzzing.ps1 -Framework '${{ matrix.framework }}' -ResultsDirectory '${{ runner.temp }}/fuzz-results'
-    - name: Upload fuzz replay evidence
+      env:
+        CI_FRAMEWORK: ${{ matrix.framework }}
+      run: |
+        $raw = Join-Path $env:RUNNER_TEMP 'fuzz-results'
+        $public = Join-Path $env:GITHUB_WORKSPACE 'FuzzResults'
+        $log = Join-Path $env:RUNNER_TEMP 'fuzz-replay.log'
+        $failed = $false
+        try {
+            & ./fuzzing/Scripts/test-fuzzing.ps1 -Framework $env:CI_FRAMEWORK -ResultsDirectory $raw *> $log
+            if ($LASTEXITCODE -ne 0) { $failed = $true }
+        }
+        catch {
+            $_ | Out-String | Out-File -LiteralPath $log -Append
+            $failed = $true
+        }
+        $projects = @('Opc.Ua.Fuzzing.Tests', 'Opc.Ua.Encoders.Fuzz.Tests', 'Opc.Ua.Certificates.Fuzz.Tests')
+        if ($env:CI_FRAMEWORK -ne 'net48') {
+            $projects += 'Opc.Ua.Network.Fuzz.Tests', 'Opc.Ua.PubSub.Fuzz.Tests'
+        }
+        foreach ($project in $projects) {
+            $directory = Join-Path $raw $project
+            $destination = Join-Path $public $project
+            ./.azurepipelines/assurance/results.ps1 -ResultsPath $directory -Kind trx -StrictTrx `
+              -RequireNoSkipped -Enforce -OutputPath (Join-Path $destination 'public-results.json')
+            if ($LASTEXITCODE -ne 0) { $failed = $true }
+            $index = 0
+            if (Test-Path -LiteralPath $directory) {
+                foreach ($file in Get-ChildItem -LiteralPath $directory -File -Recurse -Filter '*.cobertura.xml') {
+                    $index++
+                    Copy-Item -LiteralPath $file.FullName -Destination (Join-Path $destination "coverage-$index.cobertura.xml")
+                }
+            }
+        }
+        if ($failed) { throw 'Fuzz regression execution failed; raw diagnostics remain private on the runner.' }
+    - name: Upload sanitized fuzz replay evidence
       if: ${{ always() }}
       uses: actions/upload-artifact@v7
       with:
         name: fuzz-replay-${{ matrix.os }}-${{ matrix.framework }}
-        path: ${{ runner.temp }}/fuzz-results
+        path: FuzzResults
         if-no-files-found: error
 
-  # Single stable status check for branch protection.  The individual jobs above
-  # are matrix-generated (their names change with the OS/project fan-out) and
-  # they are skipped wholesale when a pull request touches no build-relevant
-  # files.  A required status check that never reports would leave a PR pending
-  # forever, so protect on THIS job instead: this workflow has no `paths:`
-  # filter (which would suppress the whole run), the job is `always()`, and it
-  # treats an intentionally skipped job as success while still failing on a real
-  # failure or cancellation.
   build-and-test-summary:
     name: build-and-test summary
     runs-on: ubuntu-latest
     if: ${{ always() }}
-    needs:
-    - discover
-    - build-and-test
-    - aot-test
-    - build-solutions
-    - fuzz-replay
-    - fuzz-drop
+    needs: [discover, build-and-test, assurance-windows, assurance-summary, aot-test, build-solutions, fuzz-replay, fuzz-drop]
     steps:
+    - uses: actions/checkout@v7
     - name: Evaluate job results
       shell: pwsh
       env:
         RELEVANT_CHANGES: ${{ needs.discover.outputs.relevant_changes }}
+        TEST_MATRIX: ${{ needs.discover.outputs.tests }}
+        BUILD_MATRIX: ${{ needs.discover.outputs.builds }}
+        AOT_MATRIX: ${{ needs.discover.outputs.aot_matrix }}
+        ASSURANCE_SELECTED: ${{ needs.discover.outputs.assurance_selected }}
         DISCOVER_RESULT: ${{ needs.discover.result }}
         TEST_RESULT: ${{ needs.build-and-test.result }}
         AOT_RESULT: ${{ needs.aot-test.result }}
         BUILD_RESULT: ${{ needs.build-solutions.result }}
         FUZZ_RESULT: ${{ needs.fuzz-replay.result }}
         FUZZ_DROP_RESULT: ${{ needs.fuzz-drop.result }}
+        ASSURANCE_RESULT: ${{ needs.assurance-windows.result }}
+        ASSURANCE_SUMMARY_RESULT: ${{ needs.assurance-summary.result }}
       run: |
-        if ($env:RELEVANT_CHANGES -eq 'true') {
-          Write-Host 'This change is build-relevant; the full pull-request matrix was expanded.'
-        }
-        else {
-          Write-Host 'No build-relevant file changed; the jobs below are expected to be skipped.'
-        }
-
+        . ./.github/scripts/get-test-verdict.ps1
         $results = [ordered]@{
-          'discover'         = $env:DISCOVER_RESULT
-          'build-and-test'   = $env:TEST_RESULT
-          'aot-test'         = $env:AOT_RESULT
-          'build-solutions'  = $env:BUILD_RESULT
-          'fuzz-replay'      = $env:FUZZ_RESULT
+          'discover' = $env:DISCOVER_RESULT
+          'build-and-test' = $env:TEST_RESULT
+          'aot-test' = $env:AOT_RESULT
+          'build-solutions' = $env:BUILD_RESULT
+          'fuzz-replay' = $env:FUZZ_RESULT
           'fuzz-public-drop' = $env:FUZZ_DROP_RESULT
+          'assurance-windows' = $env:ASSURANCE_RESULT
+          'assurance-summary' = $env:ASSURANCE_SUMMARY_RESULT
         }
-
-        $bad = @()
-        foreach ($job in $results.GetEnumerator()) {
-          Write-Host "$($job.Key): $($job.Value)"
-          # 'skipped' is a valid outcome - the job's matrix was empty for this
-          # event because nothing build-relevant changed.
-          if (@('success', 'skipped') -notcontains $job.Value) {
-            $bad += "$($job.Key)=$($job.Value)"
-          }
+        $expected = [ordered]@{
+          'discover' = $true
+          'build-and-test' = (Test-CiMatrixSelected $env:TEST_MATRIX)
+          'aot-test' = (Test-CiMatrixSelected $env:AOT_MATRIX)
+          'build-solutions' = (Test-CiMatrixSelected $env:BUILD_MATRIX)
+          'fuzz-replay' = $env:RELEVANT_CHANGES -eq 'true'
+          'fuzz-public-drop' = $env:RELEVANT_CHANGES -eq 'true'
+          'assurance-windows' = $env:ASSURANCE_SELECTED -eq 'true'
+          'assurance-summary' = $env:RELEVANT_CHANGES -eq 'true'
         }
-
-        if ($bad.Count -gt 0) {
-          Write-Host "::error::Build and test jobs did not succeed: $($bad -join ', ')"
-          exit 1
+        $verdict = Get-CiJobVerdict -Results $results -Expected $expected
+        if (-not $verdict.Passed) {
+            Write-Host "::error::Build and test jobs did not succeed: $($verdict.Failures -join ', ')"
+            exit 1
         }
-        Write-Host 'All build and test jobs succeeded or were intentionally skipped.'
+        Write-Host 'Selected jobs succeeded. Unselected scope is not release assurance; coverage remains advisory.'

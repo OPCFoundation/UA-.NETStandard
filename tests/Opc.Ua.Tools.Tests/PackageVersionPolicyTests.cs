@@ -44,7 +44,7 @@ namespace Opc.Ua.Tools.Tests
 {
     /// <summary>
     /// Regression tests for the package family/version policy shared between
-    /// version.targets (build time) and .azurepipelines/package-version-policy.ps1
+    /// version.targets (build time) and .azurepipelines/nuget/package-version-policy.ps1
     /// + validate-nuget-package-set.ps1 (validation time). See
     /// docs/ReleaseProcess.md for the model these scripts implement.
     /// </summary>
@@ -812,6 +812,9 @@ namespace Opc.Ua.Tools.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that the active promotion job resolves and checks out the candidate before running repository code.
+        /// </summary>
         [Test]
         public void ReleaseWorkflowRunsNoRepositoryCodeBeforeTheCandidateCheckout()
         {
@@ -822,6 +825,10 @@ namespace Opc.Ua.Tools.Tests
             // built would execute with those credentials, and the promotion
             // would not be source-bound to the artifact it publishes.
             string workflow = File.ReadAllText(ReleaseWorkflowPath);
+            int publish = workflow.IndexOf("\n  publish:", StringComparison.Ordinal);
+            Assert.That(publish, Is.GreaterThan(-1), "The active publisher job must exist.");
+            // Disabled verification/writer prototypes are checked separately by ReleasePromotionTests.
+            workflow = workflow[publish..];
 
             int checkout = workflow.IndexOf("uses: actions/checkout@", StringComparison.Ordinal);
             Assert.That(checkout, Is.GreaterThan(-1), "release.yml must check out the candidate.");
@@ -867,6 +874,7 @@ namespace Opc.Ua.Tools.Tests
             string verifier = File.ReadAllText(Path.Combine(
                 FindRepositoryRoot(),
                 ".azurepipelines",
+                "nuget",
                 "assert-published-packages-match.ps1"));
 
             int nugetPush = workflow.IndexOf("dotnet nuget push $package.FullName", StringComparison.Ordinal);
@@ -953,11 +961,13 @@ namespace Opc.Ua.Tools.Tests
         private static string PolicyScriptPath { get; } = Path.Combine(
             FindRepositoryRoot(),
             ".azurepipelines",
+            "nuget",
             "package-version-policy.ps1").Replace('\\', '/');
 
         private static string OrderingScriptPath { get; } = Path.Combine(
             FindRepositoryRoot(),
             ".azurepipelines",
+            "nuget",
             "validate-preview-package-ordering.ps1").Replace('\\', '/');
 
         private static async Task<string> GetPreviewPackageBuildNumberAsync()

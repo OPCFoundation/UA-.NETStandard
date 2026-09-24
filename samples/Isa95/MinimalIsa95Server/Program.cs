@@ -27,22 +27,57 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.CommandLine;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using MinimalIsa95Server;
 using Opc.Ua;
 using Opc.Ua.ISA95;
-using Opc.Ua.ISA95.Server.Builders;
-using Opc.Ua.ISA95.Server.Providers;
+using Opc.Ua.Samples;
+using Isa95GeoSpatialLocationBinding = Opc.Ua.ISA95.Server.Builders.Isa95GeoSpatialLocationBinding;
 
-HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
+Option<bool> autoAcceptOption = SampleCommandLine.CreateAutoAcceptOption("--autoaccept", "-a");
+Option<string> portOption = SampleCommandLine.CreateInt32ConfigurationOption(
+    "--port", "Endpoint port (default 62545).", 1, 65535);
+Argument<string[]> configurationArgument = SampleCommandLine.CreateConfigurationArgument();
+(string[] sampleArguments, string[] forwardedArguments) = SampleCommandLine.SplitHostArguments(args);
+var command = new RootCommand("OPC UA Minimal ISA-95 Server: trusted certificates and secure endpoints.")
+{
+    autoAcceptOption,
+    portOption,
+    configurationArgument
+};
+command.Validators.Add(result =>
+{
+    if (SampleCommandLine.GetHostArgumentError(forwardedArguments) is string error)
+    {
+        result.AddError(error);
+    }
+});
+ParseResult? parsed = null;
+command.SetAction(result => parsed = result);
+int exitCode = await SampleCommandLine.InvokeAsync(
+    command, sampleArguments, Console.Out, Console.Error).ConfigureAwait(false);
+if (parsed is null)
+{
+    return exitCode;
+}
+bool autoAccept = parsed.GetValue(autoAcceptOption);
+SampleCommandLine.WriteSecurityWarnings(Console.Error, autoAccept, false, "client", string.Empty);
+HostApplicationBuilder builder = Host.CreateApplicationBuilder(
+    SampleCommandLine.GetHostArguments(parsed, forwardedArguments, configurationArgument, portOption));
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 
-int port = int.TryParse(builder.Configuration["port"], out int configuredPort)
-    ? configuredPort
-    : 62545;
+int port = 62545;
+if (builder.Configuration["port"] is string configuredPort &&
+    (!int.TryParse(configuredPort, out port) || port is < 1 or > 65535))
+{
+    Console.Error.WriteLine("The configured port must be an integer between 1 and 65535. Use --help.");
+    return 1;
+}
 Isa95GeoSpatialLocationBinding? locationBinding = null;
 const string PlantSourceId = "plant";
 using var locationProvider = new InMemoryGeoLocationProvider();
@@ -57,7 +92,8 @@ builder.Services
         options.ApplicationName = "MinimalIsa95Server";
         options.ApplicationUri = "urn:localhost:OPCFoundation:MinimalIsa95Server";
         options.ProductUri = "uri:opcfoundation.org:MinimalIsa95Server";
-        options.AutoAcceptUntrustedCertificates = true;
+        options.AutoAcceptUntrustedCertificates = autoAccept;
+        options.IncludeUnsecurePolicyNone = false;
         options.EndpointUrls.Add(
             $"opc.tcp://localhost:{port}/MinimalIsa95Server");
     })
@@ -132,3 +168,4 @@ finally
 {
     locationBinding?.Dispose();
 }
+return 0;

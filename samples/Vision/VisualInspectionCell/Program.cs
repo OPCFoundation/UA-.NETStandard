@@ -58,6 +58,13 @@ _ = VisualInspectionCellOptions.TryParseLocation(
     builder.Configuration["inferenceLocation"],
     out VisualInspectionInferenceLocation inferenceLocation);
 bool insecure = bool.TryParse(builder.Configuration["insecure"], out bool parsedInsecure) && parsedInsecure;
+if (insecure)
+{
+    Console.Error.WriteLine(
+        "WARNING: --insecure accepts untrusted client application certificates (BadCertificateUntrusted only). "
+        + "Other certificate errors remain rejected and endpoint security is unchanged; this does not enable None. "
+        + "Use only in an isolated test environment.");
+}
 var cellOptions = new VisualInspectionCellOptions
 {
     InferenceLocation = inferenceLocation

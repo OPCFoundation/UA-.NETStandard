@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 2,
+  "source": {
+    "repository": "OPCFoundation/UA-.NETStandard",
+    "actualSha": "1111111111111111111111111111111111111111",
+    "actualRef": "refs/heads/master",
+    "trackedClean": true
+  },
+  "producer": {
+    "system": "github-actions",
+    "workflow": ".github/workflows/nuget-publish.yml",
+    "definitionSha": "2222222222222222222222222222222222222222",
+    "runId": "42",
+    "attempt": 1,
+    "job": "aggregate",
+    "tools": []
+  },
+  "release": { "group": "nuget", "version": "2.0.0", "channel": "stable" },
+  "policy": {
+    "id": "opcua-current-release", "version": "1.0.0", "stage": "pilot",
+    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "artifacts": [
+    {
+      "kind": "nuget-package", "id": "Example", "version": "2.0.0", "configuration": "Release",
+      "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "scopes": { "tfms": ["net10.0"], "rids": [], "roslyn": [], "platforms": [] }
+    }
+  ],
+  "documents": [],
+  "assurance": {
+    "profiles": ["security-net10", "fuzz-replay-net10", "codeql-net10", "aot-net10"],
+    "expected": 0, "selected": 0, "completed": 0, "failed": 0, "missing": 0, "notApplicable": 0,
+    "jobs": [], "inputIdentities": []
+  },
+  "assessment": { "status": "complete", "unmetControls": [] }
+}

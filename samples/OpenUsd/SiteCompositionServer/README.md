@@ -36,6 +36,24 @@ Nothing is mirrored. The site server never proxies a subordinate's address space
 it only says where the machines are and lets the connector talk to each owner
 directly, so there is no cache to invalidate and no second copy of the truth.
 
+## Trust and startup configuration
+
+Provision and trust client/server certificates on all three servers before running the
+demo script or the commands below. The connector's trust opt-in cannot configure
+server-side trust. The site server itself does not connect to subordinate endpoints.
+
+The server rejects untrusted client certificates by default and exposes no
+SecurityPolicy None endpoint. For isolated development, `--auto-accept` (aliases
+`--autoaccept`, `-a`) accepts untrusted client certificates with a stderr warning.
+Other certificate checks and message security remain enabled. Omission or explicit
+`false` keeps trust enforcement; JSON/configuration cannot enable this sample flag.
+
+`--help` exits before host/PKI creation. Unknown or malformed sample options fail on
+stderr. `--port` accepts 1–65535; subordinate server options require absolute URLs.
+Named options override positional `key=value` settings, then forwarded host arguments
+and normal JSON/environment configuration. Forward other host switches after the
+sample's `--`, for example `--auto-accept=false -- --Logging:LogLevel:Default Warning`.
+
 ## Running it
 
 The demo script builds the three servers, publishes the connector and viewport

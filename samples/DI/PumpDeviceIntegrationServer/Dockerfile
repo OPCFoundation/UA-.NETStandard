@@ -17,7 +17,7 @@
 # The final image runs as a non-root user and listens on 0.0.0.0:62542
 # (override host/port via the `host` / `port` environment variables).
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0-azurelinux3.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0.401-azurelinux3.0@sha256:01bb0a1008dd2b753ff059c9c18ec7e728b3d98d0024fa6e8c84905cdb86ae4e AS build
 WORKDIR /src
 
 # JIT is disabled for the source generators unless W^X is turned off on
@@ -42,12 +42,15 @@ RUN test -f UA.slnx || { \
         exit 1; \
     }
 
-ARG Version
-ARG SimpleVersion
-ARG InformationalVersion
+ARG Version=0.0.0-local
+ARG SimpleVersion=0.0.0
+ARG FileVersion=0.0.0
+ARG InformationalVersion=0.0.0-local
+ARG SourceRevisionId
+ARG SourceRepositoryUrl=https://github.com/OPCFoundation/UA-.NETStandard
 
 RUN dotnet restore "samples/DI/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" \
-        --force
+        --force -p:CustomTestTarget=net10.0
 
 RUN dotnet publish "samples/DI/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" \
         --no-restore \
@@ -55,13 +58,22 @@ RUN dotnet publish "samples/DI/PumpDeviceIntegrationServer/PumpDeviceIntegration
         -f net10.0 \
         -p:PublishAot=false \
         -p:Dockerbuild=true \
-        -p:Version=${Version} \
-        -p:AssemblyVersion=${SimpleVersion} \
-        -p:FileVersion=${Version} \
-        -p:InformationalVersion=${InformationalVersion} \
+        -p:CustomTestTarget=net10.0 \
+        -p:Version="$Version" \
+        -p:AssemblyVersion="$SimpleVersion" \
+        -p:FileVersion="$FileVersion" \
+        -p:InformationalVersion="$InformationalVersion" \
+        -p:SourceRevisionId="$SourceRevisionId" \
+        -p:RepositoryUrl="$SourceRepositoryUrl" \
         -o /app/publish
 
-FROM mcr.microsoft.com/dotnet/runtime:10.0-azurelinux3.0 AS final
+FROM mcr.microsoft.com/dotnet/runtime:10.0.12-azurelinux3.0@sha256:78e83767f7bbb9ba0a334d482b196331d4dd5bfd879f4ec445b5226e289ca710 AS final
+ARG Version=0.0.0-local
+ARG SourceRevisionId
+ARG SourceRepositoryUrl=https://github.com/OPCFoundation/UA-.NETStandard
+LABEL org.opencontainers.image.version=$Version \
+      org.opencontainers.image.revision=$SourceRevisionId \
+      org.opencontainers.image.source=$SourceRepositoryUrl
 
 # AzureLinux forces the SymCrypt OpenSSL provider as the default for all
 # EVP operations (default_properties = "?provider=symcryptprovider" in

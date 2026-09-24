@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 1,
+  "kind": "readiness-progress",
+  "policyPath": ".azurepipelines/release/policy.json",
+  "records": [
+    {
+      "id": "reviewed-protected-policy-and-controller",
+      "category": "graduation", "status": "pending", "responsibleFunction": "programme-approval",
+      "groups": ["nuget", "containers", "pump"],
+      "destinations": ["nuget.org", "github-packages", "github-release-assets", "ghcr"],
+      "limitations": ["protected-identity-and-approval-not-supplied"],
+      "revalidationTriggers": ["policy-change", "controller-change", "revocation", "review-due"]
+    },
+    {
+      "id": "authenticated-producer-definition-and-tool-pins",
+      "category": "graduation", "status": "pending", "responsibleFunction": "release-assurance",
+      "groups": ["nuget", "containers", "pump"],
+      "destinations": ["nuget.org", "github-packages", "ghcr"],
+      "limitations": ["production-trust-bootstrap-not-supplied"],
+      "revalidationTriggers": ["producer-change", "tool-change", "revocation", "review-due"]
+    },
+    {
+      "id": "complete-nuget-containers-pump-verifications",
+      "category": "graduation", "status": "pending", "responsibleFunction": "release-assurance",
+      "groups": ["nuget", "containers", "pump"],
+      "destinations": ["nuget.org", "github-packages", "ghcr"],
+      "limitations": ["production-verification-records-not-supplied"],
+      "revalidationTriggers": ["producer-change", "scope-change", "review-due"]
+    },
+    {
+      "id": "negative-tests-and-real-result-counts",
+      "category": "graduation", "status": "pending", "responsibleFunction": "stack-maintenance",
+      "groups": ["nuget", "containers", "pump"],
+      "destinations": ["nuget.org", "github-packages", "ghcr"],
+      "limitations": ["authenticated-ci-and-review-records-not-supplied"],
+      "revalidationTriggers": ["producer-change", "tool-change", "scope-change", "review-due"]
+    },
+    {
+      "id": "administrator-inventory-of-all-official-writers",
+      "category": "graduation", "status": "pending", "responsibleFunction": "infrastructure-response",
+      "groups": ["nuget", "containers", "pump"],
+      "destinations": ["nuget.org", "github-packages", "github-release-assets", "ghcr"],
+      "limitations": ["all-writer-inventory-not-supplied"],
+      "revalidationTriggers": ["grant-change", "scope-change", "revocation", "review-due"]
+    },
+    {
+      "id": "external-azure-definitions-and-credentials-reviewed",
+      "category": "graduation", "status": "pending", "responsibleFunction": "infrastructure-response",
+      "groups": ["nuget", "containers", "pump"],
+      "destinations": ["nuget.org", "github-packages", "ghcr"],
+      "limitations": ["external-authority-review-not-supplied"],
+      "revalidationTriggers": ["grant-change", "producer-change", "revocation", "review-due"]
+    },
+    {
+      "id": "ordinary-source-and-old-workflow-write-authority-isolated",
+      "category": "graduation", "status": "pending", "responsibleFunction": "infrastructure-response",
+      "groups": ["nuget", "containers", "pump"],
+      "destinations": ["nuget.org", "github-packages", "github-release-assets", "ghcr"],
+      "limitations": ["candidate-official-separation-unconfigured"],
+      "revalidationTriggers": ["grant-change", "controller-change", "revocation", "review-due"]
+    },
+    {
+      "id": "current-line-changes-leave-1.5-delivery-unaffected",
+      "category": "graduation", "status": "pending", "responsibleFunction": "infrastructure-response",
+      "groups": ["nuget", "containers", "pump"],
+      "destinations": ["nuget.org", "github-packages", "ghcr"],
+      "limitations": ["shared-authority-isolation-not-demonstrated"],
+      "revalidationTriggers": ["grant-change", "producer-change", "scope-change", "review-due"]
+    },
+    {
+      "id": "verified-public-retrieval-and-owned-controlled-retention",
+      "category": "graduation", "status": "pending", "responsibleFunction": "authority-liaison",
+      "groups": ["nuget", "containers", "pump"],
+      "destinations": ["nuget.org", "github-packages", "github-release-assets", "ghcr"],
+      "limitations": ["retrieval-and-retention-records-not-supplied"],
+      "revalidationTriggers": ["owner-change", "scope-change", "review-due"]
+    },
+    {
+      "id": "authorized-non-production-bypass-and-recovery-exercises",
+      "category": "graduation", "status": "pending", "responsibleFunction": "infrastructure-response",
+      "groups": ["nuget", "containers", "pump"],
+      "destinations": ["nuget.org", "github-packages", "ghcr"],
+      "limitations": ["operational-exercises-not-performed"],
+      "revalidationTriggers": ["grant-change", "controller-change", "scope-change", "review-due"]
+    },
+    {
+      "id": "programme-approval",
+      "category": "stewardship", "status": "pending", "responsibleFunction": "programme-approval",
+      "groups": [], "destinations": [],
+      "limitations": ["foundation-approval-pending"],
+      "revalidationTriggers": ["policy-change", "scope-change", "revocation", "review-due"]
+    },
+    {
+      "id": "functional-assignments",
+      "category": "stewardship", "status": "pending", "responsibleFunction": "programme-approval",
+      "groups": [], "destinations": [],
+      "limitations": ["primary-and-deputy-assignments-pending"],
+      "revalidationTriggers": ["owner-change", "scope-change", "review-due"]
+    },
+    {
+      "id": "development-system-scope",
+      "category": "stewardship", "status": "pending", "responsibleFunction": "infrastructure-response",
+      "groups": [], "destinations": [],
+      "limitations": ["provided-system-and-development-participation-decisions-pending"],
+      "revalidationTriggers": ["scope-change", "owner-change", "review-due"]
+    },
+    {
+      "id": "cooperation-retrieval",
+      "category": "stewardship", "status": "pending", "responsibleFunction": "authority-liaison",
+      "groups": [], "destinations": [],
+      "limitations": ["retrieval-language-and-secure-delivery-arrangements-pending"],
+      "revalidationTriggers": ["policy-change", "owner-change", "review-due"]
+    },
+    {
+      "id": "reporting-access",
+      "category": "stewardship", "status": "pending", "responsibleFunction": "security-wg",
+      "groups": [], "destinations": [],
+      "limitations": ["current-steward-routing-and-access-unverified"],
+      "revalidationTriggers": ["reporting-guidance-change", "owner-change", "review-due"]
+    },
+    {
+      "id": "reporting-cooperation-exercises",
+      "category": "stewardship", "status": "pending", "responsibleFunction": "security-wg",
+      "groups": [], "destinations": [],
+      "limitations": ["operational-tabletop-and-retrieval-exercises-not-performed"],
+      "revalidationTriggers": ["scope-change", "reporting-guidance-change", "owner-change", "review-due"]
+    }
+  ]
+}

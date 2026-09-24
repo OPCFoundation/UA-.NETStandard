@@ -25,8 +25,8 @@
     src/Opc.Ua.WotCon/Opc.Ua.WotCon.csproj), test projects carry XML and JSON
     fixtures and NodeSet assets, .editorconfig is enforced at build time, and
     every new input of that kind would have to be remembered here. Only files
-    that cannot change a build or test outcome are skippable: Markdown, and the
-    docs/ tree, which holds nothing but Markdown and images.
+    that cannot change a build or test outcome are skippable: Markdown outside
+    fuzzing, and the docs/ tree, which holds nothing but Markdown and images.
 
  .PARAMETER ChangedFile
     Repository-relative paths, as produced by 'git diff --name-only'. An empty
@@ -52,6 +52,12 @@ function Test-DocumentationOnlyPath([string] $Path)
 
     # git reports forward slashes on every platform, including Windows.
     $normalized = $Path -replace '\\', '/'
+
+    # Replay inventories consume every file in their input buckets, including
+    # Markdown-named bytes. A file extension cannot exempt a changed fuzz input.
+    if ($normalized -like 'fuzzing/*') {
+        return $false
+    }
 
     if ([System.IO.Path]::GetExtension($normalized) -ieq '.md') {
         return $true

@@ -66,6 +66,11 @@ namespace Opc.Ua.Tools.Tests
         [TestCase(".github/workflows/images.yml", TestName = "Workflow")]
         [TestCase(".github/scripts/get-ci-matrix.ps1", TestName = "MatrixExpander")]
         [TestCase("fuzzing/Common/Fuzz.Tests/FuzzTargetTestsBase.cs", TestName = "Fuzz")]
+        [TestCase("fuzzing/Opc.Ua.PubSub.Fuzz.Corpus/Testcases.Json/input.md", TestName = "MarkdownNamedReplayInput")]
+        [TestCase(".github/actions/run-dotnet-tests/action.yml", TestName = "SharedTestRunner")]
+        [TestCase(".azurepipelines/assurance/profiles.json", TestName = "FrozenAssuranceProfile")]
+        [TestCase(".azurepipelines/assurance/write-job.ps1", TestName = "AssuranceScript")]
+        [TestCase("release/evidence.schema.json", TestName = "ReleaseEvidenceSchema")]
         [TestCase("docs.txt", TestName = "FileNamedLikeTheDocsDirectory")]
         [TestCase("src/readme.markdown", TestName = "NotMarkdownByExtension")]
         public async Task ChangeIsBuildRelevantAsync(string path)
@@ -74,7 +79,7 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
-        /// The only skippable class is documentation: Markdown anywhere, and the
+        /// Documentation outside replay inputs is skippable, including the
         /// docs/ tree, which holds nothing but Markdown and images.
         /// </summary>
         [TestCase("README.md", TestName = "RootMarkdown")]
@@ -162,16 +167,13 @@ namespace Opc.Ua.Tools.Tests
             process.StartInfo.RedirectStandardError = true;
             PowerShellScriptOutput.ConfigureDeterministicOutput(process.StartInfo);
             process.StartInfo.ArgumentList.Add("-NoProfile");
-            process.StartInfo.ArgumentList.Add("-File");
-            process.StartInfo.ArgumentList.Add(Path.Combine(root, ".github", "scripts", "get-path-relevance.ps1"));
-            if (changedFiles.Length != 0)
-            {
-                // 'pwsh -File' binds one argument per parameter, so an array has
-                // to arrive as a single comma-separated value. Omitting the
-                // parameter entirely is how an empty diff is expressed.
-                process.StartInfo.ArgumentList.Add("-ChangedFile");
-                process.StartInfo.ArgumentList.Add(string.Join(',', changedFiles));
-            }
+            process.StartInfo.ArgumentList.Add("-Command");
+            string script = Path.Combine(root, ".github", "scripts", "get-path-relevance.ps1")
+                .Replace("'", "''", StringComparison.Ordinal);
+            string paths = string.Join(
+                ",",
+                changedFiles.Select(path => $"'{path.Replace("'", "''", StringComparison.Ordinal)}'"));
+            process.StartInfo.ArgumentList.Add($"& '{script}' -ChangedFile @({paths})");
 
             Assert.That(process.Start(), Is.True);
             Task<string> standardOutput = process.StandardOutput.ReadToEndAsync();

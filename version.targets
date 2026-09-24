@@ -5,7 +5,7 @@
       the per-project PackageId overrides), so classify on the base ID: the
       Debug variant of a preview family must be pinned exactly like its
       Release counterpart. Test-PreviewPackageId in
-      .azurepipelines/package-version-policy.ps1 strips the same suffix, and
+      .azurepipelines/nuget/package-version-policy.ps1 strips the same suffix, and
       validate-nuget-package-set.ps1 fails the build if the two classifiers
       ever disagree.
     -->

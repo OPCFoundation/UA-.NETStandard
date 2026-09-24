@@ -162,6 +162,9 @@ namespace Opc.Ua.Tools.Tests
                 .ToArray();
 
             Assert.That(fuzzProjects, Is.Not.Empty);
+            Assert.That(
+                fuzzProjects,
+                Does.Contain("fuzzing/Opc.Ua.PubSub.Fuzz.Tests/Opc.Ua.PubSub.Fuzz.Tests.csproj"));
         }
 
         /// <summary>
