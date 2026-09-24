@@ -909,7 +909,7 @@ namespace Opc.Ua
                     cancellationToken).ConfigureAwait(false);
             }
 
-            return Call(context, default, inputArguments, outputArguments);
+            return Call(context, objectId, inputArguments, outputArguments);
         }
 
         /// <summary>
