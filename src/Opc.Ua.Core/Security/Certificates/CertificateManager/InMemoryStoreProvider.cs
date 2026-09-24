@@ -227,7 +227,11 @@ namespace Opc.Ua
             }
 
             private string m_storePath = string.Empty;
+            // CA2213: the backing store is shared by every open of the same
+            // path and owned by the provider, which disposes it.
+#pragma warning disable CA2213
             private CertificateIdentifierCollectionStore? m_backing;
+#pragma warning restore CA2213
         }
 
         private readonly Dictionary<string, CertificateIdentifierCollectionStore> m_stores =

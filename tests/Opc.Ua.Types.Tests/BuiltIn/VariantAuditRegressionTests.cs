@@ -47,6 +47,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
     public class VariantAuditRegressionTests
     {
         private static readonly int[] s_oneTwoThree = [1, 2, 3];
+        private static readonly int[] s_twoByTwo = [2, 2];
+        private static readonly int[] s_five = [5];
+        private static readonly int[] s_fiveSix = [5, 6];
+        private static readonly double[] s_fiveDouble = [5.0];
+        private static readonly string[] s_fiveSixStrings = ["5", "6"];
         private static readonly int[] s_sevenEight = [7, 8];
         private static readonly int[] s_oneTwoNine = [1, 2, 9];
 
@@ -670,15 +675,18 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             // T2-7: the scale independent comparison must agree with the
             // canonical form for ordinary values.
+            // CA5394: deterministic test vector - Random with fixed seed is intentional
             var random = new Random(4242);
             for (int ii = 0; ii < 500; ii++)
             {
+#pragma warning disable CA5394
                 var left = new Opc.Ua.Decimal(
                     new BigInteger(random.Next(-1000, 1000)) * BigInteger.Pow(10, random.Next(0, 6)),
                     (short)random.Next(-4, 8));
                 var right = new Opc.Ua.Decimal(
                     new BigInteger(random.Next(-1000, 1000)) * BigInteger.Pow(10, random.Next(0, 6)),
                     (short)random.Next(-4, 8));
+#pragma warning restore CA5394
                 Opc.Ua.Decimal cl = left.Canonicalize();
                 Opc.Ua.Decimal cr = right.Canonicalize();
                 bool expected = cl.Scale == cr.Scale && cl.UnscaledValue == cr.UnscaledValue;
@@ -711,7 +719,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             matrix.ToArrayOf(out int[] dimensions);
             dimensions[1] = 7;
 
-            Assert.That(matrix.Dimensions, Is.EqualTo(new[] { 2, 2 }));
+            Assert.That(matrix.Dimensions, Is.EqualTo(s_twoByTwo));
         }
 
         [Test]
@@ -736,20 +744,20 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ConvertToKeepsOneElementAndEmptyArraysAsArrays()
         {
             // T2-11: Part 4 7.7.3 - arrays convert element-wise to arrays.
-            Variant single = Variant.From(new[] { 5 }.ToArrayOf()).ConvertTo(BuiltInType.Double);
+            Variant single = Variant.From(s_five.ToArrayOf()).ConvertTo(BuiltInType.Double);
             Variant empty = Variant.From(ArrayOf<int>.Empty).ConvertTo(BuiltInType.Double);
-            Variant number = Variant.From(new[] { 5 }.ToArrayOf()).ConvertTo(BuiltInType.Number);
-            Variant two = Variant.From(new[] { 5, 6 }.ToArrayOf()).ConvertTo(BuiltInType.String);
+            Variant number = Variant.From(s_five.ToArrayOf()).ConvertTo(BuiltInType.Number);
+            Variant two = Variant.From(s_fiveSix.ToArrayOf()).ConvertTo(BuiltInType.String);
 
             Assert.Multiple(() =>
             {
                 Assert.That(single.TypeInfo, Is.EqualTo(TypeInfo.Arrays.Double));
-                Assert.That(single.GetDoubleArray().ToArray(), Is.EqualTo(new[] { 5.0 }));
+                Assert.That(single.GetDoubleArray().ToArray(), Is.EqualTo(s_fiveDouble));
                 Assert.That(empty.TypeInfo, Is.EqualTo(TypeInfo.Arrays.Double));
                 Assert.That(empty.IsNull, Is.False);
                 Assert.That(empty.GetDoubleArray().Count, Is.Zero);
                 Assert.That(number.TypeInfo, Is.EqualTo(TypeInfo.Arrays.Double));
-                Assert.That(two.GetStringArray().ToArray(), Is.EqualTo(new[] { "5", "6" }));
+                Assert.That(two.GetStringArray().ToArray(), Is.EqualTo(s_fiveSixStrings));
                 Assert.That(
                     () => Variant.From(ArrayOf<int>.Empty).ConvertTo(BuiltInType.DiagnosticInfo),
                     Throws.TypeOf<InvalidCastException>());
