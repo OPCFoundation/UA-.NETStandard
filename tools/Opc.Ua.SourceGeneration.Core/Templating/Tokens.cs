@@ -83,6 +83,7 @@ namespace Opc.Ua.SourceGeneration
         public static string ListOfChildOperations => nameof(ListOfChildOperations);
         public static string Historizing => nameof(Historizing);
         public static string Identifier => nameof(Identifier);
+        public static string HashCondition => nameof(HashCondition);
         public static string IdType => nameof(IdType);
         public static string IdModifier => nameof(IdModifier);
         public static string Imports => nameof(Imports);

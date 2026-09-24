@@ -1034,6 +1034,7 @@ namespace Opc.Ua.Schema.Model
                 "EncodingMask",
                 "EncodingMaskFieldNames",
                 "Reuse",
+                "ResetForReuse",
                 "TypeId",
                 "BinaryEncodingId",
                 "XmlEncodingId",

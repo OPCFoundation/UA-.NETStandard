@@ -330,10 +330,14 @@ namespace Opc.Ua.SourceGeneration
                     ref StructureType structureType,
                     List<Parameter> fields)
                 {
-                    if (dataType == null || dataType.Fields == null)
+                    if (dataType == null)
                     {
                         return fields.Count;
                     }
+
+                    // Always walk the base chain first: a type in the chain
+                    // without own fields still inherits (and encodes) all
+                    // fields of its ancestors.
                     if (dataType.BaseTypeNode is DataTypeDesign baseType)
                     {
                         CollectStructureDefinitionFields(
@@ -343,7 +347,7 @@ namespace Opc.Ua.SourceGeneration
                     }
 
                     int start = fields.Count;
-                    foreach (Parameter field in dataType.Fields)
+                    foreach (Parameter field in dataType.Fields ?? [])
                     {
                         if (field.IsOptional)
                         {
@@ -369,17 +373,15 @@ namespace Opc.Ua.SourceGeneration
 
             if (dataType.IsOptionSet)
             {
-                long bit = 1;
+                // The EnumField value of an OptionSet is the bit position
+                // (OPC 10000-3 8.40). The identifier is the bit mask which,
+                // for a UInt64 based OptionSet, can use bit 63 - convert
+                // through ulong, a checked conversion to long would throw.
+                ulong mask = field.Identifier > 0 ? (ulong)field.Identifier : 0;
                 int value = 0;
-
-                while (field.Identifier > 0 && bit <= long.MaxValue)
+                while (mask != 0 && (mask & 1) == 0)
                 {
-                    if ((bit & (long)field.Identifier) != 0)
-                    {
-                        break;
-                    }
-
-                    bit <<= 1;
+                    mask >>= 1;
                     value++;
                 }
                 context.Template.AddReplacement(
@@ -711,7 +713,7 @@ namespace Opc.Ua.SourceGeneration
                 Tokens.ListOfChildHashes,
                 DataTypeTemplates.HashProperty,
                 fields,
-                WriteTemplate_ListOfProperties);
+                WriteTemplate_ListOfChildHashes);
 
             context.Template.AddReplacement(
                 Tokens.ListOfAppendStringFields,
@@ -736,7 +738,7 @@ namespace Opc.Ua.SourceGeneration
 
             context.Template.AddReplacement(
                 Tokens.ListOfFieldResets,
-                fields,
+                GetInheritedFieldResets(dataType),
                 LoadTemplate_ListOfFieldResets);
 
             context.Template.AddReplacement(
@@ -1486,6 +1488,19 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
+            context.Out.WriteLine(
+                "{0} = {1};",
+                field.GetChildFieldName(),
+                GetFieldInitializerAsCode(field));
+            return null;
+        }
+
+        /// <summary>
+        /// Returns the code of the value a newly constructed instance
+        /// assigns to the field.
+        /// </summary>
+        private string GetFieldInitializerAsCode(Parameter field)
+        {
             if (IsRecursiveStructureField(field))
             {
                 // A structure field with no declared default value is normally
@@ -1495,11 +1510,10 @@ namespace Opc.Ua.SourceGeneration
                 // assigns it on demand. Optional fields are absent by default
                 // anyway, and a mandatory recursive field has no finite
                 // default value.
-                context.Out.WriteLine("{0} = default;", field.GetChildFieldName());
-                return null;
+                return "default";
             }
 
-            string value = field.DataTypeNode.GetValueAsCode(
+            return field.DataTypeNode.GetValueAsCode(
                 field.ValueRank,
                 field.DefaultValue,
                 null,
@@ -1512,29 +1526,101 @@ namespace Opc.Ua.SourceGeneration
                     field.ValueRank,
                     field.DataTypeNode,
                     field.DefaultValue));
-
-            context.Out.WriteLine("{0} = {1};", field.GetChildFieldName(), value);
-            return null;
         }
 
         /// <summary>
-        /// Emits one assignment per declared field in the form
-        /// <c>m_field = default;</c>. Used by the
-        /// <c>PooledExtensionClass</c> template to reset all fields
-        /// before returning the instance to its activator's pool.
-        /// <c>default</c> covers reference types (assigns <c>null</c>),
-        /// value types (zero), and <see cref="ArrayOf{T}"/> /
-        /// <c>ReadOnlyMemory&lt;T&gt;</c>-backed structs (drops the
-        /// backing reference).
+        /// Returns the fields a pooled instance must reset in addition to
+        /// what its own <c>Initialize()</c> and the base type's
+        /// <c>ResetForReuse()</c> restore: the fields of the ancestors that
+        /// do not have a pooled extension of their own (abstract structures
+        /// and structures of the Opc.Ua.Types library). They are reset
+        /// through their public properties. A string entry is emitted as is.
+        /// </summary>
+        private List<object> GetInheritedFieldResets(DataTypeDesign dataType)
+        {
+            var ancestors = new List<DataTypeDesign>();
+            for (var current = dataType.BaseTypeNode as DataTypeDesign;
+                current != null &&
+                current.IsStructure &&
+                current.BasicDataType == BasicDataType.UserDefined;
+                current = current.BaseTypeNode as DataTypeDesign)
+            {
+                if (!current.IsAbstract && !current.IsPartOfOpcUaTypesLibrary())
+                {
+                    // Has a pooled extension that resets its own chain.
+                    break;
+                }
+                ancestors.Insert(0, current);
+            }
+
+            var resets = new List<object>();
+            foreach (DataTypeDesign ancestor in ancestors)
+            {
+                foreach (Parameter field in GetFields(ancestor))
+                {
+                    resets.Add(field);
+                }
+            }
+            if (!dataType.IsUnion &&
+                ancestors.Any(a => a.Fields != null && a.Fields.Any(f => f.IsOptional)))
+            {
+                resets.Add("EncodingMask = 0;");
+            }
+            return resets;
+        }
+
+        /// <summary>
+        /// Emits one property assignment per inherited field that
+        /// <see cref="GetInheritedFieldResets"/> selected, restoring the
+        /// value a newly constructed instance has.
         /// </summary>
         private TemplateString LoadTemplate_ListOfFieldResets(ILoadContext context)
         {
+            if (context.Target is string line)
+            {
+                context.Out.WriteLine(line);
+                return null;
+            }
             if (context.Target is not Parameter field)
             {
                 return null;
             }
-            context.Out.WriteLine("{0} = default;", field.GetChildFieldName());
+            context.Out.WriteLine(
+                "{0} = {1};",
+                field.GetPropertyName(),
+                GetFieldInitializerAsCode(field));
             return null;
+        }
+
+        /// <summary>
+        /// Writes the hash code contribution of a field. It is guarded the
+        /// same way IsEqual compares the field: an optional field only when
+        /// its encoding mask bit is set, a union member only while it is the
+        /// active switch field. Otherwise equal instances could hash
+        /// differently.
+        /// </summary>
+        private bool WriteTemplate_ListOfChildHashes(IWriteContext context)
+        {
+            if (context.Target is not Parameter field)
+            {
+                return false;
+            }
+            var dataType = (DataTypeDesign)field.Parent;
+            string condition = string.Empty;
+            if (dataType.IsUnion)
+            {
+                condition =
+                    $"if (SwitchField == {dataType.SymbolicName.Name}Fields." +
+                    $"{field.GetFieldsEnumMemberName()}) ";
+            }
+            else if (field.IsOptional)
+            {
+                condition =
+                    $"if ((EncodingMask & (uint){dataType.SymbolicName.Name}Fields." +
+                    $"{field.GetFieldsEnumMemberName()}) != 0) ";
+            }
+            context.Template.AddReplacement(Tokens.HashCondition, condition);
+            return WriteTemplate_ListOfProperties(context);
         }
 
         private TemplateString LoadTemplate_ListOfProperties(ILoadContext context)

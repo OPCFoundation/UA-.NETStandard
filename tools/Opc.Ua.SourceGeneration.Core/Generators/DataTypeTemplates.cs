@@ -257,8 +257,20 @@ namespace Opc.Ua.SourceGeneration
                     {
                         return;
                     }
-                    {{Tokens.ListOfFieldResets}}
+                    ResetForReuse();
                     {{Tokens.ClassName}}Activator.Instance.Return(this);
+                }
+
+                /// <summary>
+                /// Resets every field, including the inherited ones, the
+                /// encoding mask and the switch field, to the value a newly
+                /// constructed instance has. A pooled instance is handed out
+                /// again without running the constructor.
+                /// </summary>
+                protected virtual void ResetForReuse()
+                {
+                    {{Tokens.ListOfFieldResets}}
+                    Initialize();
                 }
 
                 internal void ClearPooledSentinel()
@@ -291,8 +303,16 @@ namespace Opc.Ua.SourceGeneration
                     {
                         return;
                     }
-                    {{Tokens.ListOfFieldResets}}
+                    ResetForReuse();
                     {{Tokens.ClassName}}Activator.Instance.Return(this);
+                }
+
+                /// <inheritdoc/>
+                protected override void ResetForReuse()
+                {
+                    base.ResetForReuse();
+                    {{Tokens.ListOfFieldResets}}
+                    Initialize();
                 }
 
                 internal new void ClearPooledSentinel()
@@ -780,6 +800,12 @@ namespace Opc.Ua.SourceGeneration
                     {
                         return false;
                     }
+
+                    // The optional fields below are only compared when this
+                    // instance's mask bit is set: the masks must match first,
+                    // otherwise equality is asymmetric. A base without optional
+                    // fields does not compare the mask itself.
+                    if (value.EncodingMask != this.EncodingMask) return false;
 
                     {{Tokens.ListOfComparedFields}}
 
@@ -1406,7 +1432,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static readonly TemplateString HashProperty = TemplateString.Parse(
             $$"""
-            hashCode = (hashCode * 16777619) ^
+            {{Tokens.HashCondition}}hashCode = (hashCode * 16777619) ^
                 global::System.Collections.Generic.EqualityComparer<{{Tokens.TypeName}}>
                 .Default
                 .GetHashCode({{Tokens.FieldName}});
