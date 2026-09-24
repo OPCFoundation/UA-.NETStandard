@@ -1731,14 +1731,17 @@ namespace Opc.Ua.Server
                 messages,
                 availableSequenceNumberList,
                 out moreNotifications,
-                out uint newlyUnacknowledgedCount);
+                out uint evictedMessageCount);
             moreNotifications |= m_itemsToPublish.Count > 0;
 
-            if (newlyUnacknowledgedCount > 0)
+            if (evictedMessageCount > 0)
             {
+                // Messages evicted from the retransmission queue were discarded before the
+                // client acknowledged them (Part 5 SubscriptionDiagnosticsDataType). The
+                // UnacknowledgedMessageCount is recomputed from the queue by Publish.
                 lock (m_diagnosticsLock)
                 {
-                    Diagnostics.UnacknowledgedMessageCount += newlyUnacknowledgedCount;
+                    Diagnostics.DiscardedMessageCount += evictedMessageCount;
                     MarkDiagnosticsDirty();
                 }
             }
