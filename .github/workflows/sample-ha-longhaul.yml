@@ -3,7 +3,7 @@ name: Sample HA Long-Haul Test
 # Long-haul high-availability soak of the redundant sample applications
 # (RedundantServer / RedundantClient / RedundantPubSub). These tests are marked
 # [Explicit] so they never run on pull requests; the short-haul variants of the
-# same scenarios run automatically as part of the normal Build and Test workflow.
+# same scenarios run automatically as part of the normal CI workflow.
 #
 # Run on demand (Actions -> Sample HA Long-Haul Test -> Run workflow) and choose
 # the duration, or let the weekly schedule exercise the default one-hour soak.
