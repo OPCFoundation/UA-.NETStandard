@@ -1896,6 +1896,17 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             }
         }
 
+        /// <summary>
+        /// Complete an operation that can no longer be applied with
+        /// <see cref="StatusCodes.BadOperationAbandoned"/>. The caller marks
+        /// it cancelled so a later apply pass skips it.
+        /// </summary>
+        /// <param name="op">The abandoned operation.</param>
+        internal static void AbandonTriggeringOperation(TriggeringOperation op)
+        {
+            FailOperation(op, op.TriggeringItem, StatusCodes.BadOperationAbandoned);
+        }
+
         private static void FailOperation(
             TriggeringOperation op, IMonitoredItem trig, StatusCode status)
         {

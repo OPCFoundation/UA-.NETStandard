@@ -368,7 +368,43 @@ namespace Opc.Ua.Client.Subscriptions
                 op.MarkCancelled();
                 tcs.TrySetCanceled(ct);
             });
+            if (IsDispatchingNotification)
+            {
+                // A notification callback holds the dispatch gate while it
+                // awaits the apply pass, and the apply pass needs the state
+                // lock. A delete, recreate or dispose holds that lock while
+                // waiting for the gate, so neither could progress. Such a
+                // reset signals here first; the operation can then no
+                // longer be applied to this generation and is abandoned.
+                Task release = Volatile.Read(ref m_dispatchReleaseRequested).Task;
+                Task completed = await Task.WhenAny(tcs.Task, release)
+                    .ConfigureAwait(false);
+                if (!ReferenceEquals(completed, tcs.Task))
+                {
+                    op.MarkCancelled();
+                    MonitoredItemManager.AbandonTriggeringOperation(op);
+                }
+            }
             return await tcs.Task.ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        protected override void OnDispatchGateContended()
+        {
+            Volatile.Read(ref m_dispatchReleaseRequested).TrySetResult(true);
+        }
+
+        /// <inheritdoc/>
+        protected override void OnDispatchGateAcquired()
+        {
+            // No callback runs while the gate is held, so a fresh signal can
+            // be installed without a callback observing the old one late.
+            if (Volatile.Read(ref m_dispatchReleaseRequested).Task.IsCompleted)
+            {
+                Volatile.Write(ref m_dispatchReleaseRequested,
+                    new TaskCompletionSource<bool>(
+                        TaskCreationOptions.RunContinuationsAsynchronously));
+            }
         }
 
         /// <inheritdoc/>
@@ -1712,6 +1748,9 @@ namespace Opc.Ua.Client.Subscriptions
         private readonly AsyncManualResetEvent m_createdEvent = new();
 
         private readonly TaskCompletionSource<bool> m_disposeCompletion = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
+        private TaskCompletionSource<bool> m_dispatchReleaseRequested = new(
             TaskCreationOptions.RunContinuationsAsynchronously);
 
         private readonly CancellationTokenSource m_cts = new();

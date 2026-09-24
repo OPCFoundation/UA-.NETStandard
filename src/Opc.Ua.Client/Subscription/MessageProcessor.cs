@@ -548,9 +548,18 @@ namespace Opc.Ua.Client.Subscriptions
             Func<CancellationToken, ValueTask> initializeAsync,
             CancellationToken ct)
         {
-            await m_messageDispatchGate.WaitAsync(ct).ConfigureAwait(false);
+            if (!m_messageDispatchGate.Wait(0, CancellationToken.None))
+            {
+                // A notification callback is running. Callers hold the
+                // owner's state lock here, so give the owner a chance to
+                // release anything that callback may be awaiting which in
+                // turn needs that lock - otherwise neither side progresses.
+                OnDispatchGateContended();
+                await m_messageDispatchGate.WaitAsync(ct).ConfigureAwait(false);
+            }
             try
             {
+                OnDispatchGateAcquired();
                 await retireAsync(ct).ConfigureAwait(false);
                 Interlocked.Increment(ref m_generation);
                 LastSequenceNumberProcessed = 0;
@@ -563,6 +572,23 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 m_messageDispatchGate.Release();
             }
+        }
+
+        /// <summary>
+        /// Called by <see cref="ResetMessageGenerationAsync"/> when it has to
+        /// wait for a notification callback to return before it can retire
+        /// the current generation.
+        /// </summary>
+        protected virtual void OnDispatchGateContended()
+        {
+        }
+
+        /// <summary>
+        /// Called by <see cref="ResetMessageGenerationAsync"/> once it holds
+        /// the dispatch gate, i.e. while no notification callback runs.
+        /// </summary>
+        protected virtual void OnDispatchGateAcquired()
+        {
         }
 
         /// <summary>

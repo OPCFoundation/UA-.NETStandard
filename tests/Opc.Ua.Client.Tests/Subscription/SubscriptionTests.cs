@@ -1259,6 +1259,62 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
+        /// <summary>
+        /// A notification callback that awaits SetTriggeringAsync holds the
+        /// dispatch gate while waiting for an apply pass, which needs the
+        /// state lock. Dispose holds the state lock while it waits for the
+        /// dispatch gate. The pending operation must be abandoned so both
+        /// sides progress instead of deadlocking.
+        /// </summary>
+        [Test]
+        [CancelAfter(15_000)]
+        public async Task DisposeDoesNotDeadlockWithCallbackAwaitingSetTriggeringAsync(
+            CancellationToken testCt)
+        {
+            m_mockSubscriptionServices.Setup(service => service.DeleteSubscriptionsAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<uint>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new DeleteSubscriptionsResponse { Results = [StatusCodes.Good] });
+            // Keep the apply pass from running so the queued triggering
+            // operation stays pending, as it would while the state lock is
+            // held by the delete.
+            m_completion.OnRunWithSessionAvailableAsync = (_, ct) =>
+                new ValueTask(Task.Delay(Timeout.Infinite, ct));
+            var subscription = new TestSubscription(
+                m_session, m_mockNotificationDataHandler.Object, m_completion, m_options, m_telemetry,
+                subscriptionIdForAlreadyCreatedState: 22);
+            Assert.That(subscription.MonitoredItems.TryAdd(
+                "Trigger", OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>(),
+                out IMonitoredItem trigger), Is.True);
+            Assert.That(subscription.MonitoredItems.TryAdd(
+                "Triggered", OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>(),
+                out IMonitoredItem triggered), Is.True);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var result = new TaskCompletionSource<SetTriggeringResult>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            subscription.OnDataChangeAsync = async _ =>
+            {
+                entered.TrySetResult(true);
+                try
+                {
+                    result.TrySetResult(await subscription.SetTriggeringAsync(
+                        trigger, [triggered]).ConfigureAwait(false));
+                }
+                catch (Exception ex)
+                {
+                    result.TrySetException(ex);
+                }
+            };
+
+            await subscription.OnPublishReceivedAsync(BuildDataMessage(1), null, []).ConfigureAwait(false);
+            await entered.Task.WaitAsync(testCt).ConfigureAwait(false);
+
+            await subscription.DisposeAsync().AsTask().WaitAsync(testCt).ConfigureAwait(false);
+
+            SetTriggeringResult setTriggering = await result.Task.WaitAsync(testCt).ConfigureAwait(false);
+            Assert.That(StatusCode.IsBad(setTriggering.ServiceResult), Is.True);
+            Assert.That(subscription.Disposed, Is.True);
+        }
+
         [Test]
         public async Task DisposalDrainsCallbackPastCleanupBudgetAndDisposesOwnedItemsAsync()
         {
