@@ -112,14 +112,16 @@ namespace Opc.Ua.WotCon.Server.Materialization
             bool selectsAll,
             ArrayOf<WotDependencyClosure> closures,
             ImmutableDictionary<string, ByteString> contents,
-            ImmutableArray<IWotRegistryVersionLease> leases)
+            ImmutableArray<IWotRegistryVersionLease> leases,
+            WotDeclarationInputCache? declarationInputs = null)
         {
             Registry = registry;
             Selection = selection;
             SelectsAll = selectsAll;
             Closures = closures;
             Contents = contents;
-            DeclarationInputs = new WotDeclarationInputCache(contents);
+            m_ownsDeclarationInputs = declarationInputs is null;
+            DeclarationInputs = declarationInputs ?? new WotDeclarationInputCache(contents);
             m_leases = leases;
             Resources = registry.AllResources().OrderBy(resource => resource.Xid, StringComparer.Ordinal).ToArrayOf();
             AcquisitionFailures = closures.ToList()
@@ -184,7 +186,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 return;
             }
-            DeclarationInputs.Dispose();
+            if (m_ownsDeclarationInputs)
+            {
+                DeclarationInputs.Dispose();
+            }
             foreach (IWotRegistryVersionLease lease in m_leases)
             {
                 lease.Dispose();
@@ -192,6 +197,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         private readonly ImmutableArray<IWotRegistryVersionLease> m_leases;
+        private readonly bool m_ownsDeclarationInputs;
         private int m_disposed;
     }
 

@@ -69,6 +69,8 @@ input image parses each required declaration document once for a given JSON
 depth limit, reuses those borrowed documents across publication units, and
 disposes them when the capture ends. Converters must not dispose borrowed
 documents or retain them beyond that capture.
+Publication-unit input views borrow that root cache; completing or aborting one
+unit does not dispose documents still available to the remaining units.
 
 An active definition owner emits its own declarations. Resolution-only
 definitions are emitted once by an active source in the prepared closure.

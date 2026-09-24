@@ -59,6 +59,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [TestCase(0, false, true, true, 1, false)]
         [TestCase(0, false, true, true, 2, false)]
         [TestCase(0, false, true, true, 0, true)]
+        [TestCase(0, true, true, true, 0, true)]
         public async Task SelectedDefinitionOwnerMaterializesThroughTheStockNativePath(
             int referenceForm, bool activeDefinition, bool sharedDefinition, bool perResource, int restart, bool decorated)
         {
@@ -78,6 +79,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                         IReadOnlyDictionary<string, ByteString> contents, CancellationToken token) =>
                     {
                         Assert.That(contents, Is.InstanceOf<IWotDocumentConversionContext>());
+                        if (borrowedDocuments.Count != 0)
+                        {
+                            Assert.That(() => borrowedDocuments[0].RootElement.GetRawText(), Throws.Nothing,
+                                "A completed publication unit must not release the root capture's declaration image.");
+                        }
                         ArrayOf<WotDataTypeDefinitionSource> definitions =
                             ((IWotDocumentConversionContext)contents).GetDataTypeDefinitions(conversionOptions, token);
                         foreach (WotDataTypeDefinitionSource definition in definitions)
@@ -197,20 +203,22 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             WotRefreshResult result = await m_coordinator.RefreshAsync(request).ConfigureAwait(false);
 
             Assert.That(result.Summary.Failed, Is.Zero, string.Join("; ", result.Results.Select(row => row.Message)));
-            Assert.That(result.NewGeneration, Is.EqualTo(1u));
+            uint generation = perResource && activeDefinition && sharedDefinition ? 3u : 1u;
+            Assert.That(result.NewGeneration, Is.EqualTo(generation));
             if (decorated)
             {
                 Assert.That(borrowedDocuments, Has.Count.EqualTo(2));
                 Assert.That(borrowedDocuments[1], Is.SameAs(borrowedDocuments[0]),
                     "Each captured declaration document is parsed once and shared by its consumers.");
-                Assert.That(emissionFlags.Count(flag => !flag), Is.EqualTo(1));
+                Assert.That(emissionFlags.Count(flag => !flag), Is.EqualTo(activeDefinition ? 0 : 1));
                 Assert.That(() => borrowedDocuments[0].RootElement.GetRawText(),
                     Throws.TypeOf<ObjectDisposedException>(),
                     "The completed capture must release its borrowed declaration documents.");
             }
             if (perResource)
             {
-                Assert.That(result.Summary.Atomicity, Is.EqualTo(WoTAtomicityEnum.PerClosure));
+                Assert.That(result.Summary.Atomicity, Is.EqualTo(
+                    activeDefinition ? WoTAtomicityEnum.PerResource : WoTAtomicityEnum.PerClosure));
             }
             WotResource active = m_registry.Current.FindResourceByXid(consumer.Xid)!;
             WotResource retained = m_registry.Current.FindResourceByXid(model.Xid)!;
@@ -258,11 +266,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 WotDocument previousBorrow = borrowedDocuments[0];
                 borrowedDocuments.Clear();
                 emissionFlags.Clear();
-                request.ExpectedGeneration = 1;
+                request.ExpectedGeneration = generation;
                 request.Options.Force = true;
                 WotRefreshResult refreshed = await m_coordinator.RefreshAsync(request).ConfigureAwait(false);
                 Assert.That(refreshed.Summary.Failed, Is.Zero);
-                Assert.That(refreshed.NewGeneration, Is.EqualTo(2u));
+                Assert.That(refreshed.NewGeneration, Is.EqualTo(generation + 1),
+                    "Replacing the existing overlapping footprint coarsens the next publication to one unit.");
+                Assert.That(refreshed.Summary.Atomicity, Is.EqualTo(WoTAtomicityEnum.PerClosure));
                 Assert.That(borrowedDocuments, Has.Count.EqualTo(2));
                 Assert.That(borrowedDocuments[0], Is.Not.SameAs(previousBorrow));
                 Assert.That(borrowedDocuments[1], Is.SameAs(borrowedDocuments[0]));

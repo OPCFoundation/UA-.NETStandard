@@ -379,7 +379,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
         internal WotRefreshCapture ForPublication(ArrayOf<WotDependencyClosure> closures)
         {
             var inputs = new WotMaterializationSnapshot(
-                Inputs.Registry, Inputs.Selection, Inputs.SelectsAll, closures, Inputs.Contents, []);
+                Inputs.Registry, Inputs.Selection, Inputs.SelectsAll, closures, Inputs.Contents, [],
+                Inputs.DeclarationInputs);
             return new WotRefreshCapture(
                 Request, PreparationGeneration, inputs, RegistryOrigin, SupportsDependencySnapshots,
                 MaxJsonDepth, DocumentSetMode, ProjectionCompatibilityMode, BinderRevision,
