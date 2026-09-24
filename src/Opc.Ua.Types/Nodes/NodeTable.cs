@@ -308,6 +308,14 @@ namespace Opc.Ua
 
                 Node node = nodeSet.Copy(nodeToImport, NamespaceUris, ServerUris);
 
+                // replace any existing node (as Attach does), so a duplicate NodeId cannot
+                // throw midway through the import and leave the table half-imported.
+                if (Exists(node.NodeId))
+                {
+                    Remove(node.NodeId);
+                    importedNodes.RemoveAll(imported => imported.NodeId == node.NodeId);
+                }
+
                 // assign a browse name.
                 if (node.BrowseName.IsNull)
                 {

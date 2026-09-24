@@ -542,6 +542,58 @@ namespace Opc.Ua.Types.Tests.Nodes
         }
 
         [Test]
+        public void ImportNodeSetReplacesNodeAlreadyInTable()
+        {
+            var first = new NodeSet();
+            first.Add(new Node
+            {
+                NodeId = new NodeId(1000, 0),
+                NodeClass = NodeClass.Object,
+                BrowseName = new QualifiedName("Old"),
+                DisplayName = new LocalizedText("Old")
+            });
+            m_nodeTable.Import(first, null);
+
+            var second = new NodeSet();
+            var child = new Node
+            {
+                NodeId = new NodeId(1001, 0),
+                NodeClass = NodeClass.Object,
+                BrowseName = new QualifiedName("Child"),
+                DisplayName = new LocalizedText("Child")
+            };
+            child.References = new[]
+            {
+                new ReferenceNode
+                {
+                    ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                    IsInverse = true,
+                    TargetId = new NodeId(1000, 0)
+                }
+            }.ToArrayOf();
+            second.Add(child);
+            second.Add(new Node
+            {
+                NodeId = new NodeId(1000, 0),
+                NodeClass = NodeClass.Object,
+                BrowseName = new QualifiedName("New"),
+                DisplayName = new LocalizedText("New")
+            });
+
+            List<Node> result = null;
+            Assert.DoesNotThrow(() => result = m_nodeTable.Import(second, null));
+
+            Assert.That(result, Has.Count.EqualTo(2));
+            var replaced = m_nodeTable.Find(new NodeId(1000, 0)) as ILocalNode;
+            Assert.That(replaced, Is.Not.Null);
+            Assert.That(replaced.BrowseName.Name, Is.EqualTo("New"));
+            Assert.That(
+                replaced.References.Exists(ReferenceTypeIds.HasComponent, false, new NodeId(1001, 0), false, null),
+                Is.True,
+                "The reverse reference of a node imported after the duplicate must be indexed.");
+        }
+
+        [Test]
         public void ImportNodeSetAssignsBrowseNameWhenNull()
         {
             var nodeSet = new NodeSet();
