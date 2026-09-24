@@ -782,6 +782,56 @@ namespace Opc.Ua.Client.Tests
                 "Reconnecting session must keep the spec-strict path.");
         }
 
+        /// <summary>
+        /// Very long keep-alive intervals must not overflow the publish
+        /// timeout or the publishing-stopped check (L7-9).
+        /// </summary>
+        [TestCase(3_600_000d, 200u)]
+        [TestCase((double)int.MaxValue, 10u)]
+        [CancelAfter(5000)]
+        public async Task LongKeepAliveIntervalDoesNotOverflowAsync(
+            double revisedPublishingInterval,
+            uint revisedKeepAliveCount,
+            CancellationToken ct)
+        {
+            var publishTimeouts = new ConcurrentQueue<int>();
+            ISession session = BuildSessionMock(setup: mock =>
+            {
+                mock
+                    .Setup(x => x.CreateSubscriptionAsync(
+                        It.IsAny<RequestHeader>(),
+                        It.IsAny<double>(),
+                        It.IsAny<uint>(),
+                        It.IsAny<uint>(),
+                        It.IsAny<uint>(),
+                        It.IsAny<bool>(),
+                        It.IsAny<byte>(),
+                        It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(new CreateSubscriptionResponse
+                    {
+                        SubscriptionId = 1,
+                        RevisedPublishingInterval = revisedPublishingInterval,
+                        RevisedMaxKeepAliveCount = revisedKeepAliveCount,
+                        RevisedLifetimeCount = revisedKeepAliveCount * 3
+                    });
+                mock
+                    .Setup(x => x.StartPublishing(It.IsAny<int>(), It.IsAny<bool>()))
+                    .Callback<int, bool>((timeout, _) => publishTimeouts.Enqueue(timeout));
+            });
+            using var subscription = new Subscription(NUnitTelemetryContext.Create())
+            {
+                Session = session
+            };
+
+            await subscription.CreateAsync(ct).ConfigureAwait(false);
+
+            Assert.That(publishTimeouts, Is.Not.Empty);
+            Assert.That(publishTimeouts, Has.All.EqualTo(int.MaxValue),
+                "Three keep-alive intervals exceed int.MaxValue, so the timeout must saturate.");
+            Assert.That(subscription.PublishingStopped, Is.False,
+                "A subscription that was just created has not stopped publishing.");
+        }
+
         private static NotificationMessage BuildStatusChangeMessage(
             uint sequenceNumber, StatusCode status)
         {

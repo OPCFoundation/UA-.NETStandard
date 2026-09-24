@@ -951,8 +951,9 @@ namespace Opc.Ua.Client
             {
                 TimeSpan timeSinceLastNotification = m_timeProvider
                     .GetElapsedTime(m_lastNotificationTimestamp);
+                // add in double: the interval may be capped at int.MaxValue.
                 return timeSinceLastNotification.TotalMilliseconds >
-                    m_keepAliveInterval + kKeepAliveTimerMargin;
+                    (double)m_keepAliveInterval + kKeepAliveTimerMargin;
             }
         }
 
@@ -2516,8 +2517,10 @@ namespace Opc.Ua.Client
         /// </summary>
         private int BeginPublishTimeout()
         {
+            // multiply in long: three keep-alive intervals of more than about
+            // 8.3 days overflow an int.
             return Math.Max(
-                Math.Min(m_keepAliveInterval * 3, int.MaxValue),
+                (int)Math.Min(3L * m_keepAliveInterval, int.MaxValue),
                 MinKeepAliveTimerInterval);
         }
 
@@ -2631,11 +2634,11 @@ namespace Opc.Ua.Client
         private int CalculateKeepAliveInterval()
         {
             int keepAliveInterval = (int)
-                Math.Min(CurrentPublishingInterval * (CurrentKeepAliveCount + 1), int.MaxValue);
+                Math.Min(CurrentPublishingInterval * (CurrentKeepAliveCount + 1.0), int.MaxValue);
             if (keepAliveInterval < MinKeepAliveTimerInterval)
             {
                 keepAliveInterval = (int)Math.Min(
-                    PublishingInterval * (KeepAliveCount + 1),
+                    PublishingInterval * (KeepAliveCount + 1.0),
                     int.MaxValue);
                 keepAliveInterval = Math.Max(MinKeepAliveTimerInterval, keepAliveInterval);
             }
