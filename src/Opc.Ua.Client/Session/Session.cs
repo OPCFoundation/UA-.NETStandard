@@ -522,7 +522,17 @@ namespace Opc.Ua.Client
 
                 // Before the keep-alive timer and the channel go away: a publish
                 // notification already dispatched still reads session state.
-                await BackgroundWork.DisposeAsync().ConfigureAwait(false);
+                if (ReferenceEquals(s_backgroundWorkOwner.Value, this))
+                {
+                    // Disposed from a handler running on this background work
+                    // (e.g. Notification): the drain would wait for the caller
+                    // itself until it times out. Stop and cancel without waiting.
+                    BackgroundWork.Dispose();
+                }
+                else
+                {
+                    await BackgroundWork.DisposeAsync().ConfigureAwait(false);
+                }
 
                 try
                 {
@@ -6233,6 +6243,34 @@ namespace Opc.Ua.Client
         /// </summary>
         internal BackgroundTaskScope BackgroundWork { get; } =
             new(nameof(Session), AmbientMessageContext.Telemetry);
+
+        /// <summary>
+        /// Runs <paramref name="work"/> on <see cref="BackgroundWork"/> and marks
+        /// the flow as owned by this session's background work, so a handler
+        /// that closes or disposes the session from inside it does not wait for
+        /// the drain of the very operation it runs in.
+        /// </summary>
+        internal bool RunBackgroundWork(string operation, Action work)
+        {
+            return BackgroundWork.Run(operation, _ =>
+            {
+                s_backgroundWorkOwner.Value = this;
+                try
+                {
+                    work();
+                }
+                finally
+                {
+                    s_backgroundWorkOwner.Value = null;
+                }
+                return default;
+            });
+        }
+
+        /// <summary>
+        /// The session whose <see cref="BackgroundWork"/> runs the current flow.
+        /// </summary>
+        private static readonly AsyncLocal<Session?> s_backgroundWorkOwner = new();
 
         /// <summary>
         /// If set to<c>true</c> then the domain in the certificate must match the endpoint used.
