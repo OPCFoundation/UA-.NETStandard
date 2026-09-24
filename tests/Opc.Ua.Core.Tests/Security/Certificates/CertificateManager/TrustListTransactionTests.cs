@@ -509,6 +509,88 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
         }
 
+        /// <summary>
+        /// A CRL of a CA staged into (or held by) the issuer store is written to
+        /// the issuer store (IssuerCrls, OPC 10000-12 7.8.2.8). Before the fix every
+        /// CRL went to the trusted store, which could not find its issuer and failed
+        /// the commit halfway.
+        /// </summary>
+        [Test]
+        public async Task CommitAsyncRoutesIssuerCrlToIssuerStoreAsync()
+        {
+            string trustedPath = CreateTempDir();
+            string issuerPath = CreateTempDir();
+            using var manager = new CertificateManager(m_telemetry);
+            manager.RegisterTrustList(TrustListIdentifier.Peers, trustedPath, issuerPath);
+
+            using Certificate caCert = CertificateBuilder
+                .Create("CN=Issuer CRL CA")
+                .SetCAConstraint()
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate trustedCert = CertificateBuilder
+                .Create("CN=Issuer CRL Trusted")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            X509CRL crl = s_issuer.RevokeCertificates(caCert, null, null);
+
+            ITrustListTransaction transaction = await manager
+                .BeginUpdateAsync(TrustListIdentifier.Peers).ConfigureAwait(false);
+            await using (transaction.ConfigureAwait(false))
+            {
+                await transaction.AddTrustedCertificateAsync(trustedCert).ConfigureAwait(false);
+                await transaction.AddIssuerCertificateAsync(caCert).ConfigureAwait(false);
+                await transaction.AddCrlAsync(crl).ConfigureAwait(false);
+                await transaction.CommitAsync().ConfigureAwait(false);
+            }
+
+            using ICertificateStore trusted = manager.OpenTrustedStore(TrustListIdentifier.Peers);
+            using ICertificateStore issuers = manager.OpenIssuerStore(TrustListIdentifier.Peers);
+            using CertificateCollection trustedCerts = await trusted.EnumerateAsync().ConfigureAwait(false);
+            Assert.That(trustedCerts, Has.Count.EqualTo(1));
+            Assert.That(await trusted.EnumerateCRLsAsync().ConfigureAwait(false), Is.Empty);
+            Assert.That(await issuers.EnumerateCRLsAsync().ConfigureAwait(false), Has.Count.EqualTo(1));
+        }
+
+        /// <summary>
+        /// A CRL whose issuer is in neither store fails the commit before any store
+        /// is changed.
+        /// </summary>
+        [Test]
+        public async Task CommitAsyncWithUnknownCrlIssuerChangesNothingAsync()
+        {
+            string trustedPath = CreateTempDir();
+            string issuerPath = CreateTempDir();
+            using var manager = new CertificateManager(m_telemetry);
+            manager.RegisterTrustList(TrustListIdentifier.Peers, trustedPath, issuerPath);
+
+            using Certificate unknownCa = CertificateBuilder
+                .Create("CN=Unknown CRL CA")
+                .SetCAConstraint()
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate trustedCert = CertificateBuilder
+                .Create("CN=Unknown CRL Trusted")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            X509CRL crl = s_issuer.RevokeCertificates(unknownCa, null, null);
+
+            ITrustListTransaction transaction = await manager
+                .BeginUpdateAsync(TrustListIdentifier.Peers).ConfigureAwait(false);
+            await using (transaction.ConfigureAwait(false))
+            {
+                await transaction.AddTrustedCertificateAsync(trustedCert).ConfigureAwait(false);
+                await transaction.AddCrlAsync(crl).ConfigureAwait(false);
+                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await transaction.CommitAsync().ConfigureAwait(false));
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadCertificateInvalid));
+            }
+
+            using ICertificateStore trusted = manager.OpenTrustedStore(TrustListIdentifier.Peers);
+            using CertificateCollection trustedCerts = await trusted.EnumerateAsync().ConfigureAwait(false);
+            Assert.That(trustedCerts, Is.Empty);
+        }
+
         private string CreateTempDir()
         {
             string dir = Path.Combine(
