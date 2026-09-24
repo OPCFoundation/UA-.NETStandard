@@ -144,20 +144,27 @@ namespace Opc.Ua.SourceGeneration
             // child accessors can resolve their target wrapper by id.
             m_wrappers = [];
             m_methodWrappers = [];
-            foreach (InstanceDesign root in roots)
+            // The wrappers are only emitted with the manager; a model that
+            // just gets the per-type accessors must not fail generation over
+            // names that nothing will use.
+            if (GenerateManagerWrappers)
             {
-                CollectInstanceWrappers(root);
+                foreach (InstanceDesign root in roots)
+                {
+                    CollectInstanceWrappers(root);
+                }
+
+                // Detect naming collisions per containing wrapper. Fail with a
+                // diagnostic (mirrored as an InvalidOperationException since we
+                // are running outside the Roslyn diagnostic pipeline here).
+                ValidateNoCollisions();
+                ValidateNoRootCollisions(roots, typedBuilderClassName);
+
+                // Wire each wrapper to its direct child object/method
+                // wrappers so the recursive emitter can walk the tree
+                // depth-first and emit nested type declarations.
+                LinkChildWrappers();
             }
-
-            // Detect naming collisions per containing wrapper. Fail with a
-            // diagnostic (mirrored as an InvalidOperationException since we
-            // are running outside the Roslyn diagnostic pipeline here).
-            ValidateNoCollisions();
-
-            // Wire each wrapper to its direct child object/method
-            // wrappers so the recursive emitter can walk the tree
-            // depth-first and emit nested type declarations.
-            LinkChildWrappers();
 
             string fileName = Path.Combine(
                 m_context.OutputFolder,
@@ -548,13 +555,23 @@ namespace Opc.Ua.SourceGeneration
         {
             foreach (InstanceWrapper wrapper in m_wrappers.Values)
             {
+                // The wrapper itself declares Builder and Node (and Publish when
+                // it is an event notifier); a child named after one of those
+                // would not compile.
+                var reserved = new HashSet<string>(s_reservedWrapperMembers, StringComparer.Ordinal);
+                if (wrapper.SupportsPublish)
+                {
+                    reserved.Add("Publish");
+                }
+
+                // Every name declared in the wrapper's body: the child accessor
+                // properties and the nested wrapper types of object and method
+                // children share one member namespace (CS0102), and none of them
+                // may carry the name of the enclosing wrapper class (CS0542).
                 var seen = new Dictionary<string, ChildAccessor>(StringComparer.Ordinal);
                 foreach (ChildAccessor child in wrapper.Children)
                 {
-                    // The wrapper itself declares Builder and Node, and a member
-                    // may not carry the name of its enclosing class. A child
-                    // sanitizing to one of those would not compile.
-                    if (s_reservedWrapperMembers.Contains(child.AccessorName) ||
+                    if (reserved.Contains(child.AccessorName) ||
                         string.Equals(
                             child.AccessorName,
                             wrapper.ClassName,
@@ -581,6 +598,84 @@ namespace Opc.Ua.SourceGeneration
                     }
                     seen[child.AccessorName] = child;
                 }
+
+                foreach (ChildAccessor child in wrapper.Children)
+                {
+                    if (child.Kind is not (ChildKind.Object or ChildKind.Method) ||
+                        string.IsNullOrEmpty(child.WrapperClassName))
+                    {
+                        continue;
+                    }
+                    string nestedType = child.WrapperClassName;
+                    if (reserved.Contains(nestedType) ||
+                        string.Equals(nestedType, wrapper.ClassName, StringComparison.Ordinal))
+                    {
+                        throw new InvalidOperationException(CoreUtils.Format(
+                            "Fluent builder generation: child '{0}' on '{1}' " +
+                            "gets the nested wrapper type '{2}', which the " +
+                            "generated wrapper already declares. Rename the " +
+                            "child in the design.",
+                            child.BrowseName,
+                            wrapper.ClassName,
+                            nestedType));
+                    }
+                    if (seen.TryGetValue(nestedType, out ChildAccessor existing))
+                    {
+                        throw new InvalidOperationException(CoreUtils.Format(
+                            "Fluent builder generation: the nested wrapper type '{0}' " +
+                            "of child '{1}' on '{2}' collides with the member of " +
+                            "child '{3}'. Rename one of the children in the design.",
+                            nestedType,
+                            child.BrowseName,
+                            wrapper.ClassName,
+                            existing.BrowseName));
+                    }
+                    seen[nestedType] = child;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Verifies that the typed top-level accessors of the manager builder
+        /// neither collide with each other nor with the members the typed
+        /// builder forwards from <c>INodeManagerBuilder</c> (for example a root
+        /// instance named <c>Context</c>), nor with the builder class itself.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">A root accessor collides.</exception>
+        private void ValidateNoRootCollisions(
+            IReadOnlyList<InstanceDesign> roots,
+            string typedBuilderClassName)
+        {
+            var seen = new Dictionary<string, InstanceDesign>(StringComparer.Ordinal);
+            foreach (InstanceDesign root in roots)
+            {
+                if (!m_wrappers.ContainsKey(ComposeKey(root, string.Empty)))
+                {
+                    continue;
+                }
+                string accessor = GetAccessorName(root);
+                if (s_typedBuilderMembers.Contains(accessor) ||
+                    string.Equals(accessor, typedBuilderClassName, StringComparison.Ordinal))
+                {
+                    throw new InvalidOperationException(CoreUtils.Format(
+                        "Fluent builder generation: the predefined instance '{0}' " +
+                        "sanitizes to the C# accessor '{1}', which the generated " +
+                        "'{2}' already declares. Rename the instance in the design.",
+                        GetBrowseName(root),
+                        accessor,
+                        typedBuilderClassName));
+                }
+                if (seen.TryGetValue(accessor, out InstanceDesign existing))
+                {
+                    throw new InvalidOperationException(CoreUtils.Format(
+                        "Fluent builder generation: the predefined instances '{0}' " +
+                        "and '{1}' both sanitize to the C# accessor '{2}'. Rename " +
+                        "one of them in the design.",
+                        GetBrowseName(existing),
+                        GetBrowseName(root),
+                        accessor));
+                }
+                seen[accessor] = root;
             }
         }
 
@@ -1878,6 +1973,33 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private static readonly HashSet<string> s_reservedWrapperMembers =
             new(StringComparer.Ordinal) { "Builder", "Node" };
+
+        /// <summary>
+        /// Members the generated typed manager builder forwards from
+        /// <c>INodeManagerBuilder</c> (see <see cref="EmitTypedManagerImpl"/>),
+        /// which a top-level accessor therefore cannot be named after.
+        /// </summary>
+        private static readonly HashSet<string> s_typedBuilderMembers =
+            new(StringComparer.Ordinal)
+            {
+                "Context",
+                "NodeManager",
+                "Dispatcher",
+                "DefaultNamespaceIndex",
+                "Import",
+                "Node",
+                "NodeFromTypeId",
+                "Variable",
+                "VariableFromTypeId",
+                "VariableFromDataTypeId",
+                "Add",
+                "AddRoot",
+                "TryGetNode",
+                "AddFolder",
+                "AddObject",
+                "AddVariable",
+                "AddMethod"
+            };
 
         private static string GetAccessorName(NodeDesign node)
         {

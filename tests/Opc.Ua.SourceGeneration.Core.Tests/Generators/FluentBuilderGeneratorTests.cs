@@ -685,6 +685,170 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(builders, Does.Contain("Setpoint"));
         }
 
+        /// <summary>
+        /// Regression: the wrapper collision check ran (and threw) even when no
+        /// manager wrappers are emitted, failing models that only get the
+        /// per-type accessors over names nothing uses.
+        /// </summary>
+        [Test]
+        public void EmitWithoutManagerWrappers_DoesNotValidateWrapperNames()
+        {
+            Assert.DoesNotThrow(() => GenerateWrappers(
+                "Device",
+                [("Node", NewObject("Node"))],
+                generateManagerWrappers: false));
+        }
+
+        /// <summary>
+        /// Regression: collisions that break compilation of the emitted wrappers
+        /// were not detected - a nested wrapper named after its enclosing wrapper
+        /// (CS0542), and a nested wrapper type colliding with a sibling accessor
+        /// or another nested type (CS0102).
+        /// </summary>
+        [Test]
+        public void EmitNestedWrapperCollisions_AreReported()
+        {
+            // Object Boiler inside object Boiler: nested BoilerBuilder in BoilerBuilder.
+            Assert.That(
+                () => GenerateWrappers("Plant", [("Boiler", NewObject("Boiler")), ("Boiler_Boiler", NewObject("Boiler"))]),
+                Throws.InvalidOperationException.With.Message.Contains("BoilerBuilder"));
+            // Variable FooBuilder next to object Foo: property and nested type FooBuilder.
+            Assert.That(
+                () => GenerateWrappers("Plant", [("Foo", NewObject("Foo")), ("FooBuilder", NewVariable("FooBuilder"))]),
+                Throws.InvalidOperationException.With.Message.Contains("FooBuilder"));
+            // Method Foo next to object FooMethod: both nest FooMethodBuilder.
+            Assert.That(
+                () => GenerateWrappers("Plant", [("Foo", NewMethod("Foo")), ("FooMethod", NewObject("FooMethod"))]),
+                Throws.InvalidOperationException.With.Message.Contains("FooMethodBuilder"));
+        }
+
+        /// <summary>
+        /// Regression: a predefined instance named after a member the typed
+        /// manager builder forwards (e.g. <c>Context</c>) produced two members of
+        /// that name in the typed builder (CS0102).
+        /// </summary>
+        [TestCase("Context")]
+        [TestCase("AddObject")]
+        public void EmitRootNamedAfterATypedBuilderMember_ReportsTheCollision(string rootName)
+        {
+            Assert.That(
+                () => GenerateWrappers(rootName, []),
+                Throws.InvalidOperationException.With.Message.Contains(rootName));
+        }
+
+        [Test]
+        public void EmitDistinctNestedWrappers_Generates()
+        {
+            string builders = GenerateWrappers(
+                "Plant",
+                [("Boiler", NewObject("Boiler")), ("Boiler_Pump", NewObject("Pump")), ("Start", NewMethod("Start"))]);
+
+            Assert.That(builders, Does.Contain("class PumpBuilder"));
+            Assert.That(builders, Does.Contain("class StartMethodBuilder"));
+        }
+
+        private const string kWrapperNamespaceUri = "http://test.org/UA/Wrappers/";
+
+        private static ObjectDesign NewObject(string name)
+        {
+            return new ObjectDesign
+            {
+                SymbolicName = new XmlQualifiedName(name, kWrapperNamespaceUri),
+                SymbolicId = new XmlQualifiedName("Id_" + name, kWrapperNamespaceUri),
+                BrowseName = name
+            };
+        }
+
+        private static MethodDesign NewMethod(string name)
+        {
+            return new MethodDesign
+            {
+                SymbolicName = new XmlQualifiedName(name, kWrapperNamespaceUri),
+                SymbolicId = new XmlQualifiedName("Id_" + name, kWrapperNamespaceUri),
+                BrowseName = name,
+                InputArguments = [],
+                OutputArguments = []
+            };
+        }
+
+        private static VariableDesign NewVariable(string name)
+        {
+            var floatType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("Float", "http://opcfoundation.org/UA/"),
+                SymbolicId = new XmlQualifiedName("Float", "http://opcfoundation.org/UA/"),
+                BasicDataType = BasicDataType.Float
+            };
+            return new VariableDesign
+            {
+                SymbolicName = new XmlQualifiedName(name, kWrapperNamespaceUri),
+                SymbolicId = new XmlQualifiedName("Id_" + name, kWrapperNamespaceUri),
+                BrowseName = name,
+                DataTypeNode = floatType,
+                DataType = floatType.SymbolicId,
+                ValueRank = ValueRank.Scalar
+            };
+        }
+
+        private static string GenerateWrappers(
+            string rootName,
+            (string Path, NodeDesign Node)[] children,
+            bool generateManagerWrappers = true)
+        {
+            var targetNamespace = new Namespace
+            {
+                Value = kWrapperNamespaceUri,
+                Prefix = "Wrappers",
+                Name = "Wrappers"
+            };
+            var root = new ObjectDesign
+            {
+                SymbolicName = new XmlQualifiedName(rootName, kWrapperNamespaceUri),
+                SymbolicId = new XmlQualifiedName(rootName, kWrapperNamespaceUri),
+                BrowseName = rootName,
+                Hierarchy = new Hierarchy()
+            };
+            root.Hierarchy.Nodes[string.Empty] = new HierarchyNode
+            {
+                RelativePath = string.Empty,
+                Instance = root
+            };
+            foreach ((string path, NodeDesign node) in children)
+            {
+                root.Hierarchy.Nodes[path] = new HierarchyNode
+                {
+                    RelativePath = path,
+                    Instance = node
+                };
+            }
+
+            var model = new Mock<IModelDesign>();
+            model.Setup(m => m.TargetNamespace).Returns(targetNamespace);
+            model.Setup(m => m.Namespaces).Returns([targetNamespace]);
+            model.Setup(m => m.GetNodeDesigns()).Returns([root]);
+            model.Setup(m => m.IsExcluded(It.IsAny<NodeDesign>())).Returns(false);
+
+            using var fileSystem = new VirtualFileSystem();
+            var context = new GeneratorContext
+            {
+                FileSystem = fileSystem,
+                OutputFolder = string.Empty,
+                ModelDesign = model.Object,
+                Telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error),
+                Options = new GeneratorOptions()
+            };
+            new FluentBuilderGenerator(context)
+            {
+                GenerateManagerWrappers = generateManagerWrappers,
+                EmitFluentAccessors = false
+            }.Emit();
+
+            return fileSystem.CreatedFiles
+                .Where(c => c.EndsWith(".FluentBuilders.g.cs", StringComparison.Ordinal))
+                .Select(c => Encoding.UTF8.GetString(fileSystem.Get(c)))
+                .Single();
+        }
+
         private static string GenerateWrapperWithChildNamed(string childName)
         {
             const string namespaceUri = "http://test.org/UA/WrapperCollision/";
