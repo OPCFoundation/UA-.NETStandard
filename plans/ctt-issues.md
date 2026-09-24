@@ -8,8 +8,8 @@ CTT is in [ctt-testing.md](ctt-testing.md).
 
 - "Resolved / fixed" in Mantis means the fix is in the CTT script repository. It ships with a script
   build after 1.05.513, so an installed 1.05.513 still shows the failure.
-- The ids (1–19, C1–C50, U1–U4) are the ones used in ctt-testing.md and in earlier notes; missing ids
-  were withdrawn or no longer fail against the reference server.
+- The ids (1–19, C1–C50, U1–U4) are stable references for notes and commit messages; missing ids were
+  withdrawn or no longer fail against the reference server.
 - Mantis states were last checked on 2026-09-24.
 
 ## Filed in Mantis
