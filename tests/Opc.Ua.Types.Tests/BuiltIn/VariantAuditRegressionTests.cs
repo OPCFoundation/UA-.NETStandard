@@ -621,6 +621,21 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
+        public void ByteStringCompareToEmptyArrayIsPositive()
+        {
+            // T2-6: a non empty byte string sorted before an empty array.
+            ByteString value = ByteString.From(1, 2, 3);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(value.CompareTo(Array.Empty<byte>()), Is.GreaterThan(0));
+                Assert.That(value.CompareTo((byte[])null), Is.GreaterThan(0));
+                Assert.That(value.CompareTo(ByteString.Empty), Is.GreaterThan(0));
+                Assert.That(ByteString.Empty.CompareTo(Array.Empty<byte>()), Is.Zero);
+            });
+        }
+
+        [Test]
         public void SerializableMatrixOfRoundTripsNullMatrix()
         {
             // T2-8: a null matrix could not be deserialized.
