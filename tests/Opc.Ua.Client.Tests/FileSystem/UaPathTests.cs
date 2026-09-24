@@ -147,6 +147,32 @@ namespace Opc.Ua.Client.Tests.FileSystem
         }
 
         [Test]
+        public void FormatEscapesReservedCharactersAndRoundTrips()
+        {
+            QualifiedName[] segments =
+            [
+                new QualifiedName("12:30.log"),
+                new QualifiedName("a/b"),
+                new QualifiedName("x&:y", 2),
+                new QualifiedName("a&b"),
+                new QualifiedName("c:d")
+            ];
+
+            string formatted = UaPath.Format(segments);
+
+            Assert.That(formatted, Is.EqualTo("/12&:30.log/a&/b/2:x&&&:y/a&b/c&:d"));
+            Assert.That(UaPath.Parse(formatted), Is.EqualTo(segments));
+        }
+
+        [Test]
+        public void ParseTreatsAmpersandBeforeOrdinaryCharacterAsLiteral()
+        {
+            QualifiedName[] segments = UaPath.Parse("/R&D/a&b");
+            Assert.That(segments[0], Is.EqualTo(new QualifiedName("R&D")));
+            Assert.That(segments[1], Is.EqualTo(new QualifiedName("a&b")));
+        }
+
+        [Test]
         public void FormatSegmentNs0OmitsPrefix()
         {
             Assert.That(

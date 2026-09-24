@@ -108,11 +108,21 @@ namespace Opc.Ua.Client.ComplexTypes
                     unionSelector++;
                 }
 
-                // unionProperty is non-null when m_switchField is within the property range,
-                // which the IL emitted by ComplexTypeFieldBuilder guarantees for set values.
-                fieldName ??= unionProperty!.Name;
+                // Part 6 §5.2.8: an encoder shall also report an out-of-range
+                // SwitchField rather than fail with a NullReferenceException.
+                if (unionProperty == null)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingError,
+                        "Union SwitchField {0} exceeds the {1} fields of {2}.",
+                        m_switchField,
+                        m_propertyList.Count,
+                        GetType().Name);
+                }
 
-                EncodeProperty(encoder, fieldName, unionProperty!);
+                fieldName ??= unionProperty.Name;
+
+                EncodeProperty(encoder, fieldName, unionProperty);
             }
 
             encoder.PopNamespace();
@@ -129,16 +139,31 @@ namespace Opc.Ua.Client.ComplexTypes
             bool isJsonDecoder = decoder.EncodingType == EncodingType.Json;
             if (unionSelector == 0 && isJsonDecoder)
             {
+                // The Verbose JSON encoding writes no SwitchField, so the
+                // selector has to be recovered from the member name. Every
+                // union field is a candidate: union fields are never
+                // IsOptional (Part 3 §8.51), so filtering by it left the list
+                // empty and every such union decoded as null.
                 var fields = new List<string>();
                 foreach (ComplexTypePropertyInfo property in GetPropertyEnumerator())
                 {
-                    if (property.IsOptional)
-                    {
-                        fields.Add(property.Name);
-                    }
+                    fields.Add(property.Name);
                 }
 
                 unionSelector = decoder.ReadSwitchField(fields, out _);
+            }
+
+            // Part 6 §5.2.8: decoders shall report an error for a SwitchField
+            // greater than the number of defined union fields. Accepting it
+            // would leave an object that throws on Encode/Value/indexers.
+            if (unionSelector > (uint)m_propertyList.Count)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Union SwitchField {0} exceeds the {1} fields of {2}.",
+                    unionSelector,
+                    m_propertyList.Count,
+                    GetType().Name);
             }
 
             m_switchField = unionSelector;
