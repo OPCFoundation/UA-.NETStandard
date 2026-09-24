@@ -409,8 +409,14 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
+            // The parts are concatenated into one identifier, so a part must
+            // not keep the '@' ToSafeSymbolName escapes a keyword with - it
+            // would land mid-identifier ("Acme@base"). Upper-casing the first
+            // letter already takes every part out of the (lower case) keywords.
             string[] parts = prefix.Split(['.', '-', '_', '/', ':'], StringSplitOptions.RemoveEmptyEntries);
-            return string.Concat(parts.Select(part => part.ToSafeSymbolName().ToUpperCamelCase()));
+            string name = string.Concat(parts.Select(part =>
+                part.ToSafeSymbolName().TrimStart('@').ToUpperCamelCase()));
+            return string.IsNullOrEmpty(name) ? null : name.ToCSharpIdentifierPreserveCase();
         }
 
         /// <summary>
