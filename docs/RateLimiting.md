@@ -66,7 +66,15 @@ server.RateLimitOptions = new ServerRateLimitOptions { ConnectionsPerSecond = 20
 // or: server.RateLimiterProvider = new DefaultServerRateLimiterProvider(options);
 ```
 
-The `opc.tcp` listener consumes an `IConnectionRateLimiter` and a backlog value through `TransportListenerSettings`, injected by `StandardServer.ConfigureTransportListenerSettings`. A custom server can override that hook to supply its own limiter. The default `TokenBucketConnectionRateLimiter` wraps a `System.Threading.RateLimiting.TokenBucketRateLimiter`.
+Raw TCP, Kestrel TCP, and UACP WebSocket listeners consume the
+`IConnectionRateLimiter` supplied through `TransportListenerSettings`, injected
+by `StandardServer.ConfigureTransportListenerSettings`. A custom server can
+override that hook to supply its own limiter. The default
+`TokenBucketConnectionRateLimiter` wraps a `System.Threading.RateLimiting.TokenBucketRateLimiter`.
+Kestrel and UACP WebSocket listeners also enforce their configured channel cap
+across concurrent admissions and release capacity with the physical connection,
+including reverse handoff. The raw listener retains its existing admission and
+unused-channel reclamation behavior.
 
 ### Incomplete messages
 
@@ -95,6 +103,14 @@ Channels with activated sessions can use the remaining headroom. This is a
 capacity policy, not an authentication boundary: an activated anonymous session
 also qualifies. The two-argument constructor sets the sessionless threshold
 explicitly, including the entire budget for sessionless workloads.
+
+The threshold is not reserved space for new clients. For example, with a
+100 MiB total and 50 MiB sessionless threshold, 60 MiB retained by activated
+sessions prevents further sessionless intermediate chunks. Single-chunk
+requests are still processed, but a large multi-chunk OpenSecureChannel,
+CreateSession, or ActivateSession may be refused until occupancy drops.
+Per-caller fairness and guaranteed bootstrap reservations require a separate
+isolation policy; the shared budget alone does not provide them.
 
 Configure the hosted server through its fluent builder:
 

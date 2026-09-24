@@ -66,9 +66,15 @@ namespace Opc.Ua.Bindings
     public sealed class ChunkReassemblyBudget
     {
         /// <summary>
-        /// Creates a budget of which channels without an activated session may
-        /// use half.
+        /// Creates a budget which channels without an activated session may
+        /// fill up to half of its total capacity.
         /// </summary>
+        /// <remarks>
+        /// This is a global occupancy threshold, not a reserved partition.
+        /// Activated-session traffic may consume that portion and prevent new
+        /// sessionless multi-chunk messages until capacity is released.
+        /// Single-chunk messages are not charged to this budget.
+        /// </remarks>
         /// <param name="maxBytes">
         /// The number of bytes the chunks of incomplete messages may hold in
         /// total.

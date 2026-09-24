@@ -31,6 +31,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Net;
 using System.Threading;
@@ -187,7 +188,8 @@ namespace Opc.Ua.Bindings
             };
             m_quotas = new ChannelQuotas(messageContext)
             {
-                SecurityPolicyRegistry = settings.SecurityPolicyRegistry
+                SecurityPolicyRegistry = settings.SecurityPolicyRegistry,
+                SessionBindingProvider = settings.SessionBindingProvider
             };
             if (configuration != null)
             {
@@ -215,6 +217,7 @@ namespace Opc.Ua.Bindings
             m_channels = new ConcurrentDictionary<uint, (TcpListenerChannel Channel, TaskCompletionSource<bool> Done)>();
             m_callback = callback;
             m_reverseConnectListener = settings.ReverseConnectListener;
+            m_admission = new UaScConnectionAdmission(settings.MaxChannelCount, settings.ConnectionRateLimiter);
 
             m_host = BuildHost(baseAddress);
             await m_host.StartAsync(ct).ConfigureAwait(false);
@@ -229,6 +232,14 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public async ValueTask StopAsync(CancellationToken ct = default)
         {
+            try
+            {
+                m_admission?.Stop();
+            }
+            catch (AggregateException ex)
+            {
+                Logger.KestrelTcpAdmissionStopFailed(ex);
+            }
             IHost? host = m_host;
             m_host = null;
             if (host != null)
@@ -481,6 +492,14 @@ namespace Opc.Ua.Bindings
             return (uint)Interlocked.Increment(ref m_nextChannelId);
         }
 
+        internal bool TryAdmitConnection(
+            EndPoint? remoteEndpoint,
+            [NotNullWhen(true)] out UaScConnectionAdmission.Lease? lease)
+        {
+            lease = null;
+            return m_admission != null && m_admission.TryAcquire(remoteEndpoint, out lease);
+        }
+
         /// <summary>
         /// True when <see cref="OpenAsync"/> was called with
         /// <see cref="TransportListenerSettings.ReverseConnectListener"/>
@@ -530,7 +549,9 @@ namespace Opc.Ua.Bindings
             {
                 serverChannel.SetRequestReceivedCallback(new TcpChannelRequestEventHandler(OnRequestReceived));
             }
-            m_channels!.TryAdd(channelId, (channel, new TaskCompletionSource<bool>()));
+            m_channels!.TryAdd(channelId, (
+                channel,
+                new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously)));
         }
 
         internal void UnregisterChannel(uint channelId)
@@ -539,15 +560,6 @@ namespace Opc.Ua.Bindings
             {
                 entry.Done.TrySetResult(true);
             }
-        }
-
-        internal Task WaitForConnectionAsync(uint channelId, CancellationToken ct)
-        {
-            if (m_channels != null && m_channels.TryGetValue(channelId, out (TcpListenerChannel Channel, TaskCompletionSource<bool> Done) entry))
-            {
-                return Task.WhenAny(entry.Done.Task, ct.AsTask()).ContinueWith(_ => { }, TaskScheduler.Default);
-            }
-            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -575,12 +587,14 @@ namespace Opc.Ua.Bindings
                     "Could not find secure channel request.");
             }
 
-            TcpListenerChannel? channel = entry.Channel;
+            TcpListenerChannel channel = entry.Channel;
+            IUaSCByteTransport? transport = null;
             try
             {
-                if (ConnectionWaiting != null)
+                ConnectionWaitingHandlerAsync? handler = ConnectionWaiting;
+                if (handler != null)
                 {
-                    IUaSCByteTransport? transport = await channel.DetachTransportAsync()
+                    transport = await channel.DetachTransportAsync()
                         .ConfigureAwait(false);
                     if (transport != null)
                     {
@@ -588,7 +602,7 @@ namespace Opc.Ua.Bindings
                             serverUri,
                             endpointUrl,
                             transport);
-                        await ConnectionWaiting(this, args).ConfigureAwait(false);
+                        await handler(this, args).ConfigureAwait(false);
                         accepted = args.Accepted;
                         if (!accepted)
                         {
@@ -606,23 +620,22 @@ namespace Opc.Ua.Bindings
                     // Re-register so the channel is still tracked for cleanup.
                     m_channels.TryAdd(channelId, entry);
                 }
-                // NOTE: in the accepted case we deliberately do NOT signal
-                // entry.Done. Kestrel tears the ConnectionContext (and its
-                // underlying socket / IDuplexPipe) down the instant
-                // OnConnectedAsync returns - if we wake the connection-hold
-                // loop now, the new transport owner loses its pipe mid-
-                // handshake. The loop instead waits on
-                // ConnectionContext.ConnectionClosed so Kestrel keeps the
-                // socket alive until the new owner finishes with it.
-                channel = null; // ownership transferred
+                else
+                {
+                    channel.Dispose();
+                }
             }
-            finally
+            catch
             {
-                // Dispose the channel only if the transfer was rejected
-                // and we did NOT re-register it (re-register hands
-                // ownership back to the connection-hold loop). Matching
-                // the raw-socket TcpTransportListener semantics.
-                channel?.Dispose();
+                try
+                {
+                    transport?.Close();
+                }
+                finally
+                {
+                    channel.Dispose();
+                }
+                throw;
             }
 
             return accepted;
@@ -734,22 +747,7 @@ namespace Opc.Ua.Bindings
         private ConcurrentDictionary<uint, (TcpListenerChannel Channel, TaskCompletionSource<bool> Done)>? m_channels;
         private int m_nextChannelId;
         private bool m_reverseConnectListener;
-    }
-
-    /// <summary>
-    /// Helper extension that converts a <see cref="CancellationToken"/>
-    /// to a Task that completes when the token is cancelled. Used by
-    /// the connection-hold loop in
-    /// <see cref="KestrelTcpTransportListener.WaitForConnectionAsync"/>.
-    /// </summary>
-    internal static class CancellationTokenExtensions
-    {
-        public static Task AsTask(this CancellationToken token)
-        {
-            var tcs = new TaskCompletionSource<bool>();
-            token.Register(static state => ((TaskCompletionSource<bool>)state!).TrySetResult(true), tcs);
-            return tcs.Task;
-        }
+        private UaScConnectionAdmission? m_admission;
     }
 
     /// <summary>
@@ -796,6 +794,10 @@ namespace Opc.Ua.Bindings
         [LoggerMessage(EventId = BindingsHttpsEventIds.KestrelTcpTransportListener + 6, Level = LogLevel.Information,
             Message = "KestrelTcp closed {Count} SecureChannel(s) whose peer certificate is no longer trusted.")]
         public static partial void KestrelClosedUntrustedPeerSecureChannels(this ILogger logger, int count);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.KestrelTcpTransportListener + 7, Level = LogLevel.Error,
+            Message = "Kestrel TCP failed to close one or more admitted connections during listener shutdown.")]
+        public static partial void KestrelTcpAdmissionStopFailed(this ILogger logger, Exception exception);
     }
 }
 #endif // NET8_0_OR_GREATER

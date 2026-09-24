@@ -1771,12 +1771,14 @@ namespace Opc.Ua.Bindings
                     return true;
                 }
 
-                if (response is ActivateSessionResponse activateSessionResponse &&
+                if (Quotas.SessionBindingProvider == null &&
+                    response is ActivateSessionResponse activateSessionResponse &&
                     StatusCode.IsGood(activateSessionResponse.ResponseHeader.ServiceResult))
                 {
                     AddSession();
                 }
-                else if (response is CloseSessionResponse closeSessionResponse &&
+                else if (Quotas.SessionBindingProvider == null &&
+                    response is CloseSessionResponse closeSessionResponse &&
                     StatusCode.IsGood(closeSessionResponse.ResponseHeader.ServiceResult))
                 {
                     RemoveSession();

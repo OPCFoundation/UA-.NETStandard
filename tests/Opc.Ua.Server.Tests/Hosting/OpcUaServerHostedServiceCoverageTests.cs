@@ -357,6 +357,30 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(budget.MaxBytesWithoutSession, Is.EqualTo(maxBytes / (explicitShare ? 4 : 2)));
         }
 
+        [Test]
+        public async Task HostedServiceAppliesTheRegisteredSessionBindingProviderAsync()
+        {
+            RegistryCaptureServer.Reset();
+            ISessionBindingProvider configured = Mock.Of<ISessionBindingProvider>();
+            await using HostedServerFixture fixture = await HostedServerFixture.StartAsync(
+                services =>
+                {
+                    services.AddLogging();
+                    services.AddSingleton(configured);
+                    services.AddSingleton<ITransportBindingRegistry>(TestTransportBindings.WithAllSchemes());
+                    services.AddSingleton(new ServerComplexTypeOptions { Enabled = false });
+                    services.AddOpcUa().AddServer<RegistryCaptureServer>(
+                        options => ConfigureHostedOptions(options, "SessionBindings"));
+                }).ConfigureAwait(false);
+
+            Assert.That(
+                await WaitForAsync(
+                    () => RegistryCaptureServer.StartedInstance != null,
+                    TimeSpan.FromSeconds(60)).ConfigureAwait(false),
+                Is.True);
+            Assert.That(RegistryCaptureServer.StartedInstance!.SessionBindingProvider, Is.SameAs(configured));
+        }
+
         /// <summary>
         /// Verifies that the fluent builder rejects a budget that is not positive.
         /// </summary>

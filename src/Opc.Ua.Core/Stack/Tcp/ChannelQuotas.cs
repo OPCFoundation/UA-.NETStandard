@@ -113,6 +113,15 @@ namespace Opc.Ua.Bindings
         public ChunkReassemblyBudget? ChunkReassemblyBudget { get; set; }
 
         /// <summary>
+        /// The server's authoritative session binding lookup, shared by all its channels.
+        /// </summary>
+        /// <remarks>
+        /// Without this optional capability, standalone channels retain legacy response-based
+        /// membership hints only. Those hints cannot establish identity or trusted capacity.
+        /// </remarks>
+        public ISessionBindingProvider? SessionBindingProvider { get; set; }
+
+        /// <summary>
         /// Bounds incomplete-message retention even when the channel lifetime is unset.
         /// Non-positive values use the same default as a newly configured channel,
         /// without changing the lifetime used by other channel operations.

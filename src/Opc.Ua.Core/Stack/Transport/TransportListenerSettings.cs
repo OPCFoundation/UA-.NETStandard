@@ -144,6 +144,16 @@ namespace Opc.Ua
         public ChunkReassemblyBudget? ChunkReassemblyBudget { get; set; }
 
         /// <summary>
+        /// Optional authoritative session membership and read-only classification provider.
+        /// Pass it to the quotas of every accepted UA Secure Conversation channel.
+        /// </summary>
+        /// <remarks>
+        /// A standalone host without a provider has only legacy response-count hints, which
+        /// cannot account for transfer, timeout or administrative closure.
+        /// </remarks>
+        public ISessionBindingProvider? SessionBindingProvider { get; set; }
+
+        /// <summary>
         /// Indicates if Http listener requires mutual TLS
         /// Handled only by HttpsTransportListener
         /// In case true, the client should provide it's own valid TLS certificate to the TLS layer for the connection to succeed.

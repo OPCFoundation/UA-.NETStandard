@@ -419,6 +419,14 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected virtual async ValueTask DisposeAsyncCore()
         {
+            try
+            {
+                m_admission?.Stop();
+            }
+            catch (AggregateException ex)
+            {
+                m_logger.WssAdmissionStopFailed(ex);
+            }
             ConnectionStatusChanged = null;
             ConnectionWaiting = null;
 
@@ -594,6 +602,7 @@ namespace Opc.Ua.Bindings
                 SecurityTokenLifetime = configuration.SecurityTokenLifetime,
                 CertificateValidator = settings.CertificateValidator,
                 SecurityPolicyRegistry = settings.SecurityPolicyRegistry,
+                SessionBindingProvider = settings.SessionBindingProvider,
                 // The opc.wss channels assemble chunked messages like opc.tcp
                 // ones, so they are bounded by the same kind of budget.
                 ChunkReassemblyBudget = settings.ChunkReassemblyBudget ??
@@ -612,6 +621,7 @@ namespace Opc.Ua.Bindings
             // listener's ConnectionWaiting event when the server's
             // ReverseHello arrives.
             m_reverseConnectListener = settings.ReverseConnectListener;
+            m_admission = new UaScConnectionAdmission(settings.MaxChannelCount, settings.ConnectionRateLimiter);
 
             // buffer manager used by the WSS path to rent send / receive chunks.
             m_bufferManager = new BufferManager(
@@ -858,6 +868,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public async ValueTask StartAsync(CancellationToken ct = default)
         {
+            m_admission?.Start();
             // 1) Prepare the TLS certificate up front so the registry can
             //    key on its thumbprint when matching shared hosts.
             PrepareTlsCertificate();
@@ -1513,8 +1524,9 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Handles WebSocket upgrade requests for the WSS transport
         /// (Part 6 §7.5). Negotiates the <c>opcua+uacp</c> sub-protocol
-        /// (binary + UASC SecureChannel); the <c>opcua+uajson</c>
-        /// sub-protocol returns 501 until <c>p3-wss-json-handler</c>.
+        /// (binary + UASC SecureChannel), JSON, or OpenAPI. UACP connections
+        /// reserve listener admission capacity before upgrading; JSON and
+        /// HTTP logical channels retain their separate middleware policy.
         /// </summary>
         public async Task AcceptWebSocketAsync(HttpContext context)
         {
@@ -1610,11 +1622,6 @@ namespace Opc.Ua.Bindings
                 return;
             }
 
-            // selected == opcua+uacp
-            WebSocket ws = await context.WebSockets
-                .AcceptWebSocketAsync(selected)
-                .ConfigureAwait(false);
-
             EndPoint? localEndpoint = MakeEndpoint(
                 context.Connection.LocalIpAddress,
                 context.Connection.LocalPort);
@@ -1622,86 +1629,83 @@ namespace Opc.Ua.Bindings
                 context.Connection.RemoteIpAddress,
                 context.Connection.RemotePort);
 
-            var perWsListener = new WssChannelListener(this);
-            uint channelId = (uint)Interlocked.Increment(ref m_nextChannelId);
-
-            // In reverse-connect mode the inbound WSS connection is
-            // initiated by the SERVER and starts with a ReverseHello;
-            // wrap it in a TcpReverseConnectChannel so the channel's
-            // ProcessReverseHelloMessage path triggers the handoff via
-            // perWsListener.TransferListenerChannelAsync.
-            TcpListenerChannel channel = m_reverseConnectListener
-                ? new TcpReverseConnectChannel(
-                    ListenerId,
-                    perWsListener,
-                    m_bufferManager,
-                    m_quotas,
-                    m_descriptions,
-                    m_telemetry)
-                : new TcpServerChannel(
-                    ListenerId,
-                    perWsListener,
-                    m_bufferManager,
-                    m_quotas,
-                    m_serverCertProvider,
-                    m_descriptions,
-                    m_telemetry);
-
-            if (channel is TcpServerChannel forwardChannel)
+            // Only UACP upgrades allocate physical UASC channels. HTTP requests
+            // and JSON logical channels retain their separate middleware policy.
+            if (m_admission == null || !m_admission.TryAcquire(remoteEndpoint, out UaScConnectionAdmission.Lease? lease))
             {
-                forwardChannel.SetRequestReceivedCallback(
-                    new TcpChannelRequestEventHandler(OnRequestReceivedAsync));
-                forwardChannel.SetReportOpenSecureChannelAuditCallback(
-                    new ReportAuditOpenSecureChannelEventHandler(OnReportAuditOpenSecureChannelEvent));
-                forwardChannel.SetReportCloseSecureChannelAuditCallback(
-                    new ReportAuditCloseSecureChannelEventHandler(OnReportAuditCloseSecureChannelEvent));
-                forwardChannel.SetReportCertificateAuditCallback(
-                    new ReportAuditCertificateEventHandler(OnReportAuditCertificateEvent));
+                await WriteResponseAsync(
+                    context.Response,
+                    "HTTPSLISTENER - UACP connection rejected by listener admission settings.",
+                    HttpStatusCode.ServiceUnavailable).ConfigureAwait(false);
+                return;
             }
 
-            perWsListener.AttachChannel(channelId, channel);
-
-            WebSocketServerByteTransport? transport = null;
-            try
+            using (lease)
             {
-                transport = new WebSocketServerByteTransport(
-                    ws,
-                    localEndpoint,
-                    remoteEndpoint,
-                    m_bufferManager,
-                    m_quotas.MaxBufferSize,
-                    m_telemetry);
-                channel.Attach(channelId, transport);
-
-                // Hold the request open until the channel is torn down (the
-                // listener closes the channel when the WebSocket sees Close or
-                // a fatal UASC error). Honor request abort to allow shutdown.
-                await perWsListener
-                    .WaitForChannelClosedAsync(context.RequestAborted)
+                lease.SetAbortAction(context.Abort);
+                context.RequestAborted.ThrowIfCancellationRequested();
+                using WebSocket ws = await context.WebSockets
+                    .AcceptWebSocketAsync(selected)
                     .ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                // Connection torn down by the request abort token; normal shutdown.
-            }
-            catch (Exception ex)
-            {
-                m_logger.UnexpectedWebSocketSessionError(ex);
-            }
-            finally
-            {
+
+                TcpListenerChannel? channel = null;
                 try
                 {
-                    channel.Dispose();
+                    using var transport = new WebSocketServerByteTransport(
+                        ws,
+                        localEndpoint,
+                        remoteEndpoint,
+                        m_bufferManager,
+                        m_quotas.MaxBufferSize,
+                        m_telemetry);
+                    lease.Attach(transport);
+                    var perWsListener = new WssChannelListener(this);
+                    uint channelId = (uint)Interlocked.Increment(ref m_nextChannelId);
+                    channel = m_reverseConnectListener
+                        ? new TcpReverseConnectChannel(
+                            ListenerId,
+                            perWsListener,
+                            m_bufferManager,
+                            m_quotas,
+                            m_descriptions,
+                            m_telemetry)
+                        : new TcpServerChannel(
+                            ListenerId,
+                            perWsListener,
+                            m_bufferManager,
+                            m_quotas,
+                            m_serverCertProvider,
+                            m_descriptions,
+                            m_telemetry);
+
+                    if (channel is TcpServerChannel forwardChannel)
+                    {
+                        forwardChannel.SetRequestReceivedCallback(
+                            new TcpChannelRequestEventHandler(OnRequestReceivedAsync));
+                        forwardChannel.SetReportOpenSecureChannelAuditCallback(
+                            new ReportAuditOpenSecureChannelEventHandler(OnReportAuditOpenSecureChannelEvent));
+                        forwardChannel.SetReportCloseSecureChannelAuditCallback(
+                            new ReportAuditCloseSecureChannelEventHandler(OnReportAuditCloseSecureChannelEvent));
+                        forwardChannel.SetReportCertificateAuditCallback(
+                            new ReportAuditCertificateEventHandler(OnReportAuditCertificateEvent));
+                    }
+                    perWsListener.AttachChannel(channelId, channel);
+                    channel.Attach(channelId, lease);
+
+                    await lease.WaitForCloseAsync(context.RequestAborted).ConfigureAwait(false);
                 }
-                catch
+                catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
                 {
-                    // Dispose is best-effort.
+                    // Request cancellation is normal shutdown.
                 }
-                // The channel closes the attached transport on Dispose; this
-                // direct, idempotent Dispose covers the path where Attach was
-                // never reached (e.g. the transport ctor threw).
-                transport?.Dispose();
+                catch (Exception ex)
+                {
+                    m_logger.UnexpectedWebSocketSessionError(ex);
+                }
+                finally
+                {
+                    channel?.Dispose();
+                }
             }
         }
 
@@ -2206,15 +2210,14 @@ namespace Opc.Ua.Bindings
         /// run inside the HTTPS listener without needing a full
         /// <see cref="ITcpChannelListener"/>-shaped lifecycle. There is one
         /// <see cref="WssChannelListener"/> per accepted WebSocket; it tracks
-        /// exactly one channel and signals the request handler when the
-        /// channel closes so the request pipeline can clean up.
+        /// one channel for reverse-connect handoff. The admission lease tracks
+        /// physical close independently of that channel's lifetime.
         /// </summary>
         private sealed class WssChannelListener : ITcpChannelListener
         {
             internal WssChannelListener(HttpsTransportListener owner)
             {
                 m_owner = owner;
-                m_closed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             }
 
             public Uri EndpointUrl => m_owner.EndpointUrl;
@@ -2270,23 +2273,19 @@ namespace Opc.Ua.Bindings
                 }
 
                 var args = new TcpConnectionWaitingEventArgs(serverUri, endpointUrl, transport);
-                await handler(m_owner, args).ConfigureAwait(false);
+                try
+                {
+                    await handler(m_owner, args).ConfigureAwait(false);
+                }
+                catch
+                {
+                    transport.Close();
+                    throw;
+                }
                 if (args.Accepted)
                 {
-                    // The application took ownership of the transport. Do NOT
-                    // signal m_closed here - the request handler must stay
-                    // alive until the new owner finishes using the WebSocket
-                    // (when it closes the WS Kestrel fires RequestAborted
-                    // which sets m_closed via WaitForChannelClosedAsync's
-                    // ct.Register).
-                    //
-                    // Release the now-empty TcpReverseConnectChannel: its
-                    // transport is gone and its only remaining state (the
-                    // ServerCertificateChain loaded during the ReverseHello
-                    // SetEndpointUrl) would otherwise stay alive until the
-                    // request handler's finally clears it. Disposing here
-                    // releases the cert-chain handles deterministically and
-                    // breaks the otherwise hard-to-collect reference graph.
+                    // The admission lease keeps the request and its capacity
+                    // alive until the adopted transport physically closes.
                     TcpListenerChannel? toDispose = Interlocked.Exchange(ref m_channel, null);
                     toDispose?.Dispose();
                     return true;
@@ -2301,22 +2300,10 @@ namespace Opc.Ua.Bindings
 
             public void ChannelClosed(uint channelId)
             {
-                if (channelId == m_channelId)
-                {
-                    m_closed.TrySetResult(true);
-                }
-            }
-
-            internal async Task WaitForChannelClosedAsync(CancellationToken ct)
-            {
-                using (ct.Register(static s => ((TaskCompletionSource<bool>)s!).TrySetResult(true), m_closed))
-                {
-                    await m_closed.Task.ConfigureAwait(false);
-                }
+                // Physical transport close, not channel registration, ends the request.
             }
 
             private readonly HttpsTransportListener m_owner;
-            private readonly TaskCompletionSource<bool> m_closed;
             private uint m_channelId;
             private TcpListenerChannel? m_channel;
         }
@@ -2494,6 +2481,7 @@ namespace Opc.Ua.Bindings
 
         private List<EndpointDescription> m_descriptions = null!;
         private ChannelQuotas m_quotas = null!;
+        private UaScConnectionAdmission? m_admission;
         private BufferManager m_bufferManager = null!;
         private readonly IBufferManagerFactory m_bufferManagerFactory;
         private ITransportListenerCallback? m_callback;
@@ -2592,5 +2580,9 @@ namespace Opc.Ua.Bindings
         [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 13, Level = LogLevel.Error,
             Message = "WSSLISTENER - unexpected OpenAPI WebSocket error.")]
         public static partial void UnexpectedOpenApiWebSocketError(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 14, Level = LogLevel.Error,
+            Message = "WSSLISTENER - failed to close one or more admitted connections during listener shutdown.")]
+        public static partial void WssAdmissionStopFailed(this ILogger logger, Exception exception);
     }
 }

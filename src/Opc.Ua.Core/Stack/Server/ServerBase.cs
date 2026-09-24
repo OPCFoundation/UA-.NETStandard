@@ -910,6 +910,12 @@ namespace Opc.Ua
         public ChunkReassemblyBudget? ChunkReassemblyBudget { get; set; }
 
         /// <summary>
+        /// Optional session binding provider supplied by a direct host or its DI container.
+        /// Set before startup. Managed servers supply their session manager by default.
+        /// </summary>
+        public ISessionBindingProvider? SessionBindingProvider { get; set; }
+
+        /// <summary>
         /// Gets or sets the encodeable factory to use for this server instance.
         /// </summary>
         /// <remarks>
@@ -1060,7 +1066,8 @@ namespace Opc.Ua
                     NamespaceUris = messageContext.NamespaceUris,
                     Factory = messageContext.Factory,
                     MaxChannelCount = 0,
-                    ChunkReassemblyBudget = chunkReassemblyBudget
+                    ChunkReassemblyBudget = chunkReassemblyBudget,
+                    SessionBindingProvider = SessionBindingProvider ?? this as ISessionBindingProvider
                 };
 
                 settings.MaxChannelCount = Configuration!.ServerConfiguration!.MaxChannelCount;

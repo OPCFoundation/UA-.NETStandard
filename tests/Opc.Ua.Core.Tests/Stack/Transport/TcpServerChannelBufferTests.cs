@@ -1445,13 +1445,115 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(pool.DuplicateReturnCount, Is.Zero);
         }
 
+        [Test]
+        public void MembershipCallbackClosingChannelCannotRetainTheIncomingChunk()
+        {
+            var pool = new TrackingArrayPool();
+            var budget = new ChunkReassemblyBudget(1024);
+            var provider = new Mock<ISessionBindingProvider>();
+            using TestServerChannel channel = CreateOpenChannel(pool, budget: budget, bindingProvider: provider.Object);
+            provider.Setup(value => value.HasSession(It.IsAny<string>())).Returns(() =>
+            {
+                channel.CloseForTest();
+                return true;
+            });
+            byte[] buffer = channel.TakeBufferForTest(32);
+
+            channel.SaveReceivedPartForTest(1, new ArraySegment<byte>(buffer, 0, 32));
+
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+            Assert.That(budget.ReservedBytes, Is.Zero);
+            Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+        }
+
+        [Test]
+        public void MembershipCallbackFailureReturnsTheIncomingChunk()
+        {
+            var pool = new TrackingArrayPool();
+            var budget = new ChunkReassemblyBudget(1024);
+            var provider = new Mock<ISessionBindingProvider>();
+            provider.Setup(value => value.HasSession(It.IsAny<string>()))
+                .Throws(new InvalidOperationException("Membership lookup failed."));
+            using TestServerChannel channel = CreateOpenChannel(pool, budget: budget, bindingProvider: provider.Object);
+            byte[] buffer = channel.TakeBufferForTest(32);
+
+            Assert.That(
+                () => channel.SaveReceivedPartForTest(1, new ArraySegment<byte>(buffer, 0, 32)),
+                Throws.TypeOf<InvalidOperationException>());
+
+            Assert.That(budget.ReservedBytes, Is.Zero);
+            Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+        }
+
+        [Test]
+        public async Task ManagedMembershipIgnoresSuccessfulResponseCountsAsync()
+        {
+            var pool = new TrackingArrayPool();
+            var provider = new Mock<ISessionBindingProvider>();
+            bool hasSession = false;
+            provider.Setup(p => p.HasSession(It.IsAny<string>())).Returns(() => hasSession);
+            using TestServerChannel channel = CreateOpenChannel(pool, bindingProvider: provider.Object);
+            var transport = new GateByteTransport(expectedSendCount: 3);
+            channel.SetTransport(transport);
+            for (uint id = 1; id <= 2; id++)
+            {
+                channel.SendResponse(id, new ActivateSessionResponse
+                {
+                    ResponseHeader = new ResponseHeader { ServiceResult = StatusCodes.Good }
+                });
+            }
+            channel.ActivateSessionForTest();
+            Assert.That(channel.UsedBySession, Is.False, "Response and legacy hints cannot override managed state.");
+            hasSession = true;
+            channel.SendResponse(3, new CloseSessionResponse
+            {
+                ResponseHeader = new ResponseHeader { ServiceResult = StatusCodes.Good }
+            });
+            Assert.That(channel.UsedBySession, Is.True, "A response cannot remove another session's membership.");
+            hasSession = false;
+            Assert.That(channel.UsedBySession, Is.False);
+            provider.Verify(p => p.HasSession(channel.GlobalChannelId), Times.Exactly(3));
+            transport.Complete();
+            Assert.That(await WaitForOutstandingCountAsync(pool, 0, 30).ConfigureAwait(false), Is.True);
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+        }
+
+        [Test]
+        public void ManagedMembershipControlsExistingReassemblyHeadroom()
+        {
+            var pool = new TrackingArrayPool();
+            using TestServerChannel probe = CreateOpenChannel(pool);
+            int rented = probe.GetRentedLengthForTest(32);
+            var budget = new ChunkReassemblyBudget(2 * rented, rented);
+            var provider = new Mock<ISessionBindingProvider>();
+            bool hasSession = true;
+            provider.Setup(p => p.HasSession(It.IsAny<string>())).Returns(() => hasSession);
+            using TestServerChannel holder = CreateOpenChannel(pool, budget: budget);
+            using TestServerChannel channel = CreateOpenChannel(pool, budget: budget, bindingProvider: provider.Object);
+            holder.SaveReceivedPartForTest(1, new ArraySegment<byte>(holder.TakeBufferForTest(32)));
+            channel.SaveReceivedPartForTest(1, new ArraySegment<byte>(channel.TakeBufferForTest(32)));
+            Assert.That(budget.ReservedBytes, Is.EqualTo(2 * rented));
+            channel.ReleaseSavedPartsForTest(1);
+            hasSession = false;
+            channel.SaveReceivedPartForTest(2, new ArraySegment<byte>(channel.TakeBufferForTest(32)));
+            Assert.That(budget.ReservedBytes, Is.EqualTo(rented));
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+            holder.Dispose();
+            Assert.That(budget.ReservedBytes, Is.Zero);
+            Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+        }
+
         private static TestServerChannel CreateOpenChannel(
             TrackingArrayPool pool,
             int maxBufferSize = 64 * 1024,
             int? maxStringLength = null,
             FakeTimeProvider clock = null,
             int? channelLifetime = null,
-            ChunkReassemblyBudget budget = null)
+            ChunkReassemblyBudget budget = null,
+            ISessionBindingProvider bindingProvider = null)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var context = ServiceMessageContext.Create(telemetry);
@@ -1463,7 +1565,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
                 MaxBufferSize = maxBufferSize,
                 MaxMessageSize = 4 * 1024 * 1024,
-                ChunkReassemblyBudget = budget
+                ChunkReassemblyBudget = budget,
+                SessionBindingProvider = bindingProvider
             };
             if (channelLifetime.HasValue)
             {

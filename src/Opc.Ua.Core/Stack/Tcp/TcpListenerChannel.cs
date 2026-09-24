@@ -373,7 +373,13 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Gets whether at least one active session is using the channel.
         /// </summary>
-        public bool UsedBySession => Volatile.Read(ref m_sessionCount) > 0;
+        /// <remarks>
+        /// Managed servers use distinct committed session bindings. Without a provider this
+        /// falls back to legacy response-count hints, not authoritative live membership.
+        /// </remarks>
+        public bool UsedBySession =>
+            Quotas.SessionBindingProvider?.HasSession(GlobalChannelId) ??
+            Volatile.Read(ref m_sessionCount) > 0;
 
         /// <inheritdoc/>
         private protected override bool ServesActivatedSession => UsedBySession;

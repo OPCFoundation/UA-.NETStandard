@@ -416,7 +416,8 @@ namespace Opc.Ua.Bindings
             };
             m_quotas = new ChannelQuotas(messageContext)
             {
-                SecurityPolicyRegistry = settings.SecurityPolicyRegistry
+                SecurityPolicyRegistry = settings.SecurityPolicyRegistry,
+                SessionBindingProvider = settings.SessionBindingProvider
             };
 
             if (configuration != null)

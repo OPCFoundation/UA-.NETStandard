@@ -805,6 +805,16 @@ explicit budget, the server sizes one from `MaxMessageSize`; see
 [incomplete messages](RateLimiting.md#incomplete-messages) for the defaults,
 sessionless headroom, and direct-construction equivalent.
 
+### Committed session bindings
+
+Managed servers automatically supply their session manager's committed-binding
+view to transport listeners. A custom `ISessionBindingProvider` registered as a
+singleton is applied by the hosted server; direct hosts can assign
+`ServerBase.SessionBindingProvider` before startup. This optional seam preserves
+existing session-manager and transport-callback interfaces. Its snapshots are
+classification inputs, not authorization decisions; see
+[committed session bindings](Transports.md#committed-session-bindings).
+
 ### Server-side reverse connect
 
 A regular DI server can dial back to clients via reverse-hello using

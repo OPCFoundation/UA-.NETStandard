@@ -849,6 +849,15 @@ extend it indefinitely. A zero or negative value uses the 30-second default
 for message assembly; it does not disable assembly cleanup. See
 [incomplete-message limits](Transports.md#incomplete-message-resource-limits).
 
+Kestrel TCP and UACP WebSocket listeners honor configured connection-admission
+and channel limits, including pending admissions. Size `MaxChannelCount` for
+the intended deployment rather than relying on these bindings to ignore it.
+Managed channel membership is based on committed live sessions rather than
+activation-response counts. Custom session managers can implement the optional
+`ISessionBindingProvider` capability; custom hosts can inject a provider without
+changing existing callback contracts. A lookup snapshot does not replace normal
+request authentication and authorization.
+
 ## Migrating channel subclasses that override HandleIncomingMessage
 
 `UaSCBinaryChannel.HandleIncomingMessage` and `OnChunkReceived` have been

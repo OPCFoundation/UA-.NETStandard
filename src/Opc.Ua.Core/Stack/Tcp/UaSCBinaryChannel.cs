@@ -567,6 +567,19 @@ namespace Opc.Ua.Bindings
             bool firstChunk;
             bool chunkOrSizeLimitsExceeded;
             bool budgetExceeded = false;
+            bool hasSession = true;
+            if (!isFinal && requestId != 0 && chunk.Array != null && m_chunkReassemblyBudget != null)
+            {
+                try
+                {
+                    hasSession = ServesActivatedSession;
+                }
+                catch
+                {
+                    ReturnBuffer(chunk, "SaveIntermediateChunk");
+                    throw;
+                }
+            }
 
             lock (m_partialMessageLock)
             {
@@ -612,7 +625,7 @@ namespace Opc.Ua.Bindings
 
                 if (!chunkOrSizeLimitsExceeded && requestId != 0 && chunk.Array != null)
                 {
-                    if (isFinal || TryReservePartialMessageChunk(chunk.Array.Length))
+                    if (isFinal || TryReservePartialMessageChunk(chunk.Array.Length, hasSession))
                     {
                         if (m_partialMessageChunks == null)
                         {
@@ -645,7 +658,6 @@ namespace Opc.Ua.Bindings
             }
             else if (budgetExceeded)
             {
-                bool hasSession = ServesActivatedSession;
                 m_logger.UaSCChannelChunkReassemblyBudgetExceeded(
                     ChannelId,
                     hasSession ? m_chunkReassemblyBudget!.MaxBytes : m_chunkReassemblyBudget!.MaxBytesWithoutSession,
@@ -800,13 +812,13 @@ namespace Opc.Ua.Bindings
         {
         }
 
-        private bool TryReservePartialMessageChunk(int byteCount)
+        private bool TryReservePartialMessageChunk(int byteCount, bool hasSession)
         {
             if (m_chunkReassemblyBudget == null)
             {
                 return true;
             }
-            if (!m_chunkReassemblyBudget.TryReserve(byteCount, ServesActivatedSession))
+            if (!m_chunkReassemblyBudget.TryReserve(byteCount, hasSession))
             {
                 return false;
             }

@@ -94,6 +94,53 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        [Test]
+        public async Task ListenerSettingsFollowLiveManagedSessionBindingsAsync()
+        {
+            var fixture = new ServerFixture<BudgetCaptureServer>(t => new BudgetCaptureServer(t));
+            BudgetCaptureServer server = await fixture.StartAsync().ConfigureAwait(false);
+            try
+            {
+                await AddListenerAsync(server, fixture.Config).ConfigureAwait(false);
+                Assert.That(server.BindingProviders, Has.Count.GreaterThan(1));
+                Assert.That(server.BindingProviders, Has.All.SameAs(server));
+                ISessionBindingProvider provider = server.BindingProviders[0];
+                (RequestHeader header, SecureChannelContext channel) =
+                    await server.CreateAndActivateSessionAsync("binding-provider").ConfigureAwait(false);
+                Assert.That(provider.HasSession(channel.SecureChannelId), Is.True);
+                Assert.That(provider.TryGetSessionContext(header.AuthenticationToken, channel, out var context),
+                    Is.True);
+                Assert.That(context.SessionId,
+                    Is.EqualTo(server.CurrentInstance.SessionManager.GetSession(header.AuthenticationToken).Id));
+                await server.CloseSessionAsync(channel, header, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(provider.HasSession(channel.SecureChannelId), Is.False);
+                Assert.That(provider.TryGetSessionContext(header.AuthenticationToken, channel, out _), Is.False);
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task ListenerSettingsPreserveInjectedSessionBindingProviderAsync()
+        {
+            ISessionBindingProvider provider = Mock.Of<ISessionBindingProvider>();
+            var fixture = new ServerFixture<BudgetCaptureServer>(
+                t => new BudgetCaptureServer(t) { SessionBindingProvider = provider });
+            BudgetCaptureServer server = await fixture.StartAsync().ConfigureAwait(false);
+            try
+            {
+                await AddListenerAsync(server, fixture.Config).ConfigureAwait(false);
+                Assert.That(server.BindingProviders, Has.Count.GreaterThan(1));
+                Assert.That(server.BindingProviders, Has.All.SameAs(provider));
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
         private static async Task AddListenerAsync(BudgetCaptureServer server, ApplicationConfiguration configuration)
         {
             var listener = new Mock<ITransportListener>();
@@ -124,12 +171,15 @@ namespace Opc.Ua.Server.Tests
 
             public List<ChunkReassemblyBudget> ListenerBudgets { get; } = [];
 
+            public List<ISessionBindingProvider> BindingProviders { get; } = [];
+
             protected override void ConfigureTransportListenerSettings(
                 TransportListenerSettings settings,
                 Uri endpointUri)
             {
                 base.ConfigureTransportListenerSettings(settings, endpointUri);
                 ListenerBudgets.Add(settings.ChunkReassemblyBudget);
+                BindingProviders.Add(settings.SessionBindingProvider);
             }
         }
     }
