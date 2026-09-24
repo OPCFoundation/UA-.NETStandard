@@ -1495,11 +1495,8 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ReleaseStatusValue}}
                 {{Tokens.CategoriesValue}}
                 {{Tokens.SpecificationValue}}
-                if (forInstance)
-                {
-                    {{Tokens.AccessRestrictionsValue}}
-                    {{Tokens.ListOfRolePermissions}}
-                }
+                {{Tokens.AccessRestrictionsValue}}
+                {{Tokens.ListOfRolePermissions}}
                 {{Tokens.ListOfReferences}}
                 {{Tokens.ListOfChildNodeStates}}
                 if (!forInstance)
@@ -1545,11 +1542,8 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ReleaseStatusValue}}
                 {{Tokens.CategoriesValue}}
                 {{Tokens.SpecificationValue}}
-                if (forInstance)
-                {
-                    {{Tokens.AccessRestrictionsValue}}
-                    {{Tokens.ListOfRolePermissions}}
-                }
+                {{Tokens.AccessRestrictionsValue}}
+                {{Tokens.ListOfRolePermissions}}
                 {{Tokens.ListOfReferences}}
                 {{Tokens.ListOfChildNodeStates}}
                 if (!forInstance)
@@ -1593,11 +1587,8 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ReleaseStatusValue}}
                 {{Tokens.CategoriesValue}}
                 {{Tokens.SpecificationValue}}
-                if (forInstance)
-                {
-                    {{Tokens.AccessRestrictionsValue}}
-                    {{Tokens.ListOfRolePermissions}}
-                }
+                {{Tokens.AccessRestrictionsValue}}
+                {{Tokens.ListOfRolePermissions}}
                 {{Tokens.ListOfReferences}}
                 {{Tokens.ListOfChildNodeStates}}
                 if (!forInstance)
@@ -1639,11 +1630,8 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ReleaseStatusValue}}
                 {{Tokens.CategoriesValue}}
                 {{Tokens.SpecificationValue}}
-                if (forInstance)
-                {
-                    {{Tokens.AccessRestrictionsValue}}
-                    {{Tokens.ListOfRolePermissions}}
-                }
+                {{Tokens.AccessRestrictionsValue}}
+                {{Tokens.ListOfRolePermissions}}
                 {{Tokens.ListOfReferences}}
                 {{Tokens.ListOfChildNodeStates}}
                 if (!forInstance)
@@ -2183,11 +2171,8 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ReleaseStatusValue}}
                 {{Tokens.CategoriesValue}}
                 {{Tokens.SpecificationValue}}
-                if (forInstance)
-                {
-                    {{Tokens.AccessRestrictionsValue}}
-                    {{Tokens.ListOfRolePermissions}}
-                }
+                {{Tokens.AccessRestrictionsValue}}
+                {{Tokens.ListOfRolePermissions}}
                 {{Tokens.ListOfReferences}}
                 {{Tokens.ListOfChildNodeStates}}
                 {{Tokens.ListOfInputArguments}}

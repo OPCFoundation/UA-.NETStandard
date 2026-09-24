@@ -1448,6 +1448,41 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(CompileGeneratedAssembly(files), Is.Not.Null);
         }
 
+        /// <summary>
+        /// Regression: AccessRestrictions and RolePermissions of type nodes
+        /// and of method declarations on types were wrapped in
+        /// <c>if (forInstance)</c>, but type factories are only ever called
+        /// with <c>forInstance: false</c>, so the attributes were never set.
+        /// </summary>
+        [Test]
+        public void TypeAndTypeMethodDeclarationsCarryAccessRestrictionsAndRolePermissions()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+            Dictionary<string, string> files = GenerateFromNodeSet(
+                "TypeRolePermissions.NodeSet2.xml",
+                telemetry);
+
+            string code = files.Single(
+                kv => kv.Key.EndsWith(".NodeStates.ex.g.cs", StringComparison.Ordinal)).Value;
+            string typeFactory = ExtractMethodBody(code, "CreateRestrictedObjectType");
+            string methodFactory = ExtractMethodBody(code, "CreateRestrictedObjectType_Reset");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(typeFactory, Does.Contain("nodeState.AccessRestrictions = "));
+                Assert.That(typeFactory, Does.Contain("state.RolePermissions = "));
+                Assert.That(methodFactory, Does.Contain("state.RolePermissions = "));
+                foreach (string factory in new[] { typeFactory, methodFactory })
+                {
+                    Assert.That(
+                        factory,
+                        Does.Not.Match(
+                            @"if \(forInstance\)\s*\{\s*(nodeState\.AccessRestrictions|state\.RolePermissions)"));
+                }
+            });
+            Assert.That(CompileGeneratedAssembly(files), Is.Not.Null);
+        }
+
         private static Dictionary<string, string> GenerateFromNodeSet(
             string nodeSetResource,
             ITelemetryContext telemetry)
