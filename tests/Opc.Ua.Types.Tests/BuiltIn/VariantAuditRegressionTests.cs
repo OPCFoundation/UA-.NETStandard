@@ -789,6 +789,70 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             });
         }
 
+        [Test]
+        public void TryCastToReportsTypeMismatch()
+        {
+            // T2-14: every built-in branch reported success with default(T).
+            Assert.Multiple(() =>
+            {
+                Assert.That(Variant.From("abc").TryCastTo(out int _), Is.False);
+                Assert.That(Variant.From(5).TryCastTo(out ArrayOf<int> _), Is.False);
+                Assert.That(Variant.From(5).TryCastTo(out int[] _), Is.False);
+                Assert.That(Variant.From(5).TryCastTo(out MatrixOf<int> _), Is.False);
+                Assert.That(Variant.From(1.5).TryCastTo(out string _), Is.False);
+                Assert.That(Variant.From(5).TryCastTo(out Argument _), Is.False);
+                Assert.That(
+                    () => Variant.From(1.5).CastTo<string>(),
+                    Throws.TypeOf<ServiceResultException>());
+                Assert.That(new DataValue(Variant.From("abc")).GetValue(-1), Is.EqualTo(-1));
+
+                Assert.That(Variant.From(5).TryCastTo(out int five), Is.True);
+                Assert.That(five, Is.EqualTo(5));
+                Assert.That(Variant.From("abc").TryCastTo(out string abc), Is.True);
+                Assert.That(abc, Is.EqualTo("abc"));
+                Assert.That(Variant.From(s_oneTwoThree.ToArrayOf()).TryCastTo(out int[] ints), Is.True);
+                Assert.That(ints, Is.EqualTo(s_oneTwoThree));
+            });
+        }
+
+        [Test]
+        public void TryCastToAndFromSupportSystemDateTime()
+        {
+            // T2-15: System.DateTime had no branch.
+            var now = new DateTime(2026, 9, 24, 12, 30, 0, DateTimeKind.Utc);
+            var value = new DataValue(Variant.From((DateTimeUtc)now));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(value.GetValue(DateTime.MinValue), Is.EqualTo(now));
+                Assert.That(Variant.From((DateTimeUtc)now).TryCastTo(out DateTime[] _), Is.False);
+                Assert.That(VariantHelper.CastFrom(now).TypeInfo, Is.EqualTo(TypeInfo.Scalars.DateTime));
+                Assert.That(VariantHelper.CastFrom(now).GetDateTime(), Is.EqualTo((DateTimeUtc)now));
+                Assert.That(
+                    VariantHelper.CastFrom(new[] { now }).TypeInfo,
+                    Is.EqualTo(TypeInfo.Arrays.DateTime));
+                Assert.That(
+                    Variant.From(new[] { (DateTimeUtc)now }.ToArrayOf()).CastTo<DateTime[]>(),
+                    Is.EqualTo(new[] { now }));
+            });
+        }
+
+        [Test]
+        public void TryCastToConvertsEnumsOfAnyWidth()
+        {
+            // T2-16: an Int32 was reinterpreted as an 8 byte enum.
+            Assert.Multiple(() =>
+            {
+                Assert.That(Variant.From(5).TryCastTo(out AuditLongEnum longEnum), Is.True);
+                Assert.That(longEnum, Is.EqualTo(AuditLongEnum.Five));
+                Assert.That(Variant.From(5).TryCastTo(out AuditByteEnum byteEnum), Is.True);
+                Assert.That(byteEnum, Is.EqualTo(AuditByteEnum.Five));
+                Assert.That(Variant.From(2).TryCastTo(out AuditTestEnum intEnum), Is.True);
+                Assert.That(intEnum, Is.EqualTo(AuditTestEnum.Two));
+                Assert.That(Variant.From("x").TryCastTo(out AuditTestEnum _), Is.False);
+            });
+        }
+
         private static bool IsEqual(object left, object right)
         {
             return left.Equals(right);
@@ -798,6 +862,16 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             One = 1,
             Two = 2
+        }
+
+        public enum AuditLongEnum : long
+        {
+            Five = 5
+        }
+
+        public enum AuditByteEnum : byte
+        {
+            Five = 5
         }
     }
 }
