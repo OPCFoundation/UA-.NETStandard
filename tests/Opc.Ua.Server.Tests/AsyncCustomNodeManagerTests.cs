@@ -2992,7 +2992,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<HistorianNodeCapabilities>(
                     HistorianNodeCapabilities.ReadOnly));
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             var itemToCreate = new MonitoredItemCreateRequest
             {
                 ItemToMonitor = new ReadValueId
@@ -3147,7 +3147,7 @@ namespace Opc.Ua.Server.Tests
                     return new ValueTask<HistorianPage<HistoricalDataValue>>(
                         secondPage.Task);
                 });
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             monitoredItem.QueueValue(
                 new DataValue(
                     new Variant(99),
@@ -3282,7 +3282,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<HistorianPage<HistoricalDataValue>>(
                     new HistorianPage<HistoricalDataValue>([])));
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             MonitoredItemModifyRequest request = CreateAggregateModifyRequest(
                 monitoredItem,
                 aggregateId,
@@ -3353,7 +3353,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<HistorianPage<HistoricalDataValue>>(
                     new HistorianPage<HistoricalDataValue>([])));
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             MonitoredItemModifyRequest request = CreateAggregateModifyRequest(
                 monitoredItem,
                 aggregateId,
@@ -3428,7 +3428,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<HistorianPage<HistoricalDataValue>>(
                     new HistorianPage<HistoricalDataValue>([])));
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             MonitoredItemModifyRequest request = CreateAggregateModifyRequest(
                 monitoredItem,
                 aggregateId,
@@ -3522,7 +3522,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<CancellationToken>()))
                 .Throws(new ServiceResultException(
                     failureCode));
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             MonitoredItemModifyRequest request = CreateAggregateModifyRequest(
                 monitoredItem,
                 aggregateId,
@@ -3619,7 +3619,7 @@ namespace Opc.Ua.Server.Tests
                 })
                 .Returns(new ValueTask<HistorianPage<HistoricalDataValue>>(
                     new HistorianPage<HistoricalDataValue>([])));
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             MonitoredItemModifyRequest firstRequest =
                 CreateAggregateModifyRequest(
                     monitoredItem,
@@ -3737,7 +3737,7 @@ namespace Opc.Ua.Server.Tests
                     HistorianNodeCapabilities.ReadOnly));
             Mock<IHistorianDataProvider> dataProvider =
                 provider.As<IHistorianDataProvider>();
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             MonitoredItemModifyRequest request = CreateAggregateModifyRequest(
                 monitoredItem,
                 aggregateId,
@@ -3830,7 +3830,7 @@ namespace Opc.Ua.Server.Tests
                             cancellationToken).ConfigureAwait(false);
                         return new HistorianPage<HistoricalDataValue>([]);
                     });
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             MonitoredItemModifyRequest request = CreateAggregateModifyRequest(
                 monitoredItem,
                 aggregateId,
@@ -3920,7 +3920,7 @@ namespace Opc.Ua.Server.Tests
                             cancellationToken).ConfigureAwait(false);
                         return new HistorianPage<HistoricalDataValue>([]);
                     });
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             MonitoredItemModifyRequest request = CreateAggregateModifyRequest(
                 monitoredItem,
                 aggregateId,
@@ -3987,7 +3987,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<HistorianNodeCapabilities>(
                     HistorianNodeCapabilities.ReadOnly));
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             MonitoredItemModifyRequest request = CreateAggregateModifyRequest(
                 monitoredItem,
                 aggregateId,
@@ -4089,7 +4089,7 @@ namespace Opc.Ua.Server.Tests
                     return new ValueTask<HistorianPage<HistoricalDataValue>>(
                         page.Task);
                 });
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             MonitoredItemModifyRequest request = CreateAggregateModifyRequest(
                 monitoredItem,
                 aggregateId,
@@ -6737,7 +6737,7 @@ namespace Opc.Ua.Server.Tests
                         Stepped = true,
                         DefaultAggregateConfiguration = providerDefaults
                     }));
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             DateTimeOffset now = new(2026, 9, 4, 8, 0, 0, TimeSpan.Zero);
             m_timeProvider.SetUtcNow(now);
             var filter = new ExtensionObject(new AggregateFilter
@@ -6817,7 +6817,7 @@ namespace Opc.Ua.Server.Tests
                     {
                         MaxTimeInterval = 900
                     }));
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             var filter = new ExtensionObject(new AggregateFilter
             {
                 AggregateType = aggregateId,
@@ -6869,7 +6869,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<HistorianNodeCapabilities>(
                     HistorianNodeCapabilities.ReadOnly));
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             var filter = new ExtensionObject(new AggregateFilter
             {
                 AggregateType = aggregateId,
@@ -6921,7 +6921,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<HistorianNodeCapabilities>(
                     HistorianNodeCapabilities.ReadOnly));
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             DateTimeOffset now = new(
                 2026,
                 9,
@@ -6989,7 +6989,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<CancellationToken>()))
                 .Throws(new ServiceResultException(
                     StatusCodes.BadCommunicationError));
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             var filter = new ExtensionObject(new AggregateFilter
             {
                 AggregateType = aggregateId,
@@ -7062,7 +7062,7 @@ namespace Opc.Ua.Server.Tests
                     [
                         CreateHistoricalValue(3, now.UtcDateTime.AddSeconds(-1))
                     ])));
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             var queued = new List<DataValue>();
             Mock<IDataChangeMonitoredItem2> monitoredItem =
                 CreateInitialValueMonitoredItem(queued);
@@ -7099,6 +7099,73 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<HistorianResumeToken>(),
                     It.IsAny<CancellationToken>()),
                 Times.Exactly(2));
+        }
+
+        /// <summary>
+        /// Verifies that an aggregate item is not primed from history the user may not read,
+        /// but falls back to the current value.
+        /// </summary>
+        [Test]
+        public async Task ReadInitialValueAsyncDoesNotPrimeFromHistoryWithoutUserHistoryReadAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(
+                manager is TestableAsyncCustomNodeManager,
+                "Historical priming is asynchronous.");
+            var asyncManager = (TestableAsyncCustomNodeManager)manager;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var variable = new BaseDataVariableState(null)
+            {
+                NodeId = new NodeId("V", nsIdx),
+                Value = 99,
+                AccessLevel = AccessLevels.CurrentRead | AccessLevels.HistoryRead,
+                UserAccessLevel = AccessLevels.CurrentRead
+            };
+            var handle = new NodeHandle(variable.NodeId, variable);
+            DateTimeOffset now = new(2026, 9, 4, 8, 0, 0, TimeSpan.Zero);
+            m_timeProvider.SetUtcNow(now);
+            var provider = new Mock<IHistorianProvider>();
+            provider
+                .Setup(value => value.GetCapabilitiesAsync(
+                    variable.NodeId,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<HistorianNodeCapabilities>(
+                    HistorianNodeCapabilities.ReadOnly));
+            Mock<IHistorianDataProvider> dataProvider =
+                provider.As<IHistorianDataProvider>();
+            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            var queued = new List<DataValue>();
+            Mock<IDataChangeMonitoredItem2> monitoredItem =
+                CreateInitialValueMonitoredItem(queued);
+            var filter = new ServerAggregateFilter
+            {
+                AggregateType = ObjectIds.AggregateFunction_Average,
+                StartTime = now.UtcDateTime.AddSeconds(-4),
+                ProcessingInterval = 1000,
+                AggregateConfiguration = new AggregateConfiguration()
+            };
+            var context = new ServerSystemContext(
+                m_mockServer.Object,
+                CreateMonitoredItemsContext());
+
+            ServiceResult result = await asyncManager.ReadInitialValuePublicAsync(
+                context,
+                handle,
+                monitoredItem.Object,
+                filter,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(
+                queued.Select(value => (int)value.WrappedValue),
+                Is.EqualTo(new[] { 99 }));
+            dataProvider.Verify(
+                value => value.ReadRawAsync(
+                    It.IsAny<HistorianOperationContext>(),
+                    It.IsAny<HistorianRawReadRequest>(),
+                    It.IsAny<HistorianResumeToken>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
         }
 
         /// <summary>
@@ -7157,7 +7224,7 @@ namespace Opc.Ua.Server.Tests
                                 now.UtcDateTime.AddSeconds(1)),
                             IsBound: true)
                     ])));
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             var queued = new List<DataValue>();
             Mock<IDataChangeMonitoredItem2> monitoredItem =
                 CreateInitialValueMonitoredItem(
@@ -7234,7 +7301,7 @@ namespace Opc.Ua.Server.Tests
                                 now.UtcDateTime.AddSeconds(-1),
                                 now.UtcDateTime.AddSeconds(-1)))
                     ])));
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             var queued = new List<DataValue>();
             var queuedErrors = new List<ServiceResult>();
             Mock<IDataChangeMonitoredItem2> monitoredItem =
@@ -7302,7 +7369,7 @@ namespace Opc.Ua.Server.Tests
                             42,
                             now.UtcDateTime.AddSeconds(-1))
                     ])));
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             var queued = new List<DataValue>();
             var queuedErrors = new List<ServiceResult>();
             Mock<IDataChangeMonitoredItem2> monitoredItem =
@@ -7369,7 +7436,7 @@ namespace Opc.Ua.Server.Tests
                     HistorianNodeCapabilities.ReadOnly));
             Mock<IHistorianDataProvider> dataProvider =
                 provider.As<IHistorianDataProvider>();
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             var queued = new List<DataValue>();
             Mock<IDataChangeMonitoredItem2> monitoredItem =
                 CreateInitialValueMonitoredItem(
@@ -7430,7 +7497,7 @@ namespace Opc.Ua.Server.Tests
             var provider = new Mock<IHistorianProvider>();
             Mock<IHistorianDataProvider> dataProvider =
                 provider.As<IHistorianDataProvider>();
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             var queued = new List<DataValue>();
             Mock<IDataChangeMonitoredItem2> monitoredItem =
                 CreateInitialValueMonitoredItem(queued);
@@ -7545,7 +7612,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new ServiceResultException(
                     StatusCodes.BadCommunicationError));
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             var queued = new List<DataValue>();
             var queuedErrors = new List<ServiceResult>();
             Mock<IDataChangeMonitoredItem2> monitoredItem =
@@ -7650,7 +7717,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<HistorianPage<HistoricalDataValue>>(
                     HistorianPage<HistoricalDataValue>.Empty));
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             var itemToCreate = new MonitoredItemCreateRequest
             {
                 ItemToMonitor = new ReadValueId
@@ -7760,7 +7827,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new ServiceResultException(
                     StatusCodes.BadCommunicationError));
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             var itemToCreate = new MonitoredItemCreateRequest
             {
                 ItemToMonitor = new ReadValueId
@@ -7878,7 +7945,7 @@ namespace Opc.Ua.Server.Tests
                     return new ValueTask<HistorianPage<HistoricalDataValue>>(
                         readCompletion.Task);
                 });
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             var itemToCreate = new MonitoredItemCreateRequest
             {
                 ItemToMonitor = new ReadValueId
@@ -8934,6 +9001,17 @@ namespace Opc.Ua.Server.Tests
                     StatusCodes.Good,
                     sourceTimestamp,
                     sourceTimestamp));
+        }
+
+        /// <summary>
+        /// Registers the historian for the variable and grants history read access to it,
+        /// as <see cref="HistorianBuilder"/> does when a variable is historized.
+        /// </summary>
+        private void RegisterHistorian(BaseVariableState variable, IHistorianProvider provider)
+        {
+            variable.AccessLevel |= AccessLevels.HistoryRead;
+            variable.UserAccessLevel |= AccessLevels.HistoryRead;
+            m_historianRegistry.RegisterForNode(variable.NodeId, provider);
         }
 
         private static Mock<IDataChangeMonitoredItem2>

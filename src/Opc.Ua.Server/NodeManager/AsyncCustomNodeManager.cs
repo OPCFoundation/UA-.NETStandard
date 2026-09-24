@@ -8301,7 +8301,9 @@ namespace Opc.Ua.Server
             IHistorianProvider? provider =
                 aggregateFilter.HistorianProvider ??
                 ResolveHistorianProvider(handle.Node);
-            if (provider is not IHistorianDataProvider dataProvider)
+            if (provider is not IHistorianDataProvider dataProvider ||
+                !await CanReadInitialHistoryAsync(
+                    context, handle, cancellationToken).ConfigureAwait(false))
             {
                 return await ReadCurrentValueAsync(
                     context, handle, monitoredItem, cancellationToken).ConfigureAwait(false);
@@ -8367,6 +8369,7 @@ namespace Opc.Ua.Server
                 ReturnBounds = true
             };
             HistorianResumeToken token = default;
+            int valueCount = 0;
             try
             {
                 for (int pageCount = 0;
@@ -8381,6 +8384,18 @@ namespace Opc.Ua.Server
                             cancellationToken).ConfigureAwait(false);
                     foreach (HistoricalDataValue historicalValue in page.Values)
                     {
+                        // the priming window is client controlled (StartTime and
+                        // ProcessingInterval), so bound the history scanned inline.
+                        if (++valueCount > kMaxInitialHistoryValues)
+                        {
+                            return QueueInitialHistoryFailure(
+                                monitoredItem,
+                                utcNow,
+                                new ServiceResult(
+                                    StatusCodes.BadTimeout,
+                                    new LocalizedText(
+                                        "Initial historical value priming exceeded the value limit.")));
+                        }
                         if (historicalValue.IsBound &&
                             historicalValue.Value.SourceTimestamp > utcNow)
                         {
@@ -8509,6 +8524,41 @@ namespace Opc.Ua.Server
                 cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
             return (error, value);
+        }
+
+        /// <summary>
+        /// Checks that the session may read the history used to prime an
+        /// aggregate, applying the same AccessLevel, UserAccessLevel and
+        /// ReadHistory permission checks as the HistoryRead service.
+        /// </summary>
+        private async ValueTask<bool> CanReadInitialHistoryAsync(
+            ServerSystemContext context,
+            NodeHandle handle,
+            CancellationToken cancellationToken)
+        {
+            if (handle.Node is not BaseVariableState variable ||
+                (variable.AccessLevel & AccessLevels.HistoryRead) == 0)
+            {
+                return false;
+            }
+
+            byte userAccessLevel = variable.UserAccessLevel;
+            variable.OnReadUserAccessLevel?.Invoke(context, variable, ref userAccessLevel);
+            if ((userAccessLevel & AccessLevels.HistoryRead) == 0)
+            {
+                return false;
+            }
+
+            NodeMetadata metadata = await GetNodeMetadataAsync(
+                context.OperationContext!,
+                handle,
+                BrowseResultMask.All,
+                cancellationToken).ConfigureAwait(false);
+            return ServiceResult.IsGood(
+                MasterNodeManager.ValidateRolePermissions(
+                    context.OperationContext!,
+                    metadata,
+                    PermissionType.ReadHistory));
         }
 
         private async ValueTask<ServiceResult> ValidateInitialValueRequestAsync(
@@ -10306,6 +10356,7 @@ namespace Opc.Ua.Server
 
         private const byte kHistoryAccessMask = AccessLevels.HistoryRead | AccessLevels.HistoryWrite;
         private const int kMaxInitialHistoryPages = 100_000;
+        private const int kMaxInitialHistoryValues = 100_000;
     }
 
     /// <summary>
