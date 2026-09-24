@@ -1524,6 +1524,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 var state = {{Tokens.StateClassFactory}}();
                 global::Opc.Ua.NodeState nodeState = state;
+                global::Opc.Ua.BaseVariableTypeState baseState = state;
                 nodeState.SymbolicName = {{Tokens.SymbolicNameSymbol}};
                 nodeState.NodeId = {{Tokens.NodeIdConstant}};
                 nodeState.BrowseName = new global::Opc.Ua.QualifiedName(
@@ -1533,10 +1534,10 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.DescriptionValue}}
                 nodeState.WriteMask = {{Tokens.WriteMaskValue}};
                 nodeState.UserWriteMask = {{Tokens.UserWriteMaskValue}};
-                state.SuperTypeId = {{Tokens.SuperTypeId}};
-                state.IsAbstract = {{Tokens.IsAbstract}};
-                state.DataType = {{Tokens.DataTypeIdConstant}};
-                state.ValueRank = {{Tokens.ValueRank}};
+                baseState.SuperTypeId = {{Tokens.SuperTypeId}};
+                baseState.IsAbstract = {{Tokens.IsAbstract}};
+                baseState.DataType = {{Tokens.DataTypeIdConstant}};
+                baseState.ValueRank = {{Tokens.ValueRank}};
                 {{Tokens.ArrayDimensions}}
                 {{Tokens.ValueCode}}
                 {{Tokens.ReleaseStatusValue}}
@@ -1658,9 +1659,10 @@ namespace Opc.Ua.SourceGeneration
             {
                 var state = {{Tokens.StateClassFactory}}(null);
                 global::Opc.Ua.NodeState nodeState = state;
+                global::Opc.Ua.BaseObjectState baseState = state;
                 nodeState.SymbolicName = {{Tokens.SymbolicNameSymbol}};
                 nodeState.NodeId = {{Tokens.NodeIdConstant}};
-                state.NumericId = {{Tokens.NumericIdValue}};
+                baseState.NumericId = {{Tokens.NumericIdValue}};
                 nodeState.BrowseName = new global::Opc.Ua.QualifiedName(
                     {{Tokens.BrowseNameSymbol}},
                     context.NamespaceUris.GetIndexOrAppend({{Tokens.BrowseNameNamespaceUri}}));
@@ -1668,10 +1670,10 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.DescriptionValue}}
                 nodeState.WriteMask = {{Tokens.WriteMaskValue}};
                 nodeState.UserWriteMask = {{Tokens.UserWriteMaskValue}};
-                state.TypeDefinitionId = {{Tokens.TypeDefinitionId}};
-                state.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
+                baseState.TypeDefinitionId = {{Tokens.TypeDefinitionId}};
+                baseState.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
                 // {{Tokens.ModellingRuleId}}
-                state.EventNotifier = {{Tokens.EventNotifier}};
+                baseState.EventNotifier = {{Tokens.EventNotifier}};
                 {{Tokens.ReleaseStatusValue}}
                 {{Tokens.CategoriesValue}}
                 {{Tokens.SpecificationValue}}
@@ -1703,9 +1705,10 @@ namespace Opc.Ua.SourceGeneration
             {
                 var state = {{Tokens.StateClassFactory}}(null);
                 global::Opc.Ua.NodeState nodeState = state;
+                global::Opc.Ua.BaseVariableState baseState = state;
                 nodeState.SymbolicName = {{Tokens.SymbolicNameSymbol}};
                 nodeState.NodeId = {{Tokens.NodeIdConstant}};
-                state.NumericId = {{Tokens.NumericIdValue}};
+                baseState.NumericId = {{Tokens.NumericIdValue}};
                 nodeState.BrowseName = new global::Opc.Ua.QualifiedName(
                     {{Tokens.BrowseNameSymbol}},
                     context.NamespaceUris.GetIndexOrAppend({{Tokens.BrowseNameNamespaceUri}}));
@@ -1714,16 +1717,16 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.DescriptionValue}}
                 nodeState.WriteMask = {{Tokens.WriteMaskValue}};
                 nodeState.UserWriteMask = {{Tokens.UserWriteMaskValue}};
-                state.TypeDefinitionId = {{Tokens.TypeDefinitionId}};
-                state.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
+                baseState.TypeDefinitionId = {{Tokens.TypeDefinitionId}};
+                baseState.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
                 // {{Tokens.ModellingRuleId}}
-                state.DataType = {{Tokens.DataTypeIdConstant}};
-                state.ValueRank = {{Tokens.ValueRank}};
+                baseState.DataType = {{Tokens.DataTypeIdConstant}};
+                baseState.ValueRank = {{Tokens.ValueRank}};
                 {{Tokens.ArrayDimensions}}
-                state.AccessLevel = {{Tokens.AccessLevelValue}};
-                state.UserAccessLevel = {{Tokens.UserAccessLevelValue}};
-                state.MinimumSamplingInterval = {{Tokens.MinimumSamplingIntervalValue}};
-                state.Historizing = {{Tokens.HistorizingValue}};
+                baseState.AccessLevel = {{Tokens.AccessLevelValue}};
+                baseState.UserAccessLevel = {{Tokens.UserAccessLevelValue}};
+                baseState.MinimumSamplingInterval = {{Tokens.MinimumSamplingIntervalValue}};
+                baseState.Historizing = {{Tokens.HistorizingValue}};
                 {{Tokens.ValueCode}}
                 {{Tokens.ReleaseStatusValue}}
                 {{Tokens.CategoriesValue}}
@@ -1806,6 +1809,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 var state = {{Tokens.StateClassFactory}}(parent);
                 global::Opc.Ua.NodeState nodeState = state;
+                global::Opc.Ua.MethodState baseState = state;
                 nodeState.NodeId = {{Tokens.NodeIdConstant}};
                 if (!browseName.IsNull)
                 {
@@ -1826,9 +1830,9 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.DescriptionValue}}
                 nodeState.WriteMask = {{Tokens.WriteMaskValue}};
                 nodeState.UserWriteMask = {{Tokens.UserWriteMaskValue}};
-                state.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
-                state.Executable = {{Tokens.ExecutableValue}};
-                state.UserExecutable = {{Tokens.ExecutableValue}};
+                baseState.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
+                baseState.Executable = {{Tokens.ExecutableValue}};
+                baseState.UserExecutable = {{Tokens.ExecutableValue}};
                 {{Tokens.ListOfInputArguments}}
                 {{Tokens.ListOfOutputArguments}}
                 {{Tokens.ReleaseStatusValue}}
@@ -1918,6 +1922,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 var state = {{Tokens.StateClassFactory}}(parent);
                 global::Opc.Ua.NodeState nodeState = state;
+                global::Opc.Ua.BaseObjectState baseState = state;
                 nodeState.NodeId = {{Tokens.NodeIdConstant}};
                 if (!browseName.IsNull)
                 {
@@ -1934,12 +1939,12 @@ namespace Opc.Ua.SourceGeneration
                     nodeState.DisplayName = new global::Opc.Ua.LocalizedText(
                         {{Tokens.DisplayName}});
                 }
-                state.TypeDefinitionId = {{Tokens.TypeDefinitionId}};
+                baseState.TypeDefinitionId = {{Tokens.TypeDefinitionId}};
                 {{Tokens.DescriptionValue}}
                 nodeState.WriteMask = {{Tokens.WriteMaskValue}};
                 nodeState.UserWriteMask = {{Tokens.UserWriteMaskValue}};
-                state.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
-                state.EventNotifier = {{Tokens.EventNotifier}};
+                baseState.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
+                baseState.EventNotifier = {{Tokens.EventNotifier}};
                 {{Tokens.ReleaseStatusValue}}
                 {{Tokens.CategoriesValue}}
                 {{Tokens.SpecificationValue}}
@@ -1983,6 +1988,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 var state = {{Tokens.StateClassFactory}}(parent);
                 global::Opc.Ua.NodeState nodeState = state;
+                global::Opc.Ua.BaseVariableState baseState = state;
                 nodeState.NodeId = {{Tokens.NodeIdConstant}};
                 if (!browseName.IsNull)
                 {
@@ -2000,19 +2006,19 @@ namespace Opc.Ua.SourceGeneration
                         {{Tokens.DisplayName}});
                 }
 
-                state.TypeDefinitionId = {{Tokens.TypeDefinitionId}};
+                baseState.TypeDefinitionId = {{Tokens.TypeDefinitionId}};
                 {{Tokens.DescriptionValue}}
                 nodeState.WriteMask = {{Tokens.WriteMaskValue}};
                 nodeState.UserWriteMask = {{Tokens.UserWriteMaskValue}};
-                state.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
+                baseState.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
                 {{Tokens.ModellingRuleId}}
-                state.DataType = {{Tokens.DataTypeIdConstant}};
-                state.ValueRank = {{Tokens.ValueRank}};
+                baseState.DataType = {{Tokens.DataTypeIdConstant}};
+                baseState.ValueRank = {{Tokens.ValueRank}};
                 {{Tokens.ArrayDimensions}}
-                state.AccessLevel = {{Tokens.AccessLevelValue}};
-                state.UserAccessLevel = {{Tokens.UserAccessLevelValue}};
-                state.MinimumSamplingInterval = {{Tokens.MinimumSamplingIntervalValue}};
-                state.Historizing = {{Tokens.HistorizingValue}};
+                baseState.AccessLevel = {{Tokens.AccessLevelValue}};
+                baseState.UserAccessLevel = {{Tokens.UserAccessLevelValue}};
+                baseState.MinimumSamplingInterval = {{Tokens.MinimumSamplingIntervalValue}};
+                baseState.Historizing = {{Tokens.HistorizingValue}};
                 {{Tokens.ValueCode}}
                 {{Tokens.ReleaseStatusValue}}
                 {{Tokens.CategoriesValue}}
@@ -2050,21 +2056,22 @@ namespace Opc.Ua.SourceGeneration
             {
                 var state = {{Tokens.StateClassFactory}}(parent);
                 global::Opc.Ua.NodeState nodeState = state;
+                global::Opc.Ua.BaseObjectState baseState = state;
                 nodeState.SymbolicName = {{Tokens.SymbolicNameSymbol}};
                 nodeState.NodeId = {{Tokens.NodeIdConstant}};
                 {{Tokens.InstanceNodeIdOverride}}
-                state.TypeDefinitionId = {{Tokens.TypeDefinitionId}};
+                baseState.TypeDefinitionId = {{Tokens.TypeDefinitionId}};
                 nodeState.BrowseName = new global::Opc.Ua.QualifiedName(
                     {{Tokens.BrowseNameSymbol}},
                     context.NamespaceUris.GetIndexOrAppend({{Tokens.BrowseNameNamespaceUri}}));
                 nodeState.DisplayName = new global::Opc.Ua.LocalizedText(
                     {{Tokens.DisplayName}});
-                state.NumericId = {{Tokens.NumericIdValue}};
+                baseState.NumericId = {{Tokens.NumericIdValue}};
                 {{Tokens.DescriptionValue}}
                 nodeState.WriteMask = {{Tokens.WriteMaskValue}};
                 nodeState.UserWriteMask = {{Tokens.UserWriteMaskValue}};
-                state.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
-                state.EventNotifier = {{Tokens.EventNotifier}};
+                baseState.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
+                baseState.EventNotifier = {{Tokens.EventNotifier}};
                 {{Tokens.ReleaseStatusValue}}
                 {{Tokens.CategoriesValue}}
                 {{Tokens.SpecificationValue}}
@@ -2097,11 +2104,12 @@ namespace Opc.Ua.SourceGeneration
             {
                 var state = {{Tokens.StateClassFactory}}(parent);
                 global::Opc.Ua.NodeState nodeState = state;
+                global::Opc.Ua.BaseVariableState baseState = state;
                 nodeState.SymbolicName = {{Tokens.SymbolicNameSymbol}};
                 nodeState.NodeId = {{Tokens.NodeIdConstant}};
                 {{Tokens.InstanceNodeIdOverride}}
-                state.TypeDefinitionId = {{Tokens.TypeDefinitionId}};
-                state.NumericId = {{Tokens.NumericIdValue}};
+                baseState.TypeDefinitionId = {{Tokens.TypeDefinitionId}};
+                baseState.NumericId = {{Tokens.NumericIdValue}};
                 nodeState.BrowseName = new global::Opc.Ua.QualifiedName(
                     {{Tokens.BrowseNameSymbol}},
                     context.NamespaceUris.GetIndexOrAppend({{Tokens.BrowseNameNamespaceUri}}));
@@ -2110,14 +2118,14 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.DescriptionValue}}
                 nodeState.WriteMask = {{Tokens.WriteMaskValue}};
                 nodeState.UserWriteMask = {{Tokens.UserWriteMaskValue}};
-                state.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
-                state.DataType = {{Tokens.DataTypeIdConstant}};
-                state.ValueRank = {{Tokens.ValueRank}};
+                baseState.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
+                baseState.DataType = {{Tokens.DataTypeIdConstant}};
+                baseState.ValueRank = {{Tokens.ValueRank}};
                 {{Tokens.ArrayDimensions}}
-                state.AccessLevel = {{Tokens.AccessLevelValue}};
-                state.UserAccessLevel = {{Tokens.UserAccessLevelValue}};
-                state.MinimumSamplingInterval = {{Tokens.MinimumSamplingIntervalValue}};
-                state.Historizing = {{Tokens.HistorizingValue}};
+                baseState.AccessLevel = {{Tokens.AccessLevelValue}};
+                baseState.UserAccessLevel = {{Tokens.UserAccessLevelValue}};
+                baseState.MinimumSamplingInterval = {{Tokens.MinimumSamplingIntervalValue}};
+                baseState.Historizing = {{Tokens.HistorizingValue}};
                 {{Tokens.ValueCode}}
                 {{Tokens.ReleaseStatusValue}}
                 {{Tokens.CategoriesValue}}
@@ -2152,6 +2160,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 var state = {{Tokens.StateClassFactory}}(parent);
                 global::Opc.Ua.NodeState nodeState = state;
+                global::Opc.Ua.MethodState baseState = state;
                 nodeState.SymbolicName = {{Tokens.SymbolicNameSymbol}};
                 nodeState.NodeId = {{Tokens.NodeIdConstant}};
                 {{Tokens.InstanceNodeIdOverride}}
@@ -2161,13 +2170,13 @@ namespace Opc.Ua.SourceGeneration
                     context.NamespaceUris.GetIndexOrAppend({{Tokens.BrowseNameNamespaceUri}}));
                 nodeState.DisplayName = new global::Opc.Ua.LocalizedText(
                     {{Tokens.DisplayName}});
-                state.NumericId = {{Tokens.NumericIdValue}};
+                baseState.NumericId = {{Tokens.NumericIdValue}};
                 {{Tokens.DescriptionValue}}
                 nodeState.WriteMask = {{Tokens.WriteMaskValue}};
                 nodeState.UserWriteMask = {{Tokens.UserWriteMaskValue}};
-                state.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
-                state.Executable = {{Tokens.ExecutableValue}};
-                state.UserExecutable = {{Tokens.ExecutableValue}};
+                baseState.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
+                baseState.Executable = {{Tokens.ExecutableValue}};
+                baseState.UserExecutable = {{Tokens.ExecutableValue}};
                 {{Tokens.ReleaseStatusValue}}
                 {{Tokens.CategoriesValue}}
                 {{Tokens.SpecificationValue}}
@@ -2203,6 +2212,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 var state = {{Tokens.StateClassFactory}}(parent);
                 global::Opc.Ua.NodeState nodeState = state;
+                global::Opc.Ua.BaseObjectState baseState = state;
                 nodeState.NodeId = {{Tokens.NodeIdConstant}};
                 if (!browseName.IsNull)
                 {
@@ -2221,13 +2231,13 @@ namespace Opc.Ua.SourceGeneration
                     nodeState.DisplayName = new global::Opc.Ua.LocalizedText(
                         {{Tokens.DisplayName}});
                 }
-                state.NumericId = {{Tokens.NumericIdValue}};
+                baseState.NumericId = {{Tokens.NumericIdValue}};
                 {{Tokens.DescriptionValue}}
                 nodeState.WriteMask = {{Tokens.WriteMaskValue}};
                 nodeState.UserWriteMask = {{Tokens.UserWriteMaskValue}};
-                state.TypeDefinitionId = {{Tokens.TypeDefinitionId}};
-                state.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
-                state.EventNotifier = {{Tokens.EventNotifier}};
+                baseState.TypeDefinitionId = {{Tokens.TypeDefinitionId}};
+                baseState.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
+                baseState.EventNotifier = {{Tokens.EventNotifier}};
                 {{Tokens.ReleaseStatusValue}}
                 {{Tokens.CategoriesValue}}
                 {{Tokens.SpecificationValue}}
@@ -2261,6 +2271,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 var state = {{Tokens.StateClassFactory}}(parent);
                 global::Opc.Ua.NodeState nodeState = state;
+                global::Opc.Ua.BaseVariableState baseState = state;
                 nodeState.NodeId = {{Tokens.NodeIdConstant}};
                 if (!browseName.IsNull)
                 {
@@ -2279,20 +2290,20 @@ namespace Opc.Ua.SourceGeneration
                     nodeState.DisplayName = new global::Opc.Ua.LocalizedText(
                         {{Tokens.DisplayName}});
                 }
-                state.NumericId = {{Tokens.NumericIdValue}};
+                baseState.NumericId = {{Tokens.NumericIdValue}};
                 {{Tokens.DescriptionValue}}
                 nodeState.WriteMask = {{Tokens.WriteMaskValue}};
                 nodeState.UserWriteMask = {{Tokens.UserWriteMaskValue}};
-                state.TypeDefinitionId = {{Tokens.TypeDefinitionId}};
-                state.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
+                baseState.TypeDefinitionId = {{Tokens.TypeDefinitionId}};
+                baseState.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
                 {{Tokens.ModellingRuleId}}
-                state.DataType = {{Tokens.DataTypeIdConstant}};
-                state.ValueRank = {{Tokens.ValueRank}};
+                baseState.DataType = {{Tokens.DataTypeIdConstant}};
+                baseState.ValueRank = {{Tokens.ValueRank}};
                 {{Tokens.ArrayDimensions}}
-                state.AccessLevel = {{Tokens.AccessLevelValue}};
-                state.UserAccessLevel = {{Tokens.UserAccessLevelValue}};
-                state.MinimumSamplingInterval = {{Tokens.MinimumSamplingIntervalValue}};
-                state.Historizing = {{Tokens.HistorizingValue}};
+                baseState.AccessLevel = {{Tokens.AccessLevelValue}};
+                baseState.UserAccessLevel = {{Tokens.UserAccessLevelValue}};
+                baseState.MinimumSamplingInterval = {{Tokens.MinimumSamplingIntervalValue}};
+                baseState.Historizing = {{Tokens.HistorizingValue}};
                 {{Tokens.ValueCode}}
                 {{Tokens.ReleaseStatusValue}}
                 {{Tokens.CategoriesValue}}
@@ -2327,6 +2338,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 var state = {{Tokens.StateClassFactory}}(parent);
                 global::Opc.Ua.NodeState nodeState = state;
+                global::Opc.Ua.MethodState baseState = state;
                 nodeState.NodeId = {{Tokens.NodeIdConstant}};
                 if (!browseName.IsNull)
                 {
@@ -2345,13 +2357,13 @@ namespace Opc.Ua.SourceGeneration
                     nodeState.DisplayName = new global::Opc.Ua.LocalizedText(
                         {{Tokens.DisplayName}});
                 }
-                state.NumericId = {{Tokens.NumericIdValue}};
+                baseState.NumericId = {{Tokens.NumericIdValue}};
                 {{Tokens.DescriptionValue}}
                 nodeState.WriteMask = {{Tokens.WriteMaskValue}};
                 nodeState.UserWriteMask = {{Tokens.UserWriteMaskValue}};
-                state.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
-                state.Executable = {{Tokens.ExecutableValue}};
-                state.UserExecutable = {{Tokens.ExecutableValue}};
+                baseState.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
+                baseState.Executable = {{Tokens.ExecutableValue}};
+                baseState.UserExecutable = {{Tokens.ExecutableValue}};
                 {{Tokens.MethodDeclarationId}}
                 {{Tokens.ReleaseStatusValue}}
                 {{Tokens.CategoriesValue}}
@@ -2377,7 +2389,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static readonly TemplateString ListOfRolePermissions = TemplateString.Parse(
             $$"""
-            state.RolePermissions = new global::Opc.Ua.RolePermissionType[]
+            nodeState.RolePermissions = new global::Opc.Ua.RolePermissionType[]
             {
                 {{Tokens.ListOfRolePermissions}}
             };
@@ -2486,7 +2498,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static readonly TemplateString MethodDeclarationId = TemplateString.Parse(
             $$"""
-            state.MethodDeclarationId = {{Tokens.MethodDeclarationId}};
+            baseState.MethodDeclarationId = {{Tokens.MethodDeclarationId}};
 
             """);
 
@@ -2495,7 +2507,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static readonly TemplateString ArrayDimensions = TemplateString.Parse(
             $$"""
-            state.ArrayDimensions = {{Tokens.ArrayDimensions}};
+            baseState.ArrayDimensions = {{Tokens.ArrayDimensions}};
 
             """);
 
@@ -2504,7 +2516,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static readonly TemplateString VariantArrayOfValue = TemplateString.Parse(
             $$"""
-            state.WrappedValue = global::Opc.Ua.Variant.FromStructure(
+            baseState.WrappedValue = global::Opc.Ua.Variant.FromStructure(
                 global::Opc.Ua.ArrayOf.ToArrayOf(new {{Tokens.DataType}}[]
                 {
                     {{Tokens.ListOfValues}}

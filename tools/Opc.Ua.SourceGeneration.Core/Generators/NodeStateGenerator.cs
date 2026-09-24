@@ -1575,7 +1575,8 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(Tokens.AccessorSymbol, "public new");
             if (!instance.IsOverridden())
             {
-                if (!s_builtInPropertyNames.Contains(instance.SymbolicName.Name) ||
+                if ((!s_builtInPropertyNames.Contains(instance.SymbolicName.Name) &&
+                    !HidesRuntimeBaseMember(node.Parent?.Design, instance.SymbolicName.Name)) ||
                     (instance is VariableDesign && instance.SymbolicName.Name == "Value"))
                 {
                     context.Template.AddReplacement(Tokens.AccessorSymbol, "public");
@@ -2902,7 +2903,7 @@ namespace Opc.Ua.SourceGeneration
                 "new global::Opc.Ua.BaseDataVariableTypeState");
 
             context.Template.AddReplacement(Tokens.ValueCode, CoreUtils.Format(
-                "state.WrappedValue = {0};",
+                "baseState.WrappedValue = {0};",
                 node.DataTypeNode.GetValueAsCode(
                     node.ValueRank,
                     node.DefaultValue,
@@ -2930,7 +2931,7 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(
                 Tokens.ArrayDimensions,
                 !string.IsNullOrEmpty(arrayDims)
-                    ? CoreUtils.Format("state.ArrayDimensions = {0};", arrayDims)
+                    ? CoreUtils.Format("baseState.ArrayDimensions = {0};", arrayDims)
                     : null);
         }
 
@@ -2977,7 +2978,7 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(
                 Tokens.ArrayDimensions,
                 !string.IsNullOrEmpty(arrayDims)
-                    ? CoreUtils.Format("state.ArrayDimensions = {0};", arrayDims)
+                    ? CoreUtils.Format("baseState.ArrayDimensions = {0};", arrayDims)
                     : null);
 
             context.Template.AddReplacement(
@@ -3003,20 +3004,20 @@ namespace Opc.Ua.SourceGeneration
                     case "XmlSchema_TypeSystem":
                         context.Template.AddReplacement(
                             Tokens.ValueCode,
-                            "state.WrappedValue = global::Opc.Ua.Variant.From(" +
+                            "baseState.WrappedValue = global::Opc.Ua.Variant.From(" +
                             "global::Opc.Ua.ByteString.From(XmlSchemas.TypesXsd.ToArray()));");
                         return;
                     case "OPCBinarySchema_TypeSystem":
                         context.Template.AddReplacement(
                             Tokens.ValueCode,
-                            "state.WrappedValue = global::Opc.Ua.Variant.From(" +
+                            "baseState.WrappedValue = global::Opc.Ua.Variant.From(" +
                             "global::Opc.Ua.ByteString.From(XmlSchemas.TypesBsd.ToArray()));");
                         return;
                 }
                 // unknown type system
                 context.Template.AddReplacement(
                     Tokens.ValueCode,
-                    "state.WrappedValue = global::Opc.Ua.Variant.Null;");
+                    "baseState.WrappedValue = global::Opc.Ua.Variant.Null;");
                 return;
             }
 
@@ -3048,7 +3049,7 @@ namespace Opc.Ua.SourceGeneration
             else
             {
                 context.Template.AddReplacement(Tokens.ValueCode, CoreUtils.Format(
-                    "state.WrappedValue = {0};",
+                    "baseState.WrappedValue = {0};",
                     node.DataTypeNode.GetValueAsCode(
                         node.ValueRank,
                         node.DefaultValue,
@@ -3203,7 +3204,7 @@ namespace Opc.Ua.SourceGeneration
                 Tokens.MethodDeclarationId,
                 node.MethodDeclarationNode != null
                     ? CoreUtils.Format(
-                        "state.MethodDeclarationId = {0};",
+                        "baseState.MethodDeclarationId = {0};",
                         (HasResolvableNodeId(node.MethodDeclarationNode) ||
                             !node.NumericIdSpecified
                                 ? node.MethodDeclarationNode
@@ -4438,7 +4439,7 @@ namespace Opc.Ua.SourceGeneration
             };
 
             return constant != null
-                ? CoreUtils.Format("state.ModellingRuleId = new global::Opc.Ua.NodeId({0});", constant)
+                ? CoreUtils.Format("baseState.ModellingRuleId = new global::Opc.Ua.NodeId({0});", constant)
                 : null;
         }
 
@@ -4781,6 +4782,85 @@ namespace Opc.Ua.SourceGeneration
             // identically-named global::Opc.Ua.NodeState.Validate(ISystemContext)
             // instance method and therefore must be declared "public new".
             "Validate"
+        ];
+
+        /// <summary>
+        /// True when a child property named <paramref name="name"/> on the
+        /// generated class of <paramref name="parent"/> hides a public member
+        /// of the runtime base class (for example a child Property named
+        /// <c>DataType</c> on a VariableType class hides
+        /// <c>BaseVariableState.DataType</c>), so it must be declared
+        /// <c>public new</c>.
+        /// </summary>
+        private static bool HidesRuntimeBaseMember(NodeDesign parent, string name)
+        {
+            if (parent is not (ObjectTypeDesign or VariableTypeDesign or MethodDesign or
+                ObjectDesign or VariableDesign))
+            {
+                return false;
+            }
+            if (s_instanceStateMemberNames.Contains(name))
+            {
+                return true;
+            }
+            return parent switch
+            {
+                ObjectTypeDesign or ObjectDesign => s_objectStateMemberNames.Contains(name),
+                VariableTypeDesign or VariableDesign => s_variableStateMemberNames.Contains(name),
+                MethodDesign => s_methodStateMemberNames.Contains(name),
+                _ => false
+            };
+        }
+
+        /// <summary>
+        /// Public properties of <c>BaseInstanceState</c>, the base of
+        /// every generated instance class.
+        /// </summary>
+        private static readonly HashSet<string> s_instanceStateMemberNames =
+        [
+            "Parent",
+            "NumericId",
+            "ReferenceTypeId",
+            "TypeDefinitionId",
+            "ModellingRuleId"
+        ];
+
+        /// <summary>
+        /// Public properties declared by <c>BaseObjectState</c>.
+        /// </summary>
+        private static readonly HashSet<string> s_objectStateMemberNames =
+        [
+            "EventNotifier"
+        ];
+
+        /// <summary>
+        /// Public properties declared by <c>BaseVariableState</c>
+        /// ("Value" is handled separately).
+        /// </summary>
+        private static readonly HashSet<string> s_variableStateMemberNames =
+        [
+            "WrappedValue",
+            "Timestamp",
+            "StatusCode",
+            "CopyPolicy",
+            "DataType",
+            "ValueRank",
+            "ArrayDimensions",
+            "AccessLevel",
+            "UserAccessLevel",
+            "MinimumSamplingInterval",
+            "Historizing",
+            "AccessLevelEx"
+        ];
+
+        /// <summary>
+        /// Public properties declared by <c>MethodState</c>.
+        /// </summary>
+        private static readonly HashSet<string> s_methodStateMemberNames =
+        [
+            "MethodDeclarationId",
+            "Executable",
+            "UserExecutable"
         ];
 
         private static readonly string[] s_builtInMethodNames =

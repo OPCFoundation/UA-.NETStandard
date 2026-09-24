@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
+           xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+  <NamespaceUris>
+    <Uri>http://test.org/UA/AttributeNamedChildren/</Uri>
+  </NamespaceUris>
+  <Models>
+    <Model ModelUri="http://test.org/UA/AttributeNamedChildren/"
+           PublicationDate="2026-01-01T00:00:00Z"
+           Version="1.0.0">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/"
+                     PublicationDate="2023-01-01T00:00:00Z"
+                     Version="1.05.03"/>
+    </Model>
+  </Models>
+  <Aliases>
+    <Alias Alias="Boolean">i=1</Alias>
+    <Alias Alias="Byte">i=3</Alias>
+    <Alias Alias="Int32">i=6</Alias>
+    <Alias Alias="UInt32">i=7</Alias>
+    <Alias Alias="Double">i=11</Alias>
+    <Alias Alias="NodeId">i=17</Alias>
+    <Alias Alias="HasModellingRule">i=37</Alias>
+    <Alias Alias="HasTypeDefinition">i=40</Alias>
+    <Alias Alias="HasSubtype">i=45</Alias>
+    <Alias Alias="HasProperty">i=46</Alias>
+    <Alias Alias="HasComponent">i=47</Alias>
+    <Alias Alias="Organizes">i=35</Alias>
+  </Aliases>
+
+  <!-- A VariableType whose Properties are named like attributes of
+       BaseVariableState / BaseInstanceState. -->
+  <UAVariableType NodeId="ns=1;i=100" BrowseName="1:ParameterType" DataType="Double">
+    <DisplayName>ParameterType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=63</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=101</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=102</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=103</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=104</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=105</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=106</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=107</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=108</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=109</Reference>
+    </References>
+  </UAVariableType>
+  <UAVariable NodeId="ns=1;i=101" BrowseName="1:DataType" ParentNodeId="ns=1;i=100" DataType="NodeId">
+    <DisplayName>DataType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=100</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=102" BrowseName="1:ValueRank" ParentNodeId="ns=1;i=100" DataType="Int32">
+    <DisplayName>ValueRank</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=100</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=103" BrowseName="1:AccessLevel" ParentNodeId="ns=1;i=100" DataType="Byte">
+    <DisplayName>AccessLevel</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=100</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=104" BrowseName="1:Historizing" ParentNodeId="ns=1;i=100" DataType="Boolean">
+    <DisplayName>Historizing</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=100</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=105" BrowseName="1:MinimumSamplingInterval" ParentNodeId="ns=1;i=100" DataType="Double">
+    <DisplayName>MinimumSamplingInterval</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=100</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=106" BrowseName="1:TypeDefinitionId" ParentNodeId="ns=1;i=100" DataType="NodeId">
+    <DisplayName>TypeDefinitionId</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=100</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=107" BrowseName="1:NumericId" ParentNodeId="ns=1;i=100" DataType="UInt32">
+    <DisplayName>NumericId</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=100</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=108" BrowseName="1:ArrayDimensions" ParentNodeId="ns=1;i=100" DataType="UInt32" ValueRank="1" ArrayDimensions="0">
+    <DisplayName>ArrayDimensions</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=100</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=109" BrowseName="1:ReferenceTypeId" ParentNodeId="ns=1;i=100" DataType="NodeId">
+    <DisplayName>ReferenceTypeId</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=100</Reference>
+    </References>
+  </UAVariable>
+
+  <!-- An ObjectType whose Properties are named like attributes of
+       BaseObjectState / BaseInstanceState. -->
+  <UAObjectType NodeId="ns=1;i=200" BrowseName="1:SensorType">
+    <DisplayName>SensorType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=201</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=202</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=203</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=204</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=201" BrowseName="1:EventNotifier" ParentNodeId="ns=1;i=200" DataType="Byte">
+    <DisplayName>EventNotifier</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=200</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=202" BrowseName="1:TypeDefinitionId" ParentNodeId="ns=1;i=200" DataType="NodeId">
+    <DisplayName>TypeDefinitionId</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=200</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=203" BrowseName="1:ReferenceTypeId" ParentNodeId="ns=1;i=200" DataType="NodeId">
+    <DisplayName>ReferenceTypeId</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=200</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=204" BrowseName="1:NumericId" ParentNodeId="ns=1;i=200" DataType="UInt32">
+    <DisplayName>NumericId</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=200</Reference>
+    </References>
+  </UAVariable>
+
+  <!-- A type that instantiates both, so child factories are generated. -->
+  <UAObjectType NodeId="ns=1;i=300" BrowseName="1:PlantType">
+    <DisplayName>PlantType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=301</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=310</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=301" BrowseName="1:Setpoint" ParentNodeId="ns=1;i=300" DataType="Double">
+    <DisplayName>Setpoint</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=100</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=300</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=310" BrowseName="1:Sensor" ParentNodeId="ns=1;i=300">
+    <DisplayName>Sensor</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=200</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=300</Reference>
+    </References>
+  </UAObject>
+
+  <!-- A top-level instance of each, so instance factories are generated. -->
+  <UAObject NodeId="ns=1;i=400" BrowseName="1:Plant1">
+    <DisplayName>Plant1</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=300</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">i=85</Reference>
+    </References>
+  </UAObject>
+</UANodeSet>

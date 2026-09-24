@@ -682,7 +682,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 Assert.That(
                     factory,
                     Does.Contain(
-                        $"state.MethodDeclarationId = global::Opc.Ua.NodeId.Create({mergedMethod.NumericId}u"));
+                        $"baseState.MethodDeclarationId = global::Opc.Ua.NodeId.Create({mergedMethod.NumericId}u"));
                 Assert.That(
                     factory,
                     Does.Not.Contain("global::MethodTypeOverride.IntegerConvertMethodState"));
@@ -844,11 +844,11 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                     "The ObjectType factory must pass its declaration/instance mode to child factories.");
                 Assert.That(
                     expirationDateFactory,
-                    Does.Contain("state.ModellingRuleId ="),
+                    Does.Contain("baseState.ModellingRuleId ="),
                     "CertificateExpirationAlarmType.ExpirationDate must retain its Mandatory rule.");
                 Assert.That(
                     trustListIdFactory,
-                    Does.Contain("state.ModellingRuleId ="),
+                    Does.Contain("baseState.ModellingRuleId ="),
                     "TrustListOutOfDateAlarmType.TrustListId must retain its Mandatory rule.");
             });
         }
@@ -1470,14 +1470,14 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(typeFactory, Does.Contain("nodeState.AccessRestrictions = "));
-                Assert.That(typeFactory, Does.Contain("state.RolePermissions = "));
-                Assert.That(methodFactory, Does.Contain("state.RolePermissions = "));
+                Assert.That(typeFactory, Does.Contain("nodeState.RolePermissions = "));
+                Assert.That(methodFactory, Does.Contain("nodeState.RolePermissions = "));
                 foreach (string factory in new[] { typeFactory, methodFactory })
                 {
                     Assert.That(
                         factory,
                         Does.Not.Match(
-                            @"if \(forInstance\)\s*\{\s*(nodeState\.AccessRestrictions|state\.RolePermissions)"));
+                            @"if \(forInstance\)\s*\{\s*(nodeState\.AccessRestrictions|nodeState\.RolePermissions)"));
                 }
             });
             Assert.That(CompileGeneratedAssembly(files), Is.Not.Null);
@@ -1509,6 +1509,34 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 Assert.That(code, Does.Not.Match(@"m_value\.TypeId\b"));
             });
             Assert.That(CompileGeneratedAssembly(files), Is.Not.Null);
+        }
+
+        /// <summary>
+        /// Regression: factories assigned node attributes through the local
+        /// typed as the generated class, so a child named like an attribute
+        /// (DataType, ValueRank, EventNotifier, TypeDefinitionId, ...) bound
+        /// the assignment to the child property instead (CS0029).
+        /// </summary>
+        [Test]
+        public void ChildrenNamedLikeNodeAttributesCompile()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+            Dictionary<string, string> files = GenerateFromNodeSet(
+                "AttributeNamedChildren.NodeSet2.xml",
+                telemetry);
+
+            string code = string.Join("\n", files.Values);
+            Assert.That(code, Does.Contain("class ParameterState"));
+            Assert.That(code, Does.Contain("class SensorState"));
+            var diagnostics = new List<Diagnostic>();
+            Assert.That(CompileGeneratedAssembly(files, diagnostics), Is.Not.Null);
+
+            // The child properties must be declared "public new" exactly when
+            // they hide a member of the runtime base class.
+            string[] hidingWarnings = [.. diagnostics
+                .Where(d => d.Id is "CS0108" or "CS0109")
+                .Select(d => d.ToString())];
+            Assert.That(hidingWarnings, Is.Empty);
         }
 
         private static Dictionary<string, string> GenerateFromNodeSet(
@@ -1622,7 +1650,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         private static Assembly CompileGeneratedAssembly(
-            Dictionary<string, string> files)
+            Dictionary<string, string> files,
+            List<Diagnostic> diagnostics = null)
         {
             using var peStream = new MemoryStream();
             ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
@@ -1635,13 +1664,14 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 .Where(file => !file.Key.EndsWith(
                     ".TypeProxies.g.cs",
                     StringComparison.Ordinal));
-            bool success = OptimizationLevel.Debug
+            var emitResult = OptimizationLevel.Debug
                 .CreateCompilation("TypedMethodArguments.Generated")
                 .AddCode(
                     generatedNodeStateFiles.WithOpcUaCoreStubs(),
                     LanguageVersion.Latest)
-                .Emit(peStream)
-                .Check(TestContext.Out, out int errorCount, out int warningCount);
+                .Emit(peStream);
+            diagnostics?.AddRange(emitResult.Diagnostics);
+            bool success = emitResult.Check(TestContext.Out, out int errorCount, out int warningCount);
 
             Assert.That(
                 success,

@@ -518,19 +518,19 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(variableFactory, Does.Contain(
                 "nodeState.AccessRestrictions = global::Opc.Ua.AccessRestrictionType.EncryptionRequired"));
             Assert.That(variableFactory, Does.Contain(
-                "state.RolePermissions = new global::Opc.Ua.RolePermissionType[]"));
+                "nodeState.RolePermissions = new global::Opc.Ua.RolePermissionType[]"));
 
             string objectFactory = ExtractFactoryBody(ex, "CreateInstanceOfRestrictedObjectType");
             Assert.That(objectFactory, Does.Contain(
                 "nodeState.AccessRestrictions = global::Opc.Ua.AccessRestrictionType.EncryptionRequired"));
             Assert.That(objectFactory, Does.Contain(
-                "state.RolePermissions = new global::Opc.Ua.RolePermissionType[]"));
+                "nodeState.RolePermissions = new global::Opc.Ua.RolePermissionType[]"));
 
             string methodFactory = ExtractFactoryBody(ex, "CreateInstanceOfRestrictedMethodType");
             Assert.That(methodFactory, Does.Contain(
                 "nodeState.AccessRestrictions = global::Opc.Ua.AccessRestrictionType.SigningRequired"));
             Assert.That(methodFactory, Does.Contain(
-                "state.RolePermissions = new global::Opc.Ua.RolePermissionType[]"));
+                "nodeState.RolePermissions = new global::Opc.Ua.RolePermissionType[]"));
         }
 
         [Test]
