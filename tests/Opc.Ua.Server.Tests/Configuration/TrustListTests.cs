@@ -235,7 +235,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void OpenWriteWithoutEraseFlagReturnsBadNotWritable()
+        public void OpenWriteWithoutEraseFlagReturnsBadNotSupported()
         {
             TrustListState node = CreateNode();
             // Neither read nor write access is granted: this mode is rejected
@@ -251,7 +251,9 @@ namespace Opc.Ua.Server.Tests
                 (byte)OpenFileMode.Write,
                 ref fileHandle);
 
-            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
+            // OPC 10000-12 §7.8.2.2: modes other than Read and
+            // Write|EraseExisting return Bad_NotSupported.
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             Assert.That(fileHandle, Is.Zero);
         }
 
@@ -461,7 +463,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void ReadExceedingMaxTrustListSizeReturnsBadEncodingLimitsExceeded()
+        public void ReadLongerThanRemainingReturnsRemainingBytesThenEndOfFile()
         {
             TrustListState node = CreateNode();
             CreateTrustList(node, maxTrustListSize: 10);
@@ -470,18 +472,33 @@ namespace Opc.Ua.Server.Tests
             uint fileHandle = 0;
             node.Open.OnCall(context, node.Open, node.NodeId, (byte)OpenFileMode.Read, ref fileHandle);
 
+            // OPC 10000-20 §4.2.4: the length is an upper bound; the rest of
+            // the file is returned even when the requested length exceeds the
+            // size limit, and an empty ByteString marks the end of the file.
             ByteString data = default;
             ServiceResult result = node.Read.OnCall(
                 context,
                 node.Read,
                 node.NodeId,
                 fileHandle,
-                20,
+                1024 * 1024,
                 ref data);
 
-            Assert.That(
-                result.StatusCode,
-                Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(data.Length, Is.GreaterThan(0));
+            Assert.That(DecodeTrustListPayload(context, data), Is.Not.Null);
+
+            ByteString endOfFile = default;
+            result = node.Read.OnCall(
+                context,
+                node.Read,
+                node.NodeId,
+                fileHandle,
+                1024 * 1024,
+                ref endOfFile);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(endOfFile.Length, Is.Zero);
         }
 
         [Test]
@@ -631,7 +648,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void WriteExceedingMaxTrustListSizeReturnsBadEncodingLimitsExceeded()
+        public void WriteExceedingMaxTrustListSizeReturnsBadRequestTooLarge()
         {
             TrustListState node = CreateNode();
             CreateTrustList(node, maxTrustListSize: 5);
@@ -655,7 +672,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(
                 result.StatusCode,
-                Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+                Is.EqualTo(StatusCodes.BadRequestTooLarge));
         }
 
         [Test]
@@ -931,7 +948,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task AddCertificateAsyncAddsToIssuerStoreAsync()
+        public async Task AddCertificateAsyncNotTrustedReturnsBadCertificateInvalidAsync()
         {
             TrustListState node = CreateNode();
             CreateTrustList(node);
@@ -946,13 +963,15 @@ namespace Opc.Ua.Server.Tests
                 false,
                 CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
+            // OPC 10000-12 §7.8.2.6: IsTrustedCertificate FALSE returns
+            // Bad_CertificateInvalid; issuers cannot be added without a CRL.
+            Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadCertificateInvalid));
 
             using ICertificateStore issuerStore = m_issuerStore.OpenStore(m_telemetry);
             using CertificateCollection found = await issuerStore
                 .FindByThumbprintAsync(cert.Thumbprint)
                 .ConfigureAwait(false);
-            Assert.That(found, Has.Count.EqualTo(1));
+            Assert.That(found, Is.Empty);
         }
 
         [Test]
@@ -992,7 +1011,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void AddCertificateWhileSessionOpenReturnsBadInvalidState()
+        public void AddCertificateWhileOpenForReadReturnsBadNotWritable()
         {
             TrustListState node = CreateNode();
             CreateTrustList(node);
@@ -1001,6 +1020,32 @@ namespace Opc.Ua.Server.Tests
 
             uint fileHandle = 0;
             node.Open.OnCall(context, node.Open, node.NodeId, (byte)OpenFileMode.Read, ref fileHandle);
+
+            ServiceResult result = node.AddCertificate.OnCall(
+                context,
+                node.AddCertificate,
+                node.NodeId,
+                cert.RawData.ToByteString(),
+                true);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
+        }
+
+        [Test]
+        public void AddCertificateWhileOpenForWriteReturnsBadInvalidState()
+        {
+            TrustListState node = CreateNode();
+            CreateTrustList(node);
+            ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
+            using Certificate cert = CreateTestCertificate("CN=TrustList AddCertificate WriteOpen");
+
+            uint fileHandle = 0;
+            node.Open.OnCall(
+                context,
+                node.Open,
+                node.NodeId,
+                (int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting,
+                ref fileHandle);
 
             ServiceResult result = node.AddCertificate.OnCall(
                 context,
@@ -1126,7 +1171,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void RemoveCertificateWhileSessionOpenReturnsBadInvalidState()
+        public void RemoveCertificateWhileOpenForReadReturnsBadNotWritable()
         {
             TrustListState node = CreateNode();
             CreateTrustList(node);
@@ -1142,7 +1187,7 @@ namespace Opc.Ua.Server.Tests
                 "AABBCCDDEEFF00112233445566778899AABBCCDD",
                 true);
 
-            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
         }
 
         [Test]
@@ -1270,7 +1315,7 @@ namespace Opc.Ua.Server.Tests
                 context, node.Write, node.NodeId, fileHandle, ByteString.From(new byte[1]));
             Assert.That(
                 overLimit.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
+                Is.EqualTo((StatusCode)StatusCodes.BadRequestTooLarge));
         }
 
         [Test]
@@ -1299,36 +1344,38 @@ namespace Opc.Ua.Server.Tests
                 context, node.Write, node.NodeId, fileHandle, ByteString.From(new byte[1]));
             Assert.That(
                 overLimit.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
+                Is.EqualTo((StatusCode)StatusCodes.BadRequestTooLarge));
         }
 
         [Test]
-        public void ReadCumulativeAcrossChunksEnforcesEffectiveLimit()
+        public void ReadInChunksReturnsWholeStreamLargerThanEffectiveLimit()
         {
             TrustListState node = CreateNode();
-            // The encoded read stream of the (empty) stores is >= 8 bytes, so
-            // the first two 4-byte reads always return full chunks; only the
-            // third read pushes the cumulative total past the 8-byte ceiling.
+            // The encoded read stream of the (empty) stores is larger than the
+            // 8-byte ceiling. The limit bounds what a Client may write; content
+            // the server encoded itself must stay readable to the end.
             CreateTrustList(node, maxTrustListSize: 0, maxTrustListSizeSafetyCeiling: 8);
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
             uint fileHandle = 0;
             node.Open.OnCall(context, node.Open, node.NodeId, (byte)OpenFileMode.Read, ref fileHandle);
 
-            ByteString data = default;
-            ServiceResult first = node.Read.OnCall(
-                context, node.Read, node.NodeId, fileHandle, 4, ref data);
-            Assert.That(ServiceResult.IsGood(first), Is.True);
+            var received = new List<byte>();
+            while (true)
+            {
+                ByteString data = default;
+                ServiceResult chunk = node.Read.OnCall(
+                    context, node.Read, node.NodeId, fileHandle, 4, ref data);
+                Assert.That(ServiceResult.IsGood(chunk), Is.True);
+                if (data.Length == 0)
+                {
+                    break;
+                }
+                received.AddRange(data.ToArray());
+            }
 
-            ServiceResult second = node.Read.OnCall(
-                context, node.Read, node.NodeId, fileHandle, 4, ref data);
-            Assert.That(ServiceResult.IsGood(second), Is.True);
-
-            ServiceResult third = node.Read.OnCall(
-                context, node.Read, node.NodeId, fileHandle, 4, ref data);
-            Assert.That(
-                third.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
+            Assert.That(received, Has.Count.GreaterThan(8));
+            Assert.That(DecodeTrustListPayload(context, ByteString.From(received.ToArray())), Is.Not.Null);
         }
 
         [Test]
@@ -1351,7 +1398,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void WriteEncodedPayloadExceedingEffectiveLimitReturnsBadEncodingLimitsExceeded()
+        public void WriteEncodedPayloadExceedingEffectiveLimitReturnsBadRequestTooLarge()
         {
             TrustListState node = CreateNode();
             // A real certificate payload is well over the 100-byte ceiling.
@@ -1382,7 +1429,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(
                 result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
+                Is.EqualTo((StatusCode)StatusCodes.BadRequestTooLarge));
         }
 
         [Test]
@@ -1427,7 +1474,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void AddCertificateExceedingEffectiveLimitReturnsBadEncodingLimitsExceeded()
+        public void AddCertificateExceedingEffectiveLimitReturnsBadRequestTooLarge()
         {
             TrustListState node = CreateNode();
             CreateTrustList(node, maxTrustListSize: 0, maxTrustListSizeSafetyCeiling: 100);
@@ -1442,7 +1489,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(
                 result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
+                Is.EqualTo((StatusCode)StatusCodes.BadRequestTooLarge));
         }
 
         [Test]
@@ -1638,6 +1685,176 @@ namespace Opc.Ua.Server.Tests
             {
                 Notifications.Add((trustList, trustChanged, crlChanged));
             }
+        }
+
+        [Test]
+        public void ReadOpenWhileAnotherSessionWritesReturnsBadNotReadableAndKeepsWriter()
+        {
+            TrustListState node = CreateNode();
+            CreateTrustList(node);
+            ISystemContext writer = CreateContext(new NodeId(Guid.NewGuid(), 1));
+            ISystemContext reader = CreateContext(new NodeId(Guid.NewGuid(), 1));
+
+            uint writeHandle = 0;
+            node.Open.OnCall(
+                writer,
+                node.Open,
+                node.NodeId,
+                (int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting,
+                ref writeHandle);
+
+            // OPC 10000-20 §4.2.2: a file open for writing cannot be opened
+            // for reading; the writer's upload must survive.
+            uint readHandle = 0;
+            ServiceResult readOpen = node.Open.OnCall(
+                reader, node.Open, node.NodeId, (byte)OpenFileMode.Read, ref readHandle);
+            Assert.That(readOpen.StatusCode, Is.EqualTo(StatusCodes.BadNotReadable));
+
+            uint secondWriteHandle = 0;
+            ServiceResult writeOpen = node.Open.OnCall(
+                reader,
+                node.Open,
+                node.NodeId,
+                (int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting,
+                ref secondWriteHandle);
+            Assert.That(writeOpen.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
+
+            ServiceResult write = node.Write.OnCall(
+                writer, node.Write, node.NodeId, writeHandle, ByteString.From(new byte[] { 1 }));
+            Assert.That(ServiceResult.IsGood(write), Is.True);
+        }
+
+        [Test]
+        public void WriteAndCloseAndUpdateOnReadHandleReturnBadInvalidState()
+        {
+            TrustListState node = CreateNode();
+            CreateTrustList(node);
+            ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
+
+            uint fileHandle = 0;
+            node.Open.OnCall(context, node.Open, node.NodeId, (byte)OpenFileMode.Read, ref fileHandle);
+
+            ServiceResult write = node.Write.OnCall(
+                context, node.Write, node.NodeId, fileHandle, ByteString.From(new byte[] { 1 }));
+            Assert.That(write.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+
+            // OPC 10000-12 §7.8.2.5: CloseAndUpdate only for a write open.
+            bool restartRequired = false;
+            ServiceResult closeAndUpdate = node.CloseAndUpdate.OnCall(
+                context, node.CloseAndUpdate, node.NodeId, fileHandle, ref restartRequired);
+            Assert.That(closeAndUpdate.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+        }
+
+        [Test]
+        public async Task RemoveIssuerStillNeededReturnsBadCertificateChainIncompleteAsync()
+        {
+            TrustListState node = CreateNode();
+            CreateTrustList(node);
+            ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
+
+            using Certificate caCert = CertificateBuilder
+                .Create("CN=TrustList Chain CA")
+                .SetCAConstraint()
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate leaf = CertificateBuilder
+                .Create("CN=TrustList Chain Leaf")
+                .SetIssuer(caCert)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using (ICertificateStore issuerStore = m_issuerStore.OpenStore(m_telemetry))
+            {
+                await issuerStore.AddAsync(caCert).ConfigureAwait(false);
+            }
+            using (ICertificateStore trustedStore = m_trustedStore.OpenStore(m_telemetry))
+            {
+                await trustedStore.AddAsync(leaf).ConfigureAwait(false);
+            }
+
+            // OPC 10000-12 §7.8.2.7: a CA needed to validate another
+            // certificate of the TrustList cannot be removed.
+            ServiceResult result = node.RemoveCertificate.OnCall(
+                context, node.RemoveCertificate, node.NodeId, caCert.Thumbprint, false);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadCertificateChainIncomplete));
+
+            ServiceResult removeLeaf = node.RemoveCertificate.OnCall(
+                context, node.RemoveCertificate, node.NodeId, leaf.Thumbprint, true);
+            Assert.That(ServiceResult.IsGood(removeLeaf), Is.True);
+
+            ServiceResult removeCa = node.RemoveCertificate.OnCall(
+                context, node.RemoveCertificate, node.NodeId, caCert.Thumbprint, false);
+            Assert.That(ServiceResult.IsGood(removeCa), Is.True);
+        }
+
+        [Test]
+        public async Task AddCertificateWithValidationRejectsCertificateWhoseIssuerIsMissingAsync()
+        {
+            TrustListState node = CreateNode();
+            TrustList trustList = CreateTrustList(node);
+            trustList.SetCertificateValidation(new SecurityConfiguration());
+            ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
+
+            using Certificate caCert = CertificateBuilder
+                .Create("CN=TrustList Missing CA")
+                .SetCAConstraint()
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate leaf = CertificateBuilder
+                .Create("CN=TrustList Orphan Leaf")
+                .SetIssuer(caCert)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            // OPC 10000-12 §7.8.2.6: a CA-issued certificate whose issuer is
+            // not in the TrustList is rejected with a validation error.
+            ServiceResult result = node.AddCertificate.OnCall(
+                context, node.AddCertificate, node.NodeId, leaf.RawData.ToByteString(), true);
+            Assert.That(ServiceResult.IsBad(result), Is.True);
+
+            using ICertificateStore trustedStore = m_trustedStore.OpenStore(m_telemetry);
+            using CertificateCollection found = await trustedStore
+                .FindByThumbprintAsync(leaf.Thumbprint)
+                .ConfigureAwait(false);
+            Assert.That(found, Is.Empty);
+
+            // A self-signed certificate passes: untrusted is suppressible.
+            using Certificate selfSigned = CreateTestCertificate("CN=TrustList Validated SelfSigned");
+            ServiceResult accepted = node.AddCertificate.OnCall(
+                context, node.AddCertificate, node.NodeId, selfSigned.RawData.ToByteString(), true);
+            Assert.That(ServiceResult.IsGood(accepted), Is.True, accepted.ToString());
+        }
+
+        [Test]
+        public void CloseAndUpdateWithValidationRejectsNonCaIssuerCertificate()
+        {
+            TrustListState node = CreateNode();
+            TrustList trustList = CreateTrustList(node);
+            trustList.SetCertificateValidation(new SecurityConfiguration());
+            ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
+
+            using Certificate notACa = CreateTestCertificate("CN=TrustList Not A CA Issuer");
+            var trustListData = new TrustListDataType
+            {
+                SpecifiedLists = (uint)TrustListMasks.IssuerCertificates,
+                IssuerCertificates = [notACa.RawData.ToByteString()]
+            };
+
+            uint fileHandle = 0;
+            node.Open.OnCall(
+                context,
+                node.Open,
+                node.NodeId,
+                (int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting,
+                ref fileHandle);
+            node.Write.OnCall(
+                context, node.Write, node.NodeId, fileHandle, EncodeTrustListPayload(context, trustListData));
+
+            // OPC 10000-12 §7.8.2.5: the new TrustList is validated before it
+            // is applied; a leaf certificate is not a valid issuer.
+            bool restartRequired = false;
+            ServiceResult result = node.CloseAndUpdate.OnCall(
+                context, node.CloseAndUpdate, node.NodeId, fileHandle, ref restartRequired);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadCertificateInvalid));
         }
 
         private static Certificate CreateTestCertificate(string subject)

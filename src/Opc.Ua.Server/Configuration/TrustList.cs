@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -250,6 +251,27 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Enables the OPC 10000-4 certificate validation that OPC 10000-12
+        /// requires for TrustLists of an <c>ApplicationCertificateType</c>
+        /// CertificateGroup: <c>AddCertificate</c> (§7.8.2.6) and
+        /// <c>CloseAndUpdate</c> (§7.8.2.5) then reject certificates that fail
+        /// a non-suppressible check (signature, key size, missing issuer, ...).
+        /// Without a call to this method only the encoding of the certificates
+        /// is checked.
+        /// </summary>
+        /// <param name="securityConfiguration">
+        /// The security configuration whose validation rules apply.
+        /// </param>
+        /// <exception cref="ArgumentNullException">
+        /// When <paramref name="securityConfiguration"/> is <see langword="null"/>.
+        /// </exception>
+        public void SetCertificateValidation(SecurityConfiguration securityConfiguration)
+        {
+            m_validationConfiguration = securityConfiguration ??
+                throw new ArgumentNullException(nameof(securityConfiguration));
+        }
+
+        /// <summary>
         /// Disposes the trusted and issuer store instances this TrustList
         /// holds open across its operations. The owner of the TrustList
         /// (the node manager hosting the handler) calls this at shutdown;
@@ -407,13 +429,67 @@ namespace Opc.Ua.Server
                     return;
                 }
 
-                m_sessionId = default;
-                m_strm?.Dispose();
-                m_strm = null;
-                m_node.OpenCount!.Value = 0;
+                DiscardOpenHandleNoLock();
             }
 
             m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
+        }
+
+        /// <summary>
+        /// Closes the open handle. The caller holds <see cref="m_lock"/>.
+        /// </summary>
+        private void DiscardOpenHandleNoLock()
+        {
+            m_sessionId = default;
+            m_strm?.Dispose();
+            m_strm = null;
+            m_openForWrite = false;
+            m_node.OpenCount!.Value = 0;
+        }
+
+        /// <summary>
+        /// Closes the handle a completed CloseAndUpdate validated, unless it
+        /// was replaced while the update awaited: a newer open must not be
+        /// torn down by the completion of an older one.
+        /// </summary>
+        private void ReleaseHandle(uint fileHandle, MemoryStream strm)
+        {
+            lock (m_lock)
+            {
+                if (m_fileHandle != fileHandle || !ReferenceEquals(m_strm, strm))
+                {
+                    return;
+                }
+
+                DiscardOpenHandleNoLock();
+            }
+
+            m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
+        }
+
+        /// <summary>
+        /// The result AddCertificate and RemoveCertificate return while the
+        /// TrustList is open (OPC 10000-12 §7.8.2.6/§7.8.2.7): Bad_NotWritable
+        /// while it is open for reading, Bad_InvalidState while a write is in
+        /// progress.
+        /// </summary>
+        private ServiceResult GetOpenStateResult()
+        {
+            lock (m_lock)
+            {
+                if (m_sessionId.IsNull)
+                {
+                    return ServiceResult.Good;
+                }
+
+                return m_openForWrite
+                    ? ServiceResult.Create(
+                        StatusCodes.BadInvalidState,
+                        "The TrustList is open for writing.")
+                    : ServiceResult.Create(
+                        StatusCodes.BadNotWritable,
+                        "The TrustList is open for reading.");
+            }
         }
 
         /// <summary>
@@ -543,9 +619,11 @@ namespace Opc.Ua.Server
             }
             else
             {
+                // OPC 10000-12 §7.8.2.2: only Read and Write|EraseExisting
+                // are allowed; every other mode returns Bad_NotSupported.
                 return new OpenMethodStateResult
                 {
-                    ServiceResult = StatusCodes.BadNotWritable,
+                    ServiceResult = StatusCodes.BadNotSupported,
                     FileHandle = 0
                 };
             }
@@ -608,21 +686,39 @@ namespace Opc.Ua.Server
                         Math.Min(m_effectiveMaxTrustListSize, kDefaultTrustListCapacity));
                 }
 
+                NodeId sessionId = GetSessionId(context);
                 lock (m_lock)
                 {
-                    if (!m_sessionId.IsNull)
+                    // OPC 10000-20 §4.2.2: a file that is open for writing
+                    // cannot be opened again (Bad_NotReadable for a read,
+                    // Bad_NotWritable for a write). Another Session's upload
+                    // must therefore never be evicted. The owning Session may
+                    // still replace its own open so a client that lost its
+                    // handle is not locked out until its Session closes.
+                    if (m_strm != null && m_openForWrite && !Utils.IsEqual(m_sessionId, sessionId))
                     {
-                        // to avoid deadlocks, last open always wins
-                        m_sessionId = default;
-                        m_strm?.Dispose();
-                        m_strm = null;
-                        m_node.OpenCount!.Value = 0;
+                        strm.Dispose();
+                        return new OpenMethodStateResult
+                        {
+                            ServiceResult = isWriteMode
+                                ? StatusCodes.BadNotWritable
+                                : StatusCodes.BadNotReadable,
+                            FileHandle = 0
+                        };
                     }
 
-                    m_sessionId = (context as ISessionSystemContext)?.SessionId ?? default;
+                    if (m_strm != null)
+                    {
+                        // Only one handle is supported: a read open (or the
+                        // owning Session's own open) is replaced by the new one.
+                        DiscardOpenHandleNoLock();
+                    }
+
+                    m_sessionId = sessionId;
                     fileHandle = ++m_fileHandle;
                     m_totalBytesProcessed = 0; // Reset counter for new file operation
                     m_strm = strm;
+                    m_openForWrite = isWriteMode;
                     m_node.OpenCount!.Value = 1;
                 }
 
@@ -708,21 +804,23 @@ namespace Opc.Ua.Server
                     });
                 }
 
-                // Overflow-safe cumulative bound: m_totalBytesProcessed is a
-                // long, so promoting the int length keeps the addition in long
-                // range and cannot wrap. Enforced against the effective,
-                // actually-advertised limit.
-                if (m_totalBytesProcessed + length > m_effectiveMaxTrustListSize)
+                if (m_openForWrite)
                 {
                     return new ValueTask<ReadMethodStateResult>(new ReadMethodStateResult
                     {
                         ServiceResult = ServiceResult.Create(
-                            StatusCodes.BadEncodingLimitsExceeded,
-                            "Trust list size exceeds maximum allowed size of {0} bytes",
-                            m_effectiveMaxTrustListSize),
+                            StatusCodes.BadInvalidState,
+                            "The TrustList was not opened for reading."),
                         Data = default
                     });
                 }
+
+                // OPC 10000-20 §4.2.4: when the end of the file is reached all
+                // remaining data is returned, so the requested length is only
+                // an upper bound. Clamp it to the bytes left in the already
+                // encoded stream before allocating; the stream was produced by
+                // the server itself, so there is no size limit to enforce here.
+                length = (int)Math.Min(length, m_strm!.Length - m_strm.Position);
 
                 byte[] buffer = new byte[length];
                 int bytesRead = m_strm!.Read(buffer, 0, length);
@@ -780,16 +878,29 @@ namespace Opc.Ua.Server
                     });
                 }
 
+                // OPC 10000-20 §4.2.5: Bad_InvalidState when the file was not
+                // opened for writing.
+                if (!m_openForWrite)
+                {
+                    return new ValueTask<WriteMethodStateResult>(new WriteMethodStateResult
+                    {
+                        ServiceResult = ServiceResult.Create(
+                            StatusCodes.BadInvalidState,
+                            "The TrustList was not opened for writing.")
+                    });
+                }
+
                 // Overflow-safe cumulative bound: m_totalBytesProcessed is a
                 // long, so promoting the int data.Length keeps the addition in
                 // long range and cannot wrap. Enforced against the effective,
-                // actually-advertised limit before the payload is buffered.
+                // actually-advertised limit before the payload is buffered
+                // (OPC 10000-12 §7.8.2: Bad_RequestTooLarge).
                 if (m_totalBytesProcessed + data.Length > m_effectiveMaxTrustListSize)
                 {
                     return new ValueTask<WriteMethodStateResult>(new WriteMethodStateResult
                     {
                         ServiceResult = ServiceResult.Create(
-                            StatusCodes.BadEncodingLimitsExceeded,
+                            StatusCodes.BadRequestTooLarge,
                             "Trust list size exceeds maximum allowed size of {0} bytes",
                             m_effectiveMaxTrustListSize)
                     });
@@ -861,10 +972,7 @@ namespace Opc.Ua.Server
                     });
                 }
 
-                m_sessionId = default;
-                m_strm?.Dispose();
-                m_strm = null;
-                m_node.OpenCount!.Value = 0;
+                DiscardOpenHandleNoLock();
             }
 
             m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
@@ -946,6 +1054,19 @@ namespace Opc.Ua.Server
                     };
                 }
 
+                // OPC 10000-12 §7.8.2.5: CloseAndUpdate can only be called
+                // if the TrustList was opened for writing.
+                if (!m_openForWrite)
+                {
+                    return new CloseAndUpdateMethodStateResult
+                    {
+                        ServiceResult = ServiceResult.Create(
+                            StatusCodes.BadInvalidState,
+                            "The TrustList was not opened for writing."),
+                        ApplyChangesRequired = false
+                    };
+                }
+
                 strm = m_strm;
             }
 
@@ -1000,6 +1121,17 @@ namespace Opc.Ua.Server
             catch
             {
                 result = StatusCodes.BadCertificateInvalid;
+            }
+
+            if (ServiceResult.IsGood(result) && m_validationConfiguration != null)
+            {
+                // OPC 10000-12 §7.8.2.5: every certificate of the new
+                // TrustList must pass the OPC 10000-4 validation process.
+                result = await ValidateNewTrustListAsync(
+                    issuerCertificates,
+                    trustedCertificates,
+                    m_validationConfiguration,
+                    cancellationToken).ConfigureAwait(false);
             }
 
             if (!ServiceResult.IsGood(result) || m_coordinator == null)
@@ -1061,16 +1193,12 @@ namespace Opc.Ua.Server
 
                     lock (m_lock)
                     {
-                        m_sessionId = default;
-                        m_strm?.Dispose();
-                        m_strm = null;
                         if (ServiceResult.IsGood(result))
                         {
                             m_node.LastUpdateTime!.Value = DateTime.UtcNow;
                         }
-                        m_node.OpenCount!.Value = 0;
                     }
-                    m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
+                    ReleaseHandle(fileHandle, strm!);
                 }
 
                 // Even a partial or failed apply may have changed the stores;
@@ -1264,14 +1392,7 @@ namespace Opc.Ua.Server
                 originalIssuerCertificates?.Dispose();
                 originalTrustedCertificates?.Dispose();
 
-                lock (m_lock)
-                {
-                    m_sessionId = default;
-                    m_strm?.Dispose();
-                    m_strm = null;
-                    m_node.OpenCount!.Value = 0;
-                }
-                m_coordinator.SetTrustListWriteOpen(m_node.NodeId, false);
+                ReleaseHandle(fileHandle, strm!);
             }
 
             return new CloseAndUpdateMethodStateResult
@@ -1321,20 +1442,25 @@ namespace Opc.Ua.Server
 
             NodeId sessionId = GetSessionId(context);
             ServiceResult result = StatusCodes.Good;
+            ServiceResult openState = GetOpenStateResult();
 
-            bool isSessionOpen;
-            lock (m_lock)
+            if (ServiceResult.IsBad(openState))
             {
-                isSessionOpen = !m_sessionId.IsNull;
-            }
-
-            if (isSessionOpen)
-            {
-                result = StatusCodes.BadInvalidState;
+                result = openState;
             }
             else if (certificate.IsEmpty)
             {
                 result = StatusCodes.BadInvalidArgument;
+            }
+            else if (!isTrustedCertificate)
+            {
+                // OPC 10000-12 §7.8.2.6: issuer certificates cannot be added
+                // with AddCertificate because no CRL can be supplied with them;
+                // IsTrustedCertificate FALSE returns Bad_CertificateInvalid.
+                result = ServiceResult.Create(
+                    StatusCodes.BadCertificateInvalid,
+                    "AddCertificate only accepts trusted certificates; " +
+                    "issuer certificates must be written with the TrustList file.");
             }
             else if (certificate.Length > m_effectiveMaxTrustListSize)
             {
@@ -1342,7 +1468,7 @@ namespace Opc.Ua.Server
                 // (direct Add path): a single certificate cannot exceed the
                 // effective TrustList size the server advertises and enforces.
                 result = ServiceResult.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
+                    StatusCodes.BadRequestTooLarge,
                     "Certificate size exceeds the maximum allowed TrustList size of {0} bytes",
                     m_effectiveMaxTrustListSize);
             }
@@ -1373,6 +1499,23 @@ namespace Opc.Ua.Server
                     // but the behaviour was not as specified and removed
                     // https://mantis.opcfoundation.org/view.php?id=6342
                     result = StatusCodes.BadCertificateInvalid;
+                }
+
+                if (cert != null && m_validationConfiguration != null)
+                {
+                    // OPC 10000-12 §7.8.2.6: the Server shall verify the
+                    // Certificate using the OPC 10000-4 validation process,
+                    // including that the issuer is already in the TrustList.
+                    ServiceResult validation = await ValidateAddedCertificateAsync(
+                        cert,
+                        m_validationConfiguration,
+                        cancellationToken).ConfigureAwait(false);
+                    if (ServiceResult.IsBad(validation))
+                    {
+                        result = validation;
+                        cert.Dispose();
+                        cert = null;
+                    }
                 }
 
                 if (cert != null)
@@ -1505,16 +1648,11 @@ namespace Opc.Ua.Server
             HasSecureWriteAccess(context);
             NodeId sessionId = GetSessionId(context);
             ServiceResult result = StatusCodes.Good;
+            ServiceResult openState = GetOpenStateResult();
 
-            bool isSessionOpen;
-            lock (m_lock)
+            if (ServiceResult.IsBad(openState))
             {
-                isSessionOpen = !m_sessionId.IsNull;
-            }
-
-            if (isSessionOpen)
-            {
-                result = StatusCodes.BadInvalidState;
+                result = openState;
             }
             else if (string.IsNullOrEmpty(thumbprint))
             {
@@ -1552,6 +1690,12 @@ namespace Opc.Ua.Server
                         if (certCollection.Count == 0)
                         {
                             result = StatusCodes.BadInvalidArgument;
+                        }
+                        else if (!isTrustedCertificate &&
+                            await IsIssuerRequiredAsync(certCollection, thumbprint, cancellationToken)
+                                .ConfigureAwait(false))
+                        {
+                            result = StatusCodes.BadCertificateChainIncomplete;
                         }
                         else
                         {
@@ -1628,6 +1772,12 @@ namespace Opc.Ua.Server
                         if (certCollection.Count == 0)
                         {
                             result = StatusCodes.BadInvalidArgument;
+                        }
+                        else if (!isTrustedCertificate &&
+                            await IsIssuerRequiredAsync(certCollection, thumbprint, cancellationToken)
+                                .ConfigureAwait(false))
+                        {
+                            result = StatusCodes.BadCertificateChainIncomplete;
                         }
                         else
                         {
@@ -1727,6 +1877,203 @@ namespace Opc.Ua.Server
             {
                 ServiceResult = result
             };
+        }
+
+        /// <summary>
+        /// Validates a certificate passed to AddCertificate against the
+        /// current TrustList. Suppressible errors are ignored.
+        /// </summary>
+        private async Task<ServiceResult> ValidateAddedCertificateAsync(
+            Certificate certificate,
+            SecurityConfiguration securityConfiguration,
+            CancellationToken cancellationToken)
+        {
+            using CertificateCollection trusted = await GetStore(m_trustedStore)
+                .EnumerateAsync(cancellationToken).ConfigureAwait(false);
+            using CertificateCollection issuers = await GetStore(m_issuerStore)
+                .EnumerateAsync(cancellationToken).ConfigureAwait(false);
+            using CertificateManager validator = CertificateManagerFactory.Create(
+                securityConfiguration,
+                m_telemetry);
+            return await ValidateCertificateAsync(
+                validator,
+                certificate,
+                trusted.Concat(issuers),
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Validates every certificate of an uploaded TrustList against the
+        /// issuers of the new TrustList (the uploaded lists, or the current
+        /// store contents for lists that were not specified). Certificates in
+        /// IssuerCertificates must be CA certificates.
+        /// </summary>
+        private async Task<ServiceResult> ValidateNewTrustListAsync(
+            CertificateCollection? issuerCertificates,
+            CertificateCollection? trustedCertificates,
+            SecurityConfiguration securityConfiguration,
+            CancellationToken cancellationToken)
+        {
+            if (issuerCertificates == null && trustedCertificates == null)
+            {
+                return ServiceResult.Good;
+            }
+
+            using CertificateCollection? currentIssuers = issuerCertificates == null
+                ? await GetStore(m_issuerStore).EnumerateAsync(cancellationToken).ConfigureAwait(false)
+                : null;
+            using CertificateCollection? currentTrusted = trustedCertificates == null
+                ? await GetStore(m_trustedStore).EnumerateAsync(cancellationToken).ConfigureAwait(false)
+                : null;
+            Certificate[] pool = [.. (issuerCertificates ?? currentIssuers!)
+                .Concat(trustedCertificates ?? currentTrusted!)];
+
+            using CertificateManager validator = CertificateManagerFactory.Create(
+                securityConfiguration,
+                m_telemetry);
+
+            foreach (Certificate issuer in issuerCertificates ?? [])
+            {
+                if (!X509Utils.IsCertificateAuthority(issuer))
+                {
+                    return ServiceResult.Create(
+                        StatusCodes.BadCertificateInvalid,
+                        "IssuerCertificates contains a certificate that is not a CA: {0}",
+                        issuer.Subject);
+                }
+            }
+
+            foreach (Certificate certificate in (issuerCertificates ?? []).Concat(trustedCertificates ?? []))
+            {
+                ServiceResult validation = await ValidateCertificateAsync(
+                    validator,
+                    certificate,
+                    pool,
+                    cancellationToken).ConfigureAwait(false);
+                if (ServiceResult.IsBad(validation))
+                {
+                    return ServiceResult.Create(
+                        StatusCodes.BadCertificateInvalid,
+                        "Certificate {0} failed validation: {1}",
+                        certificate.Subject,
+                        validation.StatusCode);
+                }
+            }
+
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Runs the OPC 10000-4 validation for <paramref name="certificate"/>
+        /// with <paramref name="issuers"/> as the candidate issuer chain. The
+        /// certificate is not required to be trusted and every suppressible
+        /// error except a missing issuer is ignored, as required by
+        /// OPC 10000-12 §7.8.2.
+        /// </summary>
+        private static async Task<ServiceResult> ValidateCertificateAsync(
+            CertificateManager validator,
+            Certificate certificate,
+            IEnumerable<Certificate> issuers,
+            CancellationToken cancellationToken)
+        {
+            using var validationChain = new CertificateCollection { certificate };
+            foreach (Certificate issuer in issuers)
+            {
+                if (!string.Equals(issuer.Thumbprint, certificate.Thumbprint, StringComparison.OrdinalIgnoreCase))
+                {
+                    validationChain.Add(issuer);
+                }
+            }
+
+            var options = new Security.Certificates.CertificateValidationOptions
+            {
+                AllowCertificateDownload = false,
+                UrlRetrievalTimeout = TimeSpan.FromMilliseconds(1),
+                // OPC 10000-12 §7.8.2: a certificate issued by a CA that is not
+                // in the TrustList is a validation error, even though the
+                // validator classifies an incomplete chain as suppressible.
+                AcceptError = static (_, serviceResult) =>
+                    serviceResult.StatusCode != StatusCodes.BadCertificateChainIncomplete
+            };
+
+            try
+            {
+                CertificateValidationResult validationResult = await validator.ValidateAsync(
+                    validationChain,
+                    trustList: null,
+                    options: options,
+                    cancellationToken).ConfigureAwait(false);
+                validationResult.ThrowIfInvalid();
+                return ServiceResult.Good;
+            }
+            catch (ServiceResultException ex)
+            {
+                return ex.Result;
+            }
+        }
+
+        /// <summary>
+        /// Determines whether one of the <paramref name="issuers"/> about to be
+        /// removed is still needed to validate another certificate of the
+        /// TrustList (OPC 10000-12 §7.8.2.7 Bad_CertificateChainIncomplete).
+        /// A certificate that another remaining CA with the same subject can
+        /// also validate does not block the removal.
+        /// </summary>
+        private async Task<bool> IsIssuerRequiredAsync(
+            CertificateCollection issuers,
+            string removedThumbprint,
+            CancellationToken cancellationToken)
+        {
+            using CertificateCollection trusted = await GetStore(m_trustedStore)
+                .EnumerateAsync(cancellationToken).ConfigureAwait(false);
+            using CertificateCollection issuerStore = await GetStore(m_issuerStore)
+                .EnumerateAsync(cancellationToken).ConfigureAwait(false);
+            // Only the issuer store entry is removed; a trusted copy of the
+            // same CA keeps validating its certificates.
+            Certificate[] remaining = [.. trusted
+                .Concat(issuerStore.Where(cert => !string.Equals(
+                    cert.Thumbprint,
+                    removedThumbprint,
+                    StringComparison.OrdinalIgnoreCase)))];
+
+            foreach (Certificate cert in remaining)
+            {
+                if (X509Utils.IsSelfSigned(cert) ||
+                    !issuers.Any(issuer => IsIssuedBy(cert, issuer)))
+                {
+                    continue;
+                }
+
+                if (!remaining.Any(other =>
+                    !ReferenceEquals(other, cert) &&
+                    X509Utils.IsCertificateAuthority(other) &&
+                    IsIssuedBy(cert, other)))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool IsIssuedBy(Certificate certificate, Certificate issuer)
+        {
+            if (!X509Utils.CompareDistinguishedName(certificate.IssuerName, issuer.SubjectName))
+            {
+                return false;
+            }
+
+            try
+            {
+                var signature = new X509Signature(certificate.RawData);
+                using System.Security.Cryptography.X509Certificates.X509Certificate2 x509 =
+                    issuer.AsX509Certificate2();
+                return signature.Verify(x509);
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         /// <summary>
@@ -1895,6 +2242,8 @@ namespace Opc.Ua.Server
         private readonly TrustListState m_node;
         private readonly IPushConfigurationTransactionCoordinator? m_coordinator;
         private MemoryStream? m_strm;
+        private bool m_openForWrite;
+        private SecurityConfiguration? m_validationConfiguration;
         private readonly int m_effectiveMaxTrustListSize;
         private ICertificateTrustListManager? m_changeNotifier;
         private TrustListIdentifier? m_changeNotifierScope;
