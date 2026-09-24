@@ -163,11 +163,14 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 // Also acceptable.
             }
 
-            // WaitForConnectionAsync triggered the lazy start which opened the
-            // exact configured listener.
-            Assert.That(
-                harness.Listeners.Any(l => l.OpenedUrl == configuredUrl && l.IsOpen),
-                Is.True);
+            // WaitForConnectionAsync triggered the lazy start which opens the
+            // exact configured listener. The wait's token only cancels this wait,
+            // not the shared start, so on a slow runner the start can still be in
+            // flight here: wait for it instead of racing it. Nothing else starts
+            // the manager in this test, so an opened listener proves the lazy start.
+            bool opened = await WaitForOpenListenerAsync(harness, configuredUrl)
+                .ConfigureAwait(false);
+            Assert.That(opened, Is.True);
         }
 
         [Test]
@@ -648,6 +651,22 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             // ITransportBindingRegistry for the manager's listener creation.
             services.AddSingleton<ITransportBindingRegistry>(harness.Registry);
             return services.BuildServiceProvider();
+        }
+
+        private static async Task<bool> WaitForOpenListenerAsync(
+            FakeTransportHarness harness,
+            Uri url)
+        {
+            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(30);
+            while (!harness.Listeners.Any(l => l.OpenedUrl == url && l.IsOpen))
+            {
+                if (DateTime.UtcNow >= deadline)
+                {
+                    return false;
+                }
+                await Task.Delay(10).ConfigureAwait(false);
+            }
+            return true;
         }
 
         private static Uri NextFreeListenerUri()
