@@ -2066,33 +2066,36 @@ namespace Opc.Ua.Server
             // parents we scan THIS manager's PredefinedNodes for siblings
             // that hold an inverse reference to the same parent — this
             // catches duplicates among nodes created via the SDK in this
-            // NodeManager.
-            if (PredefinedNodes.TryGetValue(parentNodeId, out NodeState? parentNode))
+            // NodeManager. The BrowseName is reserved beneath the parent first so
+            // that concurrent adds of the same name cannot both pass the check.
+            (NodeId, QualifiedName) browseNameKey = (parentNodeId, item.BrowseName);
+            if (!m_addNodesBrowseNameReservations.TryAdd(browseNameKey, 0))
             {
-                if (parentNode.FindChildWithQualifiedName(systemContext, item.BrowseName) != null)
-                {
-                    return (new ServiceResult(StatusCodes.BadBrowseNameDuplicated), NodeId.Null);
-                }
+                return (new ServiceResult(StatusCodes.BadBrowseNameDuplicated), NodeId.Null);
             }
-            else
+            NodeState? parentNode;
+            ServiceResult reservation;
+            try
             {
-                foreach (NodeState existing in PredefinedNodes.Values)
-                {
-                    if (existing is BaseInstanceState sibling &&
-                        sibling.BrowseName == item.BrowseName &&
-                        existing.ReferenceExists(item.ReferenceTypeId, true, parentNodeId))
-                    {
-                        return (new ServiceResult(StatusCodes.BadBrowseNameDuplicated), NodeId.Null);
-                    }
-                }
+                reservation = IsAddNodesBrowseNameDuplicated(
+                    systemContext,
+                    item,
+                    parentNodeId,
+                    out parentNode)
+                    ? new ServiceResult(StatusCodes.BadBrowseNameDuplicated)
+                    : ReserveAddNodesNodeId(
+                        ref newNodeId,
+                        item.RequestedNewNodeId.IsNull,
+                        cancellationToken);
             }
-
-            ServiceResult reservation = ReserveAddNodesNodeId(
-                ref newNodeId,
-                item.RequestedNewNodeId.IsNull,
-                cancellationToken);
+            catch
+            {
+                m_addNodesBrowseNameReservations.TryRemove(browseNameKey, out _);
+                throw;
+            }
             if (ServiceResult.IsBad(reservation))
             {
+                m_addNodesBrowseNameReservations.TryRemove(browseNameKey, out _);
                 return (reservation, NodeId.Null);
             }
             bool committed = false;
@@ -2195,8 +2198,40 @@ namespace Opc.Ua.Server
                 finally
                 {
                     m_addNodesReservations.TryRemove(newNodeId, out _);
+                    m_addNodesBrowseNameReservations.TryRemove(browseNameKey, out _);
                 }
             }
+        }
+
+        /// <summary>
+        /// Checks whether a child with the requested BrowseName already exists beneath the parent.
+        /// </summary>
+        /// <remarks>
+        /// For local parents the in-memory child list is used. For cross-NodeManager parents
+        /// this manager's PredefinedNodes are scanned for siblings that hold an inverse
+        /// reference to the same parent.
+        /// </remarks>
+        private bool IsAddNodesBrowseNameDuplicated(
+            ServerSystemContext systemContext,
+            AddNodesItem item,
+            NodeId parentNodeId,
+            out NodeState? parentNode)
+        {
+            if (PredefinedNodes.TryGetValue(parentNodeId, out parentNode))
+            {
+                return parentNode.FindChildWithQualifiedName(systemContext, item.BrowseName) != null;
+            }
+
+            foreach (NodeState existing in PredefinedNodes.Values)
+            {
+                if (existing is BaseInstanceState sibling &&
+                    sibling.BrowseName == item.BrowseName &&
+                    existing.ReferenceExists(item.ReferenceTypeId, true, parentNodeId))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -10353,6 +10388,12 @@ namespace Opc.Ua.Server
         /// Retains AddNodes identifiers until asynchronous registration and reference publication have finished.
         /// </summary>
         private readonly NodeIdDictionary<byte> m_addNodesReservations = [];
+
+        /// <summary>
+        /// Retains the (parent, BrowseName) pairs of in-flight AddNodes operations so that
+        /// concurrent adds cannot create two children with the same BrowseName.
+        /// </summary>
+        private readonly ConcurrentDictionary<(NodeId, QualifiedName), byte> m_addNodesBrowseNameReservations = new();
 
         private const byte kHistoryAccessMask = AccessLevels.HistoryRead | AccessLevels.HistoryWrite;
         private const int kMaxInitialHistoryPages = 100_000;
