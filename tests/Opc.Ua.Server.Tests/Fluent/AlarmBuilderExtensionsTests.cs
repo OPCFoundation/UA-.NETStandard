@@ -191,11 +191,16 @@ namespace Opc.Ua.Server.Tests.Fluent
             INodeBuilder nb = b.Node(new NodeId("Root", kNs));
 
             IAlarmBuilder<NonExclusiveLimitAlarmState> ab = nb.CreateLimitAlarm(
-                new QualifiedName("OverTemp", kNs))
-                .MonitorVariable(src);
+                new QualifiedName("OverTemp", kNs));
+
+            // Part 9 5.8.2: InputNode names a Variable, never the parent Object.
+            Assert.That(ab.Alarm.InputNode!.Value.IsNull, Is.True);
+
+            ab.MonitorVariable(src);
 
             Assert.That(ab.Alarm.SourceNode!.Value, Is.EqualTo(src.NodeId));
             Assert.That(ab.Alarm.SourceName!.Value, Is.EqualTo("Temp"));
+            Assert.That(ab.Alarm.InputNode.Value, Is.EqualTo(src.NodeId));
         }
 
         [Test]

@@ -180,8 +180,10 @@ namespace Opc.Ua.Server.Fluent
 
         /// <summary>
         /// Sets the alarm's <c>SourceNode</c> reference and
-        /// <c>SourceName</c> to the supplied target. Equivalent to
-        /// setting the alarm's "InputNode" semantics from the spec.
+        /// <c>SourceName</c> to the supplied target and, when the target
+        /// is a Variable, the alarm's <c>InputNode</c> (Part 9 5.8.2).
+        /// The alarm keeps its HasCondition and notifier wiring on the
+        /// node it was created on.
         /// </summary>
         /// <param name="source">The source node monitored by the alarm.</param>
         /// <returns>This builder for further alarm configuration.</returns>
@@ -419,7 +421,11 @@ namespace Opc.Ua.Server.Fluent
                 alarm.ConditionName.Value = alarm.BrowseName.Name ?? string.Empty;
             }
 
-            if (alarm is AlarmConditionState alarmCondition &&
+            // Part 9 5.8.2: InputNode names the Variable whose value is the
+            // primary input. An Object source leaves it NULL until
+            // MonitorVariable supplies the Variable.
+            if (source is BaseVariableState &&
+                alarm is AlarmConditionState alarmCondition &&
                 alarmCondition.InputNode != null &&
                 alarmCondition.InputNode.Value.IsNull)
             {
@@ -509,6 +515,12 @@ namespace Opc.Ua.Server.Fluent
             Alarm.SourceNode!.Value = source.NodeId;
             QualifiedName srcName = source.BrowseName;
             Alarm.SourceName!.Value = srcName.IsNull ? string.Empty : (srcName.Name ?? string.Empty);
+            if (source is BaseVariableState &&
+                Alarm is AlarmConditionState alarmCondition &&
+                alarmCondition.InputNode != null)
+            {
+                alarmCondition.InputNode.Value = source.NodeId;
+            }
             return this;
         }
 
