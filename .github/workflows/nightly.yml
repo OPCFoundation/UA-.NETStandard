@@ -205,20 +205,35 @@ jobs:
             $stem = [System.IO.Path]::GetFileNameWithoutExtension($project)
             Write-Host "::group::$stem ($($env:RID))"
             try {
-                dotnet publish $project --configuration $env:CONFIGURATION
+                $output = dotnet publish $project --configuration $env:CONFIGURATION |
+                    ForEach-Object { Write-Host $_; "$_" }
                 if ($LASTEXITCODE -ne 0) {
-                    throw "Publish failed with exit code $LASTEXITCODE."
+                    # Surface the MSBuild errors in the annotation, not just
+                    # the exit code buried in the collapsed group.
+                    $errors = @($output | Where-Object { $_ -match ': error ' } | Select-Object -Unique -First 5)
+                    $reason = if ($errors.Count -gt 0) { $errors -join ' | ' } else { 'see the step log' }
+                    throw "Publish failed with exit code $LASTEXITCODE`: $reason"
                 }
 
                 $publishDir = Join-Path (Split-Path $project -Parent) "bin/$($env:CONFIGURATION)/net10.0/$($env:RID)/publish"
+                if (-not (Test-Path -LiteralPath $publishDir -PathType Container)) {
+                    throw "Publish succeeded but '$publishDir' does not exist."
+                }
+                # Match the exact file name: on Linux and macOS the native
+                # executable has no extension, so for 'Opc.Ua.Aot.Tests'
+                # PowerShell reports BaseName 'Opc.Ua.Aot' and Extension '.Tests'.
+                $name = if ($IsWindows) { "$stem.exe" } else { $stem }
                 $executable = Get-ChildItem -LiteralPath $publishDir -File |
-                    Where-Object { $_.BaseName -eq $stem -and ($_.Extension -eq '' -or $_.Extension -ieq '.exe') } |
+                    Where-Object { $_.Name -ceq $name } |
                     Select-Object -First 1
                 if ($null -eq $executable) {
                     # A managed publish that silently fell back from NativeAOT
                     # would leave a .dll here and nothing to run; that is a
                     # failure, not an empty pass.
-                    throw "No NativeAOT executable was produced in '$publishDir'."
+                    $found = (Get-ChildItem -LiteralPath $publishDir -File |
+                        Where-Object { $_.Name -like "$stem*" } |
+                        ForEach-Object Name) -join ', '
+                    throw "No NativeAOT executable '$name' was produced in '$publishDir' (found: $found)."
                 }
 
                 & $executable.FullName --results-directory "./TestResults/$stem"
