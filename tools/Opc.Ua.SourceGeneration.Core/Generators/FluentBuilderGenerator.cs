@@ -171,7 +171,10 @@ namespace Opc.Ua.SourceGeneration
                 CoreUtils.Format("{0}.FluentBuilders.g.cs",
                     string.IsNullOrEmpty(OverrideManagerClassName)
                         ? nsPrefix
-                        : OverrideManagerClassName));
+                        // Namespace-qualified, like the node manager files, so
+                        // two bound managers sharing a class name do not
+                        // overwrite each other's output.
+                        : outputNamespace + "." + OverrideManagerClassName));
 
             using TextWriter writer = m_context.FileSystem.CreateTextWriter(fileName);
             using var templateWriter = new TemplateWriter(writer);
