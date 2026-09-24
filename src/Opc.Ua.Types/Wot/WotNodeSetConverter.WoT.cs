@@ -1323,6 +1323,7 @@ namespace Opc.Ua.Wot
 
             int affordanceCount = 0;
             var propertyNodeIds = new Dictionary<string, string>(StringComparer.Ordinal);
+            var ownedComponents = new OwnedComponents(items);
 
             foreach (KeyValuePair<string, JsonElement> property in document.Properties)
             {
@@ -1333,8 +1334,10 @@ namespace Opc.Ua.Wot
                 SynthesizeProperty(
                     document, nodeSet, property.Key, property.Value, rootLocal,
                     rootNodeId, isThingModel, declaredLocale,
-                    items, rootReferences, propertyNodeIds, externalSchemas, diagnostics);
+                    items, rootReferences, propertyNodeIds, ownedComponents,
+                    externalSchemas, diagnostics);
             }
+            ownedComponents.Flush();
 
             // Sections 6.4 and 6.4.1 relate two affordances - the annotated one
             // and the sibling that carries its unit - so the analog Properties
@@ -1438,6 +1441,7 @@ namespace Opc.Ua.Wot
             List<UANode> items,
             List<Reference> rootReferences,
             Dictionary<string, string> propertyNodeIds,
+            OwnedComponents ownedComponents,
             WotExternalSchemaCatalog? externalSchemas,
             List<WotDiagnostic> diagnostics)
         {
@@ -1530,7 +1534,7 @@ namespace Opc.Ua.Wot
             }
             else
             {
-                AddOwnedComponent(items, owner, nodeId, ownership);
+                ownedComponents.Add(owner, nodeId, ownership);
             }
             _ = isThingModel;
         }
@@ -1603,6 +1607,9 @@ namespace Opc.Ua.Wot
                 }
             }
 
+            var forward = new Dictionary<UANode, HashSet<string>>();
+            var added = new Dictionary<UANode, List<Reference>>();
+            var owners = new List<UANode>();
             foreach (UANode node in items)
             {
                 if (node.References is null || string.IsNullOrEmpty(node.NodeId))
@@ -1625,61 +1632,125 @@ namespace Opc.Ua.Wot
                     // A forward HasComponent does not satisfy an inverse
                     // HasProperty, and treating it as satisfied left that
                     // relation stated in one direction only.
-                    bool present = false;
-                    foreach (Reference existing in owner.References ?? [])
+                    if (!forward.TryGetValue(owner, out HashSet<string>? present))
                     {
-                        if (existing.IsForward &&
-                            string.Equals(
-                                existing.Value, node.NodeId, StringComparison.Ordinal) &&
-                            IsSameComponentReferenceType(
-                                existing.ReferenceType, reference.ReferenceType))
+                        // Built once per owner and kept current below, rather
+                        // than rescanning and copying the owner's References
+                        // for every child, which was O(N^2) for N children.
+                        present = new HashSet<string>(StringComparer.Ordinal);
+                        foreach (Reference existing in owner.References ?? [])
                         {
-                            present = true;
-                            break;
+                            if (existing.IsForward && IsComponentReference(existing.ReferenceType))
+                            {
+                                present.Add(ForwardKey(existing.ReferenceType, existing.Value));
+                            }
                         }
+                        forward[owner] = present;
                     }
-                    if (present)
+                    if (!present.Add(ForwardKey(reference.ReferenceType, node.NodeId)))
                     {
                         continue;
                     }
 
-                    var references = new List<Reference>(owner.References ?? [])
+                    if (!added.TryGetValue(owner, out List<Reference>? pending))
                     {
-                        new Reference
-                        {
-                            ReferenceType = reference.ReferenceType,
-                            IsForward = true,
-                            Value = node.NodeId
-                        }
-                    };
-                    owner.References = [.. references];
+                        pending = [];
+                        added[owner] = pending;
+                        owners.Add(owner);
+                    }
+                    pending.Add(new Reference
+                    {
+                        ReferenceType = reference.ReferenceType,
+                        IsForward = true,
+                        Value = node.NodeId
+                    });
                 }
+            }
+
+            foreach (UANode owner in owners)
+            {
+                owner.References = [.. owner.References ?? [], .. added[owner]];
+            }
+
+            static string ForwardKey(string? referenceType, string? target)
+            {
+                string type = IsSameComponentReferenceType(referenceType, "HasProperty")
+                    ? "HasProperty"
+                    : "HasComponent";
+                return type + "|" + target;
             }
         }
-        private static void AddOwnedComponent(
-            List<UANode> items,
-            string owner,
-            string nodeId,
-            string referenceType = "HasComponent")
+
+        /// <summary>
+        /// Collects the forward component References that property affordances
+        /// add to an owner they name through <c>uav:componentOf</c>.
+        /// </summary>
+        /// <remarks>
+        /// Looking the owner up by a scan of every Node and copying its
+        /// References array once per child made N children of one owner cost
+        /// O(N^2). The owner is found through an index that takes in the Nodes
+        /// added since the last lookup, and each owner's References are
+        /// rewritten once, by <see cref="Flush"/>, in the order the children
+        /// were added - the order the per-child copies produced.
+        /// </remarks>
+        private sealed class OwnedComponents
         {
-            foreach (UANode node in items)
+            public OwnedComponents(List<UANode> items)
             {
-                if (!string.Equals(node.NodeId, owner, StringComparison.Ordinal))
-                {
-                    continue;
-                }
-                var references = new List<Reference>(node.References ?? [])
-                {
-                    new Reference
-                    {
-                        ReferenceType = referenceType,
-                        IsForward = true,
-                        Value = nodeId
-                    }
-                };
-                node.References = [.. references];
-                return;
+                m_items = items;
             }
+
+            /// <summary>
+            /// Adds the forward Reference from <paramref name="owner"/> to
+            /// <paramref name="nodeId"/>, if a Node with that NodeId exists.
+            /// </summary>
+            public void Add(string owner, string nodeId, string referenceType)
+            {
+                for (; m_indexed < m_items.Count; m_indexed++)
+                {
+                    // The first Node with a NodeId owns it, as the scan found.
+                    if (m_items[m_indexed].NodeId is { } id && !m_byId.ContainsKey(id))
+                    {
+                        m_byId[id] = m_items[m_indexed];
+                    }
+                }
+                if (!m_byId.TryGetValue(owner, out UANode? node))
+                {
+                    return;
+                }
+                if (!m_pending.TryGetValue(owner, out List<Reference>? references))
+                {
+                    references = [];
+                    m_pending[owner] = references;
+                    m_owners.Add(new KeyValuePair<UANode, List<Reference>>(node, references));
+                }
+                references.Add(new Reference
+                {
+                    ReferenceType = referenceType,
+                    IsForward = true,
+                    Value = nodeId
+                });
+            }
+
+            /// <summary>
+            /// Appends the collected References to their owners.
+            /// </summary>
+            public void Flush()
+            {
+                foreach (KeyValuePair<UANode, List<Reference>> owner in m_owners)
+                {
+                    owner.Key.References = [.. owner.Key.References ?? [], .. owner.Value];
+                }
+                m_owners.Clear();
+                m_pending.Clear();
+            }
+
+            private readonly List<UANode> m_items;
+            private readonly Dictionary<string, UANode> m_byId = new(StringComparer.Ordinal);
+            private readonly Dictionary<string, List<Reference>> m_pending =
+                new(StringComparer.Ordinal);
+            private readonly List<KeyValuePair<UANode, List<Reference>>> m_owners = [];
+            private int m_indexed;
         }
 
         /// <summary>

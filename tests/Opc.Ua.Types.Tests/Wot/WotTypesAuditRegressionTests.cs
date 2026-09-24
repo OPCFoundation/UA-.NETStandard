@@ -355,6 +355,57 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        [TestCase(true)]
+        [TestCase(false)]
+        public void ManyComponentsOfOneOwnerAreLinkedInLinearTime(bool ownerFirst)
+        {
+            // Each child scanned every Node for its owner and copied the
+            // owner's growing References array (twice): O(N^2) in both the
+            // owner-first path and the reconcile path for an owner stated last.
+            const int count = 60000;
+            const string owner = "\"P\":{\"type\":\"number\",\"uav:id\":\"nsu=urn:x;s=P\"}";
+            var properties = new StringBuilder();
+            if (ownerFirst)
+            {
+                properties.Append(owner).Append(',');
+            }
+            for (int ii = 0; ii < count; ii++)
+            {
+                properties.Append("\"c").Append(ii)
+                    .Append("\":{\"type\":\"number\",\"uav:componentOf\":[\"nsu=urn:x;s=P\"]},");
+            }
+            if (!ownerFirst)
+            {
+                properties.Append(owner).Append(',');
+            }
+            properties.Length--;
+
+            using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(
+                "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"}]," +
+                "\"@type\":\"uav:object\",\"title\":\"Thing\"," +
+                "\"properties\":{" + properties + "}}"));
+            var options = new WotNodeSetConverterOptions
+            {
+                MaxAffordanceCount = count + 10,
+                MaxNodeCount = 10 * count
+            };
+
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document, options);
+            watch.Stop();
+
+            UANode ownerNode = result.Value!.Items!.First(n => n.BrowseName == "1:P");
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    ownerNode.References!.Count(r => r.IsForward && r.ReferenceType == "HasComponent"),
+                    Is.EqualTo(count));
+                Assert.That(watch.Elapsed, Is.LessThan(TimeSpan.FromSeconds(20)));
+            });
+            TestContext.Out.WriteLine($"{count} components linked in {watch.Elapsed}.");
+        }
+
         private static WotConversionResult<UANodeSet> ConvertDataTypes(string definitions)
         {
             using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(
