@@ -538,6 +538,80 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void WriteVariantWithNullMatrixWritesEmptyArray()
+        {
+            // A null matrix has no Dimensions a peer can accept, so it is written as the
+            // semantically equal empty array (Part 6 5.1.11) instead of failing to encode.
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            Variant value = Variant.CreateDefault(
+                TypeInfo.Create(BuiltInType.UInt16, ValueRanks.TwoDimensions));
+
+            foreach (JsonEncoderOptions options in new[] { JsonEncoderOptions.Verbose, JsonEncoderOptions.Compact })
+            {
+                using var buffer = new PooledBufferWriter();
+                using (var writer = new JsonEncoder(buffer, messageContext, options))
+                {
+                    writer.WriteVariant(JsonProperties.Value, value);
+                }
+
+                using var decoder = new JsonDecoder(buffer.WrittenMemory.ToReadOnlySequence(16), messageContext);
+                Variant decoded = decoder.ReadVariant(JsonProperties.Value);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        System.Text.Encoding.UTF8.GetString(buffer.WrittenMemory.ToArray()),
+                        Is.EqualTo("""{"Value":{"UaType":5,"Value":[]}}"""),
+                        options.Name);
+                    Assert.That(decoded.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.UInt16), options.Name);
+                    Assert.That(decoded.TypeInfo.IsScalar, Is.False, options.Name);
+                });
+            }
+        }
+
+        [Test]
+        public void WriteVariantWithNullOfNullableValueTypeRoundTrips()
+        {
+            // DateTime and Guid are nullable (Part 6 Table 1): MinValue and all zeros are
+            // their null, so Value is omitted and decodes back to the same value.
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            Variant[] values = [new Variant(DateTimeUtc.MinValue), new Variant(Uuid.Empty)];
+
+            foreach (Variant value in values)
+            {
+                using var buffer = new PooledBufferWriter();
+                using (var writer = new JsonEncoder(buffer, messageContext, JsonEncoderOptions.Verbose))
+                {
+                    writer.WriteVariant(JsonProperties.Value, value);
+                }
+
+                using var decoder = new JsonDecoder(buffer.WrittenMemory.ToReadOnlySequence(16), messageContext);
+                Variant decoded = decoder.ReadVariant(JsonProperties.Value);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        System.Text.Encoding.UTF8.GetString(buffer.WrittenMemory.ToArray()),
+                        Does.Not.Contain("\"Value\":{\"UaType\":13,\"Value\"")
+                            .And.Not.Contain("\"Value\":{\"UaType\":14,\"Value\""));
+                    Assert.That(decoded, Is.EqualTo(value));
+                });
+            }
+        }
+
+        [Test]
+        public void WriteVariantWithDefaultDataValueWritesValue()
+        {
+            var value = new Variant(new DataValue());
+
+            Assert.That(
+                Encode(JsonEncoderOptions.Compact, w => w.WriteVariant(JsonProperties.Value, value)),
+                Is.EqualTo("""{"Value":{"UaType":23,"Value":{}}}"""));
+        }
+
+        [Test]
         public void WriteVariantWithDefaultScalarOfNonNullableTypeWritesValue()
         {
             var value = new Variant((ushort)0);

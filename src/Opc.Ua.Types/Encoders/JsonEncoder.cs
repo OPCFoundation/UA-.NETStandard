@@ -2210,6 +2210,16 @@ namespace Opc.Ua
             // Write multi dimension
             else
             {
+                if (value.ValueIsDefaultOrNull)
+                {
+                    // A null matrix has no Dimensions a peer can accept (every entry
+                    // must be greater than zero), and null and empty arrays are
+                    // semantically the same (Part 6 5.1.11), so write an empty array.
+                    StartArray(0);
+                    EndArray();
+                    return;
+                }
+
                 int[] dim;
                 if (writeRawValue)
                 {
