@@ -3270,38 +3270,59 @@ namespace Opc.Ua
 
             if (changeMasks != NodeStateChangeMasks.None)
             {
-                OnStateChanged?.Invoke(context, this, changeMasks);
-                StateChanged?.Invoke(context, this, changeMasks);
+                // take the reported bits before dispatching, so a change made while the
+                // handlers run (by another writer or by a handler) keeps its bit and is
+                // reported by the next call instead of being wiped afterwards.
+                m_changeMasks &= ~changeMasks;
 
-                // Drive any asynchronous sinks too, so a node whose only state-changed sink is
-                // asynchronous (for example a monitored-item manager) is still notified when the
-                // synchronous API is used. Completes inline in the common case; a genuinely
-                // asynchronous sink blocks here - only synchronous callers pay that cost.
-                if (OnStateChangedAsync != null || StateChangedAsync != null)
+                try
                 {
-                    if (SynchronizationContext.Current == null)
+                    RaiseStateChanged(context, changeMasks);
+                }
+                catch
+                {
+                    // not reported: keep the bits for the next call.
+                    m_changeMasks |= changeMasks;
+                    throw;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Invokes the synchronous and asynchronous state-changed sinks for
+        /// <see cref="ClearChangeMasks"/>.
+        /// </summary>
+        private void RaiseStateChanged(ISystemContext context, NodeStateChangeMasks changeMasks)
+        {
+            OnStateChanged?.Invoke(context, this, changeMasks);
+            StateChanged?.Invoke(context, this, changeMasks);
+
+            // Drive any asynchronous sinks too, so a node whose only state-changed sink is
+            // asynchronous (for example a monitored-item manager) is still notified when the
+            // synchronous API is used. Completes inline in the common case; a genuinely
+            // asynchronous sink blocks here - only synchronous callers pay that cost.
+            if (OnStateChangedAsync != null || StateChangedAsync != null)
+            {
+                if (SynchronizationContext.Current == null)
+                {
+                    // No ambient synchronization context (the normal server case): drive inline
+                    // and block only on the rare genuinely-asynchronous sink.
+                    ValueTask raise = RaiseStateChangedAsync(context, changeMasks, default);
+                    if (!raise.IsCompletedSuccessfully)
                     {
-                        // No ambient synchronization context (the normal server case): drive inline
-                        // and block only on the rare genuinely-asynchronous sink.
-                        ValueTask raise = RaiseStateChangedAsync(context, changeMasks, default);
-                        if (!raise.IsCompletedSuccessfully)
-                        {
-                            raise.AsTask().GetAwaiter().GetResult();
-                        }
-                    }
-                    else
-                    {
-                        // A synchronization context is present (e.g. a UI / legacy ASP.NET thread):
-                        // run the sinks on the thread pool so a context-capturing continuation
-                        // cannot deadlock the blocking wait below.
-                        Task.Run(() =>
-                            RaiseStateChangedAsync(context, changeMasks, CancellationToken.None)
-                                .AsTask())
-                            .GetAwaiter().GetResult();
+                        raise.AsTask().GetAwaiter().GetResult();
                     }
                 }
-
-                m_changeMasks = NodeStateChangeMasks.None;
+                else
+                {
+                    // A synchronization context is present (e.g. a UI / legacy ASP.NET thread):
+                    // run the sinks on the thread pool so a context-capturing continuation
+                    // cannot deadlock the blocking wait below.
+                    Task.Run(() =>
+                        RaiseStateChangedAsync(context, changeMasks, CancellationToken.None)
+                            .AsTask())
+                        .GetAwaiter().GetResult();
+                }
             }
         }
 
@@ -3335,11 +3356,22 @@ namespace Opc.Ua
 
             if (changeMasks != NodeStateChangeMasks.None)
             {
-                OnStateChanged?.Invoke(context, this, changeMasks);
-                StateChanged?.Invoke(context, this, changeMasks);
-                await RaiseStateChangedAsync(context, changeMasks, cancellationToken)
-                    .ConfigureAwait(false);
-                m_changeMasks = NodeStateChangeMasks.None;
+                // take the reported bits before dispatching (see ClearChangeMasks).
+                m_changeMasks &= ~changeMasks;
+
+                try
+                {
+                    OnStateChanged?.Invoke(context, this, changeMasks);
+                    StateChanged?.Invoke(context, this, changeMasks);
+                    await RaiseStateChangedAsync(context, changeMasks, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch
+                {
+                    // not reported: keep the bits for the next call.
+                    m_changeMasks |= changeMasks;
+                    throw;
+                }
             }
         }
 

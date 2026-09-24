@@ -33,6 +33,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
@@ -1046,6 +1047,67 @@ namespace Opc.Ua.Types.Tests.State
 
             parent.ClearChangeMasks(m_context, true);
             Assert.That(child.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+        }
+
+        [Test]
+        public void ClearChangeMasksKeepsChangeMadeWhileHandlersRun()
+        {
+            BaseObjectState node = CreateObjectNode();
+            node.ClearChangeMasks(m_context, false);
+            int calls = 0;
+            node.OnStateChanged = (context, sender, changes) =>
+            {
+                // a change that happens while the previous one is being reported.
+                if (calls++ == 0)
+                {
+                    sender.UpdateChangeMasks(NodeStateChangeMasks.Children);
+                }
+            };
+
+            node.UpdateChangeMasks(NodeStateChangeMasks.NonValue);
+            node.ClearChangeMasks(m_context, false);
+
+            Assert.That(node.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.Children),
+                "A change made while the handlers ran must still be pending.");
+
+            node.ClearChangeMasks(m_context, false);
+            Assert.That(calls, Is.EqualTo(2));
+            Assert.That(node.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+        }
+
+        [Test]
+        public async Task ClearChangeMasksAsyncKeepsChangeMadeWhileSinksRunAsync()
+        {
+            BaseObjectState node = CreateObjectNode();
+            await node.ClearChangeMasksAsync(m_context, false).ConfigureAwait(false);
+            int calls = 0;
+            node.OnStateChangedAsync = async (context, sender, changes, ct) =>
+            {
+                await Task.Yield();
+                if (calls++ == 0)
+                {
+                    sender.UpdateChangeMasks(NodeStateChangeMasks.Value);
+                }
+            };
+
+            node.UpdateChangeMasks(NodeStateChangeMasks.NonValue);
+            await node.ClearChangeMasksAsync(m_context, false).ConfigureAwait(false);
+
+            Assert.That(node.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.Value),
+                "A change made while the sinks were awaited must still be pending.");
+        }
+
+        [Test]
+        public void ClearChangeMasksKeepsMaskWhenHandlerThrows()
+        {
+            BaseObjectState node = CreateObjectNode();
+            node.ClearChangeMasks(m_context, false);
+            node.OnStateChanged = (context, sender, changes) =>
+                throw new InvalidOperationException("sink failure");
+
+            node.UpdateChangeMasks(NodeStateChangeMasks.NonValue);
+            Assert.Throws<InvalidOperationException>(() => node.ClearChangeMasks(m_context, false));
+            Assert.That(node.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.NonValue));
         }
 
         [Test]
