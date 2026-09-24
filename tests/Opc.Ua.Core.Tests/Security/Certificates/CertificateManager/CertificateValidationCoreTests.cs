@@ -599,6 +599,30 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(result.IsSuppressible, Is.False);
         }
 
+        /// <summary>
+        /// CertificateValidationOptions.TreatAsInvalid ("never trust the
+        /// certificate") on a trust list rejects a certificate or CA found there.
+        /// Before the fix the option was never read.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ValidateAsyncTreatAsInvalidRejectsTrustedCertificateAsync(bool issuer)
+        {
+            string trustedDir = await WriteStoreAsync([issuer ? m_rootCa : m_selfSignedApp])
+                .ConfigureAwait(false);
+            CertificateValidationCore core = NewCore();
+            CertificateTrustList trustList = TrustList(trustedDir);
+            trustList.ValidationOptions = CertificateValidationOptions.TreatAsInvalid;
+            core.Update(null, trustList, null);
+            using CertificateCollection chain = Chain(issuer ? m_leaf : m_selfSignedApp);
+
+            CertificateValidationResult result = await core.ValidateAsync(
+                chain, (_, _) => true, null, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(result.IsSuppressible, Is.False);
+        }
+
         [Test]
         public async Task ValidateAsyncAutoAcceptUntrustedReturnsSuccessAsync()
         {

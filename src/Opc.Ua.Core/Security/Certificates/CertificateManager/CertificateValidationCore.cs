@@ -623,7 +623,7 @@ namespace Opc.Ua
                             state.TrustedCertificates,
                             state.TrustedStore,
                             true,
-                            ct)
+                            ct: ct)
                         .ConfigureAwait(false);
                 }
                 else
@@ -633,7 +633,7 @@ namespace Opc.Ua
                             state.TrustedCertificates,
                             state.TrustedStore,
                             true,
-                            ct)
+                            ct: ct)
                         .ConfigureAwait(false);
                 }
 
@@ -646,7 +646,7 @@ namespace Opc.Ua
                                 state.IssuerCertificates,
                                 state.IssuerStore,
                                 true,
-                                ct)
+                                ct: ct)
                             .ConfigureAwait(false);
                     }
                     else
@@ -656,12 +656,15 @@ namespace Opc.Ua
                                 state.IssuerCertificates,
                                 state.IssuerStore,
                                 true,
-                                ct)
+                                ct: ct)
                             .ConfigureAwait(false);
                     }
 
                     if (issuer == null)
                     {
+                        // An issuer supplied only in the peer's chain has no store of
+                        // its own; its CRL is looked up in the trusted and issuer
+                        // stores (OPC 10000-4 6.1.3, Find Revocation List).
                         if (validationErrors != null)
                         {
                             (issuer, revocationStatus) = await GetIssuerNoExceptionAsync(
@@ -669,7 +672,8 @@ namespace Opc.Ua
                                     untrustedCollection,
                                     null,
                                     true,
-                                    ct)
+                                    peerSupplied: true,
+                                    ct: ct)
                                 .ConfigureAwait(false);
                         }
                         else
@@ -679,7 +683,8 @@ namespace Opc.Ua
                                 untrustedCollection,
                                 null,
                                 true,
-                                ct)
+                                peerSupplied: true,
+                                ct: ct)
                                 .ConfigureAwait(false);
                         }
                     }
@@ -1091,6 +1096,25 @@ namespace Opc.Ua
                 {
                     // no issuer found at all
                     chainIncomplete = true;
+                }
+
+                // A certificate or CA the trust list marks as "never trust"
+                // (TreatAsInvalid) is rejected even though it was found there.
+                bool treatAsInvalid = trustedCertificate != null &&
+                    (trustedCertificate.Options & CertificateValidationOptions.TreatAsInvalid) != 0;
+                foreach (CertificateIssuerReference issuer in issuers)
+                {
+                    treatAsInvalid |=
+                        (issuer.Options & CertificateValidationOptions.TreatAsInvalid) != 0;
+                }
+                if (treatAsInvalid)
+                {
+                    sresult = new ServiceResult(
+                        null,
+                        StatusCodes.BadCertificateInvalid,
+                        LocalizedText.From("The trust list marks the certificate or an issuer as invalid."),
+                        null,
+                        sresult);
                 }
 
                 // check if certificate issuer is trusted.
@@ -1575,11 +1599,22 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the certificate information for a trusted issuer certificate.
         /// </summary>
+        /// <param name="certificate">The certificate whose issuer is searched.</param>
+        /// <param name="explicitList">The certificates named on the list itself.</param>
+        /// <param name="certificateStore">The store behind the list, if any.</param>
+        /// <param name="checkRecovationStatus">Whether to check the revocation status.</param>
+        /// <param name="peerSupplied">
+        /// The <paramref name="explicitList"/> is the chain supplied by the peer;
+        /// the revocation status is then checked against the CRLs of the trusted
+        /// and issuer stores.
+        /// </param>
+        /// <param name="ct">The cancellation token.</param>
         private async Task<(CertificateIssuerReference?, ServiceResultException?)> GetIssuerNoExceptionAsync(
             Certificate certificate,
             ArrayOf<CertificateIdentifier> explicitList,
             CertificateStoreIdentifier? certificateStore,
             bool checkRecovationStatus,
+            bool peerSupplied = false,
             CancellationToken ct = default)
         {
             ServiceResultException? serviceResult = null;
@@ -1679,17 +1714,17 @@ namespace Opc.Ua
                         {
                             CertificateValidationOptions options = explicitList[ii].ValidationOptions |
                                 (certificateStore?.ValidationOptions ?? CertificateValidationOptions.Default);
-                            if (checkRecovationStatus)
+                            if (checkRecovationStatus && store != null)
                             {
-                                // An issuer with no store behind it (named inline or
-                                // supplied in the peer's chain) still needs its CRL
-                                // checked: look it up in the trusted and issuer stores
-                                // (OPC 10000-4 6.1.3, Find Revocation List).
-                                serviceResult = store != null
-                                    ? await CheckIssuerRevocationAsync(
-                                        store, issuer, certificate, options, ct).ConfigureAwait(false)
-                                    : await CheckIssuerRevocationInTrustStoresAsync(
-                                        issuer, certificate, options, ct).ConfigureAwait(false);
+                                serviceResult = await CheckIssuerRevocationAsync(
+                                    store, issuer, certificate, options, ct).ConfigureAwait(false);
+                            }
+                            else if (checkRecovationStatus && peerSupplied)
+                            {
+                                // An issuer supplied only in the peer's chain still
+                                // needs its CRL checked (OPC 10000-4 6.1.3).
+                                serviceResult = await CheckIssuerRevocationInTrustStoresAsync(
+                                    issuer, certificate, options, ct).ConfigureAwait(false);
                             }
                             return (
                                 new CertificateIssuerReference(
@@ -1801,6 +1836,7 @@ namespace Opc.Ua
             ArrayOf<CertificateIdentifier> explicitList,
             CertificateStoreIdentifier? certificateStore,
             bool checkRecovationStatus,
+            bool peerSupplied = false,
             CancellationToken ct = default)
         {
             // check for root.
@@ -1815,6 +1851,7 @@ namespace Opc.Ua
                     explicitList,
                     certificateStore,
                     checkRecovationStatus,
+                    peerSupplied,
                     ct)
                 .ConfigureAwait(false);
             if (srex != null)
