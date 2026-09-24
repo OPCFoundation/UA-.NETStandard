@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using NUnit.Framework;
 using Opc.Ua.Schema.Model;
@@ -442,6 +444,136 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(method.InputArguments[0].DataTypeName, Is.EqualTo("String"));
             Assert.That(method.OutputArguments, Has.Count.EqualTo(1));
             Assert.That(method.OutputArguments[0].Name, Is.EqualTo("InitLockStatus"));
+        }
+
+        /// <summary>
+        /// Regression: trailers carry no length, and a method identity trailer of
+        /// an unknown (newer) version was left unread - the extended identifier
+        /// trailer was then parsed out of its middle, which assigned garbage ids
+        /// or threw and lost the whole payload. The reader now stops at the
+        /// unknown trailer and keeps everything before it.
+        /// </summary>
+        [Test]
+        public void Read_StopsAtAnUnknownTrailerVersion()
+        {
+            ModelDependencyV1 dependency = BuildTrailerSnapshot(
+                methodStateName: "DoItMethodType",
+                guidId: "09087e75-8e5e-499b-954f-f2a9603db28a");
+            ModelDependencyV1 bodyOnly = BuildTrailerSnapshot(methodStateName: null, guidId: null);
+
+            byte[] body = Inflate(bodyOnly.ToBase64Payload());
+            byte[] full = Inflate(dependency.ToBase64Payload());
+            // body: the payload without trailers or capability byte; full[body.Length]
+            // is the capability byte and the method identity trailer version follows.
+            Assert.That(full[body.Length + 1], Is.EqualTo((byte)1));
+            full[body.Length + 1] = 2;
+
+            ModelDependencyV1 decoded = ModelDependencyV1.FromBase64Payload(Deflate(full));
+
+            Assert.That(decoded, Is.Not.Null);
+            Assert.That(decoded.Nodes, Has.Count.EqualTo(1));
+            Assert.That(decoded.Nodes[0].SymbolicName, Is.EqualTo("ServiceType"));
+            Assert.That(decoded.Nodes[0].Children[0].MethodStateName, Is.Empty);
+            Assert.That(decoded.Nodes[0].GuidId, Is.Null, "the trailer after the unknown one is not guessed at");
+        }
+
+        /// <summary>
+        /// Payloads whose trailers are all known still read completely.
+        /// </summary>
+        [Test]
+        public void Read_KnownTrailersStillRoundTrip()
+        {
+            ModelDependencyV1 dependency = BuildTrailerSnapshot(
+                methodStateName: "DoItMethodType",
+                guidId: "09087e75-8e5e-499b-954f-f2a9603db28a");
+
+            var decoded = ModelDependencyV1.FromBase64Payload(dependency.ToBase64Payload());
+
+            Assert.That(decoded.Nodes[0].Children[0].MethodStateName, Is.EqualTo("DoItMethodType"));
+            Assert.That(decoded.Nodes[0].GuidId, Is.EqualTo("09087e75-8e5e-499b-954f-f2a9603db28a"));
+        }
+
+        /// <summary>
+        /// Regression: an empty (not null) GuidId and a method identity that is
+        /// only a namespace were not written, so they read back as null / empty.
+        /// </summary>
+        [Test]
+        public void WriteThenRead_RoundTripsEmptyGuidAndNamespaceOnlyMethodIdentity()
+        {
+            var dependency = new ModelDependencyV1 { ModelUri = "http://example.org/UA/Edge/" };
+            dependency.Nodes.Add(new DependencyNode
+            {
+                SymbolicName = "EdgeType",
+                SymbolicNamespace = "http://example.org/UA/Edge/",
+                ClassName = "EdgeType",
+                Kind = DependencyNodeKind.ObjectType,
+                GuidId = string.Empty,
+                Children =
+                [
+                    new DependencyChild
+                    {
+                        BrowseName = "DoIt",
+                        SymbolicName = "DoIt",
+                        MethodStateNamespace = "http://example.org/UA/Edge/"
+                    }
+                ]
+            });
+
+            var decoded = ModelDependencyV1.FromBase64Payload(dependency.ToBase64Payload());
+
+            Assert.That(decoded.Nodes[0].GuidId, Is.Empty);
+            Assert.That(
+                decoded.Nodes[0].Children[0].MethodStateNamespace,
+                Is.EqualTo("http://example.org/UA/Edge/"));
+        }
+
+        private static ModelDependencyV1 BuildTrailerSnapshot(string methodStateName, string guidId)
+        {
+            var dependency = new ModelDependencyV1 { ModelUri = "http://example.org/UA/Trailers/" };
+            dependency.Nodes.Add(new DependencyNode
+            {
+                SymbolicName = "ServiceType",
+                SymbolicNamespace = "http://example.org/UA/Trailers/",
+                ClassName = "Service",
+                Kind = DependencyNodeKind.ObjectType,
+                GuidId = guidId,
+                Children =
+                [
+                    new DependencyChild
+                    {
+                        BrowseName = "DoIt",
+                        SymbolicName = "DoIt",
+                        MethodStateName = methodStateName ?? string.Empty,
+                        MethodStateNamespace = methodStateName == null
+                            ? string.Empty
+                            : "http://example.org/UA/Trailers/"
+                    }
+                ]
+            });
+            return dependency;
+        }
+
+        private static byte[] Inflate(string payload)
+        {
+            byte[] bytes = Convert.FromBase64String(payload);
+            using var input = new MemoryStream(bytes, 4, bytes.Length - 4);
+            using var deflate = new DeflateStream(input, CompressionMode.Decompress);
+            using var output = new MemoryStream();
+            deflate.CopyTo(output);
+            return output.ToArray();
+        }
+
+        private static string Deflate(byte[] raw)
+        {
+            using var output = new MemoryStream();
+            output.Write(ModelDependencyV1.Magic, 0, ModelDependencyV1.Magic.Length);
+            output.WriteByte(ModelDependencyV1.Version);
+            output.WriteByte(ModelDependencyV1.CompressionDeflate);
+            using (var deflate = new DeflateStream(output, CompressionLevel.Optimal, leaveOpen: true))
+            {
+                deflate.Write(raw, 0, raw.Length);
+            }
+            return Convert.ToBase64String(output.ToArray());
         }
 
         private static ModelDependencyV1 BuildSampleSnapshot()

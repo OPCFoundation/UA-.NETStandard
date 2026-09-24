@@ -769,12 +769,20 @@ namespace Opc.Ua.SourceGeneration.Dependency
                     FluentAccessorsEmitted =
                         (capabilities & kFluentAccessorsEmitted) != 0;
                 }
+                // Trailers carry no length prefix, so a trailer of a version
+                // this reader does not know cannot be skipped: its body is left
+                // unread and whatever follows it cannot be located. Stop there
+                // rather than parse the next trailer out of the middle of the
+                // unknown one - which either assigned garbage identifiers or
+                // threw and dropped the whole payload.
+                bool trailersReadable = true;
                 if (hasMethodIdentityTrailer &&
                     reader.BaseStream.Position < reader.BaseStream.Length)
                 {
-                    ReadMethodIdentityTrailer(reader);
+                    trailersReadable = ReadMethodIdentityTrailer(reader);
                 }
-                if (hasExtendedIdentifierTrailer &&
+                if (trailersReadable &&
+                    hasExtendedIdentifierTrailer &&
                     reader.BaseStream.Position < reader.BaseStream.Length)
                 {
                     ReadExtendedIdentifierTrailer(reader);
@@ -786,7 +794,9 @@ namespace Opc.Ua.SourceGeneration.Dependency
         {
             foreach (DependencyNode node in Nodes)
             {
-                if (!string.IsNullOrEmpty(node.GuidId) ||
+                // Null, not empty, means "not assigned" for both: an empty
+                // GuidId has to be written or it reads back as null.
+                if (node.GuidId != null ||
                     node.OpaqueId != null)
                 {
                     return true;
@@ -833,8 +843,12 @@ namespace Opc.Ua.SourceGeneration.Dependency
             {
                 foreach (DependencyChild child in node.Children)
                 {
+                    // Every field the trailer carries, or a child whose only
+                    // method identity is a namespace does not round-trip.
                     if (!string.IsNullOrEmpty(child.MethodStateName) ||
+                        !string.IsNullOrEmpty(child.MethodStateNamespace) ||
                         !string.IsNullOrEmpty(child.MethodDeclarationName) ||
+                        !string.IsNullOrEmpty(child.MethodDeclarationNamespace) ||
                         child.MethodDeclarationNumericId != 0 ||
                         !string.IsNullOrEmpty(child.MethodDeclarationStringId))
                     {
@@ -864,12 +878,17 @@ namespace Opc.Ua.SourceGeneration.Dependency
             }
         }
 
-        private void ReadMethodIdentityTrailer(BinaryReader reader)
+        /// <summary>
+        /// Reads the method identity trailer. Returns false when the trailer
+        /// has a version this reader does not know - its body is then left
+        /// unread and no later trailer can be located.
+        /// </summary>
+        private bool ReadMethodIdentityTrailer(BinaryReader reader)
         {
             byte trailerVersion = reader.ReadByte();
             if (trailerVersion != kMethodIdentityTrailerVersion)
             {
-                return;
+                return false;
             }
 
             int nodeCount = reader.ReadInt32();
@@ -898,6 +917,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
                     child.MethodDeclarationStringId = ReadNullableString(reader);
                 }
             }
+            return true;
         }
 
         private static void WriteString(BinaryWriter writer, string value)
