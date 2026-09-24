@@ -352,6 +352,57 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        [TestCase("  secret ")]
+        [TestCase("\tTag\n")]
+        [TestCase("x")]
+        public void XmlStringKeepsLeadingAndTrailingWhitespace(string value)
+        {
+            // ReadString trimmed the value although xs:string preserves
+            // whitespace (Part 6 5.3.1.5).
+            ServiceMessageContext context = CreateContext();
+
+            string xml;
+            using (var encoder = new XmlEncoder(context))
+            {
+                encoder.PushNamespace(kNs);
+                encoder.WriteString("Value", value);
+                encoder.PopNamespace();
+                xml = encoder.CloseAndReturnText();
+            }
+
+            string textXml;
+            using (var encoder = new XmlEncoder(context))
+            {
+                encoder.PushNamespace(kNs);
+                encoder.WriteLocalizedText("Text", new LocalizedText(" en ", value));
+                encoder.PopNamespace();
+                textXml = encoder.CloseAndReturnText();
+            }
+
+            using (var decoder = new XmlDecoder(
+                XmlReader.Create(new StringReader(xml), CoreUtils.DefaultXmlReaderSettings()),
+                context))
+            {
+                decoder.PushNamespace(kNs);
+                Assert.That(decoder.ReadString("Value"), Is.EqualTo(value));
+            }
+
+            using (var decoder = new XmlDecoder(
+                XmlReader.Create(new StringReader(textXml), CoreUtils.DefaultXmlReaderSettings()),
+                context))
+            {
+                decoder.PushNamespace(kNs);
+                LocalizedText text = decoder.ReadLocalizedText("Text");
+                Assert.That(text.Text, Is.EqualTo(value));
+                Assert.That(text.Locale, Is.EqualTo(" en "));
+            }
+
+            using var parser = new XmlParser(xml, context);
+            parser.PushNamespace(kNs);
+            Assert.That(parser.ReadString("Value"), Is.EqualTo(value));
+        }
+
+        [Test]
         public void XmlStringLengthIsMeasuredInBytesNotCharacters()
         {
             // The XML codec counted UTF-16 code units while the binary and JSON
@@ -582,6 +633,62 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             private long m_length;
             private bool m_disposed;
+        }
+
+        private static global::Opc.Ua.Encoders.Union CreateUnion()
+        {
+            var definition = new StructureDefinition
+            {
+                StructureType = StructureType.Union,
+                Fields = new StructureField[]
+                {
+                    new() { Name = "A", DataType = DataTypeIds.Int32, ValueRank = ValueRanks.Scalar },
+                    new() { Name = "B", DataType = DataTypeIds.Int32, ValueRank = ValueRanks.Scalar }
+                }.ToArrayOf()
+            };
+            return new global::Opc.Ua.Encoders.Union(
+                new XmlQualifiedName("TestUnion", kNs),
+                new ExpandedNodeId(88821, 0),
+                new ExpandedNodeId(88822, 0),
+                new ExpandedNodeId(88823, 0),
+                definition,
+                new System.Collections.Generic.Dictionary<string, BuiltInType>
+                {
+                    ["A"] = BuiltInType.Int32,
+                    ["B"] = BuiltInType.Int32
+                });
+        }
+
+        [Test]
+        [TestCase(3u)]
+        [TestCase(0x7FFFFFFFu)]
+        [TestCase(0x80000001u)]
+        public void UnionWithOutOfRangeSwitchFieldIsADecodingError(uint selector)
+        {
+            // Decode stored any selector; Value then threw
+            // ArgumentOutOfRangeException and Encode wrote an invalid union.
+            ServiceMessageContext context = CreateContext();
+            byte[] buffer = BitConverter.GetBytes(selector);
+            global::Opc.Ua.Encoders.Union union = CreateUnion();
+
+            using var decoder = new BinaryDecoder(buffer, context);
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => union.Decode(decoder));
+            Assert.That(ex.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void UnionWithLastSwitchFieldDecodes()
+        {
+            ServiceMessageContext context = CreateContext();
+            byte[] buffer = [2, 0, 0, 0, 42, 0, 0, 0];
+            global::Opc.Ua.Encoders.Union union = CreateUnion();
+
+            using var decoder = new BinaryDecoder(buffer, context);
+            union.Decode(decoder);
+
+            Assert.That(union.SwitchField, Is.EqualTo(2u));
+            Assert.That(union.Value, Is.EqualTo(new Variant(42)));
         }
 
         private static Nested CreateNestedChain(int depth)

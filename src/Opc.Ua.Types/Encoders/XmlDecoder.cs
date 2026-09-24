@@ -144,7 +144,8 @@ namespace Opc.Ua
 
                 while (Peek(elementName))
                 {
-                    string namespaceUri = ReadString(elementName)!;
+                    // table entries are URIs (xs:anyURI collapses whitespace).
+                    string namespaceUri = ReadString(elementName)?.Trim()!;
                     stringTable.Append(namespaceUri);
                 }
 
@@ -587,13 +588,8 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true, out bool isNil))
             {
+                // xs:string has whiteSpace=preserve (Part 6 5.3.1.5): do not trim.
                 string? value = SafeReadString();
-
-                if (value != null)
-                {
-                    value = value.Trim();
-                }
-
                 EndField(fieldName);
                 return value;
             }
