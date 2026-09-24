@@ -228,7 +228,7 @@ When both features are registered, the shared configuration has `ApplicationType
 | `ApplicationUri` | Generated from the host name and application name during validation. Set a stable URI for deployed applications. |
 | `ProductUri` | Uses the contributing feature value. Set a stable product URI for deployed applications. |
 | `SubjectName` | `CN={ApplicationName}, O=OPC Foundation, DC=localhost`; `DC=localhost` is replaced with the host name. |
-| `PkiRoot` | A per-application `OPC Foundation/{ApplicationName}/pki` directory below the process temporary directory. Configure a persistent, access-controlled location in production. |
+| `PkiRoot` | A per-application `OPC Foundation/{ApplicationName}/pki` directory below the per-user local application-data directory (`Environment.SpecialFolder.LocalApplicationData`). The shared temporary directory is not used, because other local users could pre-create it. Configuration fails if no application-data directory is available. Configure a persistent, access-controlled location in production. |
 | Application certificates and stores | Directory-backed application, trusted peer/issuer, HTTPS, user, and rejected stores are created below `PkiRoot`; default RSA and supported ECC application-certificate identifiers are selected. |
 
 The security builder starts with secure defaults: unknown certificates are not
