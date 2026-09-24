@@ -354,46 +354,6 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Whether the inactivity cleanup should close the channel.
-        /// </summary>
-        /// <remarks>
-        /// A channel that exchanged no message for longer than <paramref name="channelLifetime"/>
-        /// is due for cleanup, unless it is open, has no Session assigned and one of its security
-        /// tokens (current, renewed, or the previous one that incoming messages may still use)
-        /// has not expired yet: OPC 10000-4 §5.6.2.1 keeps a SecureChannel
-        /// until it is closed or until its last token has expired, and only lets the Server close
-        /// unused Session-less SecureChannels before reaching the channel limit. A Client with a
-        /// Session keeps communicating, so a silent channel that carries a Session still ends
-        /// after the inactivity timeout, as do channels that never opened, faulted channels and
-        /// channels without a token.
-        /// </remarks>
-        /// <param name="channelLifetime">The inactivity timeout in milliseconds.</param>
-        internal bool IsInactivityCleanupDue(int channelLifetime)
-        {
-            if (ElapsedSinceLastActiveTime <= channelLifetime)
-            {
-                return false;
-            }
-
-            if (State != TcpChannelState.Open || UsedBySession)
-            {
-                return true;
-            }
-
-            return !IsTokenValid(CurrentToken) &&
-                !IsTokenValid(RenewedToken) &&
-                !IsTokenValid(PreviousToken);
-        }
-
-        /// <summary>
-        /// Whether a security token exists and has not expired.
-        /// </summary>
-        private bool IsTokenValid(ChannelToken? token)
-        {
-            return token != null && !token.IsExpired(TimeProvider);
-        }
-
-        /// <summary>
         /// The time in milliseconds elapsed since the channel received or sent messages
         /// or received a keep alive.
         /// </summary>
