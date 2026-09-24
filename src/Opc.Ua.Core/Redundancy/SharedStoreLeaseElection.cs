@@ -506,12 +506,13 @@ namespace Opc.Ua.Redundancy
             owner = string.Empty;
             expiryUtcTicks = 0;
             byte[] bytes = raw.ToArray();
-            if (bytes.Length < 4)
+            if (bytes.Length < 4 + 8)
             {
                 return false;
             }
             int ownerLength = BinaryPrimitives.ReadInt32LittleEndian(bytes.AsSpan(0, 4));
-            if (ownerLength < 0 || bytes.Length < 4 + ownerLength + 8)
+            // Compare without adding to ownerLength so a corrupt length cannot overflow the bound.
+            if (ownerLength < 0 || ownerLength > bytes.Length - 4 - 8)
             {
                 return false;
             }
