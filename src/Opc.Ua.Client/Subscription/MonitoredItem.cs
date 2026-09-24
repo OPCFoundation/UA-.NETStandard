@@ -948,7 +948,13 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 if (currentOptions == null ||
                     currentOptions.StartNodeId != options.StartNodeId ||
                     currentOptions.AttributeId != options.AttributeId ||
-                    currentOptions.IndexRange != options.IndexRange ||
+                    // A null and an empty IndexRange both mean "not used"
+                    // (Part 4 §7.27), so only a real difference forces a
+                    // recreate.
+                    !string.Equals(
+                        string.IsNullOrEmpty(currentOptions.IndexRange) ? null : currentOptions.IndexRange,
+                        string.IsNullOrEmpty(options.IndexRange) ? null : options.IndexRange,
+                        StringComparison.Ordinal) ||
                     currentOptions.Encoding != options.Encoding)
                 {
                     Modify = null;
