@@ -27,8 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Threading;
 
 namespace Opc.Ua
 {
@@ -155,10 +158,28 @@ namespace Opc.Ua
         /// </summary>
         public bool IsMatch(string? target)
         {
+            return IsMatch(target, Timeout.InfiniteTimeSpan);
+        }
+
+        /// <summary>
+        /// Matches the whole target string within the specified evaluation timeout.
+        /// </summary>
+        /// <param name="target">The target string; a null target never matches.</param>
+        /// <param name="matchTimeout">A positive timeout, or <see cref="Timeout.InfiniteTimeSpan"/> for no limit.</param>
+        /// <returns>Whether the whole target matches this pattern.</returns>
+        /// <exception cref="ArgumentOutOfRangeException">The timeout is not positive or infinite.</exception>
+        /// <exception cref="TimeoutException">Evaluation exceeded the specified timeout.</exception>
+        public bool IsMatch(string? target, TimeSpan matchTimeout)
+        {
+            if (matchTimeout <= TimeSpan.Zero && matchTimeout != Timeout.InfiniteTimeSpan)
+            {
+                throw new ArgumentOutOfRangeException(nameof(matchTimeout), "The timeout must be positive or infinite.");
+            }
             if (target == null)
             {
                 return false;
             }
+            Stopwatch? stopwatch = matchTimeout == Timeout.InfiniteTimeSpan ? null : Stopwatch.StartNew();
 
             // Every token other than '%' consumes exactly one character, so the
             // classic wildcard walk with a single backtrack point is sufficient:
@@ -169,12 +190,13 @@ namespace Opc.Ua
             int starTarget = 0;
             while (t < target.Length)
             {
+                CheckTimeout(stopwatch, matchTimeout);
                 if (p < m_tokens.Length && m_tokens[p].Kind == TokenKind.AnyString)
                 {
                     starToken = p++;
                     starTarget = t;
                 }
-                else if (p < m_tokens.Length && m_tokens[p].Matches(target[t]))
+                else if (p < m_tokens.Length && m_tokens[p].Matches(target[t], stopwatch, matchTimeout))
                 {
                     p++;
                     t++;
@@ -192,6 +214,7 @@ namespace Opc.Ua
 
             while (p < m_tokens.Length && m_tokens[p].Kind == TokenKind.AnyString)
             {
+                CheckTimeout(stopwatch, matchTimeout);
                 p++;
             }
             return p == m_tokens.Length;
@@ -201,6 +224,17 @@ namespace Opc.Ua
         public override string ToString()
         {
             return Pattern;
+        }
+
+        /// <summary>
+        /// Enforces the evaluation deadline during both wildcard traversal and character-list scans.
+        /// </summary>
+        private static void CheckTimeout(Stopwatch? stopwatch, TimeSpan matchTimeout)
+        {
+            if (stopwatch != null && stopwatch.Elapsed >= matchTimeout)
+            {
+                throw new TimeoutException("Like-pattern evaluation exceeded its time limit.");
+            }
         }
 
         private static bool TryParseList(string pattern, ref int index, out Token token)
@@ -321,7 +355,10 @@ namespace Opc.Ua
 
             public TokenKind Kind { get; }
 
-            public bool Matches(char ch)
+            /// <summary>
+            /// Matches one character while enforcing the shared deadline within character lists.
+            /// </summary>
+            public bool Matches(char ch, Stopwatch? stopwatch, TimeSpan matchTimeout)
             {
                 switch (Kind)
                 {
@@ -332,6 +369,7 @@ namespace Opc.Ua
                     case TokenKind.List:
                         foreach ((char first, char last) in m_ranges!)
                         {
+                            CheckTimeout(stopwatch, matchTimeout);
                             if (ch >= first && ch <= last)
                             {
                                 return !m_negated;

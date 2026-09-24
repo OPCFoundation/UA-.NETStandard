@@ -34,6 +34,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
 using Opc.Ua.Server.Historian;
 using Opc.Ua.Server.Historian.InMemory;
@@ -56,7 +57,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task InsertAtomicCommitsWhenAllValuesNewAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("tx.var", 1);
             provider.Register(nodeId);
 
@@ -85,7 +88,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task InsertAtomicRollsBackOnFirstFailureAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("tx.var", 1);
             provider.Register(nodeId);
 

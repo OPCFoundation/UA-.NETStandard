@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading;
@@ -316,42 +315,29 @@ namespace Opc.Ua.Client.WebApi
                 requestMessage.Headers.Accept.Add(m_acceptHeader);
             }
 
-            using CancellationTokenSource? timeoutCts =
-                !m_configureHttpClient && m_options.RequestTimeout.HasValue
-                    ? new CancellationTokenSource(m_options.RequestTimeout.Value)
-                    : null;
-            using CancellationTokenSource? linkedCts = timeoutCts != null
-                ? CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token)
-                : null;
-
+            TimeSpan requestTimeout = m_httpClient.Timeout;
+            if (m_options.RequestTimeout is TimeSpan configuredTimeout &&
+                (requestTimeout == Timeout.InfiniteTimeSpan ||
+                    (configuredTimeout != Timeout.InfiniteTimeSpan && configuredTimeout < requestTimeout)))
+            {
+                requestTimeout = configuredTimeout;
+            }
+            using CancellationTokenSource timeout = TimeProvider.System.CreateCancellationTokenSource(requestTimeout);
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeout.Token);
             using HttpResponseMessage response = await m_httpClient
-                .SendAsync(
-                    requestMessage,
-                    HttpCompletionOption.ResponseContentRead,
-                    linkedCts?.Token ?? ct)
+                .SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, linkedCts.Token)
                 .ConfigureAwait(false);
 
             response.EnsureSuccessStatusCode();
 
-#if NET5_0_OR_GREATER
-            using Stream stream = await response.Content
-                .ReadAsStreamAsync(ct)
-                .ConfigureAwait(false);
-#else
-            using Stream stream = await response.Content
-                .ReadAsStreamAsync()
-                .ConfigureAwait(false);
-#endif
-
-            IEncodeable decoded = await WebApiBodyCodec
-                .DecodeBodyAsync(
+            byte[] payload = await HttpResponseBodyReader.ReadAsync(
+                response.Content, m_messageContext.MaxMessageSize, linkedCts.Token).ConfigureAwait(false);
+            IEncodeable decoded = WebApiBodyCodec
+                .DecodeBody(
                     route.ResponseType,
-                    stream,
+                    payload,
                     m_messageContext,
-                    s_clientDecoderOptions,
-                    contentLengthHint: response.Content.Headers.ContentLength ?? -1,
-                    ct: ct)
-                .ConfigureAwait(false);
+                    s_clientDecoderOptions);
             return (IServiceResponse)decoded;
         }
 
@@ -367,8 +353,6 @@ namespace Opc.Ua.Client.WebApi
         {
             UpdateNamespaceTable = true
         };
-
-        // Strongly-typed delegates =====================================
 
         /// <inheritdoc/>
         public ValueTask<ReadResponse> ReadAsync(

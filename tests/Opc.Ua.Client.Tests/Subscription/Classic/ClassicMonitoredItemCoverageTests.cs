@@ -583,6 +583,20 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
+        public void RestoreRaisesGlobalClientHandleCounter()
+        {
+            MonitoredItem initial = CreateItem();
+            MonitoredItem item = CreateItem();
+            uint restoredHandle = initial.ClientHandle + 1000;
+
+            item.Restore(new MonitoredItemState { ClientId = restoredHandle });
+
+            MonitoredItem next = CreateItem();
+
+            Assert.That(next.ClientHandle, Is.GreaterThan(restoredHandle));
+        }
+
+        [Test]
         public void RestoreClampsCacheQueueSizeToOne()
         {
             MonitoredItem item = CreateItem();
@@ -730,20 +744,18 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void GetEventTimeReturnsMinValueForUtcTimeField()
+        public void GetEventTimeReturnsUtcTimeField()
         {
             MonitoredItem item = CreateItem();
             item.NodeClass = NodeClass.Object;
             EventFieldList eventFields = BuildEventFields(
                 new DateTime(2024, 6, 7, 8, 9, 10, DateTimeKind.Utc));
 
-            // Characterization of a KNOWN DEFECT: GetEventTime reads the Time field via
-            // Variant.AsBoxedObject() (boxed as this fork's DateTimeUtc), so its 'as DateTime?'
-            // cast never matches and it always returns DateTime.MinValue even for a valid UTC
-            // time. Locked in here so a future GetEventTime fix (extract via TryGetValue) updates it.
             DateTime eventTime = item.GetEventTime(eventFields);
 
-            Assert.That(eventTime, Is.EqualTo(DateTime.MinValue));
+            Assert.That(
+                eventTime,
+                Is.EqualTo(new DateTime(2024, 6, 7, 8, 9, 10, DateTimeKind.Utc)));
         }
 
         [Test]

@@ -58,6 +58,39 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
             .. SecurityPolicies.Default.GetDisplayNames().Select(SecurityPolicies.Default.GetUri)
         ];
 
+        [Test]
+        public void RawEccSecretIsUnhashedOrExplicitlyUnsupported([Values] bool p384)
+        {
+            SecurityPolicyInfo policy = p384 ? SecurityPolicyInfo.ECC_nistP384 : SecurityPolicyInfo.ECC_nistP256;
+            bool supported = SecurityPolicies.SupportsRawEccSecretAgreement();
+            Assert.That(SecurityPolicies.Default.GetInfo(policy.Uri) != null, Is.EqualTo(supported));
+            using var local = Ua.Nonce.CreateNonce(policy);
+            // A peer using scalar 1 publishes the curve generator. Its shared Z is the local public X coordinate.
+            byte[] generator = Utils.FromHexString(p384
+                ? "AA87CA22BE8B05378EB1C71EF320AD746E1D3B628BA79B9859F741E082542A385502F25DBF55296C3A545E3872760AB7" +
+                    "3617DE4A96262C6F5D9E98BF9292DC29F8F41DBD289A147CE9DA3113B5F0B8C00A60B1CE1D7E819D7A431D7C90EA0E5F"
+                : "6B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C296" +
+                    "4FE342E2FE1A7F9B8EE7EB4A7C0F9E162BCE33576B315ECECBB6406837BF51F5");
+            using var remote = Ua.Nonce.CreateNonce(policy, generator);
+            if (!supported)
+            {
+                Assert.That(SecurityPolicies.Default.GetDefaultEccUris(), Does.Not.Contain(policy.Uri));
+                Assert.That(() => local.GenerateSecret(remote, null),
+                    Throws.TypeOf<NotSupportedException>().With.Message.Contains(".NET 8"));
+                return;
+            }
+
+            byte[] secret = local.GenerateSecret(remote, null);
+            try
+            {
+                Assert.That(secret, Is.EqualTo(local.Data.AsSpan(0, p384 ? 48 : 32).ToArray()));
+            }
+            finally
+            {
+                CryptoUtils.ZeroMemory(secret);
+            }
+        }
+
         /// <summary>
         /// Test the CreateNonce - securitypolicy and valid nonceLength
         /// </summary>

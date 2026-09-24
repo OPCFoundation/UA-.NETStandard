@@ -494,6 +494,25 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 Does.Not.Contain("public const string PumpType = \"Pump Type\";"));
         }
 
+        [Test]
+        public void Emit_TargetModelVersionEmitsModelVersionConstant()
+        {
+            var targetNamespace = new Namespace
+            {
+                Value = "http://test.org/UA/",
+                Prefix = "Test",
+                Name = "TestNamespace",
+                Version = "0.1.0"
+            };
+            m_mockModelDesign.Setup(m => m.TargetNamespace).Returns(targetNamespace);
+            m_mockModelDesign.Setup(m => m.TargetVersion).Returns("2.3.4");
+            m_mockModelDesign.Setup(m => m.Namespaces).Returns([targetNamespace]);
+
+            string output = EmitWithSingleObjectType(targetNamespace);
+
+            Assert.That(output, Does.Contain("public const string Target = \"2.3.4\";"));
+        }
+
         private string EmitWithSingleObjectType(Namespace targetNamespace)
         {
             var objectType = new ObjectTypeDesign

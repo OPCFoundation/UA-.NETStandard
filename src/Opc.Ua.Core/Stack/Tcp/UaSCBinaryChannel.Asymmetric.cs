@@ -34,7 +34,6 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
@@ -113,9 +112,19 @@ namespace Opc.Ua.Bindings
         /// negotiated policy.
         /// </exception>
         private SecurityPolicyInfo NegotiatedSecurityPolicy
-            => SecurityPolicy ?? throw ServiceResultException.Create(
-                StatusCodes.BadSecurityPolicyRejected,
-                "Unsupported security policy.");
+            => SecurityPolicy ??
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityPolicyRejected,
+                    "Unsupported security policy.");
+
+        private bool UsesKeyAgreement => SecurityPolicy?.EphemeralKeyAlgorithm is
+            CertificateKeyAlgorithm.RSADH or
+            CertificateKeyAlgorithm.NistP256 or
+            CertificateKeyAlgorithm.NistP384 or
+            CertificateKeyAlgorithm.BrainpoolP256r1 or
+            CertificateKeyAlgorithm.BrainpoolP384r1 or
+            CertificateKeyAlgorithm.Curve25519 or
+            CertificateKeyAlgorithm.Curve448;
 
         /// <summary>
         /// Builds a new owned collection holding the entry's certificate
@@ -225,8 +234,7 @@ namespace Opc.Ua.Bindings
                 case CertificateKeyFamily.RSA:
                     if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.RSADH)
                     {
-                        m_localNonce = Nonce.CreateNonce(securityPolicy);
-                        return m_localNonce!.Data;
+                        return CreateLocalNonce(securityPolicy);
                     }
                     // Basic128Rsa15 is the only RSA based security policy that allows nonces
                     // with a length less than 32 bytes for compatibility reasons.
@@ -237,8 +245,7 @@ namespace Opc.Ua.Bindings
                         securityPolicy.SecureChannelNonceLength,
                         enforceMinimumLength);
                 case CertificateKeyFamily.ECC:
-                    m_localNonce = Nonce.CreateNonce(securityPolicy);
-                    return m_localNonce!.Data;
+                    return CreateLocalNonce(securityPolicy);
                 default:
                     return null;
             }
@@ -279,7 +286,7 @@ namespace Opc.Ua.Bindings
                     case CertificateKeyFamily.RSA:
                         if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.RSADH)
                         {
-                            m_remoteNonce = Nonce.CreateNonce(securityPolicy, nonce);
+                            CreateRemoteNonce(securityPolicy, nonce);
                             return true;
                         }
 
@@ -293,7 +300,7 @@ namespace Opc.Ua.Bindings
                         }
                         break;
                     case CertificateKeyFamily.ECC:
-                        m_remoteNonce = Nonce.CreateNonce(securityPolicy, nonce);
+                        CreateRemoteNonce(securityPolicy, nonce);
                         return true;
                 }
             }
@@ -303,6 +310,87 @@ namespace Opc.Ua.Bindings
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Replaces the ephemeral key-agreement nonces with the objects owned by the reconnect token.
+        /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
+        protected void ReplaceNonces(ChannelToken token)
+        {
+            if (!UsesKeyAgreement)
+            {
+                return;
+            }
+
+            (Nonce localNonce, Nonce remoteNonce) = token.TakeNonces();
+            lock (m_nonceLock)
+            {
+                if (m_noncesDisposed)
+                {
+                    localNonce.Dispose();
+                    remoteNonce.Dispose();
+                    throw new ObjectDisposedException(nameof(UaSCUaBinaryChannel));
+                }
+                m_localNonce?.Dispose();
+                m_remoteNonce?.Dispose();
+                m_localNonce = localNonce;
+                m_remoteNonce = remoteNonce;
+            }
+        }
+
+        /// <summary>
+        /// Moves key-agreement ownership out of a temporary channel before it is retired.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private protected void TransferNonces(ChannelToken token)
+        {
+            if (!UsesKeyAgreement)
+            {
+                return;
+            }
+
+            lock (m_nonceLock)
+            {
+                if (m_localNonce == null || m_remoteNonce == null)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNonceInvalid,
+                        "The reconnecting channel does not own both key-agreement nonces.");
+                }
+                token.SetNonces(m_localNonce, m_remoteNonce);
+                m_localNonce = null;
+                m_remoteNonce = null;
+            }
+        }
+
+        private byte[]? CreateLocalNonce(SecurityPolicyInfo securityPolicy)
+        {
+            lock (m_nonceLock)
+            {
+                if (m_noncesDisposed)
+                {
+                    throw new ObjectDisposedException(nameof(UaSCUaBinaryChannel));
+                }
+                var localNonce = Nonce.CreateNonce(securityPolicy);
+                m_localNonce?.Dispose();
+                m_localNonce = localNonce;
+                return localNonce.Data;
+            }
+        }
+
+        private void CreateRemoteNonce(SecurityPolicyInfo securityPolicy, byte[] data)
+        {
+            lock (m_nonceLock)
+            {
+                if (m_noncesDisposed)
+                {
+                    throw new ObjectDisposedException(nameof(UaSCUaBinaryChannel));
+                }
+                var remoteNonce = Nonce.CreateNonce(securityPolicy, data);
+                m_remoteNonce?.Dispose();
+                m_remoteNonce = remoteNonce;
+            }
         }
 
         /// <summary>
@@ -1406,10 +1494,9 @@ namespace Opc.Ua.Bindings
                             .GetAwaiter()
                             .GetResult();
 #pragma warning restore CA2025 // Do not pass 'IDisposable' instances into unawaited tasks
-                        if (!validationResult.IsValid)
-                        {
-                            throw new ServiceResultException(validationResult.StatusCode);
-                        }
+                        // keep the nested validation errors: the server channel decides
+                        // from all of them which status the client may see.
+                        validationResult.ThrowIfInvalid();
                     }
                 }
 
@@ -1536,10 +1623,9 @@ namespace Opc.Ua.Bindings
                             .ValidateAsync(senderCertificateChain!, ct: ct)
                             .ConfigureAwait(false);
 
-                        if (!validationResult.IsValid)
-                        {
-                            throw new ServiceResultException(validationResult.StatusCode);
-                        }
+                        // keep the nested validation errors: the server channel decides
+                        // from all of them which status the client may see.
+                        validationResult.ThrowIfInvalid();
                     }
                 }
 
@@ -1558,33 +1644,26 @@ namespace Opc.Ua.Bindings
                 receiverCertificate!,
                 ct).ConfigureAwait(false);
 
-            ArraySegment<byte> body;
-            uint requestId;
-            uint sequenceNumber;
-            byte[] signature;
-
             try
             {
-                body = FinishReadAsymmetricMessage(
+                ArraySegment<byte> body = FinishReadAsymmetricMessage(
                     plainText,
                     headerSize,
                     receiverCertificate,
                     senderCertificate,
                     oscRequestSignature,
-                    out requestId,
-                    out sequenceNumber,
-                    out signature);
+                    out uint requestId,
+                    out uint sequenceNumber,
+                    out byte[] signature);
+
+                return new AsymmetricMessage(
+                    body, channelId, senderCertificate, requestId, sequenceNumber, signature);
             }
             catch
             {
-                // See ReadAsymmetricMessage: nothing else owns the decrypted
-                // buffer until the body is handed back.
                 ReturnDecryptedBuffer(plainText);
                 throw;
             }
-
-            return new AsymmetricMessage(
-                body, channelId, senderCertificate, requestId, sequenceNumber, signature);
         }
 
         /// <summary>
@@ -1930,25 +2009,34 @@ namespace Opc.Ua.Bindings
             if (policy.AsymmetricSignatureAlgorithm == AsymmetricSignatureAlgorithm.None ||
                 policy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
             {
-                byte[] decryptedBuffer = BufferManager.TakeBuffer(SendBufferSize, "Decrypt");
+                byte[] decryptedBuffer = BufferManager.TakeBuffer(
+                    headerToCopy.Count + dataToDecrypt.Count,
+                    "Decrypt");
+                try
+                {
+                    Array.Copy(
+                        headerToCopy.GetArray(),
+                        headerToCopy.Offset,
+                        decryptedBuffer,
+                        0,
+                        headerToCopy.Count);
+                    Array.Copy(
+                        dataToDecrypt.GetArray(),
+                        dataToDecrypt.Offset,
+                        decryptedBuffer,
+                        headerToCopy.Count,
+                        dataToDecrypt.Count);
 
-                Array.Copy(
-                    headerToCopy.GetArray(),
-                    headerToCopy.Offset,
-                    decryptedBuffer,
-                    0,
-                    headerToCopy.Count);
-                Array.Copy(
-                    dataToDecrypt.GetArray(),
-                    dataToDecrypt.Offset,
-                    decryptedBuffer,
-                    headerToCopy.Count,
-                    dataToDecrypt.Count);
-
-                return new ArraySegment<byte>(
-                    decryptedBuffer,
-                    0,
-                    dataToDecrypt.Count + headerToCopy.Count);
+                    return new ArraySegment<byte>(
+                        decryptedBuffer,
+                        0,
+                        dataToDecrypt.Count + headerToCopy.Count);
+                }
+                catch
+                {
+                    BufferManager.ReturnBuffer(decryptedBuffer, "Decrypt");
+                    throw;
+                }
             }
 
             return Rsa_Decrypt(
@@ -2009,6 +2097,7 @@ namespace Opc.Ua.Bindings
         /// through its own <see cref="ISecurityPolicyRegistry"/> decrypts with
         /// the padding its peer encrypted with.
         /// </remarks>
+        /// <exception cref="ServiceResultException"></exception>
         private static RsaUtils.Padding GetAsymmetricPadding(SecurityPolicyInfo policy)
         {
             return policy.AsymmetricEncryptionAlgorithm switch
@@ -2027,6 +2116,8 @@ namespace Opc.Ua.Bindings
         private EndpointDescription? m_selectedEndpoint;
         private readonly ICertificateRegistry? m_serverCertificates;
         private bool m_uninitialized;
+        private readonly Lock m_nonceLock = new();
+        private bool m_noncesDisposed;
         private Nonce? m_localNonce;
         private Nonce? m_remoteNonce;
     }

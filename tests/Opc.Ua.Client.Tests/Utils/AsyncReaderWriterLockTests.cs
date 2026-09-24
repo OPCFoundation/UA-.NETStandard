@@ -42,6 +42,36 @@ namespace Opc.Ua.Client.Tests.AsyncPrimitives
     [Category("Unit")]
     public sealed class AsyncReaderWriterLockTests
     {
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ReaderAvailabilityHookIsCapturedOnceAndNullIsAllowedAsync(bool hasHook)
+        {
+            using var rwLock = new AsyncReaderWriterLock();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var gate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int calls = 0;
+            if (hasHook)
+            {
+                rwLock.BeforeReaderLockAsync = ct =>
+                {
+                    Interlocked.Increment(ref calls);
+                    return new ValueTask(gate.Task.WaitAsync(ct));
+                };
+            }
+            Task<AsyncReaderWriterLock.Releaser> pending = rwLock.ReaderLockAsync(timeout.Token).AsTask();
+            try
+            {
+                Assert.That(pending.IsCompleted, Is.EqualTo(!hasHook));
+                rwLock.BeforeReaderLockAsync = _ => throw new InvalidOperationException("Replacement was invoked.");
+            }
+            finally
+            {
+                gate.TrySetResult(true);
+            }
+            using AsyncReaderWriterLock.Releaser reader = await pending.ConfigureAwait(false);
+            Assert.That(calls, Is.EqualTo(hasHook ? 1 : 0));
+        }
+
         [Test]
         public async Task ReadersDoNotMutuallyExcludeAsync()
         {

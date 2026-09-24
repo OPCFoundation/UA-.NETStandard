@@ -111,6 +111,11 @@ services.AddOpcUa()
 The projection into `ServerConfiguration.ReverseConnect` is unchanged,
 and the same options can be bound from `OpcUa:Server:ReverseConnect`.
 
+On server configuration reload, removing the `ReverseConnect` section or
+emptying its clients removes only configuration-owned connections. Connections
+added through `AddReverseConnection` retain their settings and are not
+overwritten by a configured client with the same endpoint URL.
+
 When `ConfigurationFile` or `ConfigurationStream` supplies the
 application configuration, that document is authoritative. The
 `ReverseConnect` options and `AddReverseConnect(...)` shortcut do not

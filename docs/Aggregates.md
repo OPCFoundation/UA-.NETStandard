@@ -47,7 +47,9 @@ AsyncCustomNodeManager / CustomNodeManager2  → HistorianDispatcher.DispatchPro
   `Average`/`MinMax`/`Count`/`StartEnd`/`Status`/`StdDev` calculators) compute the aggregates from a stream
   of raw `DataValue`s.
 - A historian provider may compute aggregates itself by implementing `IHistorianProcessedProvider`
-  (native push-down). When it does not, the framework streams raw values through the calculator.
+  (native push-down). When it does not, the framework streams raw values through the calculator,
+  using the node's `Stepped` capability. Completed intervals are drained after each raw sample;
+  the fallback stops with `Bad_TooManyOperations` if its 100,000-output buffer limit is exceeded.
 
 ### AnnotationCount
 
@@ -67,9 +69,17 @@ request returns `Bad_AggregateNotSupported`.
 | `PercentDataGood` | `100` | Minimum % of Good data in an interval for the interval `StatusCode` to be Good. |
 | `UseSlopedExtrapolation` | `false` | Stepped (hold-last) vs sloped extrapolation past the last value. Ignored for Simple Bounds. |
 
-The server's default configuration is returned by `AggregateManager.GetDefaultConfiguration(...)` and is
-used whenever a request sets `AggregateConfiguration.UseServerCapabilitiesDefaults = true`. Per Part 13
-§4.2.1.2 the default `TreatUncertainAsBad` value is `true`.
+For processed history reads, `AggregateConfiguration.UseServerCapabilitiesDefaults = true` selects
+the node's `HistorianNodeCapabilities.DefaultAggregateConfiguration`, matching its advertised
+`HistoricalDataConfiguration` object. The dispatcher snapshots those defaults for the request;
+an explicit client configuration overrides them without modifying the advertised defaults.
+`AggregateManager.GetDefaultConfiguration(...)` exposes the server-wide defaults used by other
+aggregate consumers. Per Part 13 §4.2.1.2 the default `TreatUncertainAsBad` value is `true`.
+
+Aggregate-specific rules still apply. Basic Minimum, Maximum, Range and their ActualTime variants
+select Good raw extrema. An Uncertain value beyond the selected extremum makes the result
+`Uncertain_DataSubNormal, Calculated` without replacing the Good value. An interval with no Good
+extremum returns `Bad_NoData`; the separate Minimum2/Maximum2 families also consider their defined bounds.
 
 > **Migration note:** in earlier builds the server default used `TreatUncertainAsBad = false`. Clients that
 > require the old behaviour should send an explicit `AggregateConfiguration` with

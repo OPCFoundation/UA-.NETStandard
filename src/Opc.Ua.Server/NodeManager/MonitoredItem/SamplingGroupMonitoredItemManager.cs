@@ -301,7 +301,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public ValueTask<(ServiceResult, MonitoringMode?)> SetMonitoringModeAsync(
+        public async ValueTask<(ServiceResult, MonitoringMode?)> SetMonitoringModeAsync(
             ServerSystemContext context,
             ISampledDataChangeMonitoredItem monitoredItem,
             MonitoringMode monitoringMode,
@@ -312,16 +312,17 @@ namespace Opc.Ua.Server
                 monitoredItem.Id,
                 out IMonitoredItem? existingMonitoredItem))
             {
-                return new ValueTask<(ServiceResult, MonitoringMode?)>((StatusCodes.BadMonitoredItemIdInvalid, null));
+                return (StatusCodes.BadMonitoredItemIdInvalid, null);
             }
 
             if (!ReferenceEquals(monitoredItem, existingMonitoredItem))
             {
-                return new ValueTask<(ServiceResult, MonitoringMode?)>((StatusCodes.BadMonitoredItemIdInvalid, null));
+                return (StatusCodes.BadMonitoredItemIdInvalid, null);
             }
 
             // update monitoring mode.
             MonitoringMode previousMode = monitoredItem.SetMonitoringMode(monitoringMode);
+            m_samplingGroupManager.ModifyMonitoring(context.OperationContext!, monitoredItem);
 
             // need to provide an immediate update after enabling.
             if (previousMode == MonitoringMode.Disabled &&
@@ -333,14 +334,17 @@ namespace Opc.Ua.Server
                     DateTimeUtc.MinValue,
                     DateTime.UtcNow);
 
-                // read the initial value.
-
-                if (monitoredItem.ManagerHandle is Node node)
+                if (handle?.Node is NodeState node)
                 {
-                    ServiceResult error = node.Read(
+                    ReadValueId read = monitoredItem.GetReadValueId();
+                    (ServiceResult error, DataValue value) = await node.ReadAttributeAsync(
                         context,
                         monitoredItem.AttributeId,
-                        ref initialValue);
+                        read.ParsedIndexRange,
+                        read.DataEncoding,
+                        initialValue,
+                        cancellationToken).ConfigureAwait(false);
+                    initialValue = value;
 
                     if (ServiceResult.IsBad(error))
                     {
@@ -353,7 +357,7 @@ namespace Opc.Ua.Server
                 monitoredItem.QueueValue(initialValue, null);
             }
 
-            return new ValueTask<(ServiceResult, MonitoringMode?)>((StatusCodes.Good, previousMode));
+            return (StatusCodes.Good, previousMode);
         }
 
         /// <inheritdoc/>

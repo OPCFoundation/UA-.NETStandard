@@ -23,6 +23,19 @@
     <!-- MCP NuGet server manifest -->
     <PackageType>DotnetTool;McpServer</PackageType>
   </PropertyGroup>
+  <!--
+    Every packable library in this repository also ships a "<id>.Debug"
+    package built from the Debug configuration (see version.targets). A
+    dotnet tool is not a compile-time dependency: consumers install it by
+    ID with `dotnet tool install`, and the MCP registry discovers the
+    server by that same ID, so a second Debug-configuration tool ID would
+    be unusable rather than merely redundant. Opt this project out of the
+    Debug pack leg instead of renaming it; nuget-publish.yml fails closed
+    on any packable project that neither renames nor opts out.
+  -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.Logging" />

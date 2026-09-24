@@ -37,7 +37,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -292,7 +291,7 @@ namespace Opc.Ua.Bindings
 
         /// <inheritdoc/>
         public ValueTask<IReadOnlyList<string>> CloseChannelsForCertificateAsync(
-            Security.Certificates.Certificate oldCertificate,
+            Certificate oldCertificate,
             CancellationToken ct = default)
         {
             if (oldCertificate == null)
@@ -366,11 +365,11 @@ namespace Opc.Ua.Bindings
             // acquires its own DataLock internally).
             (TcpListenerChannel Channel, TaskCompletionSource<bool> Done)[] entries =
                 m_channels?.Values.ToArray()
-                ?? Array.Empty<(TcpListenerChannel, TaskCompletionSource<bool>)>();
+                ?? [];
 
             if (entries.Length == 0)
             {
-                return new ValueTask<IReadOnlyList<string>>(Array.Empty<string>());
+                return new ValueTask<IReadOnlyList<string>>([]);
             }
 
             return CloseChannelsForUntrustedPeersCoreAsync(entries, isPeerTrustedAsync, ct);
@@ -382,9 +381,9 @@ namespace Opc.Ua.Bindings
             CancellationToken ct)
         {
             var closed = new List<string>(entries.Length);
-            foreach ((TcpListenerChannel Channel, TaskCompletionSource<bool> Done) entry in entries)
+            foreach ((TcpListenerChannel Channel, TaskCompletionSource<bool> Done) in entries)
             {
-                TcpListenerChannel channel = entry.Channel;
+                TcpListenerChannel channel = Channel;
                 Certificate? peerCertificate = null;
                 try
                 {
@@ -441,11 +440,12 @@ namespace Opc.Ua.Bindings
 
         /// <inheritdoc cref="ITcpChannelListener.ReconnectToExistingChannel"/>
         public bool ReconnectToExistingChannel(
+            TcpListenerChannel reconnectingChannel,
             IUaSCByteTransport transport,
             uint requestId,
             uint sequenceNumber,
             uint channelId,
-            Security.Certificates.Certificate clientCertificate,
+            Certificate clientCertificate,
             ChannelToken token,
             OpenSecureChannelRequest request)
         {
@@ -658,7 +658,8 @@ namespace Opc.Ua.Bindings
                     RequestEncoding.Binary,
                     channel.ClientCertificate?.RawData,
                     channel.ServerCertificate?.RawData,
-                    channel.ChannelThumbprint);
+                    channel.ChannelThumbprint,
+                    (channel.Transport?.RemoteEndpoint as IPEndPoint)?.Address);
                 IServiceResponse response = await m_callback
                     .ProcessRequestAsync(context, request)
                     .ConfigureAwait(false);

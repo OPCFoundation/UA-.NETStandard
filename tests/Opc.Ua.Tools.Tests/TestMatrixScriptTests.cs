@@ -551,6 +551,89 @@ namespace Opc.Ua.Tools.Tests
             });
         }
 
+        [TestCase(true, "test", LensProjectFile, true)]
+        [TestCase(false, "test", LensProjectFile, false)]
+        [TestCase(true, "build", LensProjectFile, false)]
+        [TestCase(true, "test", "tests/Opc.Ua.Core.Tests/Opc.Ua.Core.Tests.csproj", false)]
+        [TestCase(true, "test", "tests/Other/Opc.Ua.Lens.Tests.csproj.other", false)]
+        public async Task GitHubBatchWrapsOnlyLinuxDesktopTestsAndPreservesArgumentsAsync(
+            bool linux, string verb, string project, bool wrapped)
+        {
+            string discovery = wrapped
+                ? """
+                    function Get-Command
+                    {
+                        param([string] $Name, [string] $CommandType, [string] $ErrorAction)
+                        if ($Name -ne 'xvfb-run' -or $CommandType -ne 'Application')
+                        {
+                            throw 'Unexpected command discovery.'
+                        }
+                        [pscustomobject]@{ Source = 'fixture-xvfb-run' }
+                    }
+                    """
+                : "function Get-Command { throw 'Non-desktop invocations must not require Xvfb.' }";
+            string[] arguments =
+            [
+                verb, project, "--filter", "TestCategory!=LongRunning&TestCategory!=Stress",
+                "--results-directory", "results with spaces", "--collect:XPlat Code Coverage"
+            ];
+            string invocation = $$"""
+                $startInfo = New-DotnetStartInfo `
+                    -arguments @({{string.Join(", ", arguments.Select(QuotePowerShell))}}) `
+                    -linux ${{linux.ToString().ToLowerInvariant()}}
+                @{
+                    fileName = $startInfo.FileName
+                    arguments = @($startInfo.ArgumentList)
+                    useShell = $startInfo.UseShellExecute
+                } | ConvertTo-Json -Compress
+                """;
+
+            ScriptResult result = await RunGitHubStartInfoAsync(discovery, invocation).ConfigureAwait(false);
+
+            Assert.That(result.ExitCode, Is.Zero, result.Output);
+            using JsonDocument document = JsonDocument.Parse(result.Output);
+            Assert.That(document.RootElement.GetProperty("fileName").GetString(),
+                Is.EqualTo(wrapped ? "fixture-xvfb-run" : "dotnet"));
+            Assert.That(document.RootElement.GetProperty("useShell").GetBoolean(), Is.False);
+            string[] expected = wrapped ? ["-a", "dotnet", .. arguments] : arguments;
+            Assert.That(document.RootElement.GetProperty("arguments").EnumerateArray()
+                .Select(static argument => argument.GetString()), Is.EqualTo(expected));
+        }
+
+        [Test]
+        public async Task GitHubBatchRejectsMissingVirtualDisplayWithoutFallbackAsync()
+        {
+            ScriptResult result = await RunGitHubStartInfoAsync(
+                "function Get-Command { }",
+                $"New-DotnetStartInfo -arguments @('test', {QuotePowerShell(LensProjectFile)}) -linux $true")
+                .ConfigureAwait(false);
+
+            Assert.That(result.ExitCode, Is.EqualTo(1), result.Output);
+            Assert.That(PowerShellScriptOutput.Normalize(result.Output),
+                Does.Contain("UaLens desktop tests require xvfb-run on the Linux agent."));
+        }
+
+        private static Task<ScriptResult> RunGitHubStartInfoAsync(string discovery, string invocation)
+        {
+            string root = FindRepositoryRoot();
+            string executor = Path.Combine(root, ".github", "scripts", "run-dotnet-tests.ps1");
+            string command = $$"""
+                $ErrorActionPreference = 'Stop'
+                $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+                    {{QuotePowerShell(executor)}}, [ref]$null, [ref]$null)
+                $definition = $ast.Find({
+                    param($node)
+                    $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+                        $node.Name -eq 'New-DotnetStartInfo'
+                }, $true)
+                if ($null -eq $definition) { throw 'The batch runner has no process-start contract.' }
+                . ([scriptblock]::Create($definition.Extent.Text))
+                {{discovery}}
+                {{invocation}}
+                """;
+            return RunPowerShellAsync(root, command);
+        }
+
         private static async Task<string> ReadTestTemplateAsync()
         {
             string template = await File.ReadAllTextAsync(

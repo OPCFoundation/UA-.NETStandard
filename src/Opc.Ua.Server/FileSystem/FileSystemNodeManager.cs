@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -91,6 +92,20 @@ namespace Opc.Ua.Server.FileSystem
         /// </summary>
         public new ushort NamespaceIndex { get; }
 
+        /// <summary>
+        /// Gets the number of files with retained handle state.
+        /// </summary>
+        internal int TrackedFileCount
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_handles.Count;
+                }
+            }
+        }
+
         bool IFileSystemHost.AllowCreate => true;
 
         bool IFileSystemHost.AllowDelete => true;
@@ -112,6 +127,20 @@ namespace Opc.Ua.Server.FileSystem
         FileHandle? IFileSystemHost.GetOrCreateHandle(NodeId nodeId, string providerPath)
         {
             return GetOrCreateHandle(nodeId, providerPath);
+        }
+
+        FileHandle? IFileSystemHost.FindHandle(string providerPath)
+        {
+            string identity = FileSystemDirectoryOperations.GetPathIdentity(Provider, providerPath);
+            lock (m_lock)
+            {
+                return m_handles.TryGetValue(identity, out FileHandle? handle) ? handle : null;
+            }
+        }
+
+        void IFileSystemHost.ReleaseHandle(FileHandle handle)
+        {
+            ReleaseHandle(handle);
         }
 
         void IFileSystemHost.ForgetHandle(NodeId nodeId)
@@ -218,6 +247,7 @@ namespace Opc.Ua.Server.FileSystem
             foreach (FileHandle handle in handles)
             {
                 handle.CloseSession(sessionId);
+                ReleaseHandle(handle);
             }
 
             return base.SessionClosingAsync(
@@ -235,6 +265,7 @@ namespace Opc.Ua.Server.FileSystem
                 FileHandle[] handles;
                 lock (m_lock)
                 {
+                    m_fileSystemDisposed = true;
                     handles = [.. m_handles.Values];
                     m_handles.Clear();
                 }
@@ -282,8 +313,14 @@ namespace Opc.Ua.Server.FileSystem
                     return null!;
                 }
 
+                if (!TryNormalizeProviderPath(
+                    parsed.Value.ProviderPath, Path.DirectorySeparatorChar == '\\', out string providerPath))
+                {
+                    return null!;
+                }
+
                 FileSystemEntry? entry = await Provider
-                    .GetEntryAsync(parsed.Value.ProviderPath, cancellationToken)
+                    .GetEntryAsync(providerPath, cancellationToken)
                     .ConfigureAwait(false);
                 if (parsed.Value.RootType != FileSystemNodeId.Root && entry == null)
                 {
@@ -300,14 +337,14 @@ namespace Opc.Ua.Server.FileSystem
                         isRoot: true),
                     FileSystemNodeId.Directory => new DirectoryObjectState(
                         context,
-                        FileSystemNodeId.BuildDirectory(parsed.Value.ProviderPath, NamespaceIndex),
-                        parsed.Value.ProviderPath,
+                        FileSystemNodeId.BuildDirectory(providerPath, NamespaceIndex),
+                        providerPath,
                         entry!.Value.Name,
                         isRoot: false),
                     FileSystemNodeId.File => new FileObjectState(
                         context,
-                        FileSystemNodeId.BuildFile(parsed.Value.ProviderPath, NamespaceIndex),
-                        parsed.Value.ProviderPath,
+                        FileSystemNodeId.BuildFile(providerPath, NamespaceIndex),
+                        providerPath,
                         entry!.Value.Name),
                     _ => null
                 };
@@ -332,6 +369,15 @@ namespace Opc.Ua.Server.FileSystem
                 handle.Validated = true;
                 handle.Node = target = component;
                 return target;
+            }
+            catch (Exception ex) when (
+                ex is IOException or
+                UnauthorizedAccessException or
+                ArgumentException or
+                NotSupportedException or
+                PathTooLongException)
+            {
+                return null!;
             }
             finally
             {
@@ -397,15 +443,38 @@ namespace Opc.Ua.Server.FileSystem
         /// </summary>
         internal FileHandle? GetOrCreateHandle(NodeId nodeId, string providerPath)
         {
+            if (nodeId.NamespaceIndex != NamespaceIndex)
+            {
+                return null;
+            }
+            string identity = FileSystemDirectoryOperations.GetPathIdentity(Provider, providerPath);
             lock (m_lock)
             {
-                if (m_handles.TryGetValue(nodeId, out FileHandle? handle))
+                if (m_fileSystemDisposed)
+                {
+                    return null;
+                }
+                if (m_handles.TryGetValue(identity, out FileHandle? handle))
                 {
                     return handle;
                 }
                 handle = new FileHandle(Provider, providerPath);
-                m_handles.Add(nodeId, handle);
+                m_handles.Add(identity, handle);
                 return handle;
+            }
+        }
+
+        private void ReleaseHandle(FileHandle handle)
+        {
+            string identity = FileSystemDirectoryOperations.GetPathIdentity(Provider, handle.ProviderPath);
+            lock (m_lock)
+            {
+                if (m_handles.TryGetValue(identity, out FileHandle? current) &&
+                    ReferenceEquals(current, handle) &&
+                    handle.TryRetire())
+                {
+                    m_handles.Remove(identity);
+                }
             }
         }
 
@@ -416,14 +485,21 @@ namespace Opc.Ua.Server.FileSystem
         /// </summary>
         internal void ForgetHandle(NodeId nodeId)
         {
+            if (nodeId.NamespaceIndex != NamespaceIndex ||
+                !FileSystemNodeId.TryParse(nodeId, out FileSystemNodeId parsed))
+            {
+                return;
+            }
+            string identity = FileSystemDirectoryOperations.GetPathIdentity(Provider, parsed.ProviderPath);
+            FileHandle? retired;
             lock (m_lock)
             {
-                if (m_handles.TryGetValue(nodeId, out FileHandle? handle))
+                if (m_handles.TryGetValue(identity, out retired))
                 {
-                    handle.Dispose();
-                    m_handles.Remove(nodeId);
+                    m_handles.Remove(identity);
                 }
             }
+            retired?.Dispose();
         }
 
         NodeId IFileSystemHost.BuildDirectoryNodeId(string providerPath)
@@ -438,18 +514,30 @@ namespace Opc.Ua.Server.FileSystem
             return FileSystemNodeId.BuildFile(providerPath, NamespaceIndex);
         }
 
-        ValueTask IFileSystemHost.OnProviderChangedAsync(CancellationToken cancellationToken)
+        /// <inheritdoc/>
+        ValueTask IFileSystemHost.ApplyMutationAsync(
+            FileSystemMutationKind kind,
+            string path,
+            string targetPath,
+            NodeId sourceNodeId,
+            CancellationToken cancellationToken)
         {
-            return default;
+            return FileSystemDirectoryOperations.ApplyProviderMutationAsync(
+                this, kind, path, targetPath, sourceNodeId, cancellationToken);
         }
 
+        /// <inheritdoc/>
         bool IFileSystemHost.TryGetProviderPath(
             NodeId nodeId,
             out string providerPath,
             out bool isDirectory,
             out bool isRoot)
         {
-            if (!FileSystemNodeId.TryParse(nodeId, out FileSystemNodeId parsed))
+            if (nodeId.NamespaceIndex != NamespaceIndex ||
+                !FileSystemNodeId.TryParse(nodeId, out FileSystemNodeId parsed) ||
+                parsed.ComponentPath != null ||
+                !TryNormalizeProviderPath(parsed.ProviderPath, Path.DirectorySeparatorChar == '\\', out providerPath) ||
+                (parsed.RootType == FileSystemNodeId.Root && !string.IsNullOrEmpty(providerPath)))
             {
                 providerPath = string.Empty;
                 isDirectory = false;
@@ -457,9 +545,33 @@ namespace Opc.Ua.Server.FileSystem
                 return false;
             }
 
-            providerPath = parsed.ProviderPath;
             isDirectory = parsed.RootType != FileSystemNodeId.File;
-            isRoot = parsed.RootType == FileSystemNodeId.Root;
+            isRoot = string.IsNullOrEmpty(providerPath);
+            return true;
+        }
+
+        /// <summary>
+        /// Normalizes root spellings and rejects provider paths with ambiguous or traversal segments.
+        /// </summary>
+        internal static bool TryNormalizeProviderPath(string path, bool windowsPaths, out string providerPath)
+        {
+            providerPath = string.Empty;
+            if ((windowsPaths ? path.Trim(s_pathSeparators) : path.Trim('/')).Length == 0)
+            {
+                return true;
+            }
+            if (windowsPaths && path.AsSpan().IndexOfAny('\\', ':') >= 0)
+            {
+                return false;
+            }
+            foreach (string segment in path.Split('/'))
+            {
+                if (string.IsNullOrWhiteSpace(segment) || segment is "." or "..")
+                {
+                    return false;
+                }
+            }
+            providerPath = path;
             return true;
         }
 
@@ -478,8 +590,14 @@ namespace Opc.Ua.Server.FileSystem
             return NamespaceUriBase + "/" + provider.MountName;
         }
 
-        private readonly Dictionary<NodeId, FileHandle> m_handles = [];
+        private readonly Dictionary<string, FileHandle> m_handles = new(StringComparer.Ordinal);
         private readonly Lock m_lock = new();
+        private bool m_fileSystemDisposed;
+
+        /// <summary>
+        /// Identifies separator-only spellings of the mounted root.
+        /// </summary>
+        private static readonly char[] s_pathSeparators = ['/', '\\'];
 
         /// <summary>
         /// Boxes a <see cref="FileSystemNodeId"/> for storage in

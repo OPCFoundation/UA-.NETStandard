@@ -1949,8 +1949,13 @@ namespace Opc.Ua
             if (BeginField(fieldName, true, out bool isNil))
             {
                 var encodeables = new List<T>();
-                XmlQualifiedName? xmlName = TypeInfo.GetXmlName(typeof(T));
-                PushNamespace(xmlName!.Namespace);
+                XmlQualifiedName? xmlName = Context.Factory.TryGetEncodeableType(
+                    encodeableTypeId, out IEncodeableType? encodeableType)
+                    ? encodeableType.XmlName
+                    : TypeInfo.GetXmlName(typeof(T));
+                PushNamespace(xmlName!.Namespace == Namespaces.OpcUa
+                    ? Namespaces.OpcUaXsd
+                    : xmlName.Namespace);
 
                 while (MoveToElement(xmlName.Name))
                 {

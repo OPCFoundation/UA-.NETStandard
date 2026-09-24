@@ -187,12 +187,24 @@ namespace UaLens
         {
             public ILoggerFactory LoggerFactory { get; } = NullLoggerFactory.Instance;
 
+            public ActivitySource ActivitySource { get; } = new("UaLens.Smoke");
+
             public Meter CreateMeter()
             {
                 return new("UaLens.Smoke");
             }
 
-            public ActivitySource ActivitySource { get; } = new("UaLens.Smoke");
+            public Meter CreateMeter(System.Reflection.Assembly assembly)
+            {
+                ArgumentNullException.ThrowIfNull(assembly);
+                return CreateMeter();
+            }
+
+            public ActivitySource GetActivitySource(System.Reflection.Assembly assembly)
+            {
+                ArgumentNullException.ThrowIfNull(assembly);
+                return ActivitySource;
+            }
         }
     }
 }

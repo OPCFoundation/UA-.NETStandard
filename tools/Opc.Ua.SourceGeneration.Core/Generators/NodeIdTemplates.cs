@@ -94,7 +94,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static readonly TemplateString IdDeclaration = TemplateString.Parse(
             $$"""
-            public const {{Tokens.IdType}} {{Tokens.SymbolicName}} = {{Tokens.Identifier}};
+            public {{Tokens.IdModifier}} {{Tokens.IdType}} {{Tokens.SymbolicName}} = {{Tokens.Identifier}};
 
             """);
 

@@ -67,13 +67,11 @@ internal sealed class AlarmEventProjection
         {
             clause.TypeDefinitionId = DeclaringType(clause.BrowsePath);
         }
-        ConditionIdIndex = Filter.SelectClauses.Count;
-        Filter.SelectClauses = Filter.SelectClauses.AddItem(new SimpleAttributeOperand
+        ConditionIdIndex = Array.FindIndex(m_registry.StandardFields, static path => path.Length == 0);
+        if (ConditionIdIndex < 0)
         {
-            TypeDefinitionId = ObjectTypeIds.ConditionType,
-            AttributeId = Attributes.NodeId,
-            BrowsePath = []
-        });
+            throw new InvalidOperationException("The generated alarm decoder does not select ConditionId.");
+        }
         Filter.WhereClause = new ContentFilter
         {
             Elements =

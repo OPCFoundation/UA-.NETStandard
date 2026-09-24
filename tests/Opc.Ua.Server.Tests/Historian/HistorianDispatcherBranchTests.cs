@@ -39,6 +39,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Historian;
@@ -69,7 +70,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 BrowseName = new QualifiedName("Var")
             };
 
-            var sentinel = new InMemoryHistorianProvider();
+            var sentinel = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(HarnessFixture.BaseTime));
             IHistorianProvider? resolved = HistorianDispatcher.ResolveProvider(
                 h.MockServer.Object, node, sentinel);
 
@@ -82,7 +85,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public void ResolveProviderFallsBackToRegistryWhenNoOverride()
         {
-            var sentinel = new InMemoryHistorianProvider();
+            var sentinel = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(HarnessFixture.BaseTime));
             var nodeId = new NodeId("resolve-registry", 1);
 
             var mockRegistry = new Mock<IHistorianProviderRegistry>();
@@ -374,6 +379,9 @@ namespace Opc.Ua.Server.Tests.Historian
             BaseDataVariableState node = CreateVariable(nodeId);
             var provider = new Mock<IHistorianProvider>();
             provider
+                .Setup(value => value.IsHistorizingAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<bool>(true));
+            provider
                 .Setup(value => value.GetCapabilitiesAsync(
                     nodeId,
                     It.IsAny<CancellationToken>()))
@@ -436,6 +444,9 @@ namespace Opc.Ua.Server.Tests.Historian
             var nodeId = new NodeId("continued-node", 1);
             BaseDataVariableState node = CreateVariable(nodeId);
             var provider = new Mock<IHistorianProvider>();
+            provider
+                .Setup(value => value.IsHistorizingAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<bool>(true));
             provider
                 .Setup(value => value.GetCapabilitiesAsync(
                     nodeId,
@@ -526,6 +537,9 @@ namespace Opc.Ua.Server.Tests.Historian
             var nodeId = new NodeId("continued-capability-node", 1);
             BaseDataVariableState node = CreateVariable(nodeId);
             var provider = new Mock<IHistorianProvider>();
+            provider
+                .Setup(value => value.IsHistorizingAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<bool>(true));
             provider
                 .SetupSequence(value => value.GetCapabilitiesAsync(
                     nodeId,
@@ -922,7 +936,7 @@ namespace Opc.Ua.Server.Tests.Historian
             HistorianOperationContext context =
                 HarnessFixture.CreateContext(h.SystemContext);
             DateTimeUtc startTime = DateTimeUtc.MaxValue;
-            DateTime maximum = startTime.ToDateTime();
+            var maximum = startTime.ToDateTime();
             DateTimeUtc middle = new(
                 maximum.AddMilliseconds(-5));
             DateTimeUtc endTime = new(
@@ -1258,6 +1272,9 @@ namespace Opc.Ua.Server.Tests.Historian
             BaseDataVariableState node = CreateVariable(nodeId);
             var provider = new Mock<IHistorianProvider>();
             provider
+                .Setup(value => value.IsHistorizingAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<bool>(true));
+            provider
                 .Setup(value => value.GetCapabilitiesAsync(
                     nodeId,
                     It.IsAny<CancellationToken>()))
@@ -1368,7 +1385,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
             public HarnessFixture(bool withAggregateManager = false)
             {
-                Provider = new InMemoryHistorianProvider();
+                Provider = new InMemoryHistorianProvider(
+                    new InMemoryHistorianOptions(),
+                    new FakeTimeProvider(BaseTime));
 
                 var mockTelemetry = new Mock<ITelemetryContext>();
 

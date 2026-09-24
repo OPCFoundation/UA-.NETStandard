@@ -814,6 +814,14 @@ server that already owns an OPC 40010 node manager can instead use `ConfigureRob
 and then link a `MotionDeviceSystem` to the intent controller with `HasIntentController`. That inverse
 reference is the structural evidence used to derive **RI-Interop-40010**.
 
+`RobotIntentNodeManager.DisposeAsync` waits for every controller host and the base
+node-manager cleanup, including work deferred after `ExecutorShutdownTimeoutMs`
+expires. That host-level timeout does not permit shared server resources to be
+released while an executor is still running. Executors must therefore honor
+shutdown cancellation for asynchronous server teardown to complete. Synchronous
+`Dispose` remains nonblocking when host cleanup is deferred; subsequent or
+concurrent `DisposeAsync` calls join that cleanup and observe any failure.
+
 ### Declaring a robot
 
 The controller builder makes the model declaration and the host declaration one thing. What the server

@@ -253,6 +253,18 @@ public sealed class ConnectionSecureProbeTests
             return new Meter(nameof(ConnectionSecureProbeTests));
         }
 
+        public Meter CreateMeter(System.Reflection.Assembly assembly)
+        {
+            ArgumentNullException.ThrowIfNull(assembly);
+            return CreateMeter();
+        }
+
+        public ActivitySource GetActivitySource(System.Reflection.Assembly assembly)
+        {
+            ArgumentNullException.ThrowIfNull(assembly);
+            return ActivitySource;
+        }
+
         public void Dispose()
         {
             ActivitySource.Dispose();

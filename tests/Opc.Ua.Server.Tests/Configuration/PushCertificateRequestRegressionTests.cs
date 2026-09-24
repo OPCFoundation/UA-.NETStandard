@@ -1,0 +1,788 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+// CA2000: disposable test helpers are short-lived or ownership-transferred to the fixture under test.
+#pragma warning disable CA2000
+using System;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Security.Cryptography;
+using System.Threading;
+using System.Threading.Tasks;
+using Moq;
+using NUnit.Framework;
+using Opc.Ua.Security.Certificates;
+using Opc.Ua.Server.TestFramework;
+using Opc.Ua.Tests;
+using Quickstarts.ReferenceServer;
+
+namespace Opc.Ua.Server.Tests
+{
+    /// <summary>
+    /// Verifies certificate requests, pending-key recovery, and active-certificate use by configuration methods.
+    /// </summary>
+    [TestFixture]
+    [Category("ConfigurationNodeManager")]
+    [NonParallelizable]
+    public sealed class PushCertificateRequestRegressionTests
+    {
+        /// <summary>
+        /// Starts a reference server with RSA, HTTPS, and elliptic-curve certificate slots for push requests.
+        /// </summary>
+        [OneTimeSetUp]
+        public async Task StartAsync()
+        {
+            m_path = Path.Combine(Path.GetTempPath(), "push-request-" + Guid.NewGuid().ToString("N"));
+            m_fixture = new ServerFixture<ReferenceServer>(telemetry => new ReferenceServer(telemetry));
+            await m_fixture.LoadConfigurationAsync(m_path).ConfigureAwait(false);
+            SecurityConfiguration security = m_fixture.Config.SecurityConfiguration;
+            string ownPath = Path.Combine(m_path, "https-own");
+            security.ApplicationCertificates += new CertificateIdentifier
+            {
+                StorePath = ownPath,
+                StoreType = CertificateStoreType.Directory,
+                SubjectName = "CN=localhost",
+                CertificateType = ObjectTypeIds.HttpsCertificateType
+            };
+            security.ApplicationCertificates += new CertificateIdentifier
+            {
+                StorePath = Path.Combine(m_path, "ecc-own"),
+                StoreType = CertificateStoreType.Directory,
+                SubjectName = "CN=Regression ECC",
+                CertificateType = ObjectTypeIds.EccNistP256ApplicationCertificateType
+            };
+            security.HttpsIssuerCertificates = new CertificateTrustList { StorePath = Path.Combine(m_path, "https-issuers") };
+            security.TrustedHttpsCertificates = new CertificateTrustList { StorePath = Path.Combine(m_path, "https-trusted") };
+            await m_fixture.StartAsync().ConfigureAwait(false);
+            m_manager = (ConfigurationNodeManager)m_fixture.Server.CurrentInstance.ConfigurationNodeManager;
+            m_node = m_manager.FindPredefinedNode<ServerConfigurationState>(ObjectIds.ServerConfiguration);
+            m_context = CreateAdminContext();
+        }
+
+        /// <summary>
+        /// Stops the server and removes the temporary configuration and certificate stores.
+        /// </summary>
+        [OneTimeTearDown]
+        public async Task StopAsync()
+        {
+            await m_fixture.StopAsync().ConfigureAwait(false);
+            if (Directory.Exists(m_path))
+            {
+                Directory.Delete(m_path, recursive: true);
+            }
+        }
+
+        /// <summary>
+        /// Cancels staged configuration changes so each case starts without a pending transaction.
+        /// </summary>
+        [TearDown]
+        public async Task CancelPendingAsync()
+        {
+            await m_node.CancelChanges.OnCallMethod2Async(
+                m_context, m_node.CancelChanges, m_node.NodeId, [], [], CancellationToken.None).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Verifies that a self-signed HTTPS request creates the requested RSA certificate and installs its private
+        /// key.
+        /// </summary>
+        [Test]
+        public async Task SelfSignedHttpsSlotUsesRsaAndAppliesSuccessfullyAsync()
+        {
+            NodeId group = ObjectIds.ServerConfiguration_CertificateGroups_DefaultHttpsGroup;
+            NodeId type = ObjectTypeIds.HttpsCertificateType;
+            await m_node.DeleteCertificate.OnCallAsync(
+                m_context, m_node.DeleteCertificate, m_node.NodeId, group, type, CancellationToken.None)
+                .ConfigureAwait(false);
+            CreateSelfSignedCertificateMethodStateResult created = await m_node.CreateSelfSignedCertificate.OnCallAsync(
+                m_context, m_node.CreateSelfSignedCertificate, m_node.NodeId, group, type,
+                "CN=localhost", ["localhost"], ["127.0.0.1"], 30, 2048, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(created.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+            using var certificate = Certificate.FromRawData(created.Certificate);
+            using RSA key = certificate.GetRSAPublicKey();
+            Assert.That(key, Is.Not.Null);
+            Assert.That(key.KeySize, Is.EqualTo(2048));
+            Assert.That(certificate.Subject, Is.EqualTo("CN=localhost"));
+            Assert.That(X509Utils.GetDomainsFromCertificate(certificate).ToArray(),
+                Is.EquivalentTo(s_domains).IgnoreCase);
+
+            ServiceResult applied = await m_node.ApplyChanges.OnCallMethod2Async(
+                m_context, m_node.ApplyChanges, m_node.NodeId, [], [], CancellationToken.None).ConfigureAwait(false);
+            Assert.That(applied.StatusCode, Is.EqualTo(StatusCodes.Good));
+            await m_manager.DrainPendingApplyChangesAsync(CancellationToken.None).ConfigureAwait(false);
+            using CertificateEntry entry = m_fixture.Server.CertificateManager.AcquireApplicationCertificateByType(type);
+            Assert.That(entry.Certificate.RawData, Is.EqualTo(certificate.RawData));
+            Assert.That(entry.Certificate.HasPrivateKey, Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that existing-key signing requests honor subject overrides while preserving key and active
+        /// certificate.
+        /// </summary>
+        [TestCase(null, false)]
+        [TestCase("", false)]
+        [TestCase("CN=Requested Subject, O=Regression", false)]
+        [TestCase(null, true)]
+        [TestCase("", true)]
+        [TestCase("CN=Requested Subject, O=Regression", true)]
+        public async Task ExistingKeySigningRequestUsesRequestedSubjectWithoutChangingTheActiveCertificateAsync(
+            string subjectName, bool ecc)
+        {
+            NodeId type = ecc
+                ? ObjectTypeIds.EccNistP256ApplicationCertificateType
+                : ObjectTypeIds.RsaSha256ApplicationCertificateType;
+            using CertificateEntry before = m_fixture.Server.CertificateManager.AcquireApplicationCertificateByType(type);
+            var baseline = new Pkcs10CertificationRequest(
+                DefaultCertificateFactory.Instance.CreateSigningRequest(
+                    before.Certificate, X509Utils.GetDomainsFromCertificate(before.Certificate).ToArray()));
+            CreateSigningRequestMethodStateResult created = await m_node.CreateSigningRequest.OnCallAsync(
+                m_context, m_node.CreateSigningRequest, m_node.NodeId,
+                ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup, type,
+                subjectName, false, ByteString.Empty, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(created.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+            var request = new Pkcs10CertificationRequest(created.CertificateRequest.ToArray());
+            Assert.That(VerifySigningRequest(request, created.CertificateRequest), Is.True);
+            Assert.That(request.Subject.Name, Is.EqualTo(string.IsNullOrEmpty(subjectName)
+                ? before.Certificate.Subject
+                : subjectName));
+            Assert.That(request.SubjectPublicKeyInfo, Is.EqualTo(baseline.SubjectPublicKeyInfo));
+            Assert.That(request.Attributes, Is.EqualTo(baseline.Attributes));
+            using CertificateEntry after = m_fixture.Server.CertificateManager.AcquireApplicationCertificateByType(type);
+            Assert.That(after.Certificate.RawData, Is.EqualTo(before.Certificate.RawData));
+        }
+
+        /// <summary>
+        /// Verifies that a nonmatching upload leaves a regenerated key available for a later matching certificate.
+        /// </summary>
+        [Test]
+        public async Task NonmatchingUploadCannotConsumeTheRegeneratedSigningKeyAsync(
+            [Values] bool reuseActiveCertificate)
+        {
+            NodeId group = ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup;
+            NodeId type = ObjectTypeIds.RsaSha256ApplicationCertificateType;
+            using CertificateEntry active = m_fixture.Server.CertificateManager.AcquireApplicationCertificateByType(type);
+            string[] domains = X509Utils.GetDomainsFromCertificate(active.Certificate).ToArray();
+            using var entropy = RandomNumberGenerator.Create();
+            byte[] nonce = new byte[32];
+            entropy.GetBytes(nonce);
+            CreateSigningRequestMethodStateResult created = await m_node.CreateSigningRequest.OnCallAsync(
+                m_context, m_node.CreateSigningRequest, m_node.NodeId,
+                group, type, active.Certificate.Subject, true, new ByteString(nonce), CancellationToken.None).ConfigureAwait(false);
+            Assert.That(created.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+            var request = new Pkcs10CertificationRequest(created.CertificateRequest.ToArray());
+            Assert.That(request.Verify(), Is.True);
+
+            using Certificate wrong = DefaultCertificateFactory.Instance.CreateApplicationCertificate(
+                m_fixture.Config.ApplicationUri, m_fixture.Config.ApplicationName, active.Certificate.Subject, domains)
+                .CreateForRSA();
+            ByteString wrongUpload = new(reuseActiveCertificate ? active.Certificate.RawData : wrong.RawData);
+            if (reuseActiveCertificate)
+            {
+                UpdateCertificateMethodStateResult reused = await m_node.UpdateCertificate.OnCallAsync(
+                    m_context, m_node.UpdateCertificate, m_node.NodeId,
+                    group, type, wrongUpload, [], string.Empty, ByteString.Empty, CancellationToken.None)
+                    .ConfigureAwait(false);
+                Assert.That(reused.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+            }
+            else
+            {
+                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(() =>
+                    m_node.UpdateCertificate.OnCallAsync(
+                        m_context, m_node.UpdateCertificate, m_node.NodeId,
+                        group, type, wrongUpload, [], string.Empty, ByteString.Empty, CancellationToken.None).AsTask());
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            }
+            await CancelPendingAsync().ConfigureAwait(false);
+
+            using Certificate issuer = CertificateBuilder.Create("CN=Pending Signing Regression Issuer")
+                .SetCAConstraint().CreateForRSA();
+            using Certificate signed = DefaultCertificateFactory.Instance.CreateApplicationCertificate(
+                m_fixture.Config.ApplicationUri, m_fixture.Config.ApplicationName, active.Certificate.Subject, domains)
+                .SetIssuer(issuer)
+                .SetRSAPublicKey(request.SubjectPublicKeyInfo)
+                .CreateForRSA();
+            UpdateCertificateMethodStateResult accepted = await m_node.UpdateCertificate.OnCallAsync(
+                m_context, m_node.UpdateCertificate, m_node.NodeId,
+                group, type, new ByteString(signed.RawData), [new ByteString(issuer.RawData)],
+                string.Empty, ByteString.Empty, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(accepted.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+            ServiceResult applied = await m_node.ApplyChanges.OnCallMethod2Async(
+                m_context, m_node.ApplyChanges, m_node.NodeId, [], [], CancellationToken.None).ConfigureAwait(false);
+            Assert.That(applied.StatusCode, Is.EqualTo(StatusCodes.Good));
+            await m_manager.DrainPendingApplyChangesAsync(CancellationToken.None).ConfigureAwait(false);
+            using CertificateEntry after = m_fixture.Server.CertificateManager.AcquireApplicationCertificateByType(type);
+            Assert.That(after.Certificate.RawData, Is.EqualTo(signed.RawData));
+            Assert.That(after.Certificate.HasPrivateKey, Is.True);
+            using RSA privateKey = after.Certificate.GetRSAPrivateKey();
+            using RSA publicKey = signed.GetRSAPublicKey();
+            byte[] hash = new byte[32];
+            byte[] signature = privateKey.SignHash(hash, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            Assert.That(publicKey.VerifyHash(hash, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1), Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that cancellation after the commit claim restores the key without overwriting a newer request.
+        /// </summary>
+        [Test]
+        public async Task CancelledMatchingUploadRestoresOnlyAnUnreplacedPendingKeyAsync(
+            [Values] bool replaceDuringUpload)
+        {
+            FieldInfo field = typeof(ConfigurationNodeManager).GetField(
+                "m_pendingKeyStore", BindingFlags.Instance | BindingFlags.NonPublic);
+            var originalStore = (IPeekablePendingCertificateKeyStore)field.GetValue(m_manager);
+            using var cancellation = new CancellationTokenSource();
+            using Certificate replacement = DefaultCertificateFactory.Instance
+                .CreateCertificate("CN=Newer Pending Signing Request").CreateForRSA();
+            var store = new CancelAfterMatchingClaimStore(
+                originalStore, cancellation, replaceDuringUpload ? replacement : null);
+            field.SetValue(m_manager, store);
+            try
+            {
+                NodeId group = ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup;
+                NodeId type = ObjectTypeIds.RsaSha256ApplicationCertificateType;
+                using CertificateEntry active = m_fixture.Server.CertificateManager.AcquireApplicationCertificateByType(type);
+                using var entropy = RandomNumberGenerator.Create();
+                byte[] nonce = new byte[32];
+                entropy.GetBytes(nonce);
+                CreateSigningRequestMethodStateResult created = await m_node.CreateSigningRequest.OnCallAsync(
+                    m_context, m_node.CreateSigningRequest, m_node.NodeId,
+                    group, type, active.Certificate.Subject, true, new ByteString(nonce), CancellationToken.None)
+                    .ConfigureAwait(false);
+                var request = new Pkcs10CertificationRequest(created.CertificateRequest.ToArray());
+                using Certificate issuer = CertificateBuilder.Create("CN=Cancellation Signing Regression Issuer")
+                    .SetCAConstraint().CreateForRSA();
+                using Certificate signed = DefaultCertificateFactory.Instance.CreateApplicationCertificate(
+                    m_fixture.Config.ApplicationUri, m_fixture.Config.ApplicationName, active.Certificate.Subject,
+                    X509Utils.GetDomainsFromCertificate(active.Certificate).ToArray())
+                    .SetIssuer(issuer)
+                    .SetRSAPublicKey(request.SubjectPublicKeyInfo)
+                    .CreateForRSA();
+                UpdateCertificateMethodStateResult staged = await m_node.UpdateCertificate.OnCallAsync(
+                    m_context, m_node.UpdateCertificate, m_node.NodeId,
+                    group, type, new ByteString(signed.RawData), [new ByteString(issuer.RawData)],
+                    string.Empty, ByteString.Empty, cancellation.Token).ConfigureAwait(false);
+                Assert.That(staged.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(store.ClaimContext, Is.Null, "Staging must not claim the pending key.");
+                Assert.That(cancellation.IsCancellationRequested, Is.False);
+                ServiceResult applied = await m_node.ApplyChanges.OnCallMethod2Async(
+                    m_context, m_node.ApplyChanges, m_node.NodeId, [], [], cancellation.Token).ConfigureAwait(false);
+                Assert.That(applied.StatusCode, Is.EqualTo(StatusCodes.Bad));
+                Assert.That(cancellation.IsCancellationRequested, Is.True);
+                Assert.That(store.RestoreCalled, Is.True);
+                Assert.That(store.RestoreUsedCancelledToken, Is.False);
+                Assert.That(store.RestoreSucceeded, Is.EqualTo(!replaceDuringUpload));
+                using Certificate recovered = await originalStore.TryTakeAsync(store.ClaimContext).ConfigureAwait(false);
+                Assert.That(recovered, Is.Not.Null);
+                Assert.That(recovered.Thumbprint,
+                    Is.EqualTo(replaceDuringUpload ? replacement.Thumbprint : store.ClaimedThumbprint));
+                Assert.That(recovered.HasPrivateKey, Is.True);
+                using CertificateEntry current = m_fixture.Server.CertificateManager.AcquireApplicationCertificateByType(type);
+                Assert.That(current.Certificate.RawData, Is.EqualTo(active.Certificate.RawData));
+            }
+            finally
+            {
+                field.SetValue(m_manager, originalStore);
+            }
+        }
+
+        [Test]
+        public async Task ExistingKeyRenewalAppliesWithoutAPendingKeyAsync([Values] bool legacyStore)
+        {
+            IPendingCertificateKeyStore original = GetPendingStore();
+            if (legacyStore)
+            {
+                SetPendingStore(new LegacyPendingKeyStore(original));
+            }
+            try
+            {
+                using CertificateEntry before = m_fixture.Server.CertificateManager.AcquireApplicationCertificateByType(
+                    ObjectTypeIds.RsaSha256ApplicationCertificateType);
+                using Certificate signed = await CreateSignedRequestAsync(regenerate: false).ConfigureAwait(false);
+                await StageSignedRequestAsync(signed).ConfigureAwait(false);
+                await ApplyStagedAsync().ConfigureAwait(false);
+                using CertificateEntry after = m_fixture.Server.CertificateManager.AcquireApplicationCertificateByType(
+                    ObjectTypeIds.RsaSha256ApplicationCertificateType);
+                Assert.That(after.Certificate.RawData, Is.EqualTo(signed.RawData));
+                Assert.That(X509Utils.VerifyKeyPair(before.Certificate, after.Certificate), Is.True);
+            }
+            finally
+            {
+                SetPendingStore(original);
+            }
+        }
+
+        [Test]
+        public async Task CancelledCertificateOperationsRetainTheSigningKeyAsync(
+            [Values("update", "self-signed", "delete")] string operation,
+            [Values] bool sessionClose)
+        {
+            using Certificate signed = await CreateSignedRequestAsync(regenerate: true).ConfigureAwait(false);
+            if (operation == "update")
+            {
+                await StageSignedRequestAsync(signed).ConfigureAwait(false);
+            }
+            else
+            {
+                NodeId group = ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup;
+                NodeId type = ObjectTypeIds.RsaSha256ApplicationCertificateType;
+                await m_node.DeleteCertificate.OnCallAsync(
+                    m_context, m_node.DeleteCertificate, m_node.NodeId, group, type, CancellationToken.None)
+                    .ConfigureAwait(false);
+                if (operation == "self-signed")
+                {
+                    await m_node.CreateSelfSignedCertificate.OnCallAsync(
+                        m_context, m_node.CreateSelfSignedCertificate, m_node.NodeId, group, type,
+                        signed.Subject, ["localhost"], [], 30, 2048, CancellationToken.None).ConfigureAwait(false);
+                }
+            }
+
+            var store = (IPeekablePendingCertificateKeyStore)GetPendingStore();
+            using Certificate stagedKey = await store.TryPeekMatchingAsync(PendingContext(), signed)
+                .ConfigureAwait(false);
+            Assert.That(stagedKey, Is.Not.Null, "Staging must not consume or discard the signing request.");
+            if (sessionClose)
+            {
+                IPushConfigurationTransactionCoordinator coordinator = GetCoordinator();
+                coordinator.CancelForSessionClose(coordinator.OwnerSessionId);
+            }
+            else
+            {
+                await CancelPendingAsync().ConfigureAwait(false);
+            }
+
+            await StageSignedRequestAsync(signed).ConfigureAwait(false);
+            await ApplyStagedAsync().ConfigureAwait(false);
+            using CertificateEntry active = m_fixture.Server.CertificateManager.AcquireApplicationCertificateByType(
+                ObjectTypeIds.RsaSha256ApplicationCertificateType);
+            Assert.That(active.Certificate.RawData, Is.EqualTo(signed.RawData));
+            Assert.That(X509Utils.VerifyKeyPair(signed, active.Certificate), Is.True);
+        }
+
+        [Test]
+        public async Task LaterApplyFailureRestoresTheClaimUnlessANewerRequestExistsAsync(
+            [Values] bool replace)
+        {
+            using CertificateEntry before = m_fixture.Server.CertificateManager.AcquireApplicationCertificateByType(
+                ObjectTypeIds.RsaSha256ApplicationCertificateType);
+            using Certificate signed = await CreateSignedRequestAsync(regenerate: true).ConfigureAwait(false);
+            await StageSignedRequestAsync(signed).ConfigureAwait(false);
+            var store = (IPeekablePendingCertificateKeyStore)GetPendingStore();
+            PendingCertificateKeyContext pendingContext = PendingContext();
+            using Certificate newer = DefaultCertificateFactory.Instance.CreateCertificate("CN=Newer Signing Key")
+                .CreateForRSA();
+            bool laterOperationReached = false;
+            IPushConfigurationTransactionCoordinator coordinator = GetCoordinator();
+            coordinator.Stage(coordinator.OwnerSessionId, new PushConfigurationOperation
+            {
+                CommitAsync = async ct =>
+                {
+                    laterOperationReached = true;
+                    if (replace)
+                    {
+                        Assert.That(await store.SaveAsync(pendingContext, newer, ct).ConfigureAwait(false), Is.True);
+                    }
+                    throw new ServiceResultException(StatusCodes.BadInternalError, "Controlled later commit failure.");
+                }
+            });
+
+            ServiceResult result = await m_node.ApplyChanges.OnCallMethod2Async(
+                m_context, m_node.ApplyChanges, m_node.NodeId, [], [], CancellationToken.None).ConfigureAwait(false);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInternalError));
+            Assert.That(laterOperationReached, Is.True);
+            using CertificateEntry restored = m_fixture.Server.CertificateManager.AcquireApplicationCertificateByType(
+                ObjectTypeIds.RsaSha256ApplicationCertificateType);
+            Assert.That(restored.Certificate.RawData, Is.EqualTo(before.Certificate.RawData));
+            using Certificate retained = await store.TryPeekMatchingAsync(pendingContext, replace ? newer : signed)
+                .ConfigureAwait(false);
+            Assert.That(retained, Is.Not.Null);
+            Assert.That(X509Utils.VerifyKeyPair(replace ? newer : signed, retained), Is.True);
+            if (!replace)
+            {
+                await StageSignedRequestAsync(signed).ConfigureAwait(false);
+                await ApplyStagedAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task CertificateReplacementDiscardsCsrOnlyOnSuccessfulCommitAsync(
+            [Values] bool deleteOnly,
+            [Values] bool failLater)
+        {
+            NodeId group = ObjectIds.ServerConfiguration_CertificateGroups_DefaultHttpsGroup;
+            NodeId type = ObjectTypeIds.HttpsCertificateType;
+            using CertificateEntry before = m_fixture.Server.CertificateManager
+                .AcquireApplicationCertificateByType(type);
+            using Certificate signed = await CreateSignedRequestAsync(regenerate: true, https: true)
+                .ConfigureAwait(false);
+            await m_node.DeleteCertificate.OnCallAsync(
+                m_context, m_node.DeleteCertificate, m_node.NodeId, group, type, CancellationToken.None)
+                .ConfigureAwait(false);
+            if (!deleteOnly)
+            {
+                await m_node.CreateSelfSignedCertificate.OnCallAsync(
+                    m_context, m_node.CreateSelfSignedCertificate, m_node.NodeId, group, type,
+                    "CN=localhost", ["localhost"], [], 30, 2048, CancellationToken.None).ConfigureAwait(false);
+            }
+            var store = (IPeekablePendingCertificateKeyStore)GetPendingStore();
+            PendingCertificateKeyContext pendingContext = PendingContext(https: true);
+            using Certificate staged = await store.TryPeekMatchingAsync(pendingContext, signed).ConfigureAwait(false);
+            Assert.That(staged, Is.Not.Null);
+            if (failLater)
+            {
+                IPushConfigurationTransactionCoordinator coordinator = GetCoordinator();
+                coordinator.Stage(coordinator.OwnerSessionId, new PushConfigurationOperation
+                {
+                    CommitAsync = _ => throw new ServiceResultException(StatusCodes.BadInternalError)
+                });
+            }
+            ServiceResult result = await m_node.ApplyChanges.OnCallMethod2Async(
+                m_context, m_node.ApplyChanges, m_node.NodeId, [], [], CancellationToken.None).ConfigureAwait(false);
+            Assert.That(result.StatusCode, Is.EqualTo(failLater ? StatusCodes.BadInternalError : StatusCodes.Good));
+            await m_manager.DrainPendingApplyChangesAsync(CancellationToken.None).ConfigureAwait(false);
+            using Certificate pending = await store.TryPeekMatchingAsync(pendingContext, signed).ConfigureAwait(false);
+            Assert.That(pending is not null, Is.EqualTo(failLater));
+            if (failLater)
+            {
+                using CertificateEntry restored = m_fixture.Server.CertificateManager
+                    .AcquireApplicationCertificateByType(type);
+                Assert.That(restored.Certificate.RawData, Is.EqualTo(before.Certificate.RawData));
+                Assert.That(X509Utils.VerifyKeyPair(signed, pending), Is.True);
+            }
+            else if (deleteOnly)
+            {
+                await m_node.CreateSelfSignedCertificate.OnCallAsync(
+                    m_context, m_node.CreateSelfSignedCertificate, m_node.NodeId, group, type,
+                    "CN=localhost", ["localhost"], [], 30, 2048, CancellationToken.None).ConfigureAwait(false);
+                await ApplyStagedAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Verifies that a bound credential subject advertises the active server certificate and decrypts with its key.
+        /// </summary>
+        [Test]
+        public async Task BoundKeyCredentialSubjectUsesTheServersActiveCertificateRegistryAsync()
+        {
+            using var store = new InMemoryKeyCredentialStore();
+            var subject = new KeyCredentialPushSubject(store);
+            await m_manager.BindKeyCredentialPushAsync(subject).ConfigureAwait(false);
+            KeyCredentialConfigurationFolderState folder = m_manager.FindPredefinedNode<KeyCredentialConfigurationFolderState>(
+                KeyCredentialPushSubject.StandardConfigurationFolderNodeId);
+            CreateCredentialMethodStateResult created = await folder.CreateCredential.OnCallAsync(
+                m_context, folder.CreateCredential, folder.NodeId, "BoundCredential",
+                "urn:bound-credential", KeyCredentialBridgeOptions.DefaultProfileUri, [], CancellationToken.None)
+                .ConfigureAwait(false);
+            KeyCredentialConfigurationState node = m_manager.FindPredefinedNode<KeyCredentialConfigurationState>(
+                created.CredentialNodeId);
+            GetEncryptingKeyMethodStateResult key = await node.GetEncryptingKey.OnCallAsync(
+                m_context, node.GetEncryptingKey, node.NodeId,
+                "bound-secret", SecurityPolicies.Basic256Sha256, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(key.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+            using var receiver = Certificate.FromRawData(key.PublicKey);
+            using CertificateEntry active = m_fixture.Server.CertificateManager.AcquireApplicationCertificateByType(
+                ObjectTypeIds.RsaSha256ApplicationCertificateType);
+            Assert.That(receiver.RawData, Is.EqualTo(active.Certificate.RawData));
+            byte[] encrypted = EncryptedSecret.CreateForRsa(
+                m_context.AsMessageContext(), key.RevisedSecurityPolicyUri, receiver).Encrypt([63, 64, 65], []);
+            KeyCredentialUpdateMethodStateResult result = await node.UpdateCredential.OnCallAsync(
+                m_context, node.UpdateCredential, node.NodeId, "bound-secret",
+                new ByteString(encrypted), receiver.Thumbprint, key.RevisedSecurityPolicyUri, CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Server.KeyCredential credential = await store.GetAsync("bound-secret", CancellationToken.None).ConfigureAwait(false);
+            Assert.That(credential.Secret, Is.EqualTo("?@A"u8.ToArray()));
+        }
+
+        /// <summary>
+        /// Verifies a signing-request signature with the implementation available on the target framework.
+        /// </summary>
+        private static bool VerifySigningRequest(Pkcs10CertificationRequest request, ByteString encoded)
+        {
+#if NETFRAMEWORK
+            return new Org.BouncyCastle.Pkcs.Pkcs10CertificationRequest(encoded.ToArray()).Verify();
+#else
+            return request.Verify();
+#endif
+        }
+
+        /// <summary>
+        /// Creates an encrypted call context authorized to administer certificates and credentials.
+        /// </summary>
+        private static SessionSystemContext CreateAdminContext()
+        {
+            var identity = new Mock<IUserIdentity>();
+            identity.SetupGet(value => value.TokenType).Returns(UserTokenType.UserName);
+            identity.SetupGet(value => value.GrantedRoleIds).Returns([ObjectIds.WellKnownRole_SecurityAdmin]);
+            var channel = new SecureChannelContext("push", new EndpointDescription
+            {
+                SecurityMode = MessageSecurityMode.SignAndEncrypt
+            }, RequestEncoding.Binary);
+            var operation = new OperationContext(
+                new RequestHeader(), channel, RequestType.Call, RequestLifetime.None, identity.Object);
+            return new SessionSystemContext(operation, NUnitTelemetryContext.Create())
+            {
+                NamespaceUris = new NamespaceTable(),
+                ServerUris = new StringTable()
+            };
+        }
+
+        private async Task<Certificate> CreateSignedRequestAsync(bool regenerate, bool https = false)
+        {
+            NodeId type = https
+                ? ObjectTypeIds.HttpsCertificateType : ObjectTypeIds.RsaSha256ApplicationCertificateType;
+            NodeId group = https
+                ? ObjectIds.ServerConfiguration_CertificateGroups_DefaultHttpsGroup
+                : ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup;
+            using CertificateEntry active = m_fixture.Server.CertificateManager
+                .AcquireApplicationCertificateByType(type);
+            CreateSigningRequestMethodStateResult result = await m_node.CreateSigningRequest.OnCallAsync(
+                m_context, m_node.CreateSigningRequest, m_node.NodeId, group, type, active.Certificate.Subject,
+                regenerate, new ByteString(Nonce.CreateRandomNonceData(32)), CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+            var request = new Pkcs10CertificationRequest(result.CertificateRequest.ToArray());
+            Assert.That(request.Verify(), Is.True);
+            using Certificate issuer = CertificateBuilder.Create("CN=Transaction Test Issuer")
+                .SetCAConstraint().CreateForRSA();
+            return DefaultCertificateFactory.Instance.CreateApplicationCertificate(
+                m_fixture.Config.ApplicationUri, m_fixture.Config.ApplicationName, active.Certificate.Subject,
+                X509Utils.GetDomainsFromCertificate(active.Certificate).ToArray())
+                .SetIssuer(issuer).SetRSAPublicKey(request.SubjectPublicKeyInfo).CreateForRSA();
+        }
+
+        private async Task StageSignedRequestAsync(Certificate certificate)
+        {
+            UpdateCertificateMethodStateResult result = await m_node.UpdateCertificate.OnCallAsync(
+                m_context, m_node.UpdateCertificate, m_node.NodeId,
+                ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
+                ObjectTypeIds.RsaSha256ApplicationCertificateType, new ByteString(certificate.RawData), [],
+                string.Empty, ByteString.Empty, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+        }
+
+        private async Task ApplyStagedAsync()
+        {
+            ServiceResult result = await m_node.ApplyChanges.OnCallMethod2Async(
+                m_context, m_node.ApplyChanges, m_node.NodeId, [], [], CancellationToken.None).ConfigureAwait(false);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            await m_manager.DrainPendingApplyChangesAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+
+        private PendingCertificateKeyContext PendingContext(bool https = false)
+        {
+            NodeId type = https
+                ? ObjectTypeIds.HttpsCertificateType : ObjectTypeIds.RsaSha256ApplicationCertificateType;
+            CertificateIdentifier identifier = m_fixture.Config.SecurityConfiguration.ApplicationCertificates.ToList()
+                .Single(item => item.CertificateType == type);
+            return new PendingCertificateKeyContext(
+                new CertificateStoreIdentifier(identifier.StorePath, identifier.StoreType, false),
+                https ? ObjectIds.ServerConfiguration_CertificateGroups_DefaultHttpsGroup
+                    : ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
+                type, m_fixture.Config.SecurityConfiguration.CertificatePasswordProvider,
+                m_fixture.Server.CurrentInstance.Telemetry);
+        }
+
+        private IPendingCertificateKeyStore GetPendingStore()
+        {
+            return (IPendingCertificateKeyStore)typeof(ConfigurationNodeManager).GetField(
+                "m_pendingKeyStore", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(m_manager);
+        }
+
+        private void SetPendingStore(IPendingCertificateKeyStore store)
+        {
+            typeof(ConfigurationNodeManager).GetField(
+                "m_pendingKeyStore", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(m_manager, store);
+        }
+
+        private IPushConfigurationTransactionCoordinator GetCoordinator()
+        {
+            return (IPushConfigurationTransactionCoordinator)typeof(ConfigurationNodeManager).GetField(
+                "m_coordinator", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(m_manager);
+        }
+
+        private sealed class LegacyPendingKeyStore(IPendingCertificateKeyStore inner) : IPendingCertificateKeyStore
+        {
+            public ValueTask<bool> SaveAsync(
+                PendingCertificateKeyContext context, Certificate certificateWithPrivateKey,
+                CancellationToken cancellationToken = default)
+            {
+                return inner.SaveAsync(context, certificateWithPrivateKey, cancellationToken);
+            }
+
+            public ValueTask<Certificate> TryTakeAsync(
+                PendingCertificateKeyContext context, CancellationToken cancellationToken = default)
+            {
+                return inner.TryTakeAsync(context, cancellationToken);
+            }
+
+            public ValueTask RemoveAsync(
+                PendingCertificateKeyContext context, CancellationToken cancellationToken = default)
+            {
+                return inner.RemoveAsync(context, cancellationToken);
+            }
+        }
+
+        /// <summary>
+        /// Cancels an upload after a matching key claim and records the subsequent restoration attempt.
+        /// </summary>
+        private sealed class CancelAfterMatchingClaimStore(
+            IPeekablePendingCertificateKeyStore inner,
+            CancellationTokenSource cancellation,
+            Certificate replacement) : IPeekablePendingCertificateKeyStore
+        {
+            /// <summary>
+            /// Gets the storage context of the key claimed before cancellation.
+            /// </summary>
+            public PendingCertificateKeyContext ClaimContext { get; private set; }
+
+            /// <summary>
+            /// Gets the thumbprint identifying the key that restoration must preserve.
+            /// </summary>
+            public string ClaimedThumbprint { get; private set; }
+
+            /// <summary>
+            /// Gets whether the cancelled upload attempted to restore its claimed key.
+            /// </summary>
+            public bool RestoreCalled { get; private set; }
+
+            /// <summary>
+            /// Gets whether restoration incorrectly reused an already-cancelled token.
+            /// </summary>
+            public bool RestoreUsedCancelledToken { get; private set; }
+
+            /// <summary>
+            /// Gets whether the underlying store accepted restoration of the claimed key.
+            /// </summary>
+            public bool RestoreSucceeded { get; private set; }
+
+            /// <inheritdoc/>
+            public ValueTask<bool> SaveAsync(
+                PendingCertificateKeyContext context,
+                Certificate certificateWithPrivateKey,
+                CancellationToken cancellationToken = default)
+            {
+                return inner.SaveAsync(context, certificateWithPrivateKey, cancellationToken);
+            }
+
+            /// <inheritdoc/>
+            public ValueTask<Certificate> TryTakeAsync(
+                PendingCertificateKeyContext context,
+                CancellationToken cancellationToken = default)
+            {
+                return inner.TryTakeAsync(context, cancellationToken);
+            }
+
+            /// <inheritdoc/>
+            public ValueTask<Certificate> TryPeekMatchingAsync(
+                PendingCertificateKeyContext context,
+                Certificate certificate,
+                CancellationToken cancellationToken = default)
+            {
+                return inner.TryPeekMatchingAsync(context, certificate, cancellationToken);
+            }
+
+            /// <summary>
+            /// Claims a matching key, optionally installs a newer pending key, and cancels the upload request.
+            /// </summary>
+            public async ValueTask<Certificate> TryTakeMatchingAsync(
+                PendingCertificateKeyContext context,
+                Certificate certificate,
+                CancellationToken cancellationToken = default)
+            {
+                Certificate pending = await inner.TryTakeMatchingAsync(context, certificate, cancellationToken)
+                    .ConfigureAwait(false);
+                if (pending != null)
+                {
+                    ClaimContext = context;
+                    ClaimedThumbprint = pending.Thumbprint;
+                    if (replacement != null)
+                    {
+                        Assert.That(await inner.SaveAsync(context, replacement, CancellationToken.None).ConfigureAwait(false), Is.True);
+                    }
+                    cancellation.Cancel();
+                }
+                return pending;
+            }
+
+            /// <summary>
+            /// Records the cancellation state and outcome of restoring a previously claimed key.
+            /// </summary>
+            public async ValueTask<bool> TryRestoreAsync(
+                PendingCertificateKeyContext context,
+                Certificate certificateWithPrivateKey,
+                CancellationToken cancellationToken = default)
+            {
+                RestoreCalled = true;
+                RestoreUsedCancelledToken = cancellationToken.IsCancellationRequested;
+                RestoreSucceeded = await inner.TryRestoreAsync(context, certificateWithPrivateKey, cancellationToken)
+                    .ConfigureAwait(false);
+                return RestoreSucceeded;
+            }
+
+            /// <inheritdoc/>
+            public ValueTask RemoveAsync(
+                PendingCertificateKeyContext context,
+                CancellationToken cancellationToken = default)
+            {
+                return inner.RemoveAsync(context, cancellationToken);
+            }
+        }
+
+        /// <summary>
+        /// Hosts the reference server with certificate slots exercised by the requests.
+        /// </summary>
+        private ServerFixture<ReferenceServer> m_fixture;
+
+        /// <summary>
+        /// Coordinates certificate installation and exposes the pending-key store used by the server.
+        /// </summary>
+        private ConfigurationNodeManager m_manager;
+
+        /// <summary>
+        /// Provides the push-configuration methods invoked by the tests.
+        /// </summary>
+        private ServerConfigurationState m_node;
+
+        /// <summary>
+        /// Supplies the authorized session context for configuration and credential calls.
+        /// </summary>
+        private SessionSystemContext m_context;
+
+        /// <summary>
+        /// Stores the temporary root removed after the server is stopped.
+        /// </summary>
+        private string m_path;
+
+        /// <summary>
+        /// Defines the DNS name and IP address expected in the generated HTTPS certificate.
+        /// </summary>
+        private static readonly string[] s_domains = ["localhost", "127.0.0.1"];
+    }
+}

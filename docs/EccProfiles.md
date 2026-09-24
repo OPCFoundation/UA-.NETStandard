@@ -270,7 +270,16 @@ The GDS checks on startup if a valid configuration was supplied.
 ## Known Limitations
 
 Not all curves are supported by all OS platforms and not all .NET implementations offer cryptographic API support for all curve types.
-Due to these limitations, the support for ECC profiles is available starting with the following target platforms: .NET 4.8, .NET standard 2.1 and .NET 5 and above.
+**ECC security policies require the .NET 8 or later build of the stack.**
+OPC UA Part 6 feeds the raw ECDH shared secret into HKDF. The older
+`ECDiffieHellman.DeriveKeyMaterial` API applies a hash first and is not a
+compatible substitute. Consequently the .NET Framework 4.7.2/4.8 and
+.NET Standard 2.1 builds do not advertise or accept the built-in ECC
+SecureChannel or user-token policies, even when loaded by a newer runtime.
+`SecurityPolicies.GetInfo` returns `null` for those unavailable policies.
+Use a .NET 8+ application and the matching stack assets for ECC endpoints,
+or configure a supported RSA policy on both peers. ECC certificate parsing
+and signing are separate capabilities and remain subject to OS curve support.
 The supported ECC curve types are the following:
 
 - `NistP256`               for ECC certificates with NIST P256 curve

@@ -532,6 +532,34 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         }
 
         /// <summary>
+        /// Verifies selecting an advertised user-token policy preserves its index and clears unmatched selections.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(1)]
+        public void SelectedUserTokenPolicySetterPreservesMatchingPolicy(int index)
+        {
+            var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
+            {
+                EndpointUrl = "opc.tcp://localhost",
+                UserIdentityTokens =
+                [
+                    new UserTokenPolicy(UserTokenType.Anonymous),
+                    new UserTokenPolicy(UserTokenType.UserName)
+                ]
+            });
+            UserTokenPolicy selected = endpoint.Description.UserIdentityTokens[index];
+            endpoint.SelectedUserTokenPolicy = selected;
+            Assert.That(endpoint.SelectedUserTokenPolicyIndex, Is.EqualTo(index));
+            Assert.That(endpoint.SelectedUserTokenPolicy, Is.SameAs(selected));
+
+            endpoint.SelectedUserTokenPolicy = new UserTokenPolicy(UserTokenType.Certificate);
+            Assert.That(endpoint.SelectedUserTokenPolicyIndex, Is.EqualTo(-1));
+            Assert.That(endpoint.SelectedUserTokenPolicy, Is.Null);
+            endpoint.SelectedUserTokenPolicy = null;
+            Assert.That(endpoint.SelectedUserTokenPolicyIndex, Is.EqualTo(-1));
+        }
+
+        /// <summary>
         /// Assigning a policy selects it. The setter used to break out of its
         /// search loop and fall through to the not-found assignment, so the
         /// index always ended at -1 and the selection was silently discarded.

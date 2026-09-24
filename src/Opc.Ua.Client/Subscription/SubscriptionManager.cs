@@ -715,7 +715,7 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 foreach (IManagedSubscription subscription in m_subscriptions)
                 {
-                    if (subscription.Id == 0)
+                    if (subscription.IsCreationInProgress)
                     {
                         return true;
                     }
@@ -960,43 +960,55 @@ namespace Opc.Ua.Client.Subscriptions
                 // emitted values, so requesting initial values is only
                 // useful when the caller wants the server to re-emit them
                 // to a fresh notification handler.
-                uint[] ids = [state.ServerId];
-                TransferSubscriptionsResponse response = await m_session
-                    .TransferSubscriptionsAsync(
+                ArrayOf<uint> subscriptionIds = [state.ServerId];
+                bool transferred = false;
+                try
+                {
+                    TransferSubscriptionsResponse response = await m_session.TransferSubscriptionsAsync(
                         null,
-                        ids.ToArrayOf(),
+                        subscriptionIds,
                         sendInitialValues: options.SendInitialValuesOnTransfer,
                         ct)
-                    .ConfigureAwait(false);
+                        .ConfigureAwait(false);
 
-                bool transferred = false;
-                ResponseHeader responseHeader = response.ResponseHeader;
-                if (StatusCode.IsGood(responseHeader.ServiceResult))
-                {
-                    ArrayOf<TransferResult> results = response.Results;
-                    ClientBase.ValidateResponse(results, ids.ToArrayOf());
-                    if (results.Count > 0 && StatusCode.IsGood(results[0].StatusCode))
+                    ResponseHeader responseHeader = response.ResponseHeader;
+                    if (StatusCode.IsGood(responseHeader.ServiceResult))
                     {
-                        transferred = await subscription.TryCompleteTransferAsync(
-                            results[0].AvailableSequenceNumbers.IsNull
-                                ? []
-                                : [.. results[0].AvailableSequenceNumbers],
-                            ct).ConfigureAwait(false);
+                        ArrayOf<TransferResult> results = response.Results;
+                        ClientBase.ValidateResponse(results, subscriptionIds);
+                        if (results.Count > 0 && StatusCode.IsGood(results[0].StatusCode))
+                        {
+                            transferred = await subscription.TryCompleteTransferAsync(
+                                results[0].AvailableSequenceNumbers.IsNull
+                                    ? []
+                                    : [.. results[0].AvailableSequenceNumbers],
+                                ct).ConfigureAwait(false);
+                        }
+                        else if (results.Count > 0)
+                        {
+                            m_logger.TransferPerItemResultBad(subscription.Id, results[0].StatusCode);
+                        }
                     }
-                    else if (results.Count > 0)
+                    else if (responseHeader.ServiceResult == StatusCodes.BadServiceUnsupported)
                     {
-                        m_logger.TransferPerItemResultBad(subscription.Id, results[0].StatusCode);
+                        m_logger.ServerDoesNotSupportTransfer(subscription.Id);
+                    }
+                    else
+                    {
+                        m_logger.TransferServiceLevelResultBad(
+                            subscription.Id,
+                            responseHeader.ServiceResult);
                     }
                 }
-                else if (responseHeader.ServiceResult == StatusCodes.BadServiceUnsupported)
+                catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes.BadServiceUnsupported)
                 {
                     m_logger.ServerDoesNotSupportTransfer(subscription.Id);
                 }
-                else
+                catch (ServiceResultException ex)
                 {
                     m_logger.TransferServiceLevelResultBad(
                         subscription.Id,
-                        responseHeader.ServiceResult);
+                        ex.StatusCode);
                 }
 
                 if (!transferred && subscription is Subscription loaded)
@@ -1340,6 +1352,15 @@ namespace Opc.Ua.Client.Subscriptions
         /// soft signal — workers complete their current cycle before
         /// observing the pause.
         /// </summary>
+        /// <remarks>
+        /// A worker that began its request before the quiesce can be parked
+        /// inside the service call waiting for the channel to become ready.
+        /// That wait cannot finish while the caller draining here is the very
+        /// operation that makes the channel ready, so the attempts are aborted
+        /// first. Aborting only cancels the client-side attempt: the worker
+        /// rolls its acknowledgements back and returns to the paused park, so
+        /// publish ingress stays quiesced for the caller's operation.
+        /// </remarks>
         /// <param name="ct">Cancellation token.</param>
         internal Task DrainAsync(CancellationToken ct)
         {
@@ -1347,7 +1368,58 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 return Task.CompletedTask;
             }
+            AbortActivePublishRequests();
             return m_drainSignal.WaitAsync(ct);
+        }
+
+        /// <summary>
+        /// Cancels the publish attempts that are currently in flight without
+        /// stopping their workers.
+        /// </summary>
+        private void AbortActivePublishRequests()
+        {
+            CancellationTokenSource[] attempts;
+            lock (m_publishStateLock)
+            {
+                if (m_activePublishAttempts.Count == 0)
+                {
+                    return;
+                }
+                attempts = [.. m_activePublishAttempts];
+            }
+            foreach (CancellationTokenSource attempt in attempts)
+            {
+                try
+                {
+                    attempt.Cancel();
+                }
+                catch (ObjectDisposedException)
+                {
+                    // The worker completed its attempt and released the source.
+                }
+            }
+        }
+
+        /// <summary>
+        /// Registers a publish attempt so a quiesce can abort it.
+        /// </summary>
+        private void RegisterPublishAttempt(CancellationTokenSource attempt)
+        {
+            lock (m_publishStateLock)
+            {
+                m_activePublishAttempts.Add(attempt);
+            }
+        }
+
+        /// <summary>
+        /// Removes a completed publish attempt from the abortable set.
+        /// </summary>
+        private void UnregisterPublishAttempt(CancellationTokenSource attempt)
+        {
+            lock (m_publishStateLock)
+            {
+                m_activePublishAttempts.Remove(attempt);
+            }
         }
 
         private bool TryBeginPublishRequest()
@@ -1807,6 +1879,10 @@ namespace Opc.Ua.Client.Subscriptions
                     ArrayOf<SubscriptionAcknowledgement> acks = [];
                     uint handle = 0;
                     bool publishActive = true;
+                    // A quiesce can abort this attempt without stopping the worker.
+                    var attempt = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    CancellationToken attemptToken = attempt.Token;
+                    m_outer.RegisterPublishAttempt(attempt);
                     try
                     {
                         acks = GetAcksReadyToSend();
@@ -1815,7 +1891,7 @@ namespace Opc.Ua.Client.Subscriptions
                         if (acks.Count == 0 && !moreNotifications && ackWaitTimeout != 0)
                         {
                             // Throttle publishing as we wait for acks to arrive
-                            acks = await WaitForAcksAsync(ackWaitTimeout, ct).ConfigureAwait(false);
+                            acks = await WaitForAcksAsync(ackWaitTimeout, attemptToken).ConfigureAwait(false);
                         }
                         if (!m_outer.m_running.IsSet)
                         {
@@ -1830,7 +1906,7 @@ namespace Opc.Ua.Client.Subscriptions
                                 TimeoutHint = timeoutHint,
                                 ReturnDiagnostics = (uint)(int)m_outer.ReturnDiagnostics,
                                 RequestHandle = handle
-                            }, acks, ct).ConfigureAwait(false);
+                            }, acks, attemptToken).ConfigureAwait(false);
 
                         moreNotifications = response.MoreNotifications;
                         uint subscriptionId = response.SubscriptionId;
@@ -1843,7 +1919,6 @@ namespace Opc.Ua.Client.Subscriptions
                             response.DiagnosticInfos;
                         ClientBase.ValidateResponse(acknowledgeResults, acks);
                         ClientBase.ValidateDiagnosticInfos(acknowledgeDiagnosticInfos, acks);
-                        TooManyPublishRequests = false;
 
                         // A publish completed, so the channel is healthy:
                         // clear the consecutive-error backoff state.
@@ -1857,12 +1932,16 @@ namespace Opc.Ua.Client.Subscriptions
                         publishLatencyRunning = false;
                         if (subscription != null)
                         {
-                            // deliver to subscription
-                            await subscription.OnPublishReceivedAsync(
+                            // Capture the delivery generation before draining can retire it.
+                            ValueTask delivery = subscription.OnPublishReceivedAsync(
                                 notificationMessage,
                                 availableSequenceNumbers.ToList(),
-                                response.ResponseHeader.StringTable.ToList())
-                                .ConfigureAwait(false);
+                                response.ResponseHeader.StringTable.ToList());
+                            m_outer.EndPublishRequest();
+                            publishActive = false;
+                            // A callback may await the service reader while recreation owns
+                            // the writer. Ingress backpressure is not an in-flight request.
+                            await delivery.ConfigureAwait(false);
                             Interlocked.Increment(ref m_outer.m_goodPublishRequestCount);
                             m_lastUnknownSubscriptionId = 0;
                             m_consecutiveUnresolvedResponses = 0;
@@ -1955,7 +2034,17 @@ namespace Opc.Ua.Client.Subscriptions
                         // worker (or this one after a reconnect) still has to
                         // send them, otherwise the server retransmits those
                         // messages until its retransmission queue overflows.
-                        acks.ForEach(ack => m_outer.m_acks.Writer.TryWrite(ack));
+                        if (publishActive)
+                        {
+                            acks.ForEach(ack => m_outer.m_acks.Writer.TryWrite(ack));
+                        }
+                        if (!ct.IsCancellationRequested)
+                        {
+                            // A quiesce aborted this attempt, not the worker. Release
+                            // the request so the drain completes, then return to the
+                            // paused park and resume once the caller finishes.
+                            continue;
+                        }
                         break;
                     }
                     catch (Exception e)
@@ -1968,15 +2057,21 @@ namespace Opc.Ua.Client.Subscriptions
                         if (error.Code == StatusCodes.BadRequestInterrupted &&
                             ct.IsCancellationRequested)
                         {
-                            acks.ForEach(ack => m_outer.m_acks.Writer.TryWrite(ack));
+                            if (publishActive)
+                            {
+                                acks.ForEach(ack => m_outer.m_acks.Writer.TryWrite(ack));
+                            }
                             break;
                         }
 
                         Interlocked.Increment(ref m_outer.m_badPublishRequestCount);
-                        // Rollback acks we collected
-                        acks.ForEach(ack => m_outer.m_acks.Writer.TryWrite(ack));
-                        m_outer.EndPublishRequest();
-                        publishActive = false;
+                        if (publishActive)
+                        {
+                            // Only a failed service request needs acknowledgement rollback.
+                            acks.ForEach(ack => m_outer.m_acks.Writer.TryWrite(ack));
+                            m_outer.EndPublishRequest();
+                            publishActive = false;
+                        }
 
                         // ignore errors if paused.
                         if (!m_outer.m_running.IsSet)
@@ -1991,6 +2086,7 @@ namespace Opc.Ua.Client.Subscriptions
                         if (statusCode == StatusCodes.BadTooManyPublishRequests)
                         {
                             TooManyPublishRequests = true;
+                            m_outer.m_publishControl.Set();
                         }
                         else if (statusCode == StatusCodes.BadNoSubscription ||
                             statusCode == StatusCodes.BadSessionClosed ||
@@ -2073,10 +2169,18 @@ namespace Opc.Ua.Client.Subscriptions
                     }
                     finally
                     {
+                        // Ordering matters: the acknowledgement rollback above has
+                        // already run, and EndPublishRequest is what releases the
+                        // drain. Releasing the count first would let a quiesced
+                        // caller observe a zero count while acknowledgements from
+                        // this attempt were still unwinding, breaking the guarantee
+                        // DropPendingForSubscription relies on.
                         if (publishActive)
                         {
                             m_outer.EndPublishRequest();
                         }
+                        m_outer.UnregisterPublishAttempt(attempt);
+                        attempt.Dispose();
                     }
                 }
                 m_logger.PublishWorkerStopped(Index);
@@ -2321,6 +2425,7 @@ namespace Opc.Ua.Client.Subscriptions
         private readonly AsyncManualResetEvent m_drainSignal = new(true);
         private readonly SemaphoreSlim m_publishQuiescenceGate = new(1, 1);
         private readonly Lock m_publishStateLock = new();
+        private readonly HashSet<CancellationTokenSource> m_activePublishAttempts = [];
         private readonly CancellationToken m_disposeToken;
         private int m_activePublishRequests;
         private int m_disposed;

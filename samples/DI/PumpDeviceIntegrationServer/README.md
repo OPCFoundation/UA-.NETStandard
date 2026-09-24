@@ -481,9 +481,14 @@ docker run --rm -p 62542:62542 `
            pumpdeviceintegrationserver:local
 ```
 
-The image is built and published to the GitHub Container Registry by the
-[`pump-device-integration-server-docker.yml`](../../../.github/workflows/pump-device-integration-server-docker.yml)
-workflow on every push to `master` and on manual dispatch.
+The image is built and published to the GitHub Container Registry as
+`ghcr.io/opcfoundation/uanetstandard/pumpserver` by the
+[`docker-image.yml`](../../../.github/workflows/docker-image.yml) (`Images CI`)
+workflow, alongside every other sample image: built without publishing on
+every pull request, and published on pushes to `master` and `release/*`
+and on manual dispatch. See
+[Container support](../../../docs/ContainerReferenceServer.md) for the
+tag scheme.
 
 ## What the sample demonstrates
 

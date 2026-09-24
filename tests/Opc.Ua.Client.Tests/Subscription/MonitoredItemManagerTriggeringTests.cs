@@ -484,6 +484,44 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         }
 
         [Test]
+        public async Task DeclarativeTriggeringRetriesTransientFailureWithoutRollingBackAsync()
+        {
+            TestMonitoredItem trig = AddCreatedItem("trig", serverId: 100);
+            TestMonitoredItem tgt = AddCreatedItem("tgt", serverId: 101);
+            tgt.AddDesiredTriggeredByForTest("trig");
+            int calls = 0;
+            m_monitoredItemServices
+                .Setup(s => s.SetTriggeringAsync(
+                    It.IsAny<RequestHeader?>(), It.IsAny<uint>(), It.IsAny<uint>(),
+                    It.IsAny<ArrayOf<uint>>(), It.IsAny<ArrayOf<uint>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(() =>
+                {
+                    calls++;
+                    if (calls == 1)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadRequestTimeout);
+                    }
+                    return new SetTriggeringResponse
+                    {
+                        ResponseHeader = new ResponseHeader(),
+                        AddResults = [StatusCodes.Good]
+                    };
+                });
+
+            m_sut.EnqueueTriggeringOperation(
+                new MonitoredItemManager.TriggeringOperation(trig, [tgt], [], null));
+
+            await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(tgt.DesiredTriggeredByNames, Has.Member("trig"));
+
+            await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
+            Assert.That(calls, Is.EqualTo(2));
+            Assert.That(tgt.DesiredTriggeredByNames, Has.Member("trig"));
+        }
+
+        [Test]
         public async Task SameEdgeConflictResolutionLastWinsAsync()
         {
             // Arrange: queue add(t→x) then remove(t→x) in the same

@@ -79,6 +79,13 @@ await new AlarmConditionTypeClient(session, conditionId, telemetry)
 
 ## Server side
 
+Fluent-created alarms have distinct per-instance NodeIds for their entire
+subtree, including condition Methods and state properties. Configuring
+`WithLimits` materializes the standard typed limit properties, assigns
+instance identifiers, and registers them for browse/read access. Repeated
+limit configuration updates the same property in place; omitted limits
+remain absent.
+
 ### Creating an alarm
 
 `AlarmConditionState` is the central server-side state type for all

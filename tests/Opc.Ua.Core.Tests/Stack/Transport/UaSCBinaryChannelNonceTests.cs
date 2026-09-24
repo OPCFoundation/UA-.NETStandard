@@ -30,7 +30,7 @@
 
 #nullable enable
 
-using System.Collections.Generic;
+using System.Reflection;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Security.Certificates;
@@ -117,7 +117,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public void ValidateNonceAcceptsAWellFormedNonce()
         {
             using TestChannel channel = CreateChannel();
-            using Nonce nonce = Nonce.CreateNonce(SecurityPolicyInfo.RSA_DH_AesGcm);
+            using var nonce = Nonce.CreateNonce(SecurityPolicyInfo.RSA_DH_AesGcm);
 
             byte[]? data = nonce.Data;
             Assert.That(data, Is.Not.Null);
@@ -130,6 +130,22 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             using TestChannel channel = CreateChannel();
 
             Assert.That(channel.ValidateNonceForTest(new byte[NonceLength - 1]), Is.False);
+        }
+
+        [Test]
+        public void CreatingANewEphemeralNonceDisposesThePreviousKey()
+        {
+            using TestChannel channel = CreateChannel();
+
+            channel.CreateNonceForTest();
+            Nonce first = channel.LocalNonceForTest!;
+
+            channel.CreateNonceForTest();
+
+            object? firstKey = typeof(Nonce)
+                .GetField("m_ecdh", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .GetValue(first);
+            Assert.That(firstKey, Is.Null);
         }
 
         private const int NonceLength = 384;
@@ -150,7 +166,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     bufferManager,
                     quotas,
                     (Certificate?)null,
-                    new List<EndpointDescription>(),
+                    [],
                     MessageSecurityMode.SignAndEncrypt,
                     SecurityPolicies.RSA_DH_AesGcm,
                     telemetry)
@@ -161,6 +177,15 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
                 return ValidateNonce(null, nonce);
             }
+
+            public byte[] CreateNonceForTest()
+            {
+                return CreateNonce(null)!;
+            }
+
+            public Nonce? LocalNonceForTest => typeof(UaSCUaBinaryChannel)
+                        .GetField("m_localNonce", BindingFlags.Instance | BindingFlags.NonPublic)!
+                        .GetValue(this) as Nonce;
         }
     }
 }

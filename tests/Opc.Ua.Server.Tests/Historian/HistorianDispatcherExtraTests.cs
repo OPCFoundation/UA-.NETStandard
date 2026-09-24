@@ -36,6 +36,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Historian;
@@ -289,6 +290,9 @@ namespace Opc.Ua.Server.Tests.Historian
             var nodeId = new NodeId($"at-fallback-{Guid.NewGuid():N}", 1);
             var provider = new Mock<IHistorianProvider>();
             provider
+                .Setup(value => value.IsHistorizingAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<bool>(true));
+            provider
                 .Setup(value => value.GetCapabilitiesAsync(
                     nodeId,
                     It.IsAny<CancellationToken>()))
@@ -487,7 +491,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 $"at-maximum-{Guid.NewGuid():N}",
                 1);
             provider.Register(nodeId);
-            DateTime maximum = DateTimeUtc.MaxValue.ToDateTime();
+            var maximum = DateTimeUtc.MaxValue.ToDateTime();
             DateTime first = maximum.AddMilliseconds(-10);
             DateTime bad = maximum.AddMilliseconds(-2);
             DateTime last = maximum;
@@ -576,7 +580,7 @@ namespace Opc.Ua.Server.Tests.Historian
             provider.Register(nodeId);
             HistorianOperationContext context =
                 HarnessFixture.CreateContext(h.SystemContext);
-            DateTime maximum = DateTimeUtc.MaxValue.ToDateTime();
+            var maximum = DateTimeUtc.MaxValue.ToDateTime();
             DateTime earlier = maximum.AddMilliseconds(-10);
             HistorianUpdateOutcome<DataValue> inserted =
                 await provider.InsertAsync(
@@ -882,7 +886,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
             public HarnessFixture()
             {
-                Provider = new InMemoryHistorianProvider();
+                Provider = new InMemoryHistorianProvider(
+                    new InMemoryHistorianOptions(),
+                    new FakeTimeProvider(BaseTime));
 
                 var mockTelemetry = new Mock<ITelemetryContext>();
                 var continuationStore = new Dictionary<Guid, IHistoryContinuationPoint>();
@@ -894,7 +900,6 @@ namespace Opc.Ua.Server.Tests.Historian
                 var continuationPoints = new SessionContinuationPoints(
                     () => NodeId.Null, maxBrowse: 10, maxHistory: 10, store: null);
                 mockSession.Setup(s => s.ContinuationPoints).Returns(continuationPoints);
-
 
                 var mockServer = new Mock<IServerInternal>();
                 mockServer.Setup(s => s.NamespaceUris).Returns(new NamespaceTable());

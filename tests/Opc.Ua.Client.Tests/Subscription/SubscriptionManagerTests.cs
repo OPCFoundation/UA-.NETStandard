@@ -552,6 +552,88 @@ namespace Opc.Ua.Client.Subscriptions
 
         [Test]
         [CancelAfter(30_000)]
+        public async Task PublishingQuiescenceCompletesWhileAWorkerWaitsForAReadyChannelAsync(
+            CancellationToken testCt)
+        {
+            // Regression for #4508: a worker parked inside the service call
+            // waiting for the channel to become ready holds an active publish
+            // request. The recreate that would make the channel ready awaits
+            // the drain, so an unbounded drain deadlocks. The drain must abort
+            // the parked attempt instead of waiting for it forever.
+            ILoggerFactory loggerFactory = m_telemetry.LoggerFactory;
+            var session = new FakeSubscriptionManagerContext();
+            var subscription = new FakeManagedSubscription { Id = 1, Created = true };
+            var sut = new SubscriptionManager(session, loggerFactory, DiagnosticsMasks.None);
+            try
+            {
+                session.CreateSubscriptionFactory = (_, _, _) => subscription;
+                var publishCalled = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                var resumed = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                // Never completes on its own: the only way out is cancellation,
+                // exactly like ChannelEntry.WaitForReadyAsync on a faulted channel.
+                var readyGate = new TaskCompletionSource<PublishResponse>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                int publishAttempts = 0;
+                int resumeBaseline = int.MaxValue;
+                // One delegate for the whole test. Swapping it after the quiesce
+                // would race the worker: RunWithPublishingQuiescedAsync resumes
+                // publishing in its finally, so the worker can re-arm before the
+                // swap lands and then park on the old delegate forever.
+                session.OnPublishAsync = (_, _, publishCt) =>
+                {
+                    int attempt = Interlocked.Increment(ref publishAttempts);
+                    publishCalled.TrySetResult(true);
+                    if (attempt > Volatile.Read(ref resumeBaseline))
+                    {
+                        resumed.TrySetResult(true);
+                    }
+                    return new ValueTask<PublishResponse>(readyGate.Task.WaitAsync(publishCt));
+                };
+
+                sut.MinPublishWorkerCount = 1;
+                sut.MaxPublishWorkerCount = 1;
+                sut.Add(m_mockNotificationDataHandler.Object,
+                    Mock.Of<IOptionsMonitor<SubscriptionOptions>>());
+                sut.Resume();
+                await publishCalled.Task.WaitAsync(testCt).ConfigureAwait(false);
+
+                // The worker is parked in the gate and cannot start another
+                // attempt while publishing is quiesced, so this baseline is
+                // stable: any later attempt proves the worker survived the abort.
+                Volatile.Write(ref resumeBaseline, Volatile.Read(ref publishAttempts));
+
+                bool operationRan = false;
+                int dropped = -1;
+                await sut.RunWithPublishingQuiescedAsync(_ =>
+                {
+                    operationRan = true;
+                    // The documented contract: ingress is quiesced here, so
+                    // dropping pending acknowledgements is still safe.
+                    dropped = sut.DropPendingForSubscription(1);
+                    return default;
+                }, testCt).ConfigureAwait(false);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(operationRan, Is.True,
+                        "the quiesced operation must run instead of deadlocking on the drain.");
+                    Assert.That(dropped, Is.Zero);
+                    Assert.That(publishAttempts, Is.GreaterThan(0));
+                });
+
+                // The worker survived the abort and resumes publishing.
+                await resumed.Task.WaitAsync(TimeSpan.FromSeconds(10), testCt).ConfigureAwait(false);
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        [CancelAfter(30_000)]
         public async Task PublishingQuiescenceWaitsForAckRollbackAsync(
             CancellationToken testCt)
         {
@@ -592,7 +674,7 @@ namespace Opc.Ua.Client.Subscriptions
 
                 var actionEntered = new TaskCompletionSource<bool>(
                     TaskCreationOptions.RunContinuationsAsynchronously);
-                var dropped = 0;
+                int dropped = 0;
                 Task quiesced = sut.RunWithPublishingQuiescedAsync(_ =>
                 {
                     dropped = sut.DropPendingForSubscription(1);
@@ -944,7 +1026,7 @@ namespace Opc.Ua.Client.Subscriptions
                 OptionsFactory.Create<SubscriptionOptions>();
 
             var created = new FakeManagedSubscription { Id = 1u, Created = true };
-            var pending = new FakeManagedSubscription { Id = 0u };
+            var pending = new FakeManagedSubscription { Id = 0u, IsCreationInProgress = true };
 
             var sut = new SubscriptionManager(session,
                 loggerFactory, DiagnosticsMasks.None);
@@ -977,6 +1059,7 @@ namespace Opc.Ua.Client.Subscriptions
                 // Once nothing is pending creation the orphan is cleaned up.
                 pending.Id = 2u;
                 pending.Created = true;
+                pending.IsCreationInProgress = false;
                 sut.Update();
 
                 await WaitUntilAsync(() => session.DeleteCallsCount > 0, testCt)
@@ -1176,7 +1259,7 @@ namespace Opc.Ua.Client.Subscriptions
                 OptionsFactory.Create<SubscriptionOptions>();
 
             var created = new FakeManagedSubscription { Id = 1u, Created = true };
-            var pending = new FakeManagedSubscription { Id = 0u };
+            var pending = new FakeManagedSubscription { Id = 0u, IsCreationInProgress = true };
 
             var sut = new SubscriptionManager(session,
                 loggerFactory, DiagnosticsMasks.None);
@@ -1208,6 +1291,7 @@ namespace Opc.Ua.Client.Subscriptions
                     Is.LessThan(kMaxExpectedPublishes),
                     "The publish worker must throttle while a subscription id " +
                     "cannot be resolved instead of republishing in a tight loop.");
+                Assert.That(session.DeleteCalls, Is.Empty);
             }
         }
 
@@ -1339,7 +1423,7 @@ namespace Opc.Ua.Client.Subscriptions
                 loggerFactory, DiagnosticsMasks.None);
             await using (sut.ConfigureAwait(false))
             {
-                var nextId = 0;
+                int nextId = 0;
                 var survivors = new ConcurrentBag<ISubscription>();
                 var partitions = new ConcurrentDictionary<
                     IOptionsMonitor<SubscriptionOptions>, FakeManagedSubscription>();

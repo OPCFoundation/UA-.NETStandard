@@ -1120,8 +1120,12 @@ namespace Opc.Ua.Server.Fluent
             m_nodeRemoved[node.NodeId] = handler;
         }
 
+        /// <summary>
+        /// Configures multiple event consumers on a compatible node manager before the builder is sealed.
+        /// </summary>
         internal void RegisterMultiConsumerNode(NodeState node, bool enable)
         {
+            ThrowIfSealed();
             if (NodeManager is not AsyncCustomNodeManager acnm)
             {
                 throw ServiceResultException.Create(
@@ -1663,7 +1667,10 @@ namespace Opc.Ua.Server.Fluent
             }
         }
 
-        private void ThrowIfSealed()
+        /// <summary>
+        /// Rejects graph or callback changes once configuration has been sealed.
+        /// </summary>
+        internal void ThrowIfSealed()
         {
             if (m_sealed)
             {
@@ -1674,11 +1681,16 @@ namespace Opc.Ua.Server.Fluent
             }
         }
 
-        private static void ThrowIfDuplicate<T>(
+        /// <summary>
+        /// Rejects callback registration after sealing or when the node already has a handler of that kind.
+        /// </summary>
+        /// <typeparam name="T">The callback type stored for each registered node.</typeparam>
+        private void ThrowIfDuplicate<T>(
             Dictionary<NodeId, T> map,
             NodeState node,
             string what)
         {
+            ThrowIfSealed();
             if (map.ContainsKey(node.NodeId))
             {
                 throw ServiceResultException.Create(

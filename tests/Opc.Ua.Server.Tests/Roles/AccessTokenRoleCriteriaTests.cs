@@ -95,6 +95,21 @@ namespace Opc.Ua.Server.Tests
                 "Role criteria must read access-token role claims, not already-granted role NodeIds.");
         }
 
+        [Test]
+        public void ResolveGrantedRoles_RoleCriteriaBehindRoleWrapper_GrantsRole()
+        {
+            AssertMessageContextCanBeCreated();
+            using RoleManager manager = CreateManagerWithRoleRule("Engineer");
+            IUserIdentity identity = new RoleBasedIdentity(
+                new ClaimsTestIdentity(roles: s_engineerRoles),
+                [Role.TrustedApplication],
+                new NamespaceTable());
+
+            IList<NodeId> roles = manager.ResolveGrantedRoles(identity, null, null);
+
+            Assert.That(roles, Has.Member(ObjectIds.WellKnownRole_Engineer));
+        }
+
         private static RoleManager CreateManagerWithRoleRule(string criteria)
         {
             var manager = new RoleManager();

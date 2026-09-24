@@ -845,6 +845,36 @@ namespace Opc.Ua.Types.Tests.Nodes
             return new ReferenceNode(refType, isInverse, target);
         }
         [Test]
+        public void FindReturnsReferencesInInsertionOrder()
+        {
+            var dict = new ReferenceDictionary<string>();
+            var expected = new List<ExpandedNodeId>();
+            for (uint ii = 0; ii < 40; ii++)
+            {
+                // interleave another reference type so the filtered result is a subset.
+                var target = new ExpandedNodeId(97_000u - (ii * 37u));
+                dict.Add(MakeRef(RefType1, false, target), "component");
+                dict.Add(MakeRef(RefType2, false, new ExpandedNodeId(5_000u + ii)), "other");
+                expected.Add(target);
+            }
+            dict.Add(MakeRef(RefType1, false, AbsoluteTarget1), "external");
+            expected.Add(AbsoluteTarget1);
+
+            IList<IReference> byType = dict.Find(RefType1, false);
+            Assert.That(byType.Select(r => r.TargetId), Is.EqualTo(expected));
+
+            var typeTable = new TypeTable(new NamespaceTable());
+            typeTable.AddSubtype(ReferenceTypeIds.References, NodeId.Null);
+            typeTable.AddSubtype(RefType1, ReferenceTypeIds.References);
+            typeTable.AddSubtype(RefType2, ReferenceTypeIds.References);
+            IList<IReference> bySupertype = dict.Find(ReferenceTypeIds.References, false, typeTable);
+            Assert.That(
+                bySupertype.Select(r => r.TargetId),
+                Is.EqualTo(dict.Keys.Select(r => r.TargetId)),
+                "A browse of all subtypes returns the references in the order of the unfiltered list.");
+        }
+
+        [Test]
         public void ConstructorCreatesEmptyDictionary()
         {
             var dict = new ReferenceDictionary<string>();

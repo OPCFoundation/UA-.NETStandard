@@ -33,7 +33,9 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.Metrics;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -161,6 +163,129 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 await sut.DisposeAsync().ConfigureAwait(false);
 
                 DisposeOpenedCertificates(openSettings);
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ReconnectUsesLatestCertificateForEachEntryTypeAsync(bool reusableTransport)
+        {
+            using Certificate oldRsa = s_factory.CreateCertificate("CN=old-rsa").CreateForRSA();
+            using Certificate newRsa = s_factory.CreateCertificate("CN=new-rsa").CreateForRSA();
+            using Certificate oldEcc = s_factory.CreateCertificate("CN=old-ecc")
+                .SetECCurve(ECCurve.NamedCurves.nistP256).CreateForECDsa();
+            using Certificate newEcc = s_factory.CreateCertificate("CN=new-ecc")
+                .SetECCurve(ECCurve.NamedCurves.nistP256).CreateForECDsa();
+            using Certificate server = s_factory.CreateCertificate("CN=server").CreateForRSA();
+            var changes = new TestCertificateChangeSource();
+            var settings = new ConcurrentQueue<TransportChannelSettings>();
+            await using ClientChannelManager manager = CreateSut(
+                oldRsa, changes, settings, reusableTransport: reusableTransport);
+            ConfiguredEndpoint rsaEndpoint = GetTestEndpoint(server);
+            ConfiguredEndpoint eccEndpoint = GetTestEndpoint(server);
+            eccEndpoint.Description.EndpointUrl = "opc.tcp://localhost:4841";
+            eccEndpoint.Description.SecurityPolicyUri = SecurityPolicies.ECC_nistP256;
+            try
+            {
+                manager.UpdateClientCertificate(oldRsa.AddRef(), null);
+                using IManagedTransportChannel rsa = await manager.GetAsync(new TestParticipant("rsa", rsaEndpoint))
+                    .ConfigureAwait(false);
+                manager.UpdateClientCertificate(oldEcc.AddRef(), null);
+                using IManagedTransportChannel ecc = await manager.GetAsync(new TestParticipant("ecc", eccEndpoint))
+                    .ConfigureAwait(false);
+
+                await manager.ReconnectAllAsync().ConfigureAwait(false);
+                Assert.That(settings.Last(value => value.Description?.EndpointUrl == rsa.Key.EndpointUrl)
+                    .ClientCertificate!.Thumbprint, Is.EqualTo(oldRsa.Thumbprint));
+
+                manager.UpdateClientCertificate(newRsa.AddRef(), null);
+                manager.UpdateClientCertificate(newEcc.AddRef(), null);
+                await manager.ReconnectAllAsync().ConfigureAwait(false);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(settings.Last(value => value.Description?.EndpointUrl == rsa.Key.EndpointUrl)
+                        .ClientCertificate!.Thumbprint, Is.EqualTo(newRsa.Thumbprint));
+                    Assert.That(settings.Last(value => value.Description?.EndpointUrl == ecc.Key.EndpointUrl)
+                        .ClientCertificate!.Thumbprint, Is.EqualTo(newEcc.Thumbprint));
+                    Assert.That(manager.GetChannelDiagnostics().Select(value => value.Refcount), Is.All.EqualTo(1));
+                    Assert.That(rsa.State, Is.EqualTo(ChannelState.Ready));
+                    Assert.That(ecc.State, Is.EqualTo(ChannelState.Ready));
+                });
+                int opened = settings.Count;
+                await manager.ReconnectAllAsync().ConfigureAwait(false);
+                Assert.That(settings, Has.Count.EqualTo(reusableTransport ? opened : opened + 2));
+            }
+            finally
+            {
+                await manager.DisposeAsync().ConfigureAwait(false);
+                DisposeOpenedCertificates(settings);
+            }
+        }
+
+        [Test]
+        public async Task ReconnectCompletionWaitsForCycleCleanupAsync()
+        {
+            using Certificate client = s_factory.CreateCertificate("CN=cleanup-client").CreateForRSA();
+            using Certificate server = s_factory.CreateCertificate("CN=cleanup-server").CreateForRSA();
+            var settings = new ConcurrentQueue<TransportChannelSettings>();
+            var changes = new TestCertificateChangeSource();
+            await using ClientChannelManager manager = CreateSut(client, changes, settings);
+            ConfiguredEndpoint endpoint = GetTestEndpoint(server);
+            endpoint.Description.EndpointUrl = "opc.tcp://localhost:4842/reconnect-cleanup";
+            var participant = new BlockingRecreateParticipant("cleanup", endpoint);
+            var completedDuringCleanup = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            Task<bool>? reconnect = null;
+            using var listener = new MeterListener
+            {
+                InstrumentPublished = (instrument, meterListener) =>
+                {
+                    if (instrument.Name == "opc.ua.channel.reconnect.duration")
+                    {
+                        meterListener.EnableMeasurementEvents(instrument);
+                    }
+                }
+            };
+            listener.SetMeasurementEventCallback<double>((_, _, tags, _) =>
+            {
+                foreach (KeyValuePair<string, object?> tag in tags)
+                {
+                    if (tag.Key == "endpoint" &&
+                        tag.Value is string endpointUrl &&
+                        endpointUrl == endpoint.Description.EndpointUrl)
+                    {
+                        completedDuringCleanup.TrySetResult(reconnect!.IsCompleted);
+                    }
+                }
+            });
+            listener.Start();
+            ManagedTransportChannelLease? lease = null;
+            try
+            {
+                manager.UpdateClientCertificate(client.AddRef(), null);
+                lease = (ManagedTransportChannelLease)await manager.GetAsync(participant).ConfigureAwait(false);
+                reconnect = lease.Entry.RequestReconnectAsync(default);
+                await participant.RecreateStarted.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                participant.ReleaseRecreate();
+
+                Assert.That(await reconnect.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false), Is.True);
+                Assert.That(
+                    await completedDuringCleanup.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false),
+                    Is.False,
+                    "Reconnect waiters must not resume before the completed cycle releases its coalescer.");
+                Assert.That(lease.State, Is.EqualTo(ChannelState.Ready));
+                Assert.That(lease.Entry.RefCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                participant.ReleaseRecreate();
+                if (lease != null)
+                {
+                    await lease.CloseAsync().ConfigureAwait(false);
+                }
+                await manager.DisposeAsync().ConfigureAwait(false);
+                DisposeOpenedCertificates(settings);
             }
         }
 
@@ -450,7 +575,8 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Certificate applicationCertificate,
             TestCertificateChangeSource changes,
             ConcurrentQueue<TransportChannelSettings> openSettings,
-            IChannelReconnectPolicy? reconnectPolicy = null)
+            IChannelReconnectPolicy? reconnectPolicy = null,
+            bool reusableTransport = false)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var certificateManager = new Mock<ICertificateManager>();
@@ -472,7 +598,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                     openSettings.Enqueue(settings))
                 .Returns(new ValueTask());
             channel.Setup(c => c.CloseAsync(It.IsAny<CancellationToken>())).Returns(new ValueTask());
-            channel.Setup(c => c.SupportedFeatures).Returns(TransportChannelFeatures.None);
+            channel.Setup(c => c.SupportedFeatures).Returns(reusableTransport
+                ? TransportChannelFeatures.Reconnect
+                : TransportChannelFeatures.None);
 
             var bindings = new Mock<ITransportChannelBindings>();
             bindings.Setup(b => b.Create(It.IsAny<string>(), It.IsAny<ITelemetryContext>()))
