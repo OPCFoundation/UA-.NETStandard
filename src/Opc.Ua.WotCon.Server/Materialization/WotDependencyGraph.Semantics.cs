@@ -46,6 +46,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
         {
             var references = new List<WotResourceReference>();
             var defined = new HashSet<string>(StringComparer.Ordinal);
+            var definitions = new HashSet<string>(StringComparer.Ordinal);
+            var definitionNames = new HashSet<string>(StringComparer.Ordinal);
             var owners = new Dictionary<string, List<string>>(StringComparer.Ordinal);
             var required = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
             string error = string.Empty;
@@ -56,7 +58,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     MaxJsonDepth = maxJsonDepth,
                     MaxJsonDocumentSize = Math.Max(content.Length, 1)
                 });
-                CollectSemanticReferences(document, document.RootElement, references, defined);
+                CollectSemanticReferences(
+                    document, document.RootElement, references, defined, definitions, definitionNames);
                 CollectModelMembership(string.Empty, content.Memory, maxJsonDepth, owners, required);
             }
             catch (Exception exception) when (exception is JsonException or FormatException)
@@ -70,7 +73,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 required.Values.SelectMany(uris => uris).Distinct(StringComparer.Ordinal)
                     .OrderBy(uri => uri, StringComparer.Ordinal).ToArrayOf(),
                 defined.OrderBy(identifier => identifier, StringComparer.Ordinal).ToArrayOf(),
-                error);
+                error,
+                definitions.OrderBy(identifier => identifier, StringComparer.Ordinal).ToArrayOf(),
+                definitionNames.OrderBy(name => name, StringComparer.Ordinal).ToArrayOf());
         }
 
         private static void CollectSemanticReferences(
@@ -78,13 +83,16 @@ namespace Opc.Ua.WotCon.Server.Materialization
             JsonElement element,
             List<WotResourceReference> references,
             HashSet<string> defined,
+            HashSet<string> definitions,
+            HashSet<string> definitionNames,
             string referenceKind = "tm:ref")
         {
             if (element.ValueKind == JsonValueKind.Array)
             {
                 foreach (JsonElement child in element.EnumerateArray())
                 {
-                    CollectSemanticReferences(document, child, references, defined, referenceKind);
+                    CollectSemanticReferences(
+                        document, child, references, defined, definitions, definitionNames, referenceKind);
                 }
                 return;
             }
@@ -92,6 +100,28 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 element.TryGetProperty("@value", out _))
             {
                 return;
+            }
+            bool declaresDataType = IsDataTypeDefinition(document, element);
+            if (declaresDataType)
+            {
+                if (element.TryGetProperty("@id", out JsonElement identity) && identity.ValueKind == JsonValueKind.String)
+                {
+                    definitions.Add(ExpandReference(document, identity.GetString()!, element));
+                }
+                foreach (JsonProperty member in element.EnumerateObject())
+                {
+                    string term = SemanticTerm(document, member.Name, element);
+                    if (term == "uav:dataTypeName" &&
+                        TryDataTypeName(document, element, member.Value, out string name))
+                    {
+                        definitionNames.Add(name);
+                    }
+                    else if (term == "uav:dataTypeId" &&
+                        TryDataTypeNodeId(document, element, member.Value, out string nodeId))
+                    {
+                        defined.Add(nodeId);
+                    }
+                }
             }
             foreach (JsonProperty property in element.EnumerateObject())
             {
@@ -128,6 +158,44 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     case "tm:ref":
                         AddSemanticTargets(document, element, property.Value, referenceKind, references);
                         break;
+                    case "uav:dataTypeName":
+                    case "uav:fieldDataTypeName":
+                        if (!declaresDataType &&
+                            TryDataTypeName(document, element, property.Value, out string qualified))
+                        {
+                            references.Add(new WotResourceReference(
+                                property.Value.GetString()!, qualified, term, false,
+                                WotResourceReferenceLookup.DataTypeName));
+                        }
+                        break;
+                    case "uav:dataTypeId":
+                    case "uav:fieldDataTypeId":
+                        if (!declaresDataType &&
+                            TryDataTypeNodeId(document, element, property.Value, out string portable))
+                        {
+                            references.Add(new WotResourceReference(
+                                property.Value.GetString()!, portable, term, false,
+                                WotResourceReferenceLookup.DataTypeNodeId));
+                        }
+                        break;
+                    case "uav:dataTypeDefinition":
+                    case "uav:fieldDataTypeDefinition":
+                        if (property.Value.ValueKind == JsonValueKind.Object &&
+                            property.Value.TryGetProperty("@id", out JsonElement definitionId) &&
+                            property.Value.EnumerateObject().All(member => member.Name is "@id" or "@context"))
+                        {
+                            AddSemanticTargets(document, property.Value, definitionId, term, references);
+                        }
+                        else
+                        {
+                            CollectSemanticReferences(
+                                document, property.Value, references, defined, definitions,
+                                definitionNames, referenceKind);
+                        }
+                        break;
+                    case "uav:dataTypeSubtypeOf":
+                        AddDataTypeBaseReference(document, element, property.Value, references);
+                        break;
                     case "uav:projects":
                         if (property.Value.ValueKind == JsonValueKind.Array)
                         {
@@ -143,12 +211,94 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         break;
                     default:
                         CollectSemanticReferences(
-                            document, property.Value, references, defined,
+                            document, property.Value, references, defined, definitions, definitionNames,
                             term == "events" ? EventTypeRefType :
                             term == "uav:eventSelectClauses" ? EventSelectClauseRefType : referenceKind);
                         break;
                 }
             }
+        }
+
+        private static void AddDataTypeBaseReference(
+            WotDocument document, JsonElement owner, JsonElement value, List<WotResourceReference> references)
+        {
+            const string relation = "uav:dataTypeSubtypeOf";
+            if (value.ValueKind == JsonValueKind.Object)
+            {
+                foreach (JsonProperty member in value.EnumerateObject())
+                {
+                    string term = SemanticTerm(document, member.Name, value);
+                    if (term == "@id")
+                    {
+                        AddSemanticTargets(document, value, member.Value, relation, references);
+                    }
+                    else if (term is "uav:dataTypeName" or "uav:dataTypeId")
+                    {
+                        AddDataTypeBaseReference(document, value, member.Value, references);
+                    }
+                }
+                return;
+            }
+            if (value.ValueKind != JsonValueKind.String)
+            {
+                return;
+            }
+            if (TryDataTypeNodeId(document, owner, value, out string nodeId))
+            {
+                references.Add(new WotResourceReference(
+                    value.GetString()!, nodeId, relation, true, WotResourceReferenceLookup.DataTypeNodeId));
+            }
+            else if (TryDataTypeName(document, owner, value, out string name))
+            {
+                references.Add(new WotResourceReference(
+                    value.GetString()!, name, relation, true, WotResourceReferenceLookup.DataTypeName));
+            }
+            else
+            {
+                AddSemanticTargets(document, owner, value, relation, references);
+            }
+        }
+
+        private static bool TryDataTypeName(
+            WotDocument document, JsonElement owner, JsonElement value, out string name)
+        {
+            if (value.ValueKind == JsonValueKind.String &&
+                WotNodeSetConverter.TrySplitCompactName(
+                    document, value.GetString()!, out string namespaceUri, out string local, owner))
+            {
+                name = "nsu=" + CoreUtils.EscapeUri(namespaceUri) + ";" + local;
+                return true;
+            }
+            name = string.Empty;
+            return false;
+        }
+
+        private static bool TryDataTypeNodeId(
+            WotDocument document, JsonElement owner, JsonElement value, out string nodeId)
+        {
+            if (value.ValueKind == JsonValueKind.String &&
+                ExpandedNodeId.TryParse(ExpandReference(document, value.GetString()!, owner), out ExpandedNodeId id))
+            {
+                nodeId = id.ToString();
+                return true;
+            }
+            nodeId = string.Empty;
+            return false;
+        }
+
+        private static bool IsDataTypeDefinition(WotDocument document, JsonElement element)
+        {
+            if (!element.TryGetProperty("@type", out JsonElement type))
+            {
+                return false;
+            }
+            bool IsDefinition(JsonElement value)
+            {
+                return value.ValueKind == JsonValueKind.String &&
+                    SemanticTerm(document, value.GetString()!, element) is
+                        "uav:StructureDefinition" or "uav:EnumDefinition" or "uav:SimpleDataType";
+            }
+            return type.ValueKind == JsonValueKind.Array ? type.EnumerateArray().Any(IsDefinition) : IsDefinition(type);
         }
 
         private static void CollectSemanticLinks(
@@ -169,7 +319,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 string term = SemanticTerm(document, relation.GetString()!, link);
                 if (term is "type" or "collection" or "item" or "tm:extends" or "tm:submodel" ||
-                    term.StartsWith("ua:", StringComparison.Ordinal) || IsContainmentRelation(term))
+                    term.StartsWith("ua:", StringComparison.Ordinal) || IsContainmentRelation(term) ||
+                    Uri.TryCreate(term, UriKind.Absolute, out _) ||
+                    link.EnumerateObject().Any(member => SemanticTerm(document, member.Name, link) == "uav:refId"))
                 {
                     AddSemanticTargets(document, link, href, term, references);
                 }
@@ -214,7 +366,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         {
             return relation is "tm:extends" or "tm:submodel" or "type" or
                 "ua:HasSubtype" or "ua:HasTypeDefinition" or "uav:projects" or
-                EventTypeRefType or EventSelectClauseRefType;
+                "uav:dataTypeSubtypeOf" or EventTypeRefType or EventSelectClauseRefType;
         }
 
         private static string SemanticTerm(WotDocument document, string name, JsonElement carryingNode)

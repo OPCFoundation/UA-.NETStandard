@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.Threading;
@@ -41,40 +42,39 @@ namespace Opc.Ua.WotCon.Server.Registry
         private async ValueTask<WotRegistrySnapshot> HydrateDependencyMetadataAsync(
             WotRegistrySnapshot snapshot, CancellationToken cancellationToken)
         {
+            var metadataByDigest = new Dictionary<string, WotResourceDependencies>(StringComparer.Ordinal);
             foreach (WotResourceGroup group in snapshot.Groups.Values)
             {
                 ImmutableDictionary<string, WotResource> resources = group.Resources;
                 foreach (WotResource resource in group.Resources.Values)
                 {
-                    ImmutableArray<WotResourceVersion>.Builder? versions = null;
-                    for (int i = 0; i < resource.Versions.Length; i++)
+                    WotResource hydrated = await HydrateVersionsAsync(resource).ConfigureAwait(false);
+                    if (resource.CommittedVersion is { } committed)
                     {
-                        WotResourceVersion version = resource.Versions[i];
-                        if (!version.HasContent || version.Dependencies is not null)
+                        WotResourceVersion current = await HydrateVersionAsync(committed).ConfigureAwait(false);
+                        if (!ReferenceEquals(current, committed))
                         {
-                            continue;
+                            hydrated = hydrated.WithCommittedVersion(current);
                         }
-                        WotResourceDependencies metadata;
-                        try
-                        {
-                            ByteString content = await ReadContentAsync(version, cancellationToken)
-                                .ConfigureAwait(false);
-                            metadata = WotDependencyGraph.ReadMetadata(content, Bounds.MaxJsonDepth);
-                        }
-                        catch (Exception exception) when (exception is IOException or ServiceResultException or
-                            UnauthorizedAccessException)
-                        {
-                            metadata = new WotResourceDependencies(
-                                version.Digest, [], [], [], [], exception.Message);
-                        }
-                        versions ??= resource.Versions.ToBuilder();
-                        versions[i] = version.WithDocumentMetadata(
-                            version.DocumentId, version.Title, version.BaseUri, version.ModelVersion, metadata);
                     }
-                    if (versions is not null)
+                    WotResource[]? inputs = null;
+                    for (int i = 0; i < resource.CommittedInputs.Count; i++)
                     {
-                        resources = resources.SetItem(
-                            resource.ResourceId, resource.With(versions: versions.ToImmutable()));
+                        WotResource input = resource.CommittedInputs[i];
+                        WotResource current = await HydrateVersionsAsync(input).ConfigureAwait(false);
+                        if (!ReferenceEquals(current, input))
+                        {
+                            inputs ??= resource.CommittedInputs.Span.ToArray();
+                            inputs[i] = current;
+                        }
+                    }
+                    if (inputs is not null)
+                    {
+                        hydrated = hydrated.WithCommittedInputs(inputs.ToArrayOf());
+                    }
+                    if (!ReferenceEquals(hydrated, resource))
+                    {
+                        resources = resources.SetItem(resource.ResourceId, hydrated);
                     }
                 }
                 if (!ReferenceEquals(resources, group.Resources))
@@ -83,6 +83,46 @@ namespace Opc.Ua.WotCon.Server.Registry
                 }
             }
             return snapshot;
+
+            async ValueTask<WotResource> HydrateVersionsAsync(WotResource resource)
+            {
+                ImmutableArray<WotResourceVersion>.Builder? versions = null;
+                for (int i = 0; i < resource.Versions.Length; i++)
+                {
+                    WotResourceVersion previous = resource.Versions[i];
+                    WotResourceVersion current = await HydrateVersionAsync(previous).ConfigureAwait(false);
+                    if (!ReferenceEquals(current, previous))
+                    {
+                        versions ??= resource.Versions.ToBuilder();
+                        versions[i] = current;
+                    }
+                }
+                return versions is null ? resource : resource.With(versions: versions.ToImmutable());
+            }
+
+            async ValueTask<WotResourceVersion> HydrateVersionAsync(WotResourceVersion version)
+            {
+                if (!version.HasContent || version.Dependencies is not null)
+                {
+                    return version;
+                }
+                if (!metadataByDigest.TryGetValue(version.DigestHex, out WotResourceDependencies? metadata))
+                {
+                    try
+                    {
+                        ByteString content = await ReadContentAsync(version, cancellationToken).ConfigureAwait(false);
+                        metadata = WotDependencyGraph.ReadMetadata(content, Bounds.MaxJsonDepth);
+                    }
+                    catch (Exception exception) when (exception is IOException or ServiceResultException or
+                        UnauthorizedAccessException)
+                    {
+                        metadata = new WotResourceDependencies(version.Digest, [], [], [], [], exception.Message);
+                    }
+                    metadataByDigest.Add(version.DigestHex, metadata);
+                }
+                return version.WithDocumentMetadata(
+                    version.DocumentId, version.Title, version.BaseUri, version.ModelVersion, metadata);
+            }
         }
     }
 }

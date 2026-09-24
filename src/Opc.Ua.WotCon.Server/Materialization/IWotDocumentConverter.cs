@@ -218,17 +218,28 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         /// <inheritdoc/>
-        public async ValueTask<WotConversionOutput> ConvertAsync(
+        public ValueTask<WotConversionOutput> ConvertAsync(
             WotResource resource,
             ByteString content,
             WotRegistrySnapshot snapshot,
             IReadOnlyDictionary<string, ByteString> contents,
             CancellationToken cancellationToken)
         {
+            return ConvertCapturedAsync(resource, content, snapshot, contents, true, cancellationToken);
+        }
+
+        internal async ValueTask<WotConversionOutput> ConvertCapturedAsync(
+            WotResource resource,
+            ByteString content,
+            WotRegistrySnapshot snapshot,
+            IReadOnlyDictionary<string, ByteString> contents,
+            bool ownsResolutionDefinitions,
+            CancellationToken cancellationToken)
+        {
+            var siblingDocuments = new List<WotDocument>();
             try
             {
                 using var document = WotDocument.Parse(content.Span.ToArray(), m_options);
-                var resolver = new SnapshotThingResolver(snapshot, contents);
 
                 // WoT Binding Section 5.1.5: the local context has two parts,
                 // consulted in this order - the sibling documents of this
@@ -241,6 +252,40 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 // the resolver is reused for as long as the snapshot it indexes
                 // is the one being converted. Building it per conversion would
                 // make a refresh cost one registry-wide index per document.
+                var indexed = new HashSet<string>(StringComparer.Ordinal);
+                var definitions = new List<WotDataTypeDefinitionSource>();
+                long bytes = 0;
+                foreach (WotResource sibling in snapshot.AllResources())
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    WotResourceVersion? version = sibling.DefaultVersion;
+                    if (version is null || !contents.TryGetValue(version.DigestHex, out ByteString body) ||
+                        !indexed.Add(version.DigestHex))
+                    {
+                        continue;
+                    }
+                    bytes = checked(bytes + body.Length);
+                    if (indexed.Count > m_options.MaxResolverDocuments ||
+                        bytes > m_options.MaxResolverTotalBytes)
+                    {
+                        return WotConversionOutput.Failure("The captured sibling documents exceed the resolver budget.");
+                    }
+                    WotDocument owner = sibling.Xid == resource.Xid
+                        ? document : WotDocument.Parse(body.Memory, m_options);
+                    if (!ReferenceEquals(owner, document))
+                    {
+                        siblingDocuments.Add(owner);
+                    }
+                    foreach (WotDataTypeDefinitionSource definition in WotNodeSetConverter.ReadDataTypeDefinitions(owner))
+                    {
+                        definitions.Add(new WotDataTypeDefinitionSource(owner, definition.Definition)
+                        {
+                            ProjectedSeparately = sibling.Xid != resource.Xid &&
+                                (sibling.Enabled || !ownsResolutionDefinitions)
+                        });
+                    }
+                }
+                var resolver = new SnapshotThingResolver(snapshot, contents, definitions.ToArrayOf());
                 IWotNodeResolver nodeResolver = GetLocalContext(snapshot, contents);
                 // One resolution context per top-level conversion, seeded from
                 // the configured converter options, so depth/document/byte
@@ -287,6 +332,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 return WotConversionOutput.Failure(ex.Message);
+            }
+            finally
+            {
+                foreach (WotDocument sibling in siblingDocuments)
+                {
+                    sibling.Dispose();
+                }
             }
         }
 

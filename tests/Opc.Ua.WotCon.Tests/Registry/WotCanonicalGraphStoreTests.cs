@@ -30,6 +30,10 @@
 using System;
 using System.Collections.Immutable;
 using System.IO;
+using System.Linq;
+using System.Text;
+using System.Text.Json.Nodes;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.WotCon.Bindings;
@@ -339,6 +343,117 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 AssertAffected(durable, child, "child-view");
                 AssertAffected(durable, parent, "parent-view");
             }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DefinitionIdentityIndexSurvivesReloadAndLegacyIndexMigration(bool legacyIndex)
+        {
+            long generation;
+            using (var store = new FileWotRegistryStore(m_root))
+            using (var registry = new WotRegistryService(store))
+            {
+                await registry.InitializeAsync().ConfigureAwait(false);
+                WotRegistryMutationResult model = await registry.UpsertResourceAsync(new WotUpsertResourceRequest
+                {
+                    GroupId = WotRegistryGroups.ThingModels, ResourceId = "definitions",
+                    Kind = WoTDocumentKindEnum.ThingModel, VersionId = "v1",
+                    Content = ByteString.From(Encoding.UTF8.GetBytes("""
+                        {
+                          "@context": {
+                            "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+                            "types": "urn:r30:index:"
+                          },
+                          "@type": "tm:ThingModel",
+                          "id": "urn:r30:index:owner",
+                          "title": "Definitions",
+                          "uav:dataTypeDefinitions": [{
+                            "@id": "urn:r30:index:Reading",
+                            "@type": "uav:SimpleDataType",
+                            "uav:dataTypeName": "types:Reading",
+                            "uav:dataTypeSubtypeOf": {"uav:dataTypeId": "i=6"}
+                          }]
+                        }
+                        """))
+                }).ConfigureAwait(false);
+                WotRegistryMutationResult source = await registry.UpsertResourceAsync(new WotUpsertResourceRequest
+                {
+                    GroupId = WotRegistryGroups.ThingDescriptions, ResourceId = "consumer",
+                    Kind = WoTDocumentKindEnum.ThingDescription, VersionId = "v1",
+                    Content = ByteString.From(Encoding.UTF8.GetBytes("""
+                        {
+                          "@context": {
+                            "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+                            "d": "urn:r30:index:"
+                          },
+                          "id": "urn:r30:index:consumer",
+                          "title": "Consumer",
+                          "properties": {"reading": {"uav:dataTypeDefinition": {"@id": "d:Reading"}}}
+                        }
+                        """))
+                }).ConfigureAwait(false);
+                Assert.That(model.Changed, Is.True, model.Message);
+                Assert.That(source.Changed, Is.True, source.Message);
+                await registry.SetEnabledAsync(
+                    model.Resource!.GroupId, model.Resource.ResourceId, false).ConfigureAwait(false);
+                generation = registry.Current.Generation;
+            }
+            if (legacyIndex)
+            {
+                string path = Path.Combine(m_root, "manifest.json");
+                JsonNode manifest = JsonNode.Parse(File.ReadAllText(path))!;
+                int changed = 0;
+                void Downgrade(JsonNode? node)
+                {
+                    if (node is JsonObject value)
+                    {
+                        if (value["Dependencies"] is JsonObject index)
+                        {
+                            Assert.That(index.Remove("IndexVersion"), Is.True);
+                            Assert.That(index.Remove("DataTypeDefinitionIds"), Is.True);
+                            index["References"] = new JsonArray();
+                            changed++;
+                        }
+                        foreach (JsonNode? child in value.Select(property => property.Value))
+                        {
+                            Downgrade(child);
+                        }
+                    }
+                    else if (node is JsonArray array)
+                    {
+                        foreach (JsonNode? child in array)
+                        {
+                            Downgrade(child);
+                        }
+                    }
+                }
+                Downgrade(manifest);
+                Assert.That(changed, Is.EqualTo(2));
+                File.WriteAllText(path, manifest.ToJsonString());
+            }
+            using var reopenedStore = new FileWotRegistryStore(m_root);
+            using var reopened = new WotRegistryService(reopenedStore);
+            await reopened.InitializeAsync().ConfigureAwait(false);
+            WotRegistrySnapshot before = reopened.Current;
+            WotResource consumer = before.FindResource(WotRegistryGroups.ThingDescriptions, "consumer")!;
+            WotResource definition = before.FindResource(WotRegistryGroups.ThingModels, "definitions")!;
+
+            ImmutableArray<WotDependencyClosure> closures = await WotDependencyGraph.BuildClosuresAsync(
+                before, [consumer], 64, reopened.ReadContentAsync, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(before.Generation, Is.EqualTo(generation + (legacyIndex ? 1 : 0)));
+            Assert.That(before.RefreshGeneration, Is.Zero);
+            Assert.That(closures, Has.Length.EqualTo(1));
+            Assert.That(closures[0].Members.Select(member => member.Xid),
+                Is.EquivalentTo(new[] { consumer.Xid, definition.Xid }));
+            Assert.That(closures[0].Dependencies.Single().TargetHref, Is.EqualTo("d:Reading"));
+            Assert.That(closures[0].Dependencies.Single().TargetXid, Is.EqualTo(definition.Xid));
+            WotDeleteResult refused = await reopened.DeleteResourceAsync(
+                definition.GroupId, definition.ResourceId, WoTDeletePolicyEnum.Reject).ConfigureAwait(false);
+            Assert.That(refused.Outcome, Is.EqualTo(WoTOutcomeEnum.Rejected));
+            await reopened.InitializeAsync().ConfigureAwait(false);
+            Assert.That(reopened.Current.Generation, Is.EqualTo(before.Generation),
+                "A migrated dependency index must be persisted, not rebuilt into another generation on every reload.");
         }
 
         [Test]

@@ -22,9 +22,11 @@ their raw edges and acquisition failures are retained without inventing a conten
 digest pin or aborting independent selected work.
 
 Portable NodeIds remain native identities rather than relative document
-locations. Dependency indexing does not resolve them against a document's base
-or invent missing document edges; ordinary relative document references still
-use their original active base context.
+locations. A DataType name or NodeId that identifies a stored declaration adds
+that declaration's owner to the required inputs. Otherwise it remains a
+loaded-AddressSpace or built-in type lookup, not a missing document dependency.
+Indexing does not resolve native identities against a document's base; ordinary
+relative document references still use their original active base context.
 
 The captured graph separates ordinary semantic strongly connected components
 from ordering constraints such as inheritance. Reciprocal ordinary references
@@ -32,6 +34,54 @@ may co-activate; inheritance cycles remain invalid. Referenced disabled inputs
 can supply definitions without acquiring executing ownership. Acquisition failures
 remain associated with their intended resources/closures rather than aborting
 unrelated selected work before it can be processed.
+
+## DataType declaration inputs
+
+DataSchemas and StructureFields can refer to a definition by its graph identity,
+qualified name or portable NodeId. The index retains graph identities separately
+from qualified names and native identities. A graph identity need not resemble
+its document's URI. Each lookup uses the carrying element's context; its raw
+authored target remains in the dependency edge. Ambiguous stored owners are not
+selected arbitrarily.
+
+`uav:dataTypeDefinition` and `uav:fieldDataTypeDefinition` add resolution edges.
+Recursive fields are legal. `uav:dataTypeSubtypeOf` preserves its ordering
+constraint for graph-identity, name and NodeId forms, including object forms.
+True inheritance cycles remain failures. Context-qualified typed links also
+contribute their document targets, with or without an optional `uav:refId`.
+Opaque configuration, JSON literals and native preservation payloads are not
+readable declaration indexes.
+
+The stock converter receives complete captured definitions through the optional
+`IWotCapturedDataTypeDefinitions` capability on its Thing resolver. Each
+`WotDataTypeDefinitionSource` retains its owning document and context throughout
+conversion. `WotNodeSetConverter.ReadDataTypeDefinitions` returns borrowed full
+definitions, omitting reference-only occurrences. `TrySplitCompactName` provides
+the same context-aware name parsing used by conversion and registry indexing.
+Captured inputs remain subject to the converter's document, node and byte limits;
+supplying them does not authorize another fetch.
+
+An active definition owner emits its own declarations. Resolution-only
+definitions are emitted once by an active source in the prepared closure.
+Consumers sharing such declarations stay in one publication unit rather than
+registering the same type independently. Generated NodeSets declare the
+namespaces of their emitted Nodes; merely referencing a namespace does not
+claim ownership of it. A definition's `ProjectedSeparately` flag states emission
+ownership, not eligibility to execute a disabled Resource.
+
+Dependency indexes are versioned inside the existing Version manifest entries.
+An older index is rehydrated from its exact content; an unsupported or incomplete
+current index is rejected. Rehydration covers ordinary Versions, the committed
+Version and retained resolution-only inputs. It preserves active/runtime
+generation and pending default selections, and persists the upgraded metadata
+once. Cold recovery uses the retained definition Version even when the current
+default supplies a different type identity.
+
+Deletion policy uses the same contextual reference lookup as closure capture,
+including the lookup after proposed removals. A compact reference cannot bypass
+`Reject` merely because its raw spelling differs from the expanded identity.
+
+## Direct capture
 
 Direct callers can capture the same public input image:
 

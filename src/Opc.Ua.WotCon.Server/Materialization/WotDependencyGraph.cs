@@ -374,14 +374,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 throw new ArgumentNullException(nameof(readContent));
             }
 
-            var edges = new Dictionary<string, List<WotDependency>>(StringComparer.Ordinal);
+            var edges = new Dictionary<string, List<(WotResourceReference Reference, string? TargetXid)>>(
+                StringComparer.Ordinal);
             var byXid = new Dictionary<string, WotResource>(StringComparer.Ordinal);
             var unreadable = new List<string>();
             foreach (WotResource resource in snapshot.AllResources())
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 byXid[resource.Xid] = resource;
-                var list = new List<WotDependency>();
+                var list = new List<(WotResourceReference Reference, string? TargetXid)>();
                 edges[resource.Xid] = list;
                 WotResourceVersion? version = resource.DefaultVersion;
                 if (version is null)
@@ -408,16 +409,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     unreadable.Add(resource.Xid);
                     continue;
                 }
-                foreach ((string href, string refType) in ExtractReferences(
-                    content.Memory, maxJsonDepth))
+                foreach (WotResourceReference reference in ReadMetadata(content, maxJsonDepth).References)
                 {
-                    WotResource? resolved = Resolve(snapshot, href);
-                    if (IsLocalFragmentReference(resource, href, refType, resolved))
+                    WotResource? resolved = ResolveReference(snapshot, resource, reference);
+                    if (IsLocalFragmentReference(resource, reference.TargetUri, reference.RefType, resolved))
                     {
                         continue;
                     }
-                    list.Add(new WotDependency(
-                        resource.Xid, href, resolved?.Xid, refType, resolved is not null));
+                    list.Add((reference, resolved?.Xid));
                 }
             }
 
@@ -431,7 +430,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 changed = false;
-                foreach (KeyValuePair<string, List<WotDependency>> entry in edges)
+                foreach (KeyValuePair<string, List<(WotResourceReference Reference, string? TargetXid)>> entry in edges)
                 {
                     if (removed.Contains(entry.Key))
                     {
@@ -439,14 +438,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     }
                     bool dependsOnRemoved = false;
                     bool losesAReference = false;
-                    foreach (WotDependency edge in entry.Value)
+                    foreach ((WotResourceReference reference, string? targetXid) in entry.Value)
                     {
-                        if (edge.TargetXid is null || !removed.Contains(edge.TargetXid))
+                        if (targetXid is null || !removed.Contains(targetXid))
                         {
                             continue;
                         }
                         dependsOnRemoved = true;
-                        if (!ResolvesWithout(snapshot, edge.TargetHref, removed))
+                        if (!ResolvesWithout(snapshot, byXid[entry.Key], reference, removed))
                         {
                             losesAReference = true;
                         }
@@ -480,22 +479,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         /// <summary>
-        /// Gets whether an href still resolves once a set of resources is gone.
+        /// Gets whether the contextual reference still resolves after removing Resources.
         /// </summary>
         private static bool ResolvesWithout(
             WotRegistrySnapshot snapshot,
-            string href,
+            WotResource source,
+            WotResourceReference reference,
             HashSet<string> removed)
         {
-            string trimmed = TrimFragment(href);
-            foreach (WotResource candidate in snapshot.AllResources())
-            {
-                if (!removed.Contains(candidate.Xid) && Matches(candidate, trimmed))
-                {
-                    return true;
-                }
-            }
-            return false;
+            return ResolveReference(snapshot, source, reference, removed) is not null;
         }
 
         /// <summary>
@@ -503,25 +495,73 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// </summary>
         public static WotResource? Resolve(WotRegistrySnapshot snapshot, string href)
         {
+            return Resolve(snapshot, href, null);
+        }
+
+        private static WotResource? Resolve(
+            WotRegistrySnapshot snapshot, string href, HashSet<string>? excluded)
+        {
             if (snapshot is null || string.IsNullOrWhiteSpace(href))
             {
                 return null;
             }
             string trimmed = TrimFragment(href);
-            WotResource[] exact = snapshot.AllResources().Where(resource =>
-                string.Equals(resource.ThingId, trimmed, StringComparison.Ordinal) ||
-                string.Equals(resource.Xid, trimmed, StringComparison.Ordinal) ||
-                string.Equals(RegistryUri(resource), trimmed, StringComparison.Ordinal) ||
-                resource.Versions.Any(version =>
-                    string.Equals(VersionXid(resource, version), trimmed, StringComparison.Ordinal)))
-                .ToArray();
-            if (exact.Length != 0)
+            WotResource? definition = null;
+            WotResource? exact = null;
+            WotResource? relative = null;
+            int definitionCount = 0;
+            int exactCount = 0;
+            int relativeCount = 0;
+            foreach (WotResource resource in snapshot.AllResources())
             {
-                return exact.Length == 1 ? exact[0] : null;
+                if (excluded?.Contains(resource.Xid) == true)
+                {
+                    continue;
+                }
+                if (DefinesDataType(resource, href))
+                {
+                    definition = resource;
+                    definitionCount++;
+                }
+                if (string.Equals(resource.ThingId, trimmed, StringComparison.Ordinal) ||
+                    string.Equals(resource.Xid, trimmed, StringComparison.Ordinal) ||
+                    string.Equals(RegistryUri(resource), trimmed, StringComparison.Ordinal) ||
+                    resource.Versions.Any(version =>
+                        string.Equals(VersionXid(resource, version), trimmed, StringComparison.Ordinal)))
+                {
+                    exact = resource;
+                    exactCount++;
+                }
+                if (string.Equals(resource.ResourceId, trimmed, StringComparison.Ordinal))
+                {
+                    relative = resource;
+                    relativeCount++;
+                }
             }
-            WotResource[] relative = snapshot.AllResources().Where(resource =>
-                string.Equals(resource.ResourceId, trimmed, StringComparison.Ordinal)).ToArray();
-            return relative.Length == 1 ? relative[0] : null;
+            if (definitionCount != 0)
+            {
+                return definitionCount == 1 ? definition : null;
+            }
+            if (exactCount != 0)
+            {
+                return exactCount == 1 ? exact : null;
+            }
+            return relativeCount == 1 ? relative : null;
+        }
+
+        private static bool DefinesDataType(WotResource resource, string identity)
+        {
+            return resource.DefaultVersion?.Dependencies?.DataTypeDefinitionIds.Contains(
+                defined => string.Equals(defined, identity, StringComparison.Ordinal)) == true;
+        }
+
+        private static bool DefinesReferencedNode(WotResource resource, WotResourceReference reference)
+        {
+            WotResourceDependencies? metadata = resource.DefaultVersion?.Dependencies;
+            return metadata is not null &&
+                (reference.Lookup == WotResourceReferenceLookup.DataTypeName
+                    ? metadata.DataTypeDefinitionNames : metadata.DefinedNodeIds).Contains(
+                        defined => string.Equals(defined, reference.LookupUri, StringComparison.Ordinal));
         }
 
         internal static bool IsContainmentRelation(string relation)
@@ -685,6 +725,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 foreach (WotResourceReference reference in metadata.References)
                 {
                     WotResource? target = ResolveReference(snapshot, resource, reference);
+                    if (target is null && reference.Lookup != WotResourceReferenceLookup.Document &&
+                        !snapshot.AllResources().Any(candidate => DefinesReferencedNode(candidate, reference)))
+                    {
+                        continue;
+                    }
                     if (IsLocalFragmentReference(resource, reference.TargetUri, reference.RefType, target))
                     {
                         continue;

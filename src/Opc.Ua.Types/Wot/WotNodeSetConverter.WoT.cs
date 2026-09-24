@@ -250,7 +250,8 @@ namespace Opc.Ua.Wot
             WotReferenceTypeCatalog? referenceTypeCatalog = null;
             WotEventSelectionCatalog? eventSelections = null;
             bool eventSelectionsResolved = false;
-            ArrayOf<WotDataTypeDefinitionSource> dataTypeSources = [];
+            ArrayOf<WotDataTypeDefinitionSource> dataTypeSources =
+                (thingResolver as IWotCapturedDataTypeDefinitions)?.DataTypeDefinitions ?? [];
             Dictionary<(string NamespaceUri, string Name), string?>? dataTypeNames = null;
             var documentSet = thingResolver as DocumentSetThingResolver;
             ArrayOf<WotDocument> dataTypeOwners = documentSet?.DataTypeOwners ?? [];
@@ -264,7 +265,7 @@ namespace Opc.Ua.Wot
                 {
                     dataTypeSources = await PreresolveDataTypeDefinitionsAsync(
                         document, dataTypeOwners, nodeResolver, options ?? new WotNodeSetConverterOptions(),
-                        diagnostics, cancellationToken).ConfigureAwait(false);
+                        diagnostics, dataTypeSources, cancellationToken).ConfigureAwait(false);
                     dataTypeNames = await PreresolveDataTypeNamesAsync(
                         document, dataTypeSources, dataTypeOwners, nodeResolver,
                         diagnostics, cancellationToken).ConfigureAwait(false);
@@ -414,21 +415,39 @@ namespace Opc.Ua.Wot
             IWotNodeResolver? nodeResolver,
             WotNodeSetConverterOptions options,
             List<WotDiagnostic> diagnostics,
+            ArrayOf<WotDataTypeDefinitionSource> captured,
             CancellationToken cancellationToken)
         {
-            if (nodeResolver is not IWotDataTypeDefinitionResolver resolver)
-            {
-                return [];
-            }
             options.Validate();
+            cancellationToken.ThrowIfCancellationRequested();
             var documents = new HashSet<WotDocument> { document };
             foreach (WotDocument owner in sharedOwners)
             {
                 documents.Add(owner);
             }
+            var localOwners = new List<WotDocument>(documents);
+            foreach (WotDataTypeDefinitionSource source in captured)
+            {
+                documents.Add(source.Document);
+            }
+            long capturedBytes = 0;
+            foreach (WotDocument owner in documents)
+            {
+                capturedBytes = checked(capturedBytes + owner.Utf8Json.Length);
+            }
+            if (documents.Count > options.MaxResolverDocuments || captured.Count > options.MaxNodeCount ||
+                capturedBytes > options.MaxResolverTotalBytes)
+            {
+                Report(document.Id ?? string.Empty, "The captured DataType definitions exceed the configured limits.");
+                return [];
+            }
+            if (nodeResolver is not IWotDataTypeDefinitionResolver resolver)
+            {
+                return captured.IsNull ? [] : captured;
+            }
             var known = new HashSet<string>(StringComparer.Ordinal);
             var pending = new Queue<(JsonElement Root, int Depth)>();
-            foreach (WotDocument owner in documents)
+            foreach (WotDocument owner in localOwners)
             {
                 if (TakesRestorePath(owner))
                 {
@@ -443,7 +462,16 @@ namespace Opc.Ua.Wot
                 }
                 pending.Enqueue((owner.RootElement, 0));
             }
-            var sources = new List<WotDataTypeDefinitionSource>();
+            var sources = captured.ToList();
+            foreach (WotDataTypeDefinitionSource source in captured)
+            {
+                documents.Add(source.Document);
+                if (GetElementString(source.Definition, "@id") is { } graphId)
+                {
+                    known.Add(graphId);
+                }
+                pending.Enqueue((source.Definition, 0));
+            }
             while (pending.Count != 0)
             {
                 (JsonElement root, int depth) = pending.Dequeue();
@@ -1834,6 +1862,28 @@ namespace Opc.Ua.Wot
                 return null;
             }
             nodeSet.Items = [.. items];
+            var models = new List<ModelTableEntry>(nodeSet.Models ?? []);
+            var ownedNamespaces = new HashSet<string>(StringComparer.Ordinal);
+            foreach (ModelTableEntry model in models)
+            {
+                if (model.ModelUri is not null)
+                {
+                    ownedNamespaces.Add(model.ModelUri);
+                }
+            }
+            foreach (UANode node in items)
+            {
+                if (node.NodeId is { } nodeId && NodeId.TryParse(nodeId, out NodeId identity) && identity.NamespaceIndex > 0 &&
+                    nodeSet.NamespaceUris is { } namespaces && identity.NamespaceIndex <= namespaces.Length)
+                {
+                    string namespaceUri = namespaces[identity.NamespaceIndex - 1];
+                    if (ownedNamespaces.Add(namespaceUri))
+                    {
+                        models.Add(new ModelTableEntry { ModelUri = namespaceUri });
+                    }
+                }
+            }
+            nodeSet.Models = [.. models];
             CompleteAffordanceOwnership(nodeSet, items, referenceTypeCatalog);
             WotJsonResidue.Replace(
                 nodeSet, document, options, diagnostics,

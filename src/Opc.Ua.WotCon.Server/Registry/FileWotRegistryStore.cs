@@ -1331,17 +1331,21 @@ namespace Opc.Ua.WotCon.Server.Registry
         {
             return dependencies is null ? null : new DependenciesDto
             {
+                IndexVersion = WotResourceDependencies.CurrentIndexVersion,
                 ContentDigest = WotContentDigest.ToHex(dependencies.ContentDigest),
                 References = dependencies.References.ToList().Select(reference => new DependencyReferenceDto
                 {
                     TargetUri = reference.TargetUri,
                     LookupUri = reference.LookupUri,
                     RefType = reference.RefType,
-                    RequiresOrdering = reference.RequiresOrdering
+                    RequiresOrdering = reference.RequiresOrdering,
+                    Lookup = reference.Lookup
                 }).ToArray(),
                 OwnedModelUris = dependencies.OwnedModelUris.ToArray(),
                 RequiredModelUris = dependencies.RequiredModelUris.ToArray(),
                 DefinedNodeIds = dependencies.DefinedNodeIds.ToArray(),
+                DataTypeDefinitionIds = dependencies.DataTypeDefinitionIds.ToArray(),
+                DataTypeDefinitionNames = dependencies.DataTypeDefinitionNames.ToArray(),
                 Error = dependencies.Error
             };
         }
@@ -1358,17 +1362,31 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 throw new InvalidDataException("Dependency metadata does not identify the exact Version content.");
             }
+            if (dto.IndexVersion == 0)
+            {
+                return null;
+            }
+            if (dto.IndexVersion != WotResourceDependencies.CurrentIndexVersion || dto.DataTypeDefinitionIds is null ||
+                dto.DataTypeDefinitionNames is null || dto.References.Any(reference =>
+                    reference.Lookup is not (WotResourceReferenceLookup.Document or
+                        WotResourceReferenceLookup.DataTypeName or WotResourceReferenceLookup.DataTypeNodeId)))
+            {
+                throw new InvalidDataException("Dependency metadata has an unsupported or incomplete index version.");
+            }
             return new WotResourceDependencies(
                 FromHexDigest(digestHex),
                 dto.References.Select(reference => new WotResourceReference(
                     reference.TargetUri ?? throw new InvalidDataException("Missing dependency target."),
                     reference.LookupUri ?? throw new InvalidDataException("Missing contextual dependency identity."),
                     reference.RefType ?? throw new InvalidDataException("Missing dependency relation."),
-                    reference.RequiresOrdering)).ToArrayOf(),
+                    reference.RequiresOrdering,
+                    reference.Lookup)).ToArrayOf(),
                 dto.OwnedModelUris.ToArrayOf(),
                 dto.RequiredModelUris.ToArrayOf(),
                 dto.DefinedNodeIds.ToArrayOf(),
-                dto.Error);
+                dto.Error,
+                dto.DataTypeDefinitionIds.ToArrayOf(),
+                dto.DataTypeDefinitionNames.ToArrayOf());
         }
 
         private static DependencySnapshotDto? ToDto(WotDependencySnapshot? snapshot)
@@ -3160,11 +3178,14 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// </summary>
         internal sealed class DependenciesDto
         {
+            public int IndexVersion { get; set; }
             public string? ContentDigest { get; set; }
             public DependencyReferenceDto[]? References { get; set; }
             public string[]? OwnedModelUris { get; set; }
             public string[]? RequiredModelUris { get; set; }
             public string[]? DefinedNodeIds { get; set; }
+            public string[]? DataTypeDefinitionIds { get; set; }
+            public string[]? DataTypeDefinitionNames { get; set; }
             public string? Error { get; set; }
         }
 
@@ -3177,6 +3198,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             public string? LookupUri { get; set; }
             public string? RefType { get; set; }
             public bool RequiresOrdering { get; set; }
+            public WotResourceReferenceLookup Lookup { get; set; }
         }
 
         /// <summary>

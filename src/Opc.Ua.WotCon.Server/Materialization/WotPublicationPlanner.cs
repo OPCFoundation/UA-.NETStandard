@@ -87,6 +87,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     partition.Join(component.Members.ToList().Where(member => member.Enabled)
                         .Select(member => member.Xid));
                 }
+                foreach (WotResource input in closure.Members.Where(member => !member.Enabled &&
+                    member.DefaultVersion?.Dependencies?.DataTypeDefinitionIds.IsEmpty == false))
+                {
+                    partition.Join(closure.ActivationMembers.ToList()
+                        .Where(member => RequiresInput(closure, member.Xid, input.Xid))
+                        .Select(member => member.Xid));
+                }
             }
             foreach (WotPublicationFootprint owner in previous)
             {
@@ -167,6 +174,33 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     partition.Root(edge.SourceXid), edge.TargetHref, partition.Root(edge.TargetXid!),
                     edge.RefType, true)).ToImmutableArray();
             return WotDependencyGraph.BuildStronglyConnectedComponents(roots, condensed, roots);
+        }
+
+        private static bool RequiresInput(WotDependencyClosure closure, string source, string input)
+        {
+            var visited = new HashSet<string>(StringComparer.Ordinal) { source };
+            var pending = new Queue<string>();
+            pending.Enqueue(source);
+            while (pending.Count != 0)
+            {
+                string current = pending.Dequeue();
+                foreach (WotDependency edge in closure.Dependencies)
+                {
+                    if (edge.SourceXid != current || edge.TargetXid is not { } target)
+                    {
+                        continue;
+                    }
+                    if (target == input)
+                    {
+                        return true;
+                    }
+                    if (visited.Add(target))
+                    {
+                        pending.Enqueue(target);
+                    }
+                }
+            }
+            return false;
         }
 
         private sealed class Partition(IEnumerable<string> xids)

@@ -41,11 +41,18 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// Initializes an immutable reference.
         /// </summary>
         public WotResourceReference(string targetUri, string lookupUri, string refType, bool requiresOrdering)
+            : this(targetUri, lookupUri, refType, requiresOrdering, WotResourceReferenceLookup.Document)
+        {
+        }
+
+        internal WotResourceReference(
+            string targetUri, string lookupUri, string refType, bool requiresOrdering, WotResourceReferenceLookup lookup)
         {
             TargetUri = targetUri ?? throw new ArgumentNullException(nameof(targetUri));
             LookupUri = lookupUri ?? throw new ArgumentNullException(nameof(lookupUri));
             RefType = refType ?? throw new ArgumentNullException(nameof(refType));
             RequiresOrdering = requiresOrdering;
+            Lookup = lookup;
         }
 
         /// <summary>
@@ -67,6 +74,8 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// Gets whether this edge imposes dependency-first ordering.
         /// </summary>
         public bool RequiresOrdering { get; }
+
+        internal WotResourceReferenceLookup Lookup { get; }
     }
 
     /// <summary>
@@ -85,12 +94,27 @@ namespace Opc.Ua.WotCon.Server.Registry
             ArrayOf<string> requiredModelUris,
             ArrayOf<string> definedNodeIds,
             string error = "")
+            : this(contentDigest, references, ownedModelUris, requiredModelUris, definedNodeIds, error, [], [])
+        {
+        }
+
+        internal WotResourceDependencies(
+            ByteString contentDigest,
+            ArrayOf<WotResourceReference> references,
+            ArrayOf<string> ownedModelUris,
+            ArrayOf<string> requiredModelUris,
+            ArrayOf<string> definedNodeIds,
+            string error,
+            ArrayOf<string> dataTypeDefinitionIds,
+            ArrayOf<string> dataTypeDefinitionNames)
         {
             ContentDigest = ByteString.From(contentDigest.Span.ToArray());
             References = references.Span.ToArray().ToArrayOf();
             OwnedModelUris = ownedModelUris.Span.ToArray().ToArrayOf();
             RequiredModelUris = requiredModelUris.Span.ToArray().ToArrayOf();
             DefinedNodeIds = definedNodeIds.Span.ToArray().ToArrayOf();
+            DataTypeDefinitionIds = dataTypeDefinitionIds.Span.ToArray().ToArrayOf();
+            DataTypeDefinitionNames = dataTypeDefinitionNames.Span.ToArray().ToArrayOf();
             Error = error ?? throw new ArgumentNullException(nameof(error));
         }
 
@@ -123,5 +147,17 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// Gets an indexing failure. Empty means the index is complete for this document.
         /// </summary>
         public string Error { get; }
+
+        internal ArrayOf<string> DataTypeDefinitionIds { get; }
+        internal ArrayOf<string> DataTypeDefinitionNames { get; }
+
+        internal const int CurrentIndexVersion = 2;
+    }
+
+    internal enum WotResourceReferenceLookup
+    {
+        Document,
+        DataTypeName,
+        DataTypeNodeId
     }
 }

@@ -153,6 +153,13 @@ namespace Opc.Ua.Wot
             {
                 emissionOwners.Add(owner);
             }
+            foreach (WotDataTypeDefinitionSource source in sources)
+            {
+                if (source.ProjectedSeparately)
+                {
+                    emissionOwners.Add(source.Document);
+                }
+            }
             var context = new DataTypeDefinitionContext(complete, owners, identities, emissionOwners, document);
             foreach (KeyValuePair<string, JsonElement> entry in complete)
             {
@@ -635,6 +642,27 @@ namespace Opc.Ua.Wot
             return complete;
         }
 
+        /// <summary>
+        /// Returns borrowed complete DataType definitions from their original owning document.
+        /// Reference-only occurrences are not definitions and are omitted.
+        /// </summary>
+        /// <param name="document">The document whose lifetime owns the returned elements.</param>
+        /// <returns>The complete declaration inputs; no content is acquired or validated.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static ArrayOf<WotDataTypeDefinitionSource> ReadDataTypeDefinitions(WotDocument document)
+        {
+            _ = document ?? throw new ArgumentNullException(nameof(document));
+            var sources = new List<WotDataTypeDefinitionSource>();
+            foreach (JsonElement definition in ReadDataTypeDefinitionOccurrences(document.RootElement))
+            {
+                if (!IsReferenceOnlyDefinition(definition))
+                {
+                    sources.Add(new WotDataTypeDefinitionSource(document, definition));
+                }
+            }
+            return sources.ToArrayOf();
+        }
+
         internal static ArrayOf<JsonElement> ReadDataTypeDefinitionOccurrences(JsonElement root)
         {
             return ReadDataTypeDefinitionLocations(root).ToArrayOf(entry => entry.Definition);
@@ -900,13 +928,26 @@ namespace Opc.Ua.Wot
             return ToNodeSetNodeId(portable, nodeSet, diagnostics);
         }
 
-        private static bool TrySplitCompactName(
+        /// <summary>
+        /// Separates a URI-qualified or compact model name using its owning document context.
+        /// This does not resolve a Node or assert that the namespace is loaded.
+        /// </summary>
+        /// <param name="document">The document owning the name.</param>
+        /// <param name="name">A compact name or an nsu-qualified name.</param>
+        /// <param name="namespaceUri">The expanded namespace URI.</param>
+        /// <param name="local">The local name.</param>
+        /// <param name="carryingNode">The element supplying scoped context; default uses the document context.</param>
+        /// <returns>Whether the name could be separated.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static bool TrySplitCompactName(
             WotDocument document,
             string name,
             out string namespaceUri,
             out string local,
             JsonElement carryingNode = default)
         {
+            _ = document ?? throw new ArgumentNullException(nameof(document));
+            _ = name ?? throw new ArgumentNullException(nameof(name));
             namespaceUri = string.Empty;
             local = string.Empty;
             if (name.StartsWith("nsu=", StringComparison.Ordinal))

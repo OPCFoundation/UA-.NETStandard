@@ -64,6 +64,24 @@ namespace Opc.Ua.Wot
         /// Gets the complete definition in its owning document.
         /// </summary>
         public JsonElement Definition { get; }
+
+        /// <summary>
+        /// Gets whether this definition is emitted by another activation in the same publication.
+        /// False keeps resolution-only definitions with the consuming projection.
+        /// </summary>
+        public bool ProjectedSeparately { get; init; }
+    }
+
+    /// <summary>
+    /// Supplies already-captured declaration inputs on a Thing resolver without acquiring another document.
+    /// </summary>
+    public interface IWotCapturedDataTypeDefinitions
+    {
+        /// <summary>
+        /// Gets complete definitions whose documents remain alive for the entire conversion.
+        /// These inputs retain their owning context and do not become activation roots.
+        /// </summary>
+        ArrayOf<WotDataTypeDefinitionSource> DataTypeDefinitions { get; }
     }
 
     /// <summary>

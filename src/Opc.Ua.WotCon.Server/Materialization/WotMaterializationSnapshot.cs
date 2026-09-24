@@ -573,14 +573,35 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         private static WotResource? ResolveReference(
-            WotRegistrySnapshot snapshot, WotResource source, WotResourceReference reference)
+            WotRegistrySnapshot snapshot, WotResource source, WotResourceReference reference,
+            HashSet<string>? excluded = null)
         {
             string raw = TrimFragment(reference.TargetUri);
-            WotResource? target = raw.IndexOfAny([':', '/', '\\']) < 0
-                ? snapshot.FindResource(source.GroupId, raw)
-                : null;
-            target ??= Resolve(snapshot, raw);
-            target ??= Resolve(snapshot, reference.LookupUri);
+            WotResource? target;
+            if (reference.Lookup != WotResourceReferenceLookup.Document)
+            {
+                WotResource[] owners = snapshot.AllResources().Where(resource =>
+                    excluded?.Contains(resource.Xid) != true &&
+                    DefinesReferencedNode(resource, reference)).ToArray();
+                target = owners.Length == 1 ? owners[0] : null;
+            }
+            else if (reference.RefType is "uav:dataTypeDefinition" or "uav:fieldDataTypeDefinition" or
+                "uav:dataTypeSubtypeOf")
+            {
+                target = Resolve(snapshot, reference.LookupUri, excluded);
+            }
+            else
+            {
+                target = raw.IndexOfAny([':', '/', '\\']) < 0
+                    ? snapshot.FindResource(source.GroupId, raw)
+                    : null;
+                if (target is not null && excluded?.Contains(target.Xid) == true)
+                {
+                    target = null;
+                }
+                target ??= Resolve(snapshot, reference.TargetUri, excluded);
+                target ??= Resolve(snapshot, reference.LookupUri, excluded);
+            }
             if (target is not null)
             {
                 WotResourceVersion? exact = target.Versions.FirstOrDefault(version =>

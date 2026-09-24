@@ -297,15 +297,19 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// documents from a registry snapshot, so a Thing Description synthesized by
     /// the converter can pull in the Thing Models it depends on.
     /// </summary>
-    internal sealed class SnapshotThingResolver : IWotThingResolver
+    internal sealed class SnapshotThingResolver : IWotThingResolver, IWotCapturedDataTypeDefinitions
     {
         public SnapshotThingResolver(
             WotRegistrySnapshot snapshot,
-            IReadOnlyDictionary<string, ByteString> contents)
+            IReadOnlyDictionary<string, ByteString> contents,
+            ArrayOf<WotDataTypeDefinitionSource> dataTypeDefinitions = default)
         {
             m_snapshot = snapshot;
             m_contents = contents ?? throw new ArgumentNullException(nameof(contents));
+            DataTypeDefinitions = dataTypeDefinitions.IsNull ? [] : dataTypeDefinitions;
         }
+
+        public ArrayOf<WotDataTypeDefinitionSource> DataTypeDefinitions { get; }
 
         /// <summary>
         /// Resolves a Thing Description or Thing Model reference from the registry snapshot.
