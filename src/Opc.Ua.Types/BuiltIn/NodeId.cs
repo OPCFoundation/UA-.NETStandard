@@ -285,9 +285,8 @@ namespace Opc.Ua
         ///   <item><c>nsu=&lt;escaped-uri&gt;;&lt;id&gt;</c> (namespace URI,
         ///   resolved via <paramref name="namespaceTable"/>)</item>
         /// </list>
-        /// The <c>&lt;id&gt;</c> portion may be typed
-        /// (<c>i=N</c>/<c>s=X</c>/<c>g=GUID</c>/<c>b=BASE64</c>)
-        /// or a bare token, which is treated as a string identifier.
+        /// The <c>&lt;id&gt;</c> portion must be typed
+        /// (<c>i=N</c>/<c>s=X</c>/<c>g=GUID</c>/<c>b=BASE64</c>).
         /// </remarks>
         /// <param name="text">The long-form NodeId text.</param>
         /// <param name="namespaceTable">Namespace table used to resolve the URI to
@@ -430,7 +429,13 @@ namespace Opc.Ua
 
             NodeIdParseError typedError = NodeIdParseError.InvalidIdentifier;
 
-            if (text.Length >= 2)
+            // The '=' after the identifier type is mandatory (Part 6 5.1.12),
+            // "ns=2;sensor" or "i:42" must not be read as "s=nsor" or "i=42".
+            if (text.Length >= 2 && text[1] != '=')
+            {
+                typedError = NodeIdParseError.InvalidIdentifierType;
+            }
+            else if (text.Length >= 2)
             {
                 char idType = text[0];
                 string idText = text[2..];
@@ -1615,7 +1620,7 @@ namespace Opc.Ua
             }
             return hashCode.ToHashCode();
 #else
-            return (int)m_inner.Numeric ^ (m_inner.NamespaceIdx >> 16);
+            return (int)m_inner.Numeric ^ (m_inner.NamespaceIdx << 16);
 #endif
         }
 
