@@ -1162,7 +1162,7 @@ namespace Opc.Ua.SourceGeneration
 
             switch (field.DataTypeNode.BasicDataType)
             {
-                case BasicDataType.UserDefined:
+                case BasicDataType.UserDefined when HasTypedArgumentValueRank(field):
                     context.Out.WriteLine(
                         "_inputArguments[{2}].TryGetValue(" +
                         "out {1} {0}, " +
@@ -1205,7 +1205,7 @@ namespace Opc.Ua.SourceGeneration
 
             switch (field.DataTypeNode.BasicDataType)
             {
-                case BasicDataType.UserDefined:
+                case BasicDataType.UserDefined when HasTypedArgumentValueRank(field):
                     context.Out.WriteLine(
                         "_outputArguments[{2}].TryGetValue(" +
                         "out {1} {0}, " +
@@ -1242,7 +1242,7 @@ namespace Opc.Ua.SourceGeneration
             string fieldName = GetMethodArgumentIdentifier(field);
             switch (field.DataTypeNode.BasicDataType)
             {
-                case BasicDataType.UserDefined:
+                case BasicDataType.UserDefined when HasTypedArgumentValueRank(field):
                     context.Out.WriteLine(
                         "_outputArguments[{1}] = global::Opc.Ua.Variant.FromStructure({0});",
                         fieldName,
@@ -1351,7 +1351,7 @@ namespace Opc.Ua.SourceGeneration
             string fieldName = GetMethodArgumentIdentifier(field, upperCamelCase: true);
             switch (field.DataTypeNode.BasicDataType)
             {
-                case BasicDataType.UserDefined:
+                case BasicDataType.UserDefined when HasTypedArgumentValueRank(field):
                     context.Out.WriteLine(
                         "_outputArguments[{1}] = global::Opc.Ua.Variant.FromStructure(_result.{0});",
                         fieldName,
@@ -1974,7 +1974,7 @@ namespace Opc.Ua.SourceGeneration
                             ", ",
                             root.Category
                                 .Split([','])
-                                .Select(c => CoreUtils.Format("\"{0}\"", c.Trim()))))
+                                .Select(c => c.Trim().AsStringLiteral())))
                     : null);
             // Specification
             context.Template.AddReplacement(
@@ -4676,6 +4676,20 @@ namespace Opc.Ua.SourceGeneration
             NodeDesign TargetNode,
             XmlQualifiedName ReferenceTypeId,
             bool IsInverse);
+
+        /// <summary>
+        /// True when the argument's code type is the data type itself (scalar,
+        /// ArrayOf or MatrixOf). Every other value rank (ScalarOrArray,
+        /// ScalarOrOneDimension, Any) is carried as a plain Variant, see
+        /// ModelDesignExtensions.GetMethodArgumentTypeAsCode.
+        /// </summary>
+        private static bool HasTypedArgumentValueRank(Parameter parameter)
+        {
+            return parameter.ValueRank is
+                ValueRank.Scalar or
+                ValueRank.Array or
+                ValueRank.OneOrMoreDimensions;
+        }
 
         private static string GetMethodArgumentIdentifier(
             Parameter parameter,

@@ -1404,6 +1404,50 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                     + string.Join(", ", castTypes));
         }
 
+        /// <summary>
+        /// Regression: NodeSet categories were emitted into the
+        /// <c>Categories</c> string array without escaping, so a category
+        /// containing a quote or backslash produced uncompilable code.
+        /// </summary>
+        [Test]
+        public void CategoriesWithQuotesAndBackslashesAreEscaped()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+            Dictionary<string, string> files = GenerateFromNodeSet(
+                "QuotedCategory.NodeSet2.xml",
+                telemetry);
+
+            string code = string.Join("\n", files.Values);
+            Assert.That(
+                code,
+                Does.Contain(
+                    "nodeState.Categories = new string[] { " +
+                    "\"Profile \\\"Standard\\\" UA Server\", \"Folder\\\\Sub\" };"));
+            Assert.That(CompileGeneratedAssembly(files), Is.Not.Null);
+        }
+
+        /// <summary>
+        /// Regression: structure-typed method arguments whose value rank is
+        /// ScalarOrArray / ScalarOrOneDimension / Any are carried as Variant,
+        /// but the generated Call used the IEncodeable-constrained
+        /// TryGetValue/FromStructure overloads (CS0315).
+        /// </summary>
+        [Test]
+        public void ScalarOrArrayStructureMethodArgumentsCompile()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+            Dictionary<string, string> files = GenerateFromNodeSet(
+                "ScalarOrArrayStructureArguments.NodeSet2.xml",
+                telemetry);
+
+            string code = string.Join("\n", files.Values);
+            Assert.That(
+                code,
+                Does.Contain("TryGetValue(out global::Opc.Ua.Variant options)"));
+            Assert.That(code, Does.Not.Contain("FromStructure(result)"));
+            Assert.That(CompileGeneratedAssembly(files), Is.Not.Null);
+        }
+
         private static Dictionary<string, string> GenerateFromNodeSet(
             string nodeSetResource,
             ITelemetryContext telemetry)
