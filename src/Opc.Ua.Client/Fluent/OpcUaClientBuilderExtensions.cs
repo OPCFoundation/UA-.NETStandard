@@ -600,6 +600,8 @@ namespace Microsoft.Extensions.DependencyInjection
             ArrayOf<EndpointDescription> endpoints = await discovery
                 .GetEndpointsAsync(options.DiscoveryUrl, ct: ct)
                 .ConfigureAwait(false);
+            Uri? discoveryUri = Utils.ParseUri(options.DiscoveryUrl);
+            EndpointDescription? selected = null;
             foreach (EndpointDescription endpoint in endpoints)
             {
                 if (endpoint.SecurityMode == options.SecurityMode &&
@@ -610,12 +612,44 @@ namespace Microsoft.Extensions.DependencyInjection
                             options.TransportProfileUri,
                             StringComparison.Ordinal)))
                 {
-                    return endpoint;
+                    // Prefer an endpoint reachable over the discovery URL's scheme.
+                    if (discoveryUri == null || HasScheme(endpoint, discoveryUri.Scheme))
+                    {
+                        selected = endpoint;
+                        break;
+                    }
+                    selected ??= endpoint;
                 }
             }
 
-            throw new InvalidOperationException(
-                "No discovered endpoint matched the configured security policy and mode.");
+            if (selected == null)
+            {
+                throw new InvalidOperationException(
+                    "No discovered endpoint matched the configured security policy and mode.");
+            }
+
+            // Part 4 §5.6.2.1: a server behind NAT or in a container may advertise a
+            // host name the client cannot reach. Use the host and port the client
+            // reached for GetEndpoints, as CoreClientUtils.SelectEndpointAsync does.
+            Uri? endpointUri = Utils.ParseUri(selected.EndpointUrl);
+            if (discoveryUri != null && endpointUri != null && endpointUri.Scheme == discoveryUri.Scheme)
+            {
+                var uriBuilder = new UriBuilder(endpointUri)
+                {
+                    Host = discoveryUri.IdnHost,
+                    Port = discoveryUri.Port
+                };
+                selected = CoreUtils.Clone(selected)!;
+                selected.EndpointUrl = uriBuilder.ToString();
+            }
+            return selected;
+        }
+
+        private static bool HasScheme(EndpointDescription endpoint, string scheme)
+        {
+            Uri? endpointUri = Utils.ParseUri(endpoint.EndpointUrl);
+            return endpointUri != null &&
+                string.Equals(endpointUri.Scheme, scheme, StringComparison.OrdinalIgnoreCase);
         }
 
         private static OpcUaClientIdentityOptions BindIdentityOptions(
@@ -961,8 +995,11 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton<IManagedSessionFactory, DefaultManagedSessionFactory>();
             services.TryAddSingleton<IManagedSessionConnector, DefaultManagedSessionConnector>();
 
+            // The accessor is a container-owned singleton so the shared session is
+            // closed when the host shuts down.
+            services.TryAddSingleton(sp => new ManagedSessionAccessor(sp));
             services.TryAddSingleton<Func<CancellationToken, Task<ManagedSession>>>(
-                sp => new ManagedSessionAccessor(sp).ConnectAsync);
+                sp => sp.GetRequiredService<ManagedSessionAccessor>().ConnectAsync);
             services.TryAddSingleton<IClientFailoverCoordinator, ClientFailoverCoordinator>();
 
             services.TryAddSingleton<IReverseConnectConfigurationProvider,
@@ -1314,6 +1351,10 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 builder.WithServerRedundancy();
             }
+            if (sessionOptions.ServerRedundancy != null)
+            {
+                builder.WithServerRedundancyOptions(sessionOptions.ServerRedundancy);
+            }
             if (!sessionOptions.NetworkRedundancy.AlternateEndpoints.IsEmpty)
             {
                 builder.WithNetworkRedundancy(sessionOptions.NetworkRedundancy.AlternateEndpoints);
@@ -1558,13 +1599,20 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Lazily creates and caches the connected <see cref="ManagedSession"/>.
         /// Multiple awaiters of the factory delegate share the single
-        /// connection task.
+        /// connection task. A cached session a caller has disposed is replaced
+        /// by a fresh connection; the session still cached when the container
+        /// is disposed is disposed with it.
         /// </summary>
-        private sealed class ManagedSessionAccessor
+        internal sealed class ManagedSessionAccessor : IAsyncDisposable, IDisposable
         {
             public ManagedSessionAccessor(IServiceProvider sp)
+                : this(ct => ConnectCoreAsync(sp, ct))
             {
-                m_sp = sp;
+            }
+
+            internal ManagedSessionAccessor(Func<CancellationToken, Task<ManagedSession>> connect)
+            {
+                m_connect = connect;
             }
 
             public Task<ManagedSession> ConnectAsync(CancellationToken ct)
@@ -1572,13 +1620,25 @@ namespace Microsoft.Extensions.DependencyInjection
                 Task<ManagedSession> connectTask;
                 lock (m_gate)
                 {
+                    if (m_disposed)
+                    {
+                        throw new ObjectDisposedException(nameof(ManagedSessionAccessor));
+                    }
+                    if (m_connectTask != null &&
+                        m_connectTask.Status == TaskStatus.RanToCompletion &&
+                        m_connectTask.Result.Disposed)
+                    {
+                        // A consumer disposed the shared session; connect anew
+                        // instead of handing out the dead instance forever.
+                        m_connectTask = null;
+                    }
                     if (m_connectTask != null)
                     {
                         connectTask = m_connectTask;
                     }
                     else
                     {
-                        connectTask = ConnectCoreAsync(CancellationToken.None);
+                        connectTask = m_connect(CancellationToken.None);
                         m_connectTask = connectTask;
                         // One observer owns eviction even when every caller cancels its own wait.
                         _ = connectTask.ContinueWith(
@@ -1607,15 +1667,81 @@ namespace Microsoft.Extensions.DependencyInjection
                 return connectTask.WaitAsync(ct);
             }
 
-            private Task<ManagedSession> ConnectCoreAsync(CancellationToken ct)
+            private static Task<ManagedSession> ConnectCoreAsync(IServiceProvider sp, CancellationToken ct)
             {
                 OpcUaClientOptions options =
-                    m_sp.GetRequiredService<OpcUaClientOptions>();
-                return m_sp.ConnectManagedSessionAsync(options.Session, _ => { }, ct);
+                    sp.GetRequiredService<OpcUaClientOptions>();
+                return sp.ConnectManagedSessionAsync(options.Session, _ => { }, ct);
             }
 
-            private readonly IServiceProvider m_sp;
+            public async ValueTask DisposeAsync()
+            {
+                Task<ManagedSession>? connectTask = TakeForDispose();
+                if (connectTask?.Status == TaskStatus.RanToCompletion)
+                {
+                    await connectTask.Result.DisposeAsync().ConfigureAwait(false);
+                }
+                else if (connectTask != null)
+                {
+                    DisposeWhenConnected(connectTask);
+                }
+            }
+
+            public void Dispose()
+            {
+                Task<ManagedSession>? connectTask = TakeForDispose();
+                if (connectTask?.Status == TaskStatus.RanToCompletion)
+                {
+                    connectTask.Result.Dispose();
+                }
+                else if (connectTask != null)
+                {
+                    DisposeWhenConnected(connectTask);
+                }
+            }
+
+            /// <summary>
+            /// Shutdown does not wait for a connect still in flight (it may be
+            /// retrying against an unreachable server); the session it yields
+            /// is closed once it arrives.
+            /// </summary>
+            private static void DisposeWhenConnected(Task<ManagedSession> connectTask)
+            {
+                _ = connectTask.ContinueWith(
+                    static task =>
+                    {
+                        if (task.Status == TaskStatus.RanToCompletion)
+                        {
+                            _ = task.Result.DisposeAsync().AsTask();
+                        }
+                        else
+                        {
+                            _ = task.Exception;
+                        }
+                    },
+                    CancellationToken.None,
+                    TaskContinuationOptions.ExecuteSynchronously,
+                    TaskScheduler.Default);
+            }
+
+            private Task<ManagedSession>? TakeForDispose()
+            {
+                lock (m_gate)
+                {
+                    if (m_disposed)
+                    {
+                        return null;
+                    }
+                    m_disposed = true;
+                    Task<ManagedSession>? connectTask = m_connectTask;
+                    m_connectTask = null;
+                    return connectTask;
+                }
+            }
+
+            private readonly Func<CancellationToken, Task<ManagedSession>> m_connect;
             private Task<ManagedSession>? m_connectTask;
+            private bool m_disposed;
             private readonly Lock m_gate = new();
         }
 
