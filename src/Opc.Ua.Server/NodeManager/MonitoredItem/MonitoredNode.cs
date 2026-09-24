@@ -722,7 +722,8 @@ namespace Opc.Ua.Server
                     (snapshot.Changes & NodeStateChangeMasks.Value) != 0)
                 {
                     (ServiceResult validationResult, ISystemContext contextToUse) =
-                        await GetDataChangePermissionAsync(snapshot, monitoredItem, cancellationToken)
+                        await GetDataChangePermissionAsync(
+                            snapshot, monitoredItem, PermissionType.Read, cancellationToken)
                             .ConfigureAwait(false);
 
                     if (ServiceResult.IsBad(validationResult))
@@ -742,17 +743,62 @@ namespace Opc.Ua.Server
                 if (monitoredItem.AttributeId != Attributes.Value &&
                     (snapshot.Changes & NodeStateChangeMasks.NonValue) != 0)
                 {
-                    if (snapshot.AttributeSnapshots.TryGetValue(monitoredItem.AttributeId, out DataValue snapshotValue))
+                    if (!snapshot.AttributeSnapshots.TryGetValue(monitoredItem.AttributeId, out DataValue snapshotValue))
                     {
-                        monitoredItem.QueueValue(snapshotValue, ServiceResult.Good);
+                        continue;
                     }
+
+                    // Same permissions as the Read service: Browse for non-Value attributes and
+                    // ReadRolePermissions for RolePermissions.
+                    (ServiceResult validationResult, ISystemContext contextToUse) =
+                        await GetDataChangePermissionAsync(
+                            snapshot,
+                            monitoredItem,
+                            monitoredItem.AttributeId == Attributes.RolePermissions
+                                ? PermissionType.ReadRolePermissions
+                                : PermissionType.Browse,
+                            cancellationToken)
+                            .ConfigureAwait(false);
+
+                    if (ServiceResult.IsBad(validationResult))
+                    {
+                        continue;
+                    }
+
+                    // The snapshot was read in the reporter's context; User* attributes depend on
+                    // the subscriber, so they are read again as the item's owner.
+                    if (IsUserDependentAttribute(monitoredItem.AttributeId))
+                    {
+                        (_, snapshotValue) = await Node.ReadAttributeAsync(
+                            contextToUse,
+                            monitoredItem.AttributeId,
+                            default,
+                            QualifiedName.Null,
+                            new DataValue(
+                                default,
+                                StatusCodes.Good,
+                                DateTime.MinValue,
+                                m_timeProvider.GetUtcNow().UtcDateTime),
+                            cancellationToken).ConfigureAwait(false);
+                    }
+
+                    monitoredItem.QueueValue(snapshotValue, ServiceResult.Good);
                 }
             }
+        }
+
+        private static bool IsUserDependentAttribute(uint attributeId)
+        {
+            return attributeId is Attributes.UserAccessLevel or
+                Attributes.UserWriteMask or
+                Attributes.UserExecutable or
+                Attributes.UserRolePermissions;
         }
 
         private async ValueTask<(ServiceResult Result, ISystemContext Context)> GetDataChangePermissionAsync(
             DataChangeSnapshot snapshot,
             IDataChangeMonitoredItem2 monitoredItem,
+            PermissionType permission,
             CancellationToken ct)
         {
             while (true)
@@ -779,7 +825,7 @@ namespace Opc.Ua.Server
                 else
                 {
                     result = await NodeManager.ValidateRolePermissionsAsync(
-                        operationContext, snapshot.NodeId, PermissionType.Read, ct).ConfigureAwait(false);
+                        operationContext, snapshot.NodeId, permission, ct).ConfigureAwait(false);
                     ct.ThrowIfCancellationRequested();
                     m_permissionCache[monitoredItem.Id] = (
                         generation, operationContext.Session, cachedContext, result);

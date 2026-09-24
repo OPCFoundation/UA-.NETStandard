@@ -890,11 +890,10 @@ namespace Opc.Ua.Server.Tests
 
         /// <summary>
         /// Verifies that non-value attribute changes (e.g. DisplayName) are delivered to the
-        /// monitored item without invoking permission validation, because role-permission checks
-        /// only apply to the Value attribute.
+        /// monitored item after the Browse permission the Read service requires for them.
         /// </summary>
         [Test]
-        public async Task NonValueAttributeChangeDeliveredWithoutPermissionValidationAsync()
+        public async Task NonValueAttributeChangeDeliveredAfterBrowsePermissionValidationAsync()
         {
             // Arrange
             var nodeId = new NodeId("testNode", 1);
@@ -907,6 +906,13 @@ namespace Opc.Ua.Server.Tests
             };
 
             var nodeManagerMock = new Mock<IAsyncNodeManager>();
+            nodeManagerMock
+                .Setup(m => m.ValidateRolePermissionsAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<NodeId>(),
+                    PermissionType.Browse,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
 
             var serverMock = new Mock<IServerInternal>();
             serverMock.Setup(s => s.Auditing).Returns(false);
@@ -933,14 +939,68 @@ namespace Opc.Ua.Server.Tests
                 .Count(i => i.Method.Name == nameof(IDataChangeMonitoredItem2.QueueValue));
             Assert.That(queueCount, Is.EqualTo(3));
 
-            // No permission validation should have been performed for non-value attributes
             nodeManagerMock.Verify(
                 m => m.ValidateRolePermissionsAsync(
                     It.IsAny<OperationContext>(),
+                    nodeId,
+                    PermissionType.Browse,
+                    It.IsAny<CancellationToken>()),
+                Times.AtLeastOnce);
+        }
+
+        /// <summary>
+        /// Verifies that a RolePermissions change is not delivered to an item whose owner
+        /// lacks the ReadRolePermissions permission.
+        /// </summary>
+        [Test]
+        public async Task RolePermissionsChangeNotDeliveredWithoutReadRolePermissionsAsync()
+        {
+            var nodeId = new NodeId("testNode", 1);
+            var node = new BaseDataVariableState(null)
+            {
+                NodeId = nodeId,
+                BrowseName = new QualifiedName("testNode", 1),
+                DataType = DataTypeIds.Int32
+            };
+
+            var nodeManagerMock = new Mock<IAsyncNodeManager>();
+            nodeManagerMock
+                .Setup(m => m.ValidateRolePermissionsAsync(
+                    It.IsAny<OperationContext>(),
                     It.IsAny<NodeId>(),
                     It.IsAny<PermissionType>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ServiceResult>(
+                    new ServiceResult(StatusCodes.BadUserAccessDenied)));
+
+            var serverMock = new Mock<IServerInternal>();
+            serverMock.Setup(s => s.Auditing).Returns(false);
+
+            Mock<IDataChangeMonitoredItem2> monitoredItemMock =
+                CreateDataChangeMonitoredItemMock(1u, Attributes.RolePermissions);
+
+            var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
+            monitoredNode.Add(monitoredItemMock.Object);
+
+            ISystemContext context = new Mock<ISystemContext>().Object;
+
+            await monitoredNode.OnMonitoredNodeChangedAsync(
+                context,
+                node,
+                NodeStateChangeMasks.NonValue | NodeStateChangeMasks.RolePermissions).ConfigureAwait(false);
+
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
+
+            int queueCount = monitoredItemMock.Invocations
+                .Count(i => i.Method.Name == nameof(IDataChangeMonitoredItem2.QueueValue));
+            Assert.That(queueCount, Is.Zero);
+            nodeManagerMock.Verify(
+                m => m.ValidateRolePermissionsAsync(
+                    It.IsAny<OperationContext>(),
+                    nodeId,
+                    PermissionType.ReadRolePermissions,
                     It.IsAny<CancellationToken>()),
-                Times.Never);
+                Times.Once);
         }
 
         /// <summary>
