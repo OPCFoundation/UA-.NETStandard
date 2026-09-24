@@ -142,11 +142,18 @@ try {
                     project = $project; outcome = 'passed'; total = 2; passed = 2; failed = 0
                     notApplicableRule = ''
                 }
-                if ($Scenario -in @('coverage-restricted', 'coverage-unverified-skip')) {
+                if ($Scenario -in @('coverage-restricted', 'coverage-unverified-skip',
+                    'coverage-explicit-unsupported', 'coverage-explicit-supported-disabled')) {
                     $record.outcome = 'not-applicable'
                     $record.total = 0
                     $record.passed = 0
                     if ($Scenario -eq 'coverage-restricted') { $record.notApplicableRule = 'RestrictForLegacyTfm' }
+                    if ($Scenario.StartsWith('coverage-explicit-')) {
+                        $record.notApplicableRule = 'SupportedTestTargets'
+                        $record.supportedTestTargets = if ($Scenario -eq 'coverage-explicit-supported-disabled') {
+                            @($entry.customTestTarget)
+                        } else { @('unsupported-in-this-profile') }
+                    }
                 }
                 elseif ($entry.coverage) {
                     $projectDirectory = Join-Path $directory ([IO.Path]::GetFileNameWithoutExtension($project))
@@ -176,7 +183,8 @@ try {
                 Remove-Item -LiteralPath (Join-Path $artifacts 'dotnet-results-windows-net10-01/batch-summary.json')
             }
         }
-        $shouldPass = $Scenario -in @('coverage-complete', 'coverage-legacy', 'coverage-restricted')
+        $shouldPass = $Scenario -in @('coverage-complete', 'coverage-legacy', 'coverage-restricted',
+            'coverage-explicit-unsupported')
         $actual = $null
         $rejected = $false
         try {
@@ -326,6 +334,15 @@ try {
                 $arguments.CustomTestTarget = 'net9.0'
                 $arguments.Framework = 'net9.0'
             }
+            { $_ -in @('runner-explicit-unsupported', 'runner-explicit-unproven-scope', 'runner-required-unsupported') } {
+                $arguments.CustomTestTarget = 'net48'
+                $arguments.Framework = 'net48'
+                if ($Scenario -eq 'runner-required-unsupported') {
+                    $arguments.RequireAssurance = $true
+                    $arguments.AssuranceDirectory = Join-Path $fixture 'assurance'
+                    $arguments.AssuranceWorkflow = '.github/workflows/buildandtest.yml'
+                }
+            }
         }
         $global:CiFixtureScenario = $Scenario
         $global:CiFixtureRaw = Join-Path $arguments.ResultsDirectory 'Opc.Ua.PubSub.Fuzz.Tests'
@@ -351,7 +368,14 @@ try {
             $global:LASTEXITCODE = 0
             @{ Properties = @{
                 IsTestProject = 'false'; _RestrictedToLegacyTfm = $restricted
-                TargetFrameworks = ''; TargetFramework = 'net10.0'; TargetDir = ''
+                SupportedTestTargets = if ($global:CiFixtureScenario -match '^runner-(explicit|required)-') {
+                    'net10.0'
+                } else { '' }
+                TargetFrameworks = ''
+                TargetFramework = if ($global:CiFixtureScenario -eq 'runner-explicit-unproven-scope') {
+                    'net48'
+                } else { 'net10.0' }
+                TargetDir = ''
             } } | ConvertTo-Json -Compress
         }
         $captured = [System.Collections.Generic.List[string]]::new()
@@ -368,9 +392,11 @@ try {
             Remove-Item Function:\dotnet
             Remove-Variable CiFixtureScenario,CiFixtureRaw -Scope Global
         }
-        Assert-Condition ($rejected -eq ($Scenario -notin @('runner-restricted', 'runner-pinned-framework'))) `
+        Assert-Condition ($rejected -eq ($Scenario -notin @(
+            'runner-restricted', 'runner-pinned-framework', 'runner-explicit-unsupported'))) `
             'Incorrect shared-runner verdict.'
-        if ($Scenario -in @('runner-restricted', 'runner-pinned-framework', 'runner-unverified-skip', 'runner-private-failure')) {
+        if ($Scenario -in @('runner-restricted', 'runner-pinned-framework', 'runner-unverified-skip',
+            'runner-private-failure', 'runner-explicit-unsupported')) {
             $summary = Get-Content -LiteralPath (Join-Path $arguments.PublicResultsDirectory 'batch-summary.json') -Raw |
                 ConvertFrom-Json
             Assert-Condition ($summary.projects.Count -eq 1 -and $summary.inputScope -eq 'public') `
@@ -379,6 +405,13 @@ try {
                 Assert-Condition ($summary.projects[0].outcome -eq 'not-applicable' -and
                     $summary.projects[0].notApplicableRule -eq 'RestrictForLegacyTfm' -and
                     $summary.projects[0].passed -eq 0) 'An evaluated empty shell was counted as execution.'
+            }
+            elseif ($Scenario -eq 'runner-explicit-unsupported') {
+                $result = $summary.projects[0]
+                Assert-Condition ($summary.projects.Count -eq 1 -and $result.outcome -eq 'not-applicable' -and
+                    $result.notApplicableRule -eq 'SupportedTestTargets' -and $result.passed -eq 0 -and
+                    $result.supportedTestTargets.Count -eq 1 -and $result.supportedTestTargets[0] -ceq 'net10.0') `
+                    'Explicit framework support did not retain its verified scope without claiming execution.'
             }
             else {
                 Assert-Condition ($summary.projects[0].outcome -eq 'failed') 'An invalid project skip passed.'

@@ -384,6 +384,13 @@ not implicitly substitute for those unfiltered profile runs.
 
 `RestrictForLegacyTfm` in [`targets.props`](../targets.props) turns a project that does not support the requested `CustomTestTarget` into an empty shell with `IsTestProject=false`. Running `dotnet test` against one of those produces no TRX, which the executor treats as a failure — so it first probes `dotnet msbuild -getProperty:IsTestProject` and records the project as **not applicable** instead. Those rows appear in the job summary, so a project that quietly stops being applicable everywhere is visible rather than invisible.
 
+A fixed-framework project can also declare `SupportedTestTargets`, as the
+.NET-10-only release-evidence tests do. Its existing `IsTestProject=false`
+condition is accepted only when the requested target is outside that declared
+support and its evaluated frameworks agree with the declaration. A disabled
+supported target, unexplained exclusion or required assurance job still fails;
+not-applicable rows never count as executed tests.
+
 ### Test tiers
 
 The pull-request profiles filter out `TestCategory=LongRunning` and `TestCategory=Stress`. The tiers those filters leave out run elsewhere:

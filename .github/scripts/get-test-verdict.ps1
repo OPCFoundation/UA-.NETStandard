@@ -233,7 +233,10 @@ function Assert-CiCoverage
             }
             $record = $records[0]
             if ($record.outcome -ceq 'not-applicable') {
-                if ($record.notApplicableRule -cne 'RestrictForLegacyTfm') {
+                $explicitlyUnsupported = $record.notApplicableRule -ceq 'SupportedTestTargets' -and
+                    @($record.supportedTestTargets).Count -gt 0 -and
+                    $entry.customTestTarget -cnotin @($record.supportedTestTargets)
+                if ($record.notApplicableRule -cne 'RestrictForLegacyTfm' -and -not $explicitlyUnsupported) {
                     throw 'An unverified project skip cannot excuse missing coverage.'
                 }
                 continue

@@ -44,6 +44,19 @@ try {
     $catalog = Get-Content -LiteralPath (Join-Path $root '.azurepipelines/release/artifacts.json') -Raw |
         ConvertFrom-Json
     $ociGroups = @($catalog.groups | Where-Object kind -CEQ 'oci')
+    if ($Scenario -eq 'sdk-pins') {
+        $sdk = (Get-Content -LiteralPath (Join-Path $root 'global.json') -Raw | ConvertFrom-Json).sdk.version
+        foreach ($group in $ociGroups) {
+            foreach ($image in $group.images) {
+                $dockerfile = Get-Content -LiteralPath (Join-Path $root $image.dockerfile) -Raw
+                $match = [regex]::Match($dockerfile,
+                    '(?m)^FROM mcr\.microsoft\.com/dotnet/sdk:(?<version>\d+\.\d+\.\d+)(?:-[\w.]+)?@sha256:[0-9a-f]{64} AS build\r?$')
+                Assert-True ($match.Success -and $match.Groups['version'].Value -ceq $sdk) `
+                    "Image '$($image.id)' does not pin an immutable SDK matching global.json ($sdk)."
+            }
+        }
+        exit 0
+    }
     foreach ($group in $ociGroups) {
         foreach ($image in $group.images) {
             $dockerfile = Join-Path $fixture $image.dockerfile

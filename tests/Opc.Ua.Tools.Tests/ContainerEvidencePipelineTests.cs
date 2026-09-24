@@ -98,6 +98,15 @@ namespace Opc.Ua.Tools.Tests
             await RunFixtureAsync("ContainerWorkflow.fixture.ps1", scenario).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Keeps every published image's immutable SDK reference aligned with the repository's pinned SDK.
+        /// </summary>
+        [Test]
+        public async Task ContainerSdkPinsMatchRepositorySdkAsync()
+        {
+            await RunFixtureAsync("ContainerWorkflow.fixture.ps1", "sdk-pins").ConfigureAwait(false);
+        }
+
         private static async Task RunFixtureAsync(string fixture, string scenario)
         {
             DirectoryInfo? directory = new(TestContext.CurrentContext.TestDirectory);

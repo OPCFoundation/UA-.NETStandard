@@ -14,6 +14,10 @@
     RestrictForLegacyTfm into an empty no-op shell on the legacy profiles, and
     marks the shell 'IsTestProject=false'. A shell is recorded as not applicable
     with its reason - it is explicitly not counted as a passing test run.
+    Fixed-framework projects can declare SupportedTestTargets. An existing
+    IsTestProject=false is accepted only outside that supported set and when
+    the evaluated frameworks are consistent with it; required assurance cannot
+    use either exclusion.
 
     A project that is applicable must produce a TRX recording at least one
     executed test. A run that emits nothing, or emits a TRX with no results, is a
@@ -285,7 +289,7 @@ function Get-ProjectProperties([string] $project, [switch] $InnerBuild)
 {
     $arguments = @(
         'msbuild', $project, '-nologo',
-        '-getProperty:IsTestProject;TargetFrameworks;TargetFramework;_RestrictedToLegacyTfm;TargetDir',
+        '-getProperty:IsTestProject;TargetFrameworks;TargetFramework;_RestrictedToLegacyTfm;SupportedTestTargets;TargetDir',
         "-p:CustomTestTarget=$CustomTestTarget", "-p:Configuration=$Configuration")
     # Never override a project's pinned framework while deciding applicability.
     # Once selected, an inner evaluation resolves the actual output directory.
@@ -353,6 +357,7 @@ foreach ($project in $projectList) {
         passed        = 0
         failed        = 0
         notApplicableRule = ''
+        supportedTestTargets = @()
     }
 
     try {
@@ -370,15 +375,25 @@ foreach ($project in $projectList) {
         }
 
         if ($properties.IsTestProject -eq 'false') {
-            # Directory.Build.targets emptied the project for this profile. The
-            # reason is recorded so a profile that skips everything is visible
-            # rather than looking like a clean run.
-            if ($properties._RestrictedToLegacyTfm -ne 'true' -or $RequireAssurance) {
+            $supported = @($properties.SupportedTestTargets -split ';' |
+                ForEach-Object { $_.Trim() } | Where-Object { $_ })
+            $explicitlyUnsupported = $supported.Count -gt 0 -and $declared.Count -gt 0 -and
+                $CustomTestTarget -cnotin $supported -and
+                @($declared | Where-Object { $_ -cnotin $supported }).Count -eq 0
+            if (($properties._RestrictedToLegacyTfm -ne 'true' -and -not $explicitlyUnsupported) -or
+                $RequireAssurance) {
                 throw 'The selected project has no verified applicability exclusion.'
             }
             $record.outcome = 'not-applicable'
-            $record.notApplicableRule = 'RestrictForLegacyTfm'
-            $record.reason = "RestrictForLegacyTfm makes this an empty shell for CustomTestTarget=$CustomTestTarget."
+            if ($properties._RestrictedToLegacyTfm -eq 'true') {
+                $record.notApplicableRule = 'RestrictForLegacyTfm'
+                $record.reason = "RestrictForLegacyTfm makes this an empty shell for CustomTestTarget=$CustomTestTarget."
+            }
+            else {
+                $record.notApplicableRule = 'SupportedTestTargets'
+                $record.supportedTestTargets = $supported
+                $record.reason = "The project declares test support for [$($supported -join ', ')], not $CustomTestTarget."
+            }
             Write-Host "Not applicable: $($record.reason)"
             continue
         }

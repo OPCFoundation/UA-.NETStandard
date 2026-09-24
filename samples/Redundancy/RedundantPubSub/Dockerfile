@@ -5,7 +5,7 @@
 #   docker build -f samples/Redundancy/RedundantPubSub/Dockerfile -t opcua-redundant-pubsub .
 # Or via docker compose:
 #   docker compose -f samples/Redundancy/RedundantPubSub/docker-compose.yml up --build
-FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:4beef5b8919dcaa2dc924233bd069257e883cc7a061e09088a97d152d6a48510 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0.401@sha256:35d40304542c8689331f8cab17c65926cdf48fe711e289321d71924b230a7d29 AS build
 WORKDIR /src
 ENV DOTNET_EnableWriteXorExecute=0
 COPY . .
@@ -22,7 +22,7 @@ RUN dotnet publish "samples/Redundancy/RedundantPubSub/RedundantPubSub.csproj" \
     -p:SourceRevisionId="$SourceRevisionId" -p:RepositoryUrl="$SourceRepositoryUrl" \
     -o /app/publish
 
-FROM mcr.microsoft.com/dotnet/runtime:10.0@sha256:cd45a6df90f98d55605fe958a6f6a89cfb746a4dc143ca451757e3e24e4f4b50 AS final
+FROM mcr.microsoft.com/dotnet/runtime:10.0.12@sha256:ff17a18b639a0327e52c7c296fa2e1abe6e03eb61d8121a8ef67cc6aa430a27e AS final
 ARG Version=0.0.0-local
 ARG SourceRevisionId
 ARG SourceRepositoryUrl=https://github.com/OPCFoundation/UA-.NETStandard

@@ -17,7 +17,7 @@
 # The final image runs as a non-root user and listens on 0.0.0.0:62542
 # (override host/port via the `host` / `port` environment variables).
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0-azurelinux3.0@sha256:0a694e0479f1a604bc57dcdf95181a861f0c1b1ecd5b4ee8c1c2662b30c82150 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0.401-azurelinux3.0@sha256:01bb0a1008dd2b753ff059c9c18ec7e728b3d98d0024fa6e8c84905cdb86ae4e AS build
 WORKDIR /src
 
 # JIT is disabled for the source generators unless W^X is turned off on
@@ -67,7 +67,7 @@ RUN dotnet publish "samples/DI/PumpDeviceIntegrationServer/PumpDeviceIntegration
         -p:RepositoryUrl="$SourceRepositoryUrl" \
         -o /app/publish
 
-FROM mcr.microsoft.com/dotnet/runtime:10.0-azurelinux3.0@sha256:487cd067b8b58cf03a0ff5daed4212e66f33a68e0ee630d2bd65604cef88e034 AS final
+FROM mcr.microsoft.com/dotnet/runtime:10.0.12-azurelinux3.0@sha256:78e83767f7bbb9ba0a334d482b196331d4dd5bfd879f4ec445b5226e289ca710 AS final
 ARG Version=0.0.0-local
 ARG SourceRevisionId
 ARG SourceRepositoryUrl=https://github.com/OPCFoundation/UA-.NETStandard

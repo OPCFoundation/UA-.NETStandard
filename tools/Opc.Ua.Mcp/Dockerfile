@@ -6,7 +6,7 @@
 #
 # Defaults to the stdio MCP transport (run with `docker run -i ...`). For the
 # HTTP/SSE transport run with `--transport sse --port 5100`.
-FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:4beef5b8919dcaa2dc924233bd069257e883cc7a061e09088a97d152d6a48510 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0.401@sha256:35d40304542c8689331f8cab17c65926cdf48fe711e289321d71924b230a7d29 AS build
 WORKDIR /src
 ENV DOTNET_EnableWriteXorExecute=0
 COPY . .
@@ -23,7 +23,7 @@ RUN dotnet publish "tools/Opc.Ua.Mcp/Opc.Ua.Mcp.csproj" \
     -p:SourceRevisionId="$SourceRevisionId" -p:RepositoryUrl="$SourceRepositoryUrl" \
     -o /app/publish
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:011bb5f30180717b1c8b65822ff2c99bcb96bc65af0164589751b83c7b4949f7 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.12@sha256:2d584d8147faddb0d678c5748d47953e5b8e18621ed4fb7049a91381d9d7746f AS final
 ARG Version=0.0.0-local
 ARG SourceRevisionId
 ARG SourceRepositoryUrl=https://github.com/OPCFoundation/UA-.NETStandard

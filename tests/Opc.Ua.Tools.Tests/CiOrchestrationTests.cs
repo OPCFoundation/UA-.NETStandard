@@ -59,6 +59,10 @@ namespace Opc.Ua.Tools.Tests
             return RunFixtureAsync(scenario);
         }
 
+        /// <summary>
+        /// Requires coverage for every applicable project and accepts only justified target exclusions.
+        /// </summary>
+        /// <param name="scenario">The coverage-completeness or exclusion scenario.</param>
         [TestCase("coverage-complete")]
         [TestCase("coverage-missing-batch")]
         [TestCase("coverage-missing-project")]
@@ -66,6 +70,8 @@ namespace Opc.Ua.Tools.Tests
         [TestCase("coverage-legacy")]
         [TestCase("coverage-restricted")]
         [TestCase("coverage-unverified-skip")]
+        [TestCase("coverage-explicit-unsupported")]
+        [TestCase("coverage-explicit-supported-disabled")]
         [TestCase("coverage-failed-project")]
         [TestCase("coverage-private-scope")]
         public Task CoverageRequiresEveryApplicableProjectFragmentAsync(string scenario)
@@ -88,12 +94,20 @@ namespace Opc.Ua.Tools.Tests
             return RunFixtureAsync(scenario);
         }
 
+        /// <summary>
+        /// Preserves runner privacy and rejects unsupported or unexplained applicability claims.
+        /// </summary>
+        /// <param name="scenario">The runner scope, privacy or applicability scenario.</param>
         [TestCase("runner-private-publication")]
         [TestCase("runner-stale-results")]
         [TestCase("runner-legacy-coverage")]
         [TestCase("runner-restricted")]
         [TestCase("runner-pinned-framework")]
         [TestCase("runner-unverified-skip")]
+        [TestCase("runner-explicit-unsupported")]
+        [TestCase("runner-explicit-supported-disabled")]
+        [TestCase("runner-explicit-unproven-scope")]
+        [TestCase("runner-required-unsupported")]
         [TestCase("runner-private-failure")]
         [TestCase("runner-process-output-capture")]
         public Task SharedRunnerPreservesScopeAndPrivacyAsync(string scenario)

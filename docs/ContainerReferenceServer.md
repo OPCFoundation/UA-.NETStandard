@@ -86,6 +86,12 @@ version. Their relationship to NuGet is **same-source**, not
 built-from-published-package. Base-image digest updates need reviewed
 multi-platform availability; a tag is not an immutable base pin.
 
+The published-image Dockerfiles pin SDK `10.0.401` to match `global.json`, with
+runtime/ASP.NET `10.0.12` bases. An SDK update also updates the corresponding
+multi-platform image digests; changing `global.json` alone leaves digest-pinned
+builders on the old SDK. The image SDK regression checks every catalog Dockerfile,
+and digest updates are verified against the registry configuration for amd64 and arm64.
+
 ### Runner-local and offline helper
 
 `.azurepipelines\containers\evidence.ps1` has these operations:
