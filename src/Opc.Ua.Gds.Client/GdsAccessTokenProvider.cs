@@ -138,8 +138,16 @@ namespace Opc.Ua.Gds.Client
 
             lock (m_gate)
             {
-                m_clientTask ??= CreateClientAsync(ct);
-                return m_clientTask;
+                Task<AuthorizationServiceClient> clientTask = m_clientTask ??= CreateClientAsync(ct);
+
+                // A factory that fails synchronously completes the task before
+                // the assignment above, so the reset in CreateClientAsync runs
+                // too early. Never keep a failed task cached.
+                if (clientTask.IsFaulted || clientTask.IsCanceled)
+                {
+                    m_clientTask = null;
+                }
+                return clientTask;
             }
         }
 
