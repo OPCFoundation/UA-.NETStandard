@@ -287,7 +287,8 @@ namespace Opc.Ua
                 state.DataType = DataType;
                 state.ValueRank = ValueRank;
                 state.ArrayDimensions = ArrayDimensions;
-                state.AccessLevel = AccessLevel;
+                // AccessLevelEx carries AccessLevel in its low byte plus the extended bits.
+                state.AccessLevelEx = AccessLevelEx;
                 state.UserAccessLevel = UserAccessLevel;
                 state.MinimumSamplingInterval = MinimumSamplingInterval;
                 state.Historizing = Historizing;
@@ -733,6 +734,7 @@ namespace Opc.Ua
                     variableNode.ValueRank = ValueRank;
                     variableNode.ArrayDimensions = ArrayDimensions;
                     variableNode.AccessLevel = AccessLevel;
+                    variableNode.AccessLevelEx = AccessLevelEx;
                     variableNode.UserAccessLevel = UserAccessLevel;
                     variableNode.MinimumSamplingInterval = MinimumSamplingInterval;
                     variableNode.Historizing = Historizing;
@@ -1793,10 +1795,12 @@ namespace Opc.Ua
                     return result;
                 }
             }
-            else
+            else if (!indexRange.IsNull)
             {
-                // apply the index range.
-                if (!indexRange.IsNull)
+                // apply the index range to the current value and commit it in one critical
+                // section, so concurrent writers of different ranges cannot lose each other's
+                // update (UpdateRange is pure and runs no callbacks).
+                lock (m_attributeLock)
                 {
                     Variant target = m_value;
                     result = indexRange.UpdateRange(ref target, value);
@@ -1806,8 +1810,14 @@ namespace Opc.Ua
                         return result;
                     }
 
-                    value = target;
+                    m_value = target;
+                    m_statusCode = statusCode;
+                    m_timestamp = sourceTimestamp;
                 }
+
+                ChangeMasks |= NodeStateChangeMasks.Value;
+
+                return ServiceResult.Good;
             }
 
             // update cached values together, so a concurrent read cannot observe the write
@@ -2059,7 +2069,23 @@ namespace Opc.Ua
 
                     lock (m_attributeLock)
                     {
-                        m_value = valueToWrite;
+                        Variant newValue = valueToWrite;
+
+                        // an index-range write carries only the slice: merge it into the
+                        // cached value instead of replacing the whole value with the slice.
+                        if (!indexRange.IsNull)
+                        {
+                            newValue = m_value;
+
+                            if (StatusCode.IsBad(indexRange.UpdateRange(ref newValue, valueToWrite)))
+                            {
+                                // the handler accepted the write but the cache cannot represent
+                                // it; keep the cached value rather than storing the slice.
+                                return writeResult.Result;
+                            }
+                        }
+
+                        m_value = newValue;
                         m_statusCode = statusCode;
                         m_timestamp = effectiveTimestamp;
                         ChangeMasks |= NodeStateChangeMasks.Value;

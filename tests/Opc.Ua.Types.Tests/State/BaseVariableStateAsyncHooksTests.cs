@@ -62,6 +62,9 @@ namespace Opc.Ua.Types.Tests.State
     [Parallelizable]
     public class BaseVariableStateAsyncHooksTests
     {
+        private static readonly int[] s_initialArray = [1, 2, 3, 4];
+        private static readonly int[] s_slice = [20, 30];
+        private static readonly int[] s_mergedArray = [1, 20, 30, 4];
         private ITelemetryContext m_telemetry;
         private ServiceMessageContext m_messageContext;
 
@@ -328,6 +331,44 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(result.StatusCode.Code, Is.EqualTo((uint)StatusCodes.BadInvalidArgument));
             Assert.That(v.Value.GetDouble(), Is.EqualTo(1.0),
                 "Cache must NOT advance when the async hook reports a Bad status.");
+        }
+
+        [Test]
+        public async Task WriteAttributeAsyncMergesIndexRangeSliceIntoCachedValue()
+        {
+            SystemContext ctx = CreateSystemContext();
+            var v = new BaseDataVariableState(null)
+            {
+                NodeId = new NodeId("Arr", 0),
+                BrowseName = new QualifiedName("Arr", 0),
+                DisplayName = new LocalizedText("Arr"),
+                DataType = DataTypeIds.Int32,
+                ValueRank = ValueRanks.OneDimension,
+                AccessLevel = AccessLevels.CurrentReadOrWrite,
+                UserAccessLevel = AccessLevels.CurrentReadOrWrite,
+                Value = Variant.From(s_initialArray)
+            };
+            NumericRange observedRange = NumericRange.Null;
+
+            v.OnWriteValueAsync = (c, n, range, value, ct) =>
+            {
+                observedRange = range;
+                return new ValueTask<AttributeWriteResult>(
+                    new AttributeWriteResult(ServiceResult.Good));
+            };
+
+            var dv = new DataValue(
+                Variant.From(s_slice),
+                StatusCodes.Good,
+                DateTimeUtc.Now);
+
+            ServiceResult result = await v.WriteAttributeAsync(
+                ctx, Attributes.Value, NumericRange.Parse("1:2"), dv).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(observedRange.IsNull, Is.False);
+            Assert.That(v.Value.GetInt32Array(), Is.EqualTo(s_mergedArray.ToArrayOf()),
+                "An index-range write must only replace the addressed elements of the cached value.");
         }
 
         // -----------------------------------------------------------------
