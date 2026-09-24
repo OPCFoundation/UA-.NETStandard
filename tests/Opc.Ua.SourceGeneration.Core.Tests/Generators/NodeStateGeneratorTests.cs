@@ -1568,6 +1568,52 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(CompileGeneratedAssembly(files), Is.Not.Null);
         }
 
+        /// <summary>
+        /// Regression: a hierarchy reference whose target is the hierarchy
+        /// root (TargetPath "") was emitted against the source node's
+        /// immediate parent. For a grandchild that is the intermediate
+        /// folder, not the type / top-level instance.
+        /// </summary>
+        [Test]
+        public void ReferenceToHierarchyRootFromGrandchildTargetsTheRoot()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+            Dictionary<string, string> files = GenerateFromModelDesign(
+                "DeepRootReference.ModelDesign.xml",
+                telemetry);
+
+            string code = files.Single(
+                kv => kv.Key.EndsWith(".NodeStates.ex.g.cs", StringComparison.Ordinal)).Value;
+            string typeMotor = ExtractMethodBody(code, "CreateMachineType_Components_Motor");
+            string instanceMotor = ExtractMethodBody(code, "CreateMachine1_Components_Motor");
+            string allCode = string.Join("\n", files.Values);
+
+            // Inverse HasEventSource (i=36) from Motor to the given node.
+            string InverseEventSourceTo(string symbolicName)
+            {
+                System.Text.RegularExpressions.Match id = Regex.Match(
+                    allCode,
+                    @"\buint " + Regex.Escape(symbolicName) + @" = (\d+)u?;");
+                Assert.That(id.Success, Is.True, $"No numeric id for {symbolicName}.");
+                return "state.AddReference(global::Opc.Ua.NodeId.Create(36u, " +
+                    "global::Opc.Ua.Namespaces.OpcUa, context.NamespaceUris), true, " +
+                    $"global::Opc.Ua.NodeId.Create({id.Groups[1].Value}u, ";
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(typeMotor, Does.Contain(InverseEventSourceTo("MachineType")));
+                Assert.That(
+                    typeMotor,
+                    Does.Not.Contain(InverseEventSourceTo("MachineType_Components")));
+                Assert.That(instanceMotor, Does.Contain(InverseEventSourceTo("Machine1")));
+                Assert.That(
+                    instanceMotor,
+                    Does.Not.Contain(InverseEventSourceTo("Machine1_Components")));
+            });
+            Assert.That(CompileGeneratedAssembly(files), Is.Not.Null);
+        }
+
         private static Dictionary<string, string> GenerateFromNodeSet(
             string nodeSetResource,
             ITelemetryContext telemetry)

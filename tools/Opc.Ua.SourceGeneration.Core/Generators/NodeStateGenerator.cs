@@ -4237,8 +4237,16 @@ namespace Opc.Ua.SourceGeneration
                     reference.TargetPath.Length == 0 &&
                     node.Parent?.Design != null)
                 {
+                    // An empty target path names the root of the hierarchy
+                    // (the type or the top-level instance), which is only the
+                    // immediate parent for a direct child.
+                    NodeToGenerate hierarchyRoot = node.Parent;
+                    while (hierarchyRoot.Parent?.Design != null)
+                    {
+                        hierarchyRoot = hierarchyRoot.Parent;
+                    }
                     references.Add(new ReferenceToGenerate(
-                        node.Parent.Design,
+                        hierarchyRoot.Design,
                         reference.ReferenceType,
                         isInverse));
                     continue;
