@@ -69,7 +69,7 @@ namespace Opc.Ua.Client
     /// </para>
     /// <para>
     /// <b>Cancellation:</b> both <see cref="ReaderLockAsync"/> and
-    /// <see cref="WriterLockAsync"/> respect the supplied
+    /// <see cref="WriterLockAsync(CancellationToken)"/> respect the supplied
     /// <see cref="CancellationToken"/>. If the writer is cancelled
     /// while waiting for the drain signal, the writer-entry
     /// semaphore is released so subsequent writers and readers can
@@ -145,7 +145,28 @@ namespace Opc.Ua.Client
         /// release.
         /// </summary>
         /// <param name="ct">Cancellation token.</param>
+        public ValueTask<Releaser> WriterLockAsync(
+            CancellationToken ct = default)
+        {
+            return WriterLockAsync(Timeout.InfiniteTimeSpan, null, ct);
+        }
+
+        /// <summary>
+        /// Asynchronously acquires the writer lock, but waits at most
+        /// <paramref name="drainTimeout"/> for readers that are already
+        /// in flight. After that the writer proceeds while those readers
+        /// are still active (new readers stay excluded). Used by recovery,
+        /// which fails the stale readers itself by replacing the dead
+        /// channel they wait on, so waiting for them first would only
+        /// delay it by their full request timeout.
+        /// </summary>
+        /// <param name="drainTimeout">Maximum time to wait for active
+        /// readers, or <see cref="Timeout.InfiniteTimeSpan"/>.</param>
+        /// <param name="timeProvider">Time provider for the drain timeout.</param>
+        /// <param name="ct">Cancellation token.</param>
         public async ValueTask<Releaser> WriterLockAsync(
+            TimeSpan drainTimeout,
+            TimeProvider? timeProvider,
             CancellationToken ct = default)
         {
             await m_writer.WaitAsync(ct).ConfigureAwait(false);
@@ -165,9 +186,25 @@ namespace Opc.Ua.Client
             }
             if (wait != null)
             {
+                using CancellationTokenSource? drain = drainTimeout == Timeout.InfiniteTimeSpan
+                    ? null
+                    : (timeProvider ?? TimeProvider.System).CreateCancellationTokenSource(drainTimeout);
+                using CancellationTokenSource? linked = drain == null
+                    ? null
+                    : CancellationTokenSource.CreateLinkedTokenSource(ct, drain.Token);
                 try
                 {
-                    await wait.WaitAsync(ct).ConfigureAwait(false);
+                    await wait.WaitAsync(linked?.Token ?? ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (
+                    drain != null && drain.IsCancellationRequested && !ct.IsCancellationRequested)
+                {
+                    // Drain timed out: proceed holding the writer gate. The
+                    // readers still in flight release on their own later.
+                    lock (m_state)
+                    {
+                        m_drained = null;
+                    }
                 }
                 catch
                 {
@@ -216,7 +253,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Disposable handle returned from
         /// <see cref="ReaderLockAsync"/> /
-        /// <see cref="WriterLockAsync"/>. Releases the corresponding
+        /// <see cref="WriterLockAsync(CancellationToken)"/>. Releases the corresponding
         /// lock on dispose.
         /// </summary>
         public readonly struct Releaser : IDisposable

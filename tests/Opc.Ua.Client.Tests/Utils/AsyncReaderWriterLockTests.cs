@@ -72,6 +72,41 @@ namespace Opc.Ua.Client.Tests.AsyncPrimitives
             Assert.That(calls, Is.EqualTo(hasHook ? 1 : 0));
         }
 
+        /// <summary>
+        /// L2-3: recovery must not wait for readers stuck on a dead channel
+        /// until their request timeout. With a drain timeout the writer
+        /// proceeds while stale readers are still active, and new readers
+        /// stay excluded until the writer releases.
+        /// </summary>
+        [Test]
+        public async Task WriterWithDrainTimeoutProceedsPastStuckReaderAsync()
+        {
+            using var rwLock = new AsyncReaderWriterLock();
+            AsyncReaderWriterLock.Releaser stuckReader =
+                await rwLock.ReaderLockAsync().ConfigureAwait(false);
+
+            Task<AsyncReaderWriterLock.Releaser> writerTask = rwLock
+                .WriterLockAsync(TimeSpan.FromMilliseconds(100), TimeProvider.System)
+                .AsTask();
+            AsyncReaderWriterLock.Releaser writer =
+                await writerTask.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+            Task<AsyncReaderWriterLock.Releaser> newReader = rwLock.ReaderLockAsync().AsTask();
+            await Task.Delay(50).ConfigureAwait(false);
+            Assert.That(newReader.IsCompleted, Is.False,
+                "New readers must wait while the writer holds the lock.");
+
+            stuckReader.Dispose();
+            writer.Dispose();
+            using AsyncReaderWriterLock.Releaser reader =
+                await newReader.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+            // The lock is consistent afterwards: a plain writer drains normally.
+            reader.Dispose();
+            using AsyncReaderWriterLock.Releaser next = await rwLock.WriterLockAsync()
+                .AsTask().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+        }
+
         [Test]
         public async Task ReadersDoNotMutuallyExcludeAsync()
         {
