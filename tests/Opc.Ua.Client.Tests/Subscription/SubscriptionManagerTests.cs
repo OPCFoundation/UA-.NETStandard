@@ -1286,6 +1286,56 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// The creation can complete between the worker's id lookup and its
+        /// pending-creation check (the id is assigned before the in-progress
+        /// flag clears). The freshly created subscription must receive the
+        /// response instead of being deleted as an orphan.
+        /// </summary>
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task PublishWorkerDoesNotDeleteSubscriptionCreatedDuringLookupAsync(
+            CancellationToken testCt)
+        {
+            var session = new FakeSubscriptionManagerContext();
+            OptionsMonitor<SubscriptionOptions> options =
+                OptionsFactory.Create<SubscriptionOptions>();
+            var creating = new FakeManagedSubscription { Id = 0u, Created = true };
+            int armed = 0;
+            creating.OnIsCreationInProgress = () =>
+            {
+                if (Volatile.Read(ref armed) != 0)
+                {
+                    // The creation completes right as the worker checks.
+                    creating.Id = 4242u;
+                }
+                return false;
+            };
+
+            var sut = new SubscriptionManager(session,
+                m_telemetry.LoggerFactory, DiagnosticsMasks.None);
+            await using (sut.ConfigureAwait(false))
+            {
+                session.CreateSubscriptionFactory = (_, _, _) => creating;
+                sut.Add(m_mockNotificationDataHandler.Object, options);
+
+                session.OnPublishAsync = (h, a, ct) =>
+                {
+                    Volatile.Write(ref armed, 1);
+                    return new ValueTask<PublishResponse>(
+                        CreatePublishResponse(4242u, h.RequestHandle));
+                };
+
+                sut.MinPublishWorkerCount = 1;
+                sut.MaxPublishWorkerCount = 1;
+                sut.Resume();
+
+                await WaitUntilAsync(() => creating.OnPublishReceivedCalls.Count > 0,
+                    testCt).ConfigureAwait(false);
+                Assert.That(session.DeleteCalls, Is.Empty);
+            }
+        }
+
+        /// <summary>
         /// A subscription created through the classic <c>Session.AddSubscription</c>
         /// API is unknown to this manager's registry, but it is live and owned by
         /// the application. Deleting it as abandoned takes it down on the server

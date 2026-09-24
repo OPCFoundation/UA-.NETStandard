@@ -2067,6 +2067,16 @@ namespace Opc.Ua.Client.Subscriptions
 
                         // Get the subscription with the provided identifier
                         IManagedSubscription? subscription = m_outer.GetById(subscriptionId);
+                        if (subscription == null &&
+                            !m_outer.m_subscriptionHistory.Contains(subscriptionId) &&
+                            !m_outer.HasSubscriptionsPendingCreation())
+                        {
+                            // A creation can complete between the lookup and
+                            // the pending check: it assigns the id before it
+                            // clears its in-progress flag. Look again so that
+                            // subscription is not deleted as an orphan below.
+                            subscription = m_outer.GetById(subscriptionId);
+                        }
                         publishLatency = m_outer.m_timeProvider.GetElapsedTime(
                             publishLatencyStart);
                         publishLatencyRunning = false;
