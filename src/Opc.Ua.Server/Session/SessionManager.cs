@@ -748,6 +748,10 @@ namespace Opc.Ua.Server
                         ClearFailedAuthentication(clientKey);
                     }
 
+                    // Remember what the identity was mapped to, so live role re-evaluation
+                    // rebuilds from the same starting point as this activation.
+                    activationState.Impersonated = new ImpersonatedIdentity(identity, effectiveIdentity);
+
                     // Add mandatory roles based on session/channel security context (e.g., TrustedApplication).
                     effectiveIdentity = AddMandatoryRoles(session, context, effectiveIdentity);
 
@@ -1459,9 +1463,10 @@ namespace Opc.Ua.Server
         /// <see cref="IRoleManager"/> identity-mapping rule changes, sessions
         /// receive the new role grants on the next request without needing
         /// the client to re-activate. The re-evaluation re-runs
-        /// <see cref="AddMandatoryRoles"/> using the original impersonated
-        /// <see cref="ISession.Identity"/> as the starting point, so the
-        /// outcome is deterministic and idempotent.
+        /// <see cref="AddMandatoryRoles"/> from the effective identity the
+        /// last activation mapped <see cref="ISession.Identity"/> to (falling
+        /// back to <see cref="ISession.Identity"/> itself), so the outcome is
+        /// deterministic and idempotent.
         /// </para>
         /// <para>
         /// The identity and generation are captured before the role computation
@@ -1496,10 +1501,20 @@ namespace Opc.Ua.Server
                     RequestLifetime.None,
                     snapshot.Identity);
 
+                // Start from the effective identity the activation mapped this identity to
+                // (e.g. by an ImpersonateUser callback), not from the raw client identity.
+                IUserIdentity baseIdentity = snapshot.Identity;
+                if (m_sessionActivationStates.TryGetValue(session, out SessionActivationState? state) &&
+                    state.Impersonated is ImpersonatedIdentity impersonated &&
+                    ReferenceEquals(impersonated.Identity, snapshot.Identity))
+                {
+                    baseIdentity = impersonated.EffectiveIdentity;
+                }
+
                 IUserIdentity refreshed = AddMandatoryRoles(
                     session,
                     refreshContext,
-                    snapshot.Identity);
+                    baseIdentity);
 
                 _ = session.TryRefreshEffectiveIdentity(
                     snapshot.Identity,
@@ -1865,6 +1880,11 @@ namespace Opc.Ua.Server
         /// </remarks>
         private const int kSessionNonceLength = 32;
 
+        /// <summary>
+        /// Pairs an activated identity with the effective identity it was mapped to.
+        /// </summary>
+        private sealed record ImpersonatedIdentity(IUserIdentity Identity, IUserIdentity EffectiveIdentity);
+
         private sealed class SessionActivationState
         {
             public SessionActivationState(
@@ -1898,6 +1918,20 @@ namespace Opc.Ua.Server
             public SessionBindingContext? BindingContext { get; set; }
 
             public bool IsCommitting { get; set; }
+
+            /// <summary>
+            /// The effective identity the authenticator (or ImpersonateUser callback) returned
+            /// for the activated identity, before the mandatory roles were added. Live role
+            /// re-evaluation starts from it so roles granted only to the effective identity
+            /// survive a role configuration change.
+            /// </summary>
+            public ImpersonatedIdentity? Impersonated
+            {
+                get => Volatile.Read(ref m_impersonated);
+                set => Volatile.Write(ref m_impersonated, value);
+            }
+
+            private ImpersonatedIdentity? m_impersonated;
 
             /// <summary>
             /// Claims the timeout of the session; returns <c>true</c> for the first caller only.
