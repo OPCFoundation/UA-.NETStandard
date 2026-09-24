@@ -1519,16 +1519,20 @@ namespace Opc.Ua
                 m_complexTypeResolver.NamespaceUris);
             bool allowSubTypes = IsAllowSubTypes(structureDefinition);
 
-            // field types are resolved to their built-in super types on a copy: the
-            // declared definition is owned by the (cached) DataType node of the server.
-            StructureDefinition declaredDefinition = structureDefinition;
-            structureDefinition = (StructureDefinition)declaredDefinition.Clone();
+            // field types are resolved to their built-in super types on copies of the
+            // fields: the declared definition is owned by the (cached) DataType node.
+            ArrayOf<StructureField> declaredFields = structureDefinition.Fields;
+            var resolvedFields = new StructureField[declaredFields.Count];
+            bool fieldsResolved = false;
 
             // check all types
             var typeList = new List<IType?>();
-            foreach (StructureField field in structureDefinition.Fields.ToList())
+            for (int ii = 0; ii < declaredFields.Count; ii++)
             {
+                var field = (StructureField)declaredFields[ii].Clone();
+                resolvedFields[ii] = field;
                 IType? fieldType = await GetFieldTypeAsync(field, allowSubTypes, ct).ConfigureAwait(false);
+                fieldsResolved |= field.DataType != declaredFields[ii].DataType;
                 if (fieldType?.Type == null &&
                     !IsRecursiveDataType(localDataTypeId, field.DataType))
                 {
@@ -1552,8 +1556,14 @@ namespace Opc.Ua
                 return (null, missingTypes);
             }
 
+            if (fieldsResolved)
+            {
+                // the generated type (and its cached definition) uses the resolved field types.
+                structureDefinition = (StructureDefinition)structureDefinition.Clone();
+                structureDefinition.Fields = resolvedFields;
+            }
+
             // Add StructureDefinition to cache
-            // cache the resolved copy: it describes how the generated type is encoded.
             AddDataTypeDefinitionToCache(localDataTypeId, typeName, structureDefinition);
 
             IComplexTypeFieldBuilder fieldBuilder = complexTypeBuilder.AddStructuredType(
