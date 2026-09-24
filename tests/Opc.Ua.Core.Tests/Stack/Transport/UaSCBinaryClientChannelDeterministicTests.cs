@@ -30,6 +30,7 @@
 #nullable enable
 
 using System;
+using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
@@ -548,6 +549,46 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 "closed transport write completion was not reported");
         }
 
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task AbortAtTheResponseLimitFaultsOnlyThePendingRequestAsync(bool chunkLimit)
+        {
+            var pool = new PoisoningArrayPool();
+            var buffers = new BufferManager("abort-client", 65536, m_telemetry, pool);
+            var transport = new RecordingByteTransport();
+            using var channel = new TestClientChannel(
+                buffers, new RecordingByteTransportFactory(transport), m_quotas, null,
+                BuildEndpoint(MessageSecurityMode.None, SecurityPolicies.None), m_telemetry, new FakeTimeProvider());
+            channel.OpenForAbortTest(transport, chunkLimit);
+            Task<IServiceResponse> request = channel.SendRequestAsync(new ReadRequest(), 30000, CancellationToken.None)
+                .AsTask();
+            await transport.FirstSendTask.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            uint requestId = BitConverter.ToUInt32(transport.LastSent, 20);
+            await channel.FeedPooledReplyAsync(requestId, 1, TcpMessageType.Intermediate, new byte[8])
+                .ConfigureAwait(false);
+            byte[] errorBody = BuildErrorBody((uint)StatusCodes.BadEncodingLimitsExceeded, "Aborted by peer");
+            await channel.FeedPooledReplyAsync(requestId, 2, TcpMessageType.Abort, errorBody).ConfigureAwait(false);
+
+            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await request.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false))!;
+            Assert.That(error.StatusCode, Is.EqualTo((uint)StatusCodes.BadEncodingLimitsExceeded));
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Open));
+
+            channel.ResetResponseLimitsForTest();
+            Task<IServiceResponse> next = channel.SendRequestAsync(new ReadRequest(), 30000, CancellationToken.None)
+                .AsTask();
+            byte[] response = BinaryEncoder.EncodeMessage(new ReadResponse(), m_context);
+            await channel.FeedPooledReplyAsync(requestId + 1, 3, TcpMessageType.Final, response).ConfigureAwait(false);
+            Assert.That(await next.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false), Is.TypeOf<ReadResponse>());
+            using var cleanupTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            while (pool.OutstandingCount != 0)
+            {
+                await Task.Delay(10, cleanupTimeout.Token).ConfigureAwait(false);
+            }
+            Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(pool.DuplicateReturns, Is.Zero);
+        }
+
         private async Task<ServiceResultException> RunHandshakeToFaultAsync(
             Func<TestClientChannel, ValueTask<bool>> feed)
         {
@@ -840,6 +881,45 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             public Task WriteCompletion => m_writeCompletion.Task;
 
+            public void OpenForAbortTest(IUaSCByteTransport transport, bool chunkLimit)
+            {
+                Transport = transport;
+                State = TcpChannelState.Open;
+                ChannelId = 1;
+                ((IDiagnosticsChannelMutation)this).LoadTokensForOfflineDecode(
+                    new ChannelToken
+                    {
+                        ChannelId = 1,
+                        TokenId = 1,
+                        SecurityPolicy = SecurityPolicyInfo.None,
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedAtTimestamp = TimeProvider.GetTimestamp(),
+                        Lifetime = 60000
+                    }, null);
+                MaxResponseChunkCount = chunkLimit ? 1 : 0;
+                MaxResponseMessageSize = chunkLimit ? 65536 : 8;
+            }
+
+            public void ResetResponseLimitsForTest()
+            {
+                MaxResponseMessageSize = 65536;
+                MaxResponseChunkCount = 16;
+            }
+
+            public ValueTask FeedPooledReplyAsync(uint requestId, uint sequence, uint flag, byte[] body)
+            {
+                int length = 24 + body.Length;
+                byte[] buffer = BufferManager.TakeBuffer(length, nameof(FeedPooledReplyAsync));
+                BitConverter.GetBytes(TcpMessageType.Message | flag).CopyTo(buffer, 0);
+                BitConverter.GetBytes(length).CopyTo(buffer, 4);
+                BitConverter.GetBytes(ChannelId).CopyTo(buffer, 8);
+                BitConverter.GetBytes(CurrentToken!.TokenId).CopyTo(buffer, 12);
+                BitConverter.GetBytes(sequence).CopyTo(buffer, 16);
+                BitConverter.GetBytes(requestId).CopyTo(buffer, 20);
+                body.CopyTo(buffer, 24);
+                return OnChunkReceivedAsync(new ArraySegment<byte>(buffer, 0, length), CancellationToken.None);
+            }
+
             public void BeginClosedTransportWriteUnderGate(BufferCollection buffers)
             {
                 using (Gate.Enter())
@@ -928,6 +1008,47 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             private readonly TaskCompletionSource<bool> m_writeCompletion =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
+        private sealed class PoisoningArrayPool : ArrayPool<byte>
+        {
+            public int DuplicateReturns { get; private set; }
+
+            public int OutstandingCount
+            {
+                get
+                {
+                    lock (m_lock)
+                    {
+                        return m_buffers.Count;
+                    }
+                }
+            }
+
+            public override byte[] Rent(int minimumLength)
+            {
+                byte[] buffer = new byte[minimumLength];
+                lock (m_lock)
+                {
+                    m_buffers.Add(buffer);
+                }
+                return buffer;
+            }
+
+            public override void Return(byte[] array, bool clearArray = false)
+            {
+                lock (m_lock)
+                {
+                    if (!m_buffers.Remove(array))
+                    {
+                        DuplicateReturns++;
+                    }
+                }
+                array.AsSpan().Fill(0xCC);
+            }
+
+            private readonly Lock m_lock = new();
+            private readonly HashSet<byte[]> m_buffers = [];
         }
 
         private sealed class RecordingByteTransportFactory : IUaSCByteTransportFactory

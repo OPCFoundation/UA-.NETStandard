@@ -229,6 +229,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         public async Task PeerDiscoveryPropagatesCallerCancellationAsync()
         {
             using var cancellation = new CancellationTokenSource();
+            var resolverEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var blocked = new TaskCompletionSource<ConfiguredEndpoint?>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             CancellationToken discoveryToken = default;
@@ -237,6 +238,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 .Returns((string _, ConfiguredEndpoint _, CancellationToken ct) =>
                 {
                     discoveryToken = ct;
+                    resolverEntered.TrySetResult(true);
                     return new ValueTask<ConfiguredEndpoint?>(blocked.Task.WaitAsync(ct));
                 });
             Mock<ISession> session = CreateMockSession(
@@ -247,6 +249,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Task<ServerRedundancyInfo> resolving = cache.ResolveCachedEndpointsAsync(
                 basic, session.Object.ConfiguredEndpoint, cancellation.Token).AsTask();
 
+            await resolverEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
             cancellation.Cancel();
 
             await Assert.ThatAsync(

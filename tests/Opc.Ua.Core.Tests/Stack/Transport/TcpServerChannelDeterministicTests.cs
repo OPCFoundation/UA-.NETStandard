@@ -241,6 +241,47 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             listenerMock.Verify(l => l.ChannelClosed(0u), Times.Once());
         }
 
+        /// <summary>
+        /// A client that negotiates small chunks may send proportionally more of
+        /// them, and an incomplete message keeps the whole buffer of each chunk
+        /// alive. The Hello therefore sizes the buffers the transport receives
+        /// into to the negotiated chunk size rather than to the size the
+        /// connection was accepted with.
+        /// </summary>
+        [Test]
+        public async Task ProcessHelloMessageSizesTheTransportReceiveBuffersAsync()
+        {
+            Mock<ITcpChannelListener> listenerMock = CreateListenerMock();
+            var transport = new SizedRecordingByteTransport();
+            using TestServerChannel channel = BuildChannel(listenerMock);
+            channel.SetTransport(transport);
+            channel.CurrentState = TcpChannelState.Connecting;
+
+            byte[] hello = BuildChunk(TcpMessageType.Hello, encoder =>
+            {
+                encoder.WriteUInt32(null, 0); // protocol version
+                encoder.WriteUInt32(null, 65535); // client receive buffer size
+                encoder.WriteUInt32(null, TcpMessageLimits.MinBufferSize); // client send buffer size
+                encoder.WriteUInt32(null, 0); // max message size
+                encoder.WriteUInt32(null, 0); // max chunk count
+                encoder.WriteInt32(null, -1); // endpoint url
+            });
+            await channel.FeedIncomingMessageAsync(
+                TcpMessageType.Hello,
+                new ArraySegment<byte>(hello)).ConfigureAwait(false);
+
+            Assert.That(
+                await CompletesWithinAsync(transport.FirstSendTask, 30).ConfigureAwait(false),
+                Is.True,
+                "channel never acknowledged the hello");
+            byte[] sent = transport.LastSent;
+            AcknowledgeMessage acknowledge = TcpMessageParsers.ReadAcknowledgeMessage(
+                new ArraySegment<byte>(sent, 8, sent.Length - 8));
+            Assert.That(acknowledge.ReceiveBufferSize, Is.EqualTo((uint)TcpMessageLimits.MinBufferSize));
+            Assert.That(transport.ReceiveBufferSize, Is.EqualTo(TcpMessageLimits.MinBufferSize));
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Opening));
+        }
+
         [Test]
         public async Task BeginReverseConnectWritesReverseHelloMessageAsync()
         {
@@ -767,6 +808,59 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
                 m_firstSend.TrySetResult(true);
             }
+        }
+
+        /// <summary>
+        /// A recording transport that also observes the receive-buffer size the
+        /// channel negotiates for it.
+        /// </summary>
+        private sealed class SizedRecordingByteTransport : IUaSCByteTransport, IUaSCByteTransportLimits
+        {
+            public EndPoint? LocalEndpoint => null;
+
+            public EndPoint? RemoteEndpoint => null;
+
+            public TransportChannelFeatures Features => default;
+
+            public string Implementation => "UA-FAKE-SIZED";
+
+            public Task FirstSendTask => m_inner.FirstSendTask;
+
+            public byte[] LastSent => m_inner.LastSent;
+
+            public int ReceiveBufferSize { get; private set; }
+
+            public ValueTask ConnectAsync(Uri url, CancellationToken ct)
+            {
+                return m_inner.ConnectAsync(url, ct);
+            }
+
+            public ValueTask SendChunkAsync(ReadOnlyMemory<byte> chunk, CancellationToken ct)
+            {
+                return m_inner.SendChunkAsync(chunk, ct);
+            }
+
+            public ValueTask SendChunkAsync(BufferCollection buffers, CancellationToken ct)
+            {
+                return m_inner.SendChunkAsync(buffers, ct);
+            }
+
+            public ValueTask<ArraySegment<byte>> ReceiveChunkAsync(CancellationToken ct)
+            {
+                return m_inner.ReceiveChunkAsync(ct);
+            }
+
+            public void Close()
+            {
+                m_inner.Close();
+            }
+
+            public void SetReceiveBufferSize(int receiveBufferSize)
+            {
+                ReceiveBufferSize = receiveBufferSize;
+            }
+
+            private readonly RecordingByteTransport m_inner = new();
         }
     }
 }

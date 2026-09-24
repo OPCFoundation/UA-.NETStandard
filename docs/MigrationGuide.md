@@ -825,6 +825,39 @@ A subclass that took `DataLock` in order to be mutually exclusive with
 the **channel's** state transitions was already relying on an
 implementation detail, and can no longer do so.
 
+## Transport resource limits
+
+Applications migrating from 1.5.x have a server-wide budget for retained
+intermediate-message buffers. With the reference server's 4 MiB maximum message
+size, the default budget is **64 MiB**, and channels without an activated session
+may fill only the lower **32 MiB**. A chunk that does not fit discards its partial
+message and closes the channel with `BadTcpNotEnoughResources`. Final chunks,
+single-chunk requests, response buffers, and client buffers are not charged to
+this reassembly budget.
+
+For workloads with many simultaneous large requests, set
+`WithChunkReassemblyBudget(maxBytes)` on the Dependency Injection (DI) server builder or assign
+`ServerBase.ChunkReassemblyBudget` before startup. A host opening listeners
+directly can share a budget through `TransportListenerSettings.ChunkReassemblyBudget`.
+See [incomplete messages](RateLimiting.md#incomplete-messages) for sizing and
+sessionless configuration. General buffer-manager limits remain opt-in.
+
+Server-channel `ChannelLifetime` also bounds an unfinished message from its
+first retained chunk, even if more chunks keep arriving. Size this lifetime
+for legitimate large transfers without relying on continuation chunks to
+extend it indefinitely. A zero or negative value uses the 30-second default
+for message assembly; it does not disable assembly cleanup. See
+[incomplete-message limits](Transports.md#incomplete-message-resource-limits).
+
+Kestrel TCP and UACP WebSocket listeners honor configured connection-admission
+and channel limits, including pending admissions. Size `MaxChannelCount` for
+the intended deployment rather than relying on these bindings to ignore it.
+Managed channel membership is based on committed live sessions rather than
+activation-response counts. Custom session managers can implement the optional
+`ISessionBindingProvider` capability; custom hosts can inject a provider without
+changing existing callback contracts. A lookup snapshot does not replace normal
+request authentication and authorization.
+
 ## Migrating channel subclasses that override HandleIncomingMessage
 
 `UaSCBinaryChannel.HandleIncomingMessage` and `OnChunkReceived` have been
