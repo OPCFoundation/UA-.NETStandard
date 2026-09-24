@@ -1745,15 +1745,25 @@ namespace Opc.Ua.Server
                     foreach (KeyValuePair<NodeId, ISession> sessionKeyValue in m_sessions)
                     {
                         ISession session = sessionKeyValue.Value;
-                        if (session.HasExpired)
+                        try
                         {
-                            await CloseTimedOutSessionAsync(session).ConfigureAwait(false);
+                            if (session.HasExpired)
+                            {
+                                await CloseTimedOutSessionAsync(session).ConfigureAwait(false);
+                            }
+                            // if a session had no activity for the last m_minSessionTimeout milliseconds, send a keep alive event.
+                            else if (m_timeProvider.GetTimestampMilliseconds() - session.LastContactTickCount > m_minSessionTimeout)
+                            {
+                                // signal the channel that the session is still active.
+                                RaiseSessionEvent(session, SessionEventReason.ChannelKeepAlive);
+                            }
                         }
-                        // if a session had no activity for the last m_minSessionTimeout milliseconds, send a keep alive event.
-                        else if (m_timeProvider.GetTimestampMilliseconds() - session.LastContactTickCount > m_minSessionTimeout)
+                        catch (Exception e) when (e is not OperationCanceledException ||
+                            !cancellationToken.IsCancellationRequested)
                         {
-                            // signal the channel that the session is still active.
-                            RaiseSessionEvent(session, SessionEventReason.ChannelKeepAlive);
+                            // one failing session must not stop the monitor: every other
+                            // session still has to time out.
+                            m_logger.FailedToCloseTimedOutSession(e, session.Id);
                         }
                     }
 
@@ -2252,5 +2262,12 @@ namespace Opc.Ua.Server
             string? clientKey,
             int failedAttempts,
             long remainingSeconds);
+
+        [LoggerMessage(EventId = ServerEventIds.SessionManager + 9, Level = LogLevel.Error,
+            Message = "Server - Session Monitor failed to process session {SessionId}.")]
+        public static partial void FailedToCloseTimedOutSession(
+            this ILogger logger,
+            Exception ex,
+            NodeId sessionId);
     }
 }
