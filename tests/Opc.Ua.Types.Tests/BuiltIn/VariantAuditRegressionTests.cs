@@ -574,6 +574,19 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
+        public void SerializableMatrixOfRoundTripsNullMatrix()
+        {
+            // T2-8: a null matrix could not be deserialized.
+            Assert.Multiple(() =>
+            {
+                Assert.That(new SerializableMatrixOf<int>(MatrixOf<int>.Null).Value.IsNull, Is.True);
+                Assert.That(new SerializableMatrixOf<int>().Value.IsNull, Is.True);
+                MatrixOf<int> matrix = new int[,] { { 1, 2 }, { 3, 4 } };
+                Assert.That(new SerializableMatrixOf<int>(matrix).Value, Is.EqualTo(matrix));
+            });
+        }
+
+        [Test]
         public void MatrixDimensionsCannotBeMutated()
         {
             // T2-9: Dimensions handed out the private array.
