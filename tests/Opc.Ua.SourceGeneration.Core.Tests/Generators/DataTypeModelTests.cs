@@ -35,6 +35,7 @@ using System.Reflection;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.Emit;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -224,7 +225,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             return instance.GetType().GetProperty(name).GetValue(instance);
         }
 
-        internal static Dictionary<string, string> Generate(string design)
+        internal static Dictionary<string, string> Generate(
+            string design,
+            bool omitEventRecords = true)
         {
             string root = Path.Combine(
                 Path.GetTempPath(),
@@ -250,7 +253,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                     new GeneratorOptions
                     {
                         OmitFluentApi = true,
-                        OmitEventRecords = true
+                        OmitEventRecords = omitEventRecords
                     },
                     useAllowSubtypes: false,
                     identifierFiles: null,
@@ -279,18 +282,32 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
         internal static Assembly Compile(Dictionary<string, string> generated)
         {
+            // The shared stack stub declares the event record base as a
+            // class (for C# 8 tests); generated event records need the
+            // production record shape.
+            string stack = CompilerUtils.OpcUa
+                .Replace(
+                    "public abstract class EventRecord",
+                    "public abstract record EventRecord",
+                    StringComparison.Ordinal)
+                .Replace(
+                    "public partial class BaseEventTypeRecord : EventRecord",
+                    "public partial record BaseEventTypeRecord : EventRecord",
+                    StringComparison.Ordinal);
             IEnumerable<KeyValuePair<string, string>> sources = generated
-                .Where(f => f.Key.EndsWith(".cs", StringComparison.Ordinal));
+                .Where(f => f.Key.EndsWith(".cs", StringComparison.Ordinal))
+                .Append(new KeyValuePair<string, string>("OpcUa.cs", stack));
             using var peStream = new MemoryStream();
-            bool success = OptimizationLevel.Debug
+            EmitResult result = OptimizationLevel.Debug
                 .CreateCompilation("DataTypeModel.Generated")
-                .AddCode(sources.WithOpcUaGeneratedStack(), LanguageVersion.Latest)
-                .Emit(peStream)
-                .Check(TestContext.Out, out int errorCount, out int warningCount);
-            Assert.That(
-                success,
-                Is.True,
-                $"Generated code failed with {errorCount} errors and {warningCount} warnings.");
+                .AddCode(sources, LanguageVersion.Latest)
+                .Emit(peStream);
+            string errors = string.Join(
+                Environment.NewLine,
+                result.Diagnostics
+                    .Where(d => d.Severity == DiagnosticSeverity.Error)
+                    .Take(10));
+            Assert.That(result.Success, Is.True, "Generated code failed: " + errors);
             return Assembly.Load(peStream.ToArray());
         }
 

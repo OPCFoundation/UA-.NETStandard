@@ -265,11 +265,17 @@ namespace Opc.Ua.SourceGeneration
                 allFields[i].FieldIndex = i;
             }
 
+            // A companion model declares browse names in its own
+            // namespace. Its records build the browse paths for a session
+            // namespace table; the standard model's paths are all in
+            // namespace 0 and stay a static table.
             context.Template.AddReplacement(
-                Tokens.ListOfFields,
-                EventRecordTemplates.StandardFieldEntry,
-                allFields,
-                WriteTemplate_StandardFieldEntry);
+                Tokens.FieldTable,
+                IsStandardModel()
+                    ? EventRecordTemplates.StaticFieldTable
+                    : EventRecordTemplates.NamespaceFieldTable,
+                [allFields],
+                WriteTemplate_FieldTable);
 
             // Skip fields without a known reader — Variant fallback
             // types have no helper, so the property defaults to its
@@ -289,6 +295,54 @@ namespace Opc.Ua.SourceGeneration
                 WriteTemplate_DecodedField);
 
             return context.Template.Render();
+        }
+
+        private bool IsStandardModel()
+        {
+            return string.Equals(
+                m_context.ModelDesign.TargetNamespace.Value,
+                Namespaces.OpcUa,
+                StringComparison.Ordinal);
+        }
+
+        private bool WriteTemplate_FieldTable(IWriteContext context)
+        {
+            if (context.Target is not List<FieldEntry> fields)
+            {
+                return false;
+            }
+            context.Template.AddReplacement(
+                Tokens.ListOfFields,
+                EventRecordTemplates.StandardFieldEntry,
+                fields,
+                WriteTemplate_StandardFieldEntry);
+            return context.Template.Render();
+        }
+
+        /// <summary>
+        /// The qualified name expression of a field's browse name. A browse
+        /// name of the standard namespace is in namespace 0; one declared
+        /// by a companion model is resolved against the session namespace
+        /// table (a select clause is matched including the namespace
+        /// index, OPC 10000-4 7.7.4).
+        /// </summary>
+        private string GetBrowseNameExpression(FieldEntry field, string browseNames)
+        {
+            string ns = field.BrowseNameNamespaceUri ?? field.NamespaceUri;
+            if (IsStandardModel() ||
+                string.IsNullOrEmpty(ns) ||
+                string.Equals(ns, Namespaces.OpcUa, StringComparison.Ordinal))
+            {
+                return CoreUtils.Format(
+                    "global::Opc.Ua.QualifiedName.From({0}.{1})",
+                    browseNames,
+                    field.BrowseName);
+            }
+            return CoreUtils.Format(
+                "new global::Opc.Ua.QualifiedName({0}.{1}, GetNamespaceIndex(namespaceUris, {2}))",
+                browseNames,
+                field.BrowseName,
+                m_context.ModelDesign.Namespaces.GetConstantSymbolForNamespace(ns));
         }
 
         private bool WriteTemplate_StandardFieldEntry(IWriteContext context)
@@ -313,16 +367,12 @@ namespace Opc.Ua.SourceGeneration
                 return context.Template.Render();
             }
 
+            string browseName = GetBrowseNameExpression(field, browseNames);
             string path = field.IsTwoStateVariableId
                 ? CoreUtils.Format(
-                    "global::Opc.Ua.QualifiedName.From({0}.{1}), " +
-                    "global::Opc.Ua.QualifiedName.From(global::Opc.Ua.BrowseNames.Id)",
-                    browseNames,
-                    field.BrowseName)
-                : CoreUtils.Format(
-                    "global::Opc.Ua.QualifiedName.From({0}.{1})",
-                    browseNames,
-                    field.BrowseName);
+                    "{0}, global::Opc.Ua.QualifiedName.From(global::Opc.Ua.BrowseNames.Id)",
+                    browseName)
+                : browseName;
             context.Template.AddReplacement(
                 Tokens.ChildPath,
                 CoreUtils.Format("new global::Opc.Ua.QualifiedName[] {{ {0} }}", path));
@@ -387,6 +437,11 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(
                 Tokens.EventTypeId,
                 FormatEventTypeId(typeName));
+            context.Template.AddReplacement(
+                Tokens.FieldTable,
+                IsStandardModel()
+                    ? "StandardFields"
+                    : "GetStandardFields(namespaceUris)");
             return context.Template.Render();
         }
 
@@ -532,6 +587,7 @@ namespace Opc.Ua.SourceGeneration
                             property.Description?.Value),
                         BrowseName = browseName,
                         NamespaceUri = child.SymbolicId?.Namespace,
+                        BrowseNameNamespaceUri = child.SymbolicName?.Namespace,
                         ReaderMethod = MapReaderMethod(property.DataTypeNode, dotnet),
                         IsTwoStateVariableId = false
                     });
@@ -551,6 +607,7 @@ namespace Opc.Ua.SourceGeneration
                                 $"Id of the {browseName} TwoStateVariable."),
                             BrowseName = browseName,
                             NamespaceUri = child.SymbolicId?.Namespace,
+                            BrowseNameNamespaceUri = child.SymbolicName?.Namespace,
                             ReaderMethod = "GetNullableBool",
                             IsTwoStateVariableId = true
                         });
@@ -570,6 +627,7 @@ namespace Opc.Ua.SourceGeneration
                             variable.Description?.Value),
                         BrowseName = browseName,
                         NamespaceUri = child.SymbolicId?.Namespace,
+                        BrowseNameNamespaceUri = child.SymbolicName?.Namespace,
                         ReaderMethod = MapReaderMethod(variable.DataTypeNode, dotnetVar),
                         IsTwoStateVariableId = false
                     });
@@ -664,6 +722,25 @@ namespace Opc.Ua.SourceGeneration
 
         private string MapScalarDataType(DataTypeDesign dataType, bool typedUriString)
         {
+            if (!string.Equals(
+                dataType.SymbolicId?.Namespace,
+                Namespaces.OpcUa,
+                StringComparison.Ordinal))
+            {
+                // The names below are the standard data types; a companion
+                // model's own "Duration" is not the standard one. Only its
+                // structures, enumerations and OptionSets get a generated
+                // class - a simple subtype (e.g. Percent : Double) is
+                // represented by the built-in type it derives from.
+                if (dataType.BasicDataType is BasicDataType.UserDefined or
+                        BasicDataType.Enumeration ||
+                    dataType.IsOptionSet ||
+                    dataType.BaseTypeNode is not DataTypeDesign baseType)
+                {
+                    return ResolveCustomDataType(dataType);
+                }
+                return MapScalarDataType(baseType, typedUriString);
+            }
             switch (dataType.SymbolicId?.Name)
             {
                 case "Boolean":
@@ -1054,6 +1131,7 @@ namespace Opc.Ua.SourceGeneration
             public string Description { get; set; }
             public string BrowseName { get; set; }
             public string NamespaceUri { get; set; }
+            public string BrowseNameNamespaceUri { get; set; }
             public string ReaderMethod { get; set; }
             public bool IsTwoStateVariableId { get; set; }
             public bool IsConditionId { get; set; }
