@@ -4146,8 +4146,13 @@ namespace Opc.Ua.Server
                     m_serverInternal,
                     configuration);
 
-                //add the MonitoredItemQueueFactory to the datastore.
-                m_serverInternal.SetMonitoredItemQueueFactory(monitoredItemQueueFactory!);
+                //add the MonitoredItemQueueFactory to the datastore; a factory supplied through
+                //the MonitoredItemQueueFactory property is owned by the caller and survives restarts.
+                m_serverInternal.SetMonitoredItemQueueFactory(
+                    monitoredItemQueueFactory!,
+                    ownsFactory: !ReferenceEquals(
+                        monitoredItemQueueFactory,
+                        MonitoredItemQueueFactory));
 
                 //create the SubscriptionStore
                 ISubscriptionStore? subscriptionStore = CreateSubscriptionStore(
