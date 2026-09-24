@@ -2572,6 +2572,15 @@ namespace Opc.Ua.Client
                 await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
                 CancellationTokenSource lockHolder = EnterReconnectLockHolder(ct);
                 CancellationToken operationCt = lockHolder.Token;
+
+                // The server reports the transfer to the old session with a
+                // Good_SubscriptionTransferred, which the subscription must
+                // not take for an unsolicited transfer (Reconnecting is only
+                // set on this session, not on the old one).
+                foreach (Subscription subscription in subscriptions)
+                {
+                    subscription.OnTransferStarting();
+                }
                 try
                 {
                     reconnecting = Reconnecting;
@@ -2678,6 +2687,10 @@ namespace Opc.Ua.Client
                 finally
                 {
                     ExitReconnectLockHolder(lockHolder);
+                    foreach (Subscription subscription in subscriptions)
+                    {
+                        subscription.OnTransferFinished();
+                    }
                     Reconnecting = reconnecting;
                     m_reconnectLock.Release();
                 }
@@ -4403,7 +4416,8 @@ namespace Opc.Ua.Client
                     subscriptionId,
                     default,
                     false,
-                    notificationMessage);
+                    notificationMessage,
+                    republished: true);
 
                 return (true, ServiceResult.Good);
             }
