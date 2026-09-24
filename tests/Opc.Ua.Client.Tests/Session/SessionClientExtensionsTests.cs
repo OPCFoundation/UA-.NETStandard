@@ -250,6 +250,31 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
+        public void ReadBytesAsyncWithChunkLongerThanRangeThrows()
+        {
+            // A server ignoring the IndexRange returns the whole value on every
+            // read; the client must not loop appending it forever (L3-5).
+            int reads = 0;
+            using ISession session = CreateSession(
+                readResponseFactory: _ =>
+                {
+                    reads++;
+                    return new ReadResponse
+                    {
+                        ResponseHeader = new ResponseHeader(),
+                        Results = [new DataValue(new Variant(ByteString.From(new byte[12])))],
+                        DiagnosticInfos = []
+                    };
+                });
+
+            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await session.ReadBytesAsync(new NodeId(1, 0), 10).ConfigureAwait(false));
+
+            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadUnknownResponse));
+            Assert.That(reads, Is.EqualTo(1));
+        }
+
+        [Test]
         public async Task ReadBytesAsyncWithChunkedResponseConcatenatesChunksAsync()
         {
             using ISession session = CreateSession();
