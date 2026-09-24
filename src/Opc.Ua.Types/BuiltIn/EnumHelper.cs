@@ -52,6 +52,12 @@ namespace Opc.Ua
                 int i32 = value;
                 return Unsafe.As<int, T>(ref i32);
             }
+            if (Unsafe.SizeOf<T>() == sizeof(long))
+            {
+                // sign extend like the unchecked casts below.
+                long i64 = value;
+                return Unsafe.As<long, T>(ref i64);
+            }
 #else
             switch (typeof(T).GetEnumUnderlyingType())
             {
@@ -103,12 +109,18 @@ namespace Opc.Ua
         public static int EnumToInt32<T>(T value) where T : struct, Enum
         {
 #if NET8_0_OR_GREATER
+            // signed underlying types must be sign extended like the
+            // unchecked casts in EnumToInt32(object, Type).
             switch (Unsafe.SizeOf<T>())
             {
                 case sizeof(byte):
-                    return Unsafe.As<T, byte>(ref value);
+                    return IsSigned<T>()
+                        ? Unsafe.As<T, sbyte>(ref value)
+                        : Unsafe.As<T, byte>(ref value);
                 case sizeof(ushort):
-                    return Unsafe.As<T, ushort>(ref value);
+                    return IsSigned<T>()
+                        ? Unsafe.As<T, short>(ref value)
+                        : Unsafe.As<T, ushort>(ref value);
                 default:
                     return Unsafe.As<T, int>(ref value);
             }
@@ -174,11 +186,17 @@ namespace Opc.Ua
             switch (Unsafe.SizeOf<T>())
             {
                 case sizeof(byte):
-                    return Unsafe.As<T, byte>(ref value);
+                    return IsSigned<T>()
+                        ? Unsafe.As<T, sbyte>(ref value)
+                        : Unsafe.As<T, byte>(ref value);
                 case sizeof(ushort):
-                    return Unsafe.As<T, ushort>(ref value);
+                    return IsSigned<T>()
+                        ? Unsafe.As<T, short>(ref value)
+                        : Unsafe.As<T, ushort>(ref value);
                 case sizeof(uint):
-                    return Unsafe.As<T, uint>(ref value);
+                    return IsSigned<T>()
+                        ? Unsafe.As<T, int>(ref value)
+                        : Unsafe.As<T, uint>(ref value);
                 default:
                     return Unsafe.As<T, long>(ref value);
             }
@@ -205,6 +223,18 @@ namespace Opc.Ua
             return 0;
 #endif
         }
+
+#if NET8_0_OR_GREATER
+        /// <summary>
+        /// Whether the underlying type of the enum is signed.
+        /// </summary>
+        /// <typeparam name="T">The enum type.</typeparam>
+        private static bool IsSigned<T>() where T : struct, Enum
+        {
+            return Type.GetTypeCode(typeof(T))
+                is TypeCode.SByte or TypeCode.Int16 or TypeCode.Int32 or TypeCode.Int64;
+        }
+#endif
 
         /// <summary>
         /// Cast from enum array
