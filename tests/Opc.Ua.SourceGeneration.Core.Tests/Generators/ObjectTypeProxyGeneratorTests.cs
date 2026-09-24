@@ -635,6 +635,42 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             });
         }
 
+        /// <summary>
+        /// Optional value-type method arguments stay non-nullable (only string and
+        /// structure references get a nullable annotation), so the emitted
+        /// <c>Variant.From(x)</c> / <c>TryGetValue(out x)</c> calls bind to the
+        /// existing overloads. Guards against introducing <c>int?</c> etc., for which
+        /// Variant has no overloads.
+        /// </summary>
+        [Test]
+        public void Emit_OptionalValueTypeArguments_AreNotNullable()
+        {
+            MethodDesign method = CreateMethod(
+                "Configure",
+                inputs:
+                [
+                    CreateParameter("count", BasicDataType.Int32, isOptional: true),
+                    CreateParameter("when", BasicDataType.DateTime, isOptional: true)
+                ],
+                outputs:
+                [
+                    CreateParameter("result", BasicDataType.Double, isOptional: true)
+                ]);
+            ObjectTypeDesign objectType = CreateObjectType("FooType", method);
+            m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([objectType]);
+
+            string content = EmitToString();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(content, Does.Contain("int count,"));
+                Assert.That(content, Does.Contain("global::Opc.Ua.DateTimeUtc when,"));
+                Assert.That(content, Does.Contain("ValueTask<double> ConfigureAsync("));
+                Assert.That(content, Does.Not.Contain("? count"));
+                Assert.That(content, Does.Contain("global::Opc.Ua.Variant.From(count)"));
+            });
+        }
+
         private string EmitToString()
         {
             using var stream = new MemoryStream();
