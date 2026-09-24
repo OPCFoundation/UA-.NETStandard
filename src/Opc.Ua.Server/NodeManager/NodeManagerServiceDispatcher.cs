@@ -912,7 +912,8 @@ namespace Opc.Ua.Server
             }
 
             if (!nodeToBrowse.ReferenceTypeId.IsNull &&
-                !Server.TypeTree.IsKnown(nodeToBrowse.ReferenceTypeId))
+                (!Server.TypeTree.IsKnown(nodeToBrowse.ReferenceTypeId) ||
+                    !Server.TypeTree.IsTypeOf(nodeToBrowse.ReferenceTypeId, ReferenceTypeIds.References)))
             {
                 return StatusCodes.BadReferenceTypeIdInvalid;
             }

@@ -410,7 +410,8 @@ namespace Opc.Ua.Server
             }
 
             if (item.ReferenceTypeId.IsNull ||
-                !Server.TypeTree.IsKnown(item.ReferenceTypeId))
+                !Server.TypeTree.IsKnown(item.ReferenceTypeId) ||
+                !Server.TypeTree.IsTypeOf(item.ReferenceTypeId, ReferenceTypeIds.References))
             {
                 return (new ServiceResult(StatusCodes.BadReferenceTypeIdInvalid), NodeId.Null);
             }
@@ -617,7 +618,8 @@ namespace Opc.Ua.Server
             }
 
             if (item.ReferenceTypeId.IsNull ||
-                !Server.TypeTree.IsKnown(item.ReferenceTypeId))
+                !Server.TypeTree.IsKnown(item.ReferenceTypeId) ||
+                !Server.TypeTree.IsTypeOf(item.ReferenceTypeId, ReferenceTypeIds.References))
             {
                 return new ServiceResult(StatusCodes.BadReferenceTypeIdInvalid);
             }
@@ -797,7 +799,8 @@ namespace Opc.Ua.Server
             }
 
             if (item.ReferenceTypeId.IsNull ||
-                !Server.TypeTree.IsKnown(item.ReferenceTypeId))
+                !Server.TypeTree.IsKnown(item.ReferenceTypeId) ||
+                !Server.TypeTree.IsTypeOf(item.ReferenceTypeId, ReferenceTypeIds.References))
             {
                 return new ServiceResult(StatusCodes.BadReferenceTypeIdInvalid);
             }
