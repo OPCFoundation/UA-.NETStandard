@@ -45,6 +45,10 @@ namespace Opc.Ua.Types.Tests.Utils
     [Parallelizable]
     public class UtilsAuditRegressionTests
     {
+        private static readonly string[] s_plainStrings = ["abc"];
+        private static readonly string s_softHyphen = "a" + (char)0xAD + "bc";
+        private static readonly string[] s_softHyphenStrings = [s_softHyphen];
+
         [Test]
         public void OpenReadAllowsConcurrentReadersAndReadOnlyFiles()
         {
@@ -286,6 +290,77 @@ namespace Opc.Ua.Types.Tests.Utils
                     target.Replace("b", "x", StringComparison.OrdinalIgnoreCase),
                     Is.EqualTo("AxC"));
             });
+        }
+
+        [Test]
+        public void GetHashCodeHonoursTheComparisonType()
+        {
+            // The netstandard2.0 / .NET Framework polyfill returned the
+            // case-sensitive hash for every comparison type.
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    "ABC".GetHashCode(StringComparison.OrdinalIgnoreCase),
+                    Is.EqualTo("abc".GetHashCode(StringComparison.OrdinalIgnoreCase)));
+                Assert.That(
+                    "ABC".GetHashCode(StringComparison.InvariantCultureIgnoreCase),
+                    Is.EqualTo("abc".GetHashCode(StringComparison.InvariantCultureIgnoreCase)));
+                Assert.That(
+                    "abc".GetHashCode(StringComparison.Ordinal),
+                    Is.EqualTo(StringComparer.Ordinal.GetHashCode("abc")));
+            });
+        }
+
+        [Test]
+        public void IsEqualComparesStringsOrdinally()
+        {
+            // string.CompareTo is culture sensitive and skips ignorable
+            // characters such as the soft hyphen.
+            object plain = "abc";
+            object softHyphen = s_softHyphen;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(CoreUtils.IsEqual(plain, softHyphen), Is.False);
+                Assert.That(CoreUtils.IsEqual(plain, (object)"abc"), Is.True);
+                Assert.That(
+                    CoreUtils.IsEqual((object)s_plainStrings, (object)s_softHyphenStrings),
+                    Is.False);
+            });
+        }
+
+        [Test]
+        public void StringTableRejectsIndexesBeyondUInt16()
+        {
+            // The index was truncated to ushort, so the entry after 0xFFFE was
+            // reported as 0xFFFF (the unmapped marker) and later ones wrapped to 0.
+            var strings = new string[ushort.MaxValue];
+            for (int ii = 0; ii < strings.Length; ii++)
+            {
+                strings[ii] = "urn:test:" + ii.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            }
+            var table = new StringTable(strings);
+
+            ServiceResultException sre = Assert.Throws<ServiceResultException>(
+                () => table.GetIndexOrAppend("urn:test:overflow"));
+            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+            Assert.Throws<ServiceResultException>(() => table.Append("urn:test:overflow"));
+            Assert.That(table.Count, Is.EqualTo(ushort.MaxValue));
+            Assert.That(table.GetIndexOrAppend("urn:test:65534"), Is.EqualTo(65534));
+        }
+
+        [Test]
+        public void SharedUnsecureRandomIsNotSeededWithAConstant()
+        {
+            // Every process drew the same sequence from UnsecureRandom.Shared, so
+            // reconnect jitter did not de-synchronise clients.
+            var first = (UnsecureRandom)Activator.CreateInstance(typeof(UnsecureRandom), nonPublic: true)!;
+            var second = (UnsecureRandom)Activator.CreateInstance(typeof(UnsecureRandom), nonPublic: true)!;
+
+            int[] a = [first.Next(), first.Next(), first.Next(), first.Next()];
+            int[] b = [second.Next(), second.Next(), second.Next(), second.Next()];
+
+            Assert.That(a, Is.Not.EqualTo(b));
         }
     }
 }

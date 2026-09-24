@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
+using Opc.Ua.Types;
 
 namespace Opc.Ua
 {
@@ -150,8 +151,26 @@ namespace Opc.Ua
 
             lock (m_syncRoot)
             {
+                ThrowIfFull();
                 m_strings.Add(value);
                 return m_strings.Count - 1;
+            }
+        }
+
+        /// <summary>
+        /// Throws if another entry would not fit a UInt16 index. The indexes of the table
+        /// are namespace / server indexes (UInt16) and 0xFFFF is the "not mapped" marker,
+        /// so an entry past index 0xFFFE would silently wrap onto an existing index.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void ThrowIfFull()
+        {
+            if (m_strings.Count >= ushort.MaxValue)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "The string table cannot hold more than {0} entries.",
+                    ushort.MaxValue);
             }
         }
 
@@ -214,6 +233,7 @@ namespace Opc.Ua
                     }
 #endif
 
+                    ThrowIfFull();
                     m_strings.Add(value);
                     return (ushort)(m_strings.Count - 1);
                 }
