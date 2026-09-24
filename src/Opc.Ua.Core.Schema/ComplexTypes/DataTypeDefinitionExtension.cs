@@ -77,10 +77,16 @@ namespace Opc.Ua
             bool isUnionType = false;
 
             // Schema.Binary.StructuredType.Field is nullable on the imported XML schema type
-            // but a structured type without any fields cannot describe a valid OPC UA
-            // structure; the bang reflects that requirement.
-            foreach (Schema.Binary.FieldType field in structuredType.Field!)
+            // and a dictionary that failed validation is still used, so it is not normalized.
+            Schema.Binary.FieldType[] fields = structuredType.Field ?? [];
+            foreach (Schema.Binary.FieldType field in fields)
             {
+                if (field.TypeName == null)
+                {
+                    throw new DataTypeNotSupportedException(
+                        "The structure definition contains a field without a type name.");
+                }
+
                 // check for yet unsupported properties
                 if (field.IsLengthInBytes || field.Terminator != null)
                 {
@@ -133,8 +139,7 @@ namespace Opc.Ua
             int dataTypeFieldPosition = 0;
             var switchFieldBits = new Dictionary<string, byte>();
             // convert fields
-            // structuredType.Field is required; see note on the first loop above.
-            foreach (Schema.Binary.FieldType field in structuredType.Field!)
+            foreach (Schema.Binary.FieldType field in fields)
             {
                 // consume optional bits
                 // field.TypeName is required; see note on the first loop above.
@@ -190,6 +195,11 @@ namespace Opc.Ua
                 if (field.LengthField != null)
                 {
                     // handle array length
+                    if (structureFields.Count == 0)
+                    {
+                        throw new DataTypeNotSupportedException(
+                            "The length field must precede the type field of an array.");
+                    }
                     StructureField lastField = structureFields[^1];
                     if (lastField.Name != field.LengthField)
                     {

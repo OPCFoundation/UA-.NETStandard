@@ -65,6 +65,12 @@ namespace Opc.Ua
         internal const int MaxLoopCount = 100;
 
         /// <summary>
+        /// an internal limit for supertype walks to prevent
+        /// a cyclic HasSubtype hierarchy to loop forever
+        /// </summary>
+        internal const int MaxSuperTypes = 100;
+
+        /// <summary>
         /// The data type systems that were loaded
         /// </summary>
         public NodeIdDictionary<DataDictionary> DataTypeSystem
@@ -662,6 +668,12 @@ namespace Opc.Ua
                                         m_logger.SkipTypeError(sre, item.Name);
                                         continue;
                                     }
+                                    catch (Exception ex) when (ex is not OutOfMemoryException)
+                                    {
+                                        // a malformed (unvalidated) structure only skips this type.
+                                        m_logger.SkipTypeError(ex, item.Name);
+                                        continue;
+                                    }
                                 }
 
                                 List<ExpandedNodeId>? missingTypeIds = null;
@@ -732,6 +744,13 @@ namespace Opc.Ua
                 catch (ServiceResultException sre)
                 {
                     m_logger.ProcessDictionaryError(sre, dictionaryId.Value.Name);
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException and not OperationCanceledException)
+                {
+                    // a malformed dictionary from the server must only disable its own
+                    // types, not abort loading the types of every other dictionary.
+                    m_logger.ProcessDictionaryError(ex, dictionaryId.Value.Name);
+                    allTypesLoaded = false;
                 }
             }
             return allTypesLoaded;
@@ -1159,8 +1178,17 @@ namespace Opc.Ua
             var superType = ExpandedNodeId.ToNodeId(
                 dataTypeNode.NodeId,
                 m_complexTypeResolver.NamespaceUris);
+            int iterations = 0;
             while (true)
             {
+                // bound the walk: a cyclic HasSubtype chain from the server must not spin forever.
+                if (iterations++ >= MaxSuperTypes)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNodeIdInvalid,
+                        $"SuperType hierarchy of {dataTypeNode.NodeId} is too deep or cyclic.");
+                }
+                ct.ThrowIfCancellationRequested();
                 superType = await m_complexTypeResolver.FindSuperTypeAsync(superType, ct)
                     .ConfigureAwait(false);
                 if (superType.IsNull)
@@ -1448,8 +1476,12 @@ namespace Opc.Ua
             var superType = ExpandedNodeId.ToNodeId(
                 dataTypeId,
                 m_complexTypeResolver.NamespaceUris);
-            while (!superType.IsNull)
+            int iterations = 0;
+
+            // bound the walk: a cyclic HasSubtype chain from the server must not spin forever.
+            while (!superType.IsNull && iterations++ < MaxSuperTypes)
             {
+                ct.ThrowIfCancellationRequested();
                 superType = await m_complexTypeResolver
                     .FindSuperTypeAsync(superType, ct)
                     .ConfigureAwait(false);
@@ -1487,6 +1519,11 @@ namespace Opc.Ua
                 m_complexTypeResolver.NamespaceUris);
             bool allowSubTypes = IsAllowSubTypes(structureDefinition);
 
+            // field types are resolved to their built-in super types on a copy: the
+            // declared definition is owned by the (cached) DataType node of the server.
+            StructureDefinition declaredDefinition = structureDefinition;
+            structureDefinition = (StructureDefinition)declaredDefinition.Clone();
+
             // check all types
             var typeList = new List<IType?>();
             foreach (StructureField field in structureDefinition.Fields.ToList())
@@ -1516,6 +1553,7 @@ namespace Opc.Ua
             }
 
             // Add StructureDefinition to cache
+            // cache the resolved copy: it describes how the generated type is encoded.
             AddDataTypeDefinitionToCache(localDataTypeId, typeName, structureDefinition);
 
             IComplexTypeFieldBuilder fieldBuilder = complexTypeBuilder.AddStructuredType(
@@ -1648,11 +1686,9 @@ namespace Opc.Ua
             bool isOptional,
             CancellationToken ct = default)
         {
-            const int maxSuperTypes = 100;
-
             int iterations = 0;
             NodeId superType = dataType;
-            while (iterations++ < maxSuperTypes)
+            while (iterations++ < MaxSuperTypes)
             {
                 superType = await m_complexTypeResolver.FindSuperTypeAsync(superType, ct)
                     .ConfigureAwait(false);
@@ -1732,11 +1768,12 @@ namespace Opc.Ua
                 if (item is Schema.Binary.StructuredType structuredObject)
                 {
                     // StructuredType.Field and FieldType.TypeName are both nullable on the
-                    // imported schema; the dictionary loader rejects malformed entries before
-                    // they reach this code, so the bangs reflect that lifecycle invariant.
-                    IEnumerable<Schema.Binary.FieldType> dependentFields = structuredObject.Field!
+                    // imported schema and a dictionary that failed validation is still used,
+                    // so a structure without fields or a field without a type is tolerated here.
+                    IEnumerable<Schema.Binary.FieldType> dependentFields =
+                        (structuredObject.Field ?? [])
                         .Where(f =>
-                            f.TypeName!.Namespace == dictionary.TypeDictionary.TargetNamespace);
+                            f.TypeName?.Namespace == dictionary.TypeDictionary.TargetNamespace);
                     if (!dependentFields.Any())
                     {
                         structureList.Insert(0, structuredObject);
