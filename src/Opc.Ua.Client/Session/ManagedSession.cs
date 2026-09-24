@@ -1553,6 +1553,21 @@ namespace Opc.Ua.Client
             }
         }
 
+        /// <summary>
+        /// Takes the service writer lock for reconnect / failover. Service
+        /// calls hold the reader lock for their whole round trip, so on a
+        /// silently dead channel they would keep recovery waiting until each
+        /// hits its OperationTimeout. Wait at most one keep-alive interval
+        /// for them; the recovery then replaces the channel, which fails the
+        /// stale calls, while new calls stay excluded.
+        /// </summary>
+        private ValueTask<AsyncReaderWriterLock.Releaser> RecoveryWriterLockAsync(CancellationToken ct)
+        {
+            TimeSpan drainTimeout = TimeSpan.FromMilliseconds(
+                Math.Max(m_session?.KeepAliveInterval ?? 0, MinRecoveryDrainTimeoutMs));
+            return m_serviceLock.WriterLockAsync(drainTimeout, m_timeProvider, ct);
+        }
+
         private async Task<ServiceResult> HandleManualReconnectAsync(
             ITransportWaitingConnection? connection,
             ITransportChannel? channel,
@@ -1563,7 +1578,7 @@ namespace Opc.Ua.Client
             try
             {
                 using IDisposable recovery = InnerSession.DeferSubscriptionRecovery();
-                using (await m_serviceLock.WriterLockAsync(linked.Token).ConfigureAwait(false))
+                using (await RecoveryWriterLockAsync(linked.Token).ConfigureAwait(false))
                 {
                     if (connection == null && channel == null)
                     {
@@ -1602,7 +1617,7 @@ namespace Opc.Ua.Client
                 m_logger.ManagedSessionReconnecting();
 
                 using IDisposable recovery = session.DeferSubscriptionRecovery();
-                using (await m_serviceLock.WriterLockAsync(ct)
+                using (await RecoveryWriterLockAsync(ct)
                     .ConfigureAwait(false))
                 {
                     try
@@ -1865,7 +1880,7 @@ namespace Opc.Ua.Client
 
                 m_logger.ManagedSessionFailingOverEndpoint(failoverEndpoint.EndpointUrl);
 
-                using (await m_serviceLock.WriterLockAsync(ct)
+                using (await RecoveryWriterLockAsync(ct)
                     .ConfigureAwait(false))
                 {
                     Session? session = m_session;
@@ -2770,6 +2785,7 @@ namespace Opc.Ua.Client
         private readonly IServerRedundancyHandler? m_redundancyHandler;
         private static readonly TimeSpan IdentityRefreshSafetyMargin = TimeSpan.FromSeconds(60);
         private static readonly TimeSpan MaxTimerDueTime = TimeSpan.FromMilliseconds(uint.MaxValue - 1);
+        private const int MinRecoveryDrainTimeoutMs = 1000;
 
         private readonly ILogger m_logger;
 
