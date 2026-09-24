@@ -385,6 +385,26 @@ namespace Opc.Ua.Server.Historian
                 throw new ArgumentNullException(nameof(result));
             }
 
+            // Part 11 6.9.5.1: both times shall be defined and startTime shall
+            // not be greater than endTime (startTime == endTime deletes the
+            // value at startTime).
+            if (details.StartTime == DateTimeUtc.MinValue ||
+                details.EndTime == DateTimeUtc.MinValue ||
+                details.StartTime > details.EndTime)
+            {
+                HistorianUpdateOutcome<DataValue> failure =
+                    CreateFailureOutcome<DataValue>(
+                        StatusCodes.BadInvalidTimestampArgument,
+                        1);
+                result.StatusCode = StatusCodes.BadInvalidTimestampArgument;
+                ReportAuditDeleteRaw(
+                    systemContext,
+                    details,
+                    failure,
+                    StatusCodes.BadInvalidTimestampArgument);
+                return StatusCodes.BadInvalidTimestampArgument;
+            }
+
             if (provider is not IHistorianDataProvider data)
             {
                 HistorianUpdateOutcome<DataValue> failure =
@@ -595,6 +615,16 @@ namespace Opc.Ua.Server.Historian
             {
                 result.StatusCode = StatusCodes.BadInvalidArgument;
                 return StatusCodes.BadInvalidArgument;
+            }
+            // A positive interval shorter than one DateTime tick cannot advance
+            // the slices; it would only spin the calculator up to the output
+            // cap. Reject it as the AnnotationCount path does.
+            if (!hasContinuationPoint &&
+                details.ProcessingInterval > 0 &&
+                details.ProcessingInterval * TimeSpan.TicksPerMillisecond < 1)
+            {
+                result.StatusCode = StatusCodes.BadAggregateInvalidInputs;
+                return StatusCodes.BadAggregateInvalidInputs;
             }
 
             HistorianContinuationClaim? claim = await TryClaimContinuationAsync(
@@ -1318,7 +1348,7 @@ namespace Opc.Ua.Server.Historian
                 return StatusCodes.BadHistoryOperationUnsupported;
             }
 
-            List<DataValue> samples = await CollectAllRawAsync(
+            List<DataValue>? samples = await CollectAllRawAsync(
                 opContext,
                 raw,
                 node.NodeId,
@@ -1327,6 +1357,12 @@ namespace Opc.Ua.Server.Historian
                 capabilities.Stepped,
                 cancellationToken)
                 .ConfigureAwait(false);
+            if (samples == null)
+            {
+                result.StatusCode = StatusCodes.BadTooManyOperations;
+                result.ContinuationPoint = ByteString.Empty;
+                return StatusCodes.BadTooManyOperations;
+            }
 
             var orderedSamples = samples.ToArrayOf();
             var produced = new List<DataValue>(reqTimes.Count);
@@ -3114,7 +3150,12 @@ namespace Opc.Ua.Server.Historian
             return true;
         }
 
-        private static async ValueTask<List<DataValue>> CollectAllRawAsync(
+        /// <summary>
+        /// Reads the raw values spanning <paramref name="times"/> for the
+        /// at-time fallback. Returns <c>null</c> when more than
+        /// <see cref="kMaxProcessedBufferedOutputs"/> values would be buffered.
+        /// </summary>
+        private static async ValueTask<List<DataValue>?> CollectAllRawAsync(
             HistorianOperationContext context,
             IHistorianDataProvider raw,
             NodeId nodeId,
@@ -3164,6 +3205,12 @@ namespace Opc.Ua.Server.Historian
                     {
                         collected.Add(v.Value);
                     }
+                }
+                // Same bound as the processed fallback: the span between the
+                // requested times, not the request, drives the buffer size.
+                if (collected.Count > kMaxProcessedBufferedOutputs)
+                {
+                    return null;
                 }
                 if (page.IsFinal)
                 {

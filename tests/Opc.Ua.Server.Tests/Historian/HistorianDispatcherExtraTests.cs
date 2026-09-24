@@ -352,6 +352,66 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         /// <summary>
+        /// Verifies that the at-time fallback does not buffer an unbounded raw
+        /// span between widely separated requested times.
+        /// </summary>
+        [Test]
+        public async Task DispatchAtTimeReadFallbackCapsBufferedRawValuesAsync()
+        {
+            HarnessFixture h = CreateHarness();
+            var nodeId = new NodeId($"at-fallback-cap-{Guid.NewGuid():N}", 1);
+            var provider = new Mock<IHistorianProvider>();
+            provider
+                .Setup(value => value.IsHistorizingAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<bool>(true));
+            provider
+                .Setup(value => value.GetCapabilitiesAsync(
+                    nodeId,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<HistorianNodeCapabilities>(
+                    HistorianNodeCapabilities.ReadOnly));
+            var samples = new HistoricalDataValue[HistorianDispatcher.kMaxProcessedBufferedOutputs + 1];
+            for (int i = 0; i < samples.Length; i++)
+            {
+                samples[i] = new HistoricalDataValue(new DataValue(
+                    Variant.From(i),
+                    StatusCodes.Good,
+                    BaseTime.AddMilliseconds(i),
+                    DateTimeUtc.MinValue));
+            }
+            provider.As<IHistorianDataProvider>()
+                .Setup(value => value.ReadRawAsync(
+                    It.IsAny<HistorianOperationContext>(),
+                    It.IsAny<HistorianRawReadRequest>(),
+                    It.IsAny<HistorianResumeToken>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<HistorianPage<HistoricalDataValue>>(
+                    new HistorianPage<HistoricalDataValue>([.. samples])));
+            BaseDataVariableState node = CreateVariable(nodeId);
+            var result = new HistoryReadResult();
+
+            ServiceResult error = await HistorianDispatcher.DispatchAtTimeReadAsync(
+                h.SystemContext,
+                provider.Object,
+                node,
+                new HistoryReadValueId
+                {
+                    NodeId = nodeId
+                },
+                new ReadAtTimeDetails
+                {
+                    ReqTimes = [BaseTime, BaseTime.AddMilliseconds(samples.Length)],
+                    UseSimpleBounds = true
+                },
+                TimestampsToReturn.Source,
+                result,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
+        }
+
+        /// <summary>
         /// Verifies that interpolated at-time bounds search beyond bad-quality values.
         /// </summary>
         [Test]

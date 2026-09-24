@@ -648,7 +648,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                         LinkedListNode<ModificationEntry>? previous = current.Previous;
                         ModificationEntry entry = current.Value;
                         var timestamp = entry.Value.SourceTimestamp.ToDateTime();
-                        if (timestamp >= start && timestamp < end)
+                        if (IsInDeleteRange(timestamp, start, end))
                         {
                             oldValues.Add(CloneValue(entry.Value));
                             RemoveModification(archive, current);
@@ -2290,7 +2290,19 @@ namespace Opc.Ua.Server.Historian.InMemory
 
         private static bool IsInRange(HistoricalValueKey key, DateTime start, DateTime end)
         {
-            var timestamp = key.SourceTimestamp.ToDateTime();
+            return IsInDeleteRange(key.SourceTimestamp.ToDateTime(), start, end);
+        }
+
+        /// <summary>
+        /// Half-open [start, end) range of a DeleteRawModified request. Per
+        /// Part 11 6.9.5.1 start == end deletes the value at start.
+        /// </summary>
+        private static bool IsInDeleteRange(DateTime timestamp, DateTime start, DateTime end)
+        {
+            if (start == end)
+            {
+                return timestamp == start;
+            }
             return timestamp >= start && timestamp < end;
         }
 
