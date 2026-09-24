@@ -1034,6 +1034,14 @@ namespace Opc.Ua.SourceGeneration
                     {
                         continue;
                     }
+                    // No state class is emitted for an excluded type, so an
+                    // accessor typed on it would not compile (CS0246).
+                    if (child is ObjectDesign &&
+                        child.TypeDefinitionNode is ObjectTypeDesign childType &&
+                        m_context.ModelDesign.IsExcluded(childType))
+                    {
+                        continue;
+                    }
                     if (child is PropertyDesign)
                     {
                         properties.Add(child);

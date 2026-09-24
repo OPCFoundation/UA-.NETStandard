@@ -753,6 +753,77 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 .Single();
         }
 
+        /// <summary>
+        /// Regression: a per-type accessor was emitted for an Object child whose
+        /// TypeDefinition is excluded (e.g. a Draft type), returning
+        /// <c>INodeBuilder&lt;DiagnosticsState&gt;</c> for a state class that is
+        /// never generated (CS0246).
+        /// </summary>
+        [Test]
+        public void EmitTypeAccessors_ChildOfExcludedType_IsSkipped()
+        {
+            const string namespaceUri = "http://test.org/UA/Excluded/";
+            var targetNamespace = new Namespace
+            {
+                Value = namespaceUri,
+                Prefix = "Excluded",
+                Name = "Excluded"
+            };
+            ObjectTypeDesign NewType(string name) => new()
+            {
+                SymbolicName = new XmlQualifiedName(name, namespaceUri),
+                SymbolicId = new XmlQualifiedName(name, namespaceUri)
+            };
+            ObjectDesign NewChild(string name, ObjectTypeDesign type) => new()
+            {
+                SymbolicName = new XmlQualifiedName(name, namespaceUri),
+                SymbolicId = new XmlQualifiedName("MachineType_" + name, namespaceUri),
+                BrowseName = name,
+                TypeDefinition = type.SymbolicName,
+                TypeDefinitionNode = type,
+                ModellingRule = ModellingRule.Mandatory
+            };
+            ObjectTypeDesign draftType = NewType("DiagnosticsType");
+            ObjectTypeDesign motorType = NewType("MotorType");
+            ObjectTypeDesign machineType = NewType("MachineType");
+            machineType.Children = new ListOfChildren
+            {
+                Items = [NewChild("Diagnostics", draftType), NewChild("Motor", motorType)]
+            };
+
+            var model = new Mock<IModelDesign>();
+            model.Setup(m => m.TargetNamespace).Returns(targetNamespace);
+            model.Setup(m => m.Namespaces).Returns([targetNamespace]);
+            model.Setup(m => m.GetNodeDesigns()).Returns([draftType, motorType, machineType]);
+            model.Setup(m => m.IsExcluded(It.IsAny<NodeDesign>())).Returns(false);
+            model.Setup(m => m.IsExcluded(draftType)).Returns(true);
+
+            using var fileSystem = new VirtualFileSystem();
+            var context = new GeneratorContext
+            {
+                FileSystem = fileSystem,
+                OutputFolder = string.Empty,
+                ModelDesign = model.Object,
+                Telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error),
+                Options = new GeneratorOptions()
+            };
+            new FluentBuilderGenerator(context)
+            {
+                GenerateManagerWrappers = false,
+                EmitFluentAccessors = true
+            }.Emit();
+            string fb = fileSystem.CreatedFiles
+                .Where(c => c.EndsWith(".FluentBuilders.g.cs", StringComparison.Ordinal))
+                .Select(c => Encoding.UTF8.GetString(fileSystem.Get(c)))
+                .Single();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(fb, Does.Not.Contain("DiagnosticsState"));
+                Assert.That(fb, Does.Contain("INodeBuilder<global::Excluded.MotorState> Motor("));
+            });
+        }
+
         private static string GenerateForDeclarationBackedModel()
         {
             const string namespaceUri = "http://test.org/UA/DeclarationBackedMethod/";

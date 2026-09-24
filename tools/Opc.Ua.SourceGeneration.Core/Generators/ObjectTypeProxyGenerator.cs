@@ -188,7 +188,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private string ResolveBaseClassName(ObjectTypeDesign objectType)
         {
-            if (objectType.BaseTypeNode is not ObjectTypeDesign parent)
+            if (GetEmittedBaseType(objectType) is not ObjectTypeDesign parent)
             {
                 return kRootBaseClass;
             }
@@ -203,6 +203,26 @@ namespace Opc.Ua.SourceGeneration
                 "global::{0}.{1}Client",
                 parentNamespace,
                 parentName);
+        }
+
+        /// <summary>
+        /// Returns the nearest supertype of <paramref name="objectType"/> that
+        /// has a generated proxy, skipping excluded ObjectTypes (no proxy is
+        /// emitted for those, see <see cref="GetEmittedObjectTypes"/>), or
+        /// <c>null</c> when the chain ends at a non-ObjectType.
+        /// </summary>
+        private ObjectTypeDesign GetEmittedBaseType(ObjectTypeDesign objectType)
+        {
+            TypeDesign current = objectType.BaseTypeNode;
+            while (current is ObjectTypeDesign parent)
+            {
+                if (!m_context.ModelDesign.IsExcluded(parent))
+                {
+                    return parent;
+                }
+                current = parent.BaseTypeNode;
+            }
+            return null;
         }
 
         /// <summary>
@@ -270,8 +290,8 @@ namespace Opc.Ua.SourceGeneration
         private HashSet<string> CollectInheritedMethodNames(ObjectTypeDesign objectType)
         {
             var names = new HashSet<string>(StringComparer.Ordinal);
-            TypeDesign current = objectType.BaseTypeNode;
-            while (current is ObjectTypeDesign parent)
+            ObjectTypeDesign parent = GetEmittedBaseType(objectType);
+            while (parent != null)
             {
                 foreach (MethodDesign method in GetDeclaredMethods(parent))
                 {
@@ -281,7 +301,7 @@ namespace Opc.Ua.SourceGeneration
                         names.Add(name + "Async");
                     }
                 }
-                current = parent.BaseTypeNode;
+                parent = GetEmittedBaseType(parent);
             }
             return names;
         }
@@ -297,8 +317,8 @@ namespace Opc.Ua.SourceGeneration
         private HashSet<string> CollectInheritedObjectChildNames(ObjectTypeDesign objectType)
         {
             var names = new HashSet<string>(StringComparer.Ordinal);
-            TypeDesign current = objectType.BaseTypeNode;
-            while (current is ObjectTypeDesign parent)
+            ObjectTypeDesign parent = GetEmittedBaseType(objectType);
+            while (parent != null)
             {
                 foreach (ObjectDesign child in GetDeclaredObjectChildren(parent))
                 {
@@ -308,7 +328,7 @@ namespace Opc.Ua.SourceGeneration
                         names.Add("Get" + name + "Async");
                     }
                 }
-                current = parent.BaseTypeNode;
+                parent = GetEmittedBaseType(parent);
             }
             return names;
         }
@@ -392,7 +412,13 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
-                if (objectChild.TypeDefinitionNode is not ObjectTypeDesign)
+                if (objectChild.TypeDefinitionNode is not ObjectTypeDesign childType)
+                {
+                    continue;
+                }
+                // No proxy is emitted for an excluded type, so an accessor
+                // returning one would not compile (CS0246).
+                if (m_context.ModelDesign.IsExcluded(childType))
                 {
                     continue;
                 }

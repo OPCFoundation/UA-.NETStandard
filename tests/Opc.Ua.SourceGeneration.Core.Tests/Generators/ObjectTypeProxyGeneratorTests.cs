@@ -574,6 +574,67 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             });
         }
 
+        /// <summary>
+        /// Regression: no proxy is emitted for an excluded ObjectType, but a child
+        /// accessor returning it was, which does not compile (CS0246).
+        /// </summary>
+        [Test]
+        public void Emit_ObjectChildOfExcludedType_EmitsNoAccessor()
+        {
+            ObjectTypeDesign draftType = CreateObjectType("DiagnosticsType");
+            ObjectTypeDesign motorType = CreateObjectType("MotorType");
+            ObjectTypeDesign machineType = CreateObjectType("MachineType");
+            machineType.Children = new ListOfChildren
+            {
+                Items =
+                [
+                    CreateObjectChild("Diagnostics", null, draftType),
+                    CreateObjectChild("Motor", null, motorType)
+                ]
+            };
+            m_mockModelDesign
+                .Setup(m => m.GetNodeDesigns())
+                .Returns([draftType, motorType, machineType]);
+            m_mockModelDesign.Setup(m => m.IsExcluded(draftType)).Returns(true);
+
+            string content = EmitToString();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(content, Does.Not.Contain("DiagnosticsTypeClient"));
+                Assert.That(content, Does.Not.Contain("GetDiagnosticsAsync"));
+                Assert.That(content, Does.Contain("GetMotorAsync("));
+            });
+        }
+
+        /// <summary>
+        /// Regression: a proxy derived from the (never emitted) proxy of an
+        /// excluded supertype. It now derives from the nearest emitted ancestor.
+        /// </summary>
+        [Test]
+        public void Emit_ExcludedSupertype_DerivesFromNearestEmittedAncestor()
+        {
+            ObjectTypeDesign rootType = CreateObjectType("MachineBaseType", CreateMethod("Ping"));
+            ObjectTypeDesign draftType = CreateObjectType("DraftMachineType", CreateMethod("Ping"));
+            draftType.BaseTypeNode = rootType;
+            ObjectTypeDesign machineType = CreateObjectType("MachineType");
+            machineType.BaseTypeNode = draftType;
+            m_mockModelDesign
+                .Setup(m => m.GetNodeDesigns())
+                .Returns([rootType, draftType, machineType]);
+            m_mockModelDesign.Setup(m => m.IsExcluded(draftType)).Returns(true);
+
+            string content = EmitToString();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(content, Does.Not.Contain("DraftMachineTypeClient"));
+                Assert.That(content, Does.Contain(
+                    "public partial class MachineTypeClient : global::" + kTestNamespacePrefix +
+                    ".MachineBaseTypeClient"));
+            });
+        }
+
         private string EmitToString()
         {
             using var stream = new MemoryStream();
