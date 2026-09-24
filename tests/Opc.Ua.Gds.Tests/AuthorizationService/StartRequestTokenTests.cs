@@ -241,6 +241,54 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
         }
 
         [Test]
+        public async Task LegacyRequestAccessTokenHonorsAccessControl()
+        {
+            using Certificate certificate = CreateSigningCertificate();
+            using var certificateProvider = new InProcessCertificateProvider(certificate);
+            var options = new AuthorizationServiceOptions
+            {
+                IssuerUri = Issuer,
+                SigningCertificate = new CertificateIdentifier { Thumbprint = certificate.Thumbprint },
+                AccessControl = (identity, audience, scopes) => identity?.DisplayName == "operator"
+            };
+            options.AllowedAudiences.Add(Audience);
+            options.DefaultScopes.Add("read");
+
+            var issuer = new CertificateJwtIssuer(options, certificateProvider, NUnitTelemetryContext.Create());
+            var provider = new InMemoryAccessTokenProvider(issuer, options);
+            var manager = new AuthorizationServiceManager(provider, issuer, options);
+
+#pragma warning disable CS0618 // exercising the obsolete single-call wire method on purpose
+            Assert.That(
+                async () => await manager
+                    .RequestAccessTokenAsync(new UserNameIdentityToken { UserName = "admin" }, Audience)
+                    .ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(
+                async () => await manager
+                    .RequestAccessTokenAsync(
+                        new UserNameIdentityToken { UserName = "admin" },
+                        Audience,
+                        new UserIdentity("intruder", []))
+                    .ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadUserAccessDenied));
+            string jwt = await manager
+                .RequestAccessTokenAsync(
+                    new UserNameIdentityToken { UserName = "admin" },
+                    Audience,
+                    new UserIdentity("operator", []))
+                .ConfigureAwait(false);
+#pragma warning restore CS0618
+
+            IIdentityClaims claims = await AuthenticateAsync(certificate, jwt).ConfigureAwait(false);
+            Assert.That(claims.Subject, Is.EqualTo("operator"));
+        }
+
+        [Test]
         public async Task FinishGrantsOnlyTheIntersectionOfAuthorizedAndRequestedRoles()
         {
             using Certificate certificate = CreateSigningCertificate();

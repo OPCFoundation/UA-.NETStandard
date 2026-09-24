@@ -38,6 +38,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Gds.Server.Diagnostics;
+using Opc.Ua.Gds.Server.Identity;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
@@ -2651,9 +2652,19 @@ namespace Opc.Ua.Gds.Server
 
             try
             {
+                // Bind the request to the session identity so the configured
+                // access control applies and the token subject is the caller.
+                IUserIdentity? callerIdentity = (context as ISessionSystemContext)?.UserIdentity;
 #pragma warning disable CS0618 // Legacy wire method is intentionally kept functional.
-                result.AccessToken = await provider.RequestAccessTokenAsync(
-                    identityToken, resourceId, cancellationToken).ConfigureAwait(false);
+                result.AccessToken = provider switch
+                {
+                    AuthorizationServiceManager manager => await manager.RequestAccessTokenAsync(
+                        identityToken, resourceId, callerIdentity, cancellationToken).ConfigureAwait(false),
+                    InMemoryAccessTokenProvider inMemory => await inMemory.RequestAccessTokenAsync(
+                        identityToken, resourceId, callerIdentity, cancellationToken).ConfigureAwait(false),
+                    _ => await provider.RequestAccessTokenAsync(
+                        identityToken, resourceId, cancellationToken).ConfigureAwait(false)
+                };
 #pragma warning restore CS0618
             }
             catch (Exception ex)
