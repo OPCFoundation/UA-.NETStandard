@@ -2416,26 +2416,43 @@ namespace Opc.Ua.Client.Subscriptions
                         .ReadAsync(pauseCts.Token).AsTask();
                     Task pausedTask = m_outer.m_publishingPaused
                         .WaitAsync(pauseCts.Token);
-                    Task completed = await Task.WhenAny(readTask, pausedTask)
-                        .ConfigureAwait(false);
-                    if (ReferenceEquals(completed, pausedTask))
+                    bool readConsumed = false;
+                    SubscriptionAcknowledgement firstAck;
+                    try
                     {
-                        await pausedTask.ConfigureAwait(false);
-                        await pauseCts.CancelAsync().ConfigureAwait(false);
-                        try
+                        Task completed = await Task.WhenAny(readTask, pausedTask)
+                            .ConfigureAwait(false);
+                        if (ReferenceEquals(completed, pausedTask))
                         {
-                            SubscriptionAcknowledgement acknowledgement =
-                                await readTask.ConfigureAwait(false);
-                            m_outer.m_acks.Writer.TryWrite(acknowledgement);
+                            // Throws when the wait timed out or was cancelled;
+                            // the finally below still rescues a racing ack.
+                            await pausedTask.ConfigureAwait(false);
+                            return [];
                         }
-                        catch (OperationCanceledException)
-                        {
-                        }
-                        return [];
+                        firstAck = await readTask.ConfigureAwait(false);
+                        readConsumed = true;
                     }
-
-                    SubscriptionAcknowledgement firstAck =
-                        await readTask.ConfigureAwait(false);
+                    finally
+                    {
+                        if (!readConsumed)
+                        {
+                            // A writer can hand an acknowledgement to the
+                            // pending read in the same instant the wait ends.
+                            // Put it back on every exit path, otherwise it is
+                            // never sent and the server keeps the message in
+                            // its retransmission queue.
+                            await pauseCts.CancelAsync().ConfigureAwait(false);
+                            try
+                            {
+                                SubscriptionAcknowledgement acknowledgement =
+                                    await readTask.ConfigureAwait(false);
+                                m_outer.m_acks.Writer.TryWrite(acknowledgement);
+                            }
+                            catch (Exception) when (readTask.IsCanceled || readTask.IsFaulted)
+                            {
+                            }
+                        }
+                    }
                     await pauseCts.CancelAsync().ConfigureAwait(false);
                     try
                     {
