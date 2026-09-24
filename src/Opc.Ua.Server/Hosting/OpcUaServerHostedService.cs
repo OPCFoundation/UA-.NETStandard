@@ -394,7 +394,7 @@ namespace Opc.Ua.Server.Hosting
                 ? "OpcUaServer"
                 : m_options.ApplicationName;
             string pkiRoot = string.IsNullOrEmpty(m_options.PkiRoot)
-                ? Path.Combine(Path.GetTempPath(), "OPC Foundation", appName, "pki")
+                ? GetDefaultPkiRoot(appName)
                 : m_options.PkiRoot;
             string subject = string.IsNullOrEmpty(m_options.SubjectName)
                 ? $"CN={appName}, O=OPC Foundation, DC=localhost"
@@ -425,6 +425,29 @@ namespace Opc.Ua.Server.Hosting
 
             ApplyDependencyInjectedCertificateManager(certificateManager);
             await securityOptions.CreateAsync(ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// The certificate store root used when <see cref="OpcUaServerOptions.PkiRoot"/>
+        /// is empty: a per-user application-data directory. The shared temporary
+        /// directory is not used because on Linux/macOS other local users can
+        /// pre-create it and plant trusted certificates or read the private key.
+        /// </summary>
+        /// <exception cref="ServiceResultException">No per-user application-data
+        /// directory is available (e.g. HOME is not set); configure PkiRoot.</exception>
+        internal static string GetDefaultPkiRoot(string applicationName)
+        {
+            string appData = Environment.GetFolderPath(
+                Environment.SpecialFolder.LocalApplicationData,
+                Environment.SpecialFolderOption.DoNotVerify);
+            if (string.IsNullOrEmpty(appData))
+            {
+                throw ServiceResultException.ConfigurationError(
+                    "No per-user application data directory is available for the " +
+                    "certificate stores. Configure OpcUaServerOptions.PkiRoot.");
+            }
+
+            return Path.Combine(appData, "OPC Foundation", applicationName, "pki");
         }
 
         /// <summary>
@@ -533,16 +556,26 @@ namespace Opc.Ua.Server.Hosting
                 m_application?.ApplicationConfiguration?.CertificateManager;
 
             var authenticators = new List<IUserTokenAuthenticator>();
+            bool hasIdentityConfiguration = false;
             foreach (OpcUaServerIdentityAuthenticatorRegistration registration in m_identityRegistrations)
             {
+                hasIdentityConfiguration = true;
                 authenticators.AddRange(registration.CreateAuthenticators(
                     m_services,
                     certificateValidator));
             }
 
-            if (authenticators.Count == 0)
+            if (!hasIdentityConfiguration)
             {
+                // no identity configuration at all: keep the anonymous default.
                 authenticators.Add(new AnonymousAuthenticator());
+            }
+            else if (!authenticators.Exists(a => a.TokenType == UserTokenType.Anonymous))
+            {
+                // The identity configuration disabled anonymous access. Reject anonymous
+                // tokens explicitly, otherwise an unhandled anonymous token falls through to
+                // the session manager which accepts it whenever the endpoint advertises it.
+                authenticators.Add(new AnonymousRejectingAuthenticator());
             }
 
             WarnForUnmatchedUserTokenPolicies(
@@ -669,6 +702,31 @@ namespace Opc.Ua.Server.Hosting
                 }
             }
             return false;
+        }
+
+        /// <summary>
+        /// Rejects anonymous identity tokens when the identity configuration
+        /// does not enable anonymous access.
+        /// </summary>
+        internal sealed class AnonymousRejectingAuthenticator : IUserTokenAuthenticator
+        {
+            /// <inheritdoc/>
+            public UserTokenType TokenType => UserTokenType.Anonymous;
+
+            /// <inheritdoc/>
+            public string? IssuedTokenProfileUri => null;
+
+            /// <inheritdoc/>
+            public ValueTask<AuthenticationResult> AuthenticateAsync(
+                AuthenticationContext context,
+                CancellationToken ct = default)
+            {
+                return new ValueTask<AuthenticationResult>(
+                    AuthenticationResult.Reject(new ServiceResult(
+                        StatusCodes.BadIdentityTokenRejected,
+                        new LocalizedText(
+                            "Anonymous access is disabled by the server identity configuration."))));
+            }
         }
 
         private async ValueTask StopApplicationAsync(CancellationToken cancellationToken)
