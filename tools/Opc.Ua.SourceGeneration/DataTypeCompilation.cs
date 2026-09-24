@@ -495,8 +495,46 @@ namespace Opc.Ua.SourceGeneration
                         !m.IsImplicitlyDeclared),
                 Fields = EquatableArray<TypeFieldModel>.From(CollectFields(symbol, ct)),
                 BaseClassName = symbol.BaseType?.Name == "Object"
-                    ? null : symbol.BaseType?.Name
-            }, symbol);
+                    ? null : symbol.BaseType?.Name,
+                BaseDefinitionActivator = baseTypeIsEncodeable
+                    ? ResolveBaseDefinitionActivator(symbol.BaseType)
+                    : null
+            };
+        }
+
+        /// <summary>
+        /// Resolves the activator of an encodeable base type that exposes the
+        /// base type's data type definition: the <c>{Name}Activator</c>
+        /// emitted next to every [DataType] type and every model generated
+        /// structure. A [DataType] base in the same compilation is not
+        /// visible yet (its activator is generated in this run) and is
+        /// resolved by convention.
+        /// </summary>
+        private static string ResolveBaseDefinitionActivator(INamedTypeSymbol baseType)
+        {
+            if (baseType == null || baseType.IsGenericType)
+            {
+                return null;
+            }
+            string ns = baseType.GetFullNamespace();
+            string activatorName = baseType.Name + "Activator";
+            string activator = string.IsNullOrEmpty(ns)
+                ? "global::" + activatorName
+                : "global::" + ns + "." + activatorName;
+            if (baseType.HasAttribute("DataTypeAttribute"))
+            {
+                return activator;
+            }
+            INamedTypeSymbol existing = baseType.ContainingNamespace?
+                .GetTypeMembers(activatorName)
+                .FirstOrDefault();
+            if (existing != null &&
+                existing.ImplementsInterface("IDataTypeDefinitionSource") &&
+                existing.GetMembers("Instance").Any(m => m.IsStatic))
+            {
+                return activator;
+            }
+            return null;
         }
 
         private static TypeSourceModel BuildEnumModel(
@@ -678,6 +716,27 @@ namespace Opc.Ua.SourceGeneration
                 isEncodeable,
                 isEnum);
 
+            // A field whose value equals the default is omitted on encode
+            // (DefaultValueHandling.Exclude) and a missing field keeps the
+            // value the constructor assigned on decode. Both only agree when
+            // "default" is the value the property is initialized with.
+            string defaultValueLiteral = null;
+            bool hasNonConstantInitializer = false;
+            ExpressionSyntax initializer = GetPropertyInitializerSyntax(prop);
+            if (initializer != null && !IsDefaultLiteral(initializer))
+            {
+                if (!isArray && !isMatrix && !isEnum && !isEncodeable &&
+                    s_literalComparableTypes.Contains(shortName) &&
+                    IsSimpleLiteral(initializer))
+                {
+                    defaultValueLiteral = initializer.ToString();
+                }
+                else
+                {
+                    hasNonConstantInitializer = true;
+                }
+            }
+
             return new TypeFieldModel
             {
                 PropertyName = prop.Name,
@@ -696,6 +755,8 @@ namespace Opc.Ua.SourceGeneration
                 DataTypeNodeId = dataTypeNodeId,
                 StructureHandling = structureHandling,
                 DefaultValueHandling = defaultValueHandling,
+                DefaultValueLiteral = defaultValueLiteral,
+                HasNonConstantInitializer = hasNonConstantInitializer,
                 FieldTypeIsSealed = fieldTypeIsSealed,
                 FieldTypeHasEncodeableBase = fieldTypeHasEncodeableBase,
                 IsInitOnly = HasInitOnlySetter(prop),
@@ -809,17 +870,77 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private static string GetPropertyInitializer(IPropertySymbol prop)
         {
+            return GetPropertyInitializerSyntax(prop)?.ToString();
+        }
+
+        private static ExpressionSyntax GetPropertyInitializerSyntax(IPropertySymbol prop)
+        {
             foreach (SyntaxReference syntaxRef in prop.DeclaringSyntaxReferences)
             {
                 if (syntaxRef.GetSyntax() is PropertyDeclarationSyntax propSyntax &&
                     propSyntax.Initializer != null)
                 {
-                    return propSyntax.Initializer.Value.ToString();
+                    return propSyntax.Initializer.Value;
                 }
             }
 
             return null;
         }
+
+        /// <summary>
+        /// True for an initializer that assigns the CLR default anyway
+        /// (<c>null</c>, <c>default</c>, <c>null!</c>).
+        /// </summary>
+        private static bool IsDefaultLiteral(ExpressionSyntax expression)
+        {
+            if (expression is PostfixUnaryExpressionSyntax postfix &&
+                postfix.IsKind(SyntaxKind.SuppressNullableWarningExpression))
+            {
+                expression = postfix.Operand;
+            }
+            return expression.IsKind(SyntaxKind.NullLiteralExpression) ||
+                expression.IsKind(SyntaxKind.DefaultLiteralExpression);
+        }
+
+        /// <summary>
+        /// True for a self-contained literal (number, string, boolean,
+        /// optionally negated) that can be compared against in generated
+        /// code without depending on the user's usings.
+        /// </summary>
+        private static bool IsSimpleLiteral(ExpressionSyntax expression)
+        {
+            if (expression is PrefixUnaryExpressionSyntax prefix &&
+                (prefix.IsKind(SyntaxKind.UnaryMinusExpression) ||
+                    prefix.IsKind(SyntaxKind.UnaryPlusExpression)))
+            {
+                expression = prefix.Operand;
+                return expression.IsKind(SyntaxKind.NumericLiteralExpression);
+            }
+            return expression.IsKind(SyntaxKind.NumericLiteralExpression) ||
+                expression.IsKind(SyntaxKind.StringLiteralExpression) ||
+                expression.IsKind(SyntaxKind.TrueLiteralExpression) ||
+                expression.IsKind(SyntaxKind.FalseLiteralExpression);
+        }
+
+        /// <summary>
+        /// Property types a literal initializer can be compared with.
+        /// </summary>
+        private static readonly HashSet<string> s_literalComparableTypes =
+            new(StringComparer.Ordinal)
+            {
+                "Boolean",
+                "SByte",
+                "Byte",
+                "Int16",
+                "UInt16",
+                "Int32",
+                "UInt32",
+                "Int64",
+                "UInt64",
+                "Single",
+                "Double",
+                "String"
+            };
 
         /// <summary>
         /// Detects whether a property has an init-only setter by

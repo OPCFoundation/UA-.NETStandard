@@ -135,6 +135,14 @@ namespace Opc.Ua.SourceGeneration
         public bool BaseTypeIsEncodeable { get; set; }
 
         /// <summary>
+        /// Fully qualified name of the activator of the encodeable base
+        /// type that exposes the base type's data type definition, or null
+        /// if there is none. Used to emit the inherited fields and the base
+        /// data type in the structure definition.
+        /// </summary>
+        public string BaseDefinitionActivator { get; set; }
+
+        /// <summary>
         /// True if the user class is sealed.
         /// </summary>
         public bool IsSealed { get; set; }
@@ -290,6 +298,21 @@ namespace Opc.Ua.SourceGeneration
         /// 0 = Exclude, 1 = Emit, 2 = SetIfMissing, 3 = Include.
         /// </summary>
         public int DefaultValueHandling { get; set; }
+
+        /// <summary>
+        /// The literal (number, string, boolean) the property is
+        /// initialized with, or null if it has no such initializer. With
+        /// DefaultValueHandling.Exclude a value equal to it is omitted, as
+        /// a missing field decodes to it.
+        /// </summary>
+        public string DefaultValueLiteral { get; set; }
+
+        /// <summary>
+        /// True if the property has an initializer whose value cannot be
+        /// compared against in generated code. The field is then always
+        /// encoded, since omitting it would decode to the initializer.
+        /// </summary>
+        public bool HasNonConstantInitializer { get; set; }
 
         /// <summary>
         /// True if the property uses an init-only setter and is

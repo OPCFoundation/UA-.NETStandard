@@ -64,7 +64,17 @@ namespace Opc.Ua.SourceGeneration
                     continue;
                 }
 
-                if (resolvedType != null && s_scalarTypeMap.ContainsKey(resolvedType))
+                if (field.IsMatrix)
+                {
+                    // A matrix is carried in a Variant, which only exists for
+                    // the element types the Variant has matrix accessors for.
+                    if (resolvedType != null && s_matrixGetterMap.ContainsKey(resolvedType))
+                    {
+                        valid.Add(field);
+                        continue;
+                    }
+                }
+                else if (resolvedType != null && s_scalarTypeMap.ContainsKey(resolvedType))
                 {
                     valid.Add(field);
                     continue;
@@ -351,7 +361,22 @@ namespace Opc.Ua.SourceGeneration
             }
 
             string encodeLine;
-            if (field.IsEncodeable)
+            if (field.IsMatrix)
+            {
+                // Matrices of structures use the typed inline matrix call;
+                // every other element type travels in a Variant (the same
+                // encoding the model driven generator uses for matrices).
+                encodeLine = field.IsEncodeable
+                    ? CoreUtils.Format(
+                        "encoder.WriteEncodeableMatrix(\"{0}\", {1});",
+                        field.FieldName.Escape(),
+                        field.PropertyName)
+                    : CoreUtils.Format(
+                        "encoder.WriteVariant(\"{0}\", global::Opc.Ua.Variant.From({1}));",
+                        field.FieldName.Escape(),
+                        field.PropertyName);
+            }
+            else if (field.IsEncodeable)
             {
                 bool useExtObj = ShouldUseExtensionObject(field);
                 if (field.IsArray)
@@ -403,7 +428,12 @@ namespace Opc.Ua.SourceGeneration
                     field.PropertyName);
             }
 
-            if ((field.DefaultValueHandling & 1) == 0)
+            // Omitting a field is only round-trip safe when a missing field
+            // decodes to the omitted value: the property initializer (or the
+            // CLR default without one). An initializer that cannot be
+            // compared against keeps the field on the wire.
+            if ((field.DefaultValueHandling & 1) == 0 &&
+                !field.HasNonConstantInitializer)
             {
                 encodeLine = CoreUtils.Format(
                     "if (!encoder.CanOmitFields || {0}) {1}",
@@ -434,7 +464,28 @@ namespace Opc.Ua.SourceGeneration
             string target = field.BackingFieldName ?? field.PropertyName;
 
             string decodeLine;
-            if (field.IsEncodeable)
+            if (field.IsMatrix)
+            {
+                if (field.IsEncodeable)
+                {
+                    decodeLine = CoreUtils.Format(
+                        "{0} = decoder.ReadEncodeableMatrix<{1}>(\"{2}\");",
+                        target,
+                        field.ElementTypeName,
+                        field.FieldName.Escape());
+                }
+                else
+                {
+                    decodeLine = CoreUtils.Format(
+                        "{0} = decoder.ReadVariant(\"{1}\").{2};",
+                        target,
+                        field.FieldName.Escape(),
+                        field.IsEnum
+                            ? $"GetEnumerationMatrix<{field.ElementTypeName}>()"
+                            : $"Get{s_matrixGetterMap[field.ElementShortTypeName]}Matrix()");
+                }
+            }
+            else if (field.IsEncodeable)
             {
                 bool useExtObj = ShouldUseExtensionObject(field);
                 if (field.IsArray)
@@ -569,18 +620,19 @@ namespace Opc.Ua.SourceGeneration
             }
             return null;
 
+            // An array or matrix is cloned element-wise when its elements
+            // have reference semantics, like the model driven generator does.
             static bool NeedsCloning(TypeFieldModel field)
             {
-                switch (field.ShortTypeName)
+                string typeName = field.IsArray || field.IsMatrix
+                    ? field.ElementShortTypeName
+                    : field.ShortTypeName;
+                switch (typeName)
                 {
                     case "DataValue":
                     case "Variant":
                     case "ExtensionObject":
                         return true;
-                }
-                if (field.IsArray || field.IsMatrix)
-                {
-                    return false;
                 }
                 return field.IsEncodeable;
             }
@@ -726,8 +778,12 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-            return model.IsEnum
-                ? DataTypeTemplates.EnumDefinition
+            if (model.IsEnum)
+            {
+                return DataTypeTemplates.EnumDefinition;
+            }
+            return model.IsDerived && model.BaseDefinitionActivator != null
+                ? TypeSourceTemplates.DerivedStructureDefinition
                 : DataTypeTemplates.StructureDefinition;
         }
 
@@ -753,32 +809,28 @@ namespace Opc.Ua.SourceGeneration
                 context.Template.AddReplacement(
                     Tokens.ListOfFields,
                     DataTypeTemplates.EnumField,
-                    model.EnumMembers,
+                    model.IsFlags
+                        ? GetOptionSetFields(model.EnumMembers)
+                        : model.EnumMembers,
                     WriteTemplate_ListOfEnumDefinitionFields);
                 return context.Template.Render();
             }
 
             // The attribute model only carries this type's own (explicit)
-            // fields, never inherited ones, so the base data type is always
-            // emitted as DataTypeIds.Structure and the explicit field index is
-            // zero. This is a best-effort fallback; the definition is always
-            // non-null which is the hard contract.
-            bool hasOptional = false;
-            foreach (TypeFieldModel field in model.Fields)
-            {
-                if (field.IsOptional)
-                {
-                    hasOptional = true;
-                    break;
-                }
-            }
+            // fields. A derived type whose base exposes a definition through
+            // its activator prepends the base fields at runtime (see
+            // DerivedStructureDefinition); otherwise the base data type is
+            // emitted as Structure and the explicit field index is zero.
+            // Encode() never writes an encoding mask - a nullable property is
+            // always encoded - so the definition never declares optional
+            // fields.
             context.Template.AddReplacement(
                 Tokens.BaseType,
-                "new global::Opc.Ua.NodeId(22u)");
+                model.IsDerived && model.BaseDefinitionActivator != null
+                    ? model.BaseDefinitionActivator
+                    : "new global::Opc.Ua.NodeId(22u)");
             context.Template.AddReplacement(Tokens.FirstExplicitFieldIndex, 0);
-            context.Template.AddReplacement(
-                Tokens.StructureType,
-                hasOptional ? "StructureWithOptionalFields" : "Structure");
+            context.Template.AddReplacement(Tokens.StructureType, "Structure");
             context.Template.AddReplacement(
                 Tokens.ListOfFields,
                 DataTypeTemplates.StructureField,
@@ -827,12 +879,23 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(
                 Tokens.FieldName,
                 $"\"{field.FieldName.Escape()}\"");
-            context.Template.AddReplacement(
-                Tokens.DataType,
-                field.DataTypeNodeId ?? "global::Opc.Ua.DataTypeIds.BaseDataType");
+            string dataType = field.DataTypeNodeId ?? "global::Opc.Ua.DataTypeIds.BaseDataType";
+            if (field.IsEncodeable && (field.IsMatrix || !ShouldUseExtensionObject(field)))
+            {
+                // Written inline with WriteEncodeable(Matrix): the field's DataType
+                // must be the concrete structure. The abstract Structure
+                // (i=22) would tell a definition driven decoder to expect an
+                // ExtensionObject (OPC 10000-6 5.2.6).
+                dataType = CoreUtils.Format(
+                    "global::Opc.Ua.ExpandedNodeId.ToNodeId(new {0}().TypeId, namespaceUris)",
+                    (field.IsArray || field.IsMatrix ? field.ElementTypeName : field.TypeName)
+                        .TrimEnd('?'));
+            }
+            context.Template.AddReplacement(Tokens.DataType, dataType);
             context.Template.AddReplacement(Tokens.ValueRank, valueRank);
             context.Template.AddReplacement(Tokens.ArrayDimensions, arrayDimensions);
-            context.Template.AddReplacement(Tokens.IsOptional, field.IsOptional);
+            // Encode() always writes the field, there is no encoding mask.
+            context.Template.AddReplacement(Tokens.IsOptional, false);
             context.Template.AddReplacement(
                 Tokens.Description,
                 "global::Opc.Ua.LocalizedText.Null");
@@ -858,11 +921,75 @@ namespace Opc.Ua.SourceGeneration
         private static string FormatEnumMemberValue(string value)
         {
             if (!string.IsNullOrEmpty(value) &&
-                long.TryParse(value, out long parsed))
+                long.TryParse(
+                    value,
+                    System.Globalization.NumberStyles.Integer,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out long parsed))
             {
                 return parsed.ToString(System.Globalization.CultureInfo.InvariantCulture);
             }
+            if (!string.IsNullOrEmpty(value) &&
+                ulong.TryParse(
+                    value,
+                    System.Globalization.NumberStyles.Integer,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out ulong unsignedValue))
+            {
+                // A ulong backed enum member above long.MaxValue keeps its bits.
+                return CoreUtils.Format("unchecked((long){0}UL)", unsignedValue);
+            }
             return "0";
+        }
+
+        /// <summary>
+        /// The fields of an OptionSet are the single bits, with the bit
+        /// position as value (OPC 10000-3 8.40). A [Flags] enum also has
+        /// a zero ("None") member and may have combined members; neither
+        /// names a bit.
+        /// </summary>
+        private static List<TypeEnumMember> GetOptionSetFields(
+            IReadOnlyList<TypeEnumMember> members)
+        {
+            var fields = new List<TypeEnumMember>();
+            foreach (TypeEnumMember member in members)
+            {
+                ulong mask;
+                if (long.TryParse(
+                    member.Value,
+                    System.Globalization.NumberStyles.Integer,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out long signedMask))
+                {
+                    // The high bit of a signed backing type is negative.
+                    mask = signedMask is < 0 and >= int.MinValue
+                        ? unchecked((uint)signedMask)
+                        : unchecked((ulong)signedMask);
+                }
+                else if (!ulong.TryParse(
+                    member.Value,
+                    System.Globalization.NumberStyles.Integer,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out mask))
+                {
+                    continue;
+                }
+                if (mask == 0 || (mask & (mask - 1)) != 0)
+                {
+                    continue;
+                }
+                int bit = 0;
+                while ((mask & 1) == 0)
+                {
+                    mask >>= 1;
+                    bit++;
+                }
+                fields.Add(member with
+                {
+                    Value = bit.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                });
+            }
+            return fields;
         }
 
         /// <summary>
@@ -906,7 +1033,22 @@ namespace Opc.Ua.SourceGeneration
                 {
                     return ("WriteEncodeableArray", "ReadEncodeableArray");
                 }
+                if (field.IsMatrix)
+                {
+                    return ("WriteEncodeableMatrix", "ReadEncodeableMatrix");
+                }
                 return ("WriteEncodeable", "ReadEncodeable");
+            }
+
+            if (field.IsMatrix)
+            {
+                // IEncoder/IDecoder have no typed matrix calls for built-in
+                // or enumerated elements: the matrix travels in a Variant.
+                return field.IsEnum ||
+                    (field.ElementShortTypeName != null &&
+                        s_matrixGetterMap.ContainsKey(field.ElementShortTypeName))
+                    ? ("WriteVariant", "ReadVariant")
+                    : (null, null);
             }
 
             if (field.IsEnum)
@@ -918,7 +1060,7 @@ namespace Opc.Ua.SourceGeneration
                 return ("WriteEnumerated", "ReadEnumerated");
             }
 
-            string lookupType = field.IsArray || field.IsMatrix
+            string lookupType = field.IsArray
                 ? field.ElementShortTypeName
                 : field.ShortTypeName;
 
@@ -930,15 +1072,46 @@ namespace Opc.Ua.SourceGeneration
                 {
                     return (methods.write + "Array", methods.read + "Array");
                 }
-                if (field.IsMatrix)
-                {
-                    return (methods.write + "Matrix", methods.read + "Matrix");
-                }
                 return methods;
             }
 
             return (null, null);
         }
+
+        /// <summary>
+        /// Maps the element type short name of a <c>MatrixOf&lt;T&gt;</c>
+        /// property to the name of the Variant matrix getter
+        /// (<c>Get{Name}Matrix()</c>) that returns exactly
+        /// <c>MatrixOf&lt;T&gt;</c>.
+        /// </summary>
+        internal static readonly Dictionary<string, string> s_matrixGetterMap =
+            new(StringComparer.Ordinal)
+            {
+                ["Boolean"] = "Boolean",
+                ["SByte"] = "SByte",
+                ["Byte"] = "Byte",
+                ["Int16"] = "Int16",
+                ["UInt16"] = "UInt16",
+                ["Int32"] = "Int32",
+                ["UInt32"] = "UInt32",
+                ["Int64"] = "Int64",
+                ["UInt64"] = "UInt64",
+                ["Single"] = "Float",
+                ["Double"] = "Double",
+                ["String"] = "String",
+                ["DateTimeUtc"] = "DateTime",
+                ["Uuid"] = "Guid",
+                ["ByteString"] = "ByteString",
+                ["XmlElement"] = "XmlElement",
+                ["NodeId"] = "NodeId",
+                ["ExpandedNodeId"] = "ExpandedNodeId",
+                ["StatusCode"] = "StatusCode",
+                ["QualifiedName"] = "QualifiedName",
+                ["LocalizedText"] = "LocalizedText",
+                ["ExtensionObject"] = "ExtensionObject",
+                ["DataValue"] = "DataValue",
+                ["Variant"] = "Variant"
+            };
 
         /// <summary>
         /// Maps scalar C# type short names to IEncoder/IDecoder method name pairs.
@@ -1029,6 +1202,10 @@ namespace Opc.Ua.SourceGeneration
             if (field.IsArray || field.IsMatrix)
             {
                 return $"!{field.PropertyName}.IsNull";
+            }
+            if (field.DefaultValueLiteral != null)
+            {
+                return $"{field.PropertyName} != {field.DefaultValueLiteral}";
             }
             if (field.IsEnum ||
                 !NotDefaultCheckExpression.TryGetValue(field.ShortTypeName, out string expr))

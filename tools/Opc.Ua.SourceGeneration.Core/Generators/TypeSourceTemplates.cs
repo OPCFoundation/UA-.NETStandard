@@ -554,6 +554,46 @@ namespace Opc.Ua.SourceGeneration
             """);
 
         /// <summary>
+        /// Structure definition of a source-annotated structure deriving from
+        /// another encodeable whose activator exposes a definition. Encode()
+        /// writes the base fields first, so the definition starts with the
+        /// base definition's fields.
+        /// </summary>
+        public static readonly TemplateString DerivedStructureDefinition = TemplateString.Parse(
+            $$"""
+            /// <summary>
+            /// The structure definition for the {{Tokens.BrowseName}} DataType.
+            /// </summary>
+            public static global::Opc.Ua.StructureDefinition Create{{Tokens.ClassName}}(
+                global::Opc.Ua.NamespaceTable namespaceUris)
+            {
+                var baseDefinition = {{Tokens.BaseType}}.Instance.GetDataTypeDefinition(namespaceUris)
+                    as global::Opc.Ua.StructureDefinition;
+                var fields = new global::System.Collections.Generic.List<global::Opc.Ua.StructureField>();
+                if (baseDefinition != null && !baseDefinition.Fields.IsNull)
+                {
+                    fields.AddRange(baseDefinition.Fields.ToArray());
+                }
+                int firstExplicitFieldIndex = fields.Count;
+                fields.AddRange(new global::Opc.Ua.StructureField[]
+                {
+                    {{Tokens.ListOfFields}}
+                });
+                return new global::Opc.Ua.StructureDefinition
+                {
+                    BaseDataType = global::Opc.Ua.ExpandedNodeId.ToNodeId(
+                        {{Tokens.BaseType}}.Instance.CreateInstance().TypeId,
+                        namespaceUris),
+                    StructureType = baseDefinition != null
+                        ? baseDefinition.StructureType
+                        : global::Opc.Ua.StructureType.Structure,
+                    FirstExplicitFieldIndex = firstExplicitFieldIndex,
+                    Fields = fields.ToArray()
+                };
+            }
+            """);
+
+        /// <summary>
         /// Enumeration activator for a source-annotated enum type that also
         /// exposes its data type definition. References a namespace-unique
         /// definitions class (<see cref="Tokens.DataTypeDefinitionsClass"/>).
