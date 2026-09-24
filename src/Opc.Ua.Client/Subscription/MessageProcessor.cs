@@ -536,6 +536,26 @@ namespace Opc.Ua.Client.Subscriptions
                 // next message is not treated as the first after create.
                 foreach (uint sequenceNumber in ordered)
                 {
+                    if (LastDataSequenceNumberProcessed != 0 &&
+                        !IsNewerSequenceNumber(
+                            sequenceNumber,
+                            LastDataSequenceNumberProcessed))
+                    {
+                        // The subscription survived the transfer with its
+                        // dedup gate intact (reconnect onto the same
+                        // object), and this message was already dispatched
+                        // - it is only still listed because its
+                        // acknowledgement had not reached the server yet
+                        // (Part 4 §5.14.7.2). Do not republish or
+                        // re-dispatch it; just acknowledge it so the server
+                        // can drop it from its retransmission queue.
+                        await AckQueue.QueueAsync(new SubscriptionAcknowledgement
+                        {
+                            SequenceNumber = sequenceNumber,
+                            SubscriptionId = Id
+                        }, ct).ConfigureAwait(false);
+                        continue;
+                    }
                     await RepublishKnownAvailableAsync(
                         sequenceNumber,
                         sequenceNumber,

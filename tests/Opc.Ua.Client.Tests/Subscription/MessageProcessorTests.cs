@@ -1276,6 +1276,54 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
+        /// <summary>
+        /// A reconnect that transfers the subscription onto the same object
+        /// keeps the dedup gate. Messages that were already dispatched but
+        /// not yet acknowledged are still listed as available by the server
+        /// (Part 4 §5.14.7.2); they must be acknowledged, not republished and
+        /// dispatched a second time.
+        /// </summary>
+        [Test]
+        public async Task RecoverTransferredMessagesSkipsAlreadyProcessedMessagesAsync()
+        {
+            SetupRepublish();
+
+            var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_completion, m_telemetry)
+            {
+                Id = 27
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(9),
+                    [], []).ConfigureAwait(false);
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(10),
+                    [], []).ConfigureAwait(false);
+                await WaitForLastSeqNumberAsync(sut, 10).ConfigureAwait(false);
+                await m_completion.WaitForQueuedAckAsync(2).ConfigureAwait(false);
+                m_completion.QueuedAcks.Clear();
+
+                await sut.RecoverTransferredMessagesAsync([9, 10, 11], default)
+                    .ConfigureAwait(false);
+
+                Assert.That(sut.ReceivedSequenceNumbers,
+                    Is.EqualTo(new uint[] { 9, 10, 11 }));
+                Assert.That(sut.RepublishMessageCount, Is.EqualTo(1));
+                m_mockServices.Verify(
+                    c => c.RepublishAsync(
+                        It.IsAny<RequestHeader>(),
+                        It.IsAny<uint>(),
+                        It.Is<uint>(s => s == 9 || s == 10),
+                        It.IsAny<CancellationToken>()),
+                    Times.Never);
+                await m_completion.WaitForQueuedAckAsync(3).ConfigureAwait(false);
+                Assert.That(
+                    m_completion.QueuedAcks.Select(a => a.SequenceNumber),
+                    Is.EquivalentTo(new uint[] { 9, 10, 11 }));
+                Assert.That(sut.LastDataSequenceNumberProcessed, Is.EqualTo(11));
+            }
+        }
+
         [Test]
         public async Task RecoverTransferredMessagesAdvancesGateWhenRepublishFailsAsync()
         {
