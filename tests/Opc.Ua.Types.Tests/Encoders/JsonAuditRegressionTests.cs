@@ -464,6 +464,25 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void DateTimeWithoutOffsetIsDecodedAsUtc()
+        {
+            // An offset-less value was converted with ToUniversalTime, which
+            // treats it as host-local time, so the result depended on the
+            // time zone of the decoding host.
+            ServiceMessageContext context = CreateContext();
+            using var decoder = new JsonDecoder(
+                "{\"Value\":\"2024-01-01T00:00:00\",\"Utc\":\"2024-01-01T00:00:00Z\"}",
+                context);
+
+            DateTimeUtc expected = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            Assert.Multiple(() =>
+            {
+                Assert.That(decoder.ReadDateTime("Value"), Is.EqualTo(expected));
+                Assert.That(decoder.ReadDateTime("Utc"), Is.EqualTo(expected));
+            });
+        }
+
+        [Test]
         public void NonStrictExtensionObjectBodyThatThrowsKeepsTheElementStackBalanced()
         {
             // The legacy object form of UaBody pushed the body element without a

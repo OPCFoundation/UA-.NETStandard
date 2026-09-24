@@ -1432,6 +1432,13 @@ namespace Opc.Ua
                     value = DateTimeUtc.MinValue;
                     return true;
                 case JsonValueKind.String when element.TryGetDateTime(out DateTime dt):
+                    // DateTime values are UTC on the wire (Part 6 5.1.4). A value
+                    // without an offset must not be interpreted in the host's
+                    // local time zone, so treat it as UTC.
+                    if (dt.Kind == DateTimeKind.Unspecified)
+                    {
+                        dt = DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+                    }
                     value = dt;
                     return true;
                 default:
