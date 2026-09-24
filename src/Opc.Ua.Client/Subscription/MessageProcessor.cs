@@ -373,6 +373,15 @@ namespace Opc.Ua.Client.Subscriptions
                 // the keep-alive, and DO NOT advance the data-dedup gate
                 // (LastDataSequenceNumberProcessed) — otherwise the next real
                 // data message would be silently dropped as a duplicate.
+                //
+                // Because the keep-alive names the next sequence number, a
+                // keep-alive more than one ahead of the last data message
+                // proves the messages in between were sent but never
+                // received (Part 4 §5.14.1.1). Recover them now rather than
+                // waiting for the next data message, which on a quiet
+                // subscription may never come before the server drops them.
+                await RecoverMissingBeforeKeepAliveAsync(curSeqNum, ct)
+                    .ConfigureAwait(false);
                 LastSequenceNumberProcessed = curSeqNum;
                 await OnNotificationReceivedAsync(
                     incoming.Message,
@@ -466,6 +475,64 @@ namespace Opc.Ua.Client.Subscriptions
                 PublishState.None,
                 incoming.StringTable ?? [],
                 ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Republish the data messages a keep-alive proves are missing. The
+        /// keep-alive carries the sequence number of the next message to be
+        /// sent, so every sequence number between the last processed data
+        /// message and the keep-alive was sent and is missing.
+        /// </summary>
+        /// <param name="keepAliveSeqNum">The sequence number of the
+        /// keep-alive.</param>
+        /// <param name="ct">Cancellation token.</param>
+        private async ValueTask RecoverMissingBeforeKeepAliveAsync(
+            uint keepAliveSeqNum,
+            CancellationToken ct)
+        {
+            const uint kBackwardThreshold = 1u << 31;
+            uint prevDataSeq = LastDataSequenceNumberProcessed;
+            if (prevDataSeq == 0)
+            {
+                // Nothing to compare against yet (first message after create).
+                return;
+            }
+            uint delta = unchecked(keepAliveSeqNum - prevDataSeq);
+            if (delta is 0 or 1 or >= kBackwardThreshold)
+            {
+                // No gap, or a stale keep-alive.
+                return;
+            }
+            uint gap = delta - 1;
+            if (keepAliveSeqNum < prevDataSeq)
+            {
+                // Zero is skipped at the wrap point (Part 4 §5.14.5.1).
+                gap--;
+            }
+            if (gap == 0)
+            {
+                return;
+            }
+            Interlocked.Add(ref m_missingCount, gap);
+            IReadOnlyList<uint> available = AvailableInRetransmissionQueue;
+            for (int i = 0; i < available.Count; i++)
+            {
+                uint seq = available[i];
+                uint offset = unchecked(seq - prevDataSeq);
+                if (offset != 0 && offset < delta)
+                {
+                    await TryRepublishAsync(seq, keepAliveSeqNum, ct)
+                        .ConfigureAwait(false);
+                }
+            }
+
+            // Advance the data gate to the message just before the keep-alive
+            // so the gap is accounted for once: the data message that later
+            // reuses the keep-alive's sequence number is then not treated as
+            // a gap again, and recovered messages that arrive late are
+            // discarded as duplicates.
+            uint lastMissing = unchecked(keepAliveSeqNum - 1);
+            LastDataSequenceNumberProcessed = lastMissing == 0 ? uint.MaxValue : lastMissing;
         }
 
         /// <summary>

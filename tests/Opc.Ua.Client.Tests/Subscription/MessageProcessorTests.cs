@@ -777,6 +777,64 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
+        /// <summary>
+        /// A keep-alive carries the next sequence number to be sent (Part 4
+        /// §5.14.1.1), so a keep-alive two ahead of the last data message
+        /// proves the message in between was lost. It must be republished
+        /// right away instead of waiting for the next data message.
+        /// </summary>
+        [Test]
+        public async Task KeepAliveAfterGapRepublishesMissingMessageAsync()
+        {
+            SetupRepublish();
+
+            var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_completion, m_telemetry)
+            {
+                Id = 28
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(5),
+                    [5], []).ConfigureAwait(false);
+                await WaitForLastSeqNumberAsync(sut, 5).ConfigureAwait(false);
+
+                // Data message 6 is lost; the keep-alive names 7 as next.
+                sut.KeepAliveNotificationReceived.Reset();
+                await sut.OnPublishReceivedAsync(
+                    new NotificationMessage { SequenceNumber = 7 },
+                    [5, 6], []).ConfigureAwait(false);
+                await sut.KeepAliveNotificationReceived.WaitAsync()
+                    .WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+
+                Assert.That(sut.ReceivedSequenceNumbers,
+                    Is.EqualTo(new uint[] { 5, 6, 7 }));
+                Assert.That(sut.MissingMessageCount, Is.EqualTo(1));
+                Assert.That(sut.RepublishMessageCount, Is.EqualTo(1));
+                Assert.That(sut.LastDataSequenceNumberProcessed, Is.EqualTo(6));
+
+                // A second keep-alive with the same number does not republish
+                // again, and the data message that reuses 7 is not a gap.
+                await sut.OnPublishReceivedAsync(
+                    new NotificationMessage { SequenceNumber = 7 },
+                    [6], []).ConfigureAwait(false);
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(7),
+                    [6, 7], []).ConfigureAwait(false);
+                await WaitForDataSeqNumberAsync(sut, 7).ConfigureAwait(false);
+
+                Assert.That(sut.MissingMessageCount, Is.EqualTo(1));
+                Assert.That(sut.RepublishMessageCount, Is.EqualTo(1));
+                m_mockServices.Verify(
+                    c => c.RepublishAsync(
+                        It.IsAny<RequestHeader>(),
+                        It.IsAny<uint>(),
+                        It.Is<uint>(s => s == 6),
+                        It.IsAny<CancellationToken>()),
+                    Times.Once);
+            }
+        }
+
         [Test]
         public async Task EmptyNotificationDataIsTreatedAsKeepAliveAsync()
         {
@@ -1470,6 +1528,24 @@ namespace Opc.Ua.Client.Subscriptions
                         $"Timeout: LastSequenceNumberProcessed = {sut.LastSequenceNumberProcessed}, " +
                         $"expected = {expected}, received = " +
                         $"[{string.Join(",", sut.ReceivedSequenceNumbers)}]");
+                }
+                await Task.Delay(10).ConfigureAwait(false);
+            }
+        }
+
+        private static async Task WaitForDataSeqNumberAsync(
+            TestMessageProcessor sut,
+            uint expected,
+            int timeoutSeconds = 5)
+        {
+            DateTimeOffset deadline = DateTimeOffset.UtcNow.AddSeconds(timeoutSeconds);
+            while (sut.LastDataSequenceNumberProcessed != expected)
+            {
+                if (DateTimeOffset.UtcNow > deadline)
+                {
+                    Assert.Fail(
+                        $"Timeout: LastDataSequenceNumberProcessed = " +
+                        $"{sut.LastDataSequenceNumberProcessed}, expected = {expected}");
                 }
                 await Task.Delay(10).ConfigureAwait(false);
             }
