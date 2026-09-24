@@ -295,6 +295,78 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(resolved, Is.Not.Null);
         }
 
+        [Test]
+        [CancelAfter(60000)]
+        public void ALongSubtypeChainIsValidatedInLinearTime()
+        {
+            // Every entry used to walk its whole ancestor chain: N^2/2 steps.
+            const int count = 20000;
+            var definitions = new StringBuilder();
+            for (int ii = 0; ii < count; ii++)
+            {
+                if (ii > 0)
+                {
+                    definitions.Append(',');
+                }
+                definitions.Append("{\"@id\":\"urn:t#T").Append(ii)
+                    .Append("\",\"@type\":\"uav:StructureDefinition\",\"uav:dataTypeName\":\"demo:T")
+                    .Append(ii).Append('"');
+                if (ii > 0)
+                {
+                    definitions.Append(",\"uav:dataTypeSubtypeOf\":{\"@id\":\"urn:t#T")
+                        .Append(ii - 1).Append("\"}");
+                }
+                definitions.Append('}');
+            }
+
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            WotConversionResult<UANodeSet> result = ConvertDataTypes(definitions.ToString());
+            watch.Stop();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    result.Diagnostics.Where(d => d.Message.Contains("its own ancestor", StringComparison.Ordinal)),
+                    Is.Empty);
+                Assert.That(watch.Elapsed, Is.LessThan(TimeSpan.FromSeconds(30)));
+            });
+        }
+
+        [Test]
+        public void OnlyTheMembersOfASubtypeCycleAreTheirOwnAncestors()
+        {
+            // A -> B -> C -> B: A leads into the cycle but is not on it.
+            WotConversionResult<UANodeSet> result = ConvertDataTypes(
+                Definition("A", "B") + "," + Definition("B", "C") + "," + Definition("C", "B"));
+
+            string[] cyclic = result.Diagnostics
+                .Where(d => d.Message.Contains("its own ancestor", StringComparison.Ordinal))
+                .Select(d => d.Location!.Reference!)
+                .OrderBy(n => n, StringComparer.Ordinal)
+                .ToArray();
+
+            Assert.That(cyclic, Is.EqualTo(new[] { "demo:B", "demo:C" }));
+
+            static string Definition(string name, string baseName)
+            {
+                return "{\"@id\":\"urn:t#" + name + "\",\"@type\":\"uav:StructureDefinition\"," +
+                    "\"uav:dataTypeName\":\"demo:" + name + "\"," +
+                    "\"uav:dataTypeSubtypeOf\":{\"@id\":\"urn:t#" + baseName + "\"}}";
+            }
+        }
+
+        private static WotConversionResult<UANodeSet> ConvertDataTypes(string definitions)
+        {
+            using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(
+                "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
+                "\"demo\":\"http://example.com/demo/pump\"}]," +
+                "\"@type\":\"uav:object\",\"title\":\"Thing\"," +
+                "\"uav:browseName\":\"nsu=http://example.com/demo/pump;Thing\"," +
+                "\"uav:dataTypeDefinitions\":[" + definitions + "]}"));
+            return WotNodeSetConverter.ToNodeSetResult(document);
+        }
+
         private static string Projection(
             string securityDefinitions,
             string security,

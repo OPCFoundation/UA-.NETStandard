@@ -130,6 +130,10 @@ namespace Opc.Ua.Wot
         /// subtypes a non-OptionSet Enumeration. A cycle is worse than wrong —
         /// resolving the inherited prefix or the terminal base would not
         /// terminate — so it is caught before anything walks the graph.
+        /// A DataType names at most one base, so the graph is a set of chains
+        /// that may end in a cycle: each edge is checked once and each chain is
+        /// walked once, which keeps a long chain from one untrusted document
+        /// linear rather than quadratic.
         /// </remarks>
         private static void ValidateSubtypeGraph(
             Dictionary<string, JsonElement> complete,
@@ -137,29 +141,65 @@ namespace Opc.Ua.Wot
         {
             foreach (KeyValuePair<string, JsonElement> entry in complete)
             {
-                string name = GetElementString(entry.Value, "uav:dataTypeName") ?? entry.Key;
-                var seen = new HashSet<string>(StringComparer.Ordinal) { entry.Key };
+                if (TryGetLocalBase(entry.Value, complete, out _, out JsonElement baseType))
+                {
+                    ValidateSubtypeKinds(
+                        entry.Value,
+                        baseType,
+                        GetElementString(entry.Value, "uav:dataTypeName") ?? entry.Key,
+                        diagnostics);
+                }
+            }
+
+            // false: on the chain being walked; true: walked before.
+            var walked = new Dictionary<string, bool>(StringComparer.Ordinal);
+            var chain = new List<string>();
+            foreach (KeyValuePair<string, JsonElement> entry in complete)
+            {
+                if (walked.ContainsKey(entry.Key))
+                {
+                    continue;
+                }
+                chain.Clear();
                 string current = entry.Key;
                 JsonElement definition = entry.Value;
-
-                while (TryGetLocalBase(definition, complete, out string? baseId, out JsonElement baseType))
+                while (true)
                 {
-                    if (!seen.Add(baseId!))
+                    walked[current] = false;
+                    chain.Add(current);
+                    if (!TryGetLocalBase(definition, complete, out string? baseId, out JsonElement baseType))
                     {
-                        diagnostics.Add(new WotDiagnostic(
-                            WotDiagnosticSeverity.Error,
-                            WotDiagnosticCode.DataTypeDefinitionInvalid,
-                            $"The DataType '{name}' is its own ancestor. §6.11.2 " +
-                            "requires the subtype graph to be acyclic, and a " +
-                            "cycle leaves the inherited fields undefinable.",
-                            new WotLocation(reference: name)));
                         break;
                     }
-                    ValidateSubtypeKinds(definition, baseType, name, diagnostics);
+                    if (walked.TryGetValue(baseId!, out bool done))
+                    {
+                        if (!done)
+                        {
+                            // The chain reached itself: every DataType from the
+                            // repeated one on is its own ancestor.
+                            for (int ii = chain.IndexOf(baseId!); ii < chain.Count; ii++)
+                            {
+                                string name =
+                                    GetElementString(complete[chain[ii]], "uav:dataTypeName") ??
+                                    chain[ii];
+                                diagnostics.Add(new WotDiagnostic(
+                                    WotDiagnosticSeverity.Error,
+                                    WotDiagnosticCode.DataTypeDefinitionInvalid,
+                                    $"The DataType '{name}' is its own ancestor. §6.11.2 " +
+                                    "requires the subtype graph to be acyclic, and a " +
+                                    "cycle leaves the inherited fields undefinable.",
+                                    new WotLocation(reference: name)));
+                            }
+                        }
+                        break;
+                    }
                     current = baseId!;
                     definition = baseType;
                 }
-                _ = current;
+                for (int ii = 0; ii < chain.Count; ii++)
+                {
+                    walked[chain[ii]] = true;
+                }
             }
         }
 
