@@ -506,6 +506,99 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(result.IsSuppressible, Is.True);
         }
 
+        /// <summary>
+        /// An intermediate CA supplied only in the peer's chain has no store behind
+        /// it; the revocation status of the leaf it issued must still be checked
+        /// (OPC 10000-4 6.1.3). Before the fix RejectUnknownRevocationStatus was
+        /// silently bypassed for such a chain.
+        /// </summary>
+        [Test]
+        public async Task ValidateAsyncChainSuppliedIssuerWithoutCrlReportsRevocationUnknownAsync()
+        {
+            var rootCrl = new X509CRL(CrlBuilder
+                .Create(m_rootCa.SubjectName)
+                .CreateForRSA(m_rootCa));
+            string trustedDir = await WriteStoreAsync([m_rootCa], [rootCrl]).ConfigureAwait(false);
+            CertificateValidationCore core = NewCore(trustedDir);
+            core.RejectUnknownRevocationStatus = true;
+            using CertificateCollection chain = Chain(m_leafUnderIntermediate, m_intermediateCa);
+
+            CertificateValidationResult result = await core.ValidateAsync(
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(
+                ContainsStatusCode(result, StatusCodes.BadCertificateRevocationUnknown), Is.True);
+        }
+
+        /// <summary>
+        /// A CRL of a chain-supplied intermediate held by the trusted store revokes
+        /// the leaf it lists.
+        /// </summary>
+        [Test]
+        public async Task ValidateAsyncChainSuppliedIssuerCrlRevokesLeafAsync()
+        {
+            var rootCrl = new X509CRL(CrlBuilder
+                .Create(m_rootCa.SubjectName)
+                .CreateForRSA(m_rootCa));
+            string trustedDir = await WriteStoreAsync([m_rootCa], [rootCrl]).ConfigureAwait(false);
+            var intermediateCrl = new X509CRL(CrlBuilder
+                .Create(m_intermediateCa.SubjectName)
+                .AddRevokedCertificate(m_leafUnderIntermediate)
+                .CreateForRSA(m_intermediateCa));
+            // The directory store only accepts a CRL whose issuer it holds, so
+            // drop the intermediate's CRL into the crl folder directly.
+            Directory.CreateDirectory(Path.Combine(trustedDir, "crl"));
+            await File.WriteAllBytesAsync(
+                Path.Combine(trustedDir, "crl", "intermediate.crl"),
+                intermediateCrl.RawData).ConfigureAwait(false);
+            CertificateValidationCore core = NewCore(trustedDir);
+            using CertificateCollection chain = Chain(m_leafUnderIntermediate, m_intermediateCa);
+
+            CertificateValidationResult result = await core.ValidateAsync(
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(ContainsStatusCode(result, StatusCodes.BadCertificateRevoked), Is.True);
+            Assert.That(result.IsSuppressible, Is.False);
+        }
+
+        /// <summary>
+        /// A chain whose root allows no intermediate CA (pathLenConstraint 0) but
+        /// that runs through one violates the basic constraints (RFC 5280 6.1.4).
+        /// Before the fix the platform's InvalidBasicConstraints status was dropped.
+        /// </summary>
+        [Test]
+        public async Task ValidateAsyncPathLengthViolationIsRejectedAsync()
+        {
+            using Certificate constrainedRoot = CertificateBuilder
+                .Create("CN=CVC PathLen0 Root CA, O=OPC Foundation")
+                .SetNotBefore(s_rootFrom)
+                .SetNotAfter(s_rootTo)
+                .SetCAConstraint(0)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate subCa = CertificateBuilder
+                .Create("CN=CVC PathLen0 Sub CA, O=OPC Foundation")
+                .SetNotBefore(s_rootFrom)
+                .SetNotAfter(s_rootTo)
+                .SetCAConstraint(-1)
+                .SetIssuer(constrainedRoot)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate leaf = CreateLeaf("CN=CVC PathLen0 Leaf", subCa, s_leafFrom, s_leafTo);
+            string trustedDir = await WriteStoreAsync([constrainedRoot]).ConfigureAwait(false);
+            string issuerDir = await WriteStoreAsync([subCa]).ConfigureAwait(false);
+            CertificateValidationCore core = NewCore(trustedDir, issuerDir);
+            using CertificateCollection chain = Chain(leaf);
+
+            CertificateValidationResult result = await core.ValidateAsync(
+                chain, (_, _) => true, null, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(result.IsSuppressible, Is.False);
+        }
+
         [Test]
         public async Task ValidateAsyncAutoAcceptUntrustedReturnsSuccessAsync()
         {

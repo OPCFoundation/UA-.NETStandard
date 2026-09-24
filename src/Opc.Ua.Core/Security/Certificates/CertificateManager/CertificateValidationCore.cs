@@ -1679,10 +1679,17 @@ namespace Opc.Ua
                         {
                             CertificateValidationOptions options = explicitList[ii].ValidationOptions |
                                 (certificateStore?.ValidationOptions ?? CertificateValidationOptions.Default);
-                            if (checkRecovationStatus && store != null)
+                            if (checkRecovationStatus)
                             {
-                                serviceResult = await CheckIssuerRevocationAsync(
-                                    store, issuer, certificate, options, ct).ConfigureAwait(false);
+                                // An issuer with no store behind it (named inline or
+                                // supplied in the peer's chain) still needs its CRL
+                                // checked: look it up in the trusted and issuer stores
+                                // (OPC 10000-4 6.1.3, Find Revocation List).
+                                serviceResult = store != null
+                                    ? await CheckIssuerRevocationAsync(
+                                        store, issuer, certificate, options, ct).ConfigureAwait(false)
+                                    : await CheckIssuerRevocationInTrustStoresAsync(
+                                        issuer, certificate, options, ct).ConfigureAwait(false);
                             }
                             return (
                                 new CertificateIssuerReference(
@@ -1710,6 +1717,58 @@ namespace Opc.Ua
             CancellationToken ct)
         {
             StatusCode status = await store.IsRevokedAsync(issuer, certificate, ct).ConfigureAwait(false);
+            return ToRevocationError(status, certificate, options);
+        }
+
+        /// <summary>
+        /// Checks the revocation status of <paramref name="certificate"/> for an
+        /// issuer that was not found in a store, against the CRLs held by the
+        /// trusted and the issuer store. A revocation in either store wins; with
+        /// no valid CRL in either store the status is unknown.
+        /// </summary>
+        private async Task<ServiceResultException?> CheckIssuerRevocationInTrustStoresAsync(
+            Certificate issuer,
+            Certificate certificate,
+            CertificateValidationOptions options,
+            CancellationToken ct)
+        {
+            TrustListState state = m_state;
+            StatusCode status = StatusCodes.BadCertificateRevocationUnknown;
+            foreach (CertificateStoreIdentifier? storeIdentifier in
+                new[] { state.TrustedStore, state.IssuerStore })
+            {
+                ICertificateStore? store = OpenCachedStore(storeIdentifier);
+                if (store == null)
+                {
+                    continue;
+                }
+
+                StatusCode storeStatus = await store.IsRevokedAsync(issuer, certificate, ct)
+                    .ConfigureAwait(false);
+                if (storeStatus == StatusCodes.BadCertificateRevoked)
+                {
+                    status = storeStatus;
+                    break;
+                }
+                if (StatusCode.IsGood(storeStatus) ||
+                    (storeStatus == StatusCodes.BadNotSupported && !StatusCode.IsGood(status)))
+                {
+                    status = storeStatus;
+                }
+            }
+            return ToRevocationError(status, certificate, options);
+        }
+
+        /// <summary>
+        /// Maps a store revocation status to the validation error to report, if
+        /// any, applying the unknown-revocation policy and distinguishing issuer
+        /// failures from leaf-certificate failures.
+        /// </summary>
+        private ServiceResultException? ToRevocationError(
+            StatusCode status,
+            Certificate certificate,
+            CertificateValidationOptions options)
+        {
             if (!StatusCode.IsBad(status) || status == StatusCodes.BadNotSupported)
             {
                 return null;
@@ -1790,8 +1849,16 @@ namespace Opc.Ua
                         status.StatusInformation);
                 case X509ChainStatusFlags.NoError:
                 case X509ChainStatusFlags.OfflineRevocation:
-                case X509ChainStatusFlags.InvalidBasicConstraints:
                     break;
+                // A basic constraints violation (e.g. an exceeded pathLenConstraint,
+                // RFC 5280 6.1.4) is a chain building error that may not be
+                // suppressed (OPC 10000-4 6.1.3, OPC 10000-6 6.2.2).
+                case X509ChainStatusFlags.InvalidBasicConstraints:
+                    return ServiceResult.Create(
+                        StatusCodes.BadCertificateInvalid,
+                        "Certificate violates the basic constraints of its issuer. {0}: {1}",
+                        status.Status,
+                        status.StatusInformation);
                 case X509ChainStatusFlags.PartialChain:
                     goto case X509ChainStatusFlags.UntrustedRoot;
                 case X509ChainStatusFlags.UntrustedRoot:
