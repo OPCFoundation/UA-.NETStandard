@@ -318,6 +318,7 @@ namespace RedundantServer
                 await historian.HistorizeAsync(
                     m_counter,
                     SystemContext,
+                    historyAccessLevel: AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
                     capabilities: HistorianNodeCapabilities.DataReadWrite,
                     autoCapture: false,
                     cancellationToken: cancellationToken).ConfigureAwait(false);

@@ -182,9 +182,14 @@ await historian.HistorizeAsync(
 
 historian.Historize(
     pressure,
+    historyAccessLevel: AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
     systemContext: SystemContext,
     capabilities: HistorianNodeCapabilities.ReadWrite);
 ```
+
+`historyAccessLevel` defaults to `AccessLevels.HistoryRead`: a historized
+variable is read-only for HistoryUpdate unless `HistoryWrite` is requested
+explicitly.
 
 `HistorianBuilder` ships three explicit registration scopes — pick the one that matches the scope of your storage backend:
 
@@ -237,6 +242,12 @@ Per-call overrides on `Historize(...)`:
 builder.Variable<int>("AuditLog")
        .OnRead(GetAuditValue)
        .Historize(provider: mySqliteProvider);
+
+// History is read-only by default (historyAccessLevel = HistoryRead).
+// HistoryUpdate needs an explicit opt-in; restrict it with RolePermissions.
+builder.Variable<double>("CorrectableSetpoint")
+       .Historize(
+           historyAccessLevel: AccessLevels.HistoryRead | AccessLevels.HistoryWrite);
 
 // Per-call capabilities — the same HistorianNodeCapabilities POCO the
 // HistorianBuilder uses; propagated to the provider's GetCapabilitiesAsync.
