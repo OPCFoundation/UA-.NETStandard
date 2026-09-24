@@ -792,6 +792,26 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
+        /// A clone of a live subscription carries no server ids, so its items
+        /// are not created locally but all exist on the server: the transfer
+        /// must still succeed.
+        /// </summary>
+        [Test]
+        public async Task TransferOfClonedSubscriptionWithoutServerIdsSucceedsAsync()
+        {
+            using Subscription subscription = CreateSubscription();
+            subscription.AddItems([CreateItem(4326u, "First"), CreateItem(4327u, "Second")]);
+            Mock<ISession> session = CreateGetMonitoredItemsSession([56u, 57u], [4326u, 4327u]);
+            subscription.Session = session.Object;
+
+            bool transferred = await subscription.TransferAsync(session.Object, 9, [])
+                .ConfigureAwait(false);
+
+            Assert.That(transferred, Is.True);
+            Assert.That(subscription.Id, Is.EqualTo(9u));
+        }
+
+        /// <summary>
         /// When a transferred subscription cannot be adopted, the server side
         /// subscription now owned by the session is deleted instead of being
         /// left alive as an orphan (L7-4).

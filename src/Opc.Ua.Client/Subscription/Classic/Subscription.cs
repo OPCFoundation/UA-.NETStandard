@@ -1864,16 +1864,21 @@ namespace Opc.Ua.Client
                     return (false, default);
                 }
 
-                // Items that were never created (e.g. failed with
-                // BadNodeIdUnknown before the state was saved) do not exist on
-                // the server, so only the created ones must match.
+                // The server must hold every item that was created, but items
+                // that were never created (e.g. failed with BadNodeIdUnknown
+                // before the state was saved) do not exist on the server. A
+                // clone of a live subscription has no server ids at all, so
+                // the created items only give the lower bound.
                 int monitoredItemsCount;
+                int createdItemsCount;
                 lock (m_cache)
                 {
-                    monitoredItemsCount = m_monitoredItems.Values.Count(item => item.Status.Created);
+                    monitoredItemsCount = m_monitoredItems.Count;
+                    createdItemsCount = m_monitoredItems.Values.Count(item => item.Status.Created);
                 }
-                if (serverHandles.Count != monitoredItemsCount ||
-                    clientHandles.Count != monitoredItemsCount)
+                if (serverHandles.Count != clientHandles.Count ||
+                    serverHandles.Count > monitoredItemsCount ||
+                    serverHandles.Count < createdItemsCount)
                 {
                     // invalid state
                     m_logger.SubscriptionIdSubscriptionIdNumberMonitoredItemsClient(
