@@ -3125,7 +3125,7 @@ namespace Opc.Ua.SourceGeneration
                 context.Template.AddReplacement(
                     Tokens.DataTypeDefinition,
                     CoreUtils.Format(
-                        "new global::Opc.Ua.ExtensionObject({0}.DataTypeDefinitions.Create{1}({2}))",
+                        "new global::Opc.Ua.ExtensionObject(global::{0}.DataTypeDefinitions.Create{1}({2}))",
                         m_context.ModelDesign.Namespaces.GetNamespacePrefix(node.SymbolicName.Namespace),
                         node.SymbolicName.Name,
                         kNamespaceTableContextVariable));

@@ -191,7 +191,7 @@ namespace Opc.Ua.SourceGeneration
                     global::Opc.Ua.NamespaceTable namespaceUris)
                 {
                     return global::Opc.Ua.NodeId.Create(
-                        {{Tokens.NamespacePrefix}}.ObjectTypes.{{Tokens.TypeName}},
+                        global::{{Tokens.NamespacePrefix}}.ObjectTypes.{{Tokens.TypeName}},
                         {{Tokens.NamespaceUri}},
                         namespaceUris);
                 }
@@ -475,7 +475,7 @@ namespace Opc.Ua.SourceGeneration
                     global::Opc.Ua.NamespaceTable namespaceUris)
                 {
                     return global::Opc.Ua.NodeId.Create(
-                        {{Tokens.NamespacePrefix}}.VariableTypes.{{Tokens.TypeName}},
+                        global::{{Tokens.NamespacePrefix}}.VariableTypes.{{Tokens.TypeName}},
                         {{Tokens.NamespaceUri}},
                         namespaceUris);
                 }
@@ -485,7 +485,7 @@ namespace Opc.Ua.SourceGeneration
                     global::Opc.Ua.NamespaceTable namespaceUris)
                 {
                     return global::Opc.Ua.NodeId.Create(
-                        {{Tokens.DataTypeNamespacePrefix}}.DataTypes.{{Tokens.DataType}},
+                        global::{{Tokens.DataTypeNamespacePrefix}}.DataTypes.{{Tokens.DataType}},
                         {{Tokens.DataTypeNamespaceUri}},
                         namespaceUris);
                 }

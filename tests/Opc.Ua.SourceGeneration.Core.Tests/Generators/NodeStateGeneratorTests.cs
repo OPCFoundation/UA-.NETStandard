@@ -1539,6 +1539,35 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(hidingWarnings, Is.Empty);
         }
 
+        /// <summary>
+        /// Regression: GetDefaultTypeDefinitionId / GetDefaultDataTypeId and
+        /// DataTypeDefinitions references were emitted with the bare
+        /// namespace prefix. Inside <c>namespace Acme.Opc.Ua.Pumps</c> the
+        /// reference <c>Opc.Ua.DataTypes.Double</c> binds <c>Opc</c> to
+        /// <c>Acme.Opc</c> (CS0234).
+        /// </summary>
+        [Test]
+        public void NamespacePrefixReferencesAreGlobalQualified()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+            Dictionary<string, string> files = GenerateFromModelDesign(
+                "NestedOpcPrefix.ModelDesign.xml",
+                telemetry);
+
+            string code = string.Join("\n", files.Values);
+            Assert.Multiple(() =>
+            {
+                Assert.That(code, Does.Contain("namespace Acme.Opc.Ua.Pumps"));
+                Assert.That(code, Does.Contain("global::Opc.Ua.DataTypes.Double,"));
+                Assert.That(code, Does.Contain("global::Acme.Opc.Ua.Pumps.VariableTypes.FlowVariableType,"));
+                Assert.That(code, Does.Contain("global::Acme.Opc.Ua.Pumps.ObjectTypes.PumpType,"));
+                Assert.That(
+                    code,
+                    Does.Contain("global::Acme.Opc.Ua.Pumps.DataTypeDefinitions.CreatePumpSettings("));
+            });
+            Assert.That(CompileGeneratedAssembly(files), Is.Not.Null);
+        }
+
         private static Dictionary<string, string> GenerateFromNodeSet(
             string nodeSetResource,
             ITelemetryContext telemetry)
