@@ -192,6 +192,30 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo("plant_sc"));
         }
 
+        [Test]
+        public async Task ADeepAffordanceWithinTheConfiguredDepthIsProjectedAsync()
+        {
+            // 70 nested arrays: inside the configured 128 levels, but deeper
+            // than the 64 the clone used to re-parse with.
+            string deep = new string('[', 70) + new string(']', 70);
+            string source = Source("urn:plant", "sc", "{\"scheme\":\"nosec\"}", "p1")
+                .Replace("{\"type\":\"number\",", "{\"type\":\"array\",\"const\":" + deep + ",");
+            string projection = Projection(
+                "\"nosec_sc\":{\"scheme\":\"nosec\"}",
+                "nosec_sc",
+                ("plant", "urn:plant"));
+            WotProjectionResolver resolver = ThingResolver(("urn:plant", source));
+
+            WotConversionResult<WotDocument> result =
+                await ResolveAsync(resolver, projection).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(
+                result.Value!.RootElement.GetProperty("properties").GetProperty("p1")
+                    .GetProperty("const").GetArrayLength(),
+                Is.EqualTo(1));
+        }
+
         private static string Projection(
             string securityDefinitions,
             string security,

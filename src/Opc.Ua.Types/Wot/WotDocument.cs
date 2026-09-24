@@ -770,6 +770,17 @@ namespace Opc.Ua.Wot
             return items;
         }
 
+        /// <summary>
+        /// Options for re-reading the text of a value that was already parsed
+        /// under the configured <see cref="WotNodeSetConverterOptions.MaxJsonDepth"/>.
+        /// That limit was applied then; the reader's default of 64 must not be
+        /// applied a second time to a value that passed a larger configured one.
+        /// </summary>
+        internal static readonly JsonDocumentOptions ReparseOptions = new()
+        {
+            MaxDepth = int.MaxValue
+        };
+
         private static readonly UTF8Encoding s_strictUtf8 = new(false, true);
         private readonly byte[] m_utf8Json;
         private readonly JsonDocument m_document;

@@ -1851,7 +1851,7 @@ namespace Opc.Ua.Wot
 
         private static JsonNode? CloneNode(JsonElement element)
         {
-            return JsonNode.Parse(element.GetRawText());
+            return JsonNode.Parse(element.GetRawText(), null, s_reparseOptions);
         }
 
         /// <summary>
@@ -1868,16 +1868,18 @@ namespace Opc.Ua.Wot
         private static JsonNode? CloneNode(JsonNode node)
         {
             using var buffer = new MemoryStream();
-            using (var writer = new Utf8JsonWriter(buffer))
+            using (var writer = new Utf8JsonWriter(
+                buffer,
+                new JsonWriterOptions { MaxDepth = s_reparseOptions.MaxDepth }))
             {
                 WriteNode(writer, node);
             }
-            return JsonNode.Parse(buffer.ToArray());
+            return JsonNode.Parse(buffer.ToArray(), null, s_reparseOptions);
         }
 
         private static JsonObject CloneObject(JsonElement element)
         {
-            return (JsonObject)JsonNode.Parse(element.GetRawText())!;
+            return (JsonObject)JsonNode.Parse(element.GetRawText(), null, s_reparseOptions)!;
         }
 
         /// <summary>
@@ -2114,5 +2116,6 @@ namespace Opc.Ua.Wot
         private readonly IWotThingResolver m_thingResolver;
         private readonly WotNodeSetConverterOptions m_options;
         private static readonly string[] s_comboKeys = ["allOf", "oneOf"];
+        private static readonly JsonDocumentOptions s_reparseOptions = WotDocument.ReparseOptions;
     }
 }
