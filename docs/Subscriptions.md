@@ -545,6 +545,21 @@ The restore path:
 subscriptions regroup items into the same affinity-pinned partition
 the source had.
 
+Republishing retained notifications and requesting initial values are independent.
+If an origin session disconnects before acknowledging a message, a transfer can
+recover that message from the server's retransmission queue. With
+`SendInitialValuesOnTransfer` also enabled, the target can receive the same static
+value again in a new notification message. Distinguish these batches by their
+sequence numbers, not by value equality. On the classic API, retransmission is
+controlled by `RepublishAfterTransfer`, while initial values are requested with
+the transfer call's `sendInitialValues` argument. Deferring acknowledgements
+retains messages for explicit `Republish` requests; it does not ask the server
+to resend them unsolicited. See
+[OPC UA Part 4, TransferSubscriptions](https://reference.opcfoundation.org/specs/OPC-10000-4/5.14.7).
+The classic client acknowledges messages selected for replay only after receiving
+them. Messages not selected for replay are acknowledged when transfer completes;
+the advertised available-sequence list remains intact.
+
 ### Durable subscriptions
 
 The server converts the configured durable lifetime in hours to milliseconds

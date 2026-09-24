@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using Microsoft.Extensions.Logging;
@@ -778,13 +779,12 @@ namespace Opc.Ua.Client.TestFramework
                 // create subscription with static monitored items
                 var subscription = new TestableSubscription(template)
                 {
-                    PublishingEnabled = true,
                     Handle = ii,
                     FastDataChangeCallback = (s, n, _) =>
                     {
                         TestContext.Out.WriteLine(
                             $"FastDataChangeHandlerOrigin: {s.Id}-{n.SequenceNumber}-{n.MonitoredItems.Count}");
-                        fastDataCounters[(int)s.Handle]++;
+                        Interlocked.Increment(ref fastDataCounters[(int)s.Handle]);
                     }
                 };
 
@@ -821,7 +821,7 @@ namespace Opc.Ua.Client.TestFramework
                 list.ForEach(i =>
                     i.Notification += (item, _) =>
                     {
-                        notificationCounters[(int)subscription.Handle]++;
+                        Interlocked.Increment(ref notificationCounters[(int)subscription.Handle]);
                         foreach (DataValue value in item.DequeueValues())
                         {
                             TestContext.Out.WriteLine(

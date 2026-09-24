@@ -2401,18 +2401,19 @@ namespace Opc.Ua.Client
                     {
                         if (StatusCode.IsGood(results[ii].StatusCode))
                         {
-                            if (await subscriptions[ii].TransferAsync(
+                            (bool transferredSubscription, ArrayOf<uint> acknowledgements) =
+                                await subscriptions[ii].TransferWithAcknowledgementsAsync(
                                     this,
                                     subscriptionIds[ii],
                                     results[ii].AvailableSequenceNumbers,
                                     ct)
-                                .ConfigureAwait(false))
+                                .ConfigureAwait(false);
+                            if (transferredSubscription)
                             {
                                 transferred.Add(subscriptions[ii]);
 
-                                // create ack for available sequence numbers
-                                foreach (uint sequenceNumber in results[ii]
-                                    .AvailableSequenceNumbers)
+                                // Messages claimed for republish are acknowledged only after receipt.
+                                foreach (uint sequenceNumber in acknowledgements)
                                 {
                                     if (m_engine is ClassicSubscriptionEngine classicEngine)
                                     {
