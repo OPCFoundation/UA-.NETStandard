@@ -7350,8 +7350,8 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(
-                queued.Select(value => (int)value.WrappedValue),
-                Is.EqualTo(new[] { 99 }));
+                queued.Select(value => (int)value.WrappedValue).Single(),
+                Is.EqualTo(99));
             dataProvider.Verify(
                 value => value.ReadRawAsync(
                     It.IsAny<HistorianOperationContext>(),

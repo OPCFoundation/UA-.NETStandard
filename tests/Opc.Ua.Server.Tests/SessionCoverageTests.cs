@@ -225,6 +225,16 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void UpdateLocaleIdsDropsNullLocaleIds()
+        {
+            using ServerSession session = CreateSession(CreateEndpoint());
+
+            Assert.That(session.UpdateLocaleIds(new ArrayOf<string>(new string[] { null!, "de-DE" })), Is.True);
+            Assert.That(session.PreferredLocales, Has.Length.EqualTo(1));
+            Assert.That(session.PreferredLocales[0], Is.EqualTo("de-DE"));
+        }
+
+        [Test]
         public void ValidateRequestWithNullHeaderThrows()
         {
             using ServerSession session = CreateSession(CreateEndpoint());
