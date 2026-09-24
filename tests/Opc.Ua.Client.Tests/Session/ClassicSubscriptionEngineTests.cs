@@ -411,6 +411,50 @@ namespace Opc.Ua.Client.Tests
                 It.IsAny<NotificationEventArgs>()), Times.Never);
         }
 
+        /// <summary>
+        /// A pending acknowledgement exactly 2^31 away from the latest
+        /// sequence number must not throw from Math.Abs(int.MinValue) and
+        /// abort the publish response (L4-1).
+        /// </summary>
+        [Test]
+        public void ProcessPublishResponseToleratesAcknowledgementHalfTheSequenceSpaceAway()
+        {
+            m_mockContext.Setup(c => c.ServerState).Returns(ServerState.Running);
+            m_mockContext.Setup(c => c.Subscriptions).Returns([]);
+            m_mockContext.Setup(c => c.DeleteSubscriptionsOnClose).Returns(false);
+            using var engine = new ClassicSubscriptionEngine(m_mockContext.Object);
+            engine.AddPendingAcknowledgement(7, 0x80000000u);
+
+            Assert.That(() => engine.ProcessPublishResponse(
+                new ResponseHeader { Timestamp = DateTime.UtcNow },
+                7,
+                [],
+                false,
+                new NotificationMessage
+                {
+                    SequenceNumber = 1,
+                    PublishTime = DateTime.UtcNow,
+                    NotificationData = []
+                }), Throws.Nothing);
+
+            Assert.That(engine.RemoveAcknowledgementsForSubscription(7), Is.Zero,
+                "An acknowledgement far outside the tolerance is dropped.");
+        }
+
+        [TestCase(10u, 1u, true)]
+        [TestCase(1u, 10u, true)]
+        [TestCase(1u, uint.MaxValue, true)]
+        [TestCase(20u, 1u, false)]
+        [TestCase(0x80000000u, 0u, false)]
+        [TestCase(0u, 0x80000000u, false)]
+        public void OutOfOrderThresholdIsWrapAwareAndNeverThrows(
+            uint sequenceNumber, uint latest, bool expected)
+        {
+            Assert.That(
+                ClassicSubscriptionEngine.IsWithinOutOfOrderThreshold(sequenceNumber, latest),
+                Is.EqualTo(expected));
+        }
+
         [Test]
         public async Task ProcessPublishResponseDispatchesKnownSubscriptionNotificationAsync()
         {

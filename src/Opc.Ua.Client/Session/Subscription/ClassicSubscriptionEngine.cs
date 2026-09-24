@@ -712,8 +712,11 @@ namespace Opc.Ua.Client
                     // a publish response may be processed out of
                     // order, allow for a tolerance until the
                     // sequence number is removed.
-                    else if (Math.Abs((int)(acknowledgement.SequenceNumber - latestSequenceNumberToSend)) <
-                        kPublishRequestSequenceNumberOutOfOrderThreshold)
+                    // The distance is compared without Math.Abs, which throws
+                    // an OverflowException for int.MinValue (a distance of 2^31).
+                    else if (IsWithinOutOfOrderThreshold(
+                        acknowledgement.SequenceNumber,
+                        latestSequenceNumberToSend))
                     {
                         acknowledgementsToSend.Add(acknowledgement);
                     }
@@ -1154,6 +1157,17 @@ namespace Opc.Ua.Client
                 error, subscriptionId, sequenceNumber);
 
             return (result, error);
+        }
+
+        /// <summary>
+        /// Returns true if the wrap-aware distance between two sequence
+        /// numbers is below the out-of-order tolerance in either direction.
+        /// </summary>
+        internal static bool IsWithinOutOfOrderThreshold(uint sequenceNumber, uint latestSequenceNumber)
+        {
+            int delta = unchecked((int)(sequenceNumber - latestSequenceNumber));
+            return delta > -kPublishRequestSequenceNumberOutOfOrderThreshold &&
+                delta < kPublishRequestSequenceNumberOutOfOrderThreshold;
         }
 
         private const int kMinPublishRequestCountMax = 100;
