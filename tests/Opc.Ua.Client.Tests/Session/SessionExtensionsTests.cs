@@ -318,7 +318,8 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
 
             Assert.That(result.ToArray(), Is.EqualTo(new byte[] { 1, 2, 3, 4, 5 }));
-            Assert.That(ranges, Is.EqualTo(new[] { "0:3", "4:7" }));
+            string[] expectedRanges = ["0:3", "4:7"];
+            Assert.That(ranges, Is.EqualTo(expectedRanges));
         }
 
         private void SetupMessageContext(int maxByteStringLength)

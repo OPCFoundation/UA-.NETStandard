@@ -709,6 +709,8 @@ namespace Opc.Ua.Client.Tests
             var diagnosticInfos = new List<DiagnosticInfo>();
             var stringTable = new List<string> { "a", "b" };
             var batchDiagnostic = new DiagnosticInfo { SymbolicId = 0, LocalizedText = 1 };
+            string[] batchStrings = ["c", "d"];
+            string[] expectedStrings = ["a", "b", "c", "d"];
             object[] args =
             [
                 results,
@@ -716,14 +718,14 @@ namespace Opc.Ua.Client.Tests
                 stringTable,
                 new StatusCode[] { StatusCodes.BadNodeIdUnknown }.ToArrayOf(),
                 new[] { batchDiagnostic }.ToArrayOf(),
-                new[] { "c", "d" }.ToArrayOf()
+                batchStrings.ToArrayOf()
             ];
 
             addResponses.Invoke(null, args);
 
             Assert.That(diagnosticInfos, Has.Count.EqualTo(2));
             Assert.That(diagnosticInfos[0], Is.Null);
-            Assert.That(stringTable, Is.EqualTo(new[] { "a", "b", "c", "d" }));
+            Assert.That(stringTable, Is.EqualTo(expectedStrings));
             Assert.That(batchDiagnostic.SymbolicId, Is.EqualTo(2));
             Assert.That(batchDiagnostic.LocalizedText, Is.EqualTo(3));
         }
