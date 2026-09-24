@@ -445,6 +445,103 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         /// <summary>
+        /// L1-6: a second completion of the same pending subscription recovery (e.g. the channel manager's
+        /// CompleteRecoveryAsync racing the managed session's) must wait for the running one instead of
+        /// recreating the subscriptions a second time.
+        /// </summary>
+        [Test]
+        public async Task ConcurrentRecoveryCompletionRecreatesSubscriptionsOnceAsync()
+        {
+            await using var harness = new ManagedSessionReconnectHarness(TimeSpan.Zero)
+            {
+                HoldSubscriptionRestoration = true
+            };
+            await harness.ConnectAsync(false).ConfigureAwait(false);
+            harness.AddSubscription();
+            await WaitForPhaseAsync(harness.NextMonitoredItemsAsync().AsTask(), "initial monitored item")
+                .ConfigureAwait(false);
+            harness.TransportReconnect.Release();
+            harness.RecoveryActivation.Release();
+            harness.ReplacementSession.Release();
+
+            Task recovery = harness.StartOuterRecoveryAsync();
+            await WaitForPhaseAsync(
+                harness.ReplacementSubscription.Entered, "outer-owned deferred subscription restoration")
+                .ConfigureAwait(false);
+
+            Task concurrent = harness.Session.InnerSession.CompleteSessionRecoveryAsync(harness.CancellationToken);
+            await Task.Delay(100).ConfigureAwait(false);
+            Assert.That(concurrent.IsCompleted, Is.False, "the second completion must wait for the running one");
+            Assert.That(harness.Requests.ToList().OfType<CreateSubscriptionRequest>().Count(), Is.EqualTo(2));
+
+            harness.ReplacementSubscription.Release();
+            await WaitForPhaseAsync(recovery, "outer recovery").ConfigureAwait(false);
+            await WaitForPhaseAsync(concurrent, "concurrent completion").ConfigureAwait(false);
+            Assert.That(harness.Requests.ToList().OfType<CreateSubscriptionRequest>().Count(), Is.EqualTo(2));
+        }
+
+        /// <summary>
+        /// L1-2: an identity update holds the session's reconnect lock while its ActivateSession waits for the
+        /// shared channel to become Ready; the channel only becomes Ready after this session's reconnect callback
+        /// returned, which waited for the same lock. The callback must interrupt the update instead.
+        /// </summary>
+        [Test]
+        public async Task ChannelRecoveryInterruptsIdentityUpdateHoldingReconnectLockAsync()
+        {
+            await using var harness = new ManagedSessionReconnectHarness(TimeSpan.Zero)
+            {
+                RecoveryActivationStatus = StatusCodes.Good
+            };
+            await harness.ConnectAsync(false).ConfigureAwait(false);
+            Task recovery = harness.StartRecoveryAsync();
+            await WaitForPhaseAsync(harness.TransportReconnect.Entered, "held transport reconnect")
+                .ConfigureAwait(false);
+
+            Task update = harness.Session.InnerSession
+                .UpdateIdentityAsync(new Opc.Ua.Identity.AnonymousIdentityProvider(), ct: harness.CancellationToken)
+                .AsTask();
+            await Task.Delay(200).ConfigureAwait(false);
+            Assert.That(update.IsCompleted, Is.False, "the update must wait for the recovering channel");
+
+            harness.TransportReconnect.Release();
+            harness.RecoveryActivation.Release();
+            await WaitForPhaseAsync(recovery, "channel recovery while an identity update holds the lock")
+                .ConfigureAwait(false);
+            Assert.That(harness.Lease.State, Is.EqualTo(ChannelState.Ready));
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await update.WaitAsync(PhaseTimeout).ConfigureAwait(false));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
+            Assert.That(harness.Session.InnerSession.Reconnecting, Is.False);
+        }
+
+        /// <summary>
+        /// L2-4: a channel reconnect tracked on a lease that is then swapped out (in-place recreate) was never
+        /// cleared, because the old lease's Ready/Faulted is no longer observed; every later bad keep-alive was
+        /// suppressed. Rebinding must re-derive the tracking from the new lease.
+        /// </summary>
+        [Test]
+        public async Task LeaseSwapClearsStaleChannelReconnectTrackingAsync()
+        {
+            await using var harness = new ManagedSessionReconnectHarness(TimeSpan.Zero);
+            await harness.ConnectAsync(false).ConfigureAwait(false);
+            Assert.That(harness.Lease.State, Is.EqualTo(ChannelState.Ready));
+            Type type = harness.Session.GetType();
+            System.Reflection.FieldInfo counter = type.GetField(
+                "m_channelReconnectInProgress",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+            counter.SetValue(harness.Session, 1);
+
+            var previousLease = new Mock<IManagedTransportChannel>();
+            type.GetMethod(
+                    "RebindManagedChannelEvents",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+                .Invoke(harness.Session, [harness.Session.InnerSession, previousLease.Object]);
+
+            Assert.That(counter.GetValue(harness.Session), Is.Zero,
+                "the new lease is Ready, so keep-alive failures must no longer be suppressed");
+        }
+
+        /// <summary>
         /// A completed session cannot take over recovery while another shared-channel participant still restores.
         /// </summary>
         [Test]

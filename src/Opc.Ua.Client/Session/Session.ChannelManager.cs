@@ -194,6 +194,12 @@ namespace Opc.Ua.Client
                 return ParticipantReconnectResult.RequiresSessionRecreate;
             }
 
+            // An identity update or subscription transfer may hold the
+            // reconnect lock while its request waits for this channel to
+            // become Ready, which needs this callback to return first.
+            // Interrupt it (it fails with BadSecureChannelClosed and can be
+            // retried) instead of deadlocking on the lock.
+            CancelReconnectLockHolder();
             try
             {
                 await ReconnectCoreAsync(
@@ -413,7 +419,24 @@ namespace Opc.Ua.Client
         private IClientChannelManager? m_channelManager;
         private IManagedTransportChannel? m_managedChannel;
         private PendingSubscriptionRecovery? m_pendingSubscriptionRecovery;
+
+        /// <summary>
+        /// Single-flight gate for <see cref="CompleteSessionRecoveryAsync"/>: the
+        /// channel manager and the managed session can both complete the same
+        /// pending recovery and must not recreate the subscriptions twice.
+        /// </summary>
+        // CA2213: never allocates a wait handle, so there is nothing to release;
+        // disposing it would fault a completion racing with session teardown.
+#pragma warning disable CA2213
+        private readonly SemaphoreSlim m_subscriptionRecoveryGate = new(1, 1);
+#pragma warning restore CA2213
         private ReconnectDeadline? m_deferredRecoveryDeadline;
+
+        /// <summary>
+        /// Cancellation of the operation that currently holds the reconnect
+        /// lock across service calls; see <see cref="EnterReconnectLockHolder"/>.
+        /// </summary>
+        private CancellationTokenSource? m_reconnectLockHolder;
         private int m_subscriptionRecoveryDeferrals;
         private int m_channelRecoveryInProgress;
         private bool m_boundChannelReconnect;
