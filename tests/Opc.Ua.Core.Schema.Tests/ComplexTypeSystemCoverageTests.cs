@@ -617,7 +617,10 @@ namespace Opc.Ua.Schema.Tests
                 Assert.That(binaryDictionary.Contains(enumDescriptionId), Is.True);
                 Assert.That(binaryDictionary.Contains(new NodeId(9999, SchemaTestData.TestNamespaceIndex)), Is.False);
                 Assert.That(binaryDictionary.GetSchema(new NodeId(9999, SchemaTestData.TestNamespaceIndex)), Is.Null);
-                Assert.That(binaryDictionary.GetSchema(NodeId.Null), Does.Contain("TypeDictionary"));
+                // a dictionary that failed to parse has no schema (and must not throw).
+                Assert.That(binaryDictionary.GetSchema(NodeId.Null), Is.Null);
+                Assert.That(binaryDictionary.GetSchema(enumDescriptionId), Is.Null);
+                Assert.That(xmlDictionary.GetSchema(NodeId.Null), Is.Null);
                 Assert.That(
                     () => InvokeValidate(binaryDictionary, InvalidDictionaryBytes, throwOnError: true),
                     Throws.TypeOf<System.Reflection.TargetInvocationException>());
