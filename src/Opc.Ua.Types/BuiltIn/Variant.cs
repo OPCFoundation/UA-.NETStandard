@@ -1146,6 +1146,13 @@ namespace Opc.Ua
             {
                 return 0;
             }
+            if (!ValueIsValueType && ValueIsDefaultOrNull)
+            {
+                // A typed null payload (null array, matrix, byte string,
+                // qualified name, ...) equals Variant.Null and must
+                // therefore hash like it.
+                return 0;
+            }
             if (TypeInfo.IsScalar)
             {
                 return TypeInfo.BuiltInType switch
@@ -1176,7 +1183,10 @@ namespace Opc.Ua
                     BuiltInType.UInt64 => m_union.UInt64.GetHashCode(),
                     BuiltInType.QualifiedName when IsPackedScalar => GetQualifiedName().GetHashCode(),
                     BuiltInType.NodeId when IsPackedScalar => GetNodeId().GetHashCode(),
-                    BuiltInType.ByteString when IsPackedScalar => GetByteString().GetHashCode(),
+                    // A null byte string equals the empty one (and Variant.Null),
+                    // so empty byte strings hash like the null variant.
+                    BuiltInType.ByteString when IsPackedScalar => HashByteString(GetByteString()),
+                    BuiltInType.ByteString when m_value is ByteString boxed => HashByteString(boxed),
                     BuiltInType.LocalizedText when IsPackedScalar => GetLocalizedText().GetHashCode(),
                     _ => m_value?.GetHashCode() ?? 0
                 };
@@ -1185,9 +1195,15 @@ namespace Opc.Ua
             {
                 // A byte array compares equal to a ByteString, so it must hash
                 // the same way as ByteString does.
-                return ReadOnlySpan.ComputeHash32(GetByteArray().Span);
+                ReadOnlySpan<byte> bytes = GetByteArray().Span;
+                return bytes.IsEmpty ? 0 : ReadOnlySpan.ComputeHash32(bytes);
             }
             return m_value?.GetHashCode() ?? 0;
+
+            static int HashByteString(ByteString value)
+            {
+                return value.IsEmpty ? 0 : value.GetHashCode();
+            }
         }
 
         /// <inheritdoc/>

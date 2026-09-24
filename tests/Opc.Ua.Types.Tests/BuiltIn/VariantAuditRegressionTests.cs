@@ -574,6 +574,38 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
+        public void VariantWithTypedNullHashesLikeVariantNull()
+        {
+            // T2-4: typed null payloads equal Variant.Null and must hash to 0.
+            Variant[] typedNulls =
+            [
+                Variant.From(ArrayOf<int>.Null),
+                Variant.From(MatrixOf<int>.Null),
+                Variant.From(default(ByteString)),
+                Variant.From(QualifiedName.Null),
+                new Variant(LocalizedText.Null)
+            ];
+
+            Assert.Multiple(() =>
+            {
+                foreach (Variant typedNull in typedNulls)
+                {
+                    Assert.That(IsEqual(typedNull, Variant.Null), Is.True, typedNull.TypeInfo.ToString());
+                    Assert.That(
+                        typedNull.GetHashCode(),
+                        Is.EqualTo(Variant.Null.GetHashCode()),
+                        typedNull.TypeInfo.ToString());
+                }
+
+                // A null byte string also equals the empty one.
+                Variant empty = Variant.From(ByteString.Empty);
+                Variant nullBytes = Variant.From(default(ByteString));
+                Assert.That(IsEqual(empty, nullBytes), Is.True);
+                Assert.That(empty.GetHashCode(), Is.EqualTo(nullBytes.GetHashCode()));
+            });
+        }
+
+        [Test]
         public void SerializableMatrixOfRoundTripsNullMatrix()
         {
             // T2-8: a null matrix could not be deserialized.
