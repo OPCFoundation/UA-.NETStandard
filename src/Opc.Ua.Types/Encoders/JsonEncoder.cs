@@ -895,7 +895,12 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteVariantValue(string? fieldName, in Variant value)
         {
-            if (m_options.IgnoreDefaultValues && value.ValueIsDefaultOrNull)
+            // No UaType is written here, so the decoder takes the value rank from the
+            // metadata and a null array can be omitted like any other null array field.
+            bool isNullArray = !value.TypeInfo.IsScalar && value.ValueIsDefaultOrNull;
+            if ((m_options.IgnoreDefaultValues && value.ValueIsDefaultOrNull) ||
+                (m_options.IgnoreNullValues && isNullArray) ||
+                CanOmitVariantValue(value))
             {
                 return;
             }
@@ -1921,21 +1926,24 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The Value field is not encoded if the value is a NULL for a nullable built-in
-        /// type (Part 6 5.4.2.17, Table 1). Default values of the other types are always
-        /// written, and a null array is written as an empty array, which is semantically
-        /// the same (Part 6 5.1.11), so a decoder never has to guess the value rank.
+        /// Whether the Value field of a Variant can be left out. The options apply as they
+        /// do to every other field: a NULL of a nullable built-in type (Part 6 Table 1) is
+        /// omitted like any null when nulls or defaults are ignored, and the default of a
+        /// non-nullable type only when defaults are ignored. A decoder reconstructs a missing
+        /// Value as a scalar of the UaType, so an array Value is never omitted; a null array
+        /// is written as the semantically equal empty array instead (Part 6 5.1.11).
         /// </summary>
-        private static bool CanOmitVariantValue(in Variant value)
+        private bool CanOmitVariantValue(in Variant value)
         {
             if (!value.TypeInfo.IsScalar)
             {
                 return false;
             }
+            bool ignoreNulls = m_options.IgnoreNullValues || m_options.IgnoreDefaultValues;
             switch (value.TypeInfo.BuiltInType)
             {
                 case BuiltInType.LocalizedText:
-                    return IsJsonNull(value.GetLocalizedText());
+                    return ignoreNulls && IsJsonNull(value.GetLocalizedText());
                 case BuiltInType.String:
                 case BuiltInType.DateTime:
                 case BuiltInType.Guid:
@@ -1946,7 +1954,21 @@ namespace Opc.Ua
                 case BuiltInType.QualifiedName:
                 case BuiltInType.ExtensionObject:
                 case BuiltInType.DataValue:
-                    return value.ValueIsDefaultOrNull;
+                    return ignoreNulls && value.ValueIsDefaultOrNull;
+                case BuiltInType.Boolean:
+                case BuiltInType.SByte:
+                case BuiltInType.Byte:
+                case BuiltInType.Int16:
+                case BuiltInType.UInt16:
+                case BuiltInType.Int32:
+                case BuiltInType.UInt32:
+                case BuiltInType.Int64:
+                case BuiltInType.UInt64:
+                case BuiltInType.Float:
+                case BuiltInType.Double:
+                case BuiltInType.StatusCode:
+                case BuiltInType.Enumeration:
+                    return m_options.IgnoreDefaultValues && value.ValueIsDefaultOrNull;
                 default:
                     // Includes Variant and DiagnosticInfo, which are not valid Variant
                     // contents and must still reach the writer to be rejected.

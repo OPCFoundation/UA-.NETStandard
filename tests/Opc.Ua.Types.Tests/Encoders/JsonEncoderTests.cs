@@ -574,30 +574,32 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void WriteVariantWithNullOfNullableValueTypeRoundTrips()
         {
             // DateTime and Guid are nullable (Part 6 Table 1): MinValue and all zeros are
-            // their null, so Value is omitted and decodes back to the same value.
+            // their null, so Compact omits Value, and either form decodes to the same value.
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            Variant[] values = [new Variant(DateTimeUtc.MinValue), new Variant(Uuid.Empty)];
+            (Variant Value, string CompactJson)[] cases =
+            [
+                (new Variant(DateTimeUtc.MinValue), """{"Value":{"UaType":13}}"""),
+                (new Variant(Uuid.Empty), """{"Value":{"UaType":14}}""")
+            ];
 
-            foreach (Variant value in values)
+            foreach ((Variant value, string compactJson) in cases)
             {
-                using var buffer = new PooledBufferWriter();
-                using (var writer = new JsonEncoder(buffer, messageContext, JsonEncoderOptions.Verbose))
+                Assert.That(
+                    Encode(JsonEncoderOptions.Compact, w => w.WriteVariant(JsonProperties.Value, value)),
+                    Is.EqualTo(compactJson));
+
+                foreach (JsonEncoderOptions options in new[] { JsonEncoderOptions.Verbose, JsonEncoderOptions.Compact })
                 {
-                    writer.WriteVariant(JsonProperties.Value, value);
+                    using var buffer = new PooledBufferWriter();
+                    using (var writer = new JsonEncoder(buffer, messageContext, options))
+                    {
+                        writer.WriteVariant(JsonProperties.Value, value);
+                    }
+
+                    using var decoder = new JsonDecoder(buffer.WrittenMemory.ToReadOnlySequence(16), messageContext);
+                    Assert.That(decoder.ReadVariant(JsonProperties.Value), Is.EqualTo(value), options.Name);
                 }
-
-                using var decoder = new JsonDecoder(buffer.WrittenMemory.ToReadOnlySequence(16), messageContext);
-                Variant decoded = decoder.ReadVariant(JsonProperties.Value);
-
-                Assert.Multiple(() =>
-                {
-                    Assert.That(
-                        System.Text.Encoding.UTF8.GetString(buffer.WrittenMemory.ToArray()),
-                        Does.Not.Contain("\"Value\":{\"UaType\":13,\"Value\"")
-                            .And.Not.Contain("\"Value\":{\"UaType\":14,\"Value\""));
-                    Assert.That(decoded, Is.EqualTo(value));
-                });
             }
         }
 
@@ -612,28 +614,37 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void WriteVariantWithDefaultScalarOfNonNullableTypeWritesValue()
+        public void WriteVariantValueOmissionFollowsIgnoreOptions()
         {
-            var value = new Variant((ushort)0);
-
-            Assert.That(
-                Encode(JsonEncoderOptions.Compact, w => w.WriteVariant(JsonProperties.Value, value)),
-                Is.EqualTo("""{"Value":{"UaType":5,"Value":0}}"""));
-        }
-
-        [Test]
-        public void WriteVariantWithNullOfNullableTypeOmitsValue()
-        {
-            var value = new Variant(NodeId.Null);
+            // Like every other field: NULLs are omitted when nulls or defaults are ignored,
+            // defaults of non-nullable types only when defaults are ignored.
+            var nullValue = new Variant(NodeId.Null);
+            var defaultValue = new Variant((ushort)0);
+            JsonEncoderOptions ignoreNullsOnly = JsonEncoderOptions.Verbose with
+            {
+                IgnoreNullValues = true
+            };
 
             Assert.Multiple(() =>
             {
                 Assert.That(
-                    Encode(JsonEncoderOptions.Verbose, w => w.WriteVariant(JsonProperties.Value, value)),
+                    Encode(JsonEncoderOptions.Verbose, w => w.WriteVariant(JsonProperties.Value, nullValue)),
+                    Is.EqualTo("""{"Value":{"UaType":17,"Value":null}}"""));
+                Assert.That(
+                    Encode(JsonEncoderOptions.Compact, w => w.WriteVariant(JsonProperties.Value, nullValue)),
                     Is.EqualTo("""{"Value":{"UaType":17}}"""));
                 Assert.That(
-                    Encode(JsonEncoderOptions.Compact, w => w.WriteVariant(JsonProperties.Value, value)),
+                    Encode(ignoreNullsOnly, w => w.WriteVariant(JsonProperties.Value, nullValue)),
                     Is.EqualTo("""{"Value":{"UaType":17}}"""));
+                Assert.That(
+                    Encode(JsonEncoderOptions.Verbose, w => w.WriteVariant(JsonProperties.Value, defaultValue)),
+                    Is.EqualTo("""{"Value":{"UaType":5,"Value":0}}"""));
+                Assert.That(
+                    Encode(JsonEncoderOptions.Compact, w => w.WriteVariant(JsonProperties.Value, defaultValue)),
+                    Is.EqualTo("""{"Value":{"UaType":5}}"""));
+                Assert.That(
+                    Encode(ignoreNullsOnly, w => w.WriteVariant(JsonProperties.Value, defaultValue)),
+                    Is.EqualTo("""{"Value":{"UaType":5,"Value":0}}"""));
             });
         }
 
