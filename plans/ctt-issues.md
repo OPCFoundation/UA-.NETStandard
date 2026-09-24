@@ -1064,7 +1064,10 @@ Comment `Test_001.js` line 86 accepts the comment event only if
 `RestartSkipped` (lines 2313–2335) gives up after three retries. Logged values from one run: call
 at `00:25:54.805Z`, response timestamp `00:25:54.816Z`, comment event `Time` `00:25:54.811Z` carrying
 the expected comment text, `CommentTime` `0001-01-01T00:00:00Z`. Enable `Test_002.js` lines 291 and
-301 fail the same way ("Unexpected event time, differs by ..."). Acknowledge and Confirm call the
+301 fail the same way ("Unexpected event time, differs by ..."). The wrapped difference grows by
+86,400,000 per day, so it turns positive for about 24.9 days out of every 49.7: from about 2026-09-23 17:00
+(until about 2026-10-18) Comment `Test_001.js`–`Test_004.js` pass by accident, as in the runs of 2026-09-24.
+Acknowledge and Confirm call the
 same helper but short-circuit the comparison (`IgnoreEventByCallTime` returns false, lines
 2356–2358), so they are unaffected. **Fix:** set `ServerTimeOfCall` from the Call response (and
 compare it with a tolerance, because the condition event is created before the response is sent),
@@ -1219,8 +1222,8 @@ Calculated bit whenever the status is Uncertain because of non-Good input.
 `SessionThread` still runs on the Session, `closeSession` builds and stamps the request, stops the thread (about
 550 ms) and only then sends it. Logged on 2026-09-15 (see *CloseSession latency* below): the server received each
 request about 520 ms after its timestamp and answered within 2–5 ms; stopping the threads first made CloseSession
-take 0–7 ms. In `007.js` the extra 41 s also let the idle channels time out on the server before that was fixed (see the server finding
-below). **Fix:** stop the SessionThread before building the CloseSession request (or stamp the header when the
+take 0–7 ms. In `007.js` the extra 41 s also let the idle channels time out on the server with the default
+`ChannelLifetime` of 30 s (see the server finding below). **Fix:** stop the SessionThread before building the CloseSession request (or stamp the header when the
 request is sent); in `007.js` stop `sessionThreads[i]` in step 3 as the cleanup branch already does.
 
 ## Needs clarification
@@ -1418,7 +1421,8 @@ it is classified as a server or CTT issue.
   0–7 ms (average 1.7 ms) in CloseSession. The CTT stamps the request, waits for its SessionThread to stop and
   only then sends the request, so the delay and the warning are client artifacts (C50).
 - **Security None `007.js` / Security Basic256Sha256 `005.js`: the server closed an idle SecureChannel before its
-  SecurityToken expired (fixed 2026-09-15).** Seen on origin/master and on the merge of #4477/#4482/#4485/#4486:
+  SecurityToken expired (CTT configuration raises `ChannelLifetime`; server behavior unchanged).** Seen on origin/master
+  and on the merge of #4477/#4482/#4485/#4486:
   *"CloseSecureChannel().Result received BadInvalidState, but expected … Good"* at `007.js` line 93. The test opens
   74 SecureChannels with Sessions, adds five channels without Sessions 10 s apart (`Min Lifetime of SecureChannel`),
   closes the 74 Sessions (41 s because of C50) and then expects the newest idle channel to close with Good. That
@@ -1428,12 +1432,12 @@ it is classified as a server or CTT issue.
   `BadInvalidState` is the CTT's result for a channel the server already closed. Part 4 §5.6.2.1: *"Each
   SecureChannel exists until it is explicitly closed or until the last token has expired and the overlap period
   has elapsed"*; the Server shall close the oldest unused Session-less SecureChannel *before reaching the maximum
-  number* of SecureChannels. The inactivity cleanup now skips open channels without a Session whose current or renewed
-  token has not expired (`TcpListenerChannel.IsInactivityCleanupDue`, `TcpInactivityCleanupRegressionTests`); channels with a
-  Session, channels that never opened, faulted channels and channels without a token keep the `ChannelLifetime` timeout, and the oldest-unused
-  eviction at MaxChannelCount is unchanged. With the default `ChannelLifetime` of 30000 both test cases pass (only
-  the C50 warnings remain). An idle open channel without a Session now stays until its token expires (at most the configured
-  `SecurityTokenLifetime`, one hour by default) instead of 30 s.
+  number* of SecureChannels. A server change that kept idle Session-less channels open until their token expired
+  made both test cases pass, but it was withdrawn: it lets an unauthenticated client hold a channel for up to the
+  `SecurityTokenLifetime` (one hour by default) instead of 30 s, which weakens the protection against channel
+  exhaustion. `samples/Reference/ConsoleReferenceServer/Ctt.ReferenceServer.Config.xml` instead sets
+  `ChannelLifetime` to 120000, which covers the about 51 s the test keeps its channels idle; the default of 30000
+  and the server's inactivity cleanup are unchanged. The difference to Part 4 §5.6.2.1 stays open.
 
 ## CTT project configuration notes
 

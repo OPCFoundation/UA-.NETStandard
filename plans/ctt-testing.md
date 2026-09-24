@@ -514,10 +514,11 @@ runs of 2026-09-13/14, except
 - A & C Confirm `Test_001.js` can fail for all alarm types depending on the alarm phase (C10).
 - Newly covered: UAFX (no FX model), PubSub Publisher UADP (no PubSub publisher) and Security None /
   Basic256Sha256 `007.js`/`005.js`. Those two failed (also on origin/master) because the server closed idle
-  SecureChannels after 30 s of silence while the CTT needed 41 s for the step (C50); they pass since the
-  inactivity cleanup keeps open channels with a valid token (see ctt-issues.md, open server findings).
+  SecureChannels after 30 s of silence while the CTT needed 41 s for the step (C50); they pass with the
+  `ChannelLifetime` of 120000 in `Ctt.ReferenceServer.Config.xml` (see ctt-issues.md, open server findings).
 
-Repeated on 2026-09-22 against origin/master (#4503 and later merged) plus the inactivity-cleanup fix. Every part
+Repeated on 2026-09-22 against origin/master (#4503 and later merged) plus an inactivity-cleanup server change
+that was withdrawn afterwards (see the run of 2026-09-24 below). Every part
 matches the run above at test-case level, except
 
 - Aggregates: 4,562 error messages (was 4,498). Aggregate – DeltaBounds now also differs on the Double and Float
@@ -530,9 +531,28 @@ matches the run above at test-case level, except
   400–800 ms before the BrowseName index of #4486 and 141–172 ms after it), so the 100 ms tolerance is tight
   rather than the old behavior being back.
 
+Repeated on 2026-09-24 without the inactivity-cleanup change (server code as on origin/master) and with
+`ChannelLifetime` 120000 in `Ctt.ReferenceServer.Config.xml`. Compared with the run of 2026-09-22 at test-case level:
+
+- Security None `007.js` passes and Security Basic256Sha256 `005.js` has only the C50 CloseSession delay warnings,
+  as with the server change.
+- All other parts have the same error signatures. The other differences are *"… Timestamp shows a delay in excess
+  of …"* warnings: other builds and test runs kept the machine at up to 99% CPU. Session Services run back to back
+  on the same build with `ChannelLifetime` 30000 and 120000 on an idle machine gave identical results.
+- Under that load A & C Refresh2 `Err_003.js`/`Err_004.js` and Shelving `initialize.js` failed with
+  `BadSubscriptionIdInvalid` in two runs with 120000 and one with 30000; on the idle machine the whole A & C part
+  passed them again (689 passed, 2026-09-22: 638). A & C Comment `Test_001.js`…`Test_004.js` now pass instead of
+  being skipped because the wrapped call-time difference of C39 is positive at this date, and A & C Confirm
+  `Test_001.js` failed this time (C10).
+
 A project copy that the CTT has re-saved can lose the `cleanup.js`/`manual.js` of manual CUs (104 files in the
 copies used here), which shows up as *"Could not open file …"* errors in the affected CUs. Refresh a copy from
 `<ProjectDir>` (adding only missing files) before a comparison run.
+
+Keep the run directory, the isolated PKI (`secpki.orig`) and the selections outside `%TEMP%`: a Windows temp cleanup
+removed their older files during the run of 2026-09-24. Without its certificates the isolated server created a new
+application certificate and trusted nothing, so every Security User Token test case failed with
+`BadSecurityChecksFailed`. Check that `secpki.orig\own` and `secpki.orig\trusted` are populated before a run.
 
 ## Pitfalls
 
