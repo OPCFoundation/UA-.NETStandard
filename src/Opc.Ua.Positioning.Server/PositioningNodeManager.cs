@@ -97,7 +97,8 @@ namespace Opc.Ua.Positioning.Server
             IDictionary<NodeId, IList<IReference>> externalReferences,
             CancellationToken cancellationToken = default)
         {
-            await base.CreateAddressSpaceAsync(
+            await LoadPredefinedNodesAsync(
+                SystemContext,
                 externalReferences,
                 cancellationToken).ConfigureAwait(false);
             await PositioningNamespaceMetadata.EnsureAsync(

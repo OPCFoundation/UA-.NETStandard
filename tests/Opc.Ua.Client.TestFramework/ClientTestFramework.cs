@@ -106,6 +106,21 @@ namespace Opc.Ua.Client.TestFramework
         /// many concurrent sessions raise it to smooth the connect burst.
         /// </summary>
         public int MinRequestThreadCount { get; set; } = 10;
+
+        /// <summary>
+        /// The requested session timeout, in milliseconds, of the fixture-shared
+        /// <see cref="Session"/> created when <see cref="SingleSession"/> is set.
+        /// The shared session lives for the whole fixture and is often idle for
+        /// minutes while earlier tests use their own sessions, so only its keep
+        /// alive reads keep it alive on the server. With the
+        /// <see cref="ClientFixture"/> default of 10 s, a single stall of the
+        /// test host longer than that (seen on loaded net48 CI runners while
+        /// other fixtures start and stop their servers) lets the server expire
+        /// the session, and every later test in the fixture fails with
+        /// BadSessionIdInvalid.
+        /// Sessions created per test keep the <see cref="ClientFixture"/> default.
+        /// </summary>
+        public uint SharedSessionTimeout { get; set; } = 120_000;
         public bool SupportsExternalServerUrl { get; set; }
         public bool UseSamplingGroupsInReferenceNodeManager { get; set; }
 
@@ -341,6 +356,8 @@ namespace Opc.Ua.Client.TestFramework
 
             if (SingleSession)
             {
+                uint sessionTimeout = ClientFixture.SessionTimeout;
+                ClientFixture.SessionTimeout = SharedSessionTimeout;
                 try
                 {
                     Session = await ClientFixture
@@ -353,6 +370,10 @@ namespace Opc.Ua.Client.TestFramework
                     TestContext.Progress.WriteLine(
                         $"OneTimeSetUp failed to create session with {ServerUrl}. Error: {e.Message}");
                     throw;
+                }
+                finally
+                {
+                    ClientFixture.SessionTimeout = sessionTimeout;
                 }
             }
         }

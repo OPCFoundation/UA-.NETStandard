@@ -354,29 +354,12 @@ The pull-request profiles filter out `TestCategory=LongRunning` and `TestCategor
 | Input | Effect |
 | --- | --- |
 | `include_macos` | Include the macOS profiles (default `true`) |
-| `run_private_corpus` | Additionally replay the private fuzz crash corpus (default `false`, requires the protected environment below) |
 
 It uploads a `workload-manifest` artifact recording every (project × profile) tuple the run intended to cover, so a run's scope can be compared against another inventory instead of inferred from job names.
 
-#### The private fuzz corpus
+#### The fuzz crash corpus
 
-The checked-in corpus under [`fuzzing/`](../fuzzing) runs on every pull request. The **private crash corpus** — inputs that reproduce unfixed findings — is deliberately not public, so it is replayed only by the `private-corpus` job in `nightly.yml`, which:
-
-- runs in the protected `fuzz-private-corpus` environment, so a reviewer approves each run;
-- never runs from a fork or from an unreviewed ref;
-- verifies the downloaded archive against a pinned SHA-256 before extracting it;
-- runs the executor with `-QuietOutput`, so no reproducer ever reaches a public log;
-- publishes hash-only evidence and discards the extracted inputs.
-
-It is skipped unless a maintainer has provisioned the environment:
-
-| Kind | Name | Purpose |
-| --- | --- | --- |
-| Secret | `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` | Federated (OIDC) login — no stored storage key |
-| Variable | `FUZZ_CORPUS_ACCOUNT`, `FUZZ_CORPUS_CONTAINER`, `FUZZ_CORPUS_BLOB` | Where the archive lives |
-| Variable | `FUZZ_CORPUS_SHA256` | Expected digest of the archive |
-
-The job fails loudly when any of them is missing, and the nightly summary labels a run that did not replay the corpus as **INCOMPLETE**, so its absence is never mistaken for a pass.
+The checked-in corpus under [`fuzzing/`](../fuzzing) runs on every pull request. The full **crash corpus** — about 22k inputs from earlier fuzzing campaigns, formerly the Azure secure file `FuzzingArtifacts.zip` — lives on the orphan branch `fuzz-corpus` and takes too long to replay per pull request. The `crash-corpus` job in `nightly.yml` checks out a commit of that branch pinned in the workflow (`FUZZ_CORPUS_COMMIT`), overlays it onto the matching `fuzzing/` projects and runs `Opc.Ua.Encoders.Fuzz.Tests` on every non-macOS profile. It needs no secrets, and the nightly summary fails if it was skipped. See [`fuzzing/CrashCorpus.md`](../fuzzing/CrashCorpus.md) for how to add inputs and update the pin.
 
 ### Required checks and coverage
 
@@ -515,7 +498,7 @@ The Actions workflows were added while Azure Pipelines kept every trigger and re
 
 What is still outstanding — each needing repository- or organization-administrator access, and therefore **not** part of the source change:
 
-1. Run `nightly.yml` on a trusted SHA with the private corpus provisioned and compare its manifest against a full-scope Azure run.
+1. Run `nightly.yml` on a trusted SHA and compare its manifest against a full-scope Azure run.
 2. Confirm definition 14's service-side **Pull request validation** setting is off. `pr: none` covers the YAML trigger, but an enabled "Override the YAML PR trigger from here" would still queue builds.
 3. Confirm definition 14's service-side schedule is off and retire the push trigger once the GitHub replacement has proven stable. The YAML `cron` has already moved to `nightly.yml`.
 4. Retire `azure-pipelines-preview.yml` and definition 16's build-completion trigger. Development packages already publish to GitHub Packages from [`.github/workflows/nuget-publish.yml`](../.github/workflows/nuget-publish.yml), so that publisher is a duplicate. Ensure the stale definition 13 cannot restart it.

@@ -380,7 +380,7 @@ namespace Opc.Ua.Bindings
         /// </remarks>
         public bool UsedBySession =>
             Quotas.SessionBindingProvider?.HasSession(GlobalChannelId) ??
-            Volatile.Read(ref m_sessionCount) > 0;
+            (Volatile.Read(ref m_sessionCount) > 0);
 
         /// <inheritdoc/>
         private protected override bool ServesActivatedSession => UsedBySession;
