@@ -121,6 +121,33 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         /// <summary>
+        /// A3-7: IsEqual treats all NaNs as equal, so GetHashCode has to
+        /// hash a canonical NaN for float and double fields (.NET Framework
+        /// hashes the raw bits, i.e. the NaN payload).
+        /// </summary>
+        [Test]
+        public void HashCodeCanonicalizesNaN()
+        {
+            Assert.That(m_dataTypes, Does.Contain("double.IsNaN(m_d) ? double.NaN : m_d"));
+            Assert.That(m_dataTypes, Does.Contain("float.IsNaN(m_f) ? float.NaN : m_f"));
+            Assert.That(m_dataTypes, Does.Contain("double.IsNaN(m_optD) ? double.NaN : m_optD"));
+
+            double otherNaN = BitConverter.Int64BitsToDouble(0x7FF8000000000001);
+            float otherNaNf = BitConverter.ToSingle(BitConverter.GetBytes(0x7FC00001), 0);
+            IEncodeable a = Create("Samples", ("D", double.NaN), ("F", float.NaN),
+                ("OptD", double.NaN), ("EncodingMask", 1u));
+            IEncodeable b = Create("Samples", ("D", otherNaN), ("F", otherNaNf),
+                ("OptD", otherNaN), ("EncodingMask", 1u));
+            Assert.That(a.IsEqual(b), Is.True);
+            Assert.That(a.GetHashCode(), Is.EqualTo(b.GetHashCode()));
+
+            IEncodeable u1 = Create("NumberChoice", ("SwitchField", 1u), ("D", double.NaN));
+            IEncodeable u2 = Create("NumberChoice", ("SwitchField", 1u), ("D", otherNaN));
+            Assert.That(u1.IsEqual(u2), Is.True);
+            Assert.That(u1.GetHashCode(), Is.EqualTo(u2.GetHashCode()));
+        }
+
+        /// <summary>
         /// D-4: a pooled instance handed out again must look like a newly
         /// constructed one: model default values, eagerly created structure
         /// fields, a cleared encoding mask and inherited fields restored.
@@ -424,6 +451,19 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 <opc:Fields>
                   <opc:Field Name="Low" BitMask="0000000000000001" />
                   <opc:Field Name="Top" BitMask="8000000000000000" />
+                </opc:Fields>
+              </opc:DataType>
+              <opc:DataType SymbolicName="Samples" BaseType="ua:Structure">
+                <opc:Fields>
+                  <opc:Field Name="D" DataType="ua:Double" />
+                  <opc:Field Name="F" DataType="ua:Float" />
+                  <opc:Field Name="OptD" DataType="ua:Double" IsOptional="true" />
+                </opc:Fields>
+              </opc:DataType>
+              <opc:DataType SymbolicName="NumberChoice" BaseType="ua:Union" IsUnion="true">
+                <opc:Fields>
+                  <opc:Field Name="D" DataType="ua:Double" />
+                  <opc:Field Name="F" DataType="ua:Float" />
                 </opc:Fields>
               </opc:DataType>
             </opc:ModelDesign>

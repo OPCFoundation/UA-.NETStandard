@@ -1735,6 +1735,21 @@ namespace Opc.Ua.SourceGeneration
                     $"{field.GetFieldsEnumMemberName()}) != 0) ";
             }
             context.Template.AddReplacement(Tokens.HashCondition, condition);
+
+            // IsEqual treats all NaNs as equal (CoreUtils.IsEqual), but on
+            // .NET Framework double/float.GetHashCode hash the raw bits, so
+            // NaNs with different payloads would hash differently. Hash a
+            // canonical NaN, as Variant.GetHashCode does.
+            string hashValue = field.GetChildFieldName();
+            if (field.ValueRank == ValueRank.Scalar &&
+                field.DataTypeNode?.BasicDataType is BasicDataType.Float or BasicDataType.Double)
+            {
+                string type = field.DataTypeNode.BasicDataType == BasicDataType.Float
+                    ? "float"
+                    : "double";
+                hashValue = $"({type}.IsNaN({hashValue}) ? {type}.NaN : {hashValue})";
+            }
+            context.Template.AddReplacement(Tokens.HashValue, hashValue);
             return WriteTemplate_ListOfProperties(context);
         }
 

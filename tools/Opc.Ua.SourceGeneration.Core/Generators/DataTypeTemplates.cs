@@ -1485,7 +1485,7 @@ namespace Opc.Ua.SourceGeneration
             {{Tokens.HashCondition}}hashCode = (hashCode * 16777619) ^
                 global::System.Collections.Generic.EqualityComparer<{{Tokens.TypeName}}>
                 .Default
-                .GetHashCode({{Tokens.FieldName}});
+                .GetHashCode({{Tokens.HashValue}});
             """);
 
         /// <summary>

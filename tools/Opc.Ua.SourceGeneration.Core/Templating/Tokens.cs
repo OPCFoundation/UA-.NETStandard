@@ -84,6 +84,7 @@ namespace Opc.Ua.SourceGeneration
         public static string Historizing => nameof(Historizing);
         public static string Identifier => nameof(Identifier);
         public static string HashCondition => nameof(HashCondition);
+        public static string HashValue => nameof(HashValue);
         public static string FieldTable => nameof(FieldTable);
         public static string IdType => nameof(IdType);
         public static string IdModifier => nameof(IdModifier);
