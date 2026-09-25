@@ -431,6 +431,34 @@ retains the `MaxBytesWithoutSession` occupancy rule described in
 [Rate limiting](RateLimiting.md#incomplete-messages). A separately shared budget
 or custom rate limiter can reject work even when the isolation plan has room.
 
+For partial messages, a Session token may not yet have arrived. The default
+provider therefore asks the authoritative `ISessionBindingProvider` whether
+the transport channel already carries an activated Session. If it does, its
+reassembly can draw on the existing continuity/reconnect byte reserve even
+without a tenant classifier. Sessionless traffic cannot consume this reserve.
+This is a capacity guarantee for a session-bound channel, not a claim that its
+anonymous user is a trusted tenant.
+
+This membership-based classification is restricted to `ReassemblyBytes`: it
+cannot obtain protected connection, rate, session-establishment, or request
+execution capacity. It has a separate accounting key from the sessionless
+traffic sharing the same peer address or application identity. Classification
+is retained for that one partial message; the next message checks membership
+again after closure or transfer.
+
+The reserve still has a finite size. Several session messages may share it if
+they fit, but one maximum-sized message can occupy the reserve sized for one
+message. It is shared by session-bound reassembly and explicitly classified
+reconnect traffic, not a separate guaranteed allowance for each. This does not
+promise simultaneous progress for arbitrarily many
+activated clients. Increase the configured reserve or use provisioned
+trusted-owner reservations when stronger separation is required.
+
+Custom providers can opt into this behavior through
+`IResourceIsolationReassemblyProvider`. Providers that do not implement that
+capability retain the shared budget's original sessionless occupancy threshold,
+even if they enable fair decoded-request scheduling.
+
 ## Trust, anonymous clients and NAT
 
 Ordinary pre-authentication traffic is grouped by observed address, normalized
@@ -458,6 +486,14 @@ cannot preserve an earlier protected classification. Normal service
 authentication and authorization still execute. HTTPS logical channels may
 represent multiple clients; the classifier cannot treat one logical channel as
 proof of a permanent client identity.
+
+Repeated requests can reuse immutable owner classifications and certificate
+snapshots. The cache has a fixed number of slots per live channel-id object
+and weak lifetime keys, not a permanent dictionary of every observed caller.
+Each lookup still checks the current Session snapshot, channel evidence and
+any configured classifier. Mutated certificates, changed mappings, another
+Session, or reactivation invalidate the cached result. Reassembly-only
+classifications are not usable as decoded-request authorization snapshots.
 
 ### Example: dedicated trusted ingress
 

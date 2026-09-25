@@ -80,6 +80,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Maximum lifetime of an admitted, unfinished protocol handshake.
         /// The maximum and default are two minutes; it is independent of renewable channel lifetimes.
+        /// A positive value is required in every mode, including when a custom provider is supplied.
         /// </summary>
         public TimeSpan HandshakeTimeout { get; set; } = TimeSpan.FromMinutes(2);
 
@@ -241,6 +242,7 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(rateLimits));
             }
+            ValidateHandshakeTimeout();
             ServerConfiguration server = configuration.ServerConfiguration ??
                 throw new ArgumentException("Server configuration is required.", nameof(configuration));
             TransportQuotas quotas = configuration.TransportQuotas ??
@@ -268,10 +270,6 @@ namespace Opc.Ua.Server
             if (MaxTrackedOwners <= 0 || MaxOwnerKeyLength <= 0 || DefaultWeight <= 0)
             {
                 throw new ArgumentException("Owner table, key length and weight limits must be positive.");
-            }
-            if (HandshakeTimeout <= TimeSpan.Zero || HandshakeTimeout > TimeSpan.FromMinutes(2))
-            {
-                throw new ArgumentException("HandshakeTimeout must be positive and no greater than two minutes.");
             }
             if (TrustedOwners.Count > MaxTrackedOwners)
             {
@@ -397,6 +395,19 @@ namespace Opc.Ua.Server
                 Mode, budget.MaxBytes, budget.MaxBytesWithoutSession, server.MaxSessionCount, server.MaxChannelCount,
                 footprint, reassembly.BootstrapReserved, reassembly.ReconnectReserved, reassembly.TrustedReserved,
                 stages, trusted, MaxTrackedOwners, MaxOwnerKeyLength, DefaultWeight);
+        }
+
+        /// <summary>
+        /// Validates the protocol deadline independently of optional finite-capacity reservation policy.
+        /// </summary>
+        internal void ValidateHandshakeTimeout()
+        {
+            if (HandshakeTimeout <= TimeSpan.Zero || HandshakeTimeout > TimeSpan.FromMinutes(2))
+            {
+                throw new ArgumentException(
+                    "HandshakeTimeout must be positive and no greater than two minutes.",
+                    nameof(HandshakeTimeout));
+            }
         }
 
         private void ValidateOwners()

@@ -30,9 +30,11 @@
 #nullable enable
 
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
@@ -51,6 +53,173 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable(ParallelScope.All)]
     public sealed class RuntimeResourceIsolationTests
     {
+        [TestCase(1, false)]
+        [TestCase(2, false)]
+        [TestCase(1, true)]
+        [TestCase(2, true)]
+        public async Task DefaultReassemblyPreservesSessionHeadroomWithoutATenantClassifierAsync(
+            int sessionChannels, bool separatePeers)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var pool = new ReassemblyPool();
+            var buffers = new BufferManager("review-headroom", 8192, telemetry, pool);
+            byte[] probe = buffers.TakeBuffer(32, "probe");
+            int rental = probe.Length;
+            buffers.ReturnBuffer(probe, "probe");
+            var budget = new ChunkReassemblyBudget(8L * rental);
+            var bindings = new Mock<ISessionBindingProvider>();
+            var options = new ServerResourceIsolationOptions { MaxRetainedMessageBytes = 2L * rental };
+            ApplicationConfiguration configuration = Configuration();
+            using var provider = new DefaultServerResourceIsolationProvider(
+                options.CreateRuntimePlan(configuration, new ServerRateLimitOptions(), budget),
+                telemetry, bindings.Object);
+            var quotas = new ChannelQuotas(ServiceMessageContext.Create(telemetry))
+            {
+                MaxBufferSize = 8192,
+                MaxMessageSize = 32768,
+                ChunkReassemblyBudget = budget,
+                ResourceIsolationProvider = provider,
+                SessionBindingProvider = bindings.Object
+            };
+            using var holder = new ReassemblyChannel(1, buffers, quotas, telemetry, 1);
+            using var otherHolder = new ReassemblyChannel(5, buffers, quotas, telemetry, separatePeers ? 5 : 1);
+            using var session = new ReassemblyChannel(2, buffers, quotas, telemetry, separatePeers ? 2 : 1);
+            using var otherSession = new ReassemblyChannel(3, buffers, quotas, telemetry, separatePeers ? 3 : 1);
+            using var refused = new ReassemblyChannel(4, buffers, quotas, telemetry, separatePeers ? 4 : 1);
+            bindings.Setup(value => value.HasSession(session.GlobalChannelId)).Returns(true);
+            bindings.Setup(value => value.HasSession(otherSession.GlobalChannelId)).Returns(true);
+
+            for (uint sequence = 1; sequence <= 2; sequence++)
+            {
+                await holder.FeedPartAsync(sequence).ConfigureAwait(false);
+                await otherHolder.FeedPartAsync(sequence).ConfigureAwait(false);
+            }
+            Assert.That(provider.GetUsage(ResourceIsolationStage.ReassemblyBytes),
+                Is.EqualTo(4L * rental));
+            await session.FeedPartAsync(1).ConfigureAwait(false);
+            if (sessionChannels == 2)
+            {
+                await otherSession.FeedPartAsync(1).ConfigureAwait(false);
+                Assert.That(otherSession.CurrentState, Is.EqualTo(TcpChannelState.Open));
+            }
+
+            Assert.That(session.CurrentState, Is.EqualTo(TcpChannelState.Open));
+            Assert.That(provider.GetUsage(ResourceIsolationStage.ReassemblyBytes),
+                Is.EqualTo((4L + sessionChannels) * rental));
+            await refused.FeedPartAsync(1).ConfigureAwait(false);
+            Assert.That(refused.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+            Assert.That(holder.CurrentState, Is.EqualTo(TcpChannelState.Open));
+            Assert.That(otherHolder.CurrentState, Is.EqualTo(TcpChannelState.Open));
+            Assert.That(session.CurrentState, Is.EqualTo(TcpChannelState.Open));
+            session.DiscardMessage();
+            bindings.Setup(value => value.HasSession(session.GlobalChannelId)).Returns(false);
+            await session.FeedPartAsync(2).ConfigureAwait(false);
+            Assert.That(session.CurrentState, Is.EqualTo(TcpChannelState.Closed),
+                "A new message after membership removal cannot inherit the continuity reserve.");
+            holder.Dispose();
+            otherHolder.Dispose();
+            session.Dispose();
+            otherSession.Dispose();
+            Assert.That(provider.GetUsage(ResourceIsolationStage.ReassemblyBytes), Is.Zero);
+            Assert.That(budget.ReservedBytes, Is.Zero);
+            Assert.That(pool.Outstanding, Is.Zero);
+        }
+
+        /// <summary>
+        /// Drives real server reassembly without sockets or a tenant-specific classifier.
+        /// </summary>
+        private sealed class ReassemblyChannel : TcpServerChannel
+        {
+            public ReassemblyChannel(
+                uint id, BufferManager buffers, ChannelQuotas quotas, ITelemetryContext telemetry, int peer)
+                : base("headroom-review", Mock.Of<ITcpChannelListener>(), buffers, quotas,
+                    null!, [], telemetry, new FakeTimeProvider())
+            {
+                ChannelId = id;
+                State = TcpChannelState.Open;
+                MaxRequestChunkCount = 2;
+                MaxRequestMessageSize = 16;
+                var transport = new Mock<IUaSCByteTransport>();
+                transport.SetupGet(value => value.RemoteEndpoint).Returns(Peer(peer));
+                Transport = transport.Object;
+                ((IDiagnosticsChannelMutation)this).LoadTokensForOfflineDecode(new ChannelToken
+                {
+                    ChannelId = id,
+                    TokenId = 1,
+                    SecurityPolicy = SecurityPolicyInfo.None,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedAtTimestamp = TimeProvider.GetTimestamp(),
+                    Lifetime = 60000
+                }, null);
+            }
+
+            public TcpChannelState CurrentState => State;
+
+            public void DiscardMessage()
+            {
+                TakeSavedChunks().Release(BufferManager, nameof(DiscardMessage));
+            }
+
+            public ValueTask FeedPartAsync(uint sequence)
+            {
+                byte[] buffer = BufferManager.TakeBuffer(32, nameof(FeedPartAsync));
+                BitConverter.GetBytes(TcpMessageType.Message | TcpMessageType.Intermediate).CopyTo(buffer, 0);
+                BitConverter.GetBytes(32).CopyTo(buffer, 4);
+                BitConverter.GetBytes(ChannelId).CopyTo(buffer, 8);
+                BitConverter.GetBytes(1u).CopyTo(buffer, 12);
+                BitConverter.GetBytes(sequence).CopyTo(buffer, 16);
+                BitConverter.GetBytes(1u).CopyTo(buffer, 20);
+                return OnChunkReceivedAsync(new ArraySegment<byte>(buffer, 0, 32), CancellationToken.None);
+            }
+        }
+
+        /// <summary>
+        /// Tracks actual backing-array ownership with predictable tiny rentals.
+        /// </summary>
+        private sealed class ReassemblyPool : ArrayPool<byte>
+        {
+            public int Outstanding => Volatile.Read(ref m_outstanding);
+
+            public override byte[] Rent(int minimumLength)
+            {
+                Interlocked.Increment(ref m_outstanding);
+                return new byte[minimumLength];
+            }
+
+            public override void Return(byte[] array, bool clearArray = false)
+            {
+                Interlocked.Decrement(ref m_outstanding);
+                array.AsSpan().Clear();
+            }
+
+            private int m_outstanding;
+        }
+
+        [Test]
+        public void ReassemblyMembershipPromotionCannotGrantOtherResourceOrRatePrivileges()
+        {
+            var bindings = new Mock<ISessionBindingProvider>();
+            bindings.Setup(value => value.HasSession("active")).Returns(true);
+            using DefaultServerResourceIsolationProvider provider =
+                CreateProvider(Options(), bindings: bindings.Object);
+            SecureChannelContext channel = Channel("active", [1]);
+            ResourceIsolationOwner promoted = provider.ClassifyReassembly(channel);
+            Assert.That(promoted.Class, Is.EqualTo(ResourceIsolationClass.Reconnect));
+            Assert.That(provider.Classify(channel).Class, Is.EqualTo(ResourceIsolationClass.Established));
+            using IDisposable message = Acquire(provider, ResourceIsolationStage.ReassemblyBytes, promoted, 1);
+            for (int index = 0; index <= (int)ResourceIsolationStage.ParkedRequest; index++)
+            {
+                var stage = (ResourceIsolationStage)index;
+                if (stage != ResourceIsolationStage.ReassemblyBytes)
+                {
+                    AssertRejected(provider, stage, promoted, 1, ResourceIsolationFailureReason.InvalidOwner);
+                }
+            }
+            using var rate = new ResourceIsolationConnectionRateLimiter(10, 10, provider);
+            Assert.That(() => rate.TryAdmitConnection(Peer(10), promoted, out _),
+                Throws.ArgumentException);
+        }
+
         [Test]
         public void RevalidationDistinguishesLiveActivationChangeFromMissingSession()
         {
@@ -88,6 +257,55 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void ClassificationCacheDoesNotKeepClosedChannelIdentifiersAlive()
+        {
+            using DefaultServerResourceIsolationProvider provider = CreateProvider(Options());
+            WeakReference identifier = CreateUnrootedClassification(provider);
+            for (int ii = 0; ii < 3 && identifier.IsAlive; ii++)
+            {
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+            }
+            Assert.That(identifier.IsAlive, Is.False);
+            Assert.That(provider.TrackedOwnerCount, Is.Zero);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static WeakReference CreateUnrootedClassification(DefaultServerResourceIsolationProvider provider)
+        {
+            string id = Guid.NewGuid().ToString();
+            _ = provider.Classify(Channel(id, [1, 2, 3]));
+            return new WeakReference(id);
+        }
+
+        [Test]
+        public void ClassificationCacheInvalidatesChangedCertificateAndMapping()
+        {
+            bool mapped = true;
+            var classifier = new Mock<IResourceIsolationClassifier>();
+            ResourceIsolationIdentity identity = new("approved", ResourceIsolationClass.Bootstrap);
+            classifier.Setup(value => value.TryClassify(
+                    It.IsAny<SecureChannelContext>(), It.IsAny<SessionBindingContext>(), out identity))
+                .Returns(() => mapped);
+            using DefaultServerResourceIsolationProvider provider = CreateProvider(Options(), classifier.Object);
+            byte[] certificate = [1, 2, 3];
+            SecureChannelContext context = Channel("channel", certificate);
+            ResourceIsolationOwner first = provider.Classify(context);
+            Assert.That(first.Class, Is.EqualTo(ResourceIsolationClass.Bootstrap));
+            Assert.That(provider.Classify(context), Is.SameAs(first));
+
+            certificate[0] = 9;
+            ResourceIsolationOwner changed = provider.Classify(context);
+            Assert.That(changed, Is.Not.SameAs(first));
+            Assert.That(provider.IsCurrent(first, context), Is.False);
+            mapped = false;
+            ResourceIsolationOwner ordinary = provider.Classify(context);
+            Assert.That(ordinary.Class, Is.EqualTo(ResourceIsolationClass.Established));
+            Assert.That(provider.IsCurrent(changed, context), Is.False);
+        }
+
+        [Test]
         public void RevalidationRejectsMutatedChannelEvidenceWithoutTrustingAnIssuedOwner()
         {
             using DefaultServerResourceIsolationProvider provider = CreateProvider(Options());
@@ -101,6 +319,30 @@ namespace Opc.Ua.Server.Tests
         }
 
 #if NET8_0_OR_GREATER
+        [Test]
+        public void RepeatedClassificationReusesOwnerAndCertificateSnapshotAcrossFreshRequestContexts()
+        {
+            using DefaultServerResourceIsolationProvider provider = CreateProvider(Options());
+            byte[] certificate = new byte[1500];
+            SecureChannelContext firstContext = Channel("channel", certificate);
+            ResourceIsolationOwner first = provider.Classify(firstContext);
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            bool reused = true;
+            for (int ii = 0; ii < 1000; ii++)
+            {
+                var next = new SecureChannelContext(
+                    firstContext.SecureChannelId, firstContext.EndpointDescription, RequestEncoding.Binary,
+                    certificate, peerAddress: firstContext.PeerAddress);
+                reused &= ReferenceEquals(first, provider.Classify(next));
+            }
+            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+            TestContext.Out.WriteLine($"Classification issuance allocated {allocated} bytes for 1000 fresh contexts.");
+            Assert.That(reused, Is.True);
+            Assert.That(allocated, Is.LessThan(256_000),
+                "Issuing classification must not copy/hash the same 1500-byte certificate on every request.");
+        }
+
         [Test]
         public void RevalidationDoesNotAllocateNewOwnerOrHashCertificateForEachCheck()
         {

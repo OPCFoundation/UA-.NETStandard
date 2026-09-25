@@ -49,7 +49,8 @@ namespace Opc.Ua.Server
     /// Explicit ingress classification is necessary for strict pre-authentication guarantees.
     /// </remarks>
     public sealed class DefaultServerResourceIsolationProvider :
-        IServerResourceIsolationProvider, IResourceIsolationRevalidationProvider, IDisposable
+        IServerResourceIsolationProvider, IResourceIsolationRevalidationProvider,
+        IResourceIsolationReassemblyProvider, IDisposable
     {
         /// <summary>
         /// Creates a provider from an immutable runtime plan.
@@ -85,7 +86,7 @@ namespace Opc.Ua.Server
             m_meter.CreateObservableGauge("opcua.server.isolation.usage", ObserveUsage);
             m_meter.CreateObservableGauge("opcua.server.isolation.owners", () => TrackedOwnerCount);
             m_logger = telemetry.CreateLogger<DefaultServerResourceIsolationProvider>();
-            m_logger.IsolationPolicyStarted(plan.Mode);
+            m_logger.IsolationPolicyStarted();
         }
 
         /// <summary>
@@ -135,6 +136,11 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(channelContext));
             }
+            if (string.IsNullOrEmpty(channelContext.SecureChannelId))
+            {
+                throw new ArgumentException("A transport-established channel identifier is required.",
+                    nameof(channelContext));
+            }
             ThrowIfDisposed();
             SessionBindingContext? binding = null;
             if (!authenticationToken.IsNull &&
@@ -146,21 +152,29 @@ namespace Opc.Ua.Server
             {
                 SecurityMode: MessageSecurityMode.Sign or MessageSecurityMode.SignAndEncrypt
             } endpoint && endpoint.SecurityPolicyUri != SecurityPolicies.None;
-            SecureChannelContext verifiedContext = secure ? channelContext : new SecureChannelContext(
-                channelContext.SecureChannelId, channelContext.EndpointDescription, channelContext.MessageEncoding,
-                peerAddress: channelContext.PeerAddress)
+            if (m_classifier != null)
             {
-                UpstreamIdentity = channelContext.UpstreamIdentity
-            };
-            if (m_classifier?.TryClassify(verifiedContext, binding, out ResourceIsolationIdentity identity) == true)
-            {
-                return CreateMappedOwner(identity, binding, channelContext);
+                SecureChannelContext verifiedContext = secure ? channelContext : new SecureChannelContext(
+                    channelContext.SecureChannelId, channelContext.EndpointDescription, channelContext.MessageEncoding,
+                    peerAddress: channelContext.PeerAddress)
+                { UpstreamIdentity = channelContext.UpstreamIdentity };
+                if (m_classifier.TryClassify(verifiedContext, binding, out ResourceIsolationIdentity identity) ||
+                    m_classifier.TryClassifyIngress(
+                        channelContext.PeerAddress == null ? null : new IPEndPoint(channelContext.PeerAddress, 0),
+                        out identity))
+                {
+                    return CreateMappedOwner(identity, binding, channelContext);
+                }
             }
-            if (m_classifier?.TryClassifyIngress(
-                channelContext.PeerAddress == null ? null : new IPEndPoint(channelContext.PeerAddress, 0),
-                out identity) == true)
+            ResourceIsolationClass ownerClass = binding != null && controlRequest
+                ? ResourceIsolationClass.Control
+                : binding != null && sessionEstablishment
+                    ? ResourceIsolationClass.Reconnect : ResourceIsolationClass.Established;
+            ClassificationCache cache = m_channelClassifications.GetValue(
+                channelContext.SecureChannelId, static _ => new ClassificationCache());
+            if (cache.TryGet(ownerClass, binding, channelContext, out ResourceIsolationOwner? cached))
             {
-                return CreateMappedOwner(identity, binding, channelContext);
+                return cached;
             }
             string key;
             if (binding?.ClientUserId is { } continuityKey)
@@ -176,19 +190,23 @@ namespace Opc.Ua.Server
             {
                 key = PeerKey(channelContext.PeerAddress);
             }
-            ResourceIsolationClass ownerClass = ResourceIsolationClass.Established;
-            if (binding != null)
-            {
-                if (controlRequest)
-                {
-                    ownerClass = ResourceIsolationClass.Control;
-                }
-                else if (sessionEstablishment)
-                {
-                    ownerClass = ResourceIsolationClass.Reconnect;
-                }
-            }
             return CreateOwner(key, ownerClass, binding: binding, channelContext: channelContext);
+        }
+
+        /// <inheritdoc/>
+        public ResourceIsolationOwner ClassifyReassembly(SecureChannelContext channelContext)
+        {
+            ResourceIsolationOwner owner = Classify(channelContext);
+            if (!UseFairScheduling || owner.Class != ResourceIsolationClass.Established ||
+                m_sessionBindings?.HasSession(channelContext.SecureChannelId) != true)
+            {
+                return owner;
+            }
+            return CreateOwner(
+                "continuity:" + owner.Key,
+                ResourceIsolationClass.Reconnect,
+                channelContext: channelContext,
+                onlyStage: ResourceIsolationStage.ReassemblyBytes);
         }
 
         /// <inheritdoc/>
@@ -224,6 +242,10 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(channelContext));
             }
             ThrowIfDisposed();
+            if (original.OnlyStage.HasValue)
+            {
+                return StatusCodes.BadServerTooBusy;
+            }
             if (original.Channel == null || !original.Channel.Matches(channelContext))
             {
                 return StatusCodes.BadSecureChannelIdInvalid;
@@ -338,7 +360,7 @@ namespace Opc.Ua.Server
         internal bool IsIssuedOwner(ResourceIsolationOwner owner)
         {
             ThrowIfDisposed();
-            return m_classifications.TryGetValue(owner, out _);
+            return m_classifications.TryGetValue(owner, out OwnerIdentity? identity) && !identity.OnlyStage.HasValue;
         }
 
         /// <summary>
@@ -372,6 +394,10 @@ namespace Opc.Ua.Server
         {
             lease = null;
             if (!m_classifications.TryGetValue(owner, out OwnerIdentity? identity))
+            {
+                return ResourceIsolationFailureReason.InvalidOwner;
+            }
+            if (identity.OnlyStage is { } onlyStage && onlyStage != stage)
             {
                 return ResourceIsolationFailureReason.InvalidOwner;
             }
@@ -558,10 +584,12 @@ namespace Opc.Ua.Server
                     throw new InvalidOperationException("The classifier returned an unprovisioned trusted owner.");
                 }
                 return CreateOwner(
-                    GetTrustedOwnerKey(identity.Key), identity.Class, provisioned, binding, channelContext);
+                    GetTrustedOwnerKey(identity.Key), identity.Class, provisioned, binding, channelContext,
+                    mapped: true);
             }
             return CreateOwner(
-                "mapped:" + identity.Key, identity.Class, binding: binding, channelContext: channelContext);
+                "mapped:" + identity.Key, identity.Class, binding: binding, channelContext: channelContext,
+                mapped: true);
         }
 
         private ResourceIsolationOwner CreateOwner(
@@ -569,8 +597,18 @@ namespace Opc.Ua.Server
             ResourceIsolationClass ownerClass,
             TrustedOwnerPlan? provisioned = null,
             SessionBindingContext? binding = null,
-            SecureChannelContext? channelContext = null)
+            SecureChannelContext? channelContext = null,
+            ResourceIsolationStage? onlyStage = null,
+            bool mapped = false)
         {
+            ClassificationCache? cache = channelContext == null ? null :
+                m_channelClassifications.GetValue(
+                    channelContext.SecureChannelId, static _ => new ClassificationCache());
+            if (cache != null && cache.TryGet(
+                ownerClass, binding, channelContext!, out ResourceIsolationOwner? cached, key, onlyStage, mapped))
+            {
+                return cached;
+            }
             var ceilings = new long[kStageCount];
             for (int ii = 0; ii < ceilings.Length; ii++)
             {
@@ -578,8 +616,9 @@ namespace Opc.Ua.Server
             }
             var owner = new ResourceIsolationOwner(
                 key, ownerClass, provisioned?.Weight ?? Plan.DefaultWeight, ceilings);
-            m_classifications.Add(owner, new OwnerIdentity(
-                provisioned, binding, channelContext == null ? null : new ChannelSnapshot(channelContext)));
+            ChannelSnapshot? snapshot = channelContext == null ? null : cache!.GetSnapshot(channelContext);
+            m_classifications.Add(owner, new OwnerIdentity(provisioned, binding, snapshot, onlyStage));
+            cache?.Set(owner, binding, snapshot!, onlyStage, mapped);
             return owner;
         }
 
@@ -687,12 +726,88 @@ namespace Opc.Ua.Server
         /// Associates an issued classification with its provisioned limits and captured validation evidence.
         /// </summary>
         private sealed record OwnerIdentity(
-            TrustedOwnerPlan? Trusted, SessionBindingContext? Binding, ChannelSnapshot? Channel);
+            TrustedOwnerPlan? Trusted, SessionBindingContext? Binding, ChannelSnapshot? Channel,
+            ResourceIsolationStage? OnlyStage);
 
         /// <summary>
         /// Caches a derived key only for the lifetime of its immutable session activation.
         /// </summary>
         private sealed record DerivedKey(string Value);
+
+        /// <summary>
+        /// Keeps a fixed number of classifications per live channel-id object, without a permanent identity dictionary.
+        /// Snapshot comparisons retain mutation detection; changing session instances invalidates cached ownership.
+        /// </summary>
+        private sealed class ClassificationCache
+        {
+            /// <summary>
+            /// Reuses a classification only after current Session and classifier checks have run.
+            /// </summary>
+            public bool TryGet(
+                ResourceIsolationClass ownerClass,
+                SessionBindingContext? binding,
+                SecureChannelContext context,
+                [NotNullWhen(true)] out ResourceIsolationOwner? owner,
+                string? key = null,
+                ResourceIsolationStage? onlyStage = null,
+                bool mapped = false)
+            {
+                lock (m_lock)
+                {
+                    Entry? entry = m_entries[onlyStage.HasValue ? kClassCount : (int)ownerClass];
+                    if (entry != null && entry.Owner.Class == ownerClass &&
+                        entry.Mapped == mapped && entry.Stage == onlyStage &&
+                        ReferenceEquals(entry.Binding, binding) && (key == null || key == entry.Owner.Key) &&
+                        entry.Snapshot.Matches(context))
+                    {
+                        owner = entry.Owner;
+                        return true;
+                    }
+                }
+                owner = null;
+                return false;
+            }
+
+            /// <summary>
+            /// Reuses unchanged certificate evidence even when another Session uses the same channel.
+            /// </summary>
+            public ChannelSnapshot GetSnapshot(SecureChannelContext context)
+            {
+                lock (m_lock)
+                {
+                    if (m_snapshot == null || !m_snapshot.Matches(context))
+                    {
+                        m_snapshot = new ChannelSnapshot(context);
+                    }
+                    return m_snapshot;
+                }
+            }
+
+            /// <summary>
+            /// Replaces one fixed slot; older classifications remain valid only while their leases retain them.
+            /// </summary>
+            public void Set(
+                ResourceIsolationOwner owner, SessionBindingContext? binding, ChannelSnapshot snapshot,
+                ResourceIsolationStage? stage, bool mapped)
+            {
+                lock (m_lock)
+                {
+                    m_entries[stage.HasValue ? kClassCount : (int)owner.Class] =
+                        new Entry(owner, binding, snapshot, stage, mapped);
+                }
+            }
+
+            /// <summary>
+            /// Records the validated mapping inputs associated with one issued owner.
+            /// </summary>
+            private sealed record Entry(
+                ResourceIsolationOwner Owner, SessionBindingContext? Binding, ChannelSnapshot Snapshot,
+                ResourceIsolationStage? Stage, bool Mapped);
+
+            private readonly Lock m_lock = new();
+            private readonly Entry?[] m_entries = new Entry?[kClassCount + 1];
+            private ChannelSnapshot? m_snapshot;
+        }
 
         /// <summary>
         /// Captures classification inputs so revalidation can compare them without hashing or issuing another owner.
@@ -806,6 +921,7 @@ namespace Opc.Ua.Server
         private readonly Counter<long> m_rejections;
         private readonly ILogger m_logger;
         private readonly ConditionalWeakTable<SessionBindingContext, DerivedKey> m_bindingKeys = new();
+        private readonly ConditionalWeakTable<string, ClassificationCache> m_channelClassifications = new();
         private readonly int[] m_exclusiveOwners = new int[kClassCount];
         private readonly bool m_hasBootstrapReservation;
         private readonly bool m_hasReconnectReservation;
@@ -819,10 +935,10 @@ namespace Opc.Ua.Server
     internal static partial class DefaultServerResourceIsolationProviderLog
     {
         /// <summary>
-        /// Records the configured profile without logging caller identity or other sensitive material.
+        /// Records initialization without logging caller identity, configuration values or credentials.
         /// </summary>
         [LoggerMessage(EventId = ServerEventIds.ResourceIsolation, Level = LogLevel.Information,
-            Message = "Server resource isolation started with profile {Mode}.")]
-        public static partial void IsolationPolicyStarted(this ILogger logger, ServerResourceIsolationMode mode);
+            Message = "Server resource isolation initialized.")]
+        public static partial void IsolationPolicyStarted(this ILogger logger);
     }
 }

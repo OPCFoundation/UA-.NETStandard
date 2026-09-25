@@ -81,13 +81,10 @@ namespace Opc.Ua.Server
                     nameof(resourceIsolationProvider));
             }
             long protectedCount = 2L + resourceIsolationProvider.Plan.TrustedOwners.Count;
-            if (connectionsPerSecond <= protectedCount || burst <= protectedCount)
-            {
-                throw new ArgumentException(
-                    "The configured connection rate and burst must each hold one bootstrap token, " +
-                    "one reconnect token, one token per provisioned trusted owner and at least one shared token. " +
-                    "Increase the explicit totals or select a profile without rate reservations.");
-            }
+            ValidateProtectedTotal(connectionsPerSecond, protectedCount,
+                nameof(connectionsPerSecond), nameof(ServerRateLimitOptions.ConnectionsPerSecond));
+            ValidateProtectedTotal(burst, protectedCount,
+                nameof(burst), nameof(ServerRateLimitOptions.ConnectionBurst));
             m_shared = new Bucket(connectionsPerSecond - (int)protectedCount, burst - (int)protectedCount);
             foreach (string key in resourceIsolationProvider.Plan.TrustedOwners.Keys)
             {
@@ -125,6 +122,25 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 m_disposed = true;
+            }
+        }
+
+        /// <summary>
+        /// Reports the specific total that cannot satisfy the protected floors and one shared token.
+        /// </summary>
+        private static void ValidateProtectedTotal(
+            int total,
+            long protectedCount,
+            string parameterName,
+            string optionName)
+        {
+            if (total <= protectedCount)
+            {
+                throw new ArgumentException(
+                    $"{optionName} must be at least {protectedCount + 1} to hold one bootstrap token, " +
+                    "one reconnect token, one token per provisioned trusted owner and at least one shared token. " +
+                    "Increase this explicit total or select a profile without rate reservations.",
+                    parameterName);
             }
         }
 

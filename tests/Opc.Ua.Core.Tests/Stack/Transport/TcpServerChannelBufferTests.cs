@@ -1588,6 +1588,25 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
         }
 
+        [Test]
+        public void CustomProviderWithoutReassemblyCapabilityPreservesSessionlessBudgetThreshold()
+        {
+            var pool = new TrackingArrayPool();
+            var policy = new RecordingIsolation();
+            using TestServerChannel probe = CreateOpenChannel(pool);
+            int rental = probe.GetRentedLengthForTest(32);
+            var budget = new ChunkReassemblyBudget(4L * rental, rental);
+            using TestServerChannel channel = CreateOpenChannel(pool, budget: budget, isolation: policy);
+
+            channel.SaveReceivedPartForTest(1, new ArraySegment<byte>(channel.TakeBufferForTest(32)));
+            channel.SaveReceivedPartForTest(1, new ArraySegment<byte>(channel.TakeBufferForTest(32)));
+
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+            Assert.That(budget.ReservedBytes, Is.Zero);
+            Assert.That(policy.OutstandingBytes, Is.Zero);
+            Assert.That(pool.OutstandingCount, Is.Zero);
+        }
+
         [TestCase("complete")]
         [TestCase("abort")]
         [TestCase("close")]

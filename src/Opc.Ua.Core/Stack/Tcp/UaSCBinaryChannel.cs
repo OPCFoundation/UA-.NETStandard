@@ -599,14 +599,15 @@ namespace Opc.Ua.Bindings
                     hasSession = ServesActivatedSession;
                     if (isolation != null)
                     {
-                        owner ??= isolation.Classify(new SecureChannelContext(
-                            GlobalChannelId,
-                            EndpointDescription,
-                            RequestEncoding.Binary,
-                            ClientCertificate?.RawData,
-                            ServerCertificate?.RawData,
-                            ChannelThumbprint,
-                            (Transport?.RemoteEndpoint as System.Net.IPEndPoint)?.Address));
+                        if (owner == null)
+                        {
+                            var context = new SecureChannelContext(
+                                GlobalChannelId, EndpointDescription, RequestEncoding.Binary,
+                                ClientCertificate?.RawData, ServerCertificate?.RawData, ChannelThumbprint,
+                                (Transport?.RemoteEndpoint as System.Net.IPEndPoint)?.Address);
+                            owner = isolation is IResourceIsolationReassemblyProvider reassembly
+                                ? reassembly.ClassifyReassembly(context) : isolation.Classify(context);
+                        }
                         budgetExceeded = !isolation.TryAcquire(
                             ResourceIsolationStage.ReassemblyBytes, owner, chunk.Array.Length,
                             out incomingLease, out _);
@@ -632,7 +633,9 @@ namespace Opc.Ua.Bindings
                     if (!chunkOrSizeLimitsExceeded && !budgetExceeded && requestId != 0 && chunk.Array != null)
                     {
                         if (isFinal || TryReservePartialMessageChunk(
-                            chunk.Array.Length, isolation?.UseFairScheduling == true || hasSession))
+                            chunk.Array.Length,
+                            (isolation is IResourceIsolationReassemblyProvider && isolation.UseFairScheduling) ||
+                                hasSession))
                         {
                             if (m_partialMessageChunks == null)
                             {

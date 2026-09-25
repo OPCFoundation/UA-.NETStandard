@@ -222,6 +222,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Runtime isolation options, applied at startup unless a custom provider is supplied.
         /// Balanced is the default; SharedOnly explicitly retains shared-capacity compatibility.
+        /// The configured handshake deadline is validated regardless of mode or provider.
         /// </summary>
         public ServerResourceIsolationOptions ResourceIsolationOptions { get; set; } = new();
 
@@ -3557,6 +3558,7 @@ namespace Opc.Ua.Server
             TransportListenerSettings settings,
             Uri endpointUri)
         {
+            ResourceIsolationOptions.ValidateHandshakeTimeout();
             base.ConfigureTransportListenerSettings(settings, endpointUri);
             settings.HandshakeTimeout = ResourceIsolationOptions.HandshakeTimeout;
             IServerRateLimiterProvider? provider = m_rateLimiterProvider;
@@ -3578,20 +3580,26 @@ namespace Opc.Ua.Server
             ApplicationConfiguration configuration,
             ITelemetryContext telemetry)
         {
-            ResetOwnedResourceIsolation();
-            if (ResourceIsolationProvider != null ||
+            ResourceIsolationOptions.ValidateHandshakeTimeout();
+            if ((ResourceIsolationProvider != null &&
+                !ReferenceEquals(ResourceIsolationProvider, m_ownedResourceIsolationProvider)) ||
                 ResourceIsolationOptions.Mode == ServerResourceIsolationMode.SharedOnly)
             {
+                ResetOwnedResourceIsolation();
                 return;
             }
-            bool ownsBudget = ChunkReassemblyBudget == null;
-            ChunkReassemblyBudget budget = ChunkReassemblyBudget ??
-                global::Opc.Ua.Bindings.ChunkReassemblyBudget.CreateDefault(
-                    EndpointConfiguration.Create(configuration));
+            bool ownsBudget = ChunkReassemblyBudget == null ||
+                ReferenceEquals(ChunkReassemblyBudget, m_ownedChunkReassemblyBudget);
+            ChunkReassemblyBudget budget = ownsBudget
+                ? global::Opc.Ua.Bindings.ChunkReassemblyBudget.CreateDefault(
+                    EndpointConfiguration.Create(configuration))
+                : ChunkReassemblyBudget!;
             ServerResourceIsolationPlan plan = ResourceIsolationOptions.CreateRuntimePlan(
                 configuration, RateLimitOptions, budget);
-            m_ownedResourceIsolationProvider = new DefaultServerResourceIsolationProvider(
+            var provider = new DefaultServerResourceIsolationProvider(
                 plan, telemetry, SessionBindingProvider ?? this, ResourceIsolationClassifier);
+            ResetOwnedResourceIsolation();
+            m_ownedResourceIsolationProvider = provider;
             if (ownsBudget)
             {
                 m_ownedChunkReassemblyBudget = budget;
@@ -3616,6 +3624,9 @@ namespace Opc.Ua.Server
             m_ownsRateLimiterProvider = true;
         }
 
+        /// <summary>
+        /// Releases only server-owned isolation resources, preserving host replacements.
+        /// </summary>
         private void ResetOwnedResourceIsolation()
         {
             if (m_ownedResourceIsolationProvider != null)

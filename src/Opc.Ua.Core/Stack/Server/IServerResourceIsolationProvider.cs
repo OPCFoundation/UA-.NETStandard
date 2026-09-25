@@ -285,6 +285,22 @@ namespace Opc.Ua
     }
 
     /// <summary>
+    /// Optional classification for retaining a partial message before its Session token can be decoded.
+    /// </summary>
+    /// <remarks>
+    /// Membership must come from the server's authoritative binding provider, not the message body.
+    /// Any membership-based promotion grants capacity only at the reassembly stage.
+    /// </remarks>
+    public interface IResourceIsolationReassemblyProvider
+    {
+        /// <summary>
+        /// Classifies a transport-established channel for one incomplete message. The caller keeps
+        /// the classification until that message completes or is discarded.
+        /// </summary>
+        ResourceIsolationOwner ClassifyReassembly(SecureChannelContext channelContext);
+    }
+
+    /// <summary>
     /// Optional classification validation that distinguishes a stale live session from a
     /// missing, moved or unauthorized session without refreshing session activity.
     /// </summary>
