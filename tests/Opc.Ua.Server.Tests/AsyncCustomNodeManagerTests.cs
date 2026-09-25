@@ -9180,6 +9180,8 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         public MonitoringFilter LastValidatedFilter { get; private set; }
 
+        internal int DetachedNotificationCount => Volatile.Read(ref m_detachedNotificationCount);
+
         /// <summary>
         /// Replaces monitored-item management with a sampling-group manager that records calls and injects failures.
         /// </summary>
@@ -9216,6 +9218,16 @@ namespace Opc.Ua.Server.Tests
             CancellationToken cancellationToken = default)
         {
             return EventSubscriptionCallback?.Invoke(unsubscribe, cancellationToken) ?? default;
+        }
+
+        protected override ValueTask OnMonitoredItemDetachedAsync(
+            ServerSystemContext context,
+            NodeHandle handle,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref m_detachedNotificationCount);
+            return base.OnMonitoredItemDetachedAsync(context, handle, monitoredItem, cancellationToken);
         }
 
         protected override ValueTask OnNodeRemovedAsync(
@@ -9461,6 +9473,8 @@ namespace Opc.Ua.Server.Tests
         {
             return FindPredefinedNode<T>(nodeId);
         }
+
+        private int m_detachedNotificationCount;
     }
 
     /// <summary>

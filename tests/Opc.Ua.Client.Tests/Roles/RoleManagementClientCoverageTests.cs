@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -41,6 +42,7 @@ namespace Opc.Ua.Client.Tests.Roles
     public sealed class RoleManagementClientCoverageTests
     {
         private Mock<ISession> m_session = null!;
+        private Mock<INodeCache> m_nodeCache = null!;
         private RoleManagementClient m_client = null!;
 
         [SetUp]
@@ -48,7 +50,81 @@ namespace Opc.Ua.Client.Tests.Roles
         {
             m_session = new Mock<ISession>(MockBehavior.Strict);
             m_session.SetupGet(s => s.NamespaceUris).Returns(new NamespaceTable());
+            m_nodeCache = new Mock<INodeCache>();
+            m_session.SetupGet(s => s.NodeCache).Returns(m_nodeCache.Object);
             m_client = new RoleManagementClient(m_session.Object);
+        }
+
+        [Test]
+        public async Task ListRolesAsyncIncludesRoleSubtypesAndReadsTheirPropertiesAsync()
+        {
+            var roleId = new NodeId(6003u, 2);
+            var roleTypeId = new NodeId(9001u, 2);
+            var configurationId = new NodeId(7006u, 2);
+            m_nodeCache.Setup(cache => cache.IsTypeOfAsync(
+                    roleTypeId, ObjectTypeIds.RoleType, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
+            m_session.Setup(session => session.BrowseAsync(
+                    null, null, 0, It.IsAny<ArrayOf<BrowseDescription>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new BrowseResponse
+                {
+                    Results = [new BrowseResult
+                    {
+                        References =
+                        [
+                            new ReferenceDescription
+                            {
+                                NodeId = roleId,
+                                TypeDefinition = roleTypeId
+                            },
+                            new ReferenceDescription
+                            {
+                                NodeId = new NodeId(6004u, 2),
+                                TypeDefinition = ObjectTypeIds.FolderType
+                            }
+                        ]
+                    }]
+                });
+            m_session.Setup(session => session.TranslateBrowsePathsToNodeIdsAsync(
+                    null,
+                    It.Is<ArrayOf<BrowsePath>>(paths => paths.Count == 6 && paths[0].StartingNode == roleId),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new TranslateBrowsePathsToNodeIdsResponse
+                {
+                    Results =
+                    [
+                        new BrowsePathResult { StatusCode = StatusCodes.BadNoMatch },
+                        new BrowsePathResult { StatusCode = StatusCodes.BadNoMatch },
+                        new BrowsePathResult { StatusCode = StatusCodes.BadNoMatch },
+                        new BrowsePathResult { StatusCode = StatusCodes.BadNoMatch },
+                        new BrowsePathResult { StatusCode = StatusCodes.BadNoMatch },
+                        ResultFor(configurationId)
+                    ]
+                });
+            m_session.Setup(session => session.ReadAsync(
+                    null, 0, TimestampsToReturn.Neither,
+                    It.Is<ArrayOf<ReadValueId>>(nodes =>
+                        nodes.Count == 2 && nodes[0].NodeId == roleId && nodes[1].NodeId == configurationId),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ReadResponse
+                {
+                    Results =
+                    [
+                        new DataValue(Variant.From(new QualifiedName("VendorRole", 2))),
+                        new DataValue(Variant.From(true))
+                    ]
+                });
+
+            IReadOnlyList<RoleInfo> roles = await m_client.ListRolesAsync().ConfigureAwait(false);
+
+            Assert.That(roles, Has.Count.EqualTo(1));
+            Assert.That(roles[0].RoleId, Is.EqualTo(roleId));
+            Assert.That(roles[0].BrowseName, Is.EqualTo(new QualifiedName("VendorRole", 2)));
+            Assert.That(roles[0].CustomConfiguration, Is.True);
+            m_nodeCache.Verify(cache => cache.IsTypeOfAsync(
+                roleTypeId, ObjectTypeIds.RoleType, It.IsAny<CancellationToken>()), Times.Once);
+            m_nodeCache.Verify(cache => cache.IsTypeOfAsync(
+                ObjectTypeIds.FolderType, ObjectTypeIds.RoleType, It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Test]

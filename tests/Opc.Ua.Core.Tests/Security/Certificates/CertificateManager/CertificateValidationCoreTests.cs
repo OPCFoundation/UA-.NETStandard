@@ -852,6 +852,129 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 ContainsStatusCode(result, StatusCodes.BadCertificateUntrusted), Is.True);
         }
 
+        [TestCase(0, false)]
+        [TestCase(0, true)]
+        [TestCase(1, false)]
+        [TestCase(2, false)]
+        [TestCase(3, false)]
+        public async Task NativeCertificateCopiesAreReleasedAsync(int failOnCopy, bool expired)
+        {
+            var nativeCopies = new List<X509Certificate2>();
+            int copyAttempts = 0;
+            var copyFailure = new CryptographicException("Controlled native certificate copy failure.");
+            using var core = new CertificateValidationCore(
+                m_telemetry,
+                openStore: static _ => null,
+                copyNativeCertificate: certificate =>
+                {
+                    copyAttempts++;
+                    if (copyAttempts == failOnCopy)
+                    {
+                        throw copyFailure;
+                    }
+                    X509Certificate2 copy = certificate.AsX509Certificate2();
+                    nativeCopies.Add(copy);
+                    return copy;
+                });
+            core.Update(null, new CertificateTrustList
+            {
+                TrustedCertificates = [new CertificateIdentifier { RawData = m_rootCa.RawData }]
+            }, null);
+            using CertificateCollection chain = expired
+                ? Chain(m_expiredLeaf)
+                : Chain(m_leafUnderIntermediate, m_intermediateCa);
+            try
+            {
+                if (failOnCopy == 0)
+                {
+                    CertificateValidationResult result = await core.ValidateAsync(
+                        chain, null, null, CancellationToken.None).ConfigureAwait(false);
+                    Assert.That(result.IsValid, Is.EqualTo(!expired));
+                    if (expired)
+                    {
+                        Assert.That(
+                            ContainsStatusCode(result, StatusCodes.BadCertificateTimeInvalid), Is.True);
+                    }
+                }
+                else
+                {
+                    CryptographicException exception = Assert.ThrowsAsync<CryptographicException>(
+                        async () => await core.ValidateAsync(
+                            chain, null, null, CancellationToken.None).ConfigureAwait(false));
+                    Assert.That(exception, Is.SameAs(copyFailure));
+                }
+                int expectedAttempts = failOnCopy == 0 ? expired ? 2 : 3 : failOnCopy;
+                Assert.That(copyAttempts, Is.EqualTo(expectedAttempts));
+                Assert.That(nativeCopies, Has.Count.EqualTo(
+                    failOnCopy == 0 ? expectedAttempts : expectedAttempts - 1));
+                foreach (X509Certificate2 copy in nativeCopies)
+                {
+                    Assert.That(copy.Handle, Is.EqualTo(IntPtr.Zero));
+                }
+                using RSA sourceKey = m_rootCa.GetRSAPublicKey();
+                Assert.That(sourceKey.KeySize, Is.EqualTo(2048));
+            }
+            finally
+            {
+                foreach (X509Certificate2 copy in nativeCopies)
+                {
+                    copy.Dispose();
+                }
+            }
+        }
+
+        [Test]
+        public void NativeIssuerCopiesAreReleasedWhenChainBuildThrows()
+        {
+            var nativeCopies = new List<X509Certificate2>();
+            bool issuerCopiesWereLive = false;
+            using var core = new CertificateValidationCore(
+                m_telemetry,
+                openStore: static _ => null,
+                copyNativeCertificate: certificate =>
+                {
+                    X509Certificate2 copy = certificate.AsX509Certificate2();
+                    nativeCopies.Add(copy);
+                    if (nativeCopies.Count == 3)
+                    {
+                        issuerCopiesWereLive =
+                            nativeCopies[0].Handle != IntPtr.Zero &&
+                            nativeCopies[1].Handle != IntPtr.Zero;
+                        copy.Dispose();
+                    }
+                    return copy;
+                });
+            core.Update(null, new CertificateTrustList
+            {
+                TrustedCertificates = [new CertificateIdentifier { RawData = m_rootCa.RawData }]
+            }, null);
+            using CertificateCollection chain = Chain(m_leafUnderIntermediate, m_intermediateCa);
+            try
+            {
+                ArgumentException exception = Assert.ThrowsAsync<ArgumentException>(
+                    async () => await core.ValidateAsync(
+                        chain, null, null, CancellationToken.None).ConfigureAwait(false));
+                Assert.That(exception.ParamName, Is.EqualTo("certificate"));
+                Assert.That(issuerCopiesWereLive, Is.True);
+                Assert.That(nativeCopies, Has.Count.EqualTo(3));
+                foreach (X509Certificate2 copy in nativeCopies)
+                {
+                    Assert.That(copy.Handle, Is.EqualTo(IntPtr.Zero));
+                }
+                using RSA issuerKey = m_intermediateCa.GetRSAPublicKey();
+                Assert.That(issuerKey.KeySize, Is.EqualTo(2048));
+                using RSA leafKey = m_leafUnderIntermediate.GetRSAPublicKey();
+                Assert.That(leafKey.KeySize, Is.EqualTo(2048));
+            }
+            finally
+            {
+                foreach (X509Certificate2 copy in nativeCopies)
+                {
+                    copy.Dispose();
+                }
+            }
+        }
+
         /// <summary>
         /// A trust list whose store is empty and whose TrustedCertificates names
         /// the given certificates, which is the shape the configuration file

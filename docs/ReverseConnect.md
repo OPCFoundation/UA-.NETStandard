@@ -42,6 +42,12 @@ A reverse-connect listener remains bound for the lifetime of its `ReverseConnect
 
 Use one shared `ReverseConnectManager` for all Servers that connect to the same Client URL. Register or wait for each Server separately by using its Server `EndpointUrl` and, preferably, its `ServerUri`. The fluent dependency-injection integration registers the manager as a singleton.
 
+A `ManagedSession` needs that manager for recovery as well as initial connection.
+A waiting `ITransportWaitingConnection` supplied directly to `CreateAsync` is
+single-use. Without a `ReverseConnectManager`, recovery fails through the configured
+reconnect policy instead of obtaining a fresh connection; it never silently
+switches to an outbound connection.
+
 ``` csharp
 await using var manager = new ReverseConnectManager(telemetry);
 manager.AddEndpoint(new Uri("opc.tcp://client-host:65300"));

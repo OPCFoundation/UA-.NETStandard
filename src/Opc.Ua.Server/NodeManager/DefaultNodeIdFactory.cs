@@ -808,13 +808,15 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Rejects arguments no canonical path can be built from.
         /// </summary>
+        /// <exception cref="ServiceResultException">The browse name is null or empty.</exception>
         private static void ValidatePathArguments(
             QualifiedName browseName,
             NamespaceTable namespaceUris)
         {
             if (browseName.IsNull || string.IsNullOrEmpty(browseName.Name))
             {
-                throw new ArgumentException("The browse name is null.", nameof(browseName));
+                throw new ServiceResultException(
+                    StatusCodes.BadBrowseNameInvalid, "The browse name is null or empty.");
             }
             if (namespaceUris is null)
             {

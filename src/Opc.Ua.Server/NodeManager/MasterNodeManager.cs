@@ -2837,6 +2837,10 @@ namespace Opc.Ua.Server
             Exception ex,
             string nodeManager);
 
+        [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 25, Level = LogLevel.Error,
+            Message = "NodeManager failed a node-management operation.")]
+        public static partial void NodeManagementOperationFailed(this ILogger logger, Exception ex);
+
         [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 17, Level = LogLevel.Debug,
             Message = "Current user has no granted role.")]
         public static partial void CurrentUserHasNoGrantedRole(this ILogger logger);

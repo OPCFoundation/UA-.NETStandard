@@ -506,18 +506,24 @@ namespace Opc.Ua
         /// </summary>
         public int MaxRejectedCertificates
         {
-            get => m_maxRejectedCertificates;
+            get => Volatile.Read(ref m_maxRejectedCertificates);
             set
             {
-                m_maxRejectedCertificates = value;
-                if (m_rejectedProcessor != null)
+                RejectedCertificateProcessor? processor;
+                lock (m_certificatesLock)
                 {
-                    m_rejectedProcessor.SetMaxRejectedCertificates(m_maxRejectedCertificates);
+                    ThrowIfDisposed();
+                    m_maxRejectedCertificates = value;
+                    processor = m_rejectedProcessor;
+                    processor?.SetMaxRejectedCertificates(value);
+                }
+                if (processor != null)
+                {
                     // Actively re-apply the cap so existing entries are
                     // trimmed when the cap is lowered. The trim runs on
                     // the processor's background task and can be awaited
                     // via FlushRejectedAsync.
-                    _ = m_rejectedProcessor.EnqueueTrimAsync().AsTask();
+                    _ = processor.EnqueueTrimAsync().AsTask();
                 }
             }
         }
@@ -758,22 +764,23 @@ namespace Opc.Ua
                 .ValidateAsync(chain, acceptError, options, ct)
                 .ConfigureAwait(false);
 
-            if (!result.IsValid && chain != null && chain.Count > 0)
+            if (!result.IsValid &&
+                options?.RecordRejectedCertificates != false &&
+                chain != null &&
+                chain.Count > 0 &&
+                TryGetRejectedProcessor() is { } processor)
             {
                 // The core does not own a rejected-store writer; the manager
                 // is responsible for enqueuing failed chains on the shared
                 // RejectedCertificateProcessor. CertificateCollection.Add
                 // AddRef's each cert; the processor disposes the chain after
                 // processing, balancing the AddRef.
-                m_rejectedProcessor ??= new RejectedCertificateProcessor(
-                    this, m_maxRejectedCertificates, m_telemetry);
-
                 using var rejectedChain = new CertificateCollection();
                 foreach (Certificate c in chain)
                 {
                     rejectedChain.Add(c);
                 }
-                await m_rejectedProcessor.EnqueueAsync(rejectedChain, ct)
+                await processor.EnqueueAsync(rejectedChain, ct)
                     .ConfigureAwait(false);
             }
 
@@ -896,11 +903,40 @@ namespace Opc.Ua
         /// </summary>
         private void EnqueueRejectedCertificate(Certificate certificate)
         {
-            m_rejectedProcessor ??= new RejectedCertificateProcessor(
-                this, m_maxRejectedCertificates, m_telemetry);
+            RejectedCertificateProcessor? processor = TryGetRejectedProcessor();
+            if (processor == null)
+            {
+                return;
+            }
             using var rejected = new CertificateCollection { certificate };
             // Fire-and-forget: the processor handles failures internally.
-            _ = m_rejectedProcessor.EnqueueAsync(rejected).AsTask();
+            _ = processor.EnqueueAsync(rejected).AsTask();
+        }
+
+        /// <summary>
+        /// Acquires the single rejected-store writer without allowing creation after disposal begins.
+        /// </summary>
+        /// <exception cref="ObjectDisposedException">The certificate manager is shutting down.</exception>
+        private RejectedCertificateProcessor GetRejectedProcessor()
+        {
+            return TryGetRejectedProcessor() ??
+                throw new ObjectDisposedException(nameof(CertificateManager));
+        }
+
+        /// <summary>
+        /// Skips best-effort rejected recording when an admitted validation completes during shutdown.
+        /// </summary>
+        private RejectedCertificateProcessor? TryGetRejectedProcessor()
+        {
+            lock (m_certificatesLock)
+            {
+                if (m_disposed)
+                {
+                    return null;
+                }
+                return m_rejectedProcessor ??= new RejectedCertificateProcessor(
+                    this, m_maxRejectedCertificates, m_telemetry);
+            }
         }
 
         /// <inheritdoc/>
@@ -992,9 +1028,7 @@ namespace Opc.Ua
             CertificateCollection chain,
             CancellationToken ct = default)
         {
-            m_rejectedProcessor ??= new RejectedCertificateProcessor(
-                this, m_maxRejectedCertificates, m_telemetry);
-            return m_rejectedProcessor.EnqueueAsync(chain, ct).AsTask();
+            return GetRejectedProcessor().EnqueueAsync(chain, ct).AsTask();
         }
 
         /// <inheritdoc/>
@@ -1080,7 +1114,7 @@ namespace Opc.Ua
         {
             // Only the manager-owned RejectedCertificateProcessor is used now;
             // the per-trust-list validation cores no longer own writer queues.
-            return m_rejectedProcessor?.WaitForDrainAsync()
+            return Volatile.Read(ref m_rejectedProcessor)?.WaitForDrainAsync()
                 ?? Task.CompletedTask;
         }
 
@@ -1332,6 +1366,7 @@ namespace Opc.Ua
             CertificateValidationCore? peer;
             CertificateValidationCore? user;
             CertificateValidationCore? https;
+            RejectedCertificateProcessor? rejectedProcessor;
             lock (m_certificatesLock)
             {
                 if (m_disposed)
@@ -1339,6 +1374,7 @@ namespace Opc.Ua
                     return;
                 }
                 m_disposed = true;
+                rejectedProcessor = m_rejectedProcessor;
                 cores = [.. m_customCores.Values];
                 peer = m_peerCore;
                 user = m_userCore;
@@ -1370,9 +1406,9 @@ namespace Opc.Ua
             {
                 await https.Disposal.ConfigureAwait(false);
             }
-            if (m_rejectedProcessor != null)
+            if (rejectedProcessor != null)
             {
-                await m_rejectedProcessor.DisposeAsync().ConfigureAwait(false);
+                await rejectedProcessor.DisposeAsync().ConfigureAwait(false);
             }
 
             m_certificateProvider.Dispose();

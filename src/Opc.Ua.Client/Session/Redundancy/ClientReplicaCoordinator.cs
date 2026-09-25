@@ -212,6 +212,12 @@ namespace Opc.Ua.Client.Redundancy
                     {
                         return false;
                     }
+                    if (config.IdentityToken is UserNameIdentityToken savedIdentity &&
+                        m_session.Identity?.TokenHandler?.Token is UserNameIdentityToken liveIdentity &&
+                        string.Equals(savedIdentity.UserName, liveIdentity.UserName, StringComparison.Ordinal))
+                    {
+                        config.Identity = m_session.Identity;
+                    }
                     if (m_session.ApplySessionConfiguration(config))
                     {
                         mutatedForReuse = true;

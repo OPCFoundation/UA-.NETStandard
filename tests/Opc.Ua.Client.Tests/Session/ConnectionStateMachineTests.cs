@@ -241,6 +241,73 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         [Test]
+        public async Task ExternalStateCallbackDoesNotHoldStateLockAsync()
+        {
+            await using ConnectionStateMachine machine = CreateMachine();
+            machine.ConnectAsync = _ => Task.FromResult(ServiceResult.Good);
+            machine.Start();
+            machine.RequestConnect();
+            await machine.WaitForConnectedAsync(CancellationToken.None).ConfigureAwait(false);
+
+            using var closeEntered = new ManualResetEventSlim();
+            var callbackReleased = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task close = Task.CompletedTask;
+            machine.StateChanged += (_, change) =>
+            {
+                if (change.NewState != ConnectionState.Reconnecting)
+                {
+                    return;
+                }
+                close = Task.Run(() =>
+                {
+                    machine.RequestClose();
+                    closeEntered.Set();
+                });
+                callbackReleased.TrySetResult(closeEntered.Wait(TimeSpan.FromSeconds(2)));
+            };
+
+            machine.TriggerReconnect();
+
+            Assert.That(await callbackReleased.Task.ConfigureAwait(false), Is.True,
+                "An external state callback must not prevent another thread from requesting close.");
+            await close.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            await machine.WaitForClosedAsync(CancellationToken.None).AsTask()
+                .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task ReentrantStateNotificationsKeepTransitionOrderAsync()
+        {
+            await using ConnectionStateMachine machine = CreateMachine();
+            machine.ConnectAsync = _ => Task.FromResult(ServiceResult.Good);
+            var observed = new ConcurrentQueue<ConnectionState>();
+            var closed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            machine.StateChanged += (_, change) =>
+            {
+                if (change.NewState == ConnectionState.Connected)
+                {
+                    machine.RequestClose();
+                }
+            };
+            machine.StateChanged += (_, change) =>
+            {
+                observed.Enqueue(change.NewState);
+                if (change.NewState == ConnectionState.Closed)
+                {
+                    closed.TrySetResult(true);
+                }
+            };
+            machine.Start();
+            machine.RequestConnect();
+            await closed.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            Assert.That(observed, Is.EqualTo(
+            [
+                ConnectionState.Connecting, ConnectionState.Connected,
+                ConnectionState.Closing, ConnectionState.Closed
+            ]));
+        }
+
+        [Test]
         public async Task StartTransitionsToConnecting()
         {
             await using ConnectionStateMachine sm = CreateMachine();

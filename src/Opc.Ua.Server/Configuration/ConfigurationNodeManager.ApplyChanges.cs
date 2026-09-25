@@ -81,11 +81,6 @@ namespace Opc.Ua.Server
                 pending = m_pendingResetTask;
             }
 
-            if (pending.IsCompleted)
-            {
-                return Task.CompletedTask;
-            }
-
             return cancellationToken.CanBeCanceled ? pending.WaitAsync(cancellationToken) : pending;
         }
 
@@ -180,42 +175,73 @@ namespace Opc.Ua.Server
                 TaskCreationOptions.RunContinuationsAsynchronously);
             lock (m_pendingApplyChangesLock)
             {
+                if (!m_pendingResetTask.IsCompleted)
+                {
+                    return;
+                }
                 m_pendingResetTask = completion.Task;
             }
 
             m_backgroundWork.Run("DeferredResetToServerDefaults", async _ =>
             {
+                ServerStatusDataType? previousStatus = null;
+                Exception? failure = null;
+                var reason = new LocalizedText(
+                    "en-US",
+                    "The server is resetting to its default configuration. " +
+                    "Existing credentials may no longer be valid after the restart.");
                 try
                 {
-                    AdvertisePendingShutdown(delay);
-
-                    try
-                    {
-                        await m_timeProvider.Delay(delay, shutdownToken).ConfigureAwait(false);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        completion.TrySetResult(null);
-                        return;
-                    }
-
-                    if (shutdownToken.IsCancellationRequested)
-                    {
-                        completion.TrySetResult(null);
-                        return;
-                    }
-
+                    shutdownToken.ThrowIfCancellationRequested();
+                    previousStatus = AdvertisePendingShutdown(delay, reason);
+                    await m_timeProvider.Delay(delay, shutdownToken).ConfigureAwait(false);
+                    shutdownToken.ThrowIfCancellationRequested();
                     await resetProvider.ResetToServerDefaultsAsync(shutdownToken).ConfigureAwait(false);
-                    completion.TrySetResult(null);
                 }
-                catch (OperationCanceledException)
+                catch (OperationCanceledException ex)
                 {
-                    completion.TrySetResult(null);
+                    if (!shutdownToken.IsCancellationRequested)
+                    {
+                        m_logger.ResetToServerDefaultsFailed(ex);
+                    }
                 }
                 catch (Exception ex)
                 {
                     m_logger.ResetToServerDefaultsFailed(ex);
-                    completion.TrySetException(ex);
+                    failure = ex;
+                }
+                finally
+                {
+                    try
+                    {
+                        if (previousStatus != null)
+                        {
+                            Server.UpdateServerStatus(status =>
+                            {
+                                if (!shutdownToken.IsCancellationRequested &&
+                                    status.Value.State == ServerState.Shutdown &&
+                                    status.Value.ShutdownReason == reason)
+                                {
+                                    UpdateResetStatus(status, previousStatus.State,
+                                        previousStatus.SecondsTillShutdown, previousStatus.ShutdownReason);
+                                }
+                            });
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.ResetToServerDefaultsFailed(ex);
+                        failure = failure == null ? ex : new AggregateException(failure, ex);
+                    }
+
+                    if (failure == null)
+                    {
+                        completion.TrySetResult(null);
+                    }
+                    else
+                    {
+                        completion.TrySetException(failure);
+                    }
                 }
             });
         }
@@ -226,44 +252,48 @@ namespace Opc.Ua.Server
         /// per OPC 10000-12 §7.10.13, tolerating a server whose status object is
         /// not available.
         /// </summary>
-        private void AdvertisePendingShutdown(TimeSpan delay)
+        private ServerStatusDataType? AdvertisePendingShutdown(TimeSpan delay, LocalizedText reason)
         {
+            ServerStatusDataType? previousStatus = null;
             try
             {
                 uint secondsTillShutdown = (uint)Math.Ceiling(Math.Max(0, delay.TotalSeconds));
-                var reason = new LocalizedText(
-                    "en-US",
-                    "The server is resetting to its default configuration. " +
-                    "Existing credentials may no longer be valid after the restart.");
 
                 Server.UpdateServerStatus(status =>
                 {
-                    status.Value.State = ServerState.Shutdown;
-                    status.Value.ShutdownReason = reason;
-                    status.Value.SecondsTillShutdown = secondsTillShutdown;
-
-                    ServerStatusState? variable = status.Variable;
-                    if (variable != null)
+                    previousStatus = new ServerStatusDataType
                     {
-                        if (variable.State != null)
-                        {
-                            variable.State.Value = ServerState.Shutdown;
-                        }
-                        if (variable.ShutdownReason != null)
-                        {
-                            variable.ShutdownReason.Value = reason;
-                        }
-                        if (variable.SecondsTillShutdown != null)
-                        {
-                            variable.SecondsTillShutdown.Value = secondsTillShutdown;
-                        }
-                        variable.ClearChangeMasks(Server.DefaultSystemContext, true);
-                    }
+                        State = status.Value.State,
+                        ShutdownReason = status.Value.ShutdownReason,
+                        SecondsTillShutdown = status.Value.SecondsTillShutdown
+                    };
+                    UpdateResetStatus(status, ServerState.Shutdown, secondsTillShutdown, reason);
                 });
             }
             catch (Exception ex)
             {
                 m_logger.FailedToAdvertisePendingShutdown(ex);
+            }
+            return previousStatus;
+        }
+
+        private void UpdateResetStatus(
+            ServerStatusValue status,
+            ServerState state,
+            uint secondsTillShutdown,
+            LocalizedText reason)
+        {
+            status.Value.State = state;
+            status.Value.ShutdownReason = reason;
+            status.Value.SecondsTillShutdown = secondsTillShutdown;
+
+            ServerStatusState? variable = status.Variable;
+            if (variable != null)
+            {
+                variable.State?.Value = state;
+                variable.ShutdownReason?.Value = reason;
+                variable.SecondsTillShutdown?.Value = secondsTillShutdown;
+                variable.ClearChangeMasks(Server.DefaultSystemContext, true);
             }
         }
 

@@ -250,6 +250,12 @@ namespace Opc.Ua.Client.Tests.Channels
 
             public ConfiguredEndpoint Endpoint { get; }
 
+            /// <inheritdoc/>
+            public IRetryBudget? CreateReconnectBudget(TimeProvider timeProvider)
+            {
+                return null;
+            }
+
             public ValueTask<ParticipantReconnectResult> OnReconnectAsync(
                 IManagedTransportChannel channel,
                 int reconnectAttempt,

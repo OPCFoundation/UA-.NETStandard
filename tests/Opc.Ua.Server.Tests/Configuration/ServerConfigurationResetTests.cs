@@ -53,20 +53,28 @@ namespace Opc.Ua.Server.Tests
     [Category("ConfigurationNodeManager")]
     [NonParallelizable]
     [Parallelizable(ParallelScope.None)]
-    public class ServerConfigurationResetTests
+    public sealed class ServerConfigurationResetTests
     {
-        private static readonly ITelemetryContext s_telemetry = NUnitTelemetryContext.Create();
-
-        [Test]
-        public async Task ResetReturnsResponseThenAdvertisesShutdownAndInvokesProviderAsync()
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        public async Task ResetReturnsResponseThenRestoresStatusAfterProviderFinishesAsync(int outcome)
         {
             var fixture = new ServerFixture<StandardServer>(t => new ReferenceServer(t));
             StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
             try
             {
                 IServerInternal serverInternal = server.CurrentInstance;
-                var provider = new FakeResetProvider();
-                ConfigurationNodeManager manager = await CreateManagerAsync(
+                var provider = new FakeResetProvider
+                {
+                    Failure = outcome switch
+                    {
+                        1 => new InvalidOperationException("Reset provider failed."),
+                        2 => new OperationCanceledException("Reset provider cancelled its own operation."),
+                        _ => null
+                    }
+                };
+                using ConfigurationNodeManager manager = await CreateManagerAsync(
                     fixture, serverInternal,
                     new ServerConfigurationOptions
                     {
@@ -96,14 +104,114 @@ namespace Opc.Ua.Server.Tests
                 // The reset only runs after the response, and the server has
                 // advertised the pending shutdown by the time it runs.
                 Assert.That(serverInternal.CurrentState, Is.EqualTo(ServerState.Shutdown));
+                Task pending = manager.DrainPendingResetAsync();
+                result = await reset.OnCallMethod2Async!(
+                    CreateAdminContextForSession(new NodeId(1, 1)),
+                    reset,
+                    node.NodeId,
+                    [],
+                    [],
+                    CancellationToken.None).ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                Assert.That(manager.DrainPendingResetAsync(), Is.SameAs(pending));
+                provider.Release();
 
                 using (var drainTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(30)))
                 {
-                    await manager.DrainPendingResetAsync(drainTimeout.Token).ConfigureAwait(false);
+                    if (outcome == 1)
+                    {
+                        Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                            await manager.DrainPendingResetAsync(drainTimeout.Token).ConfigureAwait(false));
+                    }
+                    else
+                    {
+                        await manager.DrainPendingResetAsync(drainTimeout.Token).ConfigureAwait(false);
+                    }
                 }
                 Assert.That(provider.InvocationCount, Is.EqualTo(1));
+                Assert.That(serverInternal.CurrentState, Is.EqualTo(ServerState.Running));
+                serverInternal.UpdateServerStatus(status =>
+                {
+                    Assert.That(status.Value.SecondsTillShutdown, Is.Zero);
+                    Assert.That(status.Value.ShutdownReason.IsNull, Is.True);
+                    Assert.That(status.Variable, Is.Not.Null);
+                    Assert.That(status.Variable!.State!.Value, Is.EqualTo(ServerState.Running));
+                    Assert.That(status.Variable.SecondsTillShutdown!.Value, Is.Zero);
+                    Assert.That(status.Variable.ShutdownReason!.Value.IsNull, Is.True);
+                });
+                if (outcome == 1)
+                {
+                    Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                        await manager.DrainPendingResetAsync().ConfigureAwait(false));
+                }
 
                 manager.Dispose();
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
+        [TestCase(ServerState.Shutdown, false)]
+        [TestCase(ServerState.Failed, false)]
+        [TestCase(ServerState.Shutdown, true)]
+        public async Task ResetDoesNotOverwriteSubsequentServerShutdownOrFailureAsync(
+            ServerState state,
+            bool disposeManager)
+        {
+            var fixture = new ServerFixture<StandardServer>(t => new ReferenceServer(t));
+            StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
+            try
+            {
+                IServerInternal serverInternal = server.CurrentInstance;
+                var provider = new FakeResetProvider();
+                using ConfigurationNodeManager manager = await CreateManagerAsync(
+                    fixture, serverInternal,
+                    new ServerConfigurationOptions
+                    {
+                        ResetProvider = provider,
+                        ResetShutdownDelay = TimeSpan.Zero
+                    }).ConfigureAwait(false);
+                ServerConfigurationState? node = manager.FindPredefinedNode<ServerConfigurationState>(
+                    ObjectIds.ServerConfiguration);
+                MethodState reset = node!.ResetToServerDefaults!;
+                ServiceResult result = await reset.OnCallMethod2Async!(
+                    CreateAdminContextForSession(new NodeId(3, 1)), reset, node.NodeId,
+                    [], [], CancellationToken.None).ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                await provider.Entered.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+
+                LocalizedText expectedReason = default;
+                serverInternal.UpdateServerStatus(status =>
+                {
+                    expectedReason = state == ServerState.Shutdown && !disposeManager
+                        ? new LocalizedText("Application is shutting down.")
+                        : status.Value.ShutdownReason;
+                    status.Value.State = state;
+                    status.Value.ShutdownReason = expectedReason;
+                    status.Value.SecondsTillShutdown = 10;
+                    status.Variable!.State!.Value = state;
+                    status.Variable.ShutdownReason!.Value = expectedReason;
+                    status.Variable.SecondsTillShutdown!.Value = 10;
+                });
+
+                if (disposeManager)
+                {
+                    manager.Dispose();
+                }
+                provider.Release();
+                await manager.DrainPendingResetAsync().WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+
+                serverInternal.UpdateServerStatus(status =>
+                {
+                    Assert.That(status.Value.State, Is.EqualTo(state));
+                    Assert.That(status.Value.ShutdownReason, Is.EqualTo(expectedReason));
+                    Assert.That(status.Value.SecondsTillShutdown, Is.EqualTo(10));
+                    Assert.That(status.Variable!.State!.Value, Is.EqualTo(state));
+                    Assert.That(status.Variable.ShutdownReason!.Value, Is.EqualTo(expectedReason));
+                    Assert.That(status.Variable.SecondsTillShutdown!.Value, Is.EqualTo(10));
+                });
             }
             finally
             {
@@ -213,19 +321,35 @@ namespace Opc.Ua.Server.Tests
 
         private sealed class FakeResetProvider : IServerConfigurationResetProvider
         {
-            private readonly TaskCompletionSource<bool> m_entered =
-                new(TaskCreationOptions.RunContinuationsAsynchronously);
-
             public int InvocationCount { get; private set; }
+
+            public Exception? Failure { get; init; }
 
             public Task Entered => m_entered.Task;
 
-            public ValueTask ResetToServerDefaultsAsync(CancellationToken cancellationToken = default)
+            public void Release()
+            {
+                m_release.TrySetResult(true);
+            }
+
+            public async ValueTask ResetToServerDefaultsAsync(CancellationToken cancellationToken = default)
             {
                 InvocationCount++;
                 m_entered.TrySetResult(true);
-                return default;
+                await m_release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                if (Failure != null)
+                {
+                    throw Failure;
+                }
             }
+
+            private readonly TaskCompletionSource<bool> m_release =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            private readonly TaskCompletionSource<bool> m_entered =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
         }
+
+        private static readonly ITelemetryContext s_telemetry = NUnitTelemetryContext.Create();
     }
 }

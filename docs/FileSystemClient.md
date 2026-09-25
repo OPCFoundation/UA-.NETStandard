@@ -168,10 +168,20 @@ Reads and writes are chunked at `FileSystemClientOptions.ChunkSize`,
 clamped down to `FileType.MaxByteStringLength` when the server advertises
 a smaller maximum. Empty `ByteString` returns are interpreted as EOF;
 zero-length reads/writes never hit the wire.
+Path-based `WriteAllBytesAsync` and `WriteAllTextAsync` refresh metadata
+for existing and newly created files before opening them, so these helpers
+honor the same per-file chunk limit as `OpenWriteAsync`.
 
 `Position` is tracked locally; the server is informed via
 `SetPosition` only when the local cursor diverges from the last
-successfully transmitted position. `Length` is tracked locally too —
+successfully transmitted position.
+After a failed read or write, the server cursor is treated as unknown:
+the next operation sends `SetPosition` to the last locally confirmed
+position before transferring more bytes. This prevents a lost response
+from causing a retry to skip or duplicate a chunk. Successfully completed
+earlier chunks remain reflected in `Position`.
+
+`Length` is tracked locally too —
 opened from `FileType.Size` at construction and bumped whenever a write
 extends past it. Callers that mutate the underlying file through other
 handles (or other clients) should call `UaFileInfo.RefreshAsync()`
@@ -292,6 +302,17 @@ Both lazy `FileSystemNodeManager` nodes and materialized
 `FileDirectoryBinder` nodes protect their mounted root from deletion,
 move, and copy. A NodeId from another namespace, an invalid encoded type,
 or a component identifier cannot alias a file-system object.
+
+Virtual directory browsing walks one provider cursor in provider order across
+Browse/BrowseNext pages, retaining only the current entry and a continuation's
+lookahead reference. It does not snapshot the directory or impose the materialized
+binder's `MaxEntries` limit. Named-child lookup scans without retaining unrelated
+entries and stops at the match. Exhaustion, cancellation, and continuation release
+dispose the cursor exactly once. Cancellation applies to the active page;
+cancelling an already-completed page does not cancel subsequent pages.
+Synchronous continuation release starts observed asynchronous cursor cleanup
+without blocking its caller. Provider failures are surfaced, not converted into
+an empty directory.
 
 Before Delete or MoveOrCopy reaches an arbitrary provider, the lazy host
 validates the decoded provider path. Separator-only root aliases resolve to

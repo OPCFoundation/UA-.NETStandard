@@ -851,7 +851,9 @@ namespace Opc.Ua.Client
         /// server side to mirror session state (see the distributed
         /// high-availability feature); the standby still performs the full
         /// <c>ActivateSession</c> signature validation, so the token alone never
-        /// admits a session.
+        /// admits a session. This option controls optional token-reuse failover;
+        /// network recovery and required HotAndMirrored reactivation reuse the
+        /// existing session independently of this setting.
         /// </remarks>
         public bool EnableTokenReuseFailover { get; set; }
 
@@ -2399,18 +2401,19 @@ namespace Opc.Ua.Client
                     {
                         if (StatusCode.IsGood(results[ii].StatusCode))
                         {
-                            if (await subscriptions[ii].TransferAsync(
+                            (bool transferredSubscription, ArrayOf<uint> acknowledgements) =
+                                await subscriptions[ii].TransferWithAcknowledgementsAsync(
                                     this,
                                     subscriptionIds[ii],
                                     results[ii].AvailableSequenceNumbers,
                                     ct)
-                                .ConfigureAwait(false))
+                                .ConfigureAwait(false);
+                            if (transferredSubscription)
                             {
                                 transferred.Add(subscriptions[ii]);
 
-                                // create ack for available sequence numbers
-                                foreach (uint sequenceNumber in results[ii]
-                                    .AvailableSequenceNumbers)
+                                // Messages claimed for republish are acknowledged only after receipt.
+                                foreach (uint sequenceNumber in acknowledgements)
                                 {
                                     if (m_engine is ClassicSubscriptionEngine classicEngine)
                                     {
@@ -2842,6 +2845,7 @@ namespace Opc.Ua.Client
                 m_instanceCertificateEntry?.Certificate.AddRef(),
                 channelChain,
                 messageContext,
+                securityPolicies: m_securityPolicies,
                 ct).ConfigureAwait(false);
 
             // create the session object.
@@ -2904,6 +2908,7 @@ namespace Opc.Ua.Client
                 m_instanceCertificateEntry?.Certificate.AddRef(),
                 channelChain,
                 messageContext,
+                securityPolicies: m_securityPolicies,
                 ct).ConfigureAwait(false);
 
             // create the session object.
@@ -3037,7 +3042,8 @@ namespace Opc.Ua.Client
                 connection,
                 channel,
                 budget: null,
-                ct);
+                ct,
+                bindSuppliedChannel: channel != null);
         }
 
         /// <summary>
@@ -3050,6 +3056,15 @@ namespace Opc.Ua.Client
             IRetryBudget budget,
             CancellationToken ct = default)
         {
+            return RecreateInPlaceAsync(endpoint, budget, connection: null, ct);
+        }
+
+        internal Task RecreateInPlaceAsync(
+            ConfiguredEndpoint? endpoint,
+            IRetryBudget budget,
+            ITransportWaitingConnection? connection,
+            CancellationToken ct)
+        {
             if (budget == null)
             {
                 throw new ArgumentNullException(nameof(budget));
@@ -3057,15 +3072,38 @@ namespace Opc.Ua.Client
 
             return RecreateInPlaceCoreAsync(
                 endpoint,
-                connection: null,
+                connection,
                 channel: null,
                 budget,
                 ct);
         }
 
+        internal Task ReactivateOnNetworkEndpointAsync(
+            ConfiguredEndpoint endpoint,
+            ITransportWaitingConnection? connection,
+            IRetryBudget budget,
+            CancellationToken ct)
+        {
+            return RecreateInPlaceCoreAsync(
+                endpoint,
+                connection,
+                channel: null,
+                budget,
+                ct,
+                networkRecovery: true);
+        }
+
         internal Task ReactivateMirroredSessionAsync(
             ConfiguredEndpoint endpoint,
             CancellationToken ct = default)
+        {
+            return ReactivateMirroredSessionAsync(endpoint, connection: null, ct);
+        }
+
+        internal Task ReactivateMirroredSessionAsync(
+            ConfiguredEndpoint endpoint,
+            ITransportWaitingConnection? connection,
+            CancellationToken ct)
         {
             if (endpoint == null)
             {
@@ -3074,7 +3112,7 @@ namespace Opc.Ua.Client
 
             return RecreateInPlaceCoreAsync(
                 endpoint,
-                connection: null,
+                connection,
                 channel: null,
                 budget: null,
                 ct,
@@ -3090,96 +3128,26 @@ namespace Opc.Ua.Client
             CancellationToken ct,
             bool recreateSubscriptions = true,
             bool requireTokenReuse = false,
-            SessionClient? recoveryClient = null)
+            SessionClient? recoveryClient = null,
+            bool networkRecovery = false,
+            bool bindSuppliedChannel = false)
         {
             ThrowIfDisposed();
             using Activity? activity = m_telemetry.StartActivity();
 
             NodeId previousSessionId = SessionId;
-            IClientChannelManager? manager = m_channelManager;
-            IManagedTransportChannel? oldManagedLease = m_managedChannel;
+            IManagedTransportChannel? oldManagedLease = ManagedChannel;
+            IClientChannelManager? manager = oldManagedLease?.Manager ?? ChannelManager;
             IManagedTransportChannel? newManagedLease = null;
             bool managedLeaseActivated = false;
             ConfiguredEndpoint targetEndpoint = endpoint ?? m_endpoint;
-
-            if (manager != null)
-            {
-                if (channel != null &&
-                    RequiresSessionRecreation(channel))
-                {
-                    m_instanceCertificateEntry?.Dispose();
-                    m_instanceCertificateEntry = null;
-                }
-                await LoadInstanceCertificateAsync(targetEndpoint, ct).ConfigureAwait(false);
-                if (channel == null &&
-                    targetEndpoint.Description.SecurityPolicyUri != SecurityPolicies.None &&
-                    m_instanceCertificateEntry != null)
-                {
-#pragma warning disable CA2000 // ownership of the chain transfers to the channel manager, which disposes it
-                    manager.UpdateClientCertificate(
-                        m_instanceCertificateEntry.Certificate.AddRef(),
-                        CloneInstanceCertificateChain());
-#pragma warning restore CA2000
-                }
-            }
-
-            if (manager != null && channel == null && oldManagedLease != null)
-            {
-                var targetKey = ManagedChannelKey.FromEndpoint(
-                    targetEndpoint,
-                    m_instanceCertificateEntry?.Certificate,
-                    connection);
-                if (oldManagedLease.Key.Equals(targetKey) &&
-                    oldManagedLease.State is not (ChannelState.Closed or ChannelState.Faulted))
-                {
-                    if (endpoint != null && !ReferenceEquals(endpoint, m_endpoint))
-                    {
-                        m_endpoint = endpoint;
-                        m_effectiveEndpoint = endpoint;
-                    }
-
-                    await ReconnectManagedChannelAsync(
-                            manager,
-                            oldManagedLease,
-                            budget,
-                            ct)
-                        .ConfigureAwait(false);
-                    return;
-                }
-            }
-
-            // Quiesce the V2 engine outside the reconnect lock so
-            // workers can complete their current cycle without
-            // contending with the reset path. The classic engine has
-            // different publish semantics and does not need a drain.
-#if OPCUA_V1_CLIENT
-            if (m_engine is not ClassicSubscriptionEngine)
-#endif
-            {
-                m_engine.PausePublishing();
-                if (m_engine is DefaultSubscriptionEngine v2Engine &&
-                    v2Engine.SubscriptionManager
-                        is Subscriptions.SubscriptionManager v2Manager)
-                {
-                    // The drain aborts each in-flight publish attempt through a
-                    // per-attempt token linked to the worker token, never the
-                    // worker token itself: a worker parked on the channel ready
-                    // gate unwinds its attempt and returns to the paused park
-                    // instead of terminating, so it resumes once this recreate
-                    // completes. Do not replace this with a bare timeout. A
-                    // timeout leaves the worker running with a request in flight
-                    // and lifts nothing, and the quiesce must stay in place for
-                    // the whole operation so DropPendingForSubscription cannot
-                    // observe a partially unwound attempt.
-                    await v2Manager.DrainAsync(ct).ConfigureAwait(false);
-                }
-            }
-
             bool resetReconnect = false;
+            bool publishingPaused = false;
+            bool reused = false;
             await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                if (Reconnecting)
+                if (Reconnecting || (bindSuppliedChannel && ChannelRecoveryInProgress))
                 {
                     m_reconnectLock.Release();
                     throw ServiceResultException.Create(
@@ -3190,6 +3158,71 @@ namespace Opc.Ua.Client
                 Reconnecting = true;
                 resetReconnect = true;
                 m_reconnectLock.Release();
+
+                if (manager != null)
+                {
+                    if (channel != null && RequiresSessionRecreation(channel))
+                    {
+                        m_instanceCertificateEntry?.Dispose();
+                        m_instanceCertificateEntry = null;
+                    }
+                    await LoadInstanceCertificateAsync(targetEndpoint, ct).ConfigureAwait(false);
+                    if (channel == null &&
+                        targetEndpoint.Description.SecurityPolicyUri != SecurityPolicies.None &&
+                        m_instanceCertificateEntry != null)
+                    {
+#pragma warning disable CA2000 // ownership of the chain transfers to the channel manager, which disposes it
+                        manager.UpdateClientCertificate(
+                            m_instanceCertificateEntry.Certificate.AddRef(),
+                            CloneInstanceCertificateChain());
+#pragma warning restore CA2000
+                    }
+                }
+
+                if (manager != null && channel == null && oldManagedLease != null && !requireTokenReuse)
+                {
+                    var targetKey = ManagedChannelKey.FromEndpoint(
+                        targetEndpoint,
+                        m_instanceCertificateEntry?.Certificate,
+                        connection);
+                    if (oldManagedLease.Key.Equals(targetKey) &&
+                        oldManagedLease.State is not (ChannelState.Closed or ChannelState.Faulted))
+                    {
+                        if (endpoint != null && !ReferenceEquals(endpoint, m_endpoint))
+                        {
+                            m_endpoint = endpoint;
+                            m_effectiveEndpoint = endpoint;
+                        }
+
+                        // The manager calls this session back as the recovery owner.
+                        await m_reconnectLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                        Reconnecting = false;
+                        resetReconnect = false;
+                        m_reconnectLock.Release();
+                        await ReconnectManagedChannelAsync(manager, oldManagedLease, budget, ct, connection)
+                            .ConfigureAwait(false);
+                        return;
+                    }
+                }
+
+#if OPCUA_V1_CLIENT
+                if (m_engine is not ClassicSubscriptionEngine)
+#endif
+                {
+                    publishingPaused = true;
+                    if (m_engine is DefaultSubscriptionEngine v2Engine &&
+                        v2Engine.SubscriptionManager is Subscriptions.SubscriptionManager v2Manager)
+                    {
+                        v2Manager.SetSessionRecoveryPaused(true);
+                        // Keep admission, but not the semaphore, while cancellation unwinds parked
+                        // publish attempts and rolls their acknowledgements back before any reset.
+                        await v2Manager.DrainAsync(ct).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        m_engine.PausePublishing();
+                    }
+                }
 
                 m_logger.SessionRECREATEPLACESessionIdStarting(previousSessionId);
 
@@ -3210,6 +3243,10 @@ namespace Opc.Ua.Client
                 if (channel != null)
                 {
                     TransportChannel = channel;
+                    if (bindSuppliedChannel)
+                    {
+                        BindReconnectedChannel(channel);
+                    }
                 }
                 else if (manager != null)
                 {
@@ -3271,19 +3308,13 @@ namespace Opc.Ua.Client
                     TransportChannel = newChannel;
                 }
 
-                // Reset the reconnecting flag so the reactivation / OpenAsync
-                // (which check/raise their own state) can proceed.
-                await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
-                Reconnecting = false;
-                resetReconnect = false;
-                m_reconnectLock.Release();
-
                 // Token-reuse fast reconnect: re-activate the
                 // existing session on the failover server by reusing the current
                 // AuthenticationToken instead of CreateSession. Any failure
                 // falls through to the full re-authentication below.
-                bool reused = false;
-                if (EnableTokenReuseFailover && !SessionId.IsNull && !m_serverNonce.IsNull)
+                if ((EnableTokenReuseFailover || requireTokenReuse || networkRecovery) &&
+                    !SessionId.IsNull &&
+                    (!m_serverNonce.IsNull || m_endpoint.Description.SecurityMode == MessageSecurityMode.None))
                 {
                     try
                     {
@@ -3318,7 +3349,10 @@ namespace Opc.Ua.Client
                     catch (Exception ex) when (ex is not OperationCanceledException)
                     {
                         m_logger.TokenReuseFailoverReactivationFailedFalling(ex);
-                        if (requireTokenReuse)
+                        if (requireTokenReuse ||
+                            (networkRecovery &&
+                                (ex is not ServiceResultException failure ||
+                                    !RequiresSessionRecreate(failure.StatusCode))))
                         {
                             throw;
                         }
@@ -3399,7 +3433,7 @@ namespace Opc.Ua.Client
                         .ConfigureAwait(false);
                 }
 
-                if (recreateSubscriptions)
+                if (recreateSubscriptions && (!networkRecovery || !reused))
                 {
                     m_pendingSubscriptionRecovery = new PendingSubscriptionRecovery(previousSessionId, reused);
                     if (recoveryClient == null)
@@ -3446,29 +3480,43 @@ namespace Opc.Ua.Client
             }
             finally
             {
-                if (resetReconnect)
+                try
                 {
-                    await m_reconnectLock
-                        .WaitAsync(CancellationToken.None)
-                        .ConfigureAwait(false);
-                    Reconnecting = false;
-                    m_reconnectLock.Release();
+                    if (publishingPaused && m_pendingSubscriptionRecovery == null)
+                    {
+                        await ResumePublishingAfterRecoveryAsync().ConfigureAwait(false);
+                    }
                 }
+                finally
+                {
+                    if (resetReconnect)
+                    {
+                        await m_reconnectLock
+                            .WaitAsync(CancellationToken.None)
+                            .ConfigureAwait(false);
+                        Reconnecting = false;
+                        m_reconnectLock.Release();
+                    }
+                }
+            }
 
+            if (reused)
+            {
+                ct.ThrowIfCancellationRequested();
+                await StartKeepAliveTimerAsync().ConfigureAwait(false);
 #if OPCUA_V1_CLIENT
-                if (m_engine is not ClassicSubscriptionEngine && m_pendingSubscriptionRecovery == null)
-#else
-                if (m_pendingSubscriptionRecovery == null)
-#endif
+                if (m_engine is ClassicSubscriptionEngine)
                 {
-                    m_engine.ResumePublishing();
+                    StartPublishing(OperationTimeout, true);
                 }
+#endif
             }
         }
 
         /// <summary>
         /// Restores subscriptions only after their session and ordinary service path are available.
         /// </summary>
+        /// <exception cref="ServiceResultException">The subscription recovery deadline expires.</exception>
         internal async Task CompleteSessionRecoveryAsync(CancellationToken ct)
         {
             if (Volatile.Read(ref m_subscriptionRecoveryDeferrals) != 0)
@@ -3480,22 +3528,73 @@ namespace Opc.Ua.Client
             {
                 return;
             }
+            ReconnectDeadline? deadline = Interlocked.Exchange(ref m_deferredRecoveryDeadline, null);
+            TimeSpan remaining = deadline?.Remaining ?? TimeSpan.MaxValue;
+            using CancellationTokenSource timeout = m_timeProvider.CreateCancellationTokenSource(
+                remaining == TimeSpan.MaxValue ? Timeout.InfiniteTimeSpan : remaining);
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, timeout.Token);
+            CancellationToken recoveryToken = linked.Token;
             try
             {
+                if (remaining == TimeSpan.Zero)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadSecureChannelClosed, "The subscription recovery deadline expired.");
+                }
+                recoveryToken.ThrowIfCancellationRequested();
 #if OPCUA_V1_CLIENT
                 await RecreateSubscriptionsAsync(
                     TransferSubscriptionsOnReconnect && !pending.ReusedSession,
                     Subscriptions,
-                    ct,
+                    recoveryToken,
                     sessionRecreatedInPlace: !pending.ReusedSession).ConfigureAwait(false);
 #endif
-                await m_engine.RecreateSubscriptionsAsync(pending.PreviousSessionId, ct).ConfigureAwait(false);
+                await m_engine.RecreateSubscriptionsAsync(pending.PreviousSessionId, recoveryToken)
+                    .ConfigureAwait(false);
+                recoveryToken.ThrowIfCancellationRequested();
+                if (deadline?.Remaining == TimeSpan.Zero)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadSecureChannelClosed, "The subscription recovery deadline expired.");
+                }
                 m_pendingSubscriptionRecovery = null;
+            }
+            catch (OperationCanceledException) when (timeout.IsCancellationRequested &&
+                !ct.IsCancellationRequested)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecureChannelClosed, "The subscription recovery deadline expired.");
             }
             finally
             {
+                await ResumePublishingAfterRecoveryAsync().ConfigureAwait(false);
+            }
+        }
+
+        private async Task ResumePublishingAfterRecoveryAsync()
+        {
+            if (m_engine is DefaultSubscriptionEngine engine &&
+                engine.SubscriptionManager is Subscriptions.SubscriptionManager manager)
+            {
+                await manager.DrainAsync(CancellationToken.None).ConfigureAwait(false);
+                manager.SetSessionRecoveryPaused(m_pendingSubscriptionRecovery != null);
+            }
+            else
+            {
                 m_engine.ResumePublishing();
             }
+        }
+
+        internal static bool RequiresSessionRecreate(StatusCode statusCode)
+        {
+            return statusCode == StatusCodes.BadApplicationSignatureInvalid ||
+                statusCode == StatusCodes.BadSecurityChecksFailed ||
+                statusCode == StatusCodes.BadIdentityChangeNotSupported ||
+                statusCode == StatusCodes.BadSessionIdInvalid ||
+                statusCode == StatusCodes.BadSessionClosed ||
+                statusCode == StatusCodes.BadSessionNotActivated ||
+                statusCode == StatusCodes.BadSecureChannelIdInvalid ||
+                statusCode == StatusCodes.BadIdentityTokenInvalid;
         }
 
         /// <inheritdoc/>
@@ -3625,16 +3724,28 @@ namespace Opc.Ua.Client
         {
             ThrowIfDisposed();
             using Activity? activity = m_telemetry.StartActivity();
-            await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
+            await AcquireIdentityUpdateLockAsync(ct).ConfigureAwait(false);
             try
             {
-                // Force reload
-                m_instanceCertificateEntry?.Dispose();
-                m_instanceCertificateEntry = null;
-                await LoadInstanceCertificateAsync(false, ct).ConfigureAwait(false);
+                string policy = m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
+                CertificateEntry? replacement = policy == SecurityPolicies.None
+                    ? null
+                    : await LoadInstanceCertificateEntryAsync(
+                        m_configuration, policy, m_telemetry, m_channelManager != null, ct).ConfigureAwait(false);
+                if (replacement != null && !replacement.Certificate.HasPrivateKey)
+                {
+                    replacement.Dispose();
+                    throw ServiceResultException.ConfigurationError(
+                        "Client certificate configured for security policy {0} is missing a private key.", policy);
+                }
+                CertificateEntry? previous = m_instanceCertificateEntry;
+                m_instanceCertificateEntry = replacement;
+                m_effectiveEndpoint = m_endpoint;
+                previous?.Dispose();
             }
             finally
             {
+                Reconnecting = false;
                 m_reconnectLock.Release();
             }
         }
@@ -3649,7 +3760,8 @@ namespace Opc.Ua.Client
                 connection,
                 channel,
                 budget: null,
-                ct);
+                ct,
+                bindSuppliedChannel: channel != null);
         }
 
         /// <summary>
@@ -3661,13 +3773,21 @@ namespace Opc.Ua.Client
             IRetryBudget budget,
             CancellationToken ct)
         {
+            return ReconnectWithConnectionAsync(budget, connection: null, ct);
+        }
+
+        internal Task ReconnectWithConnectionAsync(
+            IRetryBudget budget,
+            ITransportWaitingConnection? connection,
+            CancellationToken ct)
+        {
             if (budget == null)
             {
                 throw new ArgumentNullException(nameof(budget));
             }
 
             return ReconnectCoreAsync(
-                connection: null,
+                connection,
                 channel: null,
                 budget,
                 ct);
@@ -3678,30 +3798,25 @@ namespace Opc.Ua.Client
             ITransportChannel? channel,
             IRetryBudget? budget,
             CancellationToken ct,
-            SessionClient? recoveryClient = null)
+            SessionClient? recoveryClient = null,
+            bool bindSuppliedChannel = false)
         {
             ThrowIfDisposed();
 
-            // When a channel manager is wired AND the caller did not
-            // explicitly supply a channel/connection, delegate the
+            // When a channel manager is wired and the caller did not
+            // explicitly supply a channel, delegate the
             // reconnect to the central manager so that the underlying
             // channel is reconnected once and ALL participant sessions
             // sharing it are notified in parallel via OnReconnectAsync.
-            // Explicit channel/connection callers go through the
-            // legacy in-Session path for back-compat.
-            IClientChannelManager? mgr = m_channelManager;
-            IManagedTransportChannel? managed = m_managedChannel;
-            if (connection == null &&
-                channel == null &&
+            // A fresh reverse connection must reach the manager before this
+            // session takes admission, because the manager calls the session back.
+            IManagedTransportChannel? managed = ManagedChannel;
+            IClientChannelManager? mgr = managed?.Manager ?? ChannelManager;
+            if (channel == null &&
                 mgr != null &&
                 managed != null)
             {
-                await ReconnectManagedChannelAsync(
-                        mgr,
-                        managed,
-                        budget,
-                        ct)
-                    .ConfigureAwait(false);
+                await ReconnectManagedChannelAsync(mgr, managed, budget, ct, connection).ConfigureAwait(false);
                 return;
             }
 
@@ -3713,7 +3828,8 @@ namespace Opc.Ua.Client
                     channel,
                     budget,
                     ct,
-                    recoveryClient: recoveryClient).ConfigureAwait(false);
+                    recoveryClient: recoveryClient,
+                    bindSuppliedChannel: bindSuppliedChannel).ConfigureAwait(false);
                 return;
             }
 
@@ -3733,7 +3849,7 @@ namespace Opc.Ua.Client
             try
             {
                 bool reconnecting = Reconnecting;
-                if (reconnecting)
+                if (reconnecting || (bindSuppliedChannel && ChannelRecoveryInProgress))
                 {
                     m_reconnectLock.Release();
                     m_logger.SessionAlreadyAttemptingReconnect();
@@ -3845,6 +3961,10 @@ namespace Opc.Ua.Client
                 else if (channel != null)
                 {
                     TransportChannel = channel;
+                    if (bindSuppliedChannel)
+                    {
+                        BindReconnectedChannel(channel);
+                    }
                 }
                 else
                 {
@@ -4052,7 +4172,7 @@ namespace Opc.Ua.Client
             {
                 TimeoutHint = (uint)OperationTimeout,
                 ReturnDiagnostics = (uint)(int)ReturnDiagnostics,
-                RequestHandle = Utils.IncrementIdentifier(ref classicEngine.PublishCounter)
+                RequestHandle = NewRequestHandle()
             };
 
             try
@@ -4735,7 +4855,7 @@ namespace Opc.Ua.Client
 
                     var requestHeader = new RequestHeader
                     {
-                        RequestHandle = Utils.IncrementIdentifier(ref m_keepAliveCounter),
+                        RequestHandle = NewRequestHandle(),
                         TimeoutHint = (uint)(KeepAliveInterval * 2),
                         ReturnDiagnostics = 0
                     };
@@ -5055,12 +5175,19 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Helper to refresh the identity (reprompt for password, refresh token) in case of a Recreate of the Session.
         /// </summary>
+        /// <exception cref="ServiceResultException">Restored username credentials have not been supplied.</exception>
         public virtual void RecreateRenewUserIdentity()
         {
             if (m_RenewUserIdentity != null)
             {
                 IUserIdentity renewed = m_RenewUserIdentity(this, m_identity);
                 m_identity = renewed ?? new UserIdentity();
+            }
+            if (m_identity?.TokenHandler is UserNameIdentityTokenHandler { DecryptedPassword: null })
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadIdentityTokenInvalid,
+                    "Restored user credentials must be supplied through the snapshot Identity or RenewUserIdentity.");
             }
         }
 
@@ -6191,7 +6318,6 @@ namespace Opc.Ua.Client
         private readonly ITimer m_keepAliveTimer;
 #pragma warning restore CA2213
         private readonly AsyncAutoResetEvent m_keepAliveEvent = new();
-        private uint m_keepAliveCounter;
         private Task? m_keepAliveWorker;
         private bool m_inKeepAliveCallback;
 #pragma warning disable CA2213 // Disposed in DisposeAsyncCore/Dispose

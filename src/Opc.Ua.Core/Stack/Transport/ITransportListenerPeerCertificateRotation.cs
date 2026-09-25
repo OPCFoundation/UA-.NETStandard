@@ -137,4 +137,22 @@ namespace Opc.Ua
             Func<Certificate, CancellationToken, ValueTask<bool>> isPeerTrustedAsync,
             CancellationToken ct = default);
     }
+
+    /// <summary>
+    /// Extends peer revalidation with the complete certificate chain presented
+    /// during OpenSecureChannel, including peer-supplied intermediate issuers.
+    /// </summary>
+    public interface ITransportListenerPeerCertificateChainRotation : ITransportListenerPeerCertificateRotation
+    {
+        /// <summary>
+        /// Closes channels whose complete peer chain is no longer trusted.
+        /// The callback borrows each chain only for the duration of its call.
+        /// </summary>
+        /// <param name="isPeerTrustedAsync">The asynchronous trust predicate.</param>
+        /// <param name="ct">Cancellation token.</param>
+        /// <returns>The global identifiers of channels closed by this call.</returns>
+        ValueTask<ArrayOf<string>> CloseChannelsForUntrustedPeerChainsAsync(
+            Func<CertificateCollection, CancellationToken, ValueTask<bool>> isPeerTrustedAsync,
+            CancellationToken ct = default);
+    }
 }

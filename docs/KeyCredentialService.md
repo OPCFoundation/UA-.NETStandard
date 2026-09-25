@@ -236,6 +236,17 @@ services.AddOpcUa()
 Production deployments should register an `IKeyCredentialStore` backed by
 a durable secret store before calling `WithKeyCredentialPush()`.
 
+The standard folder remains in namespace 0. Created and restored credential
+instances use a nonstandard namespace owned by the binding node manager
+(the diagnostics namespace for `ConfigurationNodeManager`), so their
+properties and methods are addressable through Read, Browse, and Call.
+Descendant NodeIds are allocated per instance through the configured factory,
+so creating another credential does not alias an existing credential's properties.
+Use the returned `CredentialNodeId` and browse its children rather than
+assuming a namespace index. A custom folder keeps its own namespace;
+standalone bindings using `KeyCredentialPushSubject.NamespaceUri` must
+register that namespace with their hosting node manager.
+
 `GetEncryptingKey` returns an application certificate from the server's active
 certificate registry. `UpdateCredential` decrypts a UA Binary
 `RsaEncryptedSecret` before passing the usable secret to `IKeyCredentialStore`.

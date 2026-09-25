@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server.FileSystem
 {
@@ -39,7 +40,7 @@ namespace Opc.Ua.Server.FileSystem
     /// <see cref="DirectoryObjectState"/> via the underlying
     /// <see cref="IFileSystemProvider"/>.
     /// </summary>
-    internal sealed class DirectoryBrowser : NodeBrowser
+    internal sealed class DirectoryBrowser : NodeBrowser, IAsyncDisposable
     {
         public DirectoryBrowser(
             ISystemContext context, ViewDescription? view,
@@ -54,6 +55,7 @@ namespace Opc.Ua.Server.FileSystem
             m_host = host;
             m_source = source;
             m_stage = Stage.Begin;
+            m_logger = context.Telemetry.CreateLogger<DirectoryBrowser>();
         }
 
         /// <summary>
@@ -61,27 +63,85 @@ namespace Opc.Ua.Server.FileSystem
         /// translate-path loops drive it, so the provider enumeration is awaited
         /// rather than blocked on.
         /// </summary>
+        /// <exception cref="AggregateException">Enumeration and cursor cleanup both fail.</exception>
         public override async ValueTask<IReference?> NextAsync(
             CancellationToken cancellationToken = default)
         {
-            IReference? reference = base.Next();
-            if (reference != null)
+            Task admission;
+            lock (m_lifetimeLock)
             {
-                return reference;
+                if (m_disposed)
+                {
+                    return null;
+                }
+                admission = m_cursorSemaphore.WaitAsync(CancellationToken.None);
             }
-
-            if (!NeedsProviderEntries())
+            await admission.ConfigureAwait(false);
+            try
             {
+                cancellationToken.ThrowIfCancellationRequested();
+                IReference? reference = base.Next();
+                if (reference != null)
+                {
+                    return reference;
+                }
+                if (m_stage == Stage.Done)
+                {
+                    return null;
+                }
+
+                if (!NeedsProviderEntries())
+                {
+                    m_stage = Stage.Done;
+                    return null;
+                }
+                if (m_stage == Stage.Begin)
+                {
+                    m_cursor = m_host.Provider
+                        .EnumerateAsync(m_source.ProviderPath, m_enumerationCancellation.Token)
+                        .GetAsyncEnumerator(m_enumerationCancellation.Token);
+                    m_stage = Stage.Children;
+                }
+
+                using CancellationTokenRegistration registration = cancellationToken.Register(
+                    static state => ((CancellationTokenSource)state!).Cancel(), m_enumerationCancellation);
+                while (await m_cursor!.MoveNextAsync().ConfigureAwait(false))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    m_enumerationCancellation.Token.ThrowIfCancellationRequested();
+                    FileSystemEntry entry = m_cursor.Current;
+                    if (!BrowseName.IsNull && entry.Name != BrowseName.Name)
+                    {
+                        continue;
+                    }
+                    reference = CreateReference(entry);
+                    if (!BrowseName.IsNull)
+                    {
+                        await CompleteEnumerationAsync().ConfigureAwait(false);
+                    }
+                    return reference;
+                }
+                cancellationToken.ThrowIfCancellationRequested();
+                await CompleteEnumerationAsync().ConfigureAwait(false);
                 return null;
             }
-
-            if (m_stage == Stage.Begin)
+            catch (Exception exception)
             {
-                m_pending = await LoadEntriesAsync(cancellationToken).ConfigureAwait(false);
-                m_stage = Stage.Children;
+                try
+                {
+                    await CompleteEnumerationAsync().ConfigureAwait(false);
+                }
+                catch (Exception cleanupException)
+                {
+                    throw new AggregateException(exception, cleanupException);
+                }
+                cancellationToken.ThrowIfCancellationRequested();
+                throw;
             }
-
-            return NextPendingChild();
+            finally
+            {
+                m_cursorSemaphore.Release();
+            }
         }
 
         /// <summary>
@@ -91,107 +151,94 @@ namespace Opc.Ua.Server.FileSystem
         /// </summary>
         public override IReference? Next()
         {
-            IReference? reference = base.Next();
-            if (reference != null)
-            {
-                return reference;
-            }
+            return NextAsync().AsTask().GetAwaiter().GetResult();
+        }
 
-            if (!NeedsProviderEntries())
-            {
-                return null;
-            }
+        /// <inheritdoc/>
+        public async ValueTask DisposeAsync()
+        {
+            Dispose();
+            await m_disposalCompleted.Task.ConfigureAwait(false);
+        }
 
-            if (m_stage == Stage.Begin)
+        /// <inheritdoc/>
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
             {
-                m_pending = LoadEntriesAsync(CancellationToken.None)
-                    .AsTask().GetAwaiter().GetResult();
-                m_stage = Stage.Children;
+                lock (m_lifetimeLock)
+                {
+                    if (m_disposed)
+                    {
+                        return;
+                    }
+                    m_disposed = true;
+                }
+                _ = DisposeCursorAsync();
             }
-
-            return NextPendingChild();
+            base.Dispose(disposing);
         }
 
         private bool NeedsProviderEntries()
         {
-            return !InternalOnly && IsRequired(ReferenceTypeIds.HasComponent, false);
+            return !InternalOnly &&
+                IsRequired(ReferenceTypeIds.HasComponent, false) &&
+                (BrowseName.IsNull || BrowseName.NamespaceIndex == m_source.BrowseName.NamespaceIndex);
         }
 
-        private IReference? NextPendingChild()
+        private async ValueTask CompleteEnumerationAsync()
         {
-            if (m_stage == Stage.Children)
+            m_stage = Stage.Done;
+            IAsyncEnumerator<FileSystemEntry>? cursor = m_cursor;
+            m_cursor = null;
+            if (cursor != null)
             {
-                IReference? reference = NextChild();
-                if (reference != null)
-                {
-                    return reference;
-                }
-                m_stage = Stage.Done;
+                await cursor.DisposeAsync().ConfigureAwait(false);
             }
-
-            return null;
         }
 
-        private async ValueTask<List<FileSystemEntry>> LoadEntriesAsync(
-            CancellationToken cancellationToken)
+        private async Task DisposeCursorAsync()
         {
-            var list = new List<FileSystemEntry>();
+            Exception? failure = null;
             try
             {
-                await foreach (FileSystemEntry entry in m_host.Provider
-                    .EnumerateAsync(m_source.ProviderPath, cancellationToken)
-                    .WithCancellation(cancellationToken)
-                    .ConfigureAwait(false))
+                await m_enumerationCancellation.CancelAsync().ConfigureAwait(false);
+            }
+            catch (Exception exception)
+            {
+                failure = exception;
+            }
+            try
+            {
+                await m_cursorSemaphore.WaitAsync().ConfigureAwait(false);
+                try
                 {
-                    list.Add(entry);
+                    await CompleteEnumerationAsync().ConfigureAwait(false);
+                }
+                finally
+                {
+                    m_cursorSemaphore.Release();
                 }
             }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            catch (Exception exception)
             {
-                // The caller cancelled the browse; surface it rather than
-                // answering with an empty directory.
-                throw;
+                failure = failure == null ? exception : new AggregateException(failure, exception);
             }
-            catch
+            finally
             {
-                // Browse continues without children when the provider
-                // can't enumerate (e.g. permission denied).
+                m_enumerationCancellation.Dispose();
+                m_cursorSemaphore.Dispose();
             }
-            return list;
-        }
-
-        private NodeStateReference? NextChild()
-        {
-            if (m_pending == null)
+            if (failure != null)
             {
-                return null;
+                m_logger.DirectoryCursorCleanupFailed(failure);
+                m_disposalCompleted.TrySetException(failure);
+                _ = m_disposalCompleted.Task.Exception;
             }
-
-            // Named child requested — scan once and stop.
-            if (!BrowseName.IsNull)
+            else
             {
-                if (m_source.BrowseName.NamespaceIndex != BrowseName.NamespaceIndex)
-                {
-                    m_pending = null;
-                    return null;
-                }
-                foreach (FileSystemEntry entry in m_pending)
-                {
-                    if (entry.Name == BrowseName.Name)
-                    {
-                        m_pending = null;
-                        return CreateReference(entry);
-                    }
-                }
-                m_pending = null;
-                return null;
+                m_disposalCompleted.TrySetResult(true);
             }
-
-            if (m_pendingIndex >= m_pending.Count)
-            {
-                return null;
-            }
-            return CreateReference(m_pending[m_pendingIndex++]);
         }
 
         private NodeStateReference CreateReference(FileSystemEntry entry)
@@ -211,8 +258,23 @@ namespace Opc.Ua.Server.FileSystem
 
         private readonly IFileSystemHost m_host;
         private readonly DirectoryObjectState m_source;
-        private List<FileSystemEntry>? m_pending;
-        private int m_pendingIndex;
+        private readonly ILogger m_logger;
+        private readonly Lock m_lifetimeLock = new();
+        private readonly SemaphoreSlim m_cursorSemaphore = new(1, 1);
+        private readonly CancellationTokenSource m_enumerationCancellation = new();
+
+        private readonly TaskCompletionSource<bool> m_disposalCompleted =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        private IAsyncEnumerator<FileSystemEntry>? m_cursor;
+        private bool m_disposed;
         private Stage m_stage;
+    }
+
+    internal static partial class DirectoryBrowserLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.DirectoryBrowser, Level = LogLevel.Error,
+            Message = "Asynchronous directory cursor cleanup failed.")]
+        public static partial void DirectoryCursorCleanupFailed(this ILogger logger, Exception exception);
     }
 }

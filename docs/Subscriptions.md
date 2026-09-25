@@ -43,6 +43,7 @@ pools, when to pick which) see
 
 - [Quick reference](#quick-reference)
 - [Server retransmission queues](#server-retransmission-queues)
+- [Publishing during session recovery](#publishing-during-session-recovery)
 - [Triggering (SetTriggering)](#triggering-settriggering)
   - [Declarative triggering](#declarative-triggering)
   - [Imperative triggering](#imperative-triggering)
@@ -116,6 +117,39 @@ regardless of other sessions' subscriptions. A closing session retains
 `BadSessionClosed`. The Republish request and requested-message diagnostic
 counters remain equal, with one increment per authorized request; the
 successful-message counter advances only when a message is returned.
+
+## Publishing during session recovery
+
+V2 session recreation pauses publishing and drains active Publish attempts
+before replacing the session. The drain cancels each attempt, including an
+attempt parked at the shared channel's ready gate, without terminating its
+worker. A cancelled attempt rolls its acknowledgements back before releasing its
+active count. Recreation must await this complete unwind because a timeout that skips
+the drain could acknowledge notifications from the old subscription generation
+against a reused subscription identifier.
+
+Automatic subscription and monitored-item updates also pause during session
+recreation. Recovery cancels an active update pass; its retry waits until the
+recovery owner completes subscription restoration. If restoration fails, this
+pause remains in effect across the outer-policy handoff. The state worker cannot
+create a competing subscription on a retiring or replacement session. Pending
+option changes resume after restoration, without changing explicit
+`RecreateAsync` or transfer semantics. Cancellation remains client-side and does
+not guarantee that an already-sent request was not processed by the server.
+
+Once the session and subscriptions are restored, publishing resumes through the
+same subscription-facing interface. Temporarily clearing server-side subscription
+identifiers does not replace existing workers. Pool limits and actual subscription
+removal still apply. Intentional deletion, including setting the V2 subscription's
+`Disabled` option, retires its worker demand even if it remains registered.
+Successful creation restores demand; recovery-only resets preserve it.
+With transfer-on-recreate enabled, an invalid old subscription
+falls back to recreation. A
+[managed-session channel deadline](Sessions.md#shared-retry-budget-with-managedsession)
+cancels recovery and hands control to the outer reconnect policy. After expiry,
+any replacement attempt still waits for cancelled Publish attempts to roll back
+their acknowledgements and release their active counts before replacing session
+and subscription state.
 
 ## Triggering (SetTriggering)
 
@@ -514,6 +548,21 @@ The restore path:
 subscriptions regroup items into the same affinity-pinned partition
 the source had.
 
+Republishing retained notifications and requesting initial values are independent.
+If an origin session disconnects before acknowledging a message, a transfer can
+recover that message from the server's retransmission queue. With
+`SendInitialValuesOnTransfer` also enabled, the target can receive the same static
+value again in a new notification message. Distinguish these batches by their
+sequence numbers, not by value equality. On the classic API, retransmission is
+controlled by `RepublishAfterTransfer`, while initial values are requested with
+the transfer call's `sendInitialValues` argument. Deferring acknowledgements
+retains messages for explicit `Republish` requests; it does not ask the server
+to resend them unsolicited. See
+[OPC UA Part 4, TransferSubscriptions](https://reference.opcfoundation.org/specs/OPC-10000-4/5.14.7).
+The classic client acknowledges messages selected for replay only after receiving
+them. Messages not selected for replay are acknowledged when transfer completes;
+the advertised available-sequence list remains intact.
+
 ### Durable subscriptions
 
 The server converts the configured durable lifetime in hours to milliseconds
@@ -714,6 +763,20 @@ the transition value with `LastAsync` / a terminating handler.
 
 ### Lifecycle, cancellation, disposal
 
+Each stream has a bounded local buffer, including the default data-change
+subscription. Its capacity is `max(1, QueueSize) * monitoredItemCount`, capped
+at `int.MaxValue`; event streams default to ten entries per monitored item.
+When full, `DiscardOldest` chooses between evicting the oldest buffered entry
+and discarding the incoming entry. `StreamingSubscription.DroppedNotificationCount`
+reports the cumulative local drops across data-change and event streams.
+
+For a multi-node stream, this is one shared queue, not a per-node allocation.
+With `DiscardOldest` enabled, a busy node can evict a quiet node's only queued
+value. There is no local guarantee that each node's latest value remains buffered,
+and overflow increments the drop counter rather than failing the stream. Use
+separate single-node streams, consumed independently, when per-node retention is
+required. Server-side per-monitored-item queues do not change this local policy.
+
 The streaming subscription guarantees three invariants:
 
 1. **Lazy subscription creation.** No OPC UA `CreateSubscription`
@@ -730,6 +793,12 @@ V2 subscription disposal gives each server-side delete a separate five-second
 cancellation deadline. Local cleanup does not wait indefinitely for an unavailable
 server. A failed or timed-out delete is logged; it does not prove remote deletion,
 and the server may retain the subscription until its configured lifetime expires.
+
+Publish workers survive recovery for subscriptions that the V2 engine actually
+created. A never-created subscription does not inherit worker retention from a
+classic subscription or a V2 subscription that has already been removed.
+An intentionally disabled or deleted subscription likewise contributes no
+retained demand until it is created again.
 
 Cancellation propagates the natural way: pass a `CancellationToken` to
 `SubscribeXxxAsync` *or* the outer `await foreach` (via

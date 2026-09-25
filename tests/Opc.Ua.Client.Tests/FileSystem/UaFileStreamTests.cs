@@ -90,6 +90,97 @@ namespace Opc.Ua.Client.Tests.FileSystem
                 chunkSize);
         }
 
+        [TestCase(1)]
+        [TestCase(2)]
+        public async Task ReadRetryRestoresServerPositionAfterLostReplyAsync(int failedChunk)
+        {
+            byte[] payload = [1, 2, 3, 4, 5, 6, 7, 8];
+            int serverPosition = 0;
+            int calls = 0;
+            var lostReply = new ServiceResultException(StatusCodes.BadRequestTimeout);
+            m_session.OnSetPosition((_, position) => serverPosition = checked((int)position));
+            m_session.OnRead((_, count) =>
+            {
+                int length = Math.Min(count, payload.Length - serverPosition);
+                byte[] result = payload.AsSpan(serverPosition, length).ToArray();
+                serverPosition += length;
+                if (++calls == failedChunk)
+                {
+                    throw lostReply;
+                }
+                return result;
+            });
+            UaFileStream stream = NewStream(UaFileMode.Read, payload.Length);
+            await using (stream.ConfigureAwait(false))
+            {
+                byte[] initial = new byte[8];
+                ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                    () => stream.ReadAsync(initial, 0, initial.Length, CancellationToken.None));
+                Assert.That(exception, Is.SameAs(lostReply));
+                int completedBytes = (failedChunk - 1) * 4;
+                Assert.That(stream.Position, Is.EqualTo(completedBytes));
+                Assert.That(serverPosition, Is.EqualTo(failedChunk * 4));
+
+                byte[] retry = new byte[4];
+                int read = await stream.ReadAsync(retry, 0, retry.Length, CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                byte[] expected = failedChunk == 1 ? [1, 2, 3, 4] : [5, 6, 7, 8];
+                Assert.That(read, Is.EqualTo(4));
+                Assert.That(retry, Is.EqualTo(expected));
+                Assert.That(stream.Position, Is.EqualTo(completedBytes + 4));
+                Assert.That(serverPosition, Is.EqualTo(completedBytes + 4));
+                List<CallMethodRequest> positions = m_session.CapturedFor(Methods.FileType_SetPosition);
+                Assert.That(positions, Has.Count.EqualTo(1));
+                Assert.That(positions[0].InputArguments[1], Is.EqualTo(Variant.From((ulong)completedBytes)));
+            }
+        }
+
+        [TestCase(1)]
+        [TestCase(2)]
+        public async Task WriteRetryRestoresServerPositionAfterLostReplyAsync(int failedChunk)
+        {
+            byte[] payload = [1, 2, 3, 4, 5, 6, 7, 8];
+            byte[] serverContents = new byte[12];
+            int serverPosition = 0;
+            int calls = 0;
+            var lostReply = new ServiceResultException(StatusCodes.BadRequestTimeout);
+            m_session.OnSetPosition((_, position) => serverPosition = checked((int)position));
+            m_session.OnWrite((_, data) =>
+            {
+                data.CopyTo(serverContents, serverPosition);
+                serverPosition += data.Length;
+                if (++calls == failedChunk)
+                {
+                    throw lostReply;
+                }
+            });
+            UaFileStream stream = NewStream(UaFileMode.Write, length: 0);
+            await using (stream.ConfigureAwait(false))
+            {
+                ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                    () => stream.WriteAsync(payload, 0, payload.Length, CancellationToken.None));
+                Assert.That(exception, Is.SameAs(lostReply));
+                int completedBytes = (failedChunk - 1) * 4;
+                Assert.That(stream.Position, Is.EqualTo(completedBytes));
+                Assert.That(stream.Length, Is.EqualTo(completedBytes));
+                Assert.That(serverPosition, Is.EqualTo(failedChunk * 4));
+
+                await stream.WriteAsync(
+                    payload, completedBytes, payload.Length - completedBytes, CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                byte[] expected = [1, 2, 3, 4, 5, 6, 7, 8, 0, 0, 0, 0];
+                Assert.That(serverContents, Is.EqualTo(expected));
+                Assert.That(stream.Position, Is.EqualTo(8));
+                Assert.That(stream.Length, Is.EqualTo(8));
+                Assert.That(serverPosition, Is.EqualTo(8));
+                List<CallMethodRequest> positions = m_session.CapturedFor(Methods.FileType_SetPosition);
+                Assert.That(positions, Has.Count.EqualTo(1));
+                Assert.That(positions[0].InputArguments[1], Is.EqualTo(Variant.From((ulong)completedBytes)));
+            }
+        }
+
         [Test]
         public async Task ReadAsyncChunksAcrossMultipleServerCallsAsync()
         {

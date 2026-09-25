@@ -83,6 +83,9 @@ namespace Opc.Ua
         /// <see langword="null"/> when it finishes, for hosts that must
         /// await in-flight work during shutdown.
         /// </param>
+        /// <param name="release">
+        /// Releases owned state after processing, replacement, or disposal.
+        /// </param>
         /// <exception cref="ArgumentNullException">
         /// When <paramref name="filter"/>, <paramref name="accumulate"/> or
         /// <paramref name="processAsync"/> is <see langword="null"/>.
@@ -92,13 +95,15 @@ namespace Opc.Ua
             Func<TState?, CertificateChangeEvent, TState> accumulate,
             Func<TState, CancellationToken, ValueTask> processAsync,
             Action<Exception>? onProcessError = null,
-            Action<Task?>? onPumpStateChanged = null)
+            Action<Task?>? onPumpStateChanged = null,
+            Action<TState>? release = null)
         {
             m_filter = filter ?? throw new ArgumentNullException(nameof(filter));
             m_accumulate = accumulate ?? throw new ArgumentNullException(nameof(accumulate));
             m_processAsync = processAsync ?? throw new ArgumentNullException(nameof(processAsync));
             m_onProcessError = onProcessError;
             m_onPumpStateChanged = onPumpStateChanged;
+            m_release = release;
         }
 
         /// <summary>
@@ -151,19 +156,29 @@ namespace Opc.Ua
         public void Dispose()
         {
             IDisposable? subscription;
+            TState? pending;
             lock (m_lock)
             {
                 m_disposed = true;
+                pending = m_pending;
                 m_pending = null;
                 subscription = m_subscription;
                 m_subscription = null;
             }
 
-            subscription?.Dispose();
+            try
+            {
+                subscription?.Dispose();
+            }
+            finally
+            {
+                Release(pending);
+            }
         }
 
         private void OnEvent(CertificateChangeEvent evt)
         {
+            TState? replaced = null;
             try
             {
                 if (!m_filter(evt))
@@ -178,7 +193,12 @@ namespace Opc.Ua
                         return;
                     }
 
-                    m_pending = m_accumulate(m_pending, evt);
+                    TState? previous = m_pending;
+                    m_pending = m_accumulate(previous, evt);
+                    if (!ReferenceEquals(previous, m_pending))
+                    {
+                        replaced = previous;
+                    }
                     if (m_pumpTask != null)
                     {
                         return;
@@ -192,6 +212,10 @@ namespace Opc.Ua
             catch (Exception ex)
             {
                 m_onProcessError?.Invoke(ex);
+            }
+            finally
+            {
+                Release(replaced);
             }
         }
 
@@ -227,6 +251,26 @@ namespace Opc.Ua
                 {
                     m_onProcessError?.Invoke(ex);
                 }
+                finally
+                {
+                    Release(state);
+                }
+            }
+        }
+
+        private void Release(TState? state)
+        {
+            if (state == null)
+            {
+                return;
+            }
+            try
+            {
+                m_release?.Invoke(state);
+            }
+            catch (Exception error)
+            {
+                m_onProcessError?.Invoke(error);
             }
         }
 
@@ -258,6 +302,7 @@ namespace Opc.Ua
         private readonly Func<TState, CancellationToken, ValueTask> m_processAsync;
         private readonly Action<Exception>? m_onProcessError;
         private readonly Action<Task?>? m_onPumpStateChanged;
+        private readonly Action<TState>? m_release;
         private readonly Lock m_lock = new();
         private IDisposable? m_subscription;
         private TState? m_pending;

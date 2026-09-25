@@ -268,6 +268,7 @@ namespace Opc.Ua.Client.Subscriptions
                     m_logicals.Clear();
                     registered = [.. m_subscriptions];
                     m_subscriptions.Clear();
+                    m_establishedSubscriptions.Clear();
                 }
 
                 // Reading LogicalSubscription.Partitions acquires the
@@ -382,6 +383,56 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <inheritdoc/>
+        public async ValueTask RunWithSessionAvailableAsync(
+            Func<CancellationToken, ValueTask> operation,
+            CancellationToken ct)
+        {
+            if (operation == null)
+            {
+                throw new ArgumentNullException(nameof(operation));
+            }
+            while (true)
+            {
+                using var attempt = CancellationTokenSource.CreateLinkedTokenSource(ct, m_disposeToken);
+                CancellationToken token = attempt.Token;
+                while (true)
+                {
+                    await m_sessionAvailable.WaitAsync(token).ConfigureAwait(false);
+                    token.ThrowIfCancellationRequested();
+                    lock (m_publishStateLock)
+                    {
+                        if (m_sessionRecoveryPaused)
+                        {
+                            continue;
+                        }
+                        m_activeSubscriptionUpdates.Add(attempt);
+                        break;
+                    }
+                }
+                try
+                {
+                    token.ThrowIfCancellationRequested();
+                    await operation(token).ConfigureAwait(false);
+                    token.ThrowIfCancellationRequested();
+                    return;
+                }
+                catch (OperationCanceledException) when (attempt.IsCancellationRequested &&
+                    !ct.IsCancellationRequested &&
+                    !m_disposeToken.IsCancellationRequested)
+                {
+                    // The recovery owner restores the subscription before this pass retries.
+                }
+                finally
+                {
+                    lock (m_publishStateLock)
+                    {
+                        m_activeSubscriptionUpdates.Remove(attempt);
+                    }
+                }
+            }
+        }
+
+        /// <inheritdoc/>
         public bool OwnsSubscriptionId(
             IMessageProcessor subscription,
             uint subscriptionId)
@@ -457,6 +508,7 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     return default;
                 }
+                m_establishedSubscriptions.Remove(partition);
 
                 // Record the retired identifier while the registry lock
                 // is still held. A publish worker resolves incoming
@@ -1294,14 +1346,37 @@ namespace Opc.Ua.Client.Subscriptions
             m_publishControl.Set();
         }
 
-        private void SetPublishingQuiesced(bool quiesced)
+        internal void SetSessionRecoveryPaused(bool paused)
+        {
+            SetPublishingQuiesced(paused, sessionRecovery: true);
+        }
+
+        private void SetPublishingQuiesced(bool quiesced, bool sessionRecovery = false)
         {
             bool? paused;
+            CancellationTokenSource[] attempts = [];
             lock (m_publishStateLock)
             {
-                m_publishingQuiesced = quiesced;
+                if (sessionRecovery)
+                {
+                    m_sessionRecoveryPaused = quiesced;
+                    if (quiesced)
+                    {
+                        m_sessionAvailable.Reset();
+                        attempts = [.. m_activeSubscriptionUpdates];
+                    }
+                    else
+                    {
+                        m_sessionAvailable.Set();
+                    }
+                }
+                else
+                {
+                    m_publishingQuiesced = quiesced;
+                }
                 paused = UpdatePublishingState();
             }
+            CancelAttempts(attempts);
             if (paused.HasValue)
             {
                 NotifySubscriptionsPaused(paused.Value);
@@ -1315,6 +1390,7 @@ namespace Opc.Ua.Client.Subscriptions
         {
             bool shouldRun = m_publishingRequested &&
                 !m_publishingQuiesced &&
+                !m_sessionRecoveryPaused &&
                 Volatile.Read(ref m_disposed) == 0;
             if (m_running.IsSet == shouldRun)
             {
@@ -1387,6 +1463,11 @@ namespace Opc.Ua.Client.Subscriptions
                 }
                 attempts = [.. m_activePublishAttempts];
             }
+            CancelAttempts(attempts);
+        }
+
+        private static void CancelAttempts(CancellationTokenSource[] attempts)
+        {
             foreach (CancellationTokenSource attempt in attempts)
             {
                 try
@@ -1731,7 +1812,26 @@ namespace Opc.Ua.Client.Subscriptions
 
             int GetDesiredPublishWorkerCount()
             {
-                int publishCount = CreatedCount + m_session.SessionSubscriptionCount;
+                int publishCount;
+                lock (m_subscriptionLock)
+                {
+                    // Only subscriptions that established their own demand retain it across recreation.
+                    // Pending subscriptions cannot inherit workers from classic or removed subscriptions.
+                    m_establishedSubscriptions.IntersectWith(m_subscriptions);
+                    foreach (IManagedSubscription subscription in m_subscriptions)
+                    {
+                        if (subscription.IsIntentionallyDeleted)
+                        {
+                            m_establishedSubscriptions.Remove(subscription);
+                        }
+                        else if (subscription.Created)
+                        {
+                            m_establishedSubscriptions.Add(subscription);
+                        }
+                    }
+                    publishCount = m_establishedSubscriptions.Count;
+                }
+                publishCount += m_session.SessionSubscriptionCount;
                 if (publishCount != 0)
                 {
                     //
@@ -1886,8 +1986,7 @@ namespace Opc.Ua.Client.Subscriptions
                     try
                     {
                         acks = GetAcksReadyToSend();
-                        handle = Utils.IncrementIdentifier(
-                            ref m_outer.m_publishRequestCounter);
+                        handle = ClientBase.NewSharedRequestHandle();
                         if (acks.Count == 0 && !moreNotifications && ackWaitTimeout != 0)
                         {
                             // Throttle publishing as we wait for acks to arrive
@@ -2413,7 +2512,6 @@ namespace Opc.Ua.Client.Subscriptions
         private static readonly TimeSpan s_maxOperationTimeout = TimeSpan.FromMinutes(30);
         private static readonly TimeSpan s_minOperationTimeout = TimeSpan.FromSeconds(1);
         private const int kMaxSubscriptionHistory = 256;
-        private uint m_publishRequestCounter;
 #pragma warning disable IDE0032 // Use auto property
         private int m_badPublishRequestCount;
         private int m_goodPublishRequestCount;
@@ -2423,17 +2521,21 @@ namespace Opc.Ua.Client.Subscriptions
         private readonly AsyncManualResetEvent m_publishingPaused = new(true);
         private readonly AsyncAutoResetEvent m_publishControl = new();
         private readonly AsyncManualResetEvent m_drainSignal = new(true);
+        private readonly AsyncManualResetEvent m_sessionAvailable = new(true);
         private readonly SemaphoreSlim m_publishQuiescenceGate = new(1, 1);
         private readonly Lock m_publishStateLock = new();
         private readonly HashSet<CancellationTokenSource> m_activePublishAttempts = [];
+        private readonly HashSet<CancellationTokenSource> m_activeSubscriptionUpdates = [];
         private readonly CancellationToken m_disposeToken;
         private int m_activePublishRequests;
         private int m_disposed;
         private bool m_publishingRequested;
         private bool m_publishingQuiesced;
+        private bool m_sessionRecoveryPaused;
         private readonly ConcurrentQueue<uint> m_subscriptionHistory = new();
         private readonly Task m_publishController;
         private readonly Lock m_subscriptionLock = new();
+        private readonly HashSet<IManagedSubscription> m_establishedSubscriptions = [];
         /// <summary>
         /// Dispatch registry: every partition subscription this manager
         /// owns, including the primaries of logical wrappers. Publish

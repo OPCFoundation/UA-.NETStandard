@@ -133,6 +133,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc cref="IEncodeable.Decode(IDecoder)" />
+        /// <exception cref="ServiceResultException">
+        /// A namespace URI, server URI, or locale entry is null or empty.
+        /// </exception>
         public void Decode(IDecoder decoder)
         {
             UriVersion = decoder.ReadUInt32("UriVersion");
@@ -142,6 +145,12 @@ namespace Opc.Ua
 
             foreach (string uri in uris)
             {
+                if (string.IsNullOrEmpty(uri))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadDecodingError,
+                        "NamespaceUris contains an empty URI.");
+                }
                 NamespaceUris.Append(uri);
             }
 
@@ -171,6 +180,12 @@ namespace Opc.Ua
             uris = decoder.ReadStringArray("LocaleIds")!;
             foreach (string uri in uris)
             {
+                if (string.IsNullOrEmpty(uri))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadDecodingError,
+                        "LocaleIds contains an empty locale.");
+                }
                 LocaleIds.Append(uri);
             }
 

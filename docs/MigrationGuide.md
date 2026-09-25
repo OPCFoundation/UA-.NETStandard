@@ -403,6 +403,22 @@ Implement `IHistoryContinuationPoint` on whatever type you store. The session
 previously disposed only those points that happened to implement `IDisposable`
 and silently leaked the rest; every point is now disposed.
 
+## Awaiting custom node-manager cleanup
+
+When directly owning a `CustomNodeManager2`, use `await using` or await
+`DisposeAsync()` if subsequent work depends on its resources being released.
+Unlike the synchronous cleanup in 1.5.x, `Dispose()` now closes admission and
+can return while previously admitted operations finish. The monitored-item
+manager and address-space nodes remain alive until those operations return.
+New service and lifecycle calls after admission closes throw
+`ObjectDisposedException`.
+
+An admitted callback may call `Dispose()` to initiate shutdown, but must not
+await its own drain with `DisposeAsync()`. Await completion outside the
+callback. Server and master-node-manager asynchronous teardown already await
+adapted synchronous managers, so server-owned managers need no additional
+disposal call.
+
 ## Migrating code that called IServerInternal.Set* mutators
 
 `IServerInternal` no longer exposes the twelve `Set*` binding methods or

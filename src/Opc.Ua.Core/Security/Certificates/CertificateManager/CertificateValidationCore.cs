@@ -60,6 +60,7 @@ namespace Opc.Ua
         /// Opens trust stores through the owning manager's provider resolution or the default resolver.
         /// </summary>
         private readonly Func<CertificateStoreIdentifier, ICertificateStore?> m_openStore;
+        private readonly Func<Certificate, X509Certificate2> m_copyNativeCertificate;
         private readonly ConcurrentDictionary<string, byte[]> m_validatedCertificates;
 
         /// <summary>
@@ -89,9 +90,19 @@ namespace Opc.Ua
         public CertificateValidationCore(
             ITelemetryContext telemetry,
             Func<CertificateStoreIdentifier, ICertificateStore?>? openStore = null)
+            : this(telemetry, openStore, static certificate => certificate.AsX509Certificate2())
+        {
+        }
+
+        internal CertificateValidationCore(
+            ITelemetryContext telemetry,
+            Func<CertificateStoreIdentifier, ICertificateStore?>? openStore,
+            Func<Certificate, X509Certificate2> copyNativeCertificate)
         {
             m_telemetry = telemetry;
             m_openStore = openStore ?? (store => store.OpenStore(telemetry));
+            m_copyNativeCertificate = copyNativeCertificate ??
+                throw new ArgumentNullException(nameof(copyNativeCertificate));
             m_logger = telemetry.CreateLogger<CertificateValidationCore>();
             m_validatedCertificates = [];
             m_stores = [];
@@ -874,6 +885,7 @@ namespace Opc.Ua
 
             // get the issuers (checks the revocation lists if using directory stores).
             var issuers = new List<CertificateIssuerReference>();
+            var extraStoreCerts = new List<X509Certificate2>();
             var validationErrors = new Dictionary<Certificate, ServiceResultException>();
 
             try
@@ -924,7 +936,6 @@ namespace Opc.Ua
                     UrlRetrievalTimeout = options?.UrlRetrievalTimeout ?? TimeSpan.FromMilliseconds(1)
                 };
 
-                var extraStoreCerts = new List<X509Certificate2>();
                 foreach (CertificateIssuerReference issuer in issuers)
                 {
                     if ((issuer.Options &
@@ -940,7 +951,7 @@ namespace Opc.Ua
 
                     // we did the revocation check in the GetIssuers call. No need here.
                     policy.RevocationMode = X509RevocationMode.NoCheck;
-                    extraStoreCerts.Add(issuer.Certificate.AsX509Certificate2());
+                    extraStoreCerts.Add(m_copyNativeCertificate(issuer.Certificate));
                     policy.ExtraStore.Add(extraStoreCerts[^1]);
                 }
 
@@ -949,7 +960,7 @@ namespace Opc.Ua
                 using (var chain = new X509Chain())
                 {
                     chain.ChainPolicy = policy;
-                    using X509Certificate2 certX509 = certificate.AsX509Certificate2();
+                    using X509Certificate2 certX509 = m_copyNativeCertificate(certificate);
                     chain.Build(certX509);
 
                     // check the chain results.
@@ -1064,11 +1075,6 @@ namespace Opc.Ua
                             target = issuer;
                         }
                     }
-                }
-
-                foreach (X509Certificate2 extraCert in extraStoreCerts)
-                {
-                    extraCert.Dispose();
                 }
 
                 // check whether the chain is complete (if there is a chain)
@@ -1257,6 +1263,10 @@ namespace Opc.Ua
             }
             finally
             {
+                foreach (X509Certificate2 extraCert in extraStoreCerts)
+                {
+                    extraCert.Dispose();
+                }
                 trustedCertificate?.Certificate.Dispose();
                 foreach (CertificateIssuerReference issuer in issuers)
                 {

@@ -43,20 +43,21 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Asycnhronously calls a method defined on an object.
         /// </summary>
-        public virtual ValueTask CallAsync(
+        public virtual async ValueTask CallAsync(
             OperationContext context,
             ArrayOf<CallMethodRequest> methodsToCall,
             IList<CallMethodResult> results,
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
         {
-            return CallInternalAsync(
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
+            await CallInternalAsync(
                 context,
                 methodsToCall,
                 results,
                 errors,
                 sync: false,
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>

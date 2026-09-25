@@ -64,6 +64,7 @@ namespace Opc.Ua.Server
     public class AsyncNodeManagerAdapter :
         IAsyncNodeManager,
         IDisposable,
+        IAsyncDisposable,
         INodeManagerMonitoredItemLifecycle
     {
         /// <summary>
@@ -930,6 +931,22 @@ namespace Opc.Ua.Server
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Initiates disposal and awaits the wrapped manager's asynchronous cleanup when supported.
+        /// </summary>
+        public async ValueTask DisposeAsync()
+        {
+            if (SyncNodeManager is IAsyncDisposable asynchronous)
+            {
+                await asynchronous.DisposeAsync().ConfigureAwait(false);
+            }
+            else
+            {
+                Dispose();
+            }
             GC.SuppressFinalize(this);
         }
 

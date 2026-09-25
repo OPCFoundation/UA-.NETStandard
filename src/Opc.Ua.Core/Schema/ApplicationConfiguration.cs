@@ -925,7 +925,6 @@ namespace Opc.Ua
         /// </summary>
         internal void ValidateSecurityPolicies()
         {
-            string[] supportedPolicies = Ua.SecurityPolicies.Default.GetDisplayNames();
             var newPolicies = new List<ServerSecurityPolicy>();
             foreach (ServerSecurityPolicy securityPolicy in m_securityPolicies)
             {
@@ -951,25 +950,20 @@ namespace Opc.Ua
                         }
                     }
                 }
-                else
+                else if (string.Equals(
+                    Ua.SecurityPolicies.Default.GetInfo(securityPolicy.SecurityPolicyUri)?.Uri,
+                    securityPolicy.SecurityPolicyUri,
+                    StringComparison.Ordinal))
                 {
-                    for (int i = 0; i < supportedPolicies.Length; i++)
+                    if (newPolicies.Find(s =>
+                            s.SecurityMode == securityPolicy.SecurityMode &&
+                            string.Equals(
+                                s.SecurityPolicyUri,
+                                securityPolicy.SecurityPolicyUri,
+                                StringComparison.Ordinal)
+                        ) == null)
                     {
-                        if (securityPolicy.SecurityPolicyUri
-                            .Contains(supportedPolicies[i], StringComparison.Ordinal))
-                        {
-                            if (newPolicies.Find(s =>
-                                    s.SecurityMode == securityPolicy.SecurityMode &&
-                                    string.Equals(
-                                        s.SecurityPolicyUri,
-                                        securityPolicy.SecurityPolicyUri,
-                                        StringComparison.Ordinal)
-                                ) == null)
-                            {
-                                newPolicies.Add(securityPolicy);
-                            }
-                            break;
-                        }
+                        newPolicies.Add(securityPolicy);
                     }
                 }
             }
