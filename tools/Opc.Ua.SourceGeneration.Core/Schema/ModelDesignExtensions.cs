@@ -1869,19 +1869,27 @@ namespace Opc.Ua.Schema.Model
             {
                 return Namespaces.OpcUa;
             }
-            NamespaceTable table = decodedValueNamespaceUris;
-            if (table == null)
+            NamespaceTable table = decodedValueNamespaceUris ??
+                CreateDesignNamespaceTable(namespaces);
+            return table.GetString(namespaceIndex);
+        }
+
+        /// <summary>
+        /// The table the namespace indexes of a value authored in a ModelDesign
+        /// refer to: OPC UA 0 and then the design's namespaces in declaration
+        /// order.
+        /// </summary>
+        internal static NamespaceTable CreateDesignNamespaceTable(Namespace[] namespaces)
+        {
+            var table = new NamespaceTable();
+            foreach (Namespace ns in namespaces ?? [])
             {
-                table = new NamespaceTable();
-                foreach (Namespace ns in namespaces ?? [])
+                if (!string.IsNullOrEmpty(ns?.Value))
                 {
-                    if (!string.IsNullOrEmpty(ns?.Value))
-                    {
-                        table.GetIndexOrAppend(ns.Value);
-                    }
+                    table.GetIndexOrAppend(ns.Value);
                 }
             }
-            return table.GetString(namespaceIndex);
+            return table;
         }
 
         /// <summary>

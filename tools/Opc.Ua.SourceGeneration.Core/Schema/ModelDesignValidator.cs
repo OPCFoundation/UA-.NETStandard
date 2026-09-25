@@ -423,7 +423,9 @@ namespace Opc.Ua.Schema.Model
             foreach (ModelDesign dependency in dependencyModels)
             {
                 LinkDependencyDataTypes(dependency.Items);
-                LinkDependencyInstances(dependency.Items);
+                LinkDependencyInstances(
+                    dependency.Items,
+                    ModelDesignExtensions.CreateDesignNamespaceTable(dependency.Namespaces));
             }
 
             int upstreamDependencyCount = dependencyModels.Count;
@@ -441,7 +443,9 @@ namespace Opc.Ua.Schema.Model
             for (int ii = upstreamDependencyCount; ii < dependencyModels.Count; ii++)
             {
                 LinkDependencyDataTypes(dependencyModels[ii].Items);
-                LinkDependencyInstances(dependencyModels[ii].Items);
+                LinkDependencyInstances(
+                    dependencyModels[ii].Items,
+                    ModelDesignExtensions.CreateDesignNamespaceTable(dependencyModels[ii].Namespaces));
             }
 
             // set a default xml namespace.
@@ -7198,7 +7202,13 @@ namespace Opc.Ua.Schema.Model
         /// Resolution is best effort: references that cannot be resolved
         /// are left null rather than failing the load.
         /// </summary>
-        private void LinkDependencyInstances(IEnumerable<NodeDesign> nodes)
+        /// <param name="nodes">The nodes of the dependency design.</param>
+        /// <param name="valueNamespaceUris">The table the namespace indexes
+        /// in the dependency design's default values refer to (its own
+        /// namespaces, not the target's).</param>
+        private void LinkDependencyInstances(
+            IEnumerable<NodeDesign> nodes,
+            NamespaceTable valueNamespaceUris)
         {
             if (nodes == null)
             {
@@ -7217,17 +7227,43 @@ namespace Opc.Ua.Schema.Model
 
                 if (node is InstanceDesign instance)
                 {
-                    LinkDependencyInstance(instance);
+                    LinkDependencyInstance(instance, valueNamespaceUris);
                 }
 
                 if (node.Children?.Items != null)
                 {
-                    LinkDependencyInstances(node.Children.Items);
+                    LinkDependencyInstances(node.Children.Items, valueNamespaceUris);
                 }
             }
         }
 
-        private void LinkDependencyInstance(InstanceDesign instance)
+        private bool TryDecodeDependencyDefaultValue(
+            System.Xml.XmlElement defaultValue,
+            XmlQualifiedName symbolicId,
+            out Variant variant)
+        {
+            try
+            {
+                using var decoder = new XmlDecoder(defaultValue, m_context);
+                variant = decoder.ReadVariantValue(null, default);
+                return !variant.TypeInfo.IsUnknown;
+            }
+            catch (Exception e)
+            {
+                if (m_logger.IsEnabled(LogLevel.Debug))
+                {
+                    m_logger.LogDebug(e,
+                        "Could not decode the default value of dependency node {Name}.",
+                        symbolicId?.Name);
+                }
+                variant = default;
+                return false;
+            }
+        }
+
+        private void LinkDependencyInstance(
+            InstanceDesign instance,
+            NamespaceTable valueNamespaceUris)
         {
             NodeDesign typeDefinition = null;
 
@@ -7271,35 +7307,24 @@ namespace Opc.Ua.Schema.Model
                     variable.DataTypeNode = dataType as DataTypeDesign;
                 }
 
-                if (variable.DefaultValue != null && variable.DecodedValue == null)
+                if (variable.DefaultValue != null && variable.DecodedValue == null &&
+                    TryDecodeDependencyDefaultValue(
+                        variable.DefaultValue,
+                        instance.SymbolicId,
+                        out Variant variant))
                 {
-                    try
+                    // Mirror ValidateInstance: the default value only
+                    // supplies the rank when the design did not state
+                    // one - an authored ValueRank is the contract.
+                    if (!variable.ValueRankSpecified)
                     {
-                        using var decoder = new XmlDecoder(variable.DefaultValue, m_context);
-                        Variant variant = decoder.ReadVariantValue(null, default);
-                        if (!variant.TypeInfo.IsUnknown)
-                        {
-                            // Mirror ValidateInstance: the default value only
-                            // supplies the rank when the design did not state
-                            // one - an authored ValueRank is the contract.
-                            if (!variable.ValueRankSpecified)
-                            {
-                                variable.ValueRank = GetValueRank(variant.TypeInfo.ValueRank);
-                                variable.ValueRankSpecified = true;
-                            }
-                            variable.DecodedValue =
-                                variant.AsBoxedObject(Variant.BoxingBehavior.Legacy);
-                        }
+                        variable.ValueRank = GetValueRank(variant.TypeInfo.ValueRank);
+                        variable.ValueRankSpecified = true;
                     }
-                    catch (Exception e)
-                    {
-                        if (m_logger.IsEnabled(LogLevel.Debug))
-                        {
-                            m_logger.LogDebug(e,
-                                "Could not decode the default value of dependency instance {Name}.",
-                                instance.SymbolicId.Name);
-                        }
-                    }
+                    variable.DecodedValue =
+                        variant.AsBoxedObject(Variant.BoxingBehavior.Legacy);
+                    // The indexes are the dependency design's, not the target's.
+                    variable.DecodedValueNamespaceUris = valueNamespaceUris;
                 }
             }
 

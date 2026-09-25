@@ -367,6 +367,98 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 Is.False);
         }
 
+        /// <summary>
+        /// A2-5: a QualifiedName / NodeId default authored in a dependency
+        /// design numbers the namespaces of that design (index 1 = the
+        /// dependency). Children the target inherits from the dependency type
+        /// (subtype, child object, instance) used to resolve that index
+        /// against the target design's namespaces and name the target's URI.
+        /// </summary>
+        [Test]
+        public void DependencyDesignDefaultValuesKeepTheirNamespaces()
+        {
+            string depPath = Path.Combine(m_rootPath, "A", "Dep.xml");
+            string tgtPath = Path.Combine(m_rootPath, "B", "Tgt.xml");
+            File.WriteAllText(depPath, NamespacedDefaultsDependencyDesign);
+            File.WriteAllText(tgtPath, NamespacedDefaultsTargetDesign);
+
+            Dictionary<string, string> generated = Generate(
+                targets: [tgtPath],
+                dependencies: [tgtPath, depPath]);
+
+            string[] values = [.. generated
+                .Where(f => f.Key.EndsWith(".cs", System.StringComparison.Ordinal))
+                .SelectMany(f => f.Value.Split('\n'))
+                .Select(l => l.Trim())
+                .Where(l => l.StartsWith("baseState.WrappedValue", System.StringComparison.Ordinal) &&
+                    l.Contains("GetIndexOrAppend", System.StringComparison.Ordinal))];
+
+            Assert.That(values, Is.Not.Empty);
+            Assert.That(values, Has.None.Contains("http://test.org/UA/Tgt/"));
+            Assert.That(values, Has.Some.EqualTo(
+                "baseState.WrappedValue = global::Opc.Ua.Variant.From(" +
+                "new global::Opc.Ua.QualifiedName(\"X\", " +
+                "context.NamespaceUris.GetIndexOrAppend(\"http://test.org/UA/Dep/\")));"));
+            Assert.That(values, Has.Some.EqualTo(
+                "baseState.WrappedValue = global::Opc.Ua.Variant.From(" +
+                "global::Opc.Ua.NodeId.Parse(\"i=77\").WithNamespaceIndex(" +
+                "context.NamespaceUris.GetIndexOrAppend(\"http://test.org/UA/Dep/\")));"));
+        }
+
+        private const string NamespacedDefaultsDependencyDesign =
+            """
+            <?xml version="1.0" encoding="utf-8" ?>
+            <opc:ModelDesign
+              xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+              xmlns:ua="http://opcfoundation.org/UA/"
+              xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
+              xmlns="http://test.org/UA/Dep/"
+              TargetNamespace="http://test.org/UA/Dep/">
+              <opc:Namespaces>
+                <opc:Namespace Name="OpcUa" Prefix="Opc.Ua" XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/</opc:Namespace>
+                <opc:Namespace Name="Dep" Prefix="Test.Dep">http://test.org/UA/Dep/</opc:Namespace>
+              </opc:Namespaces>
+              <opc:ObjectType SymbolicName="DepType" BaseType="ua:BaseObjectType">
+                <opc:Children>
+                  <opc:Property SymbolicName="Label" DataType="ua:QualifiedName" ModellingRule="Mandatory">
+                    <opc:DefaultValue><uax:QualifiedName><uax:NamespaceIndex>1</uax:NamespaceIndex><uax:Name>X</uax:Name></uax:QualifiedName></opc:DefaultValue>
+                  </opc:Property>
+                  <opc:Property SymbolicName="Target" DataType="ua:NodeId" ModellingRule="Mandatory">
+                    <opc:DefaultValue><uax:NodeId><uax:Identifier>ns=1;i=77</uax:Identifier></uax:NodeId></opc:DefaultValue>
+                  </opc:Property>
+                </opc:Children>
+              </opc:ObjectType>
+            </opc:ModelDesign>
+            """;
+
+        private const string NamespacedDefaultsTargetDesign =
+            """
+            <?xml version="1.0" encoding="utf-8" ?>
+            <opc:ModelDesign
+              xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+              xmlns:ua="http://opcfoundation.org/UA/"
+              xmlns:dep="http://test.org/UA/Dep/"
+              xmlns="http://test.org/UA/Tgt/"
+              TargetNamespace="http://test.org/UA/Tgt/">
+              <opc:Namespaces>
+                <opc:Namespace Name="Tgt" Prefix="Test.Tgt">http://test.org/UA/Tgt/</opc:Namespace>
+                <opc:Namespace Name="Dep" Prefix="Test.Dep">http://test.org/UA/Dep/</opc:Namespace>
+                <opc:Namespace Name="OpcUa" Prefix="Opc.Ua" XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/</opc:Namespace>
+              </opc:Namespaces>
+              <opc:ObjectType SymbolicName="SubType" BaseType="dep:DepType">
+                <opc:Children>
+                  <opc:Property SymbolicName="Own" DataType="ua:Int32" ModellingRule="Mandatory" />
+                </opc:Children>
+              </opc:ObjectType>
+              <opc:ObjectType SymbolicName="HostType" BaseType="ua:BaseObjectType">
+                <opc:Children>
+                  <opc:Object SymbolicName="Inner" TypeDefinition="dep:DepType" ModellingRule="Mandatory" />
+                </opc:Children>
+              </opc:ObjectType>
+              <opc:Object SymbolicName="Instance1" TypeDefinition="dep:DepType" />
+            </opc:ModelDesign>
+            """;
+
         private static string FieldText(string definition, string name)
         {
             int start = definition.IndexOf("Name = \"" + name + "\"", System.StringComparison.Ordinal);
