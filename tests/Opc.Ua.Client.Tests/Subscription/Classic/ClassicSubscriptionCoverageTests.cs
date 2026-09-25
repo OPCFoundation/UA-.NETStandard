@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -826,8 +827,8 @@ namespace Opc.Ua.Client.Tests
             Mock<ISession> session = CreateGetMonitoredItemsSession([], []);
             subscription.Session = session.Object;
 
-            bool transferred = await subscription.TransferAsync(session.Object, 9, [])
-                .ConfigureAwait(false);
+            (bool transferred, _) = await subscription.TransferWithAcknowledgementsAsync(
+                session.Object, 9, [], true, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(transferred, Is.False);
             Assert.That(subscription.Created, Is.False);
@@ -835,6 +836,74 @@ namespace Opc.Ua.Client.Tests
                 It.IsAny<RequestHeader>(),
                 It.Is<ArrayOf<uint>>(ids => ids.Count == 1 && ids[0] == 9u),
                 It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
+        /// The public TransferAsync is also used by ReactivateSubscriptionsAsync,
+        /// which moves nothing to the session: the session's own subscription
+        /// must survive a failed adoption (review G27).
+        /// </summary>
+        [Test]
+        public async Task FailedReactivateOfRestoredSubscriptionKeepsTheServerSubscriptionAsync()
+        {
+            using Subscription subscription = CreateSubscription();
+            MonitoredItem created = CreateItem(4325u, "Created");
+            created.ServerId = 55;
+            subscription.AddItem(created);
+            Mock<ISession> session = CreateGetMonitoredItemsSession([], []);
+            subscription.Session = session.Object;
+
+            bool transferred = await subscription.TransferAsync(session.Object, 9, [])
+                .ConfigureAwait(false);
+
+            Assert.That(transferred, Is.False);
+            session.Verify(s => s.DeleteSubscriptionsAsync(
+                It.IsAny<RequestHeader>(),
+                It.IsAny<ArrayOf<uint>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// A transient GetMonitoredItems error does not prove the transferred
+        /// subscription cannot be adopted, so it is not deleted; a definitive
+        /// one does, so it is (review G27).
+        /// </summary>
+        [TestCaseSource(nameof(GetMonitoredItemsFailures))]
+        public async Task FailedGetMonitoredItemsDeletesTransferredSubscriptionOnlyWhenDefinitiveAsync(
+            StatusCode statusCode,
+            bool deleted)
+        {
+            using Subscription subscription = CreateSubscription();
+            MonitoredItem created = CreateItem(4325u, "Created");
+            created.ServerId = 55;
+            subscription.AddItem(created);
+            Mock<ISession> session = CreateGetMonitoredItemsSession([], []);
+            session
+                .Setup(s => s.CallAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<CallMethodRequest>>(),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new ServiceResultException(statusCode));
+            subscription.Session = session.Object;
+
+            (bool transferred, _) = await subscription.TransferWithAcknowledgementsAsync(
+                session.Object, 9, [], true, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(transferred, Is.False);
+            session.Verify(s => s.DeleteSubscriptionsAsync(
+                It.IsAny<RequestHeader>(),
+                It.Is<ArrayOf<uint>>(ids => ids.Count == 1 && ids[0] == 9u),
+                It.IsAny<CancellationToken>()), deleted ? Times.Once() : Times.Never());
+        }
+
+        private static IEnumerable<TestCaseData> GetMonitoredItemsFailures()
+        {
+            yield return new TestCaseData(StatusCodes.BadTimeout, false);
+            yield return new TestCaseData(StatusCodes.BadTooManyOperations, false);
+            yield return new TestCaseData(StatusCodes.BadServerTooBusy, false);
+            yield return new TestCaseData(StatusCodes.BadCommunicationError, false);
+            yield return new TestCaseData(StatusCodes.BadMethodInvalid, true);
+            yield return new TestCaseData(StatusCodes.BadNotSupported, true);
         }
 
         private static Mock<ISession> CreateItemSession(uint subscriptionId, Action onCreateItems = null)

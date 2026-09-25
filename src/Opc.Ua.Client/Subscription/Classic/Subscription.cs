@@ -1802,18 +1802,32 @@ namespace Opc.Ua.Client
             ArrayOf<uint> availableSequenceNumbers,
             CancellationToken ct = default)
         {
+            // The caller may not have transferred anything to the session
+            // (e.g. ReactivateSubscriptionsAsync adopts the session's own
+            // subscriptions), so a failed adoption must never delete the
+            // server subscription here.
             (bool transferred, _) = await TransferWithAcknowledgementsAsync(
-                session, id, availableSequenceNumbers, ct).ConfigureAwait(false);
+                session, id, availableSequenceNumbers, false, ct).ConfigureAwait(false);
             return transferred;
         }
 
         /// <summary>
         /// Transfers the subscription and returns only sequence numbers not claimed for republish.
         /// </summary>
+        /// <param name="session">The session to which the subscription is transferred.</param>
+        /// <param name="id">Id of the transferred subscription.</param>
+        /// <param name="availableSequenceNumbers">The available sequence numbers on the server.</param>
+        /// <param name="deleteOnDefinitiveFailure">Set only when the caller just
+        /// moved the server subscription to <paramref name="session"/> with a
+        /// TransferSubscriptions call. The server subscription is then deleted
+        /// when it definitively cannot be adopted, so it does not live on as
+        /// an orphan. Transient failures never delete it.</param>
+        /// <param name="ct">The cancellation token.</param>
         internal async Task<(bool Transferred, ArrayOf<uint> Acknowledgements)> TransferWithAcknowledgementsAsync(
             ISession session,
             uint id,
             ArrayOf<uint> availableSequenceNumbers,
+            bool deleteOnDefinitiveFailure,
             CancellationToken ct)
         {
             using Activity? activity = m_telemetry.StartActivity();
@@ -1853,14 +1867,21 @@ namespace Opc.Ua.Client
             else
             {
                 // handle the case when the client restarts and loads the saved subscriptions from storage
-                (bool success, ArrayOf<uint> serverHandles, ArrayOf<uint> clientHandles) = await GetMonitoredItemsAsync(ct)
-                    .ConfigureAwait(false);
-                if (!success)
+                (StatusCode status, ArrayOf<uint> serverHandles, ArrayOf<uint> clientHandles) =
+                    await CallGetMonitoredItemsAsync(ct).ConfigureAwait(false);
+                if (StatusCode.IsNotGood(status))
                 {
                     m_logger.SubscriptionIdSubscriptionIdServerFailedRespondGetMonitoredItems(
                         Id,
                         Session?.SessionId);
-                    await DeleteTransferredSubscriptionAsync(session, id, ct).ConfigureAwait(false);
+
+                    // Only a definitive answer proves the subscription can
+                    // never be adopted. A transient error (timeout, busy
+                    // server, lost connection) leaves it in place for a retry.
+                    if (deleteOnDefinitiveFailure && IsDefinitiveGetMonitoredItemsFailure(status))
+                    {
+                        await DeleteTransferredSubscriptionAsync(session, id, ct).ConfigureAwait(false);
+                    }
                     return (false, default);
                 }
 
@@ -1887,10 +1908,14 @@ namespace Opc.Ua.Client
                         monitoredItemsCount,
                         Session?.SessionId);
 
-                    // The server already moved its subscription to this
-                    // session. Nothing on the client owns it (Id stays 0), so
-                    // it would live on and consume publish requests: delete it.
-                    await DeleteTransferredSubscriptionAsync(session, id, ct).ConfigureAwait(false);
+                    // When the caller just moved the server subscription to
+                    // this session, nothing on the client owns it (Id stays
+                    // 0), so it would live on and consume publish requests:
+                    // delete it.
+                    if (deleteOnDefinitiveFailure)
+                    {
+                        await DeleteTransferredSubscriptionAsync(session, id, ct).ConfigureAwait(false);
+                    }
                     return (false, default);
                 }
 
@@ -2345,6 +2370,21 @@ namespace Opc.Ua.Client
             )> GetMonitoredItemsAsync(CancellationToken ct = default)
         {
             using Activity? activity = m_telemetry.StartActivity();
+            (StatusCode status, ArrayOf<uint> serverHandles, ArrayOf<uint> clientHandles) =
+                await CallGetMonitoredItemsAsync(ct).ConfigureAwait(false);
+            return (StatusCode.IsGood(status), serverHandles, clientHandles);
+        }
+
+        /// <summary>
+        /// Calls GetMonitoredItems and keeps the status of a failed call, so
+        /// a transient error can be told apart from a definitive one.
+        /// </summary>
+        private async Task<(
+            StatusCode Status,
+            ArrayOf<uint> ServerHandles,
+            ArrayOf<uint> ClientHandles
+            )> CallGetMonitoredItemsAsync(CancellationToken ct)
+        {
             VerifySession();
             try
             {
@@ -2357,8 +2397,11 @@ namespace Opc.Ua.Client
                 {
                     var serverHandles = (ArrayOf<uint>)outputArguments[0];
                     var clientHandles = (ArrayOf<uint>)outputArguments[1];
-                    return (true, serverHandles, clientHandles);
+                    return (StatusCodes.Good, serverHandles, clientHandles);
                 }
+
+                // The server answered, but not with the two handle arrays.
+                return (StatusCodes.BadTypeMismatch, default, default);
             }
             catch (ServiceResultException sre)
             {
@@ -2366,8 +2409,24 @@ namespace Opc.Ua.Client
                     sre,
                     Id,
                     Session?.SessionId);
+                return (sre.StatusCode, default, default);
             }
-            return (false, default, default);
+        }
+
+        /// <summary>
+        /// Whether a failed GetMonitoredItems call proves that the transferred
+        /// subscription can never be adopted, as opposed to a transient error
+        /// such as BadTimeout, BadTooManyOperations, BadServerTooBusy or a
+        /// communication error, after which a retry can still succeed.
+        /// </summary>
+        private static bool IsDefinitiveGetMonitoredItemsFailure(StatusCode status)
+        {
+            return status == StatusCodes.BadTypeMismatch ||
+                status == StatusCodes.BadMethodInvalid ||
+                status == StatusCodes.BadNotSupported ||
+                status == StatusCodes.BadNotImplemented ||
+                status == StatusCodes.BadNotExecutable ||
+                status == StatusCodes.BadUserAccessDenied;
         }
 
         /// <summary>
