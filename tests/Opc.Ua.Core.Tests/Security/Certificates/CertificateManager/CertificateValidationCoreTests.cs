@@ -708,6 +708,38 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(result.IsSuppressible, Is.False);
         }
 
+        /// <summary>
+        /// TreatAsInvalid set on an individual trust-list entry rejects the
+        /// certificate or CA it names even when the store behind the list also
+        /// holds it. Before the fix the store hit returned the store's options
+        /// only and the entry's flag was ignored.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ValidateAsyncTreatAsInvalidEntryRejectsCertificateAlsoInStoreAsync(bool issuer)
+        {
+            Certificate trusted = issuer ? m_rootCa : m_selfSignedApp;
+            string trustedDir = await WriteStoreAsync([trusted]).ConfigureAwait(false);
+            CertificateValidationCore core = NewCore();
+            CertificateTrustList trustList = TrustList(trustedDir);
+            trustList.TrustedCertificates =
+            [
+                new CertificateIdentifier
+                {
+                    RawData = trusted.RawData,
+                    ValidationOptions = CertificateValidationOptions.TreatAsInvalid
+                }
+            ];
+            core.Update(null, trustList, null);
+            using CertificateCollection chain = Chain(issuer ? m_leaf : m_selfSignedApp);
+
+            CertificateValidationResult result = await core.ValidateAsync(
+                chain, (_, _) => true, null, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(result.IsSuppressible, Is.False);
+        }
+
         [Test]
         public async Task ValidateAsyncAutoAcceptUntrustedReturnsSuccessAsync()
         {

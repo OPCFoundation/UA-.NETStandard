@@ -1494,9 +1494,13 @@ namespace Opc.Ua
                     {
                         if (Utils.IsEqual(trusted[ii].RawData, certificate.RawData))
                         {
-                            return new CertificateIssuerReference(
-                                trusted[ii].AddRef(),
-                                state.TrustedStore.ValidationOptions);
+                            CertificateValidationOptions options =
+                                state.TrustedStore.ValidationOptions |
+                                await GetTreatAsInvalidAsync(
+                                    state.TrustedCertificates,
+                                    certificate,
+                                    ct).ConfigureAwait(false);
+                            return new CertificateIssuerReference(trusted[ii].AddRef(), options);
                         }
                     }
                 }
@@ -1541,6 +1545,57 @@ namespace Opc.Ua
 
             // not a trusted.
             return null;
+        }
+
+        /// <summary>
+        /// Returns <see cref="CertificateValidationOptions.TreatAsInvalid"/> when an
+        /// entry of <paramref name="explicitList"/> naming <paramref name="certificate"/>
+        /// carries it. A certificate found in the store behind a trust list takes
+        /// the store's options, but the restrictive "never trust" flag set on an
+        /// individual entry for the same certificate must still apply.
+        /// </summary>
+        private async Task<CertificateValidationOptions> GetTreatAsInvalidAsync(
+            ArrayOf<CertificateIdentifier> explicitList,
+            Certificate certificate,
+            CancellationToken ct)
+        {
+            for (int ii = 0; ii < explicitList.Count; ii++)
+            {
+                CertificateIdentifier entry = explicitList[ii];
+                if ((entry.ValidationOptions & CertificateValidationOptions.TreatAsInvalid) == 0)
+                {
+                    continue;
+                }
+
+                if (!string.IsNullOrEmpty(entry.Thumbprint))
+                {
+                    if (string.Equals(
+                        entry.Thumbprint,
+                        certificate.Thumbprint,
+                        StringComparison.OrdinalIgnoreCase))
+                    {
+                        return CertificateValidationOptions.TreatAsInvalid;
+                    }
+                    continue;
+                }
+
+                using Certificate? resolved = await CertificateIdentifierResolver
+                    .ResolveAsync(
+                        entry,
+                        registry: null,
+                        needPrivateKey: false,
+                        applicationUri: null,
+                        m_telemetry,
+                        ct)
+                    .ConfigureAwait(false);
+
+                if (resolved != null && Utils.IsEqual(resolved.RawData, certificate.RawData))
+                {
+                    return CertificateValidationOptions.TreatAsInvalid;
+                }
+            }
+
+            return CertificateValidationOptions.Default;
         }
 
         /// <summary>
@@ -1670,6 +1725,11 @@ namespace Opc.Ua
                         {
                             CertificateValidationOptions options = certificateStore
                                 .ValidationOptions;
+
+                            // an entry on the list itself can still mark the
+                            // CA as never to be trusted.
+                            options |= await GetTreatAsInvalidAsync(explicitList, issuer, ct)
+                                .ConfigureAwait(false);
 
                             if (checkRecovationStatus)
                             {
