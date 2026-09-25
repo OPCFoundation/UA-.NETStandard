@@ -202,6 +202,39 @@ namespace Opc.Ua.Server.Tests
             Assert.That(laterValue, Is.EqualTo(10U));
         }
 
+        /// <summary>
+        /// Verifies that a signed delta outside the source type's range is widened
+        /// to the next signed type instead of failing with Bad_TypeMismatch.
+        /// </summary>
+        [TestCase("Delta")]
+        [TestCase("DeltaBounds")]
+        public void SignedDeltaOverflowIsWidenedToTheNextSignedType(string aggregateName)
+        {
+            var startTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
+            DateTimeUtc endTime = startTime.AddMilliseconds(1000);
+            NodeId aggregateId = aggregateName == "Delta"
+                ? ObjectIds.AggregateFunction_Delta
+                : ObjectIds.AggregateFunction_DeltaBounds;
+            var values = new List<DataValue>
+            {
+                new(new Variant((short)-20000), StatusCodes.Good, startTime, startTime),
+                new(new Variant((short)20000), StatusCodes.Good, startTime.AddMilliseconds(900), startTime.AddMilliseconds(900)),
+                new(new Variant((short)20000), StatusCodes.Good, endTime, endTime)
+            };
+
+            List<DataValue> results = RunAllStandard(
+                aggregateId,
+                values,
+                startTime,
+                endTime,
+                1000);
+
+            Assert.That(results, Has.Count.GreaterThanOrEqualTo(1));
+            Assert.That(StatusCode.IsBad(results[0].StatusCode), Is.False);
+            Assert.That(results[0].WrappedValue.TryGetValue(out int delta), Is.True);
+            Assert.That(delta, Is.EqualTo(40000));
+        }
+
         [Test]
         public void StartEndCalculatorWithUnhandledNumericIdFallsBackToBaseInterpolation()
         {
