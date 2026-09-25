@@ -287,6 +287,46 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(pool.DuplicateReturnCount, Is.Zero);
         }
 
+        /// <summary>
+        /// The sender checks the message size limit against the body bytes the
+        /// receiver counts, so a body one byte above the limit is aborted rather
+        /// than sent as a final chunk the peer then rejects by closing the channel.
+        /// </summary>
+        [TestCase(0, false)]
+        [TestCase(1, true)]
+        public async Task ResponseBodyAboveTheMessageSizeLimitIsAbortedAsync(
+            int bytesAboveLimit,
+            bool aborted)
+        {
+            var pool = new TrackingArrayPool();
+            using TestServerChannel channel = CreateOpenChannel(pool);
+            ReadResponse response = CreateResponse();
+            int bodySize;
+            using (var body = new System.IO.MemoryStream())
+            {
+                BinaryEncoder.EncodeMessage(response, body, channel.MessageContextForTest, true);
+                bodySize = (int)body.Length;
+            }
+            channel.SetMaxResponseMessageSizeForTest(bodySize - bytesAboveLimit);
+            var transport = new GateByteTransport(expectedSendCount: 1, captureSentChunks: true);
+            channel.SetTransport(transport);
+
+            channel.SendResponse(1, response);
+
+            Assert.That(
+                await CompletesWithinAsync(transport.AllSendsStarted, 30).ConfigureAwait(false),
+                Is.True);
+            byte[] sentChunk = transport.LastSentChunk;
+            Assert.That(sentChunk, Is.Not.Null);
+            Assert.That(TcpMessageType.IsAbort(GetMessageType(sentChunk)), Is.EqualTo(aborted));
+            Assert.That(TcpMessageType.IsFinal(GetMessageType(sentChunk)), Is.EqualTo(!aborted));
+
+            transport.Complete();
+            Assert.That(
+                await WaitForOutstandingCountAsync(pool, expected: 0, 30).ConfigureAwait(false),
+                Is.True);
+        }
+
         [TestCase(65535)]
         [TestCase(65536)]
         public async Task NegotiatedMaxBufferSizeUsesBucketSafeRentalSizeAsync(
@@ -943,6 +983,46 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(pool.ReturnCount, Is.EqualTo(1));
             channel.ReleaseSavedPartsForTest(2);
             Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// A sender aborts a message once the next chunk would exceed the chunk
+        /// limit, so the Abort chunk arrives as chunk MaxChunkCount + 1. It is not
+        /// part of the message and must not count against the limit: only the
+        /// aborted request is dropped, the channel stays open.
+        /// </summary>
+        [Test]
+        public async Task AbortChunkAfterTheChunkLimitKeepsTheChannelOpenAsync()
+        {
+            var pool = new TrackingArrayPool();
+            using TestServerChannel channel = CreateOpenChannel(pool);
+            channel.SetMaxRequestChunkCountForTest(2);
+
+            for (uint sequenceNumber = 1; sequenceNumber <= 2; sequenceNumber++)
+            {
+                await channel.FeedReceivedChunkAsync(
+                    channel.CreateRequestChunkForTest(
+                        TcpMessageType.Message,
+                        isFinal: false,
+                        sequenceNumber,
+                        requestId: 1))
+                    .ConfigureAwait(false);
+            }
+            Assert.That(pool.OutstandingCount, Is.EqualTo(2), "chunks up to the limit are kept.");
+
+            ArraySegment<byte> abort = channel.CreateRequestChunkForTest(
+                TcpMessageType.Message,
+                isFinal: false,
+                sequenceNumber: 3,
+                requestId: 1);
+            BitConverter.GetBytes(TcpMessageType.Message | TcpMessageType.Abort)
+                .CopyTo(abort.Array!, abort.Offset);
+            await channel.FeedReceivedChunkAsync(abort).ConfigureAwait(false);
+
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Open));
+            Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(pool.ReturnCount, Is.EqualTo(pool.RentCount));
             Assert.That(pool.DuplicateReturnCount, Is.Zero);
         }
 
@@ -1946,6 +2026,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             /// Gets the state reached after the controlled transport operation.
             /// </summary>
             public TcpChannelState CurrentState => State;
+
+            /// <summary>
+            /// Gets the message context the channel encodes with.
+            /// </summary>
+            public IServiceMessageContext MessageContextForTest => Quotas.MessageContext;
 
             /// <summary>
             /// Gets the last error reported through the channel's transport-failure hook.
