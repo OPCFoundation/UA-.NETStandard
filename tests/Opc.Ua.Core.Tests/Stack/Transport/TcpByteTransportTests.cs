@@ -87,6 +87,23 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
+        public async Task ConnectAsyncHonorsCancellationBeforeConnection()
+        {
+            using var cancellationSource = new CancellationTokenSource();
+            cancellationSource.Cancel();
+            using var transport = new TcpByteTransport(m_bufferManager, kBufferSize, m_telemetry);
+
+            OperationCanceledException exception = Assert.CatchAsync<OperationCanceledException>(
+                async () => await transport.ConnectAsync(
+                    new Uri("opc.tcp://192.0.2.1:4840"),
+                    cancellationSource.Token).ConfigureAwait(false))!;
+
+            Assert.That(exception.CancellationToken, Is.EqualTo(cancellationSource.Token));
+            Assert.That(transport.LocalEndpoint, Is.Null);
+            Assert.That(transport.RemoteEndpoint, Is.Null);
+        }
+
+        [Test]
         public async Task SendChunkAsyncRoundTripsBytesOverTheSocket()
         {
             (TcpByteTransport client, Socket serverSocket, TcpListener listener) =

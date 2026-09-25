@@ -194,7 +194,22 @@ namespace Opc.Ua.Bindings
 #else
                 using (ct.Register(static s => ((Socket)s!).Dispose(), socket))
                 {
-                    await socket.ConnectAsync(endpoint).ConfigureAwait(false);
+                    try
+                    {
+                        await socket.ConnectAsync(endpoint).ConfigureAwait(false);
+                    }
+                    catch (SocketException) when (ct.IsCancellationRequested)
+                    {
+                        throw new OperationCanceledException(
+                            "Connection attempt was cancelled.",
+                            ct);
+                    }
+                    catch (ObjectDisposedException) when (ct.IsCancellationRequested)
+                    {
+                        throw new OperationCanceledException(
+                            "Connection attempt was cancelled.",
+                            ct);
+                    }
                 }
                 ct.ThrowIfCancellationRequested();
 #endif
