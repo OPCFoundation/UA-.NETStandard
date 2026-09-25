@@ -368,7 +368,8 @@ namespace Opc.Ua.Client.Redundancy.Tests
                 leaderSession.Disposed,
                 Is.True,
                 "the ex-leader must not keep running the leader session next to the new leader");
-            Assert.That(coordinator.CurrentSession, Is.SameAs(standbySession));
+            // The standby connect follows the demotion notification.
+            Assert.That(() => coordinator.CurrentSession, Is.SameAs(standbySession).After(10000, 20));
             Assert.That(created, Is.EqualTo(2));
         }
 
@@ -422,6 +423,71 @@ namespace Opc.Ua.Client.Redundancy.Tests
                 "the follower's own server session must be closed, not orphaned");
             Assert.That(closedTokens[0].Token, Is.EqualTo(followerToken));
             Assert.That(closedTokens[0].DeleteSubscriptions, Is.True);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DemotionIsReportedEvenWhenTheStandbyConnectFailsOrHangsAsync(bool hang)
+        {
+            using var store = new InMemorySharedKeyValueStore();
+            var endpoint = new ConfiguredEndpoint(null!, new EndpointDescription("opc.tcp://demote:4840"));
+            ManagedSession leaderSession = CreateManagedSessionForTokenReuse(endpoint, NodeId.Parse("s=auth"));
+            int created = 0;
+            var releaseStandby = new TaskCompletionSource<ManagedSession>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var configured = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var demoted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var election = new ControllableLeaderElection();
+
+            var options = new ClientReplicaOptions
+            {
+                Mode = ClientStandbyMode.Warm,
+                EnableTokenReuse = false,
+                CreateSessionAsync = _ =>
+                {
+                    created++;
+                    if (created == 1)
+                    {
+                        return new ValueTask<ManagedSession>(leaderSession);
+                    }
+                    if (hang)
+                    {
+                        return new ValueTask<ManagedSession>(releaseStandby.Task);
+                    }
+                    throw new ServiceResultException(StatusCodes.BadTooManySessions);
+                },
+                ConfigureLeaderAsync = (_, fastActivated, _) =>
+                {
+                    configured.TrySetResult(fastActivated);
+                    return default;
+                }
+            };
+            await using var coordinator = new ClientReplicaCoordinator(
+                options, election, store, NullRecordProtector.Instance, m_telemetry);
+            coordinator.RoleChanged += isLeader =>
+            {
+                if (!isLeader)
+                {
+                    demoted.TrySetResult(true);
+                }
+            };
+
+            await coordinator.StartAsync().ConfigureAwait(false);
+            election.SetLeader(true);
+            await configured.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+
+            election.SetLeader(false);
+            try
+            {
+                await demoted.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                Assert.That(coordinator.CurrentSession, Is.Null);
+                Assert.That(leaderSession.Disposed, Is.True);
+            }
+            finally
+            {
+                // Unblock the pending standby connect so the coordinator can dispose.
+                releaseStandby.TrySetCanceled();
+            }
         }
 
         [TestCase(ClientStandbyMode.Warm)]
