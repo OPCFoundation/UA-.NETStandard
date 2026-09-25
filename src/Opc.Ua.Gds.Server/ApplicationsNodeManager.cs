@@ -497,16 +497,32 @@ namespace Opc.Ua.Gds.Server
                 m_logger.CreatedCustomCertificateGroupNode(groupId, certificateGroup.Id);
             }
 
-            certificateGroup.DefaultTrustList?.Handle = new TrustList(
-                    certificateGroup.DefaultTrustList,
-                    new CertificateStoreIdentifier(certificateGroup.Configuration.TrustedListPath!),
-                    new CertificateStoreIdentifier(certificateGroup.Configuration.IssuerListPath!),
-                    new TrustList.SecureAccess(HasTrustListAccess),
-                    // the group trust list is shared by all applications of
-                    // the group: SelfAdmin / ApplicationAdmin may only read it.
-                    new TrustList.SecureAccess(
-                        (context, _) => AuthorizationHelper.HasTrustListWriteAccess(context)),
-                    Server.Telemetry);
+            if (certificateGroup.DefaultTrustList == null)
+            {
+                return;
+            }
+
+            var trustList = new TrustList(
+                certificateGroup.DefaultTrustList,
+                new CertificateStoreIdentifier(certificateGroup.Configuration.TrustedListPath!),
+                new CertificateStoreIdentifier(certificateGroup.Configuration.IssuerListPath!),
+                new TrustList.SecureAccess(HasTrustListAccess),
+                // the group trust list is shared by all applications of
+                // the group: SelfAdmin / ApplicationAdmin may only read it.
+                new TrustList.SecureAccess(
+                    (context, _) => AuthorizationHelper.HasTrustListWriteAccess(context)),
+                Server.Telemetry);
+            if (!string.Equals(groupId, "DefaultHttpsGroup", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(groupId, "DefaultUserTokenGroup", StringComparison.OrdinalIgnoreCase))
+            {
+                // OPC 10000-12 §7.8.2.5/§7.8.2.6: certificates written to an
+                // ApplicationCertificateType TrustList are validated with the
+                // OPC 10000-4 process. Issuers and CRLs come from the group's
+                // own TrustList content; the GDS security configuration only
+                // supplies the validation rules.
+                trustList.SetCertificateValidation(m_configuration.SecurityConfiguration);
+            }
+            certificateGroup.DefaultTrustList.Handle = trustList;
         }
 
         /// <summary>
