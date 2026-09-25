@@ -33,6 +33,7 @@
 using System;
 using System.Diagnostics;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client.TestFramework;
@@ -111,6 +112,47 @@ namespace Opc.Ua.Client.Tests.AuditRegressions
 
             TimeSpan elapsed = await disposed.Task.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
             Assert.That(elapsed, Is.LessThan(TimeSpan.FromSeconds(10)));
+        }
+
+        /// <summary>
+        /// G5 (review of L1-3): a continuation a Notification handler spawned
+        /// inherited the "running on this session's background work" marker.
+        /// Disposing the session from it after the handler returned skipped
+        /// the drain, so other handlers still running raced the teardown.
+        /// </summary>
+        [Test]
+        public async Task DisposeFromContinuationOfBackgroundHandlerStillDrains()
+        {
+            SessionMock session = SessionMock.Create();
+            var trigger = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var otherRunning = new ManualResetEventSlim(false);
+            using var releaseOther = new ManualResetEventSlim(false);
+            Task disposal = null;
+
+            Assert.That(session.RunBackgroundWork("spawner", () =>
+            {
+                // Captures the execution context of the work item.
+                disposal = trigger.Task.ContinueWith(
+                    _ => session.Dispose(),
+                    CancellationToken.None,
+                    TaskContinuationOptions.None,
+                    TaskScheduler.Default);
+            }), Is.True);
+            Assert.That(session.RunBackgroundWork("other", () =>
+            {
+                otherRunning.Set();
+                releaseOther.Wait(TimeSpan.FromSeconds(20));
+            }), Is.True);
+            Assert.That(otherRunning.Wait(TimeSpan.FromSeconds(10)), Is.True);
+
+            // The spawning work item has returned; dispose from its continuation.
+            trigger.SetResult(true);
+            Task finished = await Task.WhenAny(disposal, Task.Delay(500)).ConfigureAwait(false);
+            Assert.That(finished, Is.Not.SameAs(disposal),
+                "Dispose returned while another background handler was still running.");
+
+            releaseOther.Set();
+            await disposal.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
         }
     }
 }

@@ -180,13 +180,20 @@ namespace Opc.Ua.Client
         /// </summary>
         private void ResetPublishTimerAndWorkerState()
         {
-            ResetPublishTimerAndWorkerStateAsync().GetAwaiter().GetResult();
+            // Do not wait for a running keep-alive callback: its
+            // PublishStatusChanged handler may be the one that (through the
+            // session, possibly on another flow such as the managed session's
+            // state machine worker) disposes this subscription.
+            ResetPublishTimerAndWorkerStateAsync(waitForTimerCallbacks: false)
+                .GetAwaiter().GetResult();
         }
 
         /// <summary>
         /// Resets the state of the publish timer and associated message worker.
         /// </summary>
-        private async Task ResetPublishTimerAndWorkerStateAsync()
+        /// <param name="waitForTimerCallbacks">Whether to wait for a keep-alive
+        /// callback that is running while the publish timer is disposed.</param>
+        private async Task ResetPublishTimerAndWorkerStateAsync(bool waitForTimerCallbacks = true)
         {
             Task? workerTask;
             CancellationTokenSource? workerCts;
@@ -208,6 +215,7 @@ namespace Opc.Ua.Client
 
                 if (m_messageWorkerTask == null)
                 {
+                    publishTimer?.Dispose();
                     m_messageWorkerCts?.Dispose();
                     m_messageWorkerCts = null;
                     return;
@@ -245,7 +253,14 @@ namespace Opc.Ua.Client
             {
                 if (publishTimer != null)
                 {
-                    await publishTimer.DisposeAsync().ConfigureAwait(false);
+                    if (waitForTimerCallbacks)
+                    {
+                        await publishTimer.DisposeAsync().ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        publishTimer.Dispose();
+                    }
                 }
                 try
                 {
@@ -2601,6 +2616,13 @@ namespace Opc.Ua.Client
 
                 PublishingStateChanged(callback,
                     PublishStateChangedMask.Stopped);
+
+                // The handler may have disposed the subscription or its
+                // session; the timer no longer waits for this callback then.
+                if (m_disposed)
+                {
+                    return;
+                }
 
                 // try to send a publish to recover stopped publishing.
                 session.BeginPublish(BeginPublishTimeout());

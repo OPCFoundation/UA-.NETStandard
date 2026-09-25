@@ -522,10 +522,11 @@ namespace Opc.Ua.Client
 
                 // Before the keep-alive timer and the channel go away: a publish
                 // notification already dispatched still reads session state.
-                if (ReferenceEquals(s_backgroundWorkOwner.Value, this))
+                if (IsDisposeBlockingBackgroundWork)
                 {
                     // Disposed from a handler running on this background work
-                    // (e.g. Notification): the drain would wait for the caller
+                    // (e.g. Notification), directly or through a wrapper the
+                    // handler waits for: the drain would wait for the caller
                     // itself until it times out. Stop and cancel without waiting.
                     BackgroundWork.Dispose();
                 }
@@ -6504,13 +6505,18 @@ namespace Opc.Ua.Client
         {
             return BackgroundWork.Run(operation, _ =>
             {
-                s_backgroundWorkOwner.Value = this;
+                var scope = new BackgroundWorkScope(this);
+                s_backgroundWorkOwner.Value = scope;
                 try
                 {
                     work();
                 }
                 finally
                 {
+                    // Tasks and continuations the work spawned captured the
+                    // scope with the execution context: deactivate it so they
+                    // do not pass as this work item once it has returned.
+                    scope.Active = false;
                     s_backgroundWorkOwner.Value = null;
                 }
                 return default;
@@ -6518,9 +6524,65 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// The session whose <see cref="BackgroundWork"/> runs the current flow.
+        /// Called by a wrapper (the managed session) that is asked to close or
+        /// dispose from a flow that may be one of this session's background
+        /// work items, before it hands the close to another flow. A dispose
+        /// running on that other flow then does not wait for the drain of the
+        /// work item, which is blocked on the wrapper until the close is done.
         /// </summary>
-        private static readonly AsyncLocal<Session?> s_backgroundWorkOwner = new();
+        internal void NoteCloseFromBackgroundWork()
+        {
+            BackgroundWorkScope? scope = CurrentBackgroundWorkScope;
+            if (scope != null)
+            {
+                Volatile.Write(ref m_closingBackgroundWork, scope);
+            }
+        }
+
+        /// <summary>
+        /// The background work item of this session the current flow runs in,
+        /// or <c>null</c>.
+        /// </summary>
+        private BackgroundWorkScope? CurrentBackgroundWorkScope =>
+            s_backgroundWorkOwner.Value is { Active: true } scope &&
+            ReferenceEquals(scope.Owner, this)
+                ? scope
+                : null;
+
+        /// <summary>
+        /// Whether the dispose must not wait for the background work drain,
+        /// because the caller is (or waits for) a work item that is still
+        /// running and the drain would wait for it until it times out.
+        /// </summary>
+        private bool IsDisposeBlockingBackgroundWork =>
+            CurrentBackgroundWorkScope != null ||
+            Volatile.Read(ref m_closingBackgroundWork) is { Active: true };
+
+        /// <summary>
+        /// Marks one work item run by <see cref="RunBackgroundWork"/>.
+        /// </summary>
+        private sealed class BackgroundWorkScope
+        {
+            public BackgroundWorkScope(Session owner)
+            {
+                Owner = owner;
+            }
+
+            public Session Owner { get; }
+
+            public volatile bool Active = true;
+        }
+
+        /// <summary>
+        /// The background work item that runs the current flow.
+        /// </summary>
+        private static readonly AsyncLocal<BackgroundWorkScope?> s_backgroundWorkOwner = new();
+
+        /// <summary>
+        /// A background work item that asked a wrapper to close this session
+        /// and waits for it, see <see cref="NoteCloseFromBackgroundWork"/>.
+        /// </summary>
+        private BackgroundWorkScope? m_closingBackgroundWork;
 
         /// <summary>
         /// If set to<c>true</c> then the domain in the certificate must match the endpoint used.
