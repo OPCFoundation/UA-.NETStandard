@@ -108,6 +108,18 @@ namespace Opc.Ua.SourceGeneration
                 Does.Contain(
                     "DownstreamEventTypeRecord : " +
                     "global::Test.XRegistry.XRegistryEventTypeRecord"));
+            // A3-4: the inherited field's browse name is declared by the
+            // xRegistry model, not by Downstream.
+            Assert.That(
+                downstreamRecords,
+                Does.Contain(
+                    "new global::Opc.Ua.QualifiedName(\"SourceUrl\", " +
+                    "GetNamespaceIndex(namespaceUris, \"http://opcfoundation.org/UA/xRegistry/\"))"));
+            Assert.That(
+                downstreamRecords,
+                Does.Contain(
+                    "new global::Opc.Ua.QualifiedName(global::Test.Downstream.BrowseNames.CompanionField, " +
+                    "GetNamespaceIndex(namespaceUris, \"http://example.org/UA/Downstream/\"))"));
 
             AssignmentExpressionSyntax sourceUrlAssignment = CSharpSyntaxTree
                 .ParseText(downstreamRecords)
@@ -202,9 +214,11 @@ namespace Opc.Ua.SourceGeneration
 
             namespace Test.Downstream
             {
+                // As ConstantsGenerator emits it: only the browse names the
+                // Downstream model declares (A3-4), not the inherited
+                // xRegistry SourceUrl.
                 public static partial class BrowseNames
                 {
-                    public const string SourceUrl = nameof(SourceUrl);
                     public const string CompanionField = nameof(CompanionField);
                 }
 
