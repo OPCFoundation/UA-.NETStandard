@@ -181,6 +181,60 @@ namespace Opc.Ua.Schema.Model.Tests
         }
 
         /// <summary>
+        /// Regression: the literal NodeId / QualifiedName fallback spliced the
+        /// value into a C# string literal unescaped, so a backslash or a quote
+        /// in a string identifier or name did not compile (or silently changed
+        /// the value through an escape sequence).
+        /// </summary>
+        [Test]
+        public void NodeIdAndQualifiedNameFallbacksEscapeTheLiteral()
+        {
+            var nodeId = new NodeId(@"C:\temp\x""y""", 1);
+            string nodeIdExpression = Scalar(BasicDataType.NodeId, nodeId);
+            Assert.That(Evaluate(nodeIdExpression), Is.EqualTo(nodeId));
+
+            var qualifiedName = new QualifiedName(@"A""B\C", 1);
+            string qualifiedNameExpression = Scalar(BasicDataType.QualifiedName, qualifiedName);
+            Assert.That(Evaluate(qualifiedNameExpression), Is.EqualTo(qualifiedName));
+        }
+
+        /// <summary>
+        /// Regression: a negative enumeration default was emitted as
+        /// "(E)-1", which C# parses as a subtraction (CS0075/CS0119).
+        /// </summary>
+        [TestCase(-1)]
+        [TestCase(0)]
+        [TestCase(7)]
+        public void NegativeEnumerationDefaultCompiles(int value)
+        {
+            var dataType = new DataTypeDesign
+            {
+                BasicDataType = BasicDataType.Enumeration,
+                SymbolicId = new System.Xml.XmlQualifiedName("ProbeEnum", TargetUri),
+                SymbolicName = new System.Xml.XmlQualifiedName("ProbeEnum", TargetUri),
+                BaseTypeNode = new TypeDesign
+                {
+                    SymbolicId = new System.Xml.XmlQualifiedName("Enumeration", Ua.Types.Namespaces.OpcUa)
+                },
+                Fields = [new Parameter { Name = "Minus" }]
+            };
+
+            string expression = dataType.GetValueAsCode(
+                ValueRank.Scalar,
+                null,
+                value,
+                false,
+                TargetUri,
+                [],
+                new Mock<IServiceMessageContext>().Object);
+
+            Assert.That(expression, Is.EqualTo("(ProbeEnum)(" + value + ")"));
+            Assert.That(
+                (int)Evaluate(expression, extraCode: "public enum ProbeEnum { Minus = -1, Zero = 0 }"),
+                Is.EqualTo(value));
+        }
+
+        /// <summary>
         /// A design-authored value numbers OPC UA 0 and then the design's own
         /// namespaces in declaration order.
         /// </summary>
@@ -253,11 +307,15 @@ namespace Opc.Ua.Schema.Model.Tests
         /// Compiles the expression into a method and returns what it evaluates
         /// to. <c>namespaceUris</c> is in scope as a NamespaceTable parameter.
         /// </summary>
-        private static object Evaluate(string expression, NamespaceTable namespaceUris = null)
+        private static object Evaluate(
+            string expression,
+            NamespaceTable namespaceUris = null,
+            string extraCode = null)
         {
             string code =
                 "public static class Probe { public static object Value(" +
-                "global::Opc.Ua.NamespaceTable namespaceUris) => " + expression + "; }";
+                "global::Opc.Ua.NamespaceTable namespaceUris) => " + expression + "; }" +
+                extraCode;
             CSharpCompilation compilation = OptimizationLevel.Debug
                 .CreateCompilation()
                 .AddCode([new KeyValuePair<string, string>("Probe.cs", code)], LanguageVersion.Latest);

@@ -1705,8 +1705,8 @@ namespace Opc.Ua.Schema.Model
                     if (nodeIdNamespaceUri == null || namespaceTableVariable == null)
                     {
                         return MakeReturnType(CoreUtils.Format(
-                            "global::Opc.Ua.NodeId.Parse(\"{0}\")",
-                            nodeId));
+                            "global::Opc.Ua.NodeId.Parse({0})",
+                            nodeId.ToString().AsStringLiteral()));
                     }
                     return MakeReturnType(CoreUtils.Format(
                         "global::Opc.Ua.NodeId.Parse({0}).WithNamespaceIndex({1}.GetIndexOrAppend({2}))",
@@ -1756,8 +1756,8 @@ namespace Opc.Ua.Schema.Model
                     if (qualifiedNameNamespaceUri == null || namespaceTableVariable == null)
                     {
                         return MakeReturnType(CoreUtils.Format(
-                            "global::Opc.Ua.QualifiedName.Parse(\"{0}\")",
-                            qualifiedName));
+                            "global::Opc.Ua.QualifiedName.Parse({0})",
+                            qualifiedName.ToString().AsStringLiteral()));
                     }
                     return MakeReturnType(CoreUtils.Format(
                         "new global::Opc.Ua.QualifiedName({0}, {1}.GetIndexOrAppend({2}))",
@@ -1802,7 +1802,7 @@ namespace Opc.Ua.Schema.Model
                     {
                         if (decodedValue is int enumValue)
                         {
-                            return MakeReturnType(CoreUtils.Format("({0}){1}",
+                            return MakeReturnType(CoreUtils.Format("({0})({1})",
                                 dataType.SymbolicName.AsFullyQualifiedTypeSymbol(namespaces),
                                 enumValue));
                         }
