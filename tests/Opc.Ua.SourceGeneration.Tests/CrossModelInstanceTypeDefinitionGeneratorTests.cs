@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
@@ -58,6 +59,8 @@ namespace Opc.Ua.SourceGeneration
         [TestCase(true, "Clone")]
         [TestCase(false, "Copy")]
         [TestCase(true, "Copy")]
+        [TestCase(false, "Recreate")]
+        [TestCase(true, "Recreate")]
         public void DerivedMandatoryChildrenSurviveInheritedOptionalInitialization(bool prepareOptional, string operation)
         {
             CSharpCompilation compilation = OptimizationLevel.Release.CreateCompilation()
@@ -110,6 +113,28 @@ namespace Opc.Ua.SourceGeneration
                             else if (state.Label != null)
                             {
                                 return "An unrequested optional child was created";
+                            }
+                            if (operation == "Recreate")
+                            {
+                                var reused = new Test.Specialized.SpecializedState(null);
+                                reused.Create(context, state);
+                                reused.Delete(context);
+                                if (reused.Label != null)
+                                {
+                                    reused.Label.DataType = new Opc.Ua.NodeId(12);
+                                }
+                                reused.Create(context, new Opc.Ua.NodeId("Reused", derivedIndex),
+                                    new Opc.Ua.QualifiedName("Reused", derivedIndex),
+                                    new Opc.Ua.LocalizedText("Reused"), false);
+                                if (prepareOptional && reused.Label.DataType != new Opc.Ua.NodeId(23751))
+                                {
+                                    return "Recreated optional child declaration metadata was not restored";
+                                }
+                                if (!prepareOptional && reused.Label != null)
+                                {
+                                    return "Recreation added an unrequested optional child";
+                                }
+                                return "";
                             }
                             if (operation != "Initialize")
                             {
@@ -201,9 +226,11 @@ namespace Opc.Ua.SourceGeneration
         /// instance factories reference the typed state classes emitted
         /// for the dependency model, so the combined output must compile.
         /// </summary>
-        [TestCase(true)]
-        [TestCase(false)]
-        public void InstanceOfObjectTypeAcrossModelDesignAdditionalFiles(bool instanceModelFirst)
+        [TestCase(true, "Label")]
+        [TestCase(false, "Label")]
+        [TestCase(true, "CloneChild")]
+        [TestCase(true, "NeedsOptionalInitialization")]
+        public void InstanceOfObjectTypeAcrossModelDesignAdditionalFiles(bool instanceModelFirst, string childName)
         {
             var generator = new ModelSourceGenerator();
 
@@ -219,8 +246,10 @@ namespace Opc.Ua.SourceGeneration
                     ["build_property.ModelSourceGeneratorOmitEventRecords"] = "true"
                 });
 
-            AdditionalText modelA = EmbeddedText.Create("A/ModelA.xml", ModelADesign);
-            AdditionalText modelB = EmbeddedText.Create("B/ModelB.xml", ModelBDesign);
+            AdditionalText modelA = EmbeddedText.Create(
+                "A/ModelA.xml", ModelADesign.Replace("Label", childName, StringComparison.Ordinal));
+            AdditionalText modelB = EmbeddedText.Create(
+                "B/ModelB.xml", ModelBDesign.Replace("Label", childName, StringComparison.Ordinal));
 
             GeneratorDriver driver = CSharpGeneratorDriver.Create(generator)
                 .WithUpdatedParseOptions(new CSharpParseOptions()
@@ -246,9 +275,10 @@ namespace Opc.Ua.SourceGeneration
                     .Select(s => s.SourceText.ToString()));
             Assert.That(generated, Does.Contain("CreateWidget1("),
                 "The instance factory must be emitted.");
-            Assert.That(generated, Does.Contain("CreateWidget1_Label("),
+            Assert.That(generated, Does.Contain($"CreateWidget1_{childName}("),
                 "The factory for the property inherited from the " +
                 "dependency type must be emitted.");
+            Assert.That(generated, Does.Contain($"CloneChild({childName}, state)"));
             Assert.That(generated, Does.Contain("global::Test.ModelA.WidgetState"),
                 "The instance must use the typed state class generated " +
                 "for the dependency ObjectType.");

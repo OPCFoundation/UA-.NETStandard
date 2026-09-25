@@ -1379,7 +1379,7 @@ namespace Opc.Ua.SourceGeneration
         public static readonly TemplateString CloneChild = TemplateString.Parse(
             $$"""
             state.{{Tokens.BrowseName}} =
-                CloneChild({{Tokens.BrowseName}}, state);
+                global::Opc.Ua.NodeState.CloneChild({{Tokens.BrowseName}}, state);
             """);
 
         /// <summary>

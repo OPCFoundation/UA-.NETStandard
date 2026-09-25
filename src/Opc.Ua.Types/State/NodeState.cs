@@ -287,6 +287,7 @@ namespace Opc.Ua
         protected virtual void Initialize(ISystemContext context)
         {
             Initialize(context.Telemetry);
+            m_initializedFromSource = false;
 
             // defined by subclass.
         }
@@ -3654,6 +3655,7 @@ namespace Opc.Ua
             OnAfterDelete(context);
 
             IsCreated = false;
+            m_initializedFromSource = false;
             ChangeMasks = NodeStateChangeMasks.Deleted;
             ClearChangeMasks(context, false);
         }
