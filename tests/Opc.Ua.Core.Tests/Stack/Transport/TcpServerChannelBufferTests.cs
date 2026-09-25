@@ -1108,7 +1108,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     isFinal: false,
                     sequenceNumber: 1,
                     requestId: 7,
-                    body: body[..split]))
+                    body: body.AsSpan(0, split).ToArray()))
                 .ConfigureAwait(false);
             await channel.FeedReceivedChunkAsync(
                 channel.CreateRequestChunkForTest(
@@ -1116,7 +1116,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     isFinal: true,
                     sequenceNumber: 2,
                     requestId: 7,
-                    body: body[split..]))
+                    body: body.AsSpan(split).ToArray()))
                 .ConfigureAwait(false);
 
             ServiceFault fault = await ReadSentServiceFaultAsync(transport, expectedRequestId: 7)
