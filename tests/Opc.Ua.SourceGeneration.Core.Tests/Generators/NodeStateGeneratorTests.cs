@@ -1540,6 +1540,86 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         /// <summary>
+        /// The <c>public new</c> decision for child properties uses name lists of the
+        /// runtime base classes. Every member a generated class inherits (and only
+        /// those) must be in the list for its parent kind, otherwise the child hides
+        /// the member without <c>new</c> (CS0108) or uses <c>new</c> needlessly
+        /// (CS0109). Fails when the runtime gains a member the lists do not know.
+        /// </summary>
+        [TestCase(typeof(ObjectTypeDesign), typeof(BaseObjectState))]
+        [TestCase(typeof(ObjectDesign), typeof(BaseObjectState))]
+        [TestCase(typeof(VariableTypeDesign), typeof(BaseVariableState))]
+        [TestCase(typeof(VariableDesign), typeof(BaseVariableState))]
+        [TestCase(typeof(MethodDesign), typeof(MethodState))]
+        public void ChildHidingDecisionMatchesTheRuntimeBaseClass(Type parentKind, Type runtimeBase)
+        {
+            var parent = (NodeDesign)Activator.CreateInstance(parentKind);
+            HashSet<string> inherited = GetMembersVisibleToDerivedClasses(runtimeBase);
+            // A Variable child named Value is emitted as a plain public property.
+            if (parent is VariableDesign)
+            {
+                inherited.Remove("Value");
+            }
+            HashSet<string> candidates =
+            [
+                .. GetMembersVisibleToDerivedClasses(typeof(BaseObjectState)),
+                .. GetMembersVisibleToDerivedClasses(typeof(BaseVariableState)),
+                .. GetMembersVisibleToDerivedClasses(typeof(MethodState))
+            ];
+
+            string[] missing = [.. inherited
+                .Where(n => !NodeStateGenerator.RequiresNewModifier(parent, n))
+                .OrderBy(n => n, StringComparer.Ordinal)];
+            string[] extra = [.. candidates
+                .Where(n => !inherited.Contains(n) && n != "Value" &&
+                    NodeStateGenerator.RequiresNewModifier(parent, n))
+                .OrderBy(n => n, StringComparer.Ordinal)];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(missing, Is.Empty,
+                    "Inherited members of " + runtimeBase.Name + " missing from the lists (CS0108)");
+                Assert.That(extra, Is.Empty,
+                    "Names that " + runtimeBase.Name + " does not declare (CS0109)");
+            });
+        }
+
+        private static HashSet<string> GetMembersVisibleToDerivedClasses(Type type)
+        {
+            const BindingFlags kFlags = BindingFlags.Public | BindingFlags.NonPublic |
+                BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly;
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            for (Type current = type; current != null; current = current.BaseType)
+            {
+                foreach (MemberInfo member in current.GetMembers(kFlags))
+                {
+                    bool visible = member switch
+                    {
+                        ConstructorInfo => false,
+                        MethodInfo m => !m.IsSpecialName && IsVisibleToDerived(m),
+                        PropertyInfo p => p.GetIndexParameters().Length == 0 &&
+                            p.GetAccessors(true).Any(IsVisibleToDerived),
+                        EventInfo e => IsVisibleToDerived(e.AddMethod),
+                        FieldInfo f => !f.IsSpecialName &&
+                            (f.IsPublic || f.IsFamily || f.IsFamilyOrAssembly),
+                        Type t => t.IsNestedPublic || t.IsNestedFamily || t.IsNestedFamORAssem,
+                        _ => false
+                    };
+                    if (visible && member.Name.All(c => char.IsLetterOrDigit(c) || c == '_'))
+                    {
+                        names.Add(member.Name);
+                    }
+                }
+            }
+            return names;
+        }
+
+        private static bool IsVisibleToDerived(MethodBase method)
+        {
+            return method != null && (method.IsPublic || method.IsFamily || method.IsFamilyOrAssembly);
+        }
+
+        /// <summary>
         /// Regression: GetDefaultTypeDefinitionId / GetDefaultDataTypeId and
         /// DataTypeDefinitions references were emitted with the bare
         /// namespace prefix. Inside <c>namespace Acme.Opc.Ua.Pumps</c> the

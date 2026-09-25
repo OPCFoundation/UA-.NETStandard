@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Xml;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Schema.Model;
@@ -1575,8 +1576,7 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(Tokens.AccessorSymbol, "public new");
             if (!instance.IsOverridden())
             {
-                if ((!s_builtInPropertyNames.Contains(instance.SymbolicName.Name) &&
-                    !HidesRuntimeBaseMember(node.Parent?.Design, instance.SymbolicName.Name)) ||
+                if (!RequiresNewModifier(node.Parent?.Design, instance.SymbolicName.Name) ||
                     (instance is VariableDesign && instance.SymbolicName.Name == "Value"))
                 {
                     context.Template.AddReplacement(Tokens.AccessorSymbol, "public");
@@ -4794,82 +4794,98 @@ namespace Opc.Ua.SourceGeneration
 
         /// <summary>
         /// True when a child property named <paramref name="name"/> on the
-        /// generated class of <paramref name="parent"/> hides a public member
-        /// of the runtime base class (for example a child Property named
-        /// <c>DataType</c> on a VariableType class hides
-        /// <c>BaseVariableState.DataType</c>), so it must be declared
+        /// generated class of <paramref name="parent"/> hides an inherited
+        /// member of the runtime base class and must be declared
+        /// <c>public new</c>.
+        /// </summary>
+        internal static bool RequiresNewModifier(NodeDesign parent, string name)
+        {
+            return s_builtInPropertyNames.Contains(name) ||
+                HidesRuntimeBaseMember(parent, name);
+        }
+
+        /// <summary>
+        /// True when a child property named <paramref name="name"/> on the
+        /// generated class of <paramref name="parent"/> hides a member it
+        /// inherits from the runtime base class (for example a child Property
+        /// named <c>DataType</c> on a VariableType class hides
+        /// <c>BaseVariableState.DataType</c>, one named <c>Categories</c>
+        /// hides <c>NodeState.Categories</c>), so it must be declared
         /// <c>public new</c>.
         /// </summary>
         private static bool HidesRuntimeBaseMember(NodeDesign parent, string name)
         {
-            if (parent is not (ObjectTypeDesign or VariableTypeDesign or MethodDesign or
-                ObjectDesign or VariableDesign))
-            {
-                return false;
-            }
-            if (s_instanceStateMemberNames.Contains(name))
-            {
-                return true;
-            }
             return parent switch
             {
-                ObjectTypeDesign or ObjectDesign => s_objectStateMemberNames.Contains(name),
-                VariableTypeDesign or VariableDesign => s_variableStateMemberNames.Contains(name),
-                MethodDesign => s_methodStateMemberNames.Contains(name),
+                ObjectTypeDesign or ObjectDesign => s_objectStateMemberNames.Value.Contains(name),
+                VariableTypeDesign or VariableDesign => s_variableStateMemberNames.Value.Contains(name),
+                MethodDesign => s_methodStateMemberNames.Value.Contains(name),
                 _ => false
             };
         }
 
         /// <summary>
-        /// Public properties of <c>BaseInstanceState</c>, the base of
-        /// every generated instance class.
+        /// Returns the names of the members of <paramref name="type"/> and its
+        /// base classes that a derived class sees (public and protected), i.e.
+        /// the names a generated child property hides. Read from the runtime
+        /// types themselves so a member added to them is never missed.
         /// </summary>
-        private static readonly HashSet<string> s_instanceStateMemberNames =
-        [
-            "Parent",
-            "NumericId",
-            "ReferenceTypeId",
-            "TypeDefinitionId",
-            "ModellingRuleId"
-        ];
+        private static HashSet<string> GetInheritedMemberNames(Type type)
+        {
+            const BindingFlags kFlags = BindingFlags.Public | BindingFlags.NonPublic |
+                BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly;
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            for (Type current = type; current != null; current = current.BaseType)
+            {
+                foreach (MemberInfo member in current.GetMembers(kFlags))
+                {
+                    bool visible = member switch
+                    {
+                        ConstructorInfo => false,
+                        MethodInfo method => !method.IsSpecialName && IsVisibleToDerived(method),
+                        PropertyInfo property => property.GetIndexParameters().Length == 0 &&
+                            (IsVisibleToDerived(property.GetGetMethod(true)) ||
+                                IsVisibleToDerived(property.GetSetMethod(true))),
+                        EventInfo @event => IsVisibleToDerived(@event.GetAddMethod(true)),
+                        FieldInfo field => !field.IsSpecialName &&
+                            (field.IsPublic || field.IsFamily || field.IsFamilyOrAssembly),
+                        Type nested => nested.IsNestedPublic || nested.IsNestedFamily ||
+                            nested.IsNestedFamORAssem,
+                        _ => false
+                    };
+                    if (visible)
+                    {
+                        names.Add(member.Name);
+                    }
+                }
+            }
+            return names;
+        }
+
+        private static bool IsVisibleToDerived(MethodBase method)
+        {
+            return method != null &&
+                (method.IsPublic || method.IsFamily || method.IsFamilyOrAssembly);
+        }
 
         /// <summary>
-        /// Public properties declared by <c>BaseObjectState</c>.
+        /// Members inherited by generated Object and ObjectType classes.
         /// </summary>
-        private static readonly HashSet<string> s_objectStateMemberNames =
-        [
-            "EventNotifier"
-        ];
+        private static readonly Lazy<HashSet<string>> s_objectStateMemberNames =
+            new(() => GetInheritedMemberNames(typeof(BaseObjectState)));
 
         /// <summary>
-        /// Public properties declared by <c>BaseVariableState</c>
+        /// Members inherited by generated Variable and VariableType classes
         /// ("Value" is handled separately).
         /// </summary>
-        private static readonly HashSet<string> s_variableStateMemberNames =
-        [
-            "WrappedValue",
-            "Timestamp",
-            "StatusCode",
-            "CopyPolicy",
-            "DataType",
-            "ValueRank",
-            "ArrayDimensions",
-            "AccessLevel",
-            "UserAccessLevel",
-            "MinimumSamplingInterval",
-            "Historizing",
-            "AccessLevelEx"
-        ];
+        private static readonly Lazy<HashSet<string>> s_variableStateMemberNames =
+            new(() => GetInheritedMemberNames(typeof(BaseVariableState)));
 
         /// <summary>
-        /// Public properties declared by <c>MethodState</c>.
+        /// Members inherited by generated Method classes.
         /// </summary>
-        private static readonly HashSet<string> s_methodStateMemberNames =
-        [
-            "MethodDeclarationId",
-            "Executable",
-            "UserExecutable"
-        ];
+        private static readonly Lazy<HashSet<string>> s_methodStateMemberNames =
+            new(() => GetInheritedMemberNames(typeof(MethodState)));
 
         private static readonly string[] s_builtInMethodNames =
         [
