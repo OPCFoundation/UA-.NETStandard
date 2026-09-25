@@ -1192,13 +1192,29 @@ namespace Opc.Ua.Server
             {
                 // OPC 10000-12 §7.8.2.5: every certificate of the new
                 // TrustList must pass the OPC 10000-4 validation process.
-                result = await ValidateNewTrustListAsync(
-                    issuerCertificates,
-                    trustedCertificates,
-                    issuerCrls,
-                    trustedCrls,
-                    m_validationConfiguration,
-                    cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    result = await ValidateNewTrustListAsync(
+                        issuerCertificates,
+                        trustedCertificates,
+                        issuerCrls,
+                        trustedCrls,
+                        m_validationConfiguration,
+                        cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    issuerCertificates?.Dispose();
+                    trustedCertificates?.Dispose();
+                    ReleaseHandle(fileHandle, strm!);
+                    throw;
+                }
+                catch (Exception)
+                {
+                    // e.g. a malformed extension of an uploaded certificate;
+                    // the failure path below disposes and releases the handle.
+                    result = StatusCodes.BadCertificateInvalid;
+                }
             }
 
             if (!ServiceResult.IsGood(result) || m_coordinator == null)
@@ -1573,10 +1589,23 @@ namespace Opc.Ua.Server
                     // OPC 10000-12 §7.8.2.6: the Server shall verify the
                     // Certificate using the OPC 10000-4 validation process,
                     // including that the issuer is already in the TrustList.
-                    ServiceResult validation = await ValidateAddedCertificateAsync(
-                        cert,
-                        m_validationConfiguration,
-                        cancellationToken).ConfigureAwait(false);
+                    ServiceResult validation;
+                    try
+                    {
+                        validation = await ValidateAddedCertificateAsync(
+                            cert,
+                            m_validationConfiguration,
+                            cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        validation = StatusCodes.BadCertificateInvalid;
+                    }
+                    catch
+                    {
+                        cert.Dispose();
+                        throw;
+                    }
                     if (ServiceResult.IsBad(validation))
                     {
                         result = validation;
