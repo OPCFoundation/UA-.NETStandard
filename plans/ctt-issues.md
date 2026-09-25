@@ -10,7 +10,7 @@ CTT project configuration notes follow the tables. The procedure for running the
   build after 1.05.513, so an installed 1.05.513 still shows the failure.
 - The ids (1–19, C1–C53, U1–U4) are stable references for notes and commit messages; missing ids were
   withdrawn or no longer fail against the reference server.
-- Mantis states were last checked on 2026-09-24.
+- Mantis states were last checked on 2026-09-25.
 
 ## Filed in Mantis
 
@@ -28,6 +28,7 @@ CTT project configuration notes follow the tables. The procedure for running the
 | C6 | Aggregate – DurationGood, PercentGood | The oracle ignores the raw value before the interval for the status of the first region. | [11425](https://mantis.opcfoundation.org/view.php?id=11425) |
 | C48 | Aggregate – Minimum, Maximum, MinimumActualTime, MaximumActualTime `001-02.js`… | The oracle ignores Uncertain values beyond the Good extremum and expects Good instead of UncertainDataSubNormal. | [11426](https://mantis.opcfoundation.org/view.php?id=11426) |
 | C49 | Aggregate – Minimum, MinimumActualTime, MaximumActualTime | The oracle does not set the Calculated bit when non-Good values make the status Uncertain. | [11427](https://mantis.opcfoundation.org/view.php?id=11427) |
+| U2 | Aggregate – Minimum2 (reverse reads) | The oracle clears the Calculated bit when the minimum is the End bound at the early end of a reverse interval (Part 11 §6.5.4.2). | [11461](https://mantis.opcfoundation.org/view.php?id=11461) |
 
 ### Historical Access
 
@@ -96,6 +97,7 @@ CTT project configuration notes follow the tables. The procedure for running the
 | C29 | Application Directory `005.js` | The random ApplicationUri is cut at its first NUL, so both calls are identical. | [11406](https://mantis.opcfoundation.org/view.php?id=11406) |
 | C30 | Query Applications `036.js` | Expects `rcp+` DiscoveryUrls the test never registered. | [11412](https://mantis.opcfoundation.org/view.php?id=11412) |
 | C31 | Query Applications `038.js` | Treats applicationType 3 as invalid. | [11413](https://mantis.opcfoundation.org/view.php?id=11413) |
+| C51 | Application Directory `066.js`, `079.js`; Query Applications `039.js` (pass only because the server returns NA records) | Register the reference Servers with ServerCapabilities `NA` and expect them in query results, which OPC 10000-12 §6.5.10/§6.5.11 excludes; with the exclusion 40 test cases fail. | [11458](https://mantis.opcfoundation.org/view.php?id=11458) |
 
 ### Alarms and Conditions
 
@@ -110,6 +112,8 @@ CTT project configuration notes follow the tables. The procedure for running the
 | C41 | A & C Alarm `Test_002.js` (runs to the maximum test time) | AcknowledgeableConditionType never gets a result. | [11449](https://mantis.opcfoundation.org/view.php?id=11449) |
 | C42 | A & C Enable `Test_003.js` (runs to the maximum test time) | Depends on all alarm types going active within one tenth of the Alarm Cycle Time. | [11450](https://mantis.opcfoundation.org/view.php?id=11450) |
 | C44 | A & C CertificateExpiration (a `--close --hidden` run never exits) | `initialize.js` opens a modal dialog. | [11453](https://mantis.opcfoundation.org/view.php?id=11453) |
+| C52 | A & C Refresh, Refresh2, Shelving (`BadSubscriptionIdInvalid` when the CPU is saturated) | Refresh `Err_004.js` and Refresh2 `Err_003.js` leave 10 subscriptions each on the shared alarm session, and `ShutdownItem()` leaves one per Refresh test case. | [11459](https://mantis.opcfoundation.org/view.php?id=11459) |
+| C53 | A & C (alarm thread) | `StartThreadPublish.js` lines 28–29 default misspelled properties, so MaximumPublishCalls/MaximumOutstandingCalls are sent undefined. | [11460](https://mantis.opcfoundation.org/view.php?id=11460) |
 
 ## Not filed
 
@@ -124,26 +128,6 @@ CTT project configuration notes follow the tables. The procedure for running the
   per-condition state, which feeds itself (up to about 850 events in 15 s). In 8 of 28 Enable runs the CTT alarm
   thread then returned no events for the rest of the CU, although the server sent and the CTT acknowledged them,
   and the remaining test cases ran to 3 × Alarm Cycle Time. Held back: needs more investigation.
-- **C51. GDS Application Directory `045.js`–`075.js` (17 cases), Query Applications `001.js`–`039.js` (22 cases)**
-  register their reference Servers with ServerCapabilities `NA` and expect them in QueryServers/QueryApplications
-  results. OPC 10000-12 §6.5.10/§6.5.11: *"This Method shall not return records with a ServerCapabilities that
-  includes NA."* `066.js` and `079.js`/`039.js` step 1 expect the NA records outright. The cases pass only because
-  the server still returns NA records; with the exclusion they fail (40 cases, checked 2026-09-24). The server keeps
-  returning them until the scripts are fixed. Draft ready, to be filed.
-- **C52. A & C Refresh `Err_004.js`, Refresh2 `Err_003.js`** each create 10 subscriptions on the shared alarm
-  session and never delete them; `CUVariables.Refresh.ShutdownItem()` deletes only the monitored item of each
-  Refresh test case's subscription. By Refresh2 the session holds about 24 subscriptions (15.5 s lifetime).
-  When other processes keep the CPU at 100 %, all subscriptions of the alarm session expire within one second
-  (no Publish request for 15.5 s) and Refresh, Refresh2 and Shelving fail with `BadSubscriptionIdInvalid`: 3 of 3
-  such runs on 2026-09-24/25, none of the runs on an idle machine. Related:
-  [10251](https://mantis.opcfoundation.org/view.php?id=10251). Draft ready, to be filed.
-- **C53. `StartThreadPublish.js` lines 28–29** default `MaximumPublishCount`/`MaximumOutstandingCount`
-  instead of `MaximumPublishCalls`/`MaximumOutstandingCalls`, so every thread started without arguments (the A & C
-  alarm thread) sends both as undefined. Draft ready, to be filed.
-- **U2. Aggregate – Minimum2 (reverse reads)**: the oracle clears the Calculated bit when the minimum is the
-  chronologically first raw value of a reverse interval. Part 11 §6.5.4.2 makes the later timestamp the start
-  of a reverse interval, so that raw value is the End bound and §5.4.3.15 (*"Set unless the StartBound is the
-  Minimum"*) requires Calculated. Draft ready (CTT UA Binary), to be filed.
 - **Aggregate oracle differences.**
   - Non-numeric nodes: status-only aggregates (DurationGood/Bad, PercentGood/Bad, WorstQuality2, DurationInState*)
     differ on Boolean/String nodes from numeric nodes with the same status timeline, and the oracle returns
@@ -172,7 +156,7 @@ agree:
 aggregate calculation *"unless the Aggregate definition says otherwise"*, and its note (*"still treated as
 Uncertain when the StatusCode for the result is calculated"*) contradicts §5.4.3.2.1. Whether TreatUncertainAsBad
 applies to the raw values that form a bound (server), to the resulting bound (oracle) or not at all is open. A
-spec clarification request for OPC 10000-13 is drafted; neither side changes before the answer.
+spec clarification request is filed as [11462](https://mantis.opcfoundation.org/view.php?id=11462); neither side changes before the answer.
 ## CTT project configuration notes
 
 Tests skipped because of reference server sample-data gaps or missing CTT project settings are
