@@ -82,7 +82,7 @@ namespace Opc.Ua.Sessions.Tests
                 AutoAccept = true,
                 SecurityNone = false,
                 UriScheme = Utils.UriSchemeOpcWss,
-                MaxChannelCount = 8,
+                MaxChannelCount = 103,
                 TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security
             };
             m_server = await m_serverFixture.StartAsync(m_pkiRoot).ConfigureAwait(false);

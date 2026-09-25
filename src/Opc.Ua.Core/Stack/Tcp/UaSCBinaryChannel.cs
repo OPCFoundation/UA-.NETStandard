@@ -922,6 +922,9 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public virtual bool ChannelFull => m_activeWriteRequests > 100;
 
+        /// <summary>
+        /// Indicates that admission cleanup must preserve the channel until outstanding writes finish.
+        /// </summary>
         internal bool HasPendingWrites => Volatile.Read(ref m_activeWriteRequests) != 0;
 
         /// <summary>

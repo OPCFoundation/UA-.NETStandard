@@ -51,6 +51,9 @@ namespace Opc.Ua.Bindings
             m_owner = owner ?? throw new ArgumentNullException(nameof(owner));
         }
 
+        /// <summary>
+        /// Retains physical admission through channel handoff until the underlying connection closes.
+        /// </summary>
         public override async Task OnConnectedAsync(ConnectionContext connection)
         {
             bool admitted = m_owner.TryAdmitConnection(

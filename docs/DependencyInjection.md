@@ -797,6 +797,7 @@ properties (bindable from `IConfiguration` or set via the
 | `ConfigureLoadedConfiguration` | Code-only callback | Override individual settings of the configuration loaded from `ConfigurationFile` / `ConfigurationStream`. |
 | `ConfigureBuilder` | Code-only callback | Pre-security server-policy and server-option escape hatch, including max failed authentication attempts, sessions, channels, auditing, and HTTPS mutual TLS. |
 | `ConfigureRateLimits` | Code-only callback | Tunes the default connection and session-establishment admission controls. |
+| `ResourceIsolation` | `ConfigureResourceIsolation(...)` | Limits concurrent connections, retained data, and queued/running requests by caller; defaults to Balanced. Applied even when loading XML configuration. |
 
 Configure incomplete-message capacity with
 `builder.AddServer(...).WithChunkReassemblyBudget(maxBytes)`. This registers one
@@ -805,16 +806,43 @@ explicit budget, the server sizes one from `MaxMessageSize`; see
 [incomplete messages](RateLimiting.md#incomplete-messages) for the defaults,
 sessionless headroom, and direct-construction equivalent.
 
-### Committed session bindings
+### Server resource isolation
 
-The hosted server's `OpcUaServerOptions.ResourceIsolation` configures runtime
-admission independently of existing connection rate limits. Use
-`ConfigureResourceIsolation(...)` on the server builder and
-`AddResourceIsolationClassifier<T>()` for explicit trusted ingress/tenant
-mapping. The default is Balanced; SharedOnly opts out of the runtime isolation
-provider without disabling legacy limits. Direct servers expose
-`ResourceIsolationOptions`, `ResourceIsolationClassifier`, and the optional
-`ResourceIsolationProvider` override. See [server resource isolation](ResourceIsolation.md).
+`OpcUaServerOptions.ResourceIsolation` controls whether the running server
+accepts a connection, retains message data, or queues/executes a request when
+resources are limited. These capacity checks are additional to connection
+rate limits and service authentication. Configure them with
+`ConfigureResourceIsolation(...)` or the `OpcUa:Server:ResourceIsolation`
+configuration section; see [server resource isolation](ResourceIsolation.md)
+for direct, DI, and JSON examples.
+
+**Balanced is the default.** Startup validates that finite configured totals
+can hold its shared and reserved capacity; it neither removes reserves nor
+raises totals to make an invalid configuration fit. This also applies when
+loading an existing XML configuration. See the
+[migration exception and fixes](MigrationGuide.md#transport-resource-limits).
+SharedOnly is a supported shared-limit policy: without an explicitly supplied
+provider, it skips the default isolation provider and its plan validation,
+preserving existing rate, message, and shared reassembly limits, including
+existing unlimited settings.
+
+`AddResourceIsolationClassifier<T>()` registers a host-written
+`IResourceIsolationClassifier` for protected ingress or verified owner mapping.
+Reserves alone do not give unknown connections protected access, and an
+observed IP address is not proof of identity. TrustedReservations requires
+both a classifier and provisioned `TrustedOwners`; see the
+[dedicated-ingress example](ResourceIsolation.md#example-dedicated-trusted-ingress)
+and its deployment requirements.
+
+Direct servers expose `ResourceIsolationOptions`,
+`ResourceIsolationClassifier`, and `ResourceIsolationProvider`. An explicitly
+registered `IServerResourceIsolationProvider` takes precedence over the options,
+including SharedOnly. The server does not validate it by constructing a default
+plan or take ownership of its disposal; its creator or DI container owns it.
+The provider author is responsible for matching the actual listener and queue
+capacities. The server owns and disposes only the default provider it creates.
+
+### Committed session bindings
 
 Managed servers automatically supply their session manager's committed-binding
 view to transport listeners. A custom `ISessionBindingProvider` registered as a

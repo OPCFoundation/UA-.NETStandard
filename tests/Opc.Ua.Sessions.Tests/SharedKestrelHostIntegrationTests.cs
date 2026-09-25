@@ -99,7 +99,7 @@ namespace Opc.Ua.Sessions.Tests
                 AutoAccept = true,
                 SecurityNone = false,
                 UriScheme = Utils.UriSchemeOpcWss,
-                MaxChannelCount = 4,
+                MaxChannelCount = 103,
                 TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security
             };
 

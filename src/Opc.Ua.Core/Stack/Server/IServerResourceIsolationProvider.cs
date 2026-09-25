@@ -238,10 +238,10 @@ namespace Opc.Ua
         bool UseFairScheduling { get; }
 
         /// <summary>
-        /// Signals released capacity outside provider accounting locks.
+        /// Signals the stage whose capacity was released, outside provider accounting locks.
         /// Handlers must not block or throw; scheduling should be queued asynchronously.
         /// </summary>
-        event Action? CapacityAvailable;
+        event Action<ResourceIsolationStage>? CapacityAvailable;
 
         /// <summary>
         /// Classifies an observed transport endpoint. Protected pre-authentication classes
@@ -282,6 +282,27 @@ namespace Opc.Ua
             long amount,
             [NotNullWhen(true)] out IDisposable? lease,
             out ResourceIsolationFailure failure);
+    }
+
+    /// <summary>
+    /// Optional classification validation that distinguishes a stale live session from a
+    /// missing, moved or unauthorized session without refreshing session activity.
+    /// </summary>
+    public interface IResourceIsolationRevalidationProvider
+    {
+        /// <summary>
+        /// Returns Good only while the admitted classification remains current. A stale
+        /// classification for a live same-channel session returns BadServerTooBusy so the
+        /// caller can retry with fresh admission; it must not execute using its old leases.
+        /// Missing, moved or unauthorized sessions return the applicable rejection status.
+        /// Full service authorization remains mandatory even when the result is Good.
+        /// </summary>
+        StatusCode GetRevalidationStatus(
+            ResourceIsolationOwner owner,
+            SecureChannelContext channelContext,
+            NodeId authenticationToken = default,
+            bool sessionEstablishment = false,
+            bool controlRequest = false);
     }
 
     /// <summary>

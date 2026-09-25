@@ -2283,7 +2283,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         private sealed class RecordingIsolation : IServerResourceIsolationProvider
         {
             public bool UseFairScheduling => true;
-            public event Action CapacityAvailable
+            public event Action<ResourceIsolationStage> CapacityAvailable
             {
                 add { }
                 remove { }

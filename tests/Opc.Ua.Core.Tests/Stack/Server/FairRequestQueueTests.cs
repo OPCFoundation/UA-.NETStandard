@@ -38,6 +38,9 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Core.Tests.Stack.Server
 {
+    /// <summary>
+    /// Exercises fair ordering, bounded admission, worker wakeups and classification lifetimes.
+    /// </summary>
     [TestFixture]
     [Category("Server")]
     [Parallelizable]
@@ -277,6 +280,9 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             Assert.That(provider.TotalUsed, Is.Zero);
         }
 
+        /// <summary>
+        /// A live replacement is retryable, while transfer rejects execution on the original channel.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public void StaleClassificationOrChannelTransferIsFaultedBeforeExecution(bool transfer)
@@ -287,6 +293,26 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             var request = new TestRequest(token);
             Enqueue(queue, request);
             provider.ReplaceBinding(token, transfer ? "new-channel" : "channel");
+            Assert.That(queue.TryDequeue(out _), Is.False);
+            Assert.That(request.Status, Is.EqualTo(
+                transfer ? StatusCodes.BadSessionIdInvalid : StatusCodes.BadServerTooBusy));
+            Assert.That(request.CompletionCount, Is.EqualTo(1));
+            Assert.That(provider.ExecutionGrants, Is.Zero);
+            Assert.That(provider.TotalUsed, Is.Zero);
+        }
+
+        /// <summary>
+        /// A deleted session is rejected as missing rather than offered a retryable classification refresh.
+        /// </summary>
+        [Test]
+        public void RemovedSessionIsRejectedBeforeExecution()
+        {
+            var provider = new TestProvider();
+            NodeId token = provider.AddOwner("trusted", ownerClass: ResourceIsolationClass.Trusted);
+            using var queue = CreateQueue(provider);
+            var request = new TestRequest(token);
+            Enqueue(queue, request);
+            provider.RemoveBinding(token);
             Assert.That(queue.TryDequeue(out _), Is.False);
             Assert.That(request.Status, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
             Assert.That(request.CompletionCount, Is.EqualTo(1));
@@ -454,6 +480,165 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             Assert.That(second.Request.Request.RequestHeader.RequestHandle, Is.EqualTo(2));
         }
 
+        /// <summary>
+        /// Unrelated release bursts do not make execution-blocked workers retry admission.
+        /// </summary>
+        [Test]
+        public async Task ReassemblyReleasesDoNotWakeExecutionWaitersAsync()
+        {
+            var provider = new TestProvider(executionCapacity: 1);
+            NodeId token = provider.AddOwner("A");
+            using var queue = CreateQueue(provider);
+            Enqueue(queue, new TestRequest(token));
+            using FairRequestQueue.Entry running = Dequeue(queue);
+            Enqueue(queue, new TestRequest(token, 2));
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            using var waitingCancellation = CancellationTokenSource.CreateLinkedTokenSource(deadline.Token);
+            var waiters = new Task<FairRequestQueue.Entry>[8];
+            for (int ii = 0; ii < waiters.Length; ii++)
+            {
+                waiters[ii] = queue.DequeueAsync(waitingCancellation.Token).AsTask();
+            }
+            int attempts = provider.ExecutionAttempts;
+            long wakeSignals = queue.WakeSignalCount;
+            for (int ii = 0; ii < 100; ii++)
+            {
+                Assert.That(provider.TryAcquire(
+                    ResourceIsolationStage.ReassemblyBytes,
+                    running.Owner, 1, out IDisposable lease, out _), Is.True);
+                lease.Dispose();
+                Assert.That(queue.TryDequeue(out _), Is.False);
+            }
+            Assert.That(provider.ExecutionAttempts, Is.EqualTo(attempts));
+            Assert.That(queue.WakeSignalCount, Is.EqualTo(wakeSignals));
+            running.ReleaseExecution();
+            Task<FairRequestQueue.Entry> completed = await Task.WhenAny(waiters).WaitAsync(deadline.Token)
+                .ConfigureAwait(false);
+            using FairRequestQueue.Entry next = await completed.ConfigureAwait(false);
+            Assert.That(next.Request.Request.RequestHeader.RequestHandle, Is.EqualTo(2));
+            Assert.That(provider.ExecutionGrants, Is.EqualTo(2));
+            Assert.That(provider.ExecutionAttempts, Is.EqualTo(attempts + 1));
+            Assert.That(queue.WakeSignalCount, Is.EqualTo(wakeSignals + 1));
+            waitingCancellation.Cancel();
+            foreach (Task<FairRequestQueue.Entry> waiter in waiters)
+            {
+                if (waiter != completed)
+                {
+                    Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                        await waiter.ConfigureAwait(false));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Empty queues never wake readers for released capacity, and shutdown cancels every reader.
+        /// </summary>
+        [TestCase(ResourceIsolationStage.ReassemblyBytes)]
+        [TestCase(ResourceIsolationStage.RequestExecution)]
+        public async Task EmptyQueueIgnoresReleaseBurstsAndStopsEveryWaiterAsync(ResourceIsolationStage stage)
+        {
+            var provider = new TestProvider();
+            NodeId token = provider.AddOwner("A");
+            ResourceIsolationOwner owner = provider.Classify(
+                new SecureChannelContext("channel", null, RequestEncoding.Binary), token);
+            using var queue = CreateQueue(provider);
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var waiters = new Task<FairRequestQueue.Entry>[8];
+            for (int ii = 0; ii < waiters.Length; ii++)
+            {
+                waiters[ii] = queue.DequeueAsync(deadline.Token).AsTask();
+            }
+            for (int ii = 0; ii < 100; ii++)
+            {
+                Assert.That(provider.TryAcquire(stage, owner, 1, out IDisposable lease, out _), Is.True);
+                lease.Dispose();
+            }
+            Assert.That(queue.WakeSignalCount, Is.Zero);
+            queue.Dispose();
+            foreach (Task<FairRequestQueue.Entry> waiter in waiters)
+            {
+                try
+                {
+                    using FairRequestQueue.Entry unexpected = await waiter.ConfigureAwait(false);
+                    Assert.Fail("Stopping an empty queue must cancel its readers.");
+                }
+                catch (OperationCanceledException)
+                {
+                    Assert.That(deadline.IsCancellationRequested, Is.False);
+                }
+            }
+            Assert.That(provider.TotalUsed, Is.Zero);
+        }
+
+        /// <summary>
+        /// A release consumed by a competing reader during admission is not lost on rejection.
+        /// </summary>
+        [Test]
+        public async Task ReleaseDuringRejectedAdmissionStillWakesACompetingReaderAsync()
+        {
+            var provider = new TestProvider(executionCapacity: 1);
+            NodeId token = provider.AddOwner("A");
+            using var queue = CreateQueue(provider);
+            Enqueue(queue, new TestRequest(token));
+            using FairRequestQueue.Entry running = Dequeue(queue);
+            Enqueue(queue, new TestRequest(token, 2));
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            Task<FairRequestQueue.Entry> competing = null;
+            provider.BeforeExecutionRejection = () =>
+            {
+                provider.BeforeExecutionRejection = null;
+                running.ReleaseExecution();
+                competing = queue.DequeueAsync(deadline.Token).AsTask();
+                Assert.That(competing.IsCompleted, Is.False);
+            };
+            Task<FairRequestQueue.Entry> original = queue.DequeueAsync(deadline.Token).AsTask();
+            Task<FairRequestQueue.Entry> completed = await Task.WhenAny(original, competing)
+                .WaitAsync(deadline.Token).ConfigureAwait(false);
+            using FairRequestQueue.Entry next = await completed.ConfigureAwait(false);
+            Assert.That(next.Request.Request.RequestHeader.RequestHandle, Is.EqualTo(2));
+            Assert.That(provider.ExecutionGrants, Is.EqualTo(2));
+            deadline.Cancel();
+            Task<FairRequestQueue.Entry> cancelled = completed == original ? competing : original;
+            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await cancelled.ConfigureAwait(false));
+        }
+
+        /// <summary>
+        /// Queued work admitted during the first grant grows workers without any capacity release.
+        /// </summary>
+        [Test]
+        public async Task FairWorkersGrowForBacklogAdmittedBeforeTheFirstDispatchAsync()
+        {
+            var provider = new TestProvider(executionCapacity: 4);
+            NodeId token = provider.AddOwner("A");
+            using var server = new QueueServer(provider, workers: 4, minWorkers: 1);
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var requests = new TestRequest[4];
+            for (int ii = 0; ii < requests.Length; ii++)
+            {
+                requests[ii] = new TestRequest(token, (uint)ii + 1);
+            }
+            provider.BeforeExecutionGrant = () =>
+            {
+                provider.BeforeExecutionGrant = null;
+                for (int ii = 1; ii < requests.Length; ii++)
+                {
+                    server.Enqueue(requests[ii]);
+                }
+            };
+            server.Enqueue(requests[0]);
+            await Task.WhenAll(Array.ConvertAll(requests, request => request.Started.Task))
+                .WaitAsync(deadline.Token).ConfigureAwait(false);
+            Assert.That(provider.ExecutionGrants, Is.EqualTo(4));
+            Assert.That(provider.Used(ResourceIsolationStage.RequestExecution), Is.EqualTo(4));
+            foreach (TestRequest request in requests)
+            {
+                request.Release();
+            }
+            await server.FinishAsync(deadline.Token).ConfigureAwait(false);
+            Assert.That(provider.TotalUsed, Is.Zero);
+        }
+
         [Test]
         public async Task RealWorkersReleaseAtParkAndBoundTheNoisyPublishOwnerAsync()
         {
@@ -507,6 +692,9 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             Assert.That(provider.TotalUsed, Is.Zero);
         }
 
+        /// <summary>
+        /// Reactivation during execution admission rejects stale privileged leases as retryable.
+        /// </summary>
         [Test]
         public async Task RevalidationAfterGrantStillPrecedesProtectedExecutionAsync()
         {
@@ -518,7 +706,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             var stale = new TestRequest(token);
             server.Enqueue(stale);
             await stale.Completed.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
-            Assert.That(stale.Status, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
+            Assert.That(stale.Status, Is.EqualTo(StatusCodes.BadServerTooBusy));
             Assert.That(stale.Started.Task.IsCompleted, Is.False);
             await server.FinishAsync(deadline.Token).ConfigureAwait(false);
             Assert.That(provider.TotalUsed, Is.Zero);
@@ -598,12 +786,18 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             return entry;
         }
 
+        /// <summary>
+        /// Executes controllable requests through the production worker queue.
+        /// </summary>
         private sealed class QueueServer : ServerBase
         {
-            public QueueServer(TestProvider provider, int workers)
+            /// <summary>
+            /// Creates a real worker queue with independently configurable initial and maximum workers.
+            /// </summary>
+            public QueueServer(TestProvider provider, int workers, int? minWorkers = null)
                 : base(NUnitTelemetryContext.Create())
             {
-                m_queue = new RequestQueue(this, workers, workers, 100, true, provider, 10);
+                m_queue = new RequestQueue(this, minWorkers ?? workers, workers, 100, true, provider, 10);
             }
 
             public void Enqueue(TestRequest request, CancellationToken cancellationToken = default)
@@ -690,7 +884,10 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             private int m_completionCount;
         }
 
-        private sealed class TestProvider : IServerResourceIsolationProvider
+        /// <summary>
+        /// Provides deterministic owner limits and admission-race hooks for queue regressions.
+        /// </summary>
+        private sealed class TestProvider : IServerResourceIsolationProvider, IResourceIsolationRevalidationProvider
         {
             public TestProvider(long executionCapacity = 100, long costCapacity = 10000)
             {
@@ -706,10 +903,19 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 m_unknownToken = AddOwner("unknown");
             }
 
-            public event Action CapacityAvailable;
+            /// <summary>
+            /// Reports exactly the stage whose lease was returned.
+            /// </summary>
+            public event Action<ResourceIsolationStage> CapacityAvailable;
             public bool UseFairScheduling { get; set; } = true;
             public bool BlockSharedExecution { get; set; }
             public Action BeforeExecutionGrant { get; set; }
+
+            /// <summary>
+            /// Runs after a rejected execution decision, outside the provider accounting gate.
+            /// </summary>
+            public Action BeforeExecutionRejection { get; set; }
+
             public Action BeforeCostGrant { get; set; }
             public int ExecutionAttempts { get; private set; }
             public int ExecutionGrants { get; private set; }
@@ -767,6 +973,14 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                     (new ResourceIsolationOwner(prior.Key, prior.Class, prior.Weight, limits), channel);
             }
 
+            /// <summary>
+            /// Removes a session binding without replacing it with a live classification.
+            /// </summary>
+            public void RemoveBinding(NodeId token)
+            {
+                Assert.That(m_bindings.Remove(token), Is.True);
+            }
+
             public ResourceIsolationOwner ClassifyConnection(IPEndPoint remoteEndpoint)
             {
                 return m_bindings[m_unknownToken].Owner;
@@ -800,6 +1014,28 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                     owner, Classify(channelContext, authenticationToken, sessionEstablishment, controlRequest));
             }
 
+            /// <summary>
+            /// Distinguishes same-channel replacement from a missing or transferred binding.
+            /// </summary>
+            public StatusCode GetRevalidationStatus(
+                ResourceIsolationOwner owner,
+                SecureChannelContext channelContext,
+                NodeId authenticationToken = default,
+                bool sessionEstablishment = false,
+                bool controlRequest = false)
+            {
+                if (IsCurrent(owner, channelContext, authenticationToken, sessionEstablishment, controlRequest))
+                {
+                    return StatusCodes.Good;
+                }
+                return m_bindings.TryGetValue(authenticationToken, out var binding) &&
+                    binding.Channel == channelContext.SecureChannelId ?
+                    StatusCodes.BadServerTooBusy : StatusCodes.BadSessionIdInvalid;
+            }
+
+            /// <summary>
+            /// Acquires a bounded lease while keeping test callbacks outside the accounting gate.
+            /// </summary>
             public bool TryAcquire(
                 ResourceIsolationStage stage,
                 ResourceIsolationOwner owner,
@@ -815,6 +1051,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 {
                     BeforeCostGrant?.Invoke();
                 }
+                bool acquired;
                 lock (m_gate)
                 {
                     if (stage == ResourceIsolationStage.RequestExecution)
@@ -831,18 +1068,26 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                         lease = null;
                         failure = new ResourceIsolationFailure(
                             ResourceIsolationFailureReason.Capacity, TimeSpan.Zero);
-                        return false;
+                        acquired = false;
                     }
-                    m_used[(int)stage] += amount;
-                    m_ownerUsed[key] = ownerUsed + amount;
-                    if (stage == ResourceIsolationStage.RequestExecution)
+                    else
                     {
-                        ExecutionGrants++;
+                        m_used[(int)stage] += amount;
+                        m_ownerUsed[key] = ownerUsed + amount;
+                        if (stage == ResourceIsolationStage.RequestExecution)
+                        {
+                            ExecutionGrants++;
+                        }
+                        lease = new TestLease(() => Release(owner.Key, stage, amount));
+                        failure = default;
+                        acquired = true;
                     }
-                    lease = new TestLease(() => Release(owner.Key, stage, amount));
-                    failure = default;
-                    return true;
                 }
+                if (!acquired && stage == ResourceIsolationStage.RequestExecution)
+                {
+                    BeforeExecutionRejection?.Invoke();
+                }
+                return acquired;
             }
 
             public long Used(ResourceIsolationStage stage)
@@ -853,6 +1098,9 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 }
             }
 
+            /// <summary>
+            /// Returns one lease and reports its stage after leaving the accounting gate.
+            /// </summary>
             private void Release(string key, ResourceIsolationStage stage, long amount)
             {
                 lock (m_gate)
@@ -860,7 +1108,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                     m_used[(int)stage] -= amount;
                     m_ownerUsed[(key, stage)] -= amount;
                 }
-                CapacityAvailable?.Invoke();
+                CapacityAvailable?.Invoke(stage);
             }
 
             private sealed class TestLease(Action release) : IDisposable

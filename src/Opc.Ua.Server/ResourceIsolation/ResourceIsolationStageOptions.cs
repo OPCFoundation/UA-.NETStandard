@@ -105,6 +105,9 @@ namespace Opc.Ua.Server
     /// </summary>
     public sealed class ResourceIsolationStagePlan
     {
+        /// <summary>
+        /// Captures validated floors and owner ceilings within one stage's aggregate capacity.
+        /// </summary>
         internal ResourceIsolationStagePlan(
             ResourceIsolationStage stage,
             long capacity,

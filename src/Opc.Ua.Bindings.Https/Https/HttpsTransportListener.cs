@@ -183,8 +183,6 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class Startup
     {
-        private const string kHttpsContentType = "text/plain";
-
         /// <summary>
         /// Configure the request pipeline for the listener.
         /// The <paramref name="listener"/> is resolved from the web host's DI container,
@@ -267,6 +265,8 @@ namespace Opc.Ua.Bindings
 
             return listener.SendBinaryAsync(context);
         }
+
+        private const string kHttpsContentType = "text/plain";
     }
 
     /// <summary>
@@ -278,9 +278,6 @@ namespace Opc.Ua.Bindings
     /// </summary>
     internal class SharedHostStartup
     {
-        private readonly ConcurrentDictionary<HttpsTransportListener, RequestDelegate> m_listenerPipelines
-            = new();
-
         /// <summary>
         /// Configures the shared host's request pipeline.
         /// </summary>
@@ -322,6 +319,9 @@ namespace Opc.Ua.Bindings
             });
         }
 
+        /// <summary>
+        /// Builds a listener-specific branch so shared-host routing preserves that listener's middleware.
+        /// </summary>
         private static RequestDelegate BuildListenerPipeline(
             IApplicationBuilder appBuilder,
             HttpsTransportListener listener)
@@ -334,6 +334,9 @@ namespace Opc.Ua.Bindings
             branch.Run(context => Startup.DispatchListenerRequestAsync(listener, context));
             return branch.Build();
         }
+
+        private readonly ConcurrentDictionary<HttpsTransportListener, RequestDelegate> m_listenerPipelines
+            = new();
     }
 
     /// <summary>
@@ -341,11 +344,6 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class HttpsTransportListener : ITransportListener, ITransportListenerCertificateRotation
     {
-        private const string kHttpsContentType = "text/plain";
-        private const string kApplicationContentType = "application/octet-stream";
-        private const string kAuthorizationKey = "Authorization";
-        private const string kBearerKey = "Bearer";
-
         /// <summary>
         /// Initializes a new instance of the <see cref="HttpsTransportListener"/> class.
         /// </summary>
@@ -416,6 +414,33 @@ namespace Opc.Ua.Bindings
             false;
 #endif
 
+        /// <inheritdoc/>
+        public string UriScheme { get; }
+
+        /// <inheritdoc/>
+        public string ListenerId { get; private set; } = default!;
+
+        /// <summary>
+        /// Raised when a new connection is waiting for a client. Fired by
+        /// the WSS reverse-connect handoff in
+        /// <see cref="HttpsTransportListener"/> when
+        /// <c>settings.ReverseConnectListener</c> is set.
+        /// </summary>
+        public event ConnectionWaitingHandlerAsync? ConnectionWaiting;
+
+        /// <summary>
+        /// Raised when a monitored connection's status changed.
+        /// </summary>
+#pragma warning disable CS0067 // forward-mode listener does not currently report channel-status events.
+        public event EventHandler<ConnectionStatusEventArgs>? ConnectionStatusChanged;
+#pragma warning restore CS0067
+
+        /// <summary>
+        /// Gets the URL for the listener's endpoint.
+        /// </summary>
+        /// <value>The URL for the listener's endpoint.</value>
+        public Uri EndpointUrl { get; private set; } = null!;
+
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -425,157 +450,6 @@ namespace Opc.Ua.Bindings
             Dispose(true);
             GC.SuppressFinalize(this);
         }
-
-        /// <summary>
-        /// Asynchronously releases the shared-host lease and shuts down the
-        /// owned Kestrel host before the synchronous cleanup runs.
-        /// </summary>
-        protected virtual async ValueTask DisposeAsyncCore()
-        {
-            Volatile.Write(ref m_admissionStopped, 1);
-            try
-            {
-                m_admission?.Stop();
-                foreach (UaScConnectionAdmission.Lease upgrade in m_activeUpgrades.Keys)
-                {
-                    upgrade.Close();
-                }
-            }
-            catch (AggregateException ex)
-            {
-                m_logger.WssAdmissionStopFailed(ex);
-            }
-            ConnectionStatusChanged = null;
-            ConnectionWaiting = null;
-
-            // Drain outbound reverse-connect channels first so the
-            // ServerCertificateChain handles loaded during the asymmetric
-            // ChannelOpen handshake are released before m_pinnedServerCert.
-            // Snapshot the set under the concurrent dictionary's enumerator
-            // contract; subsequent OnReverseConnectChannelStatusChanged
-            // callbacks against disposed channels are no-ops because the
-            // dictionary has been cleared.
-            TcpServerChannel[] reverseChannels = [.. m_reverseConnectChannels.Keys];
-            m_reverseConnectChannels.Clear();
-            foreach (TcpServerChannel channel in reverseChannels)
-            {
-                try
-                {
-                    channel.Dispose();
-                }
-                catch
-                {
-                    // best-effort; teardown must continue regardless.
-                }
-            }
-
-            SharedHostLease? lease = m_sharedHostLease;
-            m_sharedHostLease = null;
-            if (lease != null)
-            {
-                await lease.DisposeAsync().ConfigureAwait(false);
-            }
-
-#if NET8_0_OR_GREATER
-            IHost? host = m_host;
-#else
-            IWebHost? host = m_host;
-#endif
-            m_host = null;
-            if (host != null)
-            {
-                try
-                {
-                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                    await host.StopAsync(cts.Token).ConfigureAwait(false);
-                }
-                catch
-                {
-                    // Best-effort shutdown.
-                }
-                host.Dispose();
-            }
-        }
-
-        /// <summary>
-        /// An overrideable version of the Dispose. Unmanaged-resource
-        /// cleanup only; the async path (<see cref="DisposeAsyncCore"/>)
-        /// handles the shared-host lease and the owned Kestrel host.
-        /// </summary>
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                m_pinnedServerCertX509?.Dispose();
-                m_pinnedServerCertX509 = null;
-                m_pinnedServerCert?.Dispose();
-                m_pinnedServerCert = null;
-            }
-        }
-
-        /// <inheritdoc/>
-        public string UriScheme { get; }
-
-        /// <inheritdoc/>
-        public string ListenerId { get; private set; } = default!;
-
-        internal byte[] ServerChannelCertificate { get; set; } = [];
-
-        /// <summary>
-        /// Per-listener collection of startup contributors propagated from
-        /// the originating <see cref="HttpsServiceHost"/>. Invoked by
-        /// <see cref="Startup.Configure(IApplicationBuilder, HttpsTransportListener)"/>
-        /// between <c>UseWebSockets()</c> and the terminal binary / JSON
-        /// dispatcher so additional middleware (e.g. REST MVC) can mount
-        /// into the same Kestrel host.
-        /// </summary>
-        internal IReadOnlyList<IHttpsListenerStartupContributor> StartupContributors { get; set; }
-            = [];
-
-        /// <summary>
-        /// The transport callback wired in by
-        /// <see cref="OpenAsync(Uri, TransportListenerSettings, ITransportListenerCallback, CancellationToken)"/>.
-        /// Exposed to <see cref="IHttpsListenerStartupContributor"/>
-        /// implementations so they can forward requests through the same
-        /// dispatcher used by the binary / JSON paths.
-        /// </summary>
-        internal ITransportListenerCallback? Callback => m_callback;
-
-        /// <summary>
-        /// The encoding context (namespace / server tables, quotas,
-        /// telemetry) populated by
-        /// <see cref="OpenAsync(Uri, TransportListenerSettings, ITransportListenerCallback, CancellationToken)"/>.
-        /// Available to <see cref="IHttpsListenerStartupContributor"/>
-        /// implementations after the listener is opened.
-        /// </summary>
-        internal IServiceMessageContext? MessageContext => m_quotas?.MessageContext;
-
-        /// <summary>
-        /// The endpoint descriptions advertised by this listener,
-        /// populated by
-        /// <see cref="OpenAsync(Uri, TransportListenerSettings, ITransportListenerCallback, CancellationToken)"/>.
-        /// Available to <see cref="IHttpsListenerStartupContributor"/>
-        /// implementations so they can pick a default endpoint
-        /// (typically the first <see cref="MessageSecurityMode.None"/>
-        /// HTTPS entry) for context construction.
-        /// </summary>
-        internal IReadOnlyList<EndpointDescription>? Descriptions => m_descriptions;
-
-        /// <summary>
-        /// Optional WSS <c>opcua+openapi+&lt;accesstoken&gt;</c> bearer-
-        /// token validator. Registered by
-        /// <see cref="IHttpsListenerStartupContributor"/> implementations
-        /// (e.g. the WebApi contributor) so the listener can validate
-        /// the bearer token presented in the WebSocket sub-protocol name
-        /// against the application's auth scheme (JwtBearer) before
-        /// accepting the upgrade. The callback receives the
-        /// <see cref="HttpContext"/> and the raw access token; it must
-        /// return <c>true</c> if the token authenticates, <c>false</c>
-        /// otherwise. When no validator is registered the listener
-        /// fail-closed rejects every bearer-prefix sub-protocol upgrade
-        /// (so unconfigured deployments cannot silently accept tokens).
-        /// </summary>
-        internal Func<HttpContext, string, Task<bool>>? WssBearerTokenValidator { get; set; }
 
         /// <summary>
         /// Opens the listener and starts accepting connection.
@@ -669,21 +543,6 @@ namespace Opc.Ua.Bindings
             await StopAsync(ct).ConfigureAwait(false);
         }
 
-        /// <summary>
-        /// Raised when a new connection is waiting for a client. Fired by
-        /// the WSS reverse-connect handoff in
-        /// <see cref="HttpsTransportListener"/> when
-        /// <c>settings.ReverseConnectListener</c> is set.
-        /// </summary>
-        public event ConnectionWaitingHandlerAsync? ConnectionWaiting;
-
-        /// <summary>
-        /// Raised when a monitored connection's status changed.
-        /// </summary>
-#pragma warning disable CS0067 // forward-mode listener does not currently report channel-status events.
-        public event EventHandler<ConnectionStatusEventArgs>? ConnectionStatusChanged;
-#pragma warning restore CS0067
-
         /// <inheritdoc/>
         /// <remarks>
         /// Reverse connect is supported for the WSS scheme variants
@@ -752,141 +611,11 @@ namespace Opc.Ua.Bindings
 #pragma warning restore CA2000
         }
 
-        private void OnReverseConnectChannelStatusChanged(
-            TcpServerChannel channel,
-            ServiceResult status,
-            bool closed)
-        {
-            if (closed && m_reverseConnectChannels.TryRemove(channel, out _))
-            {
-                // The natural-close path (transport tore down independent
-                // of listener teardown) is the only opportunity to dispose
-                // the channel because there's no other owner: the listener
-                // doesn't hold a strong reference outside the tracking set,
-                // and SetRequestReceivedCallback wires the channel into the
-                // request pipeline but never disposes it. Releases the
-                // ServerCertificateChain handles loaded during the
-                // asymmetric ChannelOpen.
-                try
-                {
-                    channel.Dispose();
-                }
-                catch
-                {
-                    // best-effort.
-                }
-            }
-            ConnectionStatusChanged?.Invoke(
-                this,
-                new ConnectionStatusEventArgs(channel.ReverseConnectionUrl!, status, closed));
-        }
-
-        /// <summary>
-        /// Completion callback for the WSS reverse-hello handshake.
-        /// </summary>
-        private void OnHttpsReverseHelloComplete(IAsyncResult result)
-        {
-            var channel = (TcpServerChannel?)result.AsyncState;
-            try
-            {
-                channel!.EndReverseConnect(result);
-                if (m_callback != null)
-                {
-                    channel.SetRequestReceivedCallback(
-                        new TcpChannelRequestEventHandler(OnRequestReceivedAsync));
-                    channel.SetReportOpenSecureChannelAuditCallback(
-                        new ReportAuditOpenSecureChannelEventHandler(
-                            OnReportAuditOpenSecureChannelEvent));
-                    channel.SetReportCloseSecureChannelAuditCallback(
-                        new ReportAuditCloseSecureChannelEventHandler(
-                            OnReportAuditCloseSecureChannelEvent));
-                    channel.SetReportCertificateAuditCallback(
-                        new ReportAuditCertificateEventHandler(OnReportAuditCertificateEvent));
-                }
-                channel = null; // ownership transferred to the channel registry
-            }
-            catch (Exception e)
-            {
-                m_logger.ReverseConnectHandshakeFailed(e);
-                ConnectionStatusChanged?.Invoke(
-                    this,
-                    new ConnectionStatusEventArgs(
-                        channel!.ReverseConnectionUrl!,
-                        new ServiceResult(e),
-                        true));
-            }
-            finally
-            {
-                if (channel != null)
-                {
-                    m_reverseConnectChannels.TryRemove(channel, out _);
-                }
-                channel?.Dispose();
-            }
-        }
-
-        /// <summary>
-        /// Minimal <see cref="ITcpChannelListener"/> adapter that the WSS
-        /// reverse-connect uses to give the <see cref="TcpServerChannel"/>
-        /// a back-reference to this listener without going through the
-        /// shared multi-channel <see cref="WssChannelListener"/> path.
-        /// </summary>
-        private sealed class ReverseConnectChannelOwner : ITcpChannelListener
-        {
-            internal ReverseConnectChannelOwner(HttpsTransportListener owner)
-            {
-                m_owner = owner;
-            }
-
-            public Uri EndpointUrl => m_owner.EndpointUrl;
-
-            public void ChannelClosed(uint channelId)
-            {
-                // No-op: the WSS reverse channel is per-connection; the
-                // listener does not maintain a channel registry for it.
-            }
-
-            public bool ReconnectToExistingChannel(
-                TcpListenerChannel reconnectingChannel,
-                IUaSCByteTransport transport,
-                uint requestId,
-                uint sequenceNumber,
-                uint channelId,
-                Certificate clientCertificate,
-                ChannelToken token,
-                OpenSecureChannelRequest request)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadTcpSecureChannelUnknown,
-                    "Reverse-connect WSS channels do not support reconnect-to-existing-channel.");
-            }
-
-#pragma warning disable CS0618 // Type or member is obsolete
-            public Task<bool> TransferListenerChannel(uint channelId, string serverUri, Uri endpointUrl)
-            {
-                return TransferListenerChannelAsync(channelId, serverUri, endpointUrl);
-            }
-#pragma warning restore CS0618
-
-            public Task<bool> TransferListenerChannelAsync(uint channelId, string serverUri, Uri endpointUrl)
-            {
-                return Task.FromResult(false);
-            }
-
-            private readonly HttpsTransportListener m_owner;
-        }
-
         /// <inheritdoc/>
         public void UpdateChannelLastActiveTime(string globalChannelId)
         {
             // intentionally not implemented
         }
-
-        /// <summary>
-        /// Gets the URL for the listener's endpoint.
-        /// </summary>
-        /// <value>The URL for the listener's endpoint.</value>
-        public Uri EndpointUrl { get; private set; } = null!;
 
         /// <summary>
         /// Starts listening at the specified port.
@@ -926,326 +655,6 @@ namespace Opc.Ua.Bindings
             }
 
             await StartOwnHostAsync(ct).ConfigureAwait(false);
-        }
-
-        /// <summary>
-        /// Builds a Kestrel <see cref="IHost"/> configured as the
-        /// SHARED host for the (host, port) the listener is bound to.
-        /// Used by <see cref="SharedKestrelHostRegistry"/> via the
-        /// <c>hostFactory</c> callback when no existing host is found
-        /// for the key.
-        /// </summary>
-        private IHost BuildSharedHostInstance(SharedHostAccessor accessor)
-        {
-#if NET8_0_OR_GREATER
-            return new HostBuilder()
-                .ConfigureWebHostDefaults(builder => ConfigureSharedWebHost(builder, accessor))
-                .Build();
-#else
-            // Legacy WebHostBuilder.Start() can't be split into Build+Start; use
-            // Build() on the IWebHost equivalent and start in AttachAndStart.
-            var sharedHostBuilder = new WebHostBuilder();
-            ConfigureSharedWebHost(sharedHostBuilder, accessor);
-            IWebHost webHost = sharedHostBuilder.UseUrls(Utils.ReplaceLocalhost(EndpointUrl.ToString())).Build();
-            return new WebHostAsIHost(webHost);
-#endif
-        }
-
-#if !NET8_0_OR_GREATER
-        /// <summary>
-        /// Adapts a legacy <see cref="IWebHost"/> to the
-        /// <see cref="IHost"/> contract used by the shared-host registry.
-        /// </summary>
-        private sealed class WebHostAsIHost : IHost
-        {
-            private readonly IWebHost m_webHost;
-
-            public WebHostAsIHost(IWebHost webHost)
-            {
-                m_webHost = webHost;
-            }
-
-            public IServiceProvider Services => m_webHost.Services;
-
-            public Task StartAsync(CancellationToken ct = default)
-            {
-                return m_webHost.StartAsync(ct);
-            }
-
-            public Task StopAsync(CancellationToken ct = default)
-            {
-                return m_webHost.StopAsync(ct);
-            }
-
-            public void Dispose()
-            {
-                m_webHost.Dispose();
-            }
-        }
-#endif
-
-        /// <summary>
-        /// Configures the underlying <see cref="IWebHostBuilder"/> for a
-        /// SHARED host (uses <see cref="SharedHostStartup"/> + path-prefix
-        /// routing). The TLS cert + Kestrel listen-options are taken from
-        /// this listener's pinned state, established by
-        /// <see cref="PrepareTlsCertificate"/>.
-        /// </summary>
-#pragma warning disable CA1859 // see ConfigureWebHost rationale
-        private void ConfigureSharedWebHost(IWebHostBuilder webHostBuilder, SharedHostAccessor accessor)
-#pragma warning restore CA1859
-        {
-            UaScConnectionAdmission physicalAdmission = m_admission!.CreateIndependentScope();
-            var httpsOptions = new HttpsConnectionAdapterOptions
-            {
-                // TLS-layer revocation is intentionally disabled: certificate
-                // revocation (CRL) is enforced by the UA CertificateValidator in
-                // ValidateClientCertificate, consistent with the raw-TCP UA
-                // transport, to avoid duplicate / inconsistent checks.
-                CheckCertificateRevocation = false,
-                // HttpsMutualTls=true enables mTLS — Kestrel REQUESTS but does
-                // not REQUIRE a client cert at the TLS handshake. Requiring the
-                // cert at TLS time would block the discovery client (which
-                // legitimately has no cert until after discovery) and the binary
-                // UASC HTTPS path (which authenticates at the UA SecureChannel
-                // layer, not at TLS). REST / WebApi clients that opt into
-                // AddWebApiMutualTlsAuth() are enforced at the authorization
-                // layer (RequireAuthorization) instead.
-                ClientCertificateMode = m_mutualTlsEnabled
-                    ? ClientCertificateMode.AllowCertificate
-                    : ClientCertificateMode.NoCertificate,
-                ServerCertificate = m_pinnedServerCertX509,
-                ClientCertificateValidation = ValidateClientCertificate,
-                SslProtocols = SslProtocols.None
-            };
-
-            UriHostNameType hostType = Uri.CheckHostName(EndpointUrl.Host);
-            if (hostType is UriHostNameType.Dns or UriHostNameType.Unknown or UriHostNameType.Basic)
-            {
-                webHostBuilder.UseKestrel(options =>
-                    options.ListenAnyIP(
-                        EndpointUrl.Port,
-                        listenOptions => ConfigureHttpsAdmission(listenOptions, httpsOptions, physicalAdmission)));
-            }
-            else
-            {
-                var ipAddress = IPAddress.Parse(EndpointUrl.Host);
-                webHostBuilder.UseKestrel(options =>
-                    options.Listen(
-                        ipAddress,
-                        EndpointUrl.Port,
-                        listenOptions => ConfigureHttpsAdmission(listenOptions, httpsOptions, physicalAdmission)));
-            }
-
-            webHostBuilder.UseContentRoot(Directory.GetCurrentDirectory())
-                .ConfigureServices(services =>
-            {
-                services.AddSingleton(accessor);
-                services.AddSingleton<IHostedService>(new AdmissionHostLifetime(physicalAdmission, m_logger));
-                ConfigureContributorServices(services);
-            });
-            webHostBuilder.UseStartup<SharedHostStartup>();
-        }
-
-        private async ValueTask StartOwnHostAsync(CancellationToken ct)
-        {
-#if NET8_0_OR_GREATER
-            m_host = new HostBuilder()
-                .ConfigureWebHostDefaults(ConfigureWebHost)
-                .Build();
-            await m_host.StartAsync(ct).ConfigureAwait(false);
-#else
-            var hostBuilder = new WebHostBuilder();
-            ConfigureWebHost(hostBuilder);
-            m_host = hostBuilder.Start(Utils.ReplaceLocalhost(EndpointUrl.ToString()));
-            await Task.CompletedTask.ConfigureAwait(false);
-#endif
-        }
-
-        /// <summary>
-        /// Resolves and pins the TLS certificate the listener will use.
-        /// Sets <c>m_pinnedServerCert</c>, <c>m_pinnedServerCertX509</c>
-        /// and <see cref="ServerChannelCertificate"/>; safe to call
-        /// before either the shared-host or own-host path runs.
-        /// </summary>
-        private void PrepareTlsCertificate()
-        {
-            // prepare the server TLS certificate. AcquireApplicationCertificateBySecurityPolicy
-            // returns a caller-owned entry; take an independent handle on the
-            // certificate so this listener owns it for its full lifetime,
-            // independent of the entry (disposed below) and of any concurrent
-            // registry hot-update that would otherwise free the OS handle
-            // Kestrel still holds.
-            using CertificateEntry? instanceEntry = m_serverCertProvider
-                .AcquireApplicationCertificateBySecurityPolicy(SecurityPolicies.Https);
-            Certificate? serverCertificate = instanceEntry?.Certificate?.AddRef();
-#if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
-            try
-            {
-                // Create a copy of the certificate with the private key on platforms
-                // which default to the ephemeral KeySet. Also a new certificate must be reloaded.
-                // If the key fails to copy, its probably a non exportable key from the X509Store.
-                // Then we can use the original certificate, the private key is already in the key store.
-                using Certificate copy = X509Utils.CreateCopyWithPrivateKey(serverCertificate!, false);
-                if (!ReferenceEquals(copy, serverCertificate))
-                {
-                    serverCertificate!.Dispose();
-                    // Take an owned handle over the copy's core; the 'using
-                    // copy' handle is released at block end, so capturing
-                    // AddRef()'s result (rather than aliasing 'copy' and
-                    // discarding the AddRef) keeps the core alive without
-                    // leaking a handle.
-                    serverCertificate = copy.AddRef();
-                }
-            }
-            catch (CryptographicException ce)
-            {
-                m_logger.PrivateKeyCopyDenied(ce.Message);
-            }
-#endif
-            // pin the cert for the lifetime of the listener so that the
-            // OS-level private key handle backing the Kestrel-held
-            // X509Certificate2 cannot be invalidated by a concurrent cert
-            // reload elsewhere in the process.
-            m_pinnedServerCert?.Dispose();
-            m_pinnedServerCert = serverCertificate;
-            m_pinnedServerCertX509?.Dispose();
-            m_pinnedServerCertX509 = serverCertificate!.AsX509Certificate2();
-
-            // save the server certificate so it can be used in the secure channel context.
-            ServerChannelCertificate = serverCertificate!.RawData;
-        }
-
-        /// <summary>
-        /// CA1859: The IWebHostBuilder interface cannot be narrowed to WebHostBuilder here because
-        /// on NET8_0_OR_GREATER this method is called from HostBuilder.ConfigureWebHostDefaults()
-        /// which passes an IWebHostBuilder, not WebHostBuilder.
-        /// </summary>
-        /// <param name="webHostBuilder"></param>
-#pragma warning disable CA1859
-        private void ConfigureWebHost(IWebHostBuilder webHostBuilder)
-#pragma warning restore CA1859
-        {
-            // TLS cert was already pinned by PrepareTlsCertificate() at the
-            // top of Start(); use the pinned cert directly.
-            var httpsOptions = new HttpsConnectionAdapterOptions
-            {
-                // TLS-layer revocation is intentionally disabled: certificate
-                // revocation (CRL) is enforced by the UA CertificateValidator in
-                // ValidateClientCertificate, consistent with the raw-TCP UA
-                // transport, to avoid duplicate / inconsistent checks.
-                CheckCertificateRevocation = false,
-                // HttpsMutualTls=true enables mTLS — Kestrel REQUESTS but does
-                // not REQUIRE a client cert at the TLS handshake. Requiring the
-                // cert at TLS time would block the discovery client (which
-                // legitimately has no cert until after discovery) and the binary
-                // UASC HTTPS path (which authenticates at the UA SecureChannel
-                // layer, not at TLS). REST / WebApi clients that opt into
-                // AddWebApiMutualTlsAuth() are enforced at the authorization
-                // layer (RequireAuthorization) instead.
-                ClientCertificateMode = m_mutualTlsEnabled
-                    ? ClientCertificateMode.AllowCertificate
-                    : ClientCertificateMode.NoCertificate,
-                // note: this is the TLS certificate!
-                ServerCertificate = m_pinnedServerCertX509,
-                ClientCertificateValidation = ValidateClientCertificate,
-                SslProtocols = SslProtocols.None
-            };
-
-            UriHostNameType hostType = Uri.CheckHostName(EndpointUrl.Host);
-            if (hostType is UriHostNameType.Dns or UriHostNameType.Unknown or UriHostNameType.Basic)
-            {
-                // bind to any address
-                webHostBuilder.UseKestrel(options =>
-                    options.ListenAnyIP(
-                        EndpointUrl.Port,
-                        listenOptions => ConfigureHttpsAdmission(listenOptions, httpsOptions)));
-            }
-            else
-            {
-                // bind to specific address
-                var ipAddress = IPAddress.Parse(EndpointUrl.Host);
-                webHostBuilder.UseKestrel(options =>
-                    options.Listen(
-                        ipAddress,
-                        EndpointUrl.Port,
-                        listenOptions => ConfigureHttpsAdmission(listenOptions, httpsOptions)));
-            }
-
-            webHostBuilder.UseContentRoot(Directory.GetCurrentDirectory());
-            // Register this listener instance in the web host DI container so it can be
-            // injected into Startup.Configure as a method parameter — no static state needed.
-            webHostBuilder.ConfigureServices(services =>
-            {
-                services.AddSingleton(this);
-                ConfigureContributorServices(services);
-            });
-            webHostBuilder.UseStartup<Startup>();
-        }
-
-        private void ConfigureHttpsAdmission(
-            ListenOptions options,
-            HttpsConnectionAdapterOptions httpsOptions,
-            UaScConnectionAdmission? physicalAdmission = null)
-        {
-            UaScConnectionAdmission? admission = physicalAdmission ?? m_admission;
-            options.Use(next => connection => RunHttpsConnectionAsync(connection, next, admission));
-            options.UseHttps(httpsOptions);
-        }
-
-        internal static async Task RunHttpsConnectionAsync(
-            ConnectionContext connection,
-            ConnectionDelegate next,
-            UaScConnectionAdmission? admission)
-        {
-            if (connection == null)
-            {
-                throw new ArgumentNullException(nameof(connection));
-            }
-            if (next == null)
-            {
-                throw new ArgumentNullException(nameof(next));
-            }
-#if NET8_0_OR_GREATER
-            EndPoint? remote = connection.RemoteEndPoint;
-#else
-            IHttpConnectionFeature? endpoints = connection.Features.Get<IHttpConnectionFeature>();
-            EndPoint? remote = MakeEndpoint(endpoints?.RemoteIpAddress, endpoints?.RemotePort ?? 0);
-#endif
-            if (admission == null)
-            {
-                connection.Abort();
-                return;
-            }
-            bool admitted = admission.TryAcquire(remote, out UaScConnectionAdmission.Lease? lease);
-            using UaScConnectionAdmission.Lease? retainedConnection = lease;
-            if (!admitted || lease == null)
-            {
-                connection.Abort();
-                return;
-            }
-            try
-            {
-                lease.SetAbortAction(connection.Abort);
-                connection.Features.Set<IHttpsTransportAdmissionFeature>(new HttpsTransportAdmissionFeature(lease));
-                await next(connection).ConfigureAwait(false);
-            }
-            finally
-            {
-                lease.ReleaseAfterTransportClosed();
-                await lease.WaitForCloseAsync(CancellationToken.None).ConfigureAwait(false);
-            }
-        }
-
-        private void ConfigureContributorServices(IServiceCollection services)
-        {
-            foreach (IHttpsListenerStartupContributor contributor in StartupContributors)
-            {
-                if (contributor is IHttpsListenerServiceContributor serviceContributor)
-                {
-                    serviceContributor.ConfigureServices(services, this);
-                }
-            }
         }
 
         /// <summary>
@@ -1339,7 +748,7 @@ namespace Opc.Ua.Bindings
 
                 if (m_mutualTlsEnabled && input.TypeId == DataTypeIds.CreateSessionRequest)
                 {
-                    // Match tls client certificate against client application certificate provided in CreateSessionRequest
+                    // Match the TLS certificate against the application certificate in CreateSessionRequest.
                     var tlsClientCertificate = ByteString.From(context.Connection.ClientCertificate?.RawData);
                     ByteString opcUaClientCertificate = ((CreateSessionRequest)input).ClientCertificate;
 
@@ -1347,7 +756,8 @@ namespace Opc.Ua.Bindings
                         tlsClientCertificate != opcUaClientCertificate)
                     {
                         message =
-                            "Client TLS certificate does not match with ClientCertificate provided in CreateSessionRequest";
+                            "Client TLS certificate does not match with ClientCertificate " +
+                            "provided in CreateSessionRequest";
                         m_logger.ClientTlsCertificateMismatch(message);
                         await WriteResponseAsync(
                             context.Response,
@@ -1599,26 +1009,6 @@ namespace Opc.Ua.Bindings
                 .ConfigureAwait(false);
         }
 
-        private async Task WriteJsonResponseAsync(
-            HttpContext context,
-            IServiceResponse response,
-            CancellationToken ct)
-        {
-            byte[] payload = JsonRequestMapper.EncodeResponse(response, m_quotas.MessageContext);
-            context.Response.ContentLength = payload.Length;
-            context.Response.ContentType = Profiles.OpcUaJsonContentType;
-            context.Response.StatusCode = (int)HttpStatusCode.OK;
-#if NETSTANDARD2_1 || NET5_0_OR_GREATER
-            await context.Response.Body
-                .WriteAsync(payload.AsMemory(0, payload.Length), ct)
-                .ConfigureAwait(false);
-#else
-            await context.Response.Body
-                .WriteAsync(payload, 0, payload.Length, ct)
-                .ConfigureAwait(false);
-#endif
-        }
-
         /// <summary>
         /// Handles WebSocket upgrade requests for the WSS transport
         /// (Part 6 §7.5). Negotiates the <c>opcua+uacp</c> sub-protocol
@@ -1673,6 +1063,668 @@ namespace Opc.Ua.Bindings
             }
         }
 
+        /// <summary>
+        /// Called when an UpdateCertificate event occurred. Performs the
+        /// soft fan-out (refresh validator, registry, and per-endpoint
+        /// blobs); see <see cref="CloseChannelsForCertificateAsync"/> for the
+        /// post-ApplyChanges connection teardown that actually rebinds
+        /// the Kestrel TLS certificate.
+        /// </summary>
+        public void CertificateUpdate(
+            ICertificateValidatorEx validator,
+            ICertificateRegistry serverCertificates)
+        {
+            m_quotas.CertificateValidator = validator;
+            m_serverCertProvider = serverCertificates;
+
+            foreach (EndpointDescription description in m_descriptions)
+            {
+                ServerBase.SetServerCertificateInEndpointDescription(
+                    description,
+                    serverCertificates,
+                    false);
+            }
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<IReadOnlyList<string>> CloseChannelsForCertificateAsync(
+            Certificate oldCertificate,
+            CancellationToken ct = default)
+        {
+            if (oldCertificate == null)
+            {
+                throw new ArgumentNullException(nameof(oldCertificate));
+            }
+
+            // Nothing to do if the listener was never opened. This keeps
+            // the call safe to invoke unconditionally from the
+            // ConfigurationNodeManager fan-out.
+            if (m_descriptions == null)
+            {
+                return [];
+            }
+
+            // HTTPS owns the server certificate at the Kestrel / HTTP.sys
+            // listener level, so we can't surgically close individual TLS
+            // connections without restarting the host. Per OPC UA Part 12
+            // §7.10.9 a StopAsync()/StartAsync() cycle satisfies the
+            // "force renegotiate" requirement; existing Sessions remain
+            // valid and the client's reconnect logic re-binds them over
+            // the freshly-issued TLS endpoint.
+            await StopAsync(ct).ConfigureAwait(false);
+            await StartAsync(ct).ConfigureAwait(false);
+
+            // The HTTPS listener does not track per-channel ids that map
+            // to OPC UA SecureChannels (the binding is request-scoped via
+            // HTTP), so there is nothing meaningful to return for
+            // diagnostics here.
+            return [];
+        }
+
+        /// <summary>
+        /// Asynchronously releases the shared-host lease and shuts down the
+        /// owned Kestrel host before the synchronous cleanup runs.
+        /// </summary>
+        protected virtual async ValueTask DisposeAsyncCore()
+        {
+            Volatile.Write(ref m_admissionStopped, 1);
+            try
+            {
+                m_admission?.Stop();
+                foreach (UaScConnectionAdmission.Lease upgrade in m_activeUpgrades.Keys)
+                {
+                    upgrade.Close();
+                }
+            }
+            catch (AggregateException ex)
+            {
+                m_logger.WssAdmissionStopFailed(ex);
+            }
+            ConnectionStatusChanged = null;
+            ConnectionWaiting = null;
+
+            // Drain outbound reverse-connect channels first so the
+            // ServerCertificateChain handles loaded during the asymmetric
+            // ChannelOpen handshake are released before m_pinnedServerCert.
+            // Snapshot the set under the concurrent dictionary's enumerator
+            // contract; subsequent OnReverseConnectChannelStatusChanged
+            // callbacks against disposed channels are no-ops because the
+            // dictionary has been cleared.
+            TcpServerChannel[] reverseChannels = [.. m_reverseConnectChannels.Keys];
+            m_reverseConnectChannels.Clear();
+            foreach (TcpServerChannel channel in reverseChannels)
+            {
+                try
+                {
+                    channel.Dispose();
+                }
+                catch
+                {
+                    // best-effort; teardown must continue regardless.
+                }
+            }
+
+            SharedHostLease? lease = m_sharedHostLease;
+            m_sharedHostLease = null;
+            if (lease != null)
+            {
+                await lease.DisposeAsync().ConfigureAwait(false);
+            }
+
+#if NET8_0_OR_GREATER
+            IHost? host = m_host;
+#else
+            IWebHost? host = m_host;
+#endif
+            m_host = null;
+            if (host != null)
+            {
+                try
+                {
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                    await host.StopAsync(cts.Token).ConfigureAwait(false);
+                }
+                catch
+                {
+                    // Best-effort shutdown.
+                }
+                host.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// An overrideable version of the Dispose. Unmanaged-resource
+        /// cleanup only; the async path (<see cref="DisposeAsyncCore"/>)
+        /// handles the shared-host lease and the owned Kestrel host.
+        /// </summary>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                m_pinnedServerCertX509?.Dispose();
+                m_pinnedServerCertX509 = null;
+                m_pinnedServerCert?.Dispose();
+                m_pinnedServerCert = null;
+            }
+        }
+
+        internal byte[] ServerChannelCertificate { get; set; } = [];
+
+        /// <summary>
+        /// Per-listener collection of startup contributors propagated from
+        /// the originating <see cref="HttpsServiceHost"/>. Invoked by
+        /// <see cref="Startup.Configure(IApplicationBuilder, HttpsTransportListener)"/>
+        /// between <c>UseWebSockets()</c> and the terminal binary / JSON
+        /// dispatcher so additional middleware (e.g. REST MVC) can mount
+        /// into the same Kestrel host.
+        /// </summary>
+        internal IReadOnlyList<IHttpsListenerStartupContributor> StartupContributors { get; set; }
+            = [];
+
+        /// <summary>
+        /// The transport callback wired in by
+        /// <see cref="OpenAsync(Uri, TransportListenerSettings, ITransportListenerCallback, CancellationToken)"/>.
+        /// Exposed to <see cref="IHttpsListenerStartupContributor"/>
+        /// implementations so they can forward requests through the same
+        /// dispatcher used by the binary / JSON paths.
+        /// </summary>
+        internal ITransportListenerCallback? Callback => m_callback;
+
+        /// <summary>
+        /// The encoding context (namespace / server tables, quotas,
+        /// telemetry) populated by
+        /// <see cref="OpenAsync(Uri, TransportListenerSettings, ITransportListenerCallback, CancellationToken)"/>.
+        /// Available to <see cref="IHttpsListenerStartupContributor"/>
+        /// implementations after the listener is opened.
+        /// </summary>
+        internal IServiceMessageContext? MessageContext => m_quotas?.MessageContext;
+
+        /// <summary>
+        /// The endpoint descriptions advertised by this listener,
+        /// populated by
+        /// <see cref="OpenAsync(Uri, TransportListenerSettings, ITransportListenerCallback, CancellationToken)"/>.
+        /// Available to <see cref="IHttpsListenerStartupContributor"/>
+        /// implementations so they can pick a default endpoint
+        /// (typically the first <see cref="MessageSecurityMode.None"/>
+        /// HTTPS entry) for context construction.
+        /// </summary>
+        internal IReadOnlyList<EndpointDescription>? Descriptions => m_descriptions;
+
+        /// <summary>
+        /// Optional WSS <c>opcua+openapi+&lt;accesstoken&gt;</c> bearer-
+        /// token validator. Registered by
+        /// <see cref="IHttpsListenerStartupContributor"/> implementations
+        /// (e.g. the WebApi contributor) so the listener can validate
+        /// the bearer token presented in the WebSocket sub-protocol name
+        /// against the application's auth scheme (JwtBearer) before
+        /// accepting the upgrade. The callback receives the
+        /// <see cref="HttpContext"/> and the raw access token; it must
+        /// return <c>true</c> if the token authenticates, <c>false</c>
+        /// otherwise. When no validator is registered the listener
+        /// fail-closed rejects every bearer-prefix sub-protocol upgrade
+        /// (so unconfigured deployments cannot silently accept tokens).
+        /// </summary>
+        internal Func<HttpContext, string, Task<bool>>? WssBearerTokenValidator { get; set; }
+
+        /// <summary>
+        /// Holds physical connection admission through the host pipeline and releases it after transport closure.
+        /// </summary>
+        internal static async Task RunHttpsConnectionAsync(
+            ConnectionContext connection,
+            ConnectionDelegate next,
+            UaScConnectionAdmission? admission)
+        {
+            if (connection == null)
+            {
+                throw new ArgumentNullException(nameof(connection));
+            }
+            if (next == null)
+            {
+                throw new ArgumentNullException(nameof(next));
+            }
+#if NET8_0_OR_GREATER
+            EndPoint? remote = connection.RemoteEndPoint;
+#else
+            IHttpConnectionFeature? endpoints = connection.Features.Get<IHttpConnectionFeature>();
+            EndPoint? remote = MakeEndpoint(endpoints?.RemoteIpAddress, endpoints?.RemotePort ?? 0);
+#endif
+            if (admission == null)
+            {
+                connection.Abort();
+                return;
+            }
+            bool admitted = admission.TryAcquire(remote, out UaScConnectionAdmission.Lease? lease);
+            using UaScConnectionAdmission.Lease? retainedConnection = lease;
+            if (!admitted || lease == null)
+            {
+                connection.Abort();
+                return;
+            }
+            try
+            {
+                lease.SetAbortAction(connection.Abort);
+                connection.Features.Set<IHttpsTransportAdmissionFeature>(new HttpsTransportAdmissionFeature(lease));
+                await next(connection).ConfigureAwait(false);
+            }
+            finally
+            {
+                lease.ReleaseAfterTransportClosed();
+                await lease.WaitForCloseAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Releases startup capacity for ordinary HTTP requests; WebSockets complete their own handshake.
+        /// </summary>
+        internal static void CompleteHttpHandshake(HttpContext context)
+        {
+            if (!context.WebSockets.IsWebSocketRequest)
+            {
+                context.Features.Get<IHttpsTransportAdmissionFeature>()?.Lease.CompleteHandshake();
+            }
+        }
+
+        internal static bool ValidateClientCertificateWithUaValidator(
+            ICertificateValidatorEx? certificateValidator,
+            X509Certificate2? clientCertificate,
+            X509Chain? chain,
+            SslPolicyErrors sslPolicyErrors)
+        {
+            if (clientCertificate == null)
+            {
+                return sslPolicyErrors == SslPolicyErrors.None;
+            }
+
+            if (certificateValidator == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                using CertificateCollection validationChain = CertificateValidationHelpers
+                    .BuildValidationCertificateCollection(clientCertificate, chain);
+                // CA2025: the TLS ClientCertificateValidation callback is
+                // synchronous by contract on every supported TFM, so the async UA
+                // validator is bridged with GetAwaiter().GetResult(); the validation
+                // chain remains alive across the wait. The call is a single bounded
+                // chain validation but blocks a handshake thread.
+                // TODO: replace with a non-blocking validation bridge to remove the
+                // thread-pool-starvation risk under connection floods.
+#pragma warning disable CA2025
+                CertificateValidationResult result = certificateValidator
+                    .ValidateAsync(
+                        validationChain,
+                        TrustListIdentifier.Https,
+                        ct: default)
+                    .GetAwaiter()
+                    .GetResult();
+#pragma warning restore CA2025
+                return result.IsValid;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Disposes naturally closed reverse channels and forwards their status to listener subscribers.
+        /// </summary>
+        private void OnReverseConnectChannelStatusChanged(
+            TcpServerChannel channel,
+            ServiceResult status,
+            bool closed)
+        {
+            if (closed && m_reverseConnectChannels.TryRemove(channel, out _))
+            {
+                // The natural-close path (transport tore down independent
+                // of listener teardown) is the only opportunity to dispose
+                // the channel because there's no other owner: the listener
+                // doesn't hold a strong reference outside the tracking set,
+                // and SetRequestReceivedCallback wires the channel into the
+                // request pipeline but never disposes it. Releases the
+                // ServerCertificateChain handles loaded during the
+                // asymmetric ChannelOpen.
+                try
+                {
+                    channel.Dispose();
+                }
+                catch
+                {
+                    // best-effort.
+                }
+            }
+            ConnectionStatusChanged?.Invoke(
+                this,
+                new ConnectionStatusEventArgs(channel.ReverseConnectionUrl!, status, closed));
+        }
+
+        /// <summary>
+        /// Completion callback for the WSS reverse-hello handshake.
+        /// </summary>
+        private void OnHttpsReverseHelloComplete(IAsyncResult result)
+        {
+            var channel = (TcpServerChannel?)result.AsyncState;
+            try
+            {
+                channel!.EndReverseConnect(result);
+                if (m_callback != null)
+                {
+                    channel.SetRequestReceivedCallback(
+                        new TcpChannelRequestEventHandler(OnRequestReceivedAsync));
+                    channel.SetReportOpenSecureChannelAuditCallback(
+                        new ReportAuditOpenSecureChannelEventHandler(
+                            OnReportAuditOpenSecureChannelEvent));
+                    channel.SetReportCloseSecureChannelAuditCallback(
+                        new ReportAuditCloseSecureChannelEventHandler(
+                            OnReportAuditCloseSecureChannelEvent));
+                    channel.SetReportCertificateAuditCallback(
+                        new ReportAuditCertificateEventHandler(OnReportAuditCertificateEvent));
+                }
+                channel = null; // ownership transferred to the channel registry
+            }
+            catch (Exception e)
+            {
+                m_logger.ReverseConnectHandshakeFailed(e);
+                ConnectionStatusChanged?.Invoke(
+                    this,
+                    new ConnectionStatusEventArgs(
+                        channel!.ReverseConnectionUrl!,
+                        new ServiceResult(e),
+                        true));
+            }
+            finally
+            {
+                if (channel != null)
+                {
+                    m_reverseConnectChannels.TryRemove(channel, out _);
+                }
+                channel?.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Builds a Kestrel <see cref="IHost"/> configured as the
+        /// SHARED host for the (host, port) the listener is bound to.
+        /// Used by <see cref="SharedKestrelHostRegistry"/> via the
+        /// <c>hostFactory</c> callback when no existing host is found
+        /// for the key.
+        /// </summary>
+        private IHost BuildSharedHostInstance(SharedHostAccessor accessor)
+        {
+#if NET8_0_OR_GREATER
+            return new HostBuilder()
+                .ConfigureWebHostDefaults(builder => ConfigureSharedWebHost(builder, accessor))
+                .Build();
+#else
+            // Legacy WebHostBuilder.Start() can't be split into Build+Start; use
+            // Build() on the IWebHost equivalent and start in AttachAndStart.
+            var sharedHostBuilder = new WebHostBuilder();
+            ConfigureSharedWebHost(sharedHostBuilder, accessor);
+            IWebHost webHost = sharedHostBuilder.UseUrls(Utils.ReplaceLocalhost(EndpointUrl.ToString())).Build();
+            return new WebHostAsIHost(webHost);
+#endif
+        }
+
+        /// <summary>
+        /// Configures the underlying <see cref="IWebHostBuilder"/> for a
+        /// SHARED host (uses <see cref="SharedHostStartup"/> + path-prefix
+        /// routing). The TLS cert + Kestrel listen-options are taken from
+        /// this listener's pinned state, established by
+        /// <see cref="PrepareTlsCertificate"/>.
+        /// </summary>
+#pragma warning disable CA1859 // see ConfigureWebHost rationale
+        private void ConfigureSharedWebHost(IWebHostBuilder webHostBuilder, SharedHostAccessor accessor)
+#pragma warning restore CA1859
+        {
+            UaScConnectionAdmission physicalAdmission = m_admission!.CreateIndependentScope();
+            var httpsOptions = new HttpsConnectionAdapterOptions
+            {
+                // TLS-layer revocation is intentionally disabled: certificate
+                // revocation (CRL) is enforced by the UA CertificateValidator in
+                // ValidateClientCertificate, consistent with the raw-TCP UA
+                // transport, to avoid duplicate / inconsistent checks.
+                CheckCertificateRevocation = false,
+                // HttpsMutualTls=true enables mTLS — Kestrel REQUESTS but does
+                // not REQUIRE a client cert at the TLS handshake. Requiring the
+                // cert at TLS time would block the discovery client (which
+                // legitimately has no cert until after discovery) and the binary
+                // UASC HTTPS path (which authenticates at the UA SecureChannel
+                // layer, not at TLS). REST / WebApi clients that opt into
+                // AddWebApiMutualTlsAuth() are enforced at the authorization
+                // layer (RequireAuthorization) instead.
+                ClientCertificateMode = m_mutualTlsEnabled
+                    ? ClientCertificateMode.AllowCertificate
+                    : ClientCertificateMode.NoCertificate,
+                ServerCertificate = m_pinnedServerCertX509,
+                ClientCertificateValidation = ValidateClientCertificate,
+                SslProtocols = SslProtocols.None
+            };
+
+            UriHostNameType hostType = Uri.CheckHostName(EndpointUrl.Host);
+            if (hostType is UriHostNameType.Dns or UriHostNameType.Unknown or UriHostNameType.Basic)
+            {
+                webHostBuilder.UseKestrel(options =>
+                    options.ListenAnyIP(
+                        EndpointUrl.Port,
+                        listenOptions => ConfigureHttpsAdmission(listenOptions, httpsOptions, physicalAdmission)));
+            }
+            else
+            {
+                var ipAddress = IPAddress.Parse(EndpointUrl.Host);
+                webHostBuilder.UseKestrel(options =>
+                    options.Listen(
+                        ipAddress,
+                        EndpointUrl.Port,
+                        listenOptions => ConfigureHttpsAdmission(listenOptions, httpsOptions, physicalAdmission)));
+            }
+
+            webHostBuilder.UseContentRoot(Directory.GetCurrentDirectory())
+                .ConfigureServices(services =>
+            {
+                services.AddSingleton(accessor);
+                services.AddSingleton<IHostedService>(new AdmissionHostLifetime(physicalAdmission, m_logger));
+                ConfigureContributorServices(services);
+            });
+            webHostBuilder.UseStartup<SharedHostStartup>();
+        }
+
+        /// <summary>
+        /// Starts a dedicated host when no compatible shared host can serve the listener.
+        /// </summary>
+        private async ValueTask StartOwnHostAsync(CancellationToken ct)
+        {
+#if NET8_0_OR_GREATER
+            m_host = new HostBuilder()
+                .ConfigureWebHostDefaults(ConfigureWebHost)
+                .Build();
+            await m_host.StartAsync(ct).ConfigureAwait(false);
+#else
+            var hostBuilder = new WebHostBuilder();
+            ConfigureWebHost(hostBuilder);
+            m_host = hostBuilder.Start(Utils.ReplaceLocalhost(EndpointUrl.ToString()));
+            await Task.CompletedTask.ConfigureAwait(false);
+#endif
+        }
+
+        /// <summary>
+        /// Resolves and pins the TLS certificate the listener will use.
+        /// Sets <c>m_pinnedServerCert</c>, <c>m_pinnedServerCertX509</c>
+        /// and <see cref="ServerChannelCertificate"/>; safe to call
+        /// before either the shared-host or own-host path runs.
+        /// </summary>
+        private void PrepareTlsCertificate()
+        {
+            // prepare the server TLS certificate. AcquireApplicationCertificateBySecurityPolicy
+            // returns a caller-owned entry; take an independent handle on the
+            // certificate so this listener owns it for its full lifetime,
+            // independent of the entry (disposed below) and of any concurrent
+            // registry hot-update that would otherwise free the OS handle
+            // Kestrel still holds.
+            using CertificateEntry? instanceEntry = m_serverCertProvider
+                .AcquireApplicationCertificateBySecurityPolicy(SecurityPolicies.Https);
+            Certificate? serverCertificate = instanceEntry?.Certificate?.AddRef();
+#if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
+            try
+            {
+                // Create a copy of the certificate with the private key on platforms
+                // which default to the ephemeral KeySet. Also a new certificate must be reloaded.
+                // If the key fails to copy, its probably a non exportable key from the X509Store.
+                // Then we can use the original certificate, the private key is already in the key store.
+                using Certificate copy = X509Utils.CreateCopyWithPrivateKey(serverCertificate!, false);
+                if (!ReferenceEquals(copy, serverCertificate))
+                {
+                    serverCertificate!.Dispose();
+                    // Take an owned handle over the copy's core; the 'using
+                    // copy' handle is released at block end, so capturing
+                    // AddRef()'s result (rather than aliasing 'copy' and
+                    // discarding the AddRef) keeps the core alive without
+                    // leaking a handle.
+                    serverCertificate = copy.AddRef();
+                }
+            }
+            catch (CryptographicException ce)
+            {
+                m_logger.PrivateKeyCopyDenied(ce.Message);
+            }
+#endif
+            // pin the cert for the lifetime of the listener so that the
+            // OS-level private key handle backing the Kestrel-held
+            // X509Certificate2 cannot be invalidated by a concurrent cert
+            // reload elsewhere in the process.
+            m_pinnedServerCert?.Dispose();
+            m_pinnedServerCert = serverCertificate;
+            m_pinnedServerCertX509?.Dispose();
+            m_pinnedServerCertX509 = serverCertificate!.AsX509Certificate2();
+
+            // save the server certificate so it can be used in the secure channel context.
+            ServerChannelCertificate = serverCertificate!.RawData;
+        }
+
+        /// <summary>
+        /// Configures a dedicated host with the listener's pinned TLS certificate and admission policies.
+        /// </summary>
+        /// <remarks>
+        /// CA1859: The IWebHostBuilder interface cannot be narrowed to WebHostBuilder here because
+        /// on NET8_0_OR_GREATER this method is called from HostBuilder.ConfigureWebHostDefaults()
+        /// which passes an IWebHostBuilder, not WebHostBuilder.
+        /// </remarks>
+        /// <param name="webHostBuilder">Host builder supplied by the active hosting implementation.</param>
+#pragma warning disable CA1859
+        private void ConfigureWebHost(IWebHostBuilder webHostBuilder)
+#pragma warning restore CA1859
+        {
+            // TLS cert was already pinned by PrepareTlsCertificate() at the
+            // top of Start(); use the pinned cert directly.
+            var httpsOptions = new HttpsConnectionAdapterOptions
+            {
+                // TLS-layer revocation is intentionally disabled: certificate
+                // revocation (CRL) is enforced by the UA CertificateValidator in
+                // ValidateClientCertificate, consistent with the raw-TCP UA
+                // transport, to avoid duplicate / inconsistent checks.
+                CheckCertificateRevocation = false,
+                // HttpsMutualTls=true enables mTLS — Kestrel REQUESTS but does
+                // not REQUIRE a client cert at the TLS handshake. Requiring the
+                // cert at TLS time would block the discovery client (which
+                // legitimately has no cert until after discovery) and the binary
+                // UASC HTTPS path (which authenticates at the UA SecureChannel
+                // layer, not at TLS). REST / WebApi clients that opt into
+                // AddWebApiMutualTlsAuth() are enforced at the authorization
+                // layer (RequireAuthorization) instead.
+                ClientCertificateMode = m_mutualTlsEnabled
+                    ? ClientCertificateMode.AllowCertificate
+                    : ClientCertificateMode.NoCertificate,
+                // note: this is the TLS certificate!
+                ServerCertificate = m_pinnedServerCertX509,
+                ClientCertificateValidation = ValidateClientCertificate,
+                SslProtocols = SslProtocols.None
+            };
+
+            UriHostNameType hostType = Uri.CheckHostName(EndpointUrl.Host);
+            if (hostType is UriHostNameType.Dns or UriHostNameType.Unknown or UriHostNameType.Basic)
+            {
+                // bind to any address
+                webHostBuilder.UseKestrel(options =>
+                    options.ListenAnyIP(
+                        EndpointUrl.Port,
+                        listenOptions => ConfigureHttpsAdmission(listenOptions, httpsOptions)));
+            }
+            else
+            {
+                // bind to specific address
+                var ipAddress = IPAddress.Parse(EndpointUrl.Host);
+                webHostBuilder.UseKestrel(options =>
+                    options.Listen(
+                        ipAddress,
+                        EndpointUrl.Port,
+                        listenOptions => ConfigureHttpsAdmission(listenOptions, httpsOptions)));
+            }
+
+            webHostBuilder.UseContentRoot(Directory.GetCurrentDirectory());
+            // Register this listener instance in the web host DI container so it can be
+            // injected into Startup.Configure as a method parameter — no static state needed.
+            webHostBuilder.ConfigureServices(services =>
+            {
+                services.AddSingleton(this);
+                ConfigureContributorServices(services);
+            });
+            webHostBuilder.UseStartup<Startup>();
+        }
+
+        /// <summary>
+        /// Installs physical connection admission before TLS so incomplete handshakes also consume capacity.
+        /// </summary>
+        private void ConfigureHttpsAdmission(
+            ListenOptions options,
+            HttpsConnectionAdapterOptions httpsOptions,
+            UaScConnectionAdmission? physicalAdmission = null)
+        {
+            UaScConnectionAdmission? admission = physicalAdmission ?? m_admission;
+            options.Use(next => connection => RunHttpsConnectionAsync(connection, next, admission));
+            options.UseHttps(httpsOptions);
+        }
+
+        /// <summary>
+        /// Registers listener contributors' services in the host that will run their middleware.
+        /// </summary>
+        private void ConfigureContributorServices(IServiceCollection services)
+        {
+            foreach (IHttpsListenerStartupContributor contributor in StartupContributors)
+            {
+                if (contributor is IHttpsListenerServiceContributor serviceContributor)
+                {
+                    serviceContributor.ConfigureServices(services, this);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Encodes a service response in the shared JSON envelope and writes the matching HTTP content type.
+        /// </summary>
+        private async Task WriteJsonResponseAsync(
+            HttpContext context,
+            IServiceResponse response,
+            CancellationToken ct)
+        {
+            byte[] payload = JsonRequestMapper.EncodeResponse(response, m_quotas.MessageContext);
+            context.Response.ContentLength = payload.Length;
+            context.Response.ContentType = Profiles.OpcUaJsonContentType;
+            context.Response.StatusCode = (int)HttpStatusCode.OK;
+#if NETSTANDARD2_1 || NET5_0_OR_GREATER
+            await context.Response.Body
+                .WriteAsync(payload.AsMemory(0, payload.Length), ct)
+                .ConfigureAwait(false);
+#else
+            await context.Response.Body
+                .WriteAsync(payload, 0, payload.Length, ct)
+                .ConfigureAwait(false);
+#endif
+        }
+
+        /// <summary>
+        /// Tracks an admitted upgrade across listener shutdown and closes its lease when processing ends.
+        /// </summary>
         private async Task AcceptAdmittedWebSocketAsync(
             HttpContext context,
             string selected,
@@ -1695,6 +1747,9 @@ namespace Opc.Ua.Bindings
             }
         }
 
+        /// <summary>
+        /// Dispatches the admitted subprotocol, validating bearer credentials before accepting an upgrade.
+        /// </summary>
         private async Task AcceptAdmittedWebSocketCoreAsync(
             HttpContext context,
             string selected,
@@ -1844,47 +1899,9 @@ namespace Opc.Ua.Bindings
             }
         }
 
-        internal static void CompleteHttpHandshake(HttpContext context)
-        {
-            if (!context.WebSockets.IsWebSocketRequest)
-            {
-                context.Features.Get<IHttpsTransportAdmissionFeature>()?.Lease.CompleteHandshake();
-            }
-        }
-
-        private interface IHttpsTransportAdmissionFeature
-        {
-            UaScConnectionAdmission.Lease Lease { get; }
-        }
-
-        private sealed class HttpsTransportAdmissionFeature(UaScConnectionAdmission.Lease lease)
-            : IHttpsTransportAdmissionFeature
-        {
-            public UaScConnectionAdmission.Lease Lease { get; } = lease;
-        }
-
-        private sealed class AdmissionHostLifetime(UaScConnectionAdmission admission, ILogger logger) : IHostedService
-        {
-            public Task StartAsync(CancellationToken cancellationToken)
-            {
-                admission.Start();
-                return Task.CompletedTask;
-            }
-
-            public Task StopAsync(CancellationToken cancellationToken)
-            {
-                try
-                {
-                    admission.Stop();
-                }
-                catch (AggregateException ex)
-                {
-                    logger.WssAdmissionStopFailed(ex);
-                }
-                return Task.CompletedTask;
-            }
-        }
-
+        /// <summary>
+        /// Reserves the bounded reader and decoded-body footprint before allocation, rejecting unlimited bodies.
+        /// </summary>
         private bool TryAdmitHttpBody(HttpContext context, out IDisposable? lease)
         {
             lease = null;
@@ -1906,11 +1923,14 @@ namespace Opc.Ua.Bindings
             return provider.TryAcquire(
                 ResourceIsolationStage.ReassemblyBytes,
                 owner,
-                (3L * maximum) + m_quotas.MaxBufferSize,
+                (kRetainedBodyBufferMultiplicity * maximum) + m_quotas.MaxBufferSize,
                 out lease,
                 out _);
         }
 
+        /// <summary>
+        /// Rejects resource admission with HTTP 503 without entering the UA request pipeline.
+        /// </summary>
         private static Task WriteAdmissionRejectedAsync(HttpContext context)
         {
             return WriteResponseAsync(
@@ -1919,6 +1939,9 @@ namespace Opc.Ua.Bindings
                 HttpStatusCode.ServiceUnavailable);
         }
 
+        /// <summary>
+        /// Adapts the configured callback to alternate listeners that consume a task-returning request handler.
+        /// </summary>
 #pragma warning disable IDE0051, RCS1213 // Kept for the Task-returning request callback path used by alternate listeners.
         private async Task<IServiceResponse> OnRequestReceivedAsyncShim(
             SecureChannelContext channelContext,
@@ -1928,6 +1951,9 @@ namespace Opc.Ua.Bindings
         }
 #pragma warning restore IDE0051, RCS1213
 
+        /// <summary>
+        /// Dispatches a binary channel request and reports failures at the event-callback boundary.
+        /// </summary>
         private async void OnRequestReceivedAsync(
             TcpListenerChannel channel,
             uint requestId,
@@ -1965,6 +1991,9 @@ namespace Opc.Ua.Bindings
             }
         }
 
+        /// <summary>
+        /// Forwards secure-channel opening audit data through the listener's configured callback.
+        /// </summary>
         private void OnReportAuditOpenSecureChannelEvent(
             TcpServerChannel channel,
             OpenSecureChannelRequest request,
@@ -1983,6 +2012,9 @@ namespace Opc.Ua.Bindings
                 exception!);
         }
 
+        /// <summary>
+        /// Forwards secure-channel closure audit data when a server callback is available.
+        /// </summary>
         private void OnReportAuditCloseSecureChannelEvent(
             TcpServerChannel channel,
             Exception? exception)
@@ -1992,6 +2024,9 @@ namespace Opc.Ua.Bindings
                 exception!);
         }
 
+        /// <summary>
+        /// Forwards certificate audit data without taking ownership of the certificate.
+        /// </summary>
         private void OnReportAuditCertificateEvent(
             Certificate? clientCertificate,
             Exception? exception)
@@ -1999,11 +2034,17 @@ namespace Opc.Ua.Bindings
             m_callback?.ReportAuditCertificateEvent(clientCertificate!, exception!);
         }
 
+        /// <summary>
+        /// Preserves an unavailable transport address instead of inventing an endpoint for classification.
+        /// </summary>
         private static IPEndPoint? MakeEndpoint(IPAddress? address, int port)
         {
             return address == null ? null : new IPEndPoint(address, port);
         }
 
+        /// <summary>
+        /// Selects a supported subprotocol while deferring bearer-token variants behind non-bearer alternatives.
+        /// </summary>
         private static string? SelectWebSocketSubProtocol(HttpContext context)
         {
             string? openApiBearer = null;
@@ -2438,6 +2479,225 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Encodes a service response and writes it back.
+        /// </summary>
+        private async Task WriteServiceResponseAsync(
+            HttpContext context,
+            IServiceResponse response,
+            CancellationToken ct)
+        {
+            byte[] encodedResponse = BinaryEncoder.EncodeMessage(response, m_quotas.MessageContext);
+            context.Response.ContentLength = encodedResponse.Length;
+            context.Response.ContentType = context.Request.ContentType;
+            context.Response.StatusCode = (int)HttpStatusCode.OK;
+#if NETSTANDARD2_1 || NET5_0_OR_GREATER
+            await context
+                .Response.Body.WriteAsync(encodedResponse.AsMemory(0, encodedResponse.Length), ct)
+                .ConfigureAwait(false);
+#else
+            await context
+                .Response.Body.WriteAsync(encodedResponse, 0, encodedResponse.Length, ct)
+                .ConfigureAwait(false);
+#endif
+        }
+
+        /// <summary>
+        /// Writes a plain-text transport response without a UA service envelope.
+        /// </summary>
+        private static Task WriteResponseAsync(
+            HttpResponse response,
+            string message,
+            HttpStatusCode status)
+        {
+            response.ContentLength = message.Length;
+            response.ContentType = kHttpsContentType;
+            response.StatusCode = (int)status;
+            return response.WriteAsync(message);
+        }
+
+        /// <summary>
+        /// Identifies requests allowed when the channel has no matching non-discovery endpoint.
+        /// </summary>
+        private static bool IsDiscoveryRequest(ExpandedNodeId typeId)
+        {
+            return typeId == DataTypeIds.GetEndpointsRequest ||
+                typeId == DataTypeIds.FindServersRequest ||
+                typeId == DataTypeIds.FindServersOnNetworkRequest;
+        }
+
+        /// <summary>
+        /// Reads the request body through the shared bounded reader before decoding.
+        /// </summary>
+        private static async Task<byte[]> ReadBodyAsync(
+            HttpRequest req,
+            int maxLength,
+            CancellationToken ct)
+        {
+            return await JsonRequestMapper
+                .ReadAllBoundedAsync(req.Body, maxLength, ct)
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Validate TLS client certificate at TLS handshake.
+        /// </summary>
+        /// <param name="clientCertificate">Client certificate</param>
+        /// <param name="chain">Certificate chain</param>
+        /// <param name="sslPolicyErrors">SSl policy errors</param>
+        private bool ValidateClientCertificate(
+            X509Certificate2? clientCertificate,
+            X509Chain? chain,
+            SslPolicyErrors sslPolicyErrors)
+        {
+            return ValidateClientCertificateWithUaValidator(
+                m_quotas.CertificateValidator,
+                clientCertificate,
+                chain,
+                sslPolicyErrors);
+        }
+
+        /// <summary>
+        /// Minimal <see cref="ITcpChannelListener"/> adapter that the WSS
+        /// reverse-connect uses to give the <see cref="TcpServerChannel"/>
+        /// a back-reference to this listener without going through the
+        /// shared multi-channel <see cref="WssChannelListener"/> path.
+        /// </summary>
+        private sealed class ReverseConnectChannelOwner : ITcpChannelListener
+        {
+            internal ReverseConnectChannelOwner(HttpsTransportListener owner)
+            {
+                m_owner = owner;
+            }
+
+            public Uri EndpointUrl => m_owner.EndpointUrl;
+
+            public void ChannelClosed(uint channelId)
+            {
+                // No-op: the WSS reverse channel is per-connection; the
+                // listener does not maintain a channel registry for it.
+            }
+
+            public bool ReconnectToExistingChannel(
+                TcpListenerChannel reconnectingChannel,
+                IUaSCByteTransport transport,
+                uint requestId,
+                uint sequenceNumber,
+                uint channelId,
+                Certificate clientCertificate,
+                ChannelToken token,
+                OpenSecureChannelRequest request)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTcpSecureChannelUnknown,
+                    "Reverse-connect WSS channels do not support reconnect-to-existing-channel.");
+            }
+
+#pragma warning disable CS0618 // Type or member is obsolete
+            public Task<bool> TransferListenerChannel(uint channelId, string serverUri, Uri endpointUrl)
+            {
+                return TransferListenerChannelAsync(channelId, serverUri, endpointUrl);
+            }
+#pragma warning restore CS0618
+
+            public Task<bool> TransferListenerChannelAsync(uint channelId, string serverUri, Uri endpointUrl)
+            {
+                return Task.FromResult(false);
+            }
+
+            private readonly HttpsTransportListener m_owner;
+        }
+
+#if !NET8_0_OR_GREATER
+        /// <summary>
+        /// Adapts a legacy <see cref="IWebHost"/> to the
+        /// <see cref="IHost"/> contract used by the shared-host registry.
+        /// </summary>
+        private sealed class WebHostAsIHost : IHost
+        {
+            public WebHostAsIHost(IWebHost webHost)
+            {
+                m_webHost = webHost;
+            }
+
+            public IServiceProvider Services => m_webHost.Services;
+
+            public Task StartAsync(CancellationToken ct = default)
+            {
+                return m_webHost.StartAsync(ct);
+            }
+
+            public Task StopAsync(CancellationToken ct = default)
+            {
+                return m_webHost.StopAsync(ct);
+            }
+
+            public void Dispose()
+            {
+                m_webHost.Dispose();
+            }
+
+            private readonly IWebHost m_webHost;
+        }
+#endif
+
+        /// <summary>
+        /// Carries physical admission from the connection pipeline into HTTP and WebSocket request handling.
+        /// </summary>
+        private interface IHttpsTransportAdmissionFeature
+        {
+            /// <summary>
+            /// Gets the physical connection lease shared by requests on this transport.
+            /// </summary>
+            UaScConnectionAdmission.Lease Lease { get; }
+        }
+
+        /// <summary>
+        /// Exposes a borrowed physical lease without transferring ownership to individual HTTP requests.
+        /// </summary>
+        /// <param name="lease">Lease retained by the physical connection pipeline.</param>
+        private sealed class HttpsTransportAdmissionFeature(UaScConnectionAdmission.Lease lease)
+            : IHttpsTransportAdmissionFeature
+        {
+            /// <summary>
+            /// Gets the physical reservation rather than a separate per-request admission.
+            /// </summary>
+            public UaScConnectionAdmission.Lease Lease { get; } = lease;
+        }
+
+        /// <summary>
+        /// Binds independent physical admission to the shared host's lifetime rather than one routed listener.
+        /// </summary>
+        /// <param name="admission">Admission scope owned by the shared host.</param>
+        /// <param name="logger">Reports connection cleanup failures during host shutdown.</param>
+        private sealed class AdmissionHostLifetime(UaScConnectionAdmission admission, ILogger logger) : IHostedService
+        {
+            /// <summary>
+            /// Enables physical admission when the shared host starts.
+            /// </summary>
+            public Task StartAsync(CancellationToken cancellationToken)
+            {
+                admission.Start();
+                return Task.CompletedTask;
+            }
+
+            /// <summary>
+            /// Stops admission and reports aggregate cleanup failures without interrupting host shutdown.
+            /// </summary>
+            public Task StopAsync(CancellationToken cancellationToken)
+            {
+                try
+                {
+                    admission.Stop();
+                }
+                catch (AggregateException ex)
+                {
+                    logger.WssAdmissionStopFailed(ex);
+                }
+                return Task.CompletedTask;
+            }
+        }
+
+        /// <summary>
         /// Per-WebSocket adapter that lets a single <see cref="TcpServerChannel"/>
         /// run inside the HTTPS listener without needing a full
         /// <see cref="ITcpChannelListener"/>-shaped lifecycle. There is one
@@ -2453,12 +2713,6 @@ namespace Opc.Ua.Bindings
             }
 
             public Uri EndpointUrl => m_owner.EndpointUrl;
-
-            internal void AttachChannel(uint channelId, TcpListenerChannel channel)
-            {
-                m_channelId = channelId;
-                m_channel = channel;
-            }
 
             public bool ReconnectToExistingChannel(
                 TcpListenerChannel reconnectingChannel,
@@ -2483,6 +2737,9 @@ namespace Opc.Ua.Bindings
                 return TransferListenerChannelAsync(channelId, serverUri, endpointUrl);
             }
 
+            /// <summary>
+            /// Hands off a reverse transport without releasing physical admission when its channel is disposed.
+            /// </summary>
             public async Task<bool> TransferListenerChannelAsync(uint channelId, string serverUri, Uri endpointUrl)
             {
                 // Forward (non-reverse) WSS upgrades never need a transfer.
@@ -2534,9 +2791,18 @@ namespace Opc.Ua.Bindings
                 return false;
             }
 
+            /// <summary>
+            /// Leaves admission ownership with the physical transport rather than the channel registry.
+            /// </summary>
             public void ChannelClosed(uint channelId)
             {
                 // Physical transport close, not channel registration, ends the request.
+            }
+
+            internal void AttachChannel(uint channelId, TcpListenerChannel channel)
+            {
+                m_channelId = channelId;
+                m_channel = channel;
             }
 
             private readonly HttpsTransportListener m_owner;
@@ -2544,176 +2810,15 @@ namespace Opc.Ua.Bindings
             private TcpListenerChannel? m_channel;
         }
 
-        /// <summary>
-        /// Called when an UpdateCertificate event occurred. Performs the
-        /// soft fan-out (refresh validator, registry, and per-endpoint
-        /// blobs); see <see cref="CloseChannelsForCertificateAsync"/> for the
-        /// post-ApplyChanges connection teardown that actually rebinds
-        /// the Kestrel TLS certificate.
-        /// </summary>
-        public void CertificateUpdate(
-            ICertificateValidatorEx validator,
-            ICertificateRegistry serverCertificates)
-        {
-            m_quotas.CertificateValidator = validator;
-            m_serverCertProvider = serverCertificates;
-
-            foreach (EndpointDescription description in m_descriptions)
-            {
-                ServerBase.SetServerCertificateInEndpointDescription(
-                    description,
-                    serverCertificates,
-                    false);
-            }
-        }
-
-        /// <inheritdoc/>
-        public async ValueTask<IReadOnlyList<string>> CloseChannelsForCertificateAsync(
-            Certificate oldCertificate,
-            CancellationToken ct = default)
-        {
-            if (oldCertificate == null)
-            {
-                throw new ArgumentNullException(nameof(oldCertificate));
-            }
-
-            // Nothing to do if the listener was never opened. This keeps
-            // the call safe to invoke unconditionally from the
-            // ConfigurationNodeManager fan-out.
-            if (m_descriptions == null)
-            {
-                return [];
-            }
-
-            // HTTPS owns the server certificate at the Kestrel / HTTP.sys
-            // listener level, so we can't surgically close individual TLS
-            // connections without restarting the host. Per OPC UA Part 12
-            // §7.10.9 a StopAsync()/StartAsync() cycle satisfies the
-            // "force renegotiate" requirement; existing Sessions remain
-            // valid and the client's reconnect logic re-binds them over
-            // the freshly-issued TLS endpoint.
-            await StopAsync(ct).ConfigureAwait(false);
-            await StartAsync(ct).ConfigureAwait(false);
-
-            // The HTTPS listener does not track per-channel ids that map
-            // to OPC UA SecureChannels (the binding is request-scoped via
-            // HTTP), so there is nothing meaningful to return for
-            // diagnostics here.
-            return [];
-        }
+        private const string kHttpsContentType = "text/plain";
+        private const string kApplicationContentType = "application/octet-stream";
+        private const string kAuthorizationKey = "Authorization";
+        private const string kBearerKey = "Bearer";
 
         /// <summary>
-        /// Encodes a service response and writes it back.
+        /// Budgets two body-size units for reader growth storage and one for the retained payload copy.
         /// </summary>
-        private async Task WriteServiceResponseAsync(
-            HttpContext context,
-            IServiceResponse response,
-            CancellationToken ct)
-        {
-            byte[] encodedResponse = BinaryEncoder.EncodeMessage(response, m_quotas.MessageContext);
-            context.Response.ContentLength = encodedResponse.Length;
-            context.Response.ContentType = context.Request.ContentType;
-            context.Response.StatusCode = (int)HttpStatusCode.OK;
-#if NETSTANDARD2_1 || NET5_0_OR_GREATER
-            await context
-                .Response.Body.WriteAsync(encodedResponse.AsMemory(0, encodedResponse.Length), ct)
-                .ConfigureAwait(false);
-#else
-            await context
-                .Response.Body.WriteAsync(encodedResponse, 0, encodedResponse.Length, ct)
-                .ConfigureAwait(false);
-#endif
-        }
-
-        private static Task WriteResponseAsync(
-            HttpResponse response,
-            string message,
-            HttpStatusCode status)
-        {
-            response.ContentLength = message.Length;
-            response.ContentType = kHttpsContentType;
-            response.StatusCode = (int)status;
-            return response.WriteAsync(message);
-        }
-
-        private static bool IsDiscoveryRequest(ExpandedNodeId typeId)
-        {
-            return typeId == DataTypeIds.GetEndpointsRequest ||
-                typeId == DataTypeIds.FindServersRequest ||
-                typeId == DataTypeIds.FindServersOnNetworkRequest;
-        }
-
-        private static async Task<byte[]> ReadBodyAsync(
-            HttpRequest req,
-            int maxLength,
-            CancellationToken ct)
-        {
-            return await JsonRequestMapper
-                .ReadAllBoundedAsync(req.Body, maxLength, ct)
-                .ConfigureAwait(false);
-        }
-
-        internal static bool ValidateClientCertificateWithUaValidator(
-            ICertificateValidatorEx? certificateValidator,
-            X509Certificate2? clientCertificate,
-            X509Chain? chain,
-            SslPolicyErrors sslPolicyErrors)
-        {
-            if (clientCertificate == null)
-            {
-                return sslPolicyErrors == SslPolicyErrors.None;
-            }
-
-            if (certificateValidator == null)
-            {
-                return false;
-            }
-
-            try
-            {
-                using CertificateCollection validationChain = CertificateValidationHelpers
-                    .BuildValidationCertificateCollection(clientCertificate, chain);
-                // CA2025: the TLS ClientCertificateValidation callback is
-                // synchronous by contract on every supported TFM, so the async UA
-                // validator is bridged with GetAwaiter().GetResult(); the validation
-                // chain remains alive across the wait. The call is a single bounded
-                // chain validation but blocks a handshake thread.
-                // TODO: replace with a non-blocking validation bridge to remove the
-                // thread-pool-starvation risk under connection floods.
-#pragma warning disable CA2025
-                CertificateValidationResult result = certificateValidator
-                    .ValidateAsync(
-                        validationChain,
-                        TrustListIdentifier.Https,
-                        ct: default)
-                    .GetAwaiter()
-                    .GetResult();
-#pragma warning restore CA2025
-                return result.IsValid;
-            }
-            catch (Exception)
-            {
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Validate TLS client certificate at TLS handshake.
-        /// </summary>
-        /// <param name="clientCertificate">Client certificate</param>
-        /// <param name="chain">Certificate chain</param>
-        /// <param name="sslPolicyErrors">SSl policy errors</param>
-        private bool ValidateClientCertificate(
-            X509Certificate2? clientCertificate,
-            X509Chain? chain,
-            SslPolicyErrors sslPolicyErrors)
-        {
-            return ValidateClientCertificateWithUaValidator(
-                m_quotas.CertificateValidator,
-                clientCertificate,
-                chain,
-                sslPolicyErrors);
-        }
+        private const long kRetainedBodyBufferMultiplicity = 3L;
 
         private List<EndpointDescription> m_descriptions = null!;
         private ChannelQuotas m_quotas = null!;
@@ -2734,6 +2839,7 @@ namespace Opc.Ua.Bindings
         private X509Certificate2? m_pinnedServerCertX509;
         private bool m_mutualTlsEnabled;
         private bool m_reverseConnectListener;
+
         /// <summary>
         /// Tracks outbound reverse-connect TcpServerChannels owned by this
         /// listener. CreateReverseConnection registers each new channel;
@@ -2819,6 +2925,9 @@ namespace Opc.Ua.Bindings
             Message = "WSSLISTENER - unexpected OpenAPI WebSocket error.")]
         public static partial void UnexpectedOpenApiWebSocketError(this ILogger logger, Exception exception);
 
+        /// <summary>
+        /// Reports admission cleanup failures while allowing listener or shared-host shutdown to continue.
+        /// </summary>
         [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 14, Level = LogLevel.Error,
             Message = "WSSLISTENER - failed to close one or more admitted connections during listener shutdown.")]
         public static partial void WssAdmissionStopFailed(this ILogger logger, Exception exception);

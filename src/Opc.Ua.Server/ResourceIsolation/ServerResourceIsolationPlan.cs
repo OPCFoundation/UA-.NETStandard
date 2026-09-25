@@ -41,6 +41,9 @@ namespace Opc.Ua.Server
     /// </remarks>
     public sealed class ServerResourceIsolationPlan
     {
+        /// <summary>
+        /// Captures validated capacity limits and optional runtime stages without increasing configured totals.
+        /// </summary>
         internal ServerResourceIsolationPlan(
             ServerResourceIsolationMode mode,
             long maxReassemblyBytes,
@@ -150,8 +153,6 @@ namespace Opc.Ua.Server
         /// </summary>
         public int DefaultWeight { get; }
 
-        internal Dictionary<string, TrustedOwnerPlan> TrustedOwners { get; }
-
         /// <summary>
         /// Returns an immutable stage plan. Standalone reassembly-only plans cannot run a server.
         /// </summary>
@@ -168,8 +169,19 @@ namespace Opc.Ua.Server
             return m_stages[(int)stage];
         }
 
+        /// <summary>
+        /// Provisioned owner plans keyed by classifier identity; runtime admission must not mutate this snapshot.
+        /// </summary>
+        internal Dictionary<string, TrustedOwnerPlan> TrustedOwners { get; }
+
         private readonly ResourceIsolationStagePlan[]? m_stages;
     }
 
+    /// <summary>
+    /// Validated scheduling weight and stage-indexed limits for one operator-provisioned identity.
+    /// </summary>
+    /// <param name="Weight">Relative decoded-request scheduling weight.</param>
+    /// <param name="Floors">Non-borrowable reservations indexed by <see cref="ResourceIsolationStage"/>.</param>
+    /// <param name="HardLimits">Total owner ceilings indexed by <see cref="ResourceIsolationStage"/>.</param>
     internal sealed record TrustedOwnerPlan(int Weight, long[] Floors, long[] HardLimits);
 }

@@ -51,6 +51,77 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable(ParallelScope.All)]
     public sealed class RuntimeResourceIsolationTests
     {
+        [Test]
+        public void RevalidationDistinguishesLiveActivationChangeFromMissingSession()
+        {
+            var bindings = new TestBindings();
+            var token = new NodeId(1);
+            bindings.Bindings.Add(token, Binding(1, "user-a"));
+            using DefaultServerResourceIsolationProvider provider = CreateProvider(Options(), bindings: bindings);
+            SecureChannelContext channel = Channel("channel", [1]);
+            ResourceIsolationOwner owner = provider.Classify(channel, token);
+            Assert.That(provider.GetRevalidationStatus(owner, channel, token), Is.EqualTo(StatusCodes.Good));
+            bindings.Bindings[token] = Binding(1, "user-a");
+
+            Assert.That(provider.GetRevalidationStatus(owner, channel, token),
+                Is.EqualTo(StatusCodes.BadServerTooBusy));
+            Assert.That(provider.IsCurrent(owner, channel, token), Is.False);
+            bindings.Bindings.Clear();
+            Assert.That(provider.GetRevalidationStatus(owner, channel, token),
+                Is.EqualTo(StatusCodes.BadSessionIdInvalid));
+        }
+
+        [Test]
+        public void SessionDerivedKeysAreCachedPerActivationNotChannelOrSequence()
+        {
+            var bindings = new TestBindings();
+            bindings.Bindings.Add(new NodeId(1), Binding(1, "user-a"));
+            bindings.Bindings.Add(new NodeId(2), Binding(2, "user-b"));
+            using DefaultServerResourceIsolationProvider provider = CreateProvider(Options(), bindings: bindings);
+            SecureChannelContext channel = Channel("channel", [1]);
+            ResourceIsolationOwner first = provider.Classify(channel, new NodeId(1));
+            ResourceIsolationOwner repeated = provider.Classify(channel, new NodeId(1));
+            ResourceIsolationOwner other = provider.Classify(channel, new NodeId(2));
+
+            Assert.That(repeated.Key, Is.SameAs(first.Key));
+            Assert.That(other.Key, Is.Not.EqualTo(first.Key));
+        }
+
+        [Test]
+        public void RevalidationRejectsMutatedChannelEvidenceWithoutTrustingAnIssuedOwner()
+        {
+            using DefaultServerResourceIsolationProvider provider = CreateProvider(Options());
+            byte[] certificate = [1, 2, 3];
+            SecureChannelContext channel = Channel("channel", certificate);
+            ResourceIsolationOwner owner = provider.Classify(channel);
+            Assert.That(provider.GetRevalidationStatus(owner, channel), Is.EqualTo(StatusCodes.Good));
+            certificate[0] = 9;
+            Assert.That(provider.GetRevalidationStatus(owner, channel),
+                Is.EqualTo(StatusCodes.BadSecureChannelIdInvalid));
+        }
+
+#if NET8_0_OR_GREATER
+        [Test]
+        public void RevalidationDoesNotAllocateNewOwnerOrHashCertificateForEachCheck()
+        {
+            using DefaultServerResourceIsolationProvider provider = CreateProvider(Options());
+            SecureChannelContext channel = Channel("channel", new byte[1500]);
+            ResourceIsolationOwner owner = provider.Classify(channel);
+            _ = provider.GetRevalidationStatus(owner, channel);
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            bool valid = true;
+            for (int ii = 0; ii < 1000; ii++)
+            {
+                valid &= StatusCode.IsGood(provider.GetRevalidationStatus(owner, channel));
+            }
+            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+            Assert.That(valid, Is.True);
+            Assert.That(allocated, Is.LessThan(128_000),
+                "Revalidation must not allocate another owner or certificate hash.");
+        }
+#endif
+
         [TestCase(ResourceIsolationStage.Connection)]
         [TestCase(ResourceIsolationStage.Handshake)]
         [TestCase(ResourceIsolationStage.ReassemblyBytes)]
@@ -715,7 +786,7 @@ namespace Opc.Ua.Server.Tests
         {
             using DefaultServerResourceIsolationProvider provider = CreateProvider();
             int notifications = 0;
-            provider.CapacityAvailable += () =>
+            provider.CapacityAvailable += _ =>
             {
                 Assert.That(provider.GetUsage(ResourceIsolationStage.Connection), Is.Zero);
                 notifications++;

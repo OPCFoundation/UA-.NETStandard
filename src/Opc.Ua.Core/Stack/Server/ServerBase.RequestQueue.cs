@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -123,8 +122,7 @@ namespace Opc.Ua
                 // ScheduleIncomingRequest sees the correct worker count immediately and does
                 // not spawn extra workers before the initial workers have started executing.
                 CancellationToken token = m_cts.Token;
-                int initialWorkers = m_fairQueue == null ? m_minThreadCount : m_maxThreadCount;
-                for (int i = 0; i < initialWorkers; i++)
+                for (int i = 0; i < m_minThreadCount; i++)
                 {
                     Interlocked.Increment(ref m_totalThreadCount);
                     m_workers.Add(Task.Run(() => WorkerLoopAsync(token)));
@@ -149,27 +147,6 @@ namespace Opc.Ua
             {
                 Dispose();
                 await m_stopTask!.WaitAsync(cancellationToken).ConfigureAwait(false);
-            }
-
-            /// <summary>
-            /// An overrideable version of the Dispose.
-            /// </summary>
-            protected virtual void Dispose(bool disposing)
-            {
-                if (disposing)
-                {
-                    lock (m_workerGate)
-                    {
-                        if (m_disposed)
-                        {
-                            return;
-                        }
-                        m_disposed = true;
-                        m_stopped = true;
-                        Task[] workers = [.. m_workers];
-                        m_stopTask = Task.Run(() => StopCoreAsync(workers));
-                    }
-                }
             }
 
             /// <summary>
@@ -218,10 +195,14 @@ namespace Opc.Ua
                         {
                             CompleteRequest(request, error);
                         }
+                        else
+                        {
+                            GrowFairWorkers();
+                        }
                     }
                     catch (Exception ex)
                     {
-                        m_server.m_logger.ServerBaseLogMessage10(ex);
+                        m_server.m_logger.RequestQueueProcessingFailed(ex);
                         CompleteRequest(request, StatusCodes.BadInternalError);
                     }
                     return;
@@ -230,10 +211,54 @@ namespace Opc.Ua
                 {
                     CompleteRequest(request, StatusCodes.BadServerTooBusy);
                     // TODO: make a metric
-                    m_server.m_logger.ServerBaseLogMessage9(m_activeThreadCount);
+                    m_server.m_logger.RequestQueueFull(m_activeThreadCount);
                 }
             }
 
+            /// <summary>
+            /// Starts shared asynchronous disposal without blocking the caller.
+            /// </summary>
+            protected virtual void Dispose(bool disposing)
+            {
+                if (disposing)
+                {
+                    lock (m_workerGate)
+                    {
+                        if (m_disposed)
+                        {
+                            return;
+                        }
+                        m_disposed = true;
+                        m_stopped = true;
+                        Task[] workers = [.. m_workers];
+                        m_stopTask = Task.Run(() => StopCoreAsync(workers));
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Adds one worker when queued work outlives all available workers. Dispatch
+            /// also checks demand so a burst admitted before workers start cannot be stranded.
+            /// </summary>
+            private void GrowFairWorkers()
+            {
+                if (m_fairQueue?.Count > 0)
+                {
+                    lock (m_workerGate)
+                    {
+                        if (!m_stopped && m_totalThreadCount < m_maxThreadCount &&
+                            m_activeThreadCount >= m_totalThreadCount)
+                        {
+                            Interlocked.Increment(ref m_totalThreadCount);
+                            m_workers.Add(Task.Run(() => WorkerLoopAsync(m_cts.Token), CancellationToken.None));
+                        }
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Cancels admission and handlers, drains all work, then disposes queue-owned resources.
+            /// </summary>
             private async Task StopCoreAsync(Task[] workers)
             {
                 Task cancellation = m_cts.CancelAsync();
@@ -249,7 +274,7 @@ namespace Opc.Ua
                 }
                 catch (AggregateException ex)
                 {
-                    m_server.m_logger.ServerBaseLogMessage10(ex);
+                    m_server.m_logger.RequestQueueProcessingFailed(ex);
                 }
                 await Task.WhenAll(workers).ConfigureAwait(false);
                 Task? processing;
@@ -284,7 +309,7 @@ namespace Opc.Ua
                             }
                             catch (Exception ex) when (ex is not OperationCanceledException)
                             {
-                                m_server.m_logger.ServerBaseLogMessage10(ex);
+                                m_server.m_logger.RequestQueueProcessingFailed(ex);
                                 continue;
                             }
                             queued = new QueuedRequest(entry.Request, entry.CancellationToken);
@@ -311,6 +336,7 @@ namespace Opc.Ua
                         else
                         {
                             Interlocked.Increment(ref m_activeThreadCount);
+                            GrowFairWorkers();
                             try
                             {
                                 await ProcessRequestSafeAsync(queued, entry, ct).ConfigureAwait(false);
@@ -349,6 +375,7 @@ namespace Opc.Ua
                 CancellationToken ct)
             {
                 Interlocked.Increment(ref m_activeThreadCount);
+                GrowFairWorkers();
 
                 // ProcessRequestSafeAsync never throws and always completes the request,
                 // so the detached continuation for a parked request is fault-safe.
@@ -393,10 +420,14 @@ namespace Opc.Ua
                 }
                 try
                 {
-                    if (entry != null && !entry.IsCurrent())
+                    if (entry != null)
                     {
-                        CompleteRequest(request, StatusCodes.BadSessionIdInvalid);
-                        return;
+                        StatusCode status = entry.GetRevalidationStatus();
+                        if (StatusCode.IsBad(status))
+                        {
+                            CompleteRequest(request, status);
+                            return;
+                        }
                     }
                     using CancellationTokenSource? linked = queued.CancellationToken.CanBeCanceled ?
                         CancellationTokenSource.CreateLinkedTokenSource(ct, queued.CancellationToken) : null;
@@ -412,7 +443,7 @@ namespace Opc.Ua
                 }
                 catch (Exception ex)
                 {
-                    m_server.m_logger.ServerBaseLogMessage10(ex);
+                    m_server.m_logger.RequestQueueProcessingFailed(ex);
                     CompleteRequest(request, StatusCodes.BadInternalError);
                 }
                 finally
@@ -428,6 +459,9 @@ namespace Opc.Ua
                 }
             }
 
+            /// <summary>
+            /// Reports a terminal queue outcome without allowing a completion callback to stop a worker.
+            /// </summary>
             private void CompleteRequest(IEndpointIncomingRequest request, StatusCode statusCode)
             {
                 try
@@ -436,35 +470,97 @@ namespace Opc.Ua
                 }
                 catch (Exception ex)
                 {
-                    m_server.m_logger.ServerBaseLogMessage11(ex);
+                    m_server.m_logger.RequestFaultDeliveryFailed(ex);
                 }
             }
 
+            /// <summary>
+            /// Couples a retained request with its caller-controlled lifetime.
+            /// </summary>
             private readonly record struct QueuedRequest(
                 IEndpointIncomingRequest Request,
                 CancellationToken CancellationToken);
 
+            /// <summary>
+            /// Server that dispatches admitted requests.
+            /// </summary>
             private readonly ServerBase m_server;
+
+            /// <summary>
+            /// Number of workers started before any requests arrive.
+            /// </summary>
             private readonly int m_minThreadCount;
+
+            /// <summary>
+            /// Maximum number of simultaneously retained worker tasks.
+            /// </summary>
             private readonly int m_maxThreadCount;
+
+            /// <summary>
+            /// Whether parked requests release their execution workers.
+            /// </summary>
             private readonly bool m_decoupleHeldPublishRequests;
+
+            /// <summary>
+            /// Compatibility FIFO used when fair scheduling is disabled.
+            /// </summary>
             private readonly System.Threading.Channels.Channel<QueuedRequest> m_queue;
-            // StopCoreAsync disposes these after initiating shutdown without blocking Dispose.
-            // TODO: Remove these suppressions when CA2213 follows deferred asynchronous disposal.
-            [SuppressMessage("Usage", "CA2213:Disposable fields should be disposed",
-                Justification = "StopCoreAsync disposes the fair queue on the shared teardown task.")]
+            // Ownership transfers to StopCoreAsync, which disposes these after asynchronous shutdown.
+            // TODO: Remove the pragma when CA2213 recognizes deferred asynchronous ownership.
+#pragma warning disable CA2213
+            /// <summary>
+            /// Fair admission queue owned by the asynchronous shutdown task after disposal begins.
+            /// </summary>
             private readonly FairRequestQueue? m_fairQueue;
-            private readonly List<Task> m_workers;
-            [SuppressMessage("Usage", "CA2213:Disposable fields should be disposed",
-                Justification = "StopCoreAsync disposes the CTS after all workers and parked handlers finish.")]
+
+            /// <summary>
+            /// Worker cancellation source retained until shutdown has drained all handlers.
+            /// </summary>
             private readonly CancellationTokenSource m_cts;
+#pragma warning restore CA2213
+            /// <summary>
+            /// Worker tasks joined by asynchronous shutdown.
+            /// </summary>
+            private readonly List<Task> m_workers;
+
+            /// <summary>
+            /// Protects worker growth and shutdown bookkeeping.
+            /// </summary>
             private readonly Lock m_workerGate = new();
+
+            /// <summary>
+            /// Completion of all active and detached parked handlers.
+            /// </summary>
             private TaskCompletionSource<bool>? m_processingDrained;
+
+            /// <summary>
+            /// Shared asynchronous shutdown operation.
+            /// </summary>
             private Task? m_stopTask;
+
+            /// <summary>
+            /// Number of handlers that still retain request accounting.
+            /// </summary>
             private int m_processingCount;
+
+            /// <summary>
+            /// Number of workers currently executing rather than parked or idle.
+            /// </summary>
             private int m_activeThreadCount;
+
+            /// <summary>
+            /// Number of workers started but not yet exited.
+            /// </summary>
             private int m_totalThreadCount;
+
+            /// <summary>
+            /// Whether admissions and worker growth have stopped.
+            /// </summary>
             private bool m_stopped;
+
+            /// <summary>
+            /// Whether disposal has already scheduled the shared shutdown operation.
+            /// </summary>
             private bool m_disposed;
         }
     }

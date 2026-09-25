@@ -185,8 +185,16 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Tracks one finite token allocation; callers serialize consumption and replenishment.
+        /// </summary>
+        /// <param name="rate">Tokens added per one-second replenishment period.</param>
+        /// <param name="capacity">Maximum retained tokens, including the initial burst.</param>
         private sealed class Bucket(int rate, int capacity)
         {
+            /// <summary>
+            /// Consumes one available token without borrowing from another bucket.
+            /// </summary>
             public bool TryTake()
             {
                 if (m_tokens == 0)
@@ -197,6 +205,9 @@ namespace Opc.Ua.Server
                 return true;
             }
 
+            /// <summary>
+            /// Adds elapsed periods' tokens without overflowing or exceeding the burst capacity.
+            /// </summary>
             public void Replenish(long periods)
             {
                 long missing = m_capacity - (long)m_tokens;
@@ -210,8 +221,19 @@ namespace Opc.Ua.Server
                 }
             }
 
+            /// <summary>
+            /// Tokens restored per replenishment period.
+            /// </summary>
             private readonly int m_rate = rate;
+
+            /// <summary>
+            /// Hard ceiling for accumulated tokens.
+            /// </summary>
             private readonly int m_capacity = capacity;
+
+            /// <summary>
+            /// Unspent tokens, initialized to the full burst allowance.
+            /// </summary>
             private int m_tokens = capacity;
         }
 

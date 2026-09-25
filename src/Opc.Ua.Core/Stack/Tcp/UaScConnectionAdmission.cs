@@ -42,6 +42,9 @@ namespace Opc.Ua.Bindings
     /// </summary>
     internal interface IUaSCHandshakeCompletionSource
     {
+        /// <summary>
+        /// Releases startup capacity without releasing the physical connection reservation.
+        /// </summary>
         void CompleteHandshake();
     }
 
@@ -51,6 +54,9 @@ namespace Opc.Ua.Bindings
     /// </summary>
     internal sealed class UaScConnectionAdmission
     {
+        /// <summary>
+        /// Shares host-owned admission policies while tracking this scope's physical connections and fixed deadlines.
+        /// </summary>
         public UaScConnectionAdmission(
             int maxChannelCount,
             IConnectionRateLimiter? limiter,
@@ -73,12 +79,18 @@ namespace Opc.Ua.Bindings
             m_logger = telemetry?.CreateLogger<UaScConnectionAdmission>();
         }
 
+        /// <summary>
+        /// Creates independent connection tracking and stop state while borrowing the same host policies.
+        /// </summary>
         public UaScConnectionAdmission CreateIndependentScope()
         {
             return new UaScConnectionAdmission(
                 m_maxChannelCount, m_limiter, m_provider, m_handshakeTimeout, m_timeProvider, m_telemetry);
         }
 
+        /// <summary>
+        /// Acquires connection and startup capacity together, reclaiming aggregate capacity at most once.
+        /// </summary>
         public bool TryAcquire(
             EndPoint? remoteEndpoint,
             [NotNullWhen(true)] out Lease? lease,
@@ -187,6 +199,9 @@ namespace Opc.Ua.Bindings
             return false;
         }
 
+        /// <summary>
+        /// Rejects new admissions and closes every tracked connection, collecting cleanup failures.
+        /// </summary>
         public void Stop()
         {
             Lease[] leases;
@@ -214,46 +229,14 @@ namespace Opc.Ua.Bindings
             }
         }
 
+        /// <summary>
+        /// Reopens admission without changing the configured limits or borrowed policies.
+        /// </summary>
         public void Start()
         {
             lock (m_lock)
             {
                 m_stopped = false;
-            }
-        }
-
-        private void Release(Lease lease)
-        {
-            ITimer? timer = null;
-            lock (m_lock)
-            {
-                m_leases.Remove(lease);
-                if (m_leases.Count == 0)
-                {
-                    timer = m_deadlineTimer;
-                    m_deadlineTimer = null;
-                }
-            }
-            timer?.Dispose();
-        }
-
-        private void CheckDeadlines(object? state)
-        {
-            Lease[] leases;
-            lock (m_lock)
-            {
-                leases = [.. m_leases];
-            }
-            foreach (Lease lease in leases)
-            {
-                try
-                {
-                    lease.CheckDeadline();
-                }
-                catch (Exception ex)
-                {
-                    m_logger?.UaScAdmissionDeadlineCloseFailed(ex);
-                }
             }
         }
 
@@ -263,6 +246,9 @@ namespace Opc.Ua.Bindings
         internal sealed class Lease :
             IUaSCByteTransport, IUaSCByteTransportLimits, IUaSCHandshakeCompletionSource, IDisposable
         {
+            /// <summary>
+            /// Takes ownership of the acquired reservations and the original handshake start timestamp.
+            /// </summary>
             internal Lease(
                 UaScConnectionAdmission owner,
                 IDisposable? connection,
@@ -275,14 +261,29 @@ namespace Opc.Ua.Bindings
                 m_started = started;
             }
 
+            /// <summary>
+            /// Gets the attached transport's local endpoint.
+            /// </summary>
             public EndPoint? LocalEndpoint => Transport.LocalEndpoint;
+
+            /// <summary>
+            /// Gets the attached transport's remote endpoint.
+            /// </summary>
             public EndPoint? RemoteEndpoint => Transport.RemoteEndpoint;
+
+            /// <summary>
+            /// Gets the capabilities supplied by the attached transport.
+            /// </summary>
             public TransportChannelFeatures Features => Transport.Features;
+
+            /// <summary>
+            /// Gets the attached transport's implementation identifier.
+            /// </summary>
             public string Implementation => Transport.Implementation;
 
-            private IUaSCByteTransport Transport => m_transport ??
-                throw new InvalidOperationException("The admission lease has no transport.");
-
+            /// <summary>
+            /// Registers pre-attachment physical cleanup, invoking it immediately if the lease is already closed.
+            /// </summary>
             public void SetAbortAction(Action abort)
             {
                 if (abort == null)
@@ -300,6 +301,9 @@ namespace Opc.Ua.Bindings
                 abort();
             }
 
+            /// <summary>
+            /// Transfers physical-close responsibility to one transport without restarting the handshake deadline.
+            /// </summary>
             public void Attach(IUaSCByteTransport transport)
             {
                 if (transport == null)
@@ -322,6 +326,9 @@ namespace Opc.Ua.Bindings
                 throw new ObjectDisposedException(nameof(Lease));
             }
 
+            /// <summary>
+            /// Releases startup capacity once unless closure or expiry has already won the race.
+            /// </summary>
             public void CompleteHandshake()
             {
                 IDisposable? handshake;
@@ -338,6 +345,9 @@ namespace Opc.Ua.Bindings
                 handshake?.Dispose();
             }
 
+            /// <summary>
+            /// Releases reservations after host-side physical closure without aborting the closed connection again.
+            /// </summary>
             public void ReleaseAfterTransportClosed()
             {
                 lock (m_lock)
@@ -347,42 +357,41 @@ namespace Opc.Ua.Bindings
                 Close();
             }
 
-            internal void CheckDeadline()
-            {
-                lock (m_lock)
-                {
-                    if (m_closed || m_handshakeCompleted ||
-                        m_owner.m_timeProvider.GetElapsedTime(m_started) < m_owner.m_handshakeTimeout)
-                    {
-                        return;
-                    }
-                    // Claim expiry atomically with completion; never extend it on partial input or handoff.
-                    m_expired = true;
-                }
-                m_owner.m_logger?.UaScAdmissionHandshakeExpired();
-                Close();
-            }
-
+            /// <summary>
+            /// Connects through the attached transport while retaining admission ownership.
+            /// </summary>
             public ValueTask ConnectAsync(Uri url, CancellationToken ct)
             {
                 return Transport.ConnectAsync(url, ct);
             }
 
+            /// <summary>
+            /// Sends a contiguous chunk through the attached transport.
+            /// </summary>
             public ValueTask SendChunkAsync(ReadOnlyMemory<byte> chunk, CancellationToken ct)
             {
                 return Transport.SendChunkAsync(chunk, ct);
             }
 
+            /// <summary>
+            /// Sends a segmented chunk through the attached transport.
+            /// </summary>
             public ValueTask SendChunkAsync(BufferCollection buffers, CancellationToken ct)
             {
                 return Transport.SendChunkAsync(buffers, ct);
             }
 
+            /// <summary>
+            /// Receives a chunk without detaching the transport from its admission lease.
+            /// </summary>
             public ValueTask<ArraySegment<byte>> ReceiveChunkAsync(CancellationToken ct)
             {
                 return Transport.ReceiveChunkAsync(ct);
             }
 
+            /// <summary>
+            /// Waits for physical cleanup or caller cancellation without releasing reservations itself.
+            /// </summary>
             public async Task WaitForCloseAsync(CancellationToken ct)
             {
                 var cancelled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -393,6 +402,9 @@ namespace Opc.Ua.Bindings
                 }
             }
 
+            /// <summary>
+            /// Closes the physical connection once and releases all reservations even if cleanup fails.
+            /// </summary>
             public void Close()
             {
                 IUaSCByteTransport? transport;
@@ -446,11 +458,17 @@ namespace Opc.Ua.Bindings
                 }
             }
 
+            /// <summary>
+            /// Ends the physical connection and its admission lifetime.
+            /// </summary>
             public void Dispose()
             {
                 Close();
             }
 
+            /// <summary>
+            /// Propagates receive limits when the attached transport supports them.
+            /// </summary>
             void IUaSCByteTransportLimits.SetReceiveBufferSize(int receiveBufferSize)
             {
                 if (Transport is IUaSCByteTransportLimits limits)
@@ -459,30 +477,182 @@ namespace Opc.Ua.Bindings
                 }
             }
 
+            /// <summary>
+            /// Claims expiry against handshake completion using the original, non-renewable deadline.
+            /// </summary>
+            internal void CheckDeadline()
+            {
+                lock (m_lock)
+                {
+                    if (m_closed || m_handshakeCompleted ||
+                        m_owner.m_timeProvider.GetElapsedTime(m_started) < m_owner.m_handshakeTimeout)
+                    {
+                        return;
+                    }
+                    // Claim expiry atomically with completion; never extend it on partial input or handoff.
+                    m_expired = true;
+                }
+                m_owner.m_logger?.UaScAdmissionHandshakeExpired();
+                Close();
+            }
+
+            /// <summary>
+            /// Gets the transport only after attachment has transferred physical-close responsibility.
+            /// </summary>
+            private IUaSCByteTransport Transport => m_transport ??
+                throw new InvalidOperationException("The admission lease has no transport.");
+
+            /// <summary>
+            /// Scope whose connection count and timer include this lease.
+            /// </summary>
             private readonly UaScConnectionAdmission m_owner;
+
+            /// <summary>
+            /// Serializes attachment, handshake completion, expiry and close.
+            /// </summary>
             private readonly Lock m_lock = new();
+
+            /// <summary>
+            /// Completes after physical cleanup and reservation release, including failed cleanup.
+            /// </summary>
             private readonly TaskCompletionSource<bool> m_completion =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>
+            /// Physical transport retained across channel handoff.
+            /// </summary>
             private IUaSCByteTransport? m_transport;
+
+            /// <summary>
+            /// Physical cleanup callback used before a transport is attached.
+            /// </summary>
             private Action? m_abort;
+
+            /// <summary>
+            /// Connection reservation retained until physical close.
+            /// </summary>
             private IDisposable? m_connection;
+
+            /// <summary>
+            /// Startup reservation released on handshake completion or close.
+            /// </summary>
             private IDisposable? m_handshake;
+
+            /// <summary>
+            /// Original monotonic admission timestamp; handoff never renews it.
+            /// </summary>
             private readonly long m_started;
+
+            /// <summary>
+            /// Records successful startup before expiry or closure.
+            /// </summary>
             private bool m_handshakeCompleted;
+
+            /// <summary>
+            /// Prevents completion from reviving an expired startup.
+            /// </summary>
             private bool m_expired;
+
+            /// <summary>
+            /// Claims physical cleanup and reservation release exactly once.
+            /// </summary>
             private bool m_closed;
         }
 
+        /// <summary>
+        /// Removes a closed lease and disposes the deadline timer when the scope becomes empty.
+        /// </summary>
+        private void Release(Lease lease)
+        {
+            ITimer? timer = null;
+            lock (m_lock)
+            {
+                m_leases.Remove(lease);
+                if (m_leases.Count == 0)
+                {
+                    timer = m_deadlineTimer;
+                    m_deadlineTimer = null;
+                }
+            }
+            timer?.Dispose();
+        }
+
+        /// <summary>
+        /// Checks a stable lease snapshot so one cleanup failure cannot prevent other expirations.
+        /// </summary>
+        private void CheckDeadlines(object? state)
+        {
+            Lease[] leases;
+            lock (m_lock)
+            {
+                leases = [.. m_leases];
+            }
+            foreach (Lease lease in leases)
+            {
+                try
+                {
+                    lease.CheckDeadline();
+                }
+                catch (Exception ex)
+                {
+                    m_logger?.UaScAdmissionDeadlineCloseFailed(ex);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Serializes scope admission, lease tracking and timer ownership.
+        /// </summary>
         private readonly Lock m_lock = new();
+
+        /// <summary>
+        /// Physical connections whose reservations have not yet been released.
+        /// </summary>
         private readonly HashSet<Lease> m_leases = [];
+
+        /// <summary>
+        /// Per-scope connection ceiling; nonpositive values disable this local ceiling.
+        /// </summary>
         private readonly int m_maxChannelCount;
+
+        /// <summary>
+        /// Borrowed host policy that meters admissions without refunding on close.
+        /// </summary>
         private readonly IConnectionRateLimiter? m_limiter;
+
+        /// <summary>
+        /// Borrowed provider for owner classification and shared resource reservations.
+        /// </summary>
         private readonly IServerResourceIsolationProvider? m_provider;
+
+        /// <summary>
+        /// Fixed maximum elapsed time from admission to handshake completion.
+        /// </summary>
         private readonly TimeSpan m_handshakeTimeout;
+
+        /// <summary>
+        /// Monotonic clock and timer source shared with independent scopes.
+        /// </summary>
         private readonly TimeProvider m_timeProvider;
+
+        /// <summary>
+        /// Reports expiration and cleanup failures without owner identifiers.
+        /// </summary>
         private readonly ILogger? m_logger;
+
+        /// <summary>
+        /// Telemetry context propagated to independent admission scopes.
+        /// </summary>
         private readonly ITelemetryContext? m_telemetry;
+
+        /// <summary>
+        /// Deadline scanner owned only while tracked leases remain.
+        /// </summary>
         private ITimer? m_deadlineTimer;
+
+        /// <summary>
+        /// Rejects new leases until the scope is explicitly restarted.
+        /// </summary>
         private bool m_stopped;
     }
 
@@ -491,10 +661,16 @@ namespace Opc.Ua.Bindings
     /// </summary>
     internal static partial class UaScConnectionAdmissionLog
     {
+        /// <summary>
+        /// Reports a startup timeout without exposing connection owner identifiers.
+        /// </summary>
         [LoggerMessage(EventId = CoreEventIds.UaScConnectionAdmission, Level = LogLevel.Debug,
             Message = "Closing a physical connection whose fixed startup handshake deadline expired.")]
         public static partial void UaScAdmissionHandshakeExpired(this ILogger logger);
 
+        /// <summary>
+        /// Reports physical cleanup failure while allowing remaining deadline checks to continue.
+        /// </summary>
         [LoggerMessage(EventId = CoreEventIds.UaScConnectionAdmission + 1, Level = LogLevel.Warning,
             Message = "Failed to close a physical connection at its startup handshake deadline.")]
         public static partial void UaScAdmissionDeadlineCloseFailed(this ILogger logger, Exception exception);

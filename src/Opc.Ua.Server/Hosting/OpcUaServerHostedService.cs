@@ -153,6 +153,32 @@ namespace Opc.Ua.Server.Hosting
             }
         }
 
+        /// <summary>
+        /// Applies DI isolation overrides before startup, leaving externally supplied providers host-owned.
+        /// </summary>
+        internal static void ApplyResourceIsolation(
+            StandardServer server,
+            IServiceProvider services,
+            OpcUaServerOptions options)
+        {
+            ServerResourceIsolationOptions? isolation = services.GetService<ServerResourceIsolationOptions>();
+            if (isolation == null &&
+                (services.GetServices<IConfigureOptions<ServerResourceIsolationOptions>>().Any() ||
+                 services.GetServices<IPostConfigureOptions<ServerResourceIsolationOptions>>().Any()))
+            {
+                isolation = services.GetRequiredService<IOptions<ServerResourceIsolationOptions>>().Value;
+            }
+            server.ResourceIsolationOptions = isolation ?? options.ResourceIsolation;
+            server.ResourceIsolationClassifier = services.GetService<IResourceIsolationClassifier>();
+            if (services.GetService<IServerResourceIsolationProvider>() is { } provider)
+            {
+                server.ResourceIsolationProvider = provider;
+            }
+        }
+
+        /// <summary>
+        /// Applies host configuration and injected features before startup, then waits for host shutdown.
+        /// </summary>
         private async Task RunServerAsync(CancellationToken stoppingToken)
         {
             ICertificateManager? certificateManager =
@@ -345,26 +371,6 @@ namespace Opc.Ua.Server.Hosting
             catch (OperationCanceledException)
             {
                 // Expected on host shutdown.
-            }
-        }
-
-        internal static void ApplyResourceIsolation(
-            StandardServer server,
-            IServiceProvider services,
-            OpcUaServerOptions options)
-        {
-            ServerResourceIsolationOptions? isolation = services.GetService<ServerResourceIsolationOptions>();
-            if (isolation == null &&
-                (services.GetServices<IConfigureOptions<ServerResourceIsolationOptions>>().Any() ||
-                 services.GetServices<IPostConfigureOptions<ServerResourceIsolationOptions>>().Any()))
-            {
-                isolation = services.GetRequiredService<IOptions<ServerResourceIsolationOptions>>().Value;
-            }
-            server.ResourceIsolationOptions = isolation ?? options.ResourceIsolation;
-            server.ResourceIsolationClassifier = services.GetService<IResourceIsolationClassifier>();
-            if (services.GetService<IServerResourceIsolationProvider>() is { } provider)
-            {
-                server.ResourceIsolationProvider = provider;
             }
         }
 

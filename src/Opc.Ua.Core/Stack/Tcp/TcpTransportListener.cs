@@ -119,8 +119,6 @@ namespace Opc.Ua.Bindings
                 TimeSpan.FromMilliseconds(kCleanupIntervalMs));
         }
 
-        internal int TrackedClientCount => m_activeClients.Count;
-
         /// <summary>
         /// Checks if an IP address is currently blocked
         /// </summary>
@@ -194,6 +192,11 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Number of retained client histories, including entries whose block has already expired.
+        /// </summary>
+        internal int TrackedClientCount => m_activeClients.Count;
+
+        /// <summary>
         /// Periodically cleans up expired active client entries to avoid memory leak and unblock clients whose duration has expired.
         /// </summary>
         private void CleanupExpiredEntries(object? state)
@@ -204,6 +207,9 @@ namespace Opc.Ua.Bindings
             }
         }
 
+        /// <summary>
+        /// Expires blocks and stale histories while the caller holds the client-tracking gate.
+        /// </summary>
         private void CleanupExpiredEntriesCore()
         {
             int currentTicks = m_timeProvider.GetTickCount();
@@ -256,10 +262,17 @@ namespace Opc.Ua.Bindings
             return diff > 0;
         }
 
-        private readonly ConcurrentDictionary<IPAddress, ActiveClient> m_activeClients = new();
-        private readonly Lock m_lock = new();
-
+        /// <summary>
+        /// Caps retained client histories; unknown clients are blocked while this table is full.
+        /// </summary>
         internal const int MaximumTrackedClients = 1024;
+
+        private readonly ConcurrentDictionary<IPAddress, ActiveClient> m_activeClients = new();
+
+        /// <summary>
+        /// Serializes bounded history admission with block updates and expiry.
+        /// </summary>
+        private readonly Lock m_lock = new();
 
         private const int kActionsIntervalMs = 10_000;
         private const int kNrActionsTillBlock = 3;
@@ -1883,14 +1896,23 @@ namespace Opc.Ua.Bindings
             this ILogger logger,
             int count);
 
+        /// <summary>
+        /// Reports a rejected physical connection without exposing owner identifiers.
+        /// </summary>
         [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 31, Level = LogLevel.Debug,
             Message = "TCP connection rejected by listener admission settings.")]
         public static partial void TcpAdmissionRejected(this ILogger logger);
 
+        /// <summary>
+        /// Reports admission cleanup failure during listener shutdown.
+        /// </summary>
         [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 32, Level = LogLevel.Warning,
             Message = "Failed to close admitted TCP connections while stopping the listener.")]
         public static partial void TcpAdmissionStopFailed(this ILogger logger, Exception exception);
 
+        /// <summary>
+        /// Reports when the bounded abuse history starts rejecting untracked addresses.
+        /// </summary>
         [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 33, Level = LogLevel.Warning,
             Message = "Basic128Rsa15 abuse tracking reached its fixed {Capacity}-address limit; " +
                 "untracked addresses are rejected until expired entries are removed.")]

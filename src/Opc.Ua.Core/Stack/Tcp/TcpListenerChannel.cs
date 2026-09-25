@@ -1191,18 +1191,28 @@ namespace Opc.Ua.Bindings
             private set => m_reportAuditCertificateEvent = value;
         }
 
-        private readonly ILogger m_logger;
-        private int m_pendingServiceRequests;
-
+        /// <summary>
+        /// Keeps a decoded request in use until its owner releases the pending-request count once.
+        /// </summary>
+        /// <param name="release">Callback that returns this request's pending count.</param>
         private sealed class PendingRequest(Action release) : IDisposable
         {
+            /// <summary>
+            /// Returns the pending-request count at most once.
+            /// </summary>
             public void Dispose()
             {
                 Interlocked.Exchange(ref m_release, null)?.Invoke();
             }
 
+            /// <summary>
+            /// Pending-count release callback, cleared atomically when consumed.
+            /// </summary>
             private Action? m_release = release;
         }
+
+        private readonly ILogger m_logger;
+        private int m_pendingServiceRequests;
 
         /// <summary>
         /// Prevents new transport attachment or admission cleanup after disposal begins.

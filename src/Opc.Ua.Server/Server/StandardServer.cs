@@ -3571,6 +3571,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Recreates server-owned isolation from validated limits without replacing a borrowed provider or budget.
+        /// </summary>
         internal void InitializeResourceIsolation(
             ApplicationConfiguration configuration,
             ITelemetryContext telemetry)
@@ -3597,6 +3600,9 @@ namespace Opc.Ua.Server
             ResourceIsolationProvider = m_ownedResourceIsolationProvider;
         }
 
+        /// <summary>
+        /// Recreates server-owned rate limits against the active isolation plan while preserving borrowed providers.
+        /// </summary>
         internal void InitializeRateLimiting()
         {
             if (m_rateLimiterProvider != null && !m_ownsRateLimiterProvider)
@@ -3659,7 +3665,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <returns>
         /// A lease that MUST be disposed when the operation completes, or
-        /// <c>null</c> when session rate limiting is disabled.
+        /// <c>null</c> when neither isolation nor rate limiting supplies a lease.
         /// </returns>
         /// <exception cref="ServiceResultException">
         /// The server is too busy to admit the operation.
@@ -3714,8 +3720,16 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Releases both session-establishment permits once, even if rate-limit cleanup fails.
+        /// </summary>
+        /// <param name="isolation">Owned resource-isolation permit.</param>
+        /// <param name="rateLimit">Optional owned rate-limit permit.</param>
         private sealed class SessionEstablishmentLease(IDisposable isolation, IDisposable? rateLimit) : IDisposable
         {
+            /// <summary>
+            /// Returns both permits without allowing repeated disposal to release capacity twice.
+            /// </summary>
             public void Dispose()
             {
                 if (Interlocked.Exchange(ref m_disposed, 1) != 0)
@@ -3732,8 +3746,19 @@ namespace Opc.Ua.Server
                 }
             }
 
+            /// <summary>
+            /// Resource-isolation permit released even when rate-limit cleanup throws.
+            /// </summary>
             private readonly IDisposable m_isolation = isolation;
+
+            /// <summary>
+            /// Rate-limit permit, if this operation was subject to rate limiting.
+            /// </summary>
             private readonly IDisposable? m_rateLimit = rateLimit;
+
+            /// <summary>
+            /// Claims ownership of releasing both permits exactly once.
+            /// </summary>
             private int m_disposed;
         }
 

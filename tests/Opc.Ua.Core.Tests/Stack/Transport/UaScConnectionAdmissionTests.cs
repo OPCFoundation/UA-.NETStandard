@@ -52,7 +52,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
     {
         public bool UseFairScheduling => true;
 
-        public event Action? CapacityAvailable;
+        public event Action<ResourceIsolationStage>? CapacityAvailable;
 
         public IPEndPoint? LastEndpoint { get; private set; }
 
@@ -124,7 +124,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                         m_active[(int)stage] -= amount;
                         m_owners[key] -= amount;
                     }
-                    CapacityAvailable?.Invoke();
+                    CapacityAvailable?.Invoke(stage);
                 });
                 failure = default;
                 return true;
@@ -142,7 +142,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public async Task WaitForHandshakeCompletionAsync()
         {
             var completed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            void CheckCompletion()
+            void CheckCompletion(ResourceIsolationStage stage)
             {
                 if (Active(ResourceIsolationStage.Handshake) == 0)
                 {
@@ -152,7 +152,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             CapacityAvailable += CheckCompletion;
             try
             {
-                CheckCompletion();
+                CheckCompletion(ResourceIsolationStage.Handshake);
                 await completed.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
             }
             finally

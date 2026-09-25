@@ -61,7 +61,7 @@ namespace Opc.Ua.Client.TestFramework
         public TokenValidatorMock TokenValidator { get; set; } = new TokenValidatorMock();
         public bool SingleSession { get; set; } = true;
         public bool AllNodeManagers { get; set; }
-        public int MaxChannelCount { get; set; } = 100;
+        public int MaxChannelCount { get; set; } = 103;
         public int MaxSessionCount { get; set; } = 100;
 
         /// <summary>

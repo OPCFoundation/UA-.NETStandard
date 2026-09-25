@@ -2103,15 +2103,17 @@ namespace Opc.Ua
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 9, Level = LogLevel.Debug,
             Message = "Too many operations. Active threads: {Count}")]
-        public static partial void ServerBaseLogMessage9(this ILogger logger, int count);
+        public static partial void RequestQueueFull(this ILogger logger, int count);
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 10, Level = LogLevel.Error,
             Message = "Unexpected error processing incoming request.")]
-        public static partial void ServerBaseLogMessage10(this ILogger logger, global::System.Exception? exception);
+        public static partial void RequestQueueProcessingFailed(
+            this ILogger logger, global::System.Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 11, Level = LogLevel.Error,
             Message = "Failed to fault an incoming request after an error.")]
-        public static partial void ServerBaseLogMessage11(this ILogger logger, global::System.Exception? exception);
+        public static partial void RequestFaultDeliveryFailed(
+            this ILogger logger, global::System.Exception? exception);
     }
 
 }

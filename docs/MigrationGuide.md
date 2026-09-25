@@ -827,23 +827,66 @@ implementation detail, and can no longer do so.
 
 ## Transport resource limits
 
-Managed servers use **Balanced resource isolation** by default. It reserves
-startup/reconnect capacity inside existing limits and applies bounded caller
-admission and fair decoded-request scheduling. Existing configurations that
-cannot satisfy the declared Session count, replacement-channel headroom, or
-message-capacity floors fail startup with an explicit configuration error.
-Choose `ServerResourceIsolationMode.SharedOnly` to retain legacy shared-limit
-behavior while migrating, or adjust the documented capacities explicitly.
-See [server resource isolation](ResourceIsolation.md) for sizing, profile
-configuration, trusted classification, and the limits of availability guarantees.
+Direct and hosted `StandardServer` instances use **Balanced resource isolation**
+by default. It limits resource use by caller, schedules decoded requests in
+turns between callers, and keeps startup/reconnect capacity inside existing
+totals. Unknown connections do not automatically qualify for those reserves;
+protected access before authentication requires a deployment-enforced ingress
+path and an `IResourceIsolationClassifier`.
+
+**Configuration compatibility exception:** an existing configuration, including
+a loaded XML file or test fixture, can now fail default-provider startup if it
+has zero/unlimited resource bounds or insufficient room for the reserves and
+shared capacity. Startup reports an explicit configuration error. It does not
+silently remove Balanced's reserves or increase configured totals.
+
+Choose the correction that matches the deployment rather than copying one
+universal capacity setting:
+
+| Configuration problem | Action |
+| --- | --- |
+| Zero/unlimited resource bounds are intentional | Select `ServerResourceIsolationMode.SharedOnly`. This is a current supported shared-limit mode, not deprecated functionality. |
+| Finite bounds are intended | Set positive `ServerConfiguration.MaxSessionCount` / `MaxChannelCount` and `TransportQuotas.MaxMessageSize` / `MaxBufferSize`. Correct invalid test fixtures using the same rules. |
+| Insufficient connection space | Ensure shared Connection capacity **after reservations** is at least `MaxSessionCount + 1`. For 100 Sessions, Balanced's default two connection reserves require at least 103 channels, not 101. Adjust `MaxChannelCount`, the intended `MaxSessionCount`, or explicit Connection-stage reserves. |
+| Insufficient retained-message space | Adjust `WithChunkReassemblyBudget(maxBytes)` / `ServerBase.ChunkReassemblyBudget`, or reduce the allowed `MaxMessageSize` if appropriate. For a custom pool, set `MaxRetainedMessageBytes` to its proven upper bound, not a smaller value merely to pass validation. |
+| Other stage or rate totals cannot hold the selected reserves | Review `Stages[].Capacity`, `BootstrapReserved`, `ReconnectReserved`, `ControlReserved`, `OwnerHardLimit`, and trusted-owner `Reservations`. Tune `ServerRateLimitOptions.MaxConcurrentSessionEstablishment`, `ConnectionsPerSecond`, or `ConnectionBurst` as applicable. A stage capacity override cannot enlarge its underlying total. |
+
+Setting a stage reserve to zero explicitly removes that stage's protection.
+If reserves are not wanted, FairShare provides caller-aware scheduling without
+reserves, but still needs valid finite bounds. SharedOnly preserves existing
+shared rate/message/reassembly behavior and unlimited settings because the
+server installs **no default isolation provider** and skips its plan validation:
+
+```csharp
+// Direct construction, before startup:
+server.ResourceIsolationOptions.Mode = ServerResourceIsolationMode.SharedOnly;
+
+// Alternatively, configure a hosted server:
+services.AddOpcUa()
+    .AddServer(options =>
+        options.ResourceIsolation.Mode = ServerResourceIsolationMode.SharedOnly);
+```
+
+An explicitly supplied `IServerResourceIsolationProvider` still takes precedence,
+even in SharedOnly; the host owns its validation and lifetime. For hosted servers
+loading XML, modify capacities in the XML or through
+`OpcUaServerOptions.ConfigureLoadedConfiguration`, not `ConfigureBuilder`.
+See [startup validation and sizing](ResourceIsolation.md#startup-validation-and-sizing)
+and the [programmatic plan example](ResourceIsolation.md#inspect-the-plan-in-application-code)
+to inspect the actual limits. The N+1 check concerns aggregate capacity; it does
+not entitle each owner to the whole advertised Session maximum.
 
 Applications migrating from 1.5.x have a server-wide budget for retained
 intermediate-message buffers. With the reference server's 4 MiB maximum message
-size, the default budget is **64 MiB**, and channels without an activated session
-may fill only the lower **32 MiB**. A chunk that does not fit discards its partial
+size, the default budget is **64 MiB**. Under SharedOnly, channels without an
+activated Session may retain chunks only while total usage remains within the
+lower **32 MiB**. Under the default isolation provider, class-based byte
+reservations replace that occupancy rule without increasing the 64 MiB total.
+With a 65,536-byte buffer limit, Balanced reserves 16.25 MiB each for startup and
+reconnect, leaving 31.5 MiB shared. A chunk that does not fit discards its partial
 message and closes the channel with `BadTcpNotEnoughResources`. Final chunks,
 single-chunk requests, response buffers, and client buffers are not charged to
-this reassembly budget.
+this reassembly budget; decoded-request limits still apply.
 
 For workloads with many simultaneous large requests, set
 `WithChunkReassemblyBudget(maxBytes)` on the Dependency Injection (DI) server builder or assign
