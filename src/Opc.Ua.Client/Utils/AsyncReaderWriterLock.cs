@@ -148,25 +148,32 @@ namespace Opc.Ua.Client
         public ValueTask<Releaser> WriterLockAsync(
             CancellationToken ct = default)
         {
-            return WriterLockAsync(Timeout.InfiniteTimeSpan, null, ct);
+            return WriterLockAsync(Timeout.InfiniteTimeSpan, null, static () => false, ct);
         }
 
         /// <summary>
-        /// Asynchronously acquires the writer lock, but waits at most
-        /// <paramref name="drainTimeout"/> for readers that are already
-        /// in flight. After that the writer proceeds while those readers
-        /// are still active (new readers stay excluded). Used by recovery,
-        /// which fails the stale readers itself by replacing the dead
-        /// channel they wait on, so waiting for them first would only
-        /// delay it by their full request timeout.
+        /// Asynchronously acquires the writer lock, checking every
+        /// <paramref name="drainTimeout"/> while readers that are already
+        /// in flight drain. When <paramref name="proceedWhileReadersActive"/>
+        /// returns true at such a check, the writer proceeds while those
+        /// readers are still active (new readers stay excluded); otherwise
+        /// it stays exclusive and keeps waiting. Used by recovery, which
+        /// fails the stale readers itself by replacing the dead channel
+        /// they wait on, so waiting for them first would only delay it by
+        /// their full request timeout. On a healthy channel the readers
+        /// complete normally and must not overlap with the writer.
         /// </summary>
-        /// <param name="drainTimeout">Maximum time to wait for active
-        /// readers, or <see cref="Timeout.InfiniteTimeSpan"/>.</param>
+        /// <param name="drainTimeout">Interval at which
+        /// <paramref name="proceedWhileReadersActive"/> is checked, or
+        /// <see cref="Timeout.InfiniteTimeSpan"/> to always drain fully.</param>
         /// <param name="timeProvider">Time provider for the drain timeout.</param>
+        /// <param name="proceedWhileReadersActive">Whether the writer may
+        /// stop waiting for the readers still in flight.</param>
         /// <param name="ct">Cancellation token.</param>
         public async ValueTask<Releaser> WriterLockAsync(
             TimeSpan drainTimeout,
             TimeProvider? timeProvider,
+            Func<bool> proceedWhileReadersActive,
             CancellationToken ct = default)
         {
             await m_writer.WaitAsync(ct).ConfigureAwait(false);
@@ -186,24 +193,21 @@ namespace Opc.Ua.Client
             }
             if (wait != null)
             {
-                using CancellationTokenSource? drain = drainTimeout == Timeout.InfiniteTimeSpan
-                    ? null
-                    : (timeProvider ?? TimeProvider.System).CreateCancellationTokenSource(drainTimeout);
-                using CancellationTokenSource? linked = drain == null
-                    ? null
-                    : CancellationTokenSource.CreateLinkedTokenSource(ct, drain.Token);
                 try
                 {
-                    await wait.WaitAsync(linked?.Token ?? ct).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException) when (
-                    drain != null && drain.IsCancellationRequested && !ct.IsCancellationRequested)
-                {
-                    // Drain timed out: proceed holding the writer gate. The
-                    // readers still in flight release on their own later.
-                    lock (m_state)
+                    while (!await WaitForDrainAsync(wait, drainTimeout, timeProvider, ct)
+                        .ConfigureAwait(false))
                     {
-                        m_drained = null;
+                        if (proceedWhileReadersActive())
+                        {
+                            // Proceed holding the writer gate. The readers
+                            // still in flight release on their own later.
+                            lock (m_state)
+                            {
+                                m_drained = null;
+                            }
+                            break;
+                        }
                     }
                 }
                 catch
@@ -221,6 +225,36 @@ namespace Opc.Ua.Client
                 }
             }
             return new Releaser(this, isWriter: true);
+        }
+
+        /// <summary>
+        /// Waits for the readers to drain. Returns false when
+        /// <paramref name="drainTimeout"/> elapsed first.
+        /// </summary>
+        private static async Task<bool> WaitForDrainAsync(
+            Task wait,
+            TimeSpan drainTimeout,
+            TimeProvider? timeProvider,
+            CancellationToken ct)
+        {
+            if (drainTimeout == Timeout.InfiniteTimeSpan)
+            {
+                await wait.WaitAsync(ct).ConfigureAwait(false);
+                return true;
+            }
+            using CancellationTokenSource drain =
+                (timeProvider ?? TimeProvider.System).CreateCancellationTokenSource(drainTimeout);
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, drain.Token);
+            try
+            {
+                await wait.WaitAsync(linked.Token).ConfigureAwait(false);
+                return true;
+            }
+            catch (OperationCanceledException) when (
+                drain.IsCancellationRequested && !ct.IsCancellationRequested)
+            {
+                return wait.IsCompleted;
+            }
         }
 
         /// <summary>
