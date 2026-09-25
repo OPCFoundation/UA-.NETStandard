@@ -1200,12 +1200,17 @@ namespace Opc.Ua.Wot
 
             var nodeSet = new UANodeSet
             {
-                NamespaceUris = SeedNamespaceUris(document, modelUri),
+                NamespaceUris = SeedNamespaceUris(document, modelUri, diagnostics),
                 Models =
                 [
                     new ModelTableEntry { ModelUri = modelUri }
                 ]
             };
+
+            // The synthesis appends every namespace its identifiers introduce;
+            // the table is published once it is complete rather than copied on
+            // every new URI.
+            BeginNamespaceTable(nodeSet);
             string rootNodeId = GenerateRootNodeId(nodeSet, rootLocal);
             if (authoredRootId is not null)
             {
@@ -1426,6 +1431,7 @@ namespace Opc.Ua.Wot
                 document, dataTypeIdentities, nodeSet, items, diagnostics);
             ValidateNestedOnlySelection(nestedOnly, items, diagnostics);
             nodeSet.Items = [.. items];
+            CompleteNamespaceTable(nodeSet);
             return nodeSet;
         }
 
@@ -2750,17 +2756,33 @@ namespace Opc.Ua.Wot
         /// converted, which is what makes a BrowseName keep the namespace it was
         /// written with and what lets the documents of one set agree on index.
         /// A gap in the sequence stops the seed: an index is only meaningful if
-        /// every index below it is bound.
+        /// every index below it is bound. The prefixes are read from one pass
+        /// over the <c>@context</c>, not a lookup per prefix that scans it, and
+        /// the table stops at the 65535 entries a UInt16 NamespaceIndex can
+        /// address (OPC 10000-3 8.2.2).
         /// </remarks>
-        private static string[] SeedNamespaceUris(WotDocument document, string modelUri)
+        private static string[] SeedNamespaceUris(
+            WotDocument document,
+            string modelUri,
+            List<WotDiagnostic> diagnostics)
         {
             var uris = new List<string>();
+            var bindings = new Dictionary<string, string>(StringComparer.Ordinal);
+            if (document.TryGetContext(out JsonElement context))
+            {
+                CollectContextNamespaces(context, bindings);
+            }
             for (int index = 1; ; index++)
             {
                 string prefix = "ns" + index.ToString(System.Globalization.CultureInfo.InvariantCulture);
-                if (!TryGetContextNamespace(document, prefix, out string namespaceUri) ||
+                if (!bindings.TryGetValue(prefix, out string? namespaceUri) ||
                     namespaceUri.Length == 0)
                 {
+                    break;
+                }
+                if (uris.Count >= ushort.MaxValue)
+                {
+                    diagnostics.Add(NamespaceTableFull(namespaceUri, uris.Count));
                     break;
                 }
                 uris.Add(namespaceUri);
@@ -2778,6 +2800,12 @@ namespace Opc.Ua.Wot
             int existing = uris.IndexOf(modelUri);
             if (existing < 0)
             {
+                if (uris.Count >= ushort.MaxValue)
+                {
+                    // The model's namespace displaces the last bound prefix.
+                    diagnostics.Add(NamespaceTableFull(uris[uris.Count - 1], uris.Count));
+                    uris.RemoveAt(uris.Count - 1);
+                }
                 uris.Insert(0, modelUri);
             }
             else if (existing > 0)
@@ -2786,6 +2814,41 @@ namespace Opc.Ua.Wot
                 uris.Insert(0, modelUri);
             }
             return [.. uris];
+        }
+
+        /// <summary>
+        /// Collects the string-valued prefix bindings of an <c>@context</c>
+        /// with the precedence <see cref="TryGetContextNamespace(JsonElement, string, out string)"/>
+        /// resolves a single prefix by: the last definition within an object,
+        /// the first array entry that binds the prefix to a string.
+        /// </summary>
+        private static void CollectContextNamespaces(
+            JsonElement context,
+            Dictionary<string, string> bindings)
+        {
+            if (context.ValueKind == JsonValueKind.Object)
+            {
+                var definitions = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+                foreach (JsonProperty property in context.EnumerateObject())
+                {
+                    definitions[property.Name] = property.Value;
+                }
+                foreach (KeyValuePair<string, JsonElement> definition in definitions)
+                {
+                    if (definition.Value.ValueKind == JsonValueKind.String &&
+                        !bindings.ContainsKey(definition.Key))
+                    {
+                        bindings[definition.Key] = definition.Value.GetString()!;
+                    }
+                }
+            }
+            else if (context.ValueKind == JsonValueKind.Array)
+            {
+                foreach (JsonElement entry in context.EnumerateArray())
+                {
+                    CollectContextNamespaces(entry, bindings);
+                }
+            }
         }
 
         private static bool TryGetContextNamespace(
@@ -3577,8 +3640,12 @@ namespace Opc.Ua.Wot
         /// a scan of the table, which made every nsu= identifier of a document
         /// that introduces U namespaces cost O(U). A NamespaceIndex is a
         /// UInt16 (OPC 10000-3 8.2.2), so a document cannot introduce more
-        /// namespaces than one can address; that bound is also what keeps the
-        /// table - rewritten on every new URI - from growing without limit.
+        /// namespaces than one can address, and a URI the table already holds
+        /// beyond that bound is reported rather than given an index that does
+        /// not fit. While a synthesis builds the table (see
+        /// <see cref="BeginNamespaceTable"/>) new URIs go to a growable list and
+        /// the array is published once at the end; outside one each new URI
+        /// publishes a new array, as the table is read straight after.
         /// </remarks>
         private static bool TryGetOrAppendNamespaceUri(
             UANodeSet nodeSet,
@@ -3586,56 +3653,142 @@ namespace Opc.Ua.Wot
             List<WotDiagnostic> diagnostics,
             out int namespaceIndex)
         {
-            string[] uris = nodeSet.NamespaceUris ?? [];
-            NamespaceIndex index = s_namespaceIndexes.GetValue(
-                nodeSet, static _ => new NamespaceIndex());
-            if (!ReferenceEquals(index.Table, uris))
-            {
-                // Built on first use, and again if anything else replaced the
-                // table; the first entry of a URI listed twice is its index.
-                index.Indexes.Clear();
-                for (int ii = 0; ii < uris.Length; ii++)
-                {
-                    if (uris[ii] is not null && !index.Indexes.ContainsKey(uris[ii]))
-                    {
-                        index.Indexes[uris[ii]] = ii + 1;
-                    }
-                }
-                index.Table = uris;
-            }
+            NamespaceIndex index = GetNamespaceIndex(nodeSet);
             if (index.Indexes.TryGetValue(namespaceUri, out namespaceIndex))
             {
-                return true;
-            }
-            if (uris.Length >= ushort.MaxValue)
-            {
-                diagnostics.Add(new WotDiagnostic(
-                    WotDiagnosticSeverity.Error,
-                    WotDiagnosticCode.ValidationError,
-                    $"The namespace '{namespaceUri}' cannot be added: the NodeSet " +
-                    $"already holds {uris.Length} namespaces, the most a UInt16 " +
-                    "NamespaceIndex can address.",
-                    new WotLocation(reference: namespaceUri)));
+                if (namespaceIndex <= ushort.MaxValue)
+                {
+                    return true;
+                }
+                diagnostics.Add(NamespaceTableFull(namespaceUri, ushort.MaxValue));
                 namespaceIndex = 0;
                 return false;
             }
-            string[] appended = new string[uris.Length + 1];
-            Array.Copy(uris, appended, uris.Length);
-            appended[uris.Length] = namespaceUri;
-            nodeSet.NamespaceUris = appended;
-            namespaceIndex = appended.Length;
+            if (index.Uris.Count >= ushort.MaxValue)
+            {
+                diagnostics.Add(NamespaceTableFull(namespaceUri, index.Uris.Count));
+                namespaceIndex = 0;
+                return false;
+            }
+            index.Uris.Add(namespaceUri);
+            namespaceIndex = index.Uris.Count;
             index.Indexes[namespaceUri] = namespaceIndex;
-            index.Table = appended;
+            if (index.Deferred)
+            {
+                index.Pending = true;
+            }
+            else
+            {
+                PublishNamespaceTable(nodeSet, index);
+            }
             return true;
         }
 
         /// <summary>
-        /// The NamespaceIndex of every URI of the namespace table it was built
-        /// from.
+        /// Gets the namespace table of a NodeSet, including the URIs a running
+        /// synthesis appended but has not published yet.
+        /// </summary>
+        private static IReadOnlyList<string> GetNamespaceTable(UANodeSet nodeSet)
+        {
+            if (s_namespaceIndexes.TryGetValue(nodeSet, out NamespaceIndex? index) &&
+                ReferenceEquals(index.Table, nodeSet.NamespaceUris))
+            {
+                return index.Uris;
+            }
+            return nodeSet.NamespaceUris ?? [];
+        }
+
+        /// <summary>
+        /// Defers publishing the namespace table of a NodeSet under synthesis
+        /// until <see cref="CompleteNamespaceTable"/>, so U new namespaces cost
+        /// O(U) instead of one array copy each.
+        /// </summary>
+        private static void BeginNamespaceTable(UANodeSet nodeSet)
+        {
+            GetNamespaceIndex(nodeSet).Deferred = true;
+        }
+
+        /// <summary>
+        /// Publishes the namespace URIs appended since
+        /// <see cref="BeginNamespaceTable"/> to the NodeSet.
+        /// </summary>
+        private static void CompleteNamespaceTable(UANodeSet nodeSet)
+        {
+            if (!s_namespaceIndexes.TryGetValue(nodeSet, out NamespaceIndex? index))
+            {
+                return;
+            }
+            index.Deferred = false;
+            if (index.Pending && ReferenceEquals(index.Table, nodeSet.NamespaceUris))
+            {
+                PublishNamespaceTable(nodeSet, index);
+            }
+        }
+
+        private static NamespaceIndex GetNamespaceIndex(UANodeSet nodeSet)
+        {
+            NamespaceIndex index = s_namespaceIndexes.GetValue(
+                nodeSet, static _ => new NamespaceIndex());
+            string[]? uris = nodeSet.NamespaceUris;
+            if (!index.Synchronized || !ReferenceEquals(index.Table, uris))
+            {
+                // Built on first use, and again if anything else replaced the
+                // table; the first entry of a URI listed twice is its index.
+                index.Uris.Clear();
+                index.Indexes.Clear();
+                if (uris is not null)
+                {
+                    index.Uris.AddRange(uris);
+                    for (int ii = 0; ii < uris.Length; ii++)
+                    {
+                        if (uris[ii] is not null && !index.Indexes.ContainsKey(uris[ii]))
+                        {
+                            index.Indexes[uris[ii]] = ii + 1;
+                        }
+                    }
+                }
+                index.Table = uris;
+                index.Synchronized = true;
+                index.Pending = false;
+            }
+            return index;
+        }
+
+        private static void PublishNamespaceTable(UANodeSet nodeSet, NamespaceIndex index)
+        {
+            string[] table = [.. index.Uris];
+            nodeSet.NamespaceUris = table;
+            index.Table = table;
+            index.Pending = false;
+        }
+
+        private static WotDiagnostic NamespaceTableFull(string namespaceUri, int count)
+        {
+            return new WotDiagnostic(
+                WotDiagnosticSeverity.Error,
+                WotDiagnosticCode.ValidationError,
+                $"The namespace '{namespaceUri}' cannot be added: the NodeSet " +
+                $"already holds {count} namespaces, the most a UInt16 " +
+                "NamespaceIndex can address.",
+                new WotLocation(reference: namespaceUri));
+        }
+
+        /// <summary>
+        /// The namespace table of a NodeSet with the NamespaceIndex of every
+        /// URI in it. <see cref="Uris"/> is authoritative; <see cref="Table"/>
+        /// is the array it was last read from or published to.
         /// </summary>
         private sealed class NamespaceIndex
         {
             public string[]? Table { get; set; }
+
+            public bool Synchronized { get; set; }
+
+            public bool Deferred { get; set; }
+
+            public bool Pending { get; set; }
+
+            public List<string> Uris { get; } = [];
 
             public Dictionary<string, int> Indexes { get; } = new(StringComparer.Ordinal);
         }

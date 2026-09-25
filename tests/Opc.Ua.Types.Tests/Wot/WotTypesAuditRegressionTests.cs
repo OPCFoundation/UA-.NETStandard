@@ -298,40 +298,39 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        [CancelAfter(60000)]
+        [NonParallelizable]
         public void ALongSubtypeChainIsValidatedInLinearTime()
         {
             // Every entry used to walk its whole ancestor chain: N^2/2 steps.
             const int count = 20000;
-            var definitions = new StringBuilder();
-            for (int ii = 0; ii < count; ii++)
-            {
-                if (ii > 0)
-                {
-                    definitions.Append(',');
-                }
-                definitions.Append("{\"@id\":\"urn:t#T").Append(ii)
-                    .Append("\",\"@type\":\"uav:StructureDefinition\",\"uav:dataTypeName\":\"demo:T")
-                    .Append(ii).Append('"');
-                if (ii > 0)
-                {
-                    definitions.Append(",\"uav:dataTypeSubtypeOf\":{\"@id\":\"urn:t#T")
-                        .Append(ii - 1).Append("\"}");
-                }
-                definitions.Append('}');
-            }
+            WotConversionResult<UANodeSet>? result = null;
 
-            var watch = System.Diagnostics.Stopwatch.StartNew();
-            WotConversionResult<UANodeSet> result = ConvertDataTypes(definitions.ToString());
-            watch.Stop();
-
-            Assert.Multiple(() =>
+            AssertScalesLinearly(count, n =>
             {
-                Assert.That(
-                    result.Diagnostics.Where(d => d.Message.Contains("its own ancestor", StringComparison.Ordinal)),
-                    Is.Empty);
-                Assert.That(watch.Elapsed, Is.LessThan(TimeSpan.FromSeconds(30)));
+                var definitions = new StringBuilder();
+                for (int ii = 0; ii < n; ii++)
+                {
+                    if (ii > 0)
+                    {
+                        definitions.Append(',');
+                    }
+                    definitions.Append("{\"@id\":\"urn:t#T").Append(ii)
+                        .Append("\",\"@type\":\"uav:StructureDefinition\",\"uav:dataTypeName\":\"demo:T")
+                        .Append(ii).Append('"');
+                    if (ii > 0)
+                    {
+                        definitions.Append(",\"uav:dataTypeSubtypeOf\":{\"@id\":\"urn:t#T")
+                            .Append(ii - 1).Append("\"}");
+                    }
+                    definitions.Append('}');
+                }
+                result = ConvertDataTypes(definitions.ToString(), out TimeSpan elapsed);
+                return elapsed;
             });
+
+            Assert.That(
+                result!.Diagnostics.Where(d => d.Message.Contains("its own ancestor", StringComparison.Ordinal)),
+                Is.Empty);
         }
 
         [Test]
@@ -359,6 +358,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
         [TestCase(true)]
         [TestCase(false)]
+        [NonParallelizable]
         public void ManyComponentsOfOneOwnerAreLinkedInLinearTime(bool ownerFirst)
         {
             // Each child scanned every Node for its owner and copied the
@@ -366,62 +366,103 @@ namespace Opc.Ua.Types.Tests.Wot
             // owner-first path and the reconcile path for an owner stated last.
             const int count = 60000;
             const string owner = "\"P\":{\"type\":\"number\",\"uav:id\":\"nsu=urn:x;s=P\"}";
-            var properties = new StringBuilder();
-            if (ownerFirst)
-            {
-                properties.Append(owner).Append(',');
-            }
-            for (int ii = 0; ii < count; ii++)
-            {
-                properties.Append("\"c").Append(ii)
-                    .Append("\":{\"type\":\"number\",\"uav:componentOf\":[\"nsu=urn:x;s=P\"]},");
-            }
-            if (!ownerFirst)
-            {
-                properties.Append(owner).Append(',');
-            }
-            properties.Length--;
+            WotConversionResult<UANodeSet>? result = null;
 
-            using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(
-                "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
-                "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"}]," +
-                "\"@type\":\"uav:object\",\"title\":\"Thing\"," +
-                "\"properties\":{" + properties + "}}"));
-            var options = new WotNodeSetConverterOptions
+            AssertScalesLinearly(count, n =>
             {
-                MaxAffordanceCount = count + 10,
-                MaxNodeCount = 10 * count
-            };
+                var properties = new StringBuilder();
+                if (ownerFirst)
+                {
+                    properties.Append(owner).Append(',');
+                }
+                for (int ii = 0; ii < n; ii++)
+                {
+                    properties.Append("\"c").Append(ii)
+                        .Append("\":{\"type\":\"number\",\"uav:componentOf\":[\"nsu=urn:x;s=P\"]},");
+                }
+                if (!ownerFirst)
+                {
+                    properties.Append(owner).Append(',');
+                }
+                properties.Length--;
 
-            var watch = System.Diagnostics.Stopwatch.StartNew();
-            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document, options);
-            watch.Stop();
+                using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(
+                    "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                    "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"}]," +
+                    "\"@type\":\"uav:object\",\"title\":\"Thing\"," +
+                    "\"properties\":{" + properties + "}}"));
+                var options = new WotNodeSetConverterOptions
+                {
+                    MaxAffordanceCount = n + 10,
+                    MaxNodeCount = 10 * n
+                };
 
-            UANode ownerNode = result.Value!.Items!.First(n => n.BrowseName == "1:P");
-            Assert.Multiple(() =>
-            {
-                Assert.That(
-                    ownerNode.References!.Count(r => r.IsForward && r.ReferenceType == "HasComponent"),
-                    Is.EqualTo(count));
-                Assert.That(watch.Elapsed, Is.LessThan(TimeSpan.FromSeconds(20)));
+                var watch = System.Diagnostics.Stopwatch.StartNew();
+                result = WotNodeSetConverter.ToNodeSetResult(document, options);
+                return watch.Elapsed;
             });
-            TestContext.Out.WriteLine($"{count} components linked in {watch.Elapsed}.");
+
+            UANode ownerNode = result!.Value!.Items!.First(n => n.BrowseName == "1:P");
+            Assert.That(
+                ownerNode.References!.Count(r => r.IsForward && r.ReferenceType == "HasComponent"),
+                Is.EqualTo(count));
         }
 
         [Test]
+        [NonParallelizable]
         public void ManyNamespacesAreLookedUpWithoutScanningTheTable()
         {
             // Every nsu= identifier scanned the whole namespace table and every
-            // new URI copied it: O(U^2) compares for U namespaces.
+            // new URI copied it: O(U^2) for U namespaces.
             const int count = 60000;
-            WotConversionResult<UANodeSet> result = ConvertNamespaces(count, out TimeSpan elapsed);
+            WotConversionResult<UANodeSet>? result = null;
+
+            AssertScalesLinearly(count, n =>
+            {
+                result = ConvertNamespaces(n, out TimeSpan elapsed);
+                return elapsed;
+            });
+
+            string[] uris = result!.Value!.NamespaceUris!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(uris, Has.Length.EqualTo(count + 1));
+                Assert.That(uris[count], Is.EqualTo("urn:ns" + (count - 1)));
+            });
+        }
+
+        [Test]
+        public void SeededNamespacesBeyondANamespaceIndexAreReported()
+        {
+            // The @context nsN prefixes seeded the table without the UInt16
+            // bound that guards an append, so a URI bound past it got an
+            // index no NamespaceIndex can hold, and no diagnostic.
+            const int count = ushort.MaxValue + 5;
+            var context = new StringBuilder();
+            for (int ii = 1; ii <= count; ii++)
+            {
+                context.Append(",\"ns").Append(ii).Append("\":\"urn:ns").Append(ii).Append('"');
+            }
+            using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(
+                "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"" + context + "}]," +
+                "\"@type\":\"uav:object\",\"title\":\"Thing\"," +
+                "\"properties\":{\"p\":{\"type\":\"number\"," +
+                "\"uav:id\":\"nsu=urn:ns" + count + ";s=x\"}}}"));
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             Assert.Multiple(() =>
             {
-                Assert.That(result.Value!.NamespaceUris, Does.Contain("urn:ns" + (count - 1)));
-                Assert.That(elapsed, Is.LessThan(TimeSpan.FromSeconds(20)));
+                Assert.That(
+                    result.Diagnostics.Any(d =>
+                        d.Severity == WotDiagnosticSeverity.Error &&
+                        d.Message.Contains("UInt16 NamespaceIndex", StringComparison.Ordinal)),
+                    Is.True);
+                Assert.That(
+                    result.Value?.NamespaceUris?.Length ?? 0,
+                    Is.LessThanOrEqualTo(ushort.MaxValue));
             });
-            TestContext.Out.WriteLine($"{count} namespaces converted in {elapsed}.");
         }
 
         [Test]
@@ -462,6 +503,57 @@ namespace Opc.Ua.Types.Tests.Wot
                 "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"}]," +
                 "\"@type\":\"uav:object\",\"title\":\"Thing\"," +
                 "\"properties\":{" + properties + "}}"));
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+            elapsed = watch.Elapsed;
+            return result;
+        }
+
+        /// <summary>
+        /// Asserts that a conversion scales linearly rather than by a fixed
+        /// wall-clock bound, which a slow runtime or a loaded agent can miss
+        /// while a small machine-independent ratio cannot: an eighth of the
+        /// input is timed against the whole, where linear work takes about 8
+        /// times as long and quadratic work 64 times. Allocation and GC make
+        /// the linear conversions measure up to about 17 on .NET Framework, and
+        /// the quadratic namespace table measured over 100, so the limit sits
+        /// between the two. The fastest of two runs of each size is compared,
+        /// and the size under test runs last.
+        /// </summary>
+        private static void AssertScalesLinearly(int count, Func<int, TimeSpan> run)
+        {
+            const int factor = 8;
+            const double limit = 32;
+            int small = count / factor;
+            run(small);
+            TimeSpan smallElapsed = TimeSpan.MaxValue;
+            TimeSpan largeElapsed = TimeSpan.MaxValue;
+            for (int ii = 0; ii < 2; ii++)
+            {
+                TimeSpan elapsed = run(small);
+                smallElapsed = elapsed < smallElapsed ? elapsed : smallElapsed;
+                elapsed = run(count);
+                largeElapsed = elapsed < largeElapsed ? elapsed : largeElapsed;
+            }
+
+            // A floor keeps timer resolution and fixed costs from inflating the
+            // ratio of a very fast small run.
+            double ratio = largeElapsed.TotalMilliseconds /
+                Math.Max(smallElapsed.TotalMilliseconds, 50);
+            TestContext.Out.WriteLine(
+                $"{small} in {smallElapsed}, {count} in {largeElapsed}: ratio {ratio:F1}.");
+            Assert.That(ratio, Is.LessThan(limit));
+        }
+
+        private static WotConversionResult<UANodeSet> ConvertDataTypes(string definitions, out TimeSpan elapsed)
+        {
+            using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(
+                "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
+                "\"demo\":\"http://example.com/demo/pump\"}]," +
+                "\"@type\":\"uav:object\",\"title\":\"Thing\"," +
+                "\"uav:browseName\":\"nsu=http://example.com/demo/pump;Thing\"," +
+                "\"uav:dataTypeDefinitions\":[" + definitions + "]}"));
             var watch = System.Diagnostics.Stopwatch.StartNew();
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
             elapsed = watch.Elapsed;
