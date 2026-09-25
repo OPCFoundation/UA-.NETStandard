@@ -1758,9 +1758,12 @@ namespace Opc.Ua.Server
                         {
                             result = StatusCodes.BadInvalidArgument;
                         }
-                        else if (!isTrustedCertificate &&
-                            await IsIssuerRequiredAsync(certCollection, thumbprint, cancellationToken)
-                                .ConfigureAwait(false))
+                        else if (await IsIssuerRequiredAsync(
+                                certCollection,
+                                thumbprint,
+                                isTrustedCertificate,
+                                cancellationToken)
+                            .ConfigureAwait(false))
                         {
                             result = StatusCodes.BadCertificateChainIncomplete;
                         }
@@ -1840,9 +1843,12 @@ namespace Opc.Ua.Server
                         {
                             result = StatusCodes.BadInvalidArgument;
                         }
-                        else if (!isTrustedCertificate &&
-                            await IsIssuerRequiredAsync(certCollection, thumbprint, cancellationToken)
-                                .ConfigureAwait(false))
+                        else if (await IsIssuerRequiredAsync(
+                                certCollection,
+                                thumbprint,
+                                isTrustedCertificate,
+                                cancellationToken)
+                            .ConfigureAwait(false))
                         {
                             result = StatusCodes.BadCertificateChainIncomplete;
                         }
@@ -2155,24 +2161,36 @@ namespace Opc.Ua.Server
         /// removed is still needed to validate another certificate of the
         /// TrustList (OPC 10000-12 §7.8.2.7 Bad_CertificateChainIncomplete).
         /// A certificate that another remaining CA with the same subject can
-        /// also validate does not block the removal.
+        /// also validate does not block the removal. Applies to removals from
+        /// either list: a trusted CA can be the issuer of other certificates
+        /// too.
         /// </summary>
         private async Task<bool> IsIssuerRequiredAsync(
             CertificateCollection issuers,
             string removedThumbprint,
+            bool removeFromTrustedStore,
             CancellationToken cancellationToken)
         {
+            if (!issuers.Any(X509Utils.IsCertificateAuthority))
+            {
+                // Only a CA can be required to validate other certificates.
+                return false;
+            }
+
             using CertificateCollection trusted = await GetStore(m_trustedStore)
                 .EnumerateAsync(cancellationToken).ConfigureAwait(false);
             using CertificateCollection issuerStore = await GetStore(m_issuerStore)
                 .EnumerateAsync(cancellationToken).ConfigureAwait(false);
-            // Only the issuer store entry is removed; a trusted copy of the
-            // same CA keeps validating its certificates.
+            bool IsRemoved(Certificate cert)
+            {
+                return string.Equals(cert.Thumbprint, removedThumbprint, StringComparison.OrdinalIgnoreCase);
+            }
+
+            // Only the entry of the list being modified is removed; a copy of
+            // the same CA in the other list keeps validating its certificates.
             Certificate[] remaining = [.. trusted
-                .Concat(issuerStore.Where(cert => !string.Equals(
-                    cert.Thumbprint,
-                    removedThumbprint,
-                    StringComparison.OrdinalIgnoreCase)))];
+                .Where(cert => !removeFromTrustedStore || !IsRemoved(cert))
+                .Concat(issuerStore.Where(cert => removeFromTrustedStore || !IsRemoved(cert)))];
 
             foreach (Certificate cert in remaining)
             {

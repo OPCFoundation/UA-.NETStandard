@@ -1856,6 +1856,56 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task RemoveTrustedCaStillNeededReturnsBadCertificateChainIncompleteAsync()
+        {
+            TrustListState node = CreateNode();
+            CreateTrustList(node);
+            ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
+
+            using Certificate rootCa = CertificateBuilder
+                .Create("CN=TrustList Trusted Root CA")
+                .SetCAConstraint()
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate intermediate = CertificateBuilder
+                .Create("CN=TrustList Issuer Intermediate CA")
+                .SetCAConstraint()
+                .SetIssuer(rootCa)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using (ICertificateStore trustedStore = m_trustedStore.OpenStore(m_telemetry))
+            {
+                await trustedStore.AddAsync(rootCa).ConfigureAwait(false);
+            }
+            using (ICertificateStore issuerStore = m_issuerStore.OpenStore(m_telemetry))
+            {
+                await issuerStore.AddAsync(intermediate).ConfigureAwait(false);
+            }
+
+            // OPC 10000-12 §7.8.2.7: the trusted root is needed to validate
+            // the intermediate in the issuer list.
+            ServiceResult result = node.RemoveCertificate.OnCall(
+                context, node.RemoveCertificate, node.NodeId, rootCa.Thumbprint, true);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadCertificateChainIncomplete));
+            using (ICertificateStore trustedStore = m_trustedStore.OpenStore(m_telemetry))
+            {
+                using CertificateCollection found = await trustedStore
+                    .FindByThumbprintAsync(rootCa.Thumbprint)
+                    .ConfigureAwait(false);
+                Assert.That(found, Has.Count.EqualTo(1));
+            }
+
+            // A copy of the root in the issuer list keeps the chain complete.
+            using (ICertificateStore issuerStore = m_issuerStore.OpenStore(m_telemetry))
+            {
+                await issuerStore.AddAsync(rootCa).ConfigureAwait(false);
+            }
+            ServiceResult removeWithCopy = node.RemoveCertificate.OnCall(
+                context, node.RemoveCertificate, node.NodeId, rootCa.Thumbprint, true);
+            Assert.That(ServiceResult.IsGood(removeWithCopy), Is.True, removeWithCopy.ToString());
+        }
+
+        [Test]
         public async Task AddCertificateWithValidationRejectsCertificateWhoseIssuerIsMissingAsync()
         {
             TrustListState node = CreateNode();
