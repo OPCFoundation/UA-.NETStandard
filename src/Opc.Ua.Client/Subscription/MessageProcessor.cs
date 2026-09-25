@@ -555,7 +555,18 @@ namespace Opc.Ua.Client.Subscriptions
                 // release anything that callback may be awaiting which in
                 // turn needs that lock - otherwise neither side progresses.
                 OnDispatchGateContended();
-                await m_messageDispatchGate.WaitAsync(ct).ConfigureAwait(false);
+                try
+                {
+                    await m_messageDispatchGate.WaitAsync(ct).ConfigureAwait(false);
+                }
+                catch
+                {
+                    // The reset gave up before it got the gate. Withdraw the
+                    // release request so later callbacks are not treated as
+                    // blocking a reset that no longer waits.
+                    OnDispatchGateWaitAbandoned();
+                    throw;
+                }
             }
             try
             {
@@ -588,6 +599,16 @@ namespace Opc.Ua.Client.Subscriptions
         /// the dispatch gate, i.e. while no notification callback runs.
         /// </summary>
         protected virtual void OnDispatchGateAcquired()
+        {
+        }
+
+        /// <summary>
+        /// Called by <see cref="ResetMessageGenerationAsync"/> when its wait
+        /// for the dispatch gate, announced through
+        /// <see cref="OnDispatchGateContended"/>, ends without acquiring the
+        /// gate (for example because it was cancelled).
+        /// </summary>
+        protected virtual void OnDispatchGateWaitAbandoned()
         {
         }
 
