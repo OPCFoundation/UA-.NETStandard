@@ -525,6 +525,11 @@ namespace Opc.Ua.Di.Server.Builders
                 //                        PatchIdentifiers[], Hash)
                 string manufacturerUri = ExtractString(inputs, 0);
                 string softwareRevision = ExtractString(inputs, 1);
+                ByteString hash = default;
+                if (inputs.Count > 3 && !inputs[3].TryGetValue(out hash))
+                {
+                    throw new ServiceResultException(StatusCodes.BadTypeMismatch, "Hash must be a ByteString.");
+                }
 
                 var package = new SoftwarePackage(
                     Id: BuildPackageId(manufacturerUri, softwareRevision),
@@ -533,7 +538,7 @@ namespace Opc.Ua.Di.Server.Builders
                     Description: string.Empty,
                     SizeBytes: 0,
                     CreatedAt: DateTimeOffset.UtcNow,
-                    Hash: string.Empty);
+                    Hash: hash.IsEmpty ? string.Empty : CoreUtils.ToHexString(hash.Span.ToArray()));
 
                 if (config.InstallHandler != null)
                 {

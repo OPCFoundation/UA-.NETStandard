@@ -91,6 +91,11 @@ namespace Opc.Ua.XRegistry.Server
             WireMethod(registryNode, BrowseNames.GetOrCreateGroup, OnGetOrCreateGroupAsync);
             if (registryNode is RegistryState registryTyped)
             {
+                if (m_generationProvider is not null && registryTyped.Epoch is null)
+                {
+                    registryTyped.AddEpoch(m_context.SystemContext);
+                    await m_context.AddNodeAsync(registryTyped.Epoch!, ct).ConfigureAwait(false);
+                }
                 registryTyped.AddLabels(m_context.SystemContext);
                 WireLabelsContainer(
                     registryTyped.Labels,
@@ -192,6 +197,13 @@ namespace Opc.Ua.XRegistry.Server
                     projectionSequence.Value >= m_latestProjectionSequence;
                 if (applyProjection)
                 {
+                    if (m_registryNode is RegistryState registryWithEpoch && eventSnapshot is not null)
+                    {
+                        SetValue(registryWithEpoch.Epoch, eventSnapshot.Epoch);
+                        await registryWithEpoch.ClearChangeMasksAsync(
+                            m_context.SystemContext, includeChildren: true, CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
                     if (m_registryNode is RegistryState registryTyped &&
                         registryTyped.Labels is not null)
                     {

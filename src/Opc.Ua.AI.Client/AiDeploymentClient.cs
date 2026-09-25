@@ -84,7 +84,7 @@ namespace Opc.Ua.AI.Client
                 State = ReadEnum<DeploymentStateEnum>(nodes, values, ref cursor, 2),
                 DataJurisdiction = ReadString(nodes, values, ref cursor, 3),
                 EgressPermitted = ReadBoolean(nodes, values, ref cursor, 4),
-                MaxInlinePayloadSize = ReadUInt64(nodes, values, ref cursor, 5),
+                MaxInlinePayloadSize = ReadInlineLimit(nodes, values, ref cursor, 5),
                 EndpointUri = ReadString(nodes, values, ref cursor, 6),
                 ModelId = model,
                 FallbackDeploymentId = fallback
@@ -421,9 +421,21 @@ namespace Opc.Ua.AI.Client
             return !nodes[index].IsNull && AIClientOperations.ReadBoolean(values[cursor++]);
         }
 
-        private static ulong ReadUInt64(ArrayOf<NodeId> nodes, ArrayOf<DataValue> values, ref int cursor, int index)
+        private static uint ReadInlineLimit(ArrayOf<NodeId> nodes, ArrayOf<DataValue> values, ref int cursor, int index)
         {
-            return nodes[index].IsNull ? 0 : AIClientOperations.ReadUInt64(values[cursor++]);
+            if (nodes[index].IsNull)
+            {
+                return 0;
+            }
+            DataValue value = values[cursor++];
+            if (!StatusCode.IsGood(value.StatusCode))
+            {
+                throw new ServiceResultException(value.StatusCode, "The AI deployment inline limit is unreadable.");
+            }
+            return value.WrappedValue.TypeInfo.BuiltInType == BuiltInType.UInt32 &&
+                value.WrappedValue.TryGetValue(out uint limit) ? limit :
+                throw new ServiceResultException(StatusCodes.BadTypeMismatch,
+                    "The AI deployment inline limit must be a UInt32.");
         }
 
         private static TEnum ReadEnum<TEnum>(

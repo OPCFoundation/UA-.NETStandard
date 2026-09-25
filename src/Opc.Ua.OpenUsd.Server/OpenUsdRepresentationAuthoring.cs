@@ -217,6 +217,8 @@ namespace Opc.Ua.OpenUsd.Server
                 context,
                 context.CreateOpenUsdLiveBindingType_BadQualityAction(b, forInstance: true))
                 .Value = OpenUsdBadQualityActionEnum.Skip;
+            NodeId declarationId = context.AssignInstanceNodeId(b);
+            context.AssignInstanceChildNodeIds(b, declarationId);
             return b;
         }
 
@@ -302,6 +304,8 @@ namespace Opc.Ua.OpenUsd.Server
                     context.CreateOpenUsdComponentBindingType_ComponentTypeDefinition(b, forInstance: true))
                     .Value = componentTypeDefinition;
             }
+            NodeId declarationId = context.AssignInstanceNodeId(b);
+            context.AssignInstanceChildNodeIds(b, declarationId);
             return b;
         }
     }

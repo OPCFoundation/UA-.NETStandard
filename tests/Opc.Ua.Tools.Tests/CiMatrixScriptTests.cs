@@ -329,13 +329,17 @@ namespace Opc.Ua.Tools.Tests
 
             Assert.That(invocations, Has.Length.EqualTo(2), "The executor builds once and tests once per project.");
             Assert.That(
-                invocations.All(line => line.Contains("$projectBudget $PerProjectTimeoutMinutes", StringComparison.Ordinal)),
+                invocations.All(line => line.Contains(
+                    "$projectBudget $PerProjectTimeoutMinutes", StringComparison.Ordinal)),
                 Is.True,
                 $"Both invocations must share the one stopwatch: {string.Join(" | ", invocations)}");
             Assert.That(
                 source,
                 Does.Contain("$projectBudget = [System.Diagnostics.Stopwatch]::StartNew()"),
                 "The stopwatch has to be restarted for each project rather than spanning the batch.");
+            Assert.That(source, Does.Contain("$startInfo = New-DotnetStartInfo $arguments $IsLinux"));
+            Assert.That(source, Does.Contain("$process.StartInfo = $startInfo"));
+            Assert.That(source, Does.Contain("$process.Kill($true)"));
         }
 
         private static async Task<MatrixResult> RunMatrixAsync(

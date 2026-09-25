@@ -337,7 +337,21 @@ The verdict comes from the emitted TRX rather than from the `dotnet test` exit c
 
 ### Test tiers
 
-The pull-request profiles filter out `TestCategory=LongRunning` and `TestCategory=Stress`. The tiers those filters leave out run elsewhere:
+The pull-request profiles filter out `TestCategory=LongRunning` and `TestCategory=Stress`.
+
+Azure discovery evaluates each project's target frameworks and `IsTestProject` with the job's `CustomTestTarget`
+before scheduling it. Only projects supporting the requested test-runtime framework and not explicitly disabled
+are included; an unset test flag remains eligible before restore. This keeps desktop-only projects out of legacy
+framework jobs without hiding their supported modern-framework tests. Discovery uses the .NET 10 SDK, performs
+no build or restore, and fails on evaluation errors or an unexpected empty matrix. The separate `Tfms` build
+matrix remains unfiltered.
+
+Linux UaLens tests require the agent's installed `xvfb-run` and run under a virtual X server. The shared
+GitHub batch executor and the Azure recovery template retain the normal test selection, coverage, diagnostics,
+and result gates, and fail explicitly if Xvfb is unavailable. The GitHub executor includes the virtual display
+in the existing per-project timeout and process-tree cleanup.
+
+The tiers those filters leave out run elsewhere:
 
 | Tier | Where it runs |
 | --- | --- |
@@ -445,7 +459,7 @@ Keep the `ignore` list in `codecov.yml` in step with the one in `coverage-thresh
 
 The script renders a markdown summary that both systems surface, so you never have to open a raw log to see why coverage moved:
 
-- **GitHub Actions** — appended to the run's job summary, and posted as a single sticky pull-request comment that is updated in place on each run. Threshold misses additionally appear as run annotations. On a pull request **from a fork** the token is read-only, so the comment is skipped and only the job summary is written.
+- **GitHub Actions** — appended to the run's job summary, and posted as a single sticky pull-request comment that is updated in place on each run. Threshold misses additionally appear as run annotations. On a pull request **from a fork or Dependabot** the token is read-only, so the comment is skipped and only the job summary is written.
 - **Azure Pipelines** — attached to the build summary via `##vso[task.uploadsummary]`, alongside the usual Code Coverage tab and the Codacy upload.
 
 Both also publish the merged HTML report as a `coverage-report` artifact.

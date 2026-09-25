@@ -146,7 +146,7 @@ as positive examples count.
 | `EndpointUri`, `ChatCompletionsPath`, `ProbePath` | Endpoint and paths for REST-shaped clients |
 | `Authentication`, `CredentialReference`, `ApiKeyHeader`, `CredentialDirectory`, `TokenAudience` | Server-to-backend authentication |
 | `Site`, `DataJurisdiction`, `EgressPermitted`, `RetainsInput` | Trust-boundary metadata published to clients |
-| `MaxInlinePayloadSize` | Inline `Invoke` payload limit |
+| `MaxInlinePayloadSize` | UInt32 inline `Invoke` payload limit; zero permits only an explicitly chosen transfer |
 | `Models` | Configured model catalogue entries |
 
 ## Client surface

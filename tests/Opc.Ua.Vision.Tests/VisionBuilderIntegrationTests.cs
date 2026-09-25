@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -48,6 +49,51 @@ namespace Opc.Ua.Vision.Tests
     [Category("Vision")]
     public sealed class VisionBuilderIntegrationTests
     {
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task MediaInstancesDoNotExposeTypeDeclarationPlaceholders(bool addEndpoints)
+        {
+            var fixture = new VisionServerFixture();
+            await using (fixture.ConfigureAwait(false))
+            {
+                await fixture.StartAsync().ConfigureAwait(false);
+                IVisionBuildContext context = fixture.CreateBuildContext();
+                context.Nodes.AddImageSensor("FixtureCamera", sensor =>
+                {
+                    sensor.WithSensorId("fixture-camera")
+                        .WithRealityKind(VisionRealityKindEnum.Simulated)
+                        .UseMediaProvider(new Mock<IVisionMediaProvider>().Object);
+                    if (addEndpoints)
+                    {
+                        sensor.AddClipEndpoint("FixtureClip", endpoint => endpoint.WithEndpointId("clip-1"))
+                            .AddStreamEndpoint("FixtureStream", endpoint => endpoint.WithEndpointId("stream-1"));
+                    }
+                });
+                var camera = FindChild(fixture.Manager.Root.Sensors!, "FixtureCamera") as ImageSensorState;
+                Assert.That(camera, Is.Not.Null);
+                Assert.That(camera!.Media, Is.Not.Null);
+                FolderState[] folders = [camera.Media!.ClipEndpoints!, camera.Media.StreamEndpoints!];
+                foreach (FolderState folder in folders)
+                {
+                    Assert.That(folder, Is.Not.Null);
+                    var references = new List<IReference>();
+                    folder.GetReferences(context.Context, references, Opc.Ua.ReferenceTypeIds.HasComponent, false);
+                    Assert.That(references, Is.Empty,
+                        "An instance folder must not link back to the model's uninstantiated endpoint declarations.");
+                    var children = new List<BaseInstanceState>();
+                    folder.GetChildren(context.Context, children);
+                    Assert.That(children, Has.Count.EqualTo(addEndpoints ? 1 : 0));
+                    if (addEndpoints)
+                    {
+                        var endpoint = children[0] as MediaEndpointState;
+                        Assert.That(endpoint, Is.Not.Null);
+                        Assert.That(endpoint!.EndpointId!.Value,
+                            Is.EqualTo(folder == folders[0] ? "clip-1" : "stream-1"));
+                    }
+                }
+            }
+        }
+
         [Test]
         public async Task AddImageSensorExercisesEveryFluentEntryPoint()
         {

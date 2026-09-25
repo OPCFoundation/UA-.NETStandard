@@ -115,6 +115,28 @@ if ($projectList.Count -eq 0) {
 $null = New-Item -ItemType Directory -Path $ResultsDirectory -Force
 $resultsRoot = (Resolve-Path -LiteralPath $ResultsDirectory).Path
 
+function New-DotnetStartInfo([string[]] $arguments, [bool] $linux)
+{
+    $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+    $startInfo.FileName = 'dotnet'
+    if ($linux -and $arguments.Count -ge 2 -and $arguments[0] -eq 'test' -and
+        [System.IO.Path]::GetFileName($arguments[1]) -eq 'Opc.Ua.Lens.Tests.csproj') {
+        $xvfb = Get-Command xvfb-run -CommandType Application -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+        if ($null -eq $xvfb) {
+            throw 'UaLens desktop tests require xvfb-run on the Linux agent.'
+        }
+        $startInfo.FileName = $xvfb.Source
+        $startInfo.ArgumentList.Add('-a')
+        $startInfo.ArgumentList.Add('dotnet')
+    }
+    foreach ($argument in $arguments) {
+        $startInfo.ArgumentList.Add($argument)
+    }
+    $startInfo.UseShellExecute = $false
+    return $startInfo
+}
+
 <#
  .SYNOPSIS
     Runs 'dotnet' with the supplied arguments, streaming its output to the log
@@ -146,12 +168,7 @@ function Invoke-Dotnet(
         return [pscustomobject]@{ ExitCode = -1; TimedOut = $true }
     }
 
-    $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
-    $startInfo.FileName = 'dotnet'
-    foreach ($argument in $arguments) {
-        $startInfo.ArgumentList.Add($argument)
-    }
-    $startInfo.UseShellExecute = $false
+    $startInfo = New-DotnetStartInfo $arguments $IsLinux
 
     $writer = $null
     $subscriptions = @()

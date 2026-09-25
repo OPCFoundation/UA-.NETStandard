@@ -12,6 +12,11 @@ ObjectType proxies**. It talks to a registry hosted in an OPC UA server address 
   `ResourceType` inherits — plus `Delete(ExpectedEpoch)` for optimistic concurrency. Resource
   and Version `Xid` values remain stable structural paths when their document bytes change.
 
+Document uploads close their owned write handle with a separate five-second
+cancellation budget, including after cancellation or a failed Write. If Write and
+Close both fail, both exceptions are retained. Uploads are not automatically
+replayed; inspect the server state before deciding whether a new request is safe.
+
 `XRegistryClient` is an abstract base carrying the xRegistry-level API;
 `GenericXRegistryClient` is the sealed implementation for any registry namespace. A concrete
 registry client (for example a schema registry client) derives from `XRegistryClient` and adds

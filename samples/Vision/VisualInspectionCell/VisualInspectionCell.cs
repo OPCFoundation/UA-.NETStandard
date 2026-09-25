@@ -167,6 +167,12 @@ namespace Vision.VisualInspectionCell
                 results);
             m_inferenceProvider.Attach(target);
             m_feedbackSink.Attach(target);
+            ClipEndpointState clip = FindChild<ClipEndpointState>(
+                sensor.Media?.ClipEndpoints, context, ClipEndpointBrowseName) ??
+                throw new InvalidOperationException("The fixture clip endpoint was not registered.");
+            clip.CreateOrReplaceState(context.Context, null).Value = VisionEndpointStateEnum.Ready;
+            pipeline.CreateOrReplaceState(context.Context, null).Value = VisionEndpointStateEnum.Ready;
+            pipeline.CreateOrReplaceContinuous(context.Context, null).Value = false;
         }
 
         private async ValueTask AddOperatorDialogAsync(
