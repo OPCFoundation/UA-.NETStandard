@@ -31,6 +31,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
+using Avalonia.Threading;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua;
@@ -199,6 +200,68 @@ public sealed class IdentityReferenceDialogTests
                 Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(true);
             Assert.That(dialog.IsVisible, Is.False);
             Assert.That(pending.Task.IsCompleted, Is.False);
+        });
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public Task CompletedAuthorizationIgnoresLateProviderProgress(bool fails)
+    {
+        return AvaloniaDesktopTestHost.RunAsync(async () =>
+        {
+            var context = new DesktopConnectionContext();
+            await using (context.ConfigureAwait(true))
+            {
+                var access = new Mock<IAccessTokenProvider>(MockBehavior.Strict);
+                access.SetupGet(provider => provider.AuthorityUri).Returns(kAuthority);
+                var interaction = new Mock<IIdentityTokenInteraction>(MockBehavior.Strict);
+                IProgress<IdentityInteractionStage>? progress = null;
+                interaction.Setup(provider => provider.AuthorizeAsync(
+                    It.IsAny<AuthorizationServerMetadata>(), It.IsAny<IProgress<IdentityInteractionStage>>(),
+                    It.IsAny<CancellationToken>()))
+                    .Returns((AuthorizationServerMetadata _, IProgress<IdentityInteractionStage>? reporter,
+                        CancellationToken _) =>
+                    {
+                        progress = reporter;
+                        return fails ? Task.FromException(new TimeoutException("private-provider-detail")) :
+                            Task.CompletedTask;
+                    });
+                using var identities = new ConnectionIdentityConfiguration(accessTokenSources:
+                [
+                    new ConfiguredAccessTokenSource(
+                        "authority", "Authority", access.Object, interaction: interaction.Object)
+                ]);
+                EndpointDescription endpoint = Endpoint(false);
+                var dialog = new IdentityReferenceDialog(
+                    endpoint, endpoint.UserIdentityTokens[0], SubscriptionEngineKind.ChannelV2, identities,
+                    await context.Connection.GetConfigAsync().ConfigureAwait(true));
+                await using (dialog.ConfigureAwait(true))
+                {
+                    Task<ConnectionSelection?> prompt = dialog.PromptAsync(
+                        DesktopInteraction.Owner, CancellationToken.None);
+                    DesktopInteraction.Click(DesktopInteraction.Control<Button>(dialog, "ConfigureIdentityButton"));
+                    await Dispatcher.UIThread.InvokeAsync(static () => { }, DispatcherPriority.Background);
+                    string? completed = DesktopInteraction.Control<TextBlock>(dialog, "IdentityStatus").Text;
+                    Assert.That(completed,
+                        Does.StartWith(fails ? "Identity setup failed" : "Provider authorization completed"));
+                    Assert.That(completed, Does.Not.Contain("private-provider-detail"));
+                    Assert.That(progress, Is.Not.Null);
+
+                    progress!.Report(IdentityInteractionStage.WaitingForUser);
+                    await Dispatcher.UIThread.InvokeAsync(static () => { }, DispatcherPriority.Background);
+
+                    Assert.That(DesktopInteraction.Control<TextBlock>(dialog, "IdentityStatus").Text,
+                        Is.EqualTo(completed));
+                    Assert.That(prompt.IsCompleted, Is.False);
+                    DesktopInteraction.Click(DesktopInteraction.Control<Button>(dialog, "CancelButton"));
+                    Assert.That(await prompt.ConfigureAwait(true), Is.Null);
+                }
+                access.Verify(provider => provider.AcquireAsync(
+                    It.IsAny<AuthorizationServerMetadata>(), It.IsAny<CancellationToken>()), Times.Never);
+                interaction.Verify(provider => provider.AuthorizeAsync(
+                    It.IsAny<AuthorizationServerMetadata>(), It.IsAny<IProgress<IdentityInteractionStage>>(),
+                    It.IsAny<CancellationToken>()), Times.Once);
+            }
         });
     }
 
