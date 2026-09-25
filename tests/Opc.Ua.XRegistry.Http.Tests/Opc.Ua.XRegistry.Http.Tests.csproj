@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
+    <RootNamespace>Opc.Ua.XRegistry.Http.Tests</RootNamespace>
+    <GenerateProgramFile>false</GenerateProgramFile>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Moq" />
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="NUnit.Analyzers" PrivateAssets="all" />
+    <PackageReference Include="NUnit3TestAdapter" PrivateAssets="all" />
+    <PackageReference Include="coverlet.collector" PrivateAssets="all" />
+    <Compile Include="..\Common\Main.cs" />
+    <ProjectReference Include="..\..\src\Opc.Ua.XRegistry.Http\Opc.Ua.XRegistry.Http.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.XRegistry.Server\Opc.Ua.XRegistry.Server.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
+  </ItemGroup>
+  <!-- The netstandard2.1 matrix uses a net8.0 test consumer, but its selected
+       library does not contain the modern HTTP hosting or exception interfaces. -->
+  <PropertyGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0')) AND '$(NetStandardTests)' != 'true'">
+    <DefineConstants>$(DefineConstants);XREGISTRY_HTTP_MODERN</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0')) AND '$(NetStandardTests)' != 'true'">
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" />
+  </ItemGroup>
+</Project>

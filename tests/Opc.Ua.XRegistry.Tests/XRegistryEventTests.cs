@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server;
@@ -43,6 +44,60 @@ namespace Opc.Ua.XRegistry.Tests
     [Category("XRegistry")]
     public sealed class XRegistryEventTests
     {
+        [Test]
+        public void PreparingAnInvalidEventBatchNeverReportsItsValidPrefix()
+        {
+            Mock<IServerInternal> server =
+                XRegistryServerTestHarness.CreateServer(XRegistryWellKnown.XRegistryNamespaceUri);
+            ServerSystemContext context = server.Object.DefaultSystemContext.Copy();
+            var node = new BaseObjectState(null) { NodeId = new NodeId("prepared-events", 1) };
+            int reports = 0;
+            node.OnReportEventAsync = (_, _, _, _) =>
+            {
+                reports++;
+                return default;
+            };
+            var emitter = new XRegistryEventEmitter(context, "https://registry.example.test");
+            Assert.Throws<InvalidOperationException>(() => emitter.Prepare(node,
+            [
+                new XRegistryEventChange(XRegistryEventKind.GroupCreated, "/groups/valid", node.NodeId, 1),
+                new XRegistryEventChange(XRegistryEventKind.VersionUpdated, "/groups/g/resources/r/versions/v1",
+                    node.NodeId)
+            ]));
+            Assert.That(reports, Is.Zero);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PreparedEventsAreDiscardableAndCannotBeReportedTwiceAsync(bool report)
+        {
+            Mock<IServerInternal> server =
+                XRegistryServerTestHarness.CreateServer(XRegistryWellKnown.XRegistryNamespaceUri);
+            ServerSystemContext context = server.Object.DefaultSystemContext.Copy();
+            var node = new BaseObjectState(null) { NodeId = new NodeId("prepared-events", 1) };
+            int reports = 0;
+            node.OnReportEventAsync = (_, _, _, _) =>
+            {
+                reports++;
+                return default;
+            };
+            var emitter = new XRegistryEventEmitter(context, "https://registry.example.test");
+            using XRegistryPreparedEventBatch batch = emitter.Prepare(node,
+                [new XRegistryEventChange(XRegistryEventKind.GroupCreated, "/groups/valid", node.NodeId, 1)]);
+            Assert.That(batch.Count, Is.EqualTo(1));
+            Assert.That(reports, Is.Zero);
+            if (report)
+            {
+                await batch.ReportAsync().ConfigureAwait(false);
+            }
+            else
+            {
+                batch.Dispose();
+            }
+            Assert.That(reports, Is.EqualTo(report ? 1 : 0));
+            Assert.ThrowsAsync<InvalidOperationException>(async () => await batch.ReportAsync().ConfigureAwait(false));
+        }
+
         [Test]
         public void XRegistrySourceUrlRemainsTypedAsString()
         {
@@ -236,29 +291,29 @@ namespace Opc.Ua.XRegistry.Tests
 
         private static bool RequiresEpoch(XRegistryEventKind kind)
         {
-            return kind is XRegistryEventKind.RegistryCreated or
-                XRegistryEventKind.RegistryUpdated or
-                XRegistryEventKind.GroupCreated or
-                XRegistryEventKind.GroupUpdated or
-                XRegistryEventKind.ResourceCreated or
-                XRegistryEventKind.ResourceUpdated or
-                XRegistryEventKind.VersionCreated or
-                XRegistryEventKind.VersionUpdated;
+            return kind is XRegistryEventKind.RegistryCreated
+                or XRegistryEventKind.RegistryUpdated
+                or XRegistryEventKind.GroupCreated
+                or XRegistryEventKind.GroupUpdated
+                or XRegistryEventKind.ResourceCreated
+                or XRegistryEventKind.ResourceUpdated
+                or XRegistryEventKind.VersionCreated
+                or XRegistryEventKind.VersionUpdated;
         }
 
         private static bool RequiresMetaEpoch(XRegistryEventKind kind)
         {
-            return kind is XRegistryEventKind.ResourceCreated or
-                XRegistryEventKind.ResourceUpdated;
+            return kind is XRegistryEventKind.ResourceCreated
+                or XRegistryEventKind.ResourceUpdated;
         }
 
         private static bool AllowsChanged(XRegistryEventKind kind)
         {
-            return kind is XRegistryEventKind.RegistryUpdated or
-                XRegistryEventKind.CapabilitiesUpdated or
-                XRegistryEventKind.GroupUpdated or
-                XRegistryEventKind.ResourceUpdated or
-                XRegistryEventKind.VersionUpdated;
+            return kind is XRegistryEventKind.RegistryUpdated
+                or XRegistryEventKind.CapabilitiesUpdated
+                or XRegistryEventKind.GroupUpdated
+                or XRegistryEventKind.ResourceUpdated
+                or XRegistryEventKind.VersionUpdated;
         }
 
         private static readonly string[] s_decodedChanged = ["meta.epoch", "versions"];
