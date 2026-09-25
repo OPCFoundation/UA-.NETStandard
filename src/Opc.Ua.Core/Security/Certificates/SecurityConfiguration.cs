@@ -72,6 +72,9 @@ namespace Opc.Ua
             Validate(telemetry, null);
         }
 
+        /// <summary>
+        /// Validates security settings and configured stores through an optional instance-scoped resolver.
+        /// </summary>
         internal void Validate(ITelemetryContext telemetry, ICertificateStoreResolver? storeResolver)
         {
             if (m_rejectedCertificateTypes.Count > 0)

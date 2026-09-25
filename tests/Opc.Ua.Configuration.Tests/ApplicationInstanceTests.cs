@@ -221,6 +221,42 @@ namespace Opc.Ua.Configuration.Tests
             Assert.That(provider.OpenCount, customProvider ? Is.GreaterThan(0) : Is.Zero);
         }
 
+        [TestCase(null)]
+        [TestCase("")]
+        public async Task DeleteCertificateSkipsMissingTrustedStorePathAsync(string trustedPath)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using Certificate certificate = CertificateBuilder.Create(SubjectName).SetRSAKeySize(2048).CreateForRSA();
+            var identifier = new CertificateIdentifier
+            {
+                StoreType = CertificateStoreType.Directory,
+                StorePath = Path.Combine(m_pkiRoot, "own"),
+                Thumbprint = certificate.Thumbprint
+            };
+            await certificate.AddToStoreAsync(identifier.StoreType, identifier.StorePath, null, telemetry)
+                .ConfigureAwait(false);
+            using var manager = new CertificateManager(telemetry);
+            var application = new ApplicationInstance(telemetry)
+            {
+                ApplicationConfiguration = new ApplicationConfiguration(telemetry)
+                {
+                    CertificateManager = manager,
+                    SecurityConfiguration = new SecurityConfiguration
+                    {
+                        ApplicationCertificates = [identifier],
+                        TrustedPeerCertificates = new CertificateTrustList { StorePath = trustedPath }
+                    }
+                }
+            };
+            await using (application.ConfigureAwait(false))
+            {
+                await application.DeleteApplicationInstanceCertificateAsync().ConfigureAwait(false);
+                using ICertificateStore own = CertificateIdentifierResolver.OpenStore(identifier, telemetry);
+                using CertificateCollection remaining = await own.EnumerateAsync().ConfigureAwait(false);
+                Assert.That(remaining, Is.Empty);
+            }
+        }
+
         [Test]
         public async Task DeleteCertificateUsesConfiguredStoresForManagerWithoutResolverAsync()
         {

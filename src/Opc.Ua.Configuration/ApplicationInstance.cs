@@ -1074,7 +1074,8 @@ namespace Opc.Ua.Configuration
 
             // delete trusted peer certificate.
             if (configuration.SecurityConfiguration != null &&
-                configuration.SecurityConfiguration.TrustedPeerCertificates != null)
+                configuration.SecurityConfiguration.TrustedPeerCertificates != null &&
+                !string.IsNullOrEmpty(configuration.SecurityConfiguration.TrustedPeerCertificates.StorePath))
             {
                 string? thumbprint = id.Thumbprint;
 

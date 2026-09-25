@@ -120,6 +120,9 @@ namespace Opc.Ua
                 registry as ICertificateStoreResolver, ct);
         }
 
+        /// <summary>
+        /// Resolves certificates from the registry, inline data or an optionally scoped store.
+        /// </summary>
         private static async Task<Certificate?> ResolveCoreAsync(
             CertificateIdentifier identifier,
             ICertificateRegistry? registry,
@@ -234,6 +237,9 @@ namespace Opc.Ua
             CancellationToken ct = default) =>
             LoadPrivateKeyCoreAsync(identifier, passwordProvider, applicationUri, telemetry, storeResolver, ct);
 
+        /// <summary>
+        /// Loads a private-key certificate using optional scoped store resolution and rotation fallbacks.
+        /// </summary>
         internal static async Task<Certificate?> LoadPrivateKeyCoreAsync(
             CertificateIdentifier identifier,
             ICertificatePasswordProvider? passwordProvider,
