@@ -1759,7 +1759,9 @@ namespace Opc.Ua
         /// Checks the revocation status of <paramref name="certificate"/> for an
         /// issuer that was not found in a store, against the CRLs held by the
         /// trusted and the issuer store. A revocation in either store wins; with
-        /// no valid CRL in either store the status is unknown.
+        /// no valid CRL in either store the status is unknown. A store that
+        /// cannot hold CRLs gives no answer; only when no opened store can hold
+        /// CRLs is the check reported as not supported.
         /// </summary>
         private async Task<ServiceResultException?> CheckIssuerRevocationInTrustStoresAsync(
             Certificate issuer,
@@ -1769,6 +1771,8 @@ namespace Opc.Ua
         {
             TrustListState state = m_state;
             StatusCode status = StatusCodes.BadCertificateRevocationUnknown;
+            bool anyStoreOpened = false;
+            bool anyStoreSupported = false;
             foreach (CertificateStoreIdentifier? storeIdentifier in
                 new[] { state.TrustedStore, state.IssuerStore })
             {
@@ -1778,18 +1782,29 @@ namespace Opc.Ua
                     continue;
                 }
 
+                anyStoreOpened = true;
                 StatusCode storeStatus = await store.IsRevokedAsync(issuer, certificate, ct)
                     .ConfigureAwait(false);
+                if (storeStatus == StatusCodes.BadNotSupported)
+                {
+                    // no information, must not override another store's answer.
+                    continue;
+                }
+
+                anyStoreSupported = true;
                 if (storeStatus == StatusCodes.BadCertificateRevoked)
                 {
                     status = storeStatus;
                     break;
                 }
-                if (StatusCode.IsGood(storeStatus) ||
-                    (storeStatus == StatusCodes.BadNotSupported && !StatusCode.IsGood(status)))
+                if (StatusCode.IsGood(storeStatus))
                 {
                     status = storeStatus;
                 }
+            }
+            if (anyStoreOpened && !anyStoreSupported)
+            {
+                status = StatusCodes.BadNotSupported;
             }
             return ToRevocationError(status, certificate, options);
         }
