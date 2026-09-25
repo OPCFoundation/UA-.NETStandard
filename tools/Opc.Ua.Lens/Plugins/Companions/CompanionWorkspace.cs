@@ -202,20 +202,28 @@ namespace UaLens.Plugins.Companions
             {
                 throw new ArgumentException("A typed task supports at most 32 input fields.", nameof(inputs));
             }
-            ArrayOf<CompanionValue> captured = inputs.ConvertAll(value => value is null
-                ? throw new ArgumentException("Task input fields cannot be null.", nameof(inputs))
-                : new CompanionValue(value.Name, value.Value.Copy()));
+            ArrayOf<CompanionValue> captured;
+            lock (m_gate)
+            {
+                CompanionContext current = m_context ??
+                    throw new InvalidOperationException("Connect before preparing typed task input.");
+                captured = CompanionInputContract.Snapshot(inputs, current.Session.MessageContext);
+            }
             return RunAsync(
                 async (context, token) =>
                 {
                     RequirePreparationVersion(preparationVersion);
                     CompanionOperation operation = RequireInspectedOperation(target, operationId);
-                    ValidateInputs(operation, captured);
+                    CompanionInputContract.ValidateShape(operation, captured);
                     var snapshot = new CompanionOperationDraft(
                         target, operation, null, context.Session, m_timeProvider.GetUtcNow().AddMinutes(5));
                     await RequireCurrentOperationAsync(provider, context, snapshot, token).ConfigureAwait(false);
+                    ArrayOf<CompanionInputSchema> schemas = await CompanionInputContract.ValidateAsync(
+                        context, operation, captured, token).ConfigureAwait(false);
                     CompanionTaskInput prepared = await provider.PrepareInputAsync(
-                        context, target, operationId, captured, token).ConfigureAwait(false);
+                        context, target, operationId,
+                        CompanionInputContract.Snapshot(captured, context.Session.MessageContext), token)
+                        .ConfigureAwait(false);
                     token.ThrowIfCancellationRequested();
                     if (!snapshot.Matches(context.Session, m_timeProvider.GetUtcNow()) ||
                         prepared is null ||
@@ -226,7 +234,7 @@ namespace UaLens.Plugins.Companions
                             "The prepared task expired or returned invalid review evidence.");
                     }
                     var draft = new CompanionOperationDraft(
-                        target, operation, null, context.Session, snapshot.ExpiresAt, prepared, captured);
+                        target, operation, null, context.Session, snapshot.ExpiresAt, prepared, captured, schemas);
                     return await AuthorizeDraftAsync(context, draft, token).ConfigureAwait(false);
                 },
                 draft =>
@@ -395,47 +403,10 @@ namespace UaLens.Plugins.Companions
                 var fields = new HashSet<string>(StringComparer.Ordinal);
                 foreach (CompanionInputDefinition input in operation.Inputs)
                 {
-                    if (string.IsNullOrWhiteSpace(input.Name) ||
-                        string.IsNullOrWhiteSpace(input.DisplayName) ||
-                        !fields.Add(input.Name) ||
-                        input.DataType is not (
-                            BuiltInType.String or BuiltInType.Boolean or BuiltInType.UInt32 or BuiltInType.Int32 or
-                            BuiltInType.Double))
+                    CompanionInputContract.ValidateDefinition(input);
+                    if (!fields.Add(input.Name))
                     {
                         throw new InvalidOperationException("The provider returned an invalid input definition.");
-                    }
-                }
-            }
-        }
-
-        private static void ValidateInputs(CompanionOperation operation, ArrayOf<CompanionValue> inputs)
-        {
-            if (!operation.HasTypedInput || inputs.Count != operation.Inputs.Count)
-            {
-                throw new ArgumentException("Supply the current task's exact typed input fields.", nameof(inputs));
-            }
-            int length = 0;
-            for (int i = 0; i < inputs.Count; i++)
-            {
-                CompanionValue value = inputs[i];
-                CompanionInputDefinition field = operation.Inputs[i];
-                if (value.Name != field.Name ||
-                    !value.Value.TypeInfo.IsScalar ||
-                    value.Value.TypeInfo.BuiltInType != field.DataType)
-                {
-                    throw new ArgumentException(
-                        "The task input names or types do not match the offered form.", nameof(inputs));
-                }
-                if (value.Value.TryGetValue(out string? text))
-                {
-                    if (field.Required && string.IsNullOrWhiteSpace(text))
-                    {
-                        throw new ArgumentException($"{field.DisplayName} is required.", nameof(inputs));
-                    }
-                    length += text?.Length ?? 0;
-                    if (length > 65536)
-                    {
-                        throw new ArgumentException("Task input is limited to 65536 characters.", nameof(inputs));
                     }
                 }
             }
@@ -579,6 +550,16 @@ namespace UaLens.Plugins.Companions
                 !current.Operations.Contains(operation => operation == draft.Operation))
             {
                 throw new InvalidOperationException("The operation or session changed. Inspect and prepare again.");
+            }
+            if (!draft.InputSchemas.IsNull)
+            {
+                ArrayOf<CompanionInputSchema> schemas = await CompanionInputContract.ValidateAsync(
+                    context, draft.Operation, draft.Inputs, cancellationToken).ConfigureAwait(false);
+                if (schemas != draft.InputSchemas || !draft.Matches(context.Session, m_timeProvider.GetUtcNow()))
+                {
+                    throw new InvalidOperationException(
+                        "The input metadata or session changed. Inspect and prepare again.");
+                }
             }
         }
 

@@ -348,7 +348,7 @@ namespace UaLens.Tests.Companions
                         fields[0] = fields[0] with { DisplayName = string.Empty };
                         break;
                     case "unsupported-type":
-                        fields[0] = fields[0] with { DataType = BuiltInType.ByteString };
+                        fields[0] = fields[0] with { DataType = BuiltInType.DiagnosticInfo };
                         break;
                     case "too-many":
                         fields = [.. Enumerable.Repeat(fields[0], 33)];
@@ -692,10 +692,10 @@ namespace UaLens.Tests.Companions
             {
                 await context.InitializeAsync().ConfigureAwait(false);
                 using var cancellation = new CancellationTokenSource();
-                context.PrepareHandler = (_, _) =>
+                context.PrepareHandler = async (_, _) =>
                 {
-                    cancellation.Cancel();
-                    return ValueTask.FromResult(context.PreparedInput);
+                    await cancellation.CancelAsync().ConfigureAwait(false);
+                    return context.PreparedInput;
                 };
 
                 await Assert.ThatAsync(
@@ -970,7 +970,8 @@ namespace UaLens.Tests.Companions
         public CancellationToken PrepareToken { get; private set; }
 
         public Func<ArrayOf<CompanionValue>, CancellationToken,
-            ValueTask<CompanionTaskInput>>? PrepareHandler { get; set; }
+            ValueTask<CompanionTaskInput>>? PrepareHandler
+        { get; set; }
 
         public NamespaceTable NamespaceUris { get; } = new([Namespaces.OpcUa, "urn:server", "urn:typed"]);
 

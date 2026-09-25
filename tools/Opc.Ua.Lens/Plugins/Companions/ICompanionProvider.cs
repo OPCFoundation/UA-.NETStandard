@@ -93,7 +93,8 @@ namespace UaLens.Plugins.Companions
     internal sealed record CompanionTaskProgress(string Phase, int? Percent = null);
 
     /// <summary>
-    /// One scalar input offered by a typed companion task.
+    /// One typed input offered by a companion task. Custom types use a portable
+    /// type identifier; rank and dimension bounds are enforced before preparation.
     /// </summary>
     internal sealed record CompanionInputDefinition(
         string Name,
@@ -102,7 +103,16 @@ namespace UaLens.Plugins.Companions
         string Hint,
         bool Required = true,
         bool IsFileSource = false,
-        bool IsMultiline = false);
+        bool IsMultiline = false)
+    {
+        public ExpandedNodeId DataTypeId { get; init; }
+
+        public int ValueRank { get; init; } = ValueRanks.Scalar;
+
+        public ArrayOf<uint> ArrayDimensions { get; init; }
+
+        public bool RequiresEditor => !DataTypeId.IsNull || ValueRank != ValueRanks.Scalar;
+    }
 
     /// <summary>
     /// Borrowed operation context with explicit discovery and result bounds.
@@ -156,6 +166,8 @@ namespace UaLens.Plugins.Companions
     /// </summary>
     internal sealed record CompanionValue(string Name, Variant Value)
     {
+        public ByteString InputSchemaDigest { get; init; }
+
         public string Text => Value.ToString();
     }
 

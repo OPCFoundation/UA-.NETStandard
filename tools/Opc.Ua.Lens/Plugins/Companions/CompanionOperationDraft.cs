@@ -47,7 +47,8 @@ namespace UaLens.Plugins.Companions
             ISession session,
             DateTimeOffset expiresAt,
             CompanionTaskInput? taskInput = null,
-            ArrayOf<CompanionValue> inputs = default)
+            ArrayOf<CompanionValue> inputs = default,
+            ArrayOf<CompanionInputSchema> inputSchemas = default)
         {
             if (!Uri.TryCreate(session.Endpoint.EndpointUrl, UriKind.Absolute, out Uri? endpoint) ||
                 !string.IsNullOrEmpty(endpoint.UserInfo) ||
@@ -71,6 +72,8 @@ namespace UaLens.Plugins.Companions
             m_applicationUri = session.Endpoint.Server?.ApplicationUri;
             m_messageContext = inputs.Count == 0 ? null : session.MessageContext;
             m_inputs = CopyInputs(inputs);
+            InputSchemas = inputSchemas.IsNull ? default : inputSchemas.ConvertAll(schema =>
+                new CompanionInputSchema(schema.Name, ByteString.From(schema.Digest.Span)));
         }
 
         private CompanionOperationDraft(CompanionOperationDraft source, CompanionDeploymentGrant grant)
@@ -91,6 +94,7 @@ namespace UaLens.Plugins.Companions
             m_applicationUri = source.m_applicationUri;
             m_messageContext = source.m_messageContext;
             m_inputs = source.m_inputs;
+            InputSchemas = source.InputSchemas;
         }
 
         public CompanionTarget Target { get; }
@@ -104,6 +108,8 @@ namespace UaLens.Plugins.Companions
         public ArrayOf<CompanionValue> Inputs => CopyInputs(m_inputs);
 
         public CompanionDeploymentGrant? DeploymentGrant { get; }
+
+        internal ArrayOf<CompanionInputSchema> InputSchemas { get; }
 
         public string EndpointUrl { get; }
 
@@ -125,8 +131,12 @@ namespace UaLens.Plugins.Companions
 
         internal bool Matches(ISession session, DateTimeOffset now)
         {
-            return now < ExpiresAt &&
-                session.Connected &&
+            return now < ExpiresAt && MatchesSession(session);
+        }
+
+        internal bool MatchesSession(ISession session)
+        {
+            return session.Connected &&
                 session.SessionId == m_sessionId &&
                 ReferenceEquals(session.Identity, m_identity) &&
                 string.Equals(session.Endpoint.EndpointUrl, m_endpointUrl, StringComparison.Ordinal) &&
@@ -140,7 +150,10 @@ namespace UaLens.Plugins.Companions
         {
             return inputs.ConvertAll(value => new CompanionValue(value.Name,
                 DataValueCodec.Snapshot(value.Value, m_messageContext ??
-                    throw new InvalidOperationException("Typed input snapshots require an encoding context."))));
+                    throw new InvalidOperationException("Typed input snapshots require an encoding context.")))
+            {
+                InputSchemaDigest = value.InputSchemaDigest.Copy()
+            });
         }
 
         private readonly NodeId m_sessionId;

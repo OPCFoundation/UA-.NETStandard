@@ -101,7 +101,7 @@
                   <StackPanel Spacing="4" Margin="0,0,0,8">
                     <TextBlock Text="{CompiledBinding Definition.DisplayName}" TextWrapping="Wrap" />
                     <TextBox Text="{CompiledBinding Text, Mode=TwoWay}"
-                             IsVisible="{CompiledBinding !IsBoolean}"
+                             IsVisible="{CompiledBinding IsText}"
                              AcceptsReturn="{CompiledBinding Definition.IsMultiline}"
                              MaxHeight="120" TextWrapping="Wrap"
                              PlaceholderText="{CompiledBinding Definition.Hint}" MaxLength="65536"
@@ -112,6 +112,13 @@
                     <Button Content="Choose local file..." Command="{CompiledBinding PickFileCommand}"
                             IsVisible="{CompiledBinding Definition.IsFileSource}"
                             HorizontalAlignment="Left" />
+                    <Button Content="Edit typed value..." Command="{CompiledBinding EditCommand}"
+                            IsVisible="{CompiledBinding RequiresEditor}" HorizontalAlignment="Left" />
+                    <CheckBox IsChecked="{CompiledBinding Omitted, Mode=TwoWay}"
+                              IsVisible="{CompiledBinding CanOmit}" Content="Omit optional structure"
+                              AutomationProperties.Name="Omit optional companion input" />
+                    <TextBlock Text="{CompiledBinding TypedSummary}" TextWrapping="Wrap"
+                               IsVisible="{CompiledBinding RequiresEditor}" />
                   </StackPanel>
                 </DataTemplate>
               </ItemsControl.ItemTemplate>

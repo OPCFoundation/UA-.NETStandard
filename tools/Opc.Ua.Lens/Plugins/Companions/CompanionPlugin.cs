@@ -44,7 +44,9 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using UaLens.Storage;
+using UaLens.StructuredValues;
 using UaLens.ViewModels;
+using UaLens.Views;
 
 namespace UaLens.Plugins.Companions
 {
@@ -109,6 +111,7 @@ namespace UaLens.Plugins.Companions
         {
             m_selectionVersion++;
             ConfirmLocalSample = false;
+            await StopInputEditorAsync().ConfigureAwait(true);
             await m_workspace.BindAsync(m_host.Session, cancellationToken).ConfigureAwait(true);
             IsOffline = m_host.Session is null;
             ClearResults();
@@ -147,6 +150,7 @@ namespace UaLens.Plugins.Companions
                 throw new JsonException("The saved companion target is not a valid portable node identifier.");
             }
             cancellationToken.ThrowIfCancellationRequested();
+            await StopInputEditorAsync().ConfigureAwait(true);
             await m_workspace.CancelAsync().ConfigureAwait(true);
             SelectedProvider = provider;
             m_restoredTarget = saved.TargetId;
@@ -156,9 +160,10 @@ namespace UaLens.Plugins.Companions
             Status = "Configuration restored. Select Discover; no task or workload has been started.";
         }
 
-        public ValueTask DisposeAsync()
+        public async ValueTask DisposeAsync()
         {
-            return m_workspace.DisposeAsync();
+            await StopInputEditorAsync().ConfigureAwait(true);
+            await m_workspace.DisposeAsync().ConfigureAwait(true);
         }
 
         partial void OnSelectedProviderChanged(CompanionDescriptor? value)
@@ -191,7 +196,8 @@ namespace UaLens.Plugins.Companions
             {
                 foreach (CompanionInputDefinition field in value.Inputs)
                 {
-                    InputFields.Add(new CompanionInputEditor(field, InputChanged, PickPackageAsync));
+                    InputFields.Add(new CompanionInputEditor(
+                        field, InputChanged, PickPackageAsync, EditInputAsync));
                 }
             }
             InvalidatePreparation();
@@ -201,6 +207,106 @@ namespace UaLens.Plugins.Companions
         {
             m_selectionVersion++;
             InvalidatePreparation();
+        }
+
+        private Task EditInputAsync(CompanionInputEditor input)
+        {
+            if (!m_inputWork.IsCompleted)
+            {
+                throw new InvalidOperationException("Finish or cancel the active typed input edit.");
+            }
+            m_inputWork = PresentOperationAsync("Edit typed input", async () =>
+            {
+                if (m_host.Session is not { } session ||
+                    TopLevel.GetTopLevel(m_view) is not Window owner ||
+                    SelectedTarget is not { } target ||
+                    SelectedOperation is not { } operation)
+                {
+                    throw new InvalidOperationException("Open the connected task view before editing a typed input.");
+                }
+                using var cancellation = new CancellationTokenSource();
+                m_inputCancellation = cancellation;
+                using var values = new SessionStructuredValueService(session);
+                var binding = new CompanionOperationDraft(
+                    target, operation, null, session, DateTimeOffset.MaxValue);
+                int version = m_selectionVersion;
+                void RequireCurrent()
+                {
+                    if (!ReferenceEquals(session, m_host.Session) || !binding.Matches(session, DateTimeOffset.UtcNow))
+                    {
+                        throw new InvalidOperationException("The typed input belongs to an obsolete session.");
+                    }
+                }
+                try
+                {
+                    NodeId dataType = CompanionInputContract.ResolveType(input.Definition, session.NamespaceUris);
+                    DataTypeDefinition? definition = input.Definition.DataTypeId.IsNull
+                        ? null
+                        : await values.ResolveAsync(dataType, cancellation.Token).ConfigureAwait(true) ??
+                            throw new ServiceResultException(
+                                StatusCodes.BadDataTypeIdUnknown, "The task input definition is unavailable.");
+                    CompanionInputSchemaGraph? schema = definition is null ? null :
+                        await CompanionInputSchemaGraph.ResolveAsync(dataType, definition, values, cancellation.Token)
+                           .ConfigureAwait(true);
+                    RequireCurrent();
+                    if (version != m_selectionVersion || !InputFields.Contains(input))
+                    {
+                        throw new OperationCanceledException("The selected task input changed.");
+                    }
+                    var dialog = new ComplexValueElementDialog(
+                        dataType, definition, values, input.GetInitialValue(),
+                        input.Definition.ValueRank, input.Definition.ArrayDimensions, cancellation.Token);
+                    await using (dialog.ConfigureAwait(true))
+                    {
+                        dialog.Title = input.Definition.DisplayName;
+                        m_inputDialog = dialog;
+                        await dialog.ShowDialog(owner).ConfigureAwait(true);
+                        cancellation.Token.ThrowIfCancellationRequested();
+                        RequireCurrent();
+                        if (version != m_selectionVersion || !InputFields.Contains(input))
+                        {
+                            throw new OperationCanceledException("The selected task input changed.");
+                        }
+                        if (!dialog.WasCommitted)
+                        {
+                            Status = "Typed input edit canceled; no value was applied.";
+                            return;
+                        }
+                        if (schema is not null)
+                        {
+                            await schema.ValidateAsync(dataType, dialog.Result, input.Definition.ValueRank,
+                                input.Definition.ArrayDimensions, cancellation.Token).ConfigureAwait(true);
+                        }
+                        cancellation.Token.ThrowIfCancellationRequested();
+                        RequireCurrent();
+                        if (version != m_selectionVersion || !InputFields.Contains(input))
+                        {
+                            throw new OperationCanceledException("The selected task input changed.");
+                        }
+                        input.AcceptValue(dialog.Result, values.MessageContext, RequireCurrent,
+                            schema switch
+                            {
+                                null => default,
+                                _ => schema.GetDigest()
+                            });
+                    }
+                    Status = "Typed input accepted locally. Prepare the task before running it.";
+                }
+                finally
+                {
+                    m_inputDialog = null;
+                    m_inputCancellation = null;
+                }
+            });
+            return m_inputWork;
+        }
+
+        private async Task StopInputEditorAsync()
+        {
+            Task cancellation = m_inputCancellation?.CancelAsync() ?? Task.CompletedTask;
+            m_inputDialog?.Close();
+            await cancellation.ConfigureAwait(true);
+            await m_inputWork.ConfigureAwait(true);
         }
 
         private async Task<string?> PickPackageAsync()
@@ -401,6 +507,7 @@ namespace UaLens.Plugins.Companions
         [RelayCommand]
         private async Task CancelAsync()
         {
+            await StopInputEditorAsync().ConfigureAwait(true);
             await m_workspace.CancelAsync().ConfigureAwait(true);
             m_selectionVersion++;
             ClearResults();
@@ -507,6 +614,9 @@ namespace UaLens.Plugins.Companions
 
         private readonly PluginHost m_host;
         private readonly CompanionWorkspace m_workspace;
+        private ComplexValueElementDialog? m_inputDialog;
+        private CancellationTokenSource? m_inputCancellation;
+        private Task m_inputWork = Task.CompletedTask;
         private CompanionView? m_view;
         private string? m_restoredTarget;
         private int m_selectionVersion;
