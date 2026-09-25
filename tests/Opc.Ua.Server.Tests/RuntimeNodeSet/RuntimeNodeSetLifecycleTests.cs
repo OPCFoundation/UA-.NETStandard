@@ -920,6 +920,36 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 Is.False);
         }
 
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task ReloadRuntimeDefinitionChecksCompatibilityWithAndWithoutCodecsAsync(
+            bool loadComplexTypes,
+            bool incompatibleDefinition)
+        {
+            m_server.LoadComplexTypes = loadComplexTypes;
+            NodeManagerRegistration original = await m_server.NodeManagerLifecycle
+                .AddRuntimeNodeSetAsync(CreateComplexTypeOptions(incompatibleDefinition: false), null)
+                .ConfigureAwait(false);
+
+            if (incompatibleDefinition)
+            {
+                await Assert.ThatAsync(() => m_server.NodeManagerLifecycle.ReloadRuntimeNodeSetAsync(
+                    original, CreateComplexTypeOptions(incompatibleDefinition: true), null).AsTask(),
+                    Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
+                Assert.That(GetNonStartupRegistrations(), Has.Count.EqualTo(1));
+                Assert.That(GetNonStartupRegistrations()[0], Is.SameAs(original));
+            }
+            else
+            {
+                NodeManagerRegistration reloaded = await m_server.NodeManagerLifecycle.ReloadRuntimeNodeSetAsync(
+                    original, CreateComplexTypeOptions(incompatibleDefinition: false), null).ConfigureAwait(false);
+                Assert.That(reloaded.Id, Is.EqualTo(original.Id));
+                Assert.That(reloaded.Generation, Is.EqualTo(original.Generation + 1));
+            }
+        }
+
         /// <summary>
         /// Reloading a compatible complex-type NodeSet must rebuild the active generation's
         /// subtype and encoding indexes after the retired generation removes its types.
