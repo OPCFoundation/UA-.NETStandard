@@ -95,43 +95,23 @@ namespace Opc.Ua.Server.Hosting
             string? rootBrowseName)
             : base(server, configuration, logger, namespaceUri)
         {
-            m_server = server ?? throw new ArgumentNullException(nameof(server));
-            m_namespaceUri = namespaceUri ?? throw new ArgumentNullException(nameof(namespaceUri));
             m_build = build ?? throw new ArgumentNullException(nameof(build));
             m_rootBrowseName = rootBrowseName;
         }
 
-        public override async ValueTask CreateAddressSpaceAsync(
-            IDictionary<NodeId, IList<IReference>> externalReferences,
-            CancellationToken cancellationToken = default)
+        protected override ValueTask ConfigureAsync(
+            INodeManagerBuilder builder,
+            CancellationToken cancellationToken)
         {
-            if (externalReferences is null)
-            {
-                throw new ArgumentNullException(nameof(externalReferences));
-            }
-            ushort namespaceIndex = (ushort)m_server.NamespaceUris.GetIndex(m_namespaceUri);
-
-            NodeManagerBuilder builder = CreateFluentBuilder(namespaceIndex);
-
             // Staged before the build delegate runs, so it can parent nodes to
             // the root by NodeId or reach it by browse path.
             if (m_rootBrowseName != null)
             {
-                builder.Add(CreateRootFolder(namespaceIndex, m_rootBrowseName));
+                builder.Add(CreateRootFolder(NamespaceIndex, m_rootBrowseName));
             }
 
             m_build(builder);
-
-            // Register nodes the build delegate created through the builder's
-            // Add* methods before the reverse-reference pass runs.
-            await RegisterAuthoredNodesAsync(builder, cancellationToken).ConfigureAwait(false);
-
-            // Mirror references from build-created nodes to nodes owned by
-            // other node managers (e.g. the Objects folder) into the
-            // externalReferences dictionary before sealing the builder.
-            await CompleteConfigureAsync(externalReferences, cancellationToken).ConfigureAwait(false);
-
-            await builder.SealAsync(cancellationToken).ConfigureAwait(false);
+            return default;
         }
 
         /// <summary>
@@ -153,8 +133,6 @@ namespace Opc.Ua.Server.Hosting
         }
 
         private readonly Action<INodeManagerBuilder> m_build;
-        private readonly IServerInternal m_server;
-        private readonly string m_namespaceUri;
         private readonly string? m_rootBrowseName;
     }
 }

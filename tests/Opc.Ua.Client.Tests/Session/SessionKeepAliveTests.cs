@@ -211,6 +211,84 @@ namespace Opc.Ua.Client.Tests
             });
         }
 
+        /// <summary>
+        /// Once the transport channel is detached the keep alive read fails with
+        /// BadSecureChannelClosed, which the keep alive worker reports through
+        /// OnKeepAliveError, and the next tick reports BadNoCommunication.
+        /// Neither report may dereference the missing channel: the endpoint url
+        /// in the log comes from the configured endpoint, not from the channel.
+        /// </summary>
+        [Test]
+        public void KeepAliveReadFailureIsReportedAfterTheChannelIsDetached()
+        {
+            AssertKeepAliveErrorIsReportedAfterTheChannelIsDetached(
+                StatusCodes.BadSecureChannelClosed);
+        }
+
+        /// <summary>
+        /// See <see cref="KeepAliveReadFailureIsReportedAfterTheChannelIsDetached"/>;
+        /// BadNoCommunication additionally logs KEEP ALIVE LATE with the endpoint url.
+        /// </summary>
+        [Test]
+        public void KeepAliveLateIsReportedAfterTheChannelIsDetached()
+        {
+            AssertKeepAliveErrorIsReportedAfterTheChannelIsDetached(
+                StatusCodes.BadNoCommunication);
+        }
+
+        private static void AssertKeepAliveErrorIsReportedAfterTheChannelIsDetached(
+            StatusCode statusCode)
+        {
+            var timeProvider = new FakeTimeProvider();
+            using KeepAliveTestSession session = CreateSession(timeProvider);
+            StatusCode reported = StatusCodes.Good;
+            session.KeepAlive += (_, e) => reported = e.Status?.StatusCode ?? StatusCodes.Good;
+
+#pragma warning disable CS0618 // DetachChannel is obsolete
+            session.DetachChannel();
+#pragma warning restore CS0618
+
+            timeProvider.Advance(s_pastKeepAliveThreshold);
+            Assert.DoesNotThrow(() => session.RaiseKeepAliveError(statusCode));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(reported, Is.EqualTo(statusCode));
+                Assert.That(session.KeepAliveStopped, Is.True);
+            });
+        }
+
+        /// <summary>
+        /// The keep alive read on a detached channel fails with a service error
+        /// the keep alive worker handles, not with an unexpected exception.
+        /// </summary>
+        [Test]
+        public void KeepAliveReadAfterTheChannelIsDetachedFailsWithBadSecureChannelClosed()
+        {
+            using KeepAliveTestSession session = CreateSession(new FakeTimeProvider());
+
+#pragma warning disable CS0618 // DetachChannel is obsolete
+            session.DetachChannel();
+#pragma warning restore CS0618
+
+            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await session.ReadAsync(
+                    new RequestHeader(),
+                    0,
+                    TimestampsToReturn.Neither,
+                    new[]
+                    {
+                        new ReadValueId
+                        {
+                            NodeId = VariableIds.Server_ServerStatus_State,
+                            AttributeId = Attributes.Value
+                        }
+                    }.ToArrayOf(),
+                    default).ConfigureAwait(false));
+
+            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
+        }
+
         private static KeepAliveTestSession CreateSession(TimeProvider timeProvider)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();

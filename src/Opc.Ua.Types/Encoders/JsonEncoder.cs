@@ -595,7 +595,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteLocalizedText(string? fieldName, LocalizedText value)
         {
-            if (value.IsNull)
+            if (IsJsonNull(value))
             {
                 WriteNull(fieldName);
                 return;
@@ -895,7 +895,12 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteVariantValue(string? fieldName, in Variant value)
         {
-            if (m_options.IgnoreDefaultValues && value.ValueIsDefaultOrNull)
+            // No UaType is written here, so the decoder takes the value rank from the
+            // metadata and a null array can be omitted like any other null array field.
+            bool isNullArray = !value.TypeInfo.IsScalar && value.ValueIsDefaultOrNull;
+            if ((m_options.IgnoreDefaultValues && value.ValueIsDefaultOrNull) ||
+                (m_options.IgnoreNullValues && isNullArray) ||
+                CanOmitVariantValue(value))
             {
                 return;
             }
@@ -1044,7 +1049,7 @@ namespace Opc.Ua
                 {
                     WriteVariantUaTypeByte(value.WrappedValue);
                 }
-                if (!m_options.IgnoreDefaultValues || !value.WrappedValue.ValueIsDefaultOrNull)
+                if (!CanOmitVariantValue(value.WrappedValue))
                 {
                     m_writer.WritePropertyName(JsonProperties.Value);
                     WriteVariantContents(value.WrappedValue, false, m_options.SuppressArtifacts);
@@ -1565,18 +1570,31 @@ namespace Opc.Ua
         /// </summary>
         private void WriteLocalizedText(LocalizedText value)
         {
-            if (value.IsNull)
+            if (IsJsonNull(value))
             {
                 m_writer.WriteNullValue();
                 return;
             }
             StartObject();
-            WriteString(JsonProperties.Text, value.Text);
+            if (!string.IsNullOrEmpty(value.Text))
+            {
+                WriteString(JsonProperties.Text, value.Text);
+            }
             if (!string.IsNullOrEmpty(value.Locale))
             {
                 WriteString(JsonProperties.Locale, value.Locale);
             }
             EndObject();
+        }
+
+        /// <summary>
+        /// Text and Locale are not encoded if they are null or empty (Part 6 5.4.2.15), so a
+        /// value without either is the null LocalizedText (all fields default, Part 6 5.1.2).
+        /// </summary>
+        private static bool IsJsonNull(LocalizedText value)
+        {
+            return value.IsNull ||
+                (string.IsNullOrEmpty(value.Text) && string.IsNullOrEmpty(value.Locale));
         }
 
         /// <summary>
@@ -1899,12 +1917,63 @@ namespace Opc.Ua
             {
                 WriteVariantUaTypeByte(value);
             }
-            if (!m_options.IgnoreDefaultValues || !value.ValueIsDefaultOrNull)
+            if (!CanOmitVariantValue(value))
             {
                 m_writer.WritePropertyName(JsonProperties.Value);
                 WriteVariantContents(in value, false, suppressUaType);
             }
             EndObject();
+        }
+
+        /// <summary>
+        /// Whether the Value field of a Variant can be left out. The options apply as they
+        /// do to every other field: a NULL of a nullable built-in type (Part 6 Table 1) is
+        /// omitted like any null when nulls or defaults are ignored, and the default of a
+        /// non-nullable type only when defaults are ignored. A decoder reconstructs a missing
+        /// Value as a scalar of the UaType, so an array Value is never omitted; a null array
+        /// is written as the semantically equal empty array instead (Part 6 5.1.11).
+        /// </summary>
+        private bool CanOmitVariantValue(in Variant value)
+        {
+            if (!value.TypeInfo.IsScalar)
+            {
+                return false;
+            }
+            bool ignoreNulls = m_options.IgnoreNullValues || m_options.IgnoreDefaultValues;
+            switch (value.TypeInfo.BuiltInType)
+            {
+                case BuiltInType.LocalizedText:
+                    return ignoreNulls && IsJsonNull(value.GetLocalizedText());
+                case BuiltInType.String:
+                case BuiltInType.DateTime:
+                case BuiltInType.Guid:
+                case BuiltInType.ByteString:
+                case BuiltInType.XmlElement:
+                case BuiltInType.NodeId:
+                case BuiltInType.ExpandedNodeId:
+                case BuiltInType.QualifiedName:
+                case BuiltInType.ExtensionObject:
+                case BuiltInType.DataValue:
+                    return ignoreNulls && value.ValueIsDefaultOrNull;
+                case BuiltInType.Boolean:
+                case BuiltInType.SByte:
+                case BuiltInType.Byte:
+                case BuiltInType.Int16:
+                case BuiltInType.UInt16:
+                case BuiltInType.Int32:
+                case BuiltInType.UInt32:
+                case BuiltInType.Int64:
+                case BuiltInType.UInt64:
+                case BuiltInType.Float:
+                case BuiltInType.Double:
+                case BuiltInType.StatusCode:
+                case BuiltInType.Enumeration:
+                    return m_options.IgnoreDefaultValues && value.ValueIsDefaultOrNull;
+                default:
+                    // Includes Variant and DiagnosticInfo, which are not valid Variant
+                    // contents and must still reach the writer to be rejected.
+                    return false;
+            }
         }
 
         /// <summary>
@@ -2163,6 +2232,16 @@ namespace Opc.Ua
             // Write multi dimension
             else
             {
+                if (value.ValueIsDefaultOrNull)
+                {
+                    // A null matrix has no Dimensions a peer can accept (every entry
+                    // must be greater than zero), and null and empty arrays are
+                    // semantically the same (Part 6 5.1.11), so write an empty array.
+                    StartArray(0);
+                    EndArray();
+                    return;
+                }
+
                 int[] dim;
                 if (writeRawValue)
                 {

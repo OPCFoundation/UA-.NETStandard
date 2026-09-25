@@ -385,12 +385,12 @@ namespace Opc.Ua.Redundancy.Samples.Tests
         private static string LocateApplicationAssembly(string applicationDirectory, string assemblyName)
         {
             string repoRoot = FindRepositoryRoot();
-            string configuration = CurrentConfiguration();
+            (string configuration, string targetFramework) = CurrentOutputLayout();
             var probePaths = new List<string>();
             foreach (string config in new[] { configuration, "Release", "Debug" })
             {
                 probePaths.Add(Path.Combine(
-                    repoRoot, "samples", applicationDirectory, "bin", config, "net10.0", assemblyName + ".dll"));
+                    repoRoot, "samples", applicationDirectory, "bin", config, targetFramework, assemblyName + ".dll"));
             }
 
             foreach (string path in probePaths)
@@ -406,21 +406,22 @@ namespace Opc.Ua.Redundancy.Samples.Tests
                 "Ensure the sample applications are built (they are referenced by this test project).");
         }
 
-        private static string CurrentConfiguration()
+        private static (string Configuration, string TargetFramework) CurrentOutputLayout()
         {
-            // The test assembly runs from .../bin/<Configuration>/<tfm>/; reuse that
-            // configuration when locating the sibling sample application output.
+            // The test assembly runs from .../bin/<Configuration>/<tfm>/; the samples
+            // follow CustomTestTarget like this project, so reuse both segments when
+            // locating the sibling sample application output.
             string baseDirectory = AppContext.BaseDirectory.Replace('\\', '/').TrimEnd('/');
             string[] segments = baseDirectory.Split('/');
-            for (int index = segments.Length - 1; index > 0; index--)
+            for (int index = segments.Length - 2; index > 0; index--)
             {
                 if (string.Equals(segments[index - 1], "bin", StringComparison.OrdinalIgnoreCase))
                 {
-                    return segments[index];
+                    return (segments[index], segments[index + 1]);
                 }
             }
 
-            return "Release";
+            return ("Release", "net10.0");
         }
 
         private static string FindRepositoryRoot()
@@ -462,6 +463,10 @@ namespace Opc.Ua.Redundancy.Samples.Tests
         private readonly Process m_process;
         private readonly Action<string> m_writeOutput;
         private readonly List<string> m_lines = [];
+#if NET9_0_OR_GREATER
         private readonly Lock m_lock = new();
+#else
+        private readonly object m_lock = new();
+#endif
     }
 }
