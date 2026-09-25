@@ -443,11 +443,16 @@ namespace Opc.Ua.Server.Historian
                 node,
                 HistoryUpdateType.Delete);
 
+            // startTime == endTime deletes the value at startTime: widen the range to
+            // one tick so every provider keeps the plain half-open [start, end) contract.
+            DateTimeUtc deleteEndTime = details.StartTime == details.EndTime
+                ? details.StartTime + TimeSpan.FromTicks(1)
+                : details.EndTime;
             HistorianUpdateOutcome<DataValue> outcome = await data.DeleteRawAsync(
                 opContext,
                 node.NodeId,
                 details.StartTime,
-                details.EndTime,
+                deleteEndTime,
                 details.IsDeleteModified,
                 cancellationToken).ConfigureAwait(false);
             if (outcome.OperationResults.Count != 1)
