@@ -43,12 +43,19 @@ from qualified names and native identities. A graph identity need not resemble
 its document's URI. Each lookup uses the carrying element's context; its raw
 authored target remains in the dependency edge. Ambiguous stored owners are not
 selected arbitrarily.
+Conversion uses the declaration owner's context for declaration keys and the
+referring element's context for reference keys. A scoped `@context` does not
+turn an otherwise reference-only `@id` object into another full definition.
+When a definition omits its native identity, indexing and conversion share
+`TryDeriveDataTypeNodeId`; an explicit identity does not gain a derived alias.
 
 `uav:dataTypeDefinition` and `uav:fieldDataTypeDefinition` add resolution edges.
 Recursive fields are legal. `uav:dataTypeSubtypeOf` preserves its ordering
 constraint for graph-identity, name and NodeId forms, including object forms.
 True inheritance cycles remain failures. Context-qualified typed links also
 contribute their document targets, with or without an optional `uav:refId`.
+An acyclic base/derived relationship inside one document does not create a
+Resource-level self-cycle; the converter still validates the type hierarchy.
 Opaque configuration, JSON literals and native preservation payloads are not
 readable declaration indexes.
 
@@ -74,6 +81,8 @@ unit does not dispose documents still available to the remaining units.
 
 An active definition owner emits its own declarations. Resolution-only
 definitions are emitted once by an active source in the prepared closure.
+Only a readable source can take that emission assignment. Native projection
+and envelope restoration preserve their native content and do not consume it.
 Consumers sharing such declarations stay in one publication unit rather than
 registering the same type independently. Generated NodeSets declare the
 namespaces of their emitted Nodes; merely referencing a namespace does not

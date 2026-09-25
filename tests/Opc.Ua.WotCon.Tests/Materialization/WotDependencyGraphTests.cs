@@ -34,6 +34,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Export;
+using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 
@@ -479,6 +481,107 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(closures[0].Dependencies.Single().TargetHref, Is.EqualTo("urn:r30:duplicate"));
             Assert.That(closures[0].Dependencies[0].TargetXid, Is.Null);
             Assert.That(closures[0].Dependencies[0].Resolved, Is.False);
+        }
+
+        [Test]
+        public async Task DerivedDataTypeIdentitySelectsTheSameStoredDefinitionAsConversion()
+        {
+            byte[] definitions = System.Text.Encoding.UTF8.GetBytes("""
+                {
+                  "@context":{"uav":"http://opcfoundation.org/UA/WoT-Binding/","t":"urn:r30:derived-types"},
+                  "@type":["tm:ThingModel","uav:objectType"],
+                  "id":"urn:r30:derived-document","title":"Definitions",
+                  "uav:id":"nsu=urn:r30:derived-types;s=Definitions","uav:browseName":"t:Definitions",
+                  "uav:dataTypeDefinitions":[{
+                    "@id":"urn:r30:derived-reading","@type":"uav:SimpleDataType",
+                    "uav:dataTypeName":"t:Reading","uav:dataTypeSubtypeOf":{"uav:dataTypeId":"i=6"}
+                  }]
+                }
+                """);
+            byte[] content = System.Text.Encoding.UTF8.GetBytes("""
+                {
+                  "id":"urn:r30:derived-consumer","title":"Consumer",
+                  "properties":{"reading":{"uav:dataTypeId":"nsu=urn:r30:derived-types;s=DataTypes/Reading"}}
+                }
+                """);
+            using WotDocument document = WotDocument.Parse(definitions);
+            WotConversionResult<UANodeSet> converted = WotNodeSetConverter.ToNodeSetResult(document);
+            Assert.That(converted.Success, Is.True, string.Join("; ", converted.Diagnostics.Select(item => item.Message)));
+            UADataType type = converted.Value!.Items!.OfType<UADataType>().Single();
+            Assert.That(NodeId.TryParse(type.NodeId!, out NodeId nativeId), Is.True);
+            Assert.That(nativeId.TryGetValue(out string identifier), Is.True);
+            Assert.That(identifier, Is.EqualTo("DataTypes/Reading"));
+            Assert.That(converted.Value.NamespaceUris![nativeId.NamespaceIndex - 1], Is.EqualTo("urn:r30:derived-types"));
+            SnapshotFixture fixture = await Snapshot(
+                (WoTDocumentKindEnum.ThingModel, "definitions", definitions),
+                (WoTDocumentKindEnum.ThingDescription, "consumer", content));
+            WotResource source = fixture.Snapshot.FindResource(WotRegistryGroups.ThingDescriptions, "consumer")!;
+            WotResource target = fixture.Snapshot.FindResource(WotRegistryGroups.ThingModels, "definitions")!;
+
+            ImmutableArray<WotDependencyClosure> closures = await WotDependencyGraph.BuildClosuresAsync(
+                fixture.Snapshot, [source], 64, fixture.ReadContent, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(closures.Single().Members.Select(member => member.Xid),
+                Is.EquivalentTo(new[] { source.Xid, target.Xid }));
+            Assert.That(closures[0].Dependencies.Single().TargetXid, Is.EqualTo(target.Xid));
+            ImmutableArray<WotDependent> dependents = await WotDependencyGraph.FindDependentsAsync(
+                fixture.Snapshot, target, 64, fixture.ReadContent, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(dependents.Select(dependent => dependent.Xid), Is.EqualTo(new[] { source.Xid }));
+        }
+
+        [Test]
+        public async Task SameDocumentDataTypeInheritanceDoesNotCreateAResourceOrderingCycle()
+        {
+            byte[] content = System.Text.Encoding.UTF8.GetBytes("""
+                {
+                  "@context":{"uav":"http://opcfoundation.org/UA/WoT-Binding/","t":"urn:r30:local-types"},
+                  "@type":"tm:ThingModel","id":"urn:r30:local-types-document","title":"Local types",
+                  "uav:dataTypeDefinitions":[
+                    {
+                      "@id":"urn:r30:local-base","@type":"uav:SimpleDataType",
+                      "uav:dataTypeName":"t:Base","uav:dataTypeSubtypeOf":{"uav:dataTypeId":"i=6"}
+                    },
+                    {
+                      "@id":"urn:r30:local-derived","@type":"uav:SimpleDataType",
+                      "uav:dataTypeName":"t:Derived","uav:dataTypeSubtypeOf":{"@id":"urn:r30:local-base"}
+                    }
+                  ]
+                }
+                """);
+            SnapshotFixture fixture = await Snapshot((WoTDocumentKindEnum.ThingModel, "types", content));
+            WotResource source = fixture.Snapshot.AllResources().Single();
+
+            ImmutableArray<WotDependencyClosure> closures = await WotDependencyGraph.BuildClosuresAsync(
+                fixture.Snapshot, [source], 64, fixture.ReadContent, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(closures.Single().HasCycle, Is.False,
+                "A base and its derived definition inside one document are not a cycle between Resources.");
+            Assert.That(closures[0].IsProjectable, Is.True);
+            Assert.That(closures[0].Members.Single().Xid, Is.EqualTo(source.Xid));
+            Assert.That(closures[0].Dependencies.Single().TargetXid, Is.EqualTo(source.Xid));
+            Assert.That(closures[0].Dependencies[0].RefType, Is.EqualTo("uav:dataTypeSubtypeOf"));
+        }
+
+        [Test]
+        public void ExplicitDataTypeIdentityDoesNotAcquireADerivedAlias()
+        {
+            ByteString content = ByteString.From(System.Text.Encoding.UTF8.GetBytes("""
+                {
+                  "@context":{"uav":"http://opcfoundation.org/UA/WoT-Binding/","t":"urn:r30:explicit-types"},
+                  "id":"urn:r30:explicit-document",
+                  "uav:dataTypeDefinitions":[{
+                    "@id":"urn:r30:explicit-reading","@type":"uav:SimpleDataType",
+                    "uav:dataTypeName":"t:Reading","uav:dataTypeId":"nsu=urn:r30:explicit-types;i=3000",
+                    "uav:dataTypeSubtypeOf":{"uav:dataTypeId":"i=6"}
+                  }]
+                }
+                """));
+
+            WotResourceDependencies metadata = WotDependencyGraph.ReadMetadata(content, 64);
+
+            Assert.That(metadata.Error, Is.Empty);
+            Assert.That(metadata.DefinedNodeIds.Count, Is.EqualTo(1));
+            Assert.That(metadata.DefinedNodeIds[0], Is.EqualTo("nsu=urn:r30:explicit-types;i=3000"));
         }
 
         [TestCase("#/schemaDefinitions/Event")]

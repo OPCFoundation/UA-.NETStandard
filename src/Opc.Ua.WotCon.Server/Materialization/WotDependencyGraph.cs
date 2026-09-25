@@ -963,7 +963,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             $"referenced by '{edge.SourceXid}'.");
                     }
                     else if (edge.TargetXid is not null && memberXids.Contains(edge.TargetXid) &&
-                        IsOrderingReference(edge.RefType))
+                        IsOrderingReference(edge.RefType) &&
+                        (edge.TargetXid != member.Xid || edge.RefType != "uav:dataTypeSubtypeOf"))
                     {
                         adjacency[member.Xid].Add(edge.TargetXid);
                     }

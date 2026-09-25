@@ -397,7 +397,7 @@ namespace Opc.Ua.Wot
             return false;
         }
 
-        private static bool TryExpandSemanticIdentity(
+        internal static bool TryExpandSemanticIdentity(
             string value, WotDocument document, JsonElement owner, string origin,
             bool vocabulary, out string identity)
         {

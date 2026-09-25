@@ -104,6 +104,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             bool declaresDataType = IsDataTypeDefinition(document, element);
             if (declaresDataType)
             {
+                string? declaredName = null;
+                bool explicitIdentity = false;
                 if (element.TryGetProperty("@id", out JsonElement identity) && identity.ValueKind == JsonValueKind.String)
                 {
                     definitions.Add(ExpandReference(document, identity.GetString()!, element));
@@ -111,16 +113,28 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 foreach (JsonProperty member in element.EnumerateObject())
                 {
                     string term = SemanticTerm(document, member.Name, element);
-                    if (term == "uav:dataTypeName" &&
-                        TryDataTypeName(document, element, member.Value, out string name))
+                    if (term == "uav:dataTypeName" && member.Value.ValueKind == JsonValueKind.String)
                     {
-                        definitionNames.Add(name);
+                        declaredName = member.Value.GetString();
+                        if (TryDataTypeName(document, element, member.Value, out string name))
+                        {
+                            definitionNames.Add(name);
+                        }
                     }
-                    else if (term == "uav:dataTypeId" &&
-                        TryDataTypeNodeId(document, element, member.Value, out string nodeId))
+                    else if (term == "uav:dataTypeId")
                     {
-                        defined.Add(nodeId);
+                        explicitIdentity = true;
+                        if (TryDataTypeNodeId(document, element, member.Value, out string nodeId))
+                        {
+                            defined.Add(nodeId);
+                        }
                     }
+                }
+                if (!explicitIdentity && declaredName is not null &&
+                    WotNodeSetConverter.TryDeriveDataTypeNodeId(
+                        document, declaredName, out ExpandedNodeId derived, element))
+                {
+                    defined.Add(derived.ToString());
                 }
             }
             foreach (JsonProperty property in element.EnumerateObject())

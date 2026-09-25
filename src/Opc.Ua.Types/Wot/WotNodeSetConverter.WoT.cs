@@ -446,7 +446,7 @@ namespace Opc.Ua.Wot
                 return captured.IsNull ? [] : captured;
             }
             var known = new HashSet<string>(StringComparer.Ordinal);
-            var pending = new Queue<(JsonElement Root, int Depth)>();
+            var pending = new Queue<(WotDocument Owner, JsonElement Root, int Depth)>();
             foreach (WotDocument owner in localOwners)
             {
                 if (TakesRestorePath(owner))
@@ -455,33 +455,33 @@ namespace Opc.Ua.Wot
                 }
                 foreach (JsonElement definition in ReadDataTypeDefinitionOccurrences(owner.RootElement))
                 {
-                    if (!IsReferenceOnlyDefinition(definition) && GetElementString(definition, "@id") is { } graphId)
+                    if (!IsReferenceOnlyDefinition(definition) && ReadDataTypeGraphId(owner, definition) is { } graphId)
                     {
                         known.Add(graphId);
                     }
                 }
-                pending.Enqueue((owner.RootElement, 0));
+                pending.Enqueue((owner, owner.RootElement, 0));
             }
             var sources = captured.ToList();
             foreach (WotDataTypeDefinitionSource source in captured)
             {
                 documents.Add(source.Document);
-                if (GetElementString(source.Definition, "@id") is { } graphId)
+                if (ReadDataTypeGraphId(source.Document, source.Definition) is { } graphId)
                 {
                     known.Add(graphId);
                 }
-                pending.Enqueue((source.Definition, 0));
+                pending.Enqueue((source.Document, source.Definition, 0));
             }
             while (pending.Count != 0)
             {
-                (JsonElement root, int depth) = pending.Dequeue();
+                (WotDocument owner, JsonElement root, int depth) = pending.Dequeue();
                 ArrayOf<JsonElement> references = ReadDataTypeDefinitionOccurrences(root);
                 for (int index = 0; index < references.Count; index++)
                 {
                     JsonElement reference = references[index];
                     cancellationToken.ThrowIfCancellationRequested();
                     if (!IsReferenceOnlyDefinition(reference) ||
-                        GetElementString(reference, "@id") is not { } graphId ||
+                        ReadDataTypeGraphId(owner, reference) is not { } graphId ||
                         !known.Add(graphId))
                     {
                         continue;
@@ -501,7 +501,7 @@ namespace Opc.Ua.Wot
                         continue;
                     }
                     WotDataTypeDefinitionSource source = matches[0];
-                    if (GetElementString(source.Definition, "@id") != graphId ||
+                    if (ReadDataTypeGraphId(source.Document, source.Definition) != graphId ||
                         IsReferenceOnlyDefinition(source.Definition))
                     {
                         Report(graphId, "The provider did not return the requested complete DataType definition.");
@@ -516,12 +516,13 @@ namespace Opc.Ua.Wot
                     sources.Add(source);
                     foreach (JsonElement nested in ReadDataTypeDefinitionOccurrences(source.Definition))
                     {
-                        if (!IsReferenceOnlyDefinition(nested) && GetElementString(nested, "@id") is { } nestedId)
+                        if (!IsReferenceOnlyDefinition(nested) &&
+                            ReadDataTypeGraphId(source.Document, nested) is { } nestedId)
                         {
                             known.Add(nestedId);
                         }
                     }
-                    pending.Enqueue((source.Definition, depth + 1));
+                    pending.Enqueue((source.Document, source.Definition, depth + 1));
                 }
             }
             return sources.ToArrayOf();
@@ -4948,7 +4949,7 @@ namespace Opc.Ua.Wot
             {
                 return null;
             }
-            if (GetElementString(declared, "@id") is { } graphIdentity &&
+            if (ReadDataTypeGraphId(document, declared) is { } graphIdentity &&
                 dataTypes?.Identities.TryGetValue(graphIdentity, out string? resolved) == true)
             {
                 return ToNodeSetNodeId(resolved, nodeSet, diagnostics);
@@ -4957,7 +4958,7 @@ namespace Opc.Ua.Wot
             {
                 return ResolveDataTypeIdentity(document, declared, nodeSet, diagnostics);
             }
-            string? graphId = GetElementString(declared, "@id");
+            string? graphId = ReadDataTypeGraphId(document, declared);
             if (graphId is null)
             {
                 return null;

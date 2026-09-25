@@ -38,6 +38,7 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
+using Opc.Ua.Export;
 using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
@@ -50,6 +51,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [TestCase(0, false, false, false, 0, false)]
         [TestCase(1, false, false, false, 0, false)]
         [TestCase(2, false, false, false, 0, false)]
+        [TestCase(3, false, false, false, 0, false)]
         [TestCase(0, true, false, false, 0, false)]
         [TestCase(1, true, false, false, 0, false)]
         [TestCase(2, true, false, false, 0, false)]
@@ -60,16 +62,31 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [TestCase(0, false, true, true, 2, false)]
         [TestCase(0, false, true, true, 0, true)]
         [TestCase(0, true, true, true, 0, true)]
-        public async Task SelectedDefinitionOwnerMaterializesThroughTheStockNativePath(
+        public Task SelectedDefinitionOwnerMaterializesThroughTheStockNativePath(
             int referenceForm, bool activeDefinition, bool sharedDefinition, bool perResource, int restart, bool decorated)
+        {
+            return VerifyDefinitionPublicationAsync(
+                referenceForm, activeDefinition, sharedDefinition, perResource, restart, decorated, false);
+        }
+
+        [Test]
+        public Task NativeRestorationCannotConsumeReadableDeclarationOwnership()
+        {
+            return VerifyDefinitionPublicationAsync(0, false, false, false, 0, false, true);
+        }
+
+        private async Task VerifyDefinitionPublicationAsync(
+            int referenceForm, bool activeDefinition, bool sharedDefinition, bool perResource,
+            int restart, bool decorated, bool nativeFirst)
         {
             m_coordinator.Dispose();
             var conversionOptions = new WotNodeSetConverterOptions();
             var stock = new WotNodeSetDocumentConverter(conversionOptions);
             var borrowedDocuments = new List<WotDocument>();
             var emissionFlags = new List<bool>();
+            var converted = new List<string>();
             IWotDocumentConverter converter = stock;
-            if (decorated)
+            if (decorated || nativeFirst)
             {
                 var decorator = new Mock<IWotDocumentConverter>(MockBehavior.Strict);
                 decorator.Setup(value => value.ConvertAsync(
@@ -78,6 +95,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     .Returns((WotResource resource, ByteString bytes, WotRegistrySnapshot snapshot,
                         IReadOnlyDictionary<string, ByteString> contents, CancellationToken token) =>
                     {
+                        converted.Add(resource.Xid);
+                        if (!decorated)
+                        {
+                            return stock.ConvertAsync(resource, bytes, snapshot, contents, token);
+                        }
                         Assert.That(contents, Is.InstanceOf<IWotDocumentConversionContext>());
                         if (borrowedDocuments.Count != 0)
                         {
@@ -105,6 +127,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             await m_server.NodeManagerLifecycle.AddAsync(new WotRegistryNodeManagerFactory(
                 new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator),
                 callerContext: null).ConfigureAwait(false);
+            WotResource? native = nativeFirst ? await AddNativePredecessorAsync().ConfigureAwait(false) : null;
+            ByteString nativeContent = native is null ? default :
+                await m_registry.ReadContentAsync(native.DefaultVersion!).ConfigureAwait(false);
+            string nativeLink = native is null ? string.Empty :
+                ""","links":[{"rel":"ua:Organizes","href":"urn:r30:native-predecessor"}]""";
             WotRegistryMutationResult definition = await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
                 GroupId = WotRegistryGroups.ThingModels, ResourceId = "native-types", VersionId = "v1",
@@ -140,6 +167,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             {
                 0 => "\"uav:dataTypeDefinition\":{\"@id\":\"urn:r30:native-reading-definition\"}",
                 1 => "\"uav:dataTypeName\":\"types:Reading\"",
+                3 => "\"uav:dataTypeDefinition\":{\"@id\":\"d:native-reading-definition\"}",
                 _ => "\"uav:dataTypeId\":\"nsu=urn:r30:native-types;i=3000\""
             };
             WotRegistryMutationResult source = await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
@@ -151,6 +179,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                       "@context": {
                         "uav": "http://opcfoundation.org/UA/WoT-Binding/",
                         "sensor": "urn:r30:native-sensor",
+                        "d": "urn:r30:",
                         "types": "urn:r30:native-types"
                       },
                       "@type": "uav:object",
@@ -163,7 +192,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                           "uav:id": "nsu=urn:r30:native-sensor;s=Reading",
                           {{{reference}}}
                         }
-                      }
+                      }{{{nativeLink}}}
                     }
                     """))
             }).ConfigureAwait(false);
@@ -173,6 +202,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             if (perResource)
             {
                 request.Options.Atomicity = WoTAtomicityEnum.PerResource;
+            }
+            else if (nativeFirst)
+            {
+                request.Options.Atomicity = WoTAtomicityEnum.PerClosure;
             }
             request.Selection =
             [
@@ -203,6 +236,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             WotRefreshResult result = await m_coordinator.RefreshAsync(request).ConfigureAwait(false);
 
             Assert.That(result.Summary.Failed, Is.Zero, string.Join("; ", result.Results.Select(row => row.Message)));
+            if (native is not null)
+            {
+                Assert.That(converted.IndexOf(native.Xid), Is.LessThan(converted.IndexOf(consumer.Xid)));
+                Assert.That(m_registry.Current.FindResourceByXid(native.Xid)!.ActiveVersionId, Is.EqualTo("v1"));
+                Assert.That(await m_registry.ReadContentAsync(native.DefaultVersion!).ConfigureAwait(false),
+                    Is.EqualTo(nativeContent));
+            }
             uint generation = perResource && activeDefinition && sharedDefinition ? 3u : 1u;
             Assert.That(result.NewGeneration, Is.EqualTo(generation));
             if (decorated)
@@ -229,7 +269,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 active.CommittedInputs.ToList().Single(input => input.Xid == model.Xid).DefaultVersion!;
             Assert.That(captured.Digest, Is.EqualTo(model.DefaultVersion!.Digest));
             Assert.That(active.DefaultVersion!.DependencySnapshot!.Edges.ToList()
-                .Single(edge => edge.SourceXid == consumer.Xid).TargetXid, Is.EqualTo(model.Xid));
+                .Single(edge => edge.SourceXid == consumer.Xid && edge.TargetXid == model.Xid).Resolved, Is.True);
+            if (referenceForm == 3)
+            {
+                Assert.That(active.DefaultVersion.DependencySnapshot.Edges.ToList()
+                    .Single(edge => edge.SourceXid == consumer.Xid).TargetHref, Is.EqualTo("d:native-reading-definition"));
+            }
             await m_session.FetchNamespaceTablesAsync().ConfigureAwait(false);
             NodeId property = ExpandedNodeId.ToNodeId(
                 ExpandedNodeId.Parse("nsu=urn:r30:native-sensor;s=Reading"), m_session.NamespaceUris);
@@ -282,6 +327,41 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             {
                 await VerifyCapturedDefinitionRecoveryAsync(model, consumer, restart == 2).ConfigureAwait(false);
             }
+        }
+
+        private async Task<WotResource> AddNativePredecessorAsync()
+        {
+            byte[] xml = Encoding.UTF8.GetBytes("""
+                <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+                  <NamespaceUris><Uri>urn:r30:native-predecessor-model</Uri></NamespaceUris>
+                  <Models>
+                    <Model ModelUri="urn:r30:native-predecessor-model" Version="1.0.0"
+                      PublicationDate="2026-01-01T00:00:00Z" />
+                  </Models>
+                  <UAObjectType NodeId="ns=1;i=6000" BrowseName="1:NativeType">
+                    <DisplayName>NativeType</DisplayName>
+                    <References><Reference ReferenceType="i=45" IsForward="false">i=58</Reference></References>
+                  </UAObjectType>
+                </UANodeSet>
+                """);
+            using var stream = new MemoryStream(xml);
+            UANodeSet nodes = UANodeSet.Read(stream)!;
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(
+                nodes, "NativeType", new WotNodeSetConverterOptions
+                {
+                    PreservationMode = WotNodeSetPreservationMode.Always
+                });
+            Assert.That(document.TryGetEnvelope(out _), Is.True);
+            JsonObject json = JsonNode.Parse(document.Utf8Json.Span)!.AsObject();
+            json["id"] = "urn:r30:native-predecessor";
+            WotRegistryMutationResult added = await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
+            {
+                GroupId = WotRegistryGroups.ThingModels, ResourceId = "a-native-predecessor",
+                Kind = WoTDocumentKindEnum.ThingModel, VersionId = "v1",
+                Content = ByteString.From(Encoding.UTF8.GetBytes(json.ToJsonString()))
+            }).ConfigureAwait(false);
+            Assert.That(added.Changed, Is.True, added.Message);
+            return added.Resource!;
         }
 
         private async Task VerifyCapturedDefinitionRecoveryAsync(

@@ -953,7 +953,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 ByteString memberContent = await ReadCachedContentAsync(
                         contentCache, version, cancellationToken)
                     .ConfigureAwait(false);
-                (bool projectionPlan, string? projectionError) = GetProjectionAdmission(member, version, memberContent);
+                (bool projectionPlan, string? projectionError, bool emitsDeclarations) =
+                    GetProjectionAdmission(member, version, memberContent);
                 if (projectionPlan && projectionError is null)
                 {
                     if (activeXids.Contains(member.Xid))
@@ -962,7 +963,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     }
                     continue;
                 }
-                bool ownsResolutionDefinitions = activeXids.Contains(member.Xid) && !declarationOwnerAssigned;
+                bool ownsResolutionDefinitions = emitsDeclarations &&
+                    activeXids.Contains(member.Xid) && !declarationOwnerAssigned;
                 declarationOwnerAssigned |= ownsResolutionDefinitions;
 
                 (UANodeSet? nodeSet, ExpandedNodeId root, string? conversionError, WoTPhaseEnum failurePhase,
@@ -1454,7 +1456,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Classifies a stored plan and rechecks its admission before publishing
         /// any part of its materialization closure.
         /// </summary>
-        private (bool IsProjection, string? Error) GetProjectionAdmission(
+        private (bool IsProjection, string? Error, bool EmitsDeclarations) GetProjectionAdmission(
             WotResource resource, WotResourceVersion version, ByteString content)
         {
             using WotDocument? document = TryParseDocument(content);
@@ -1462,10 +1464,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 return (false, WotProjectionAdmission.UsesProjectionFormat(version.Format, version.ContentType)
                     ? "The stored projection plan is not a well-formed JSON document within the configured bounds."
-                    : null);
+                    : null, false);
             }
             return (WotProjection.IsProjection(document), WotProjectionAdmission.GetError(
-                document, resource.Kind, version.Format, version.ContentType, m_converterOptions.ProjectionCompatibilityMode));
+                document, resource.Kind, version.Format, version.ContentType, m_converterOptions.ProjectionCompatibilityMode),
+                !document.TryGetEnvelope(out _) && !document.TryGetNativeProjection(out _));
         }
 
         private WotDocument? TryParseDocument(ByteString content)

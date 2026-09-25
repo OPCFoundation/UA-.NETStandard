@@ -230,7 +230,7 @@ namespace Opc.Ua.Wot
 
             void AddSource(WotDocument owner, JsonElement definition)
             {
-                string? graphId = GetElementString(definition, "@id");
+                string? graphId = ReadDataTypeGraphId(owner, definition);
                 if (graphId is null || IsReferenceOnlyDefinition(definition))
                 {
                     return;
@@ -240,7 +240,7 @@ namespace Opc.Ua.Wot
                     return;
                 }
                 int count = complete.Count;
-                AddDataTypeDefinition(definition, complete, diagnostics);
+                AddDataTypeDefinition(owner, definition, complete, diagnostics);
                 if (complete.Count != count)
                 {
                     owners[graphId] = owner;
@@ -637,7 +637,7 @@ namespace Opc.Ua.Wot
             var complete = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
             foreach (JsonElement definition in ReadDataTypeDefinitionOccurrences(document.RootElement))
             {
-                AddDataTypeDefinition(definition, complete, diagnostics);
+                AddDataTypeDefinition(document, definition, complete, diagnostics);
             }
             return complete;
         }
@@ -744,6 +744,7 @@ namespace Opc.Ua.Wot
         }
 
         private static void AddDataTypeDefinition(
+            WotDocument document,
             JsonElement definition,
             Dictionary<string, JsonElement> complete,
             List<WotDiagnostic> diagnostics)
@@ -752,7 +753,7 @@ namespace Opc.Ua.Wot
             {
                 return;
             }
-            string? graphId = GetElementString(definition, "@id");
+            string? graphId = ReadDataTypeGraphId(document, definition);
             if (graphId is null)
             {
                 diagnostics.Add(new WotDiagnostic(
@@ -780,11 +781,28 @@ namespace Opc.Ua.Wot
             complete.Add(graphId, definition);
         }
 
+        private static string? ReadDataTypeGraphId(WotDocument document, JsonElement definition)
+        {
+            string? raw = GetElementString(definition, "@id");
+            if (raw is null)
+            {
+                return null;
+            }
+            if (ExpandedNodeId.TryParse(raw, out _))
+            {
+                return raw;
+            }
+            return WotProjectionResolver.TryExpandSemanticIdentity(
+                raw, document, definition, document.Id ?? string.Empty, false, out string identity)
+                    ? identity
+                    : throw new FormatException($"The DataType graph identity '{raw}' cannot be expanded in its context.");
+        }
+
         internal static bool IsReferenceOnlyDefinition(JsonElement definition)
         {
             foreach (JsonProperty member in definition.EnumerateObject())
             {
-                if (!string.Equals(member.Name, "@id", StringComparison.Ordinal))
+                if (member.Name is not ("@id" or "@context"))
                 {
                     return false;
                 }
@@ -910,7 +928,7 @@ namespace Opc.Ua.Wot
             List<WotDiagnostic> diagnostics,
             JsonElement carryingNode = default)
         {
-            if (!TrySplitCompactName(document, name, out string namespaceUri, out string local, carryingNode))
+            if (!TryDeriveDataTypeNodeId(document, name, out ExpandedNodeId identity, carryingNode))
             {
                 diagnostics.Add(new WotDiagnostic(
                     WotDiagnosticSeverity.Error,
@@ -920,12 +938,29 @@ namespace Opc.Ua.Wot
                     new WotLocation(reference: name)));
                 return null;
             }
-            string portable = "nsu=" +
-                CoreUtils.EscapeUri(namespaceUri) +
-                ";s=" +
-                DataTypeIdPrefix +
-                local;
-            return ToNodeSetNodeId(portable, nodeSet, diagnostics);
+            return ToNodeSetNodeId(identity.ToString(), nodeSet, diagnostics);
+        }
+
+        /// <summary>
+        /// Derives the portable DataType identity from its qualified name using the owning context.
+        /// Explicitly authored identities take precedence over this derivation.
+        /// </summary>
+        /// <param name="document">The document owning the name.</param>
+        /// <param name="name">The authored qualified DataType name.</param>
+        /// <param name="identity">The derived identity, or Null when the name cannot be expanded.</param>
+        /// <param name="carryingNode">The element supplying scoped context.</param>
+        /// <returns>Whether the qualified name determines an identity.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static bool TryDeriveDataTypeNodeId(
+            WotDocument document, string name, out ExpandedNodeId identity, JsonElement carryingNode = default)
+        {
+            if (!TrySplitCompactName(document, name, out string namespaceUri, out string local, carryingNode))
+            {
+                identity = ExpandedNodeId.Null;
+                return false;
+            }
+            identity = new ExpandedNodeId(new NodeId(DataTypeIdPrefix + local, 0), namespaceUri);
+            return true;
         }
 
         /// <summary>
@@ -1370,7 +1405,11 @@ namespace Opc.Ua.Wot
             if (reference.ValueKind == JsonValueKind.String)
             {
                 string value = reference.GetString()!;
-                if (context.Identities.TryGetValue(value, out string? identity))
+                JsonElement owner = carryingNode.ValueKind == JsonValueKind.Undefined
+                    ? document.RootElement : carryingNode;
+                string graphIdentity = WotProjectionResolver.TryExpandSemanticIdentity(
+                    value, document, owner, document.Id ?? string.Empty, false, out string expanded) ? expanded : value;
+                if (context.Identities.TryGetValue(graphIdentity, out string? identity))
                 {
                     return ToNodeSetNodeId(identity, nodeSet, diagnostics);
                 }
@@ -1387,7 +1426,7 @@ namespace Opc.Ua.Wot
             {
                 return null;
             }
-            string? graphId = GetElementString(reference, "@id");
+            string? graphId = ReadDataTypeGraphId(document, reference);
             if (graphId is not null && context.Identities.TryGetValue(graphId, out string? resolved))
             {
                 return ToNodeSetNodeId(resolved, nodeSet, diagnostics);
