@@ -2001,12 +2001,20 @@ namespace Opc.Ua.Client
         /// reconnect of this session waits for that lock, and the managed
         /// channel only becomes Ready again once the reconnect returned, so a
         /// holder waiting for Ready would deadlock with it. The reconnect
-        /// therefore cancels the holder (see <see cref="CancelReconnectLockHolder"/>).
+        /// therefore cancels the holder (see <see cref="BeginReconnectLockInterruption"/>).
         /// </summary>
         private CancellationTokenSource EnterReconnectLockHolder(CancellationToken ct)
         {
             var holder = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            Volatile.Write(ref m_reconnectLockHolder, holder);
+            Interlocked.Exchange(ref m_reconnectLockHolder, holder);
+
+            // An operation that was queued on the lock behind the interrupted
+            // holder takes it while the channel recovery still waits for it:
+            // interrupt it right away instead of deadlocking again.
+            if (Volatile.Read(ref m_reconnectLockInterrupts) != 0)
+            {
+                holder.Cancel();
+            }
             return holder;
         }
 
@@ -2018,10 +2026,13 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// Interrupts the operation currently holding <see cref="m_reconnectLock"/>
-        /// across network I/O so a channel-manager reconnect can take the lock.
+        /// across network I/O, and every operation that takes the lock until
+        /// <see cref="EndReconnectLockInterruption"/>, so a channel-manager
+        /// reconnect can take the lock.
         /// </summary>
-        private void CancelReconnectLockHolder()
+        private void BeginReconnectLockInterruption()
         {
+            Interlocked.Increment(ref m_reconnectLockInterrupts);
             CancellationTokenSource? holder = Volatile.Read(ref m_reconnectLockHolder);
             if (holder == null)
             {
@@ -2035,6 +2046,15 @@ namespace Opc.Ua.Client
             {
                 // The holder finished in the meantime.
             }
+        }
+
+        /// <summary>
+        /// Ends an interruption started by <see cref="BeginReconnectLockInterruption"/>
+        /// once the channel-manager reconnect no longer needs the lock.
+        /// </summary>
+        private void EndReconnectLockInterruption()
+        {
+            Interlocked.Decrement(ref m_reconnectLockInterrupts);
         }
 
         private static bool IsInterruptedByChannelRecovery(
