@@ -1954,14 +1954,17 @@ namespace Opc.Ua.Server
                 .EnumerateAsync(cancellationToken).ConfigureAwait(false);
             using CertificateCollection issuers = await GetStore(m_issuerStore)
                 .EnumerateAsync(cancellationToken).ConfigureAwait(false);
-            using CertificateManager validator = CertificateManagerFactory.Create(
+            CertificateManager validator = CertificateManagerFactory.Create(
                 securityConfiguration,
                 m_telemetry);
-            return await ValidateCertificateAsync(
-                validator,
-                certificate,
-                trusted.Concat(issuers),
-                cancellationToken).ConfigureAwait(false);
+            await using (validator.ConfigureAwait(false))
+            {
+                return await ValidateCertificateAsync(
+                    validator,
+                    certificate,
+                    trusted.Concat(issuers),
+                    cancellationToken).ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -1990,10 +1993,6 @@ namespace Opc.Ua.Server
             Certificate[] pool = [.. (issuerCertificates ?? currentIssuers!)
                 .Concat(trustedCertificates ?? currentTrusted!)];
 
-            using CertificateManager validator = CertificateManagerFactory.Create(
-                securityConfiguration,
-                m_telemetry);
-
             foreach (Certificate issuer in issuerCertificates ?? [])
             {
                 if (!X509Utils.IsCertificateAuthority(issuer))
@@ -2005,20 +2004,26 @@ namespace Opc.Ua.Server
                 }
             }
 
-            foreach (Certificate certificate in (issuerCertificates ?? []).Concat(trustedCertificates ?? []))
+            CertificateManager validator = CertificateManagerFactory.Create(
+                securityConfiguration,
+                m_telemetry);
+            await using (validator.ConfigureAwait(false))
             {
-                ServiceResult validation = await ValidateCertificateAsync(
-                    validator,
-                    certificate,
-                    pool,
-                    cancellationToken).ConfigureAwait(false);
-                if (ServiceResult.IsBad(validation))
+                foreach (Certificate certificate in (issuerCertificates ?? []).Concat(trustedCertificates ?? []))
                 {
-                    return ServiceResult.Create(
-                        StatusCodes.BadCertificateInvalid,
-                        "Certificate {0} failed validation: {1}",
-                        certificate.Subject,
-                        validation.StatusCode);
+                    ServiceResult validation = await ValidateCertificateAsync(
+                        validator,
+                        certificate,
+                        pool,
+                        cancellationToken).ConfigureAwait(false);
+                    if (ServiceResult.IsBad(validation))
+                    {
+                        return ServiceResult.Create(
+                            StatusCodes.BadCertificateInvalid,
+                            "Certificate {0} failed validation: {1}",
+                            certificate.Subject,
+                            validation.StatusCode);
+                    }
                 }
             }
 
@@ -2049,6 +2054,10 @@ namespace Opc.Ua.Server
 
             var options = new Security.Certificates.CertificateValidationOptions
             {
+                // A certificate refused by a TrustList method is not a peer
+                // the server rejected: never record it (and the issuers of
+                // the chain) in the server's Rejected store.
+                RecordRejectedCertificates = false,
                 AllowCertificateDownload = false,
                 UrlRetrievalTimeout = TimeSpan.FromMilliseconds(1),
                 // OPC 10000-12 §7.8.2: a certificate issued by a CA that is not

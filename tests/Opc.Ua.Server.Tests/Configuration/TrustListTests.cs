@@ -1894,6 +1894,48 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task RejectedTrustListCertificateIsNotRecordedInRejectedStoreAsync()
+        {
+            TrustListState node = CreateNode();
+            TrustList trustList = CreateTrustList(node);
+            var rejectedStore = new CertificateStoreIdentifier(Path.Combine(m_basePath, "rejected"));
+            using Certificate rejectedPeer = CreateTestCertificate("CN=TrustList Genuinely Rejected Peer");
+            using (ICertificateStore store = rejectedStore.OpenStore(m_telemetry))
+            {
+                await store.AddAsync(rejectedPeer).ConfigureAwait(false);
+            }
+            trustList.SetCertificateValidation(new SecurityConfiguration
+            {
+                RejectedCertificateStore = rejectedStore
+            });
+            ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
+
+            using Certificate caCert = CertificateBuilder
+                .Create("CN=TrustList Rejected Store CA")
+                .SetCAConstraint()
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate leaf = CertificateBuilder
+                .Create("CN=TrustList Rejected Store Leaf")
+                .SetIssuer(caCert)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            ServiceResult result = node.AddCertificate.OnCall(
+                context, node.AddCertificate, node.NodeId, leaf.RawData.ToByteString(), true);
+            Assert.That(ServiceResult.IsBad(result), Is.True);
+
+            // The refused certificate is not a rejected peer: the server's
+            // Rejected store keeps exactly what it held before.
+            using (ICertificateStore store = rejectedStore.OpenStore(m_telemetry))
+            {
+                using CertificateCollection rejected = await store.EnumerateAsync().ConfigureAwait(false);
+                Assert.That(rejected, Has.Count.EqualTo(1));
+                Assert.That(rejected[0].Thumbprint, Is.EqualTo(rejectedPeer.Thumbprint));
+            }
+        }
+
+        [Test]
         public void CloseAndUpdateWithValidationRejectsNonCaIssuerCertificate()
         {
             TrustListState node = CreateNode();
