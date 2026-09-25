@@ -248,6 +248,23 @@ namespace Opc.Ua.Server
             NodeState? state = await FindNodeStateAsync(nodeId, ct).ConfigureAwait(false);
             if (state is DataTypeState dataType)
             {
+                ExtensionObject definition = dataType.DataTypeDefinition;
+                if (definition.TryGetValue(out StructureDefinition? structure) &&
+                    (structure!.BaseDataType.IsNull || structure.DefaultEncodingId.IsNull))
+                {
+                    var completed = (StructureDefinition)structure.Clone();
+                    if (completed.BaseDataType.IsNull)
+                    {
+                        completed.BaseDataType = m_server.TypeTree.FindSuperType(dataType.NodeId);
+                    }
+                    if (completed.DefaultEncodingId.IsNull)
+                    {
+                        (_, ExpandedNodeId binaryEncodingId, _) = await BrowseForEncodingsAsync(
+                            nodeId, [BrowseNames.DefaultBinary], ct).ConfigureAwait(false);
+                        completed.DefaultEncodingId = ExpandedNodeId.ToNodeId(binaryEncodingId, NamespaceUris);
+                    }
+                    definition = new ExtensionObject(completed);
+                }
                 return new DataTypeNode
                 {
                     NodeId = dataType.NodeId,
@@ -255,7 +272,7 @@ namespace Opc.Ua.Server
                     DisplayName = dataType.DisplayName,
                     Description = dataType.Description,
                     IsAbstract = dataType.IsAbstract,
-                    DataTypeDefinition = dataType.DataTypeDefinition
+                    DataTypeDefinition = definition
                 };
             }
             return null;
