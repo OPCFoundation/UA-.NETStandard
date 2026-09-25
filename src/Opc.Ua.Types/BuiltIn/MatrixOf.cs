@@ -275,6 +275,13 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public int GetHashCode(IEqualityComparer<T> comparer)
         {
+            if (IsEmpty)
+            {
+                // Equals treats every empty matrix as equal regardless of its
+                // dimensions (e.g. [0] vs [0, 0] after an inline matrix round
+                // trip), so all empty (and null) matrices must hash alike.
+                return 0;
+            }
             var hashCode = new HashCode();
             for (int i = 0; i < m_memory.Length; i++)
             {
