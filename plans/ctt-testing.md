@@ -272,7 +272,8 @@ each CU on its own takes well over an hour.
    manual single-case CUs cost nothing.
 2. **One CTT process, fresh server.** The CTT keeps one alarm thread for the whole group, so the initial event
    capture (one Alarm Cycle Time) is paid once, by the first A & C CU.
-3. **Project copy with `/Server Test/Alarms and Conditions/Alarm Cycle Time` = 30** (default 60). The setting
+3. **`/Server Test/Alarms and Conditions/Alarm Cycle Time` = 30** (CTT default 60; `samples/UAReferenceServer.ctt.xml`
+   sets 30). The setting
    is the length of the initial capture, one third of the maximum time of every collector test case, and ten
    times the Enable `Test_003.js` refresh delay. The reference server's alarm sources run a 40 s sawtooth and
    every alarm type reports an event at most 11 s apart, so 30 s still captures every type, and the longest

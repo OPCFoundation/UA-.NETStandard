@@ -755,7 +755,8 @@ namespace Opc.Ua.Server
                 {
                     PromoteReadyMonitoredItems();
 
-                    if (m_itemsToPublish.Count > 0)
+                    if (m_itemsToPublish.Count > 0 ||
+                        m_messageQueue.LastSentMessage < m_messageQueue.SentCount)
                     {
                         if (!m_waitingForPublish)
                         {
