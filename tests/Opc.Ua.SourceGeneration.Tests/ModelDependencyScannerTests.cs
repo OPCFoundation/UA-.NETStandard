@@ -52,6 +52,44 @@ namespace Opc.Ua.SourceGeneration
     [SetUICulture("en-us")]
     public class ModelDependencyScannerTests
     {
+        /// <summary>
+        /// Regression: the referenced-model pick compared versions with the
+        /// non-transitive CompareVersionStrings (a date against a version is
+        /// equal) and broke the tie on the publication date, so three
+        /// assemblies formed a cycle and the winner depended on the reference
+        /// order. It must agree with NodesetFileCollection's total order.
+        /// </summary>
+        [Test]
+        public void ReferencedModelPickDoesNotDependOnReferenceOrder()
+        {
+            const string uri = "http://test.org/UA/Cycle/";
+            var x = new ModelDependencyReference("X", uri, "X", "1.0.2", "2019-01-01");
+            var y = new ModelDependencyReference("Y", uri, "Y", "2020-06-01", "2020-06-01");
+            var z = new ModelDependencyReference("Z", uri, "Z", "1.0.1", "2021-01-01");
+            ModelDependencyReference[] references = [x, y, z];
+
+            var winners = new HashSet<string>(StringComparer.Ordinal);
+            foreach (int[] order in new[]
+            {
+                new[] { 0, 1, 2 }, new[] { 0, 2, 1 }, new[] { 1, 0, 2 },
+                new[] { 1, 2, 0 }, new[] { 2, 0, 1 }, new[] { 2, 1, 0 }
+            })
+            {
+                ModelDependencyReference winner = references[order[0]];
+                for (int i = 1; i < order.Length; i++)
+                {
+                    ModelDependencyReference candidate = references[order[i]];
+                    if (ModelCompilation.CompareReferencedModels(candidate, winner) > 0)
+                    {
+                        winner = candidate;
+                    }
+                }
+                winners.Add(winner.AssemblyName);
+            }
+
+            Assert.That(winners, Is.EquivalentTo(new[] { "X" }));
+        }
+
         [Test]
         public void ScanReturnsEmptyWhenAttributeTypeNotFound()
         {

@@ -416,8 +416,9 @@ namespace Opc.Ua.SourceGeneration
         /// Group the referenced-assembly attributes by model URI; when more
         /// than one assembly contributes the same URI, prefer a payload-bearing
         /// self producer over payloadless transitive re-exports, then use the
-        /// highest <c>(Version, PublicationDate)</c> lexicographic tuple per
-        /// the contract on <see cref="ModelDependencyAttribute"/>.
+        /// highest <c>(Version, PublicationDate)</c> tuple per the contract on
+        /// <see cref="ModelDependencyAttribute"/> (see
+        /// <see cref="CompareReferencedModels"/>).
         /// </summary>
         private IReadOnlyDictionary<string, ModelDependencyReference>
             BuildReferencedModelMap()
@@ -439,25 +440,7 @@ namespace Opc.Ua.SourceGeneration
                     map[candidate.ModelUri] = candidate;
                     continue;
                 }
-                bool candidateIsProducer = IsModelProducer(candidate);
-                bool existingIsProducer = IsModelProducer(existing);
-                int cmp = candidateIsProducer.CompareTo(existingIsProducer);
-                if (cmp == 0)
-                {
-                    // Compare the version numerically: ordinally "1.05.9" sorts
-                    // above "1.05.10", which would pick the older model. Shared
-                    // with NodesetFileCollection so the two halves of the
-                    // pipeline cannot pick different winners for the same pair;
-                    // it reports a date against a version as equal, which the
-                    // PublicationDate tie-break below then settles.
-                    cmp = SemVer.CompareVersionStrings(
-                        candidate.Version, existing.Version);
-                }
-                if (cmp == 0)
-                {
-                    cmp = string.CompareOrdinal(
-                        candidate.PublicationDate, existing.PublicationDate);
-                }
+                int cmp = CompareReferencedModels(candidate, existing);
                 if (cmp > 0)
                 {
                     m_context.ReportDiagnostic(
@@ -481,6 +464,35 @@ namespace Opc.Ua.SourceGeneration
                 }
             }
             return map;
+        }
+
+        /// <summary>
+        /// Orders two referenced-assembly entries for the same model URI: a
+        /// payload-bearing self producer first, then the version, then the
+        /// publication date. The newest entry is picked by pairwise
+        /// replacement, so this must be a total order or the winner depends on
+        /// the order the assemblies are referenced in. The version is compared
+        /// numerically (ordinally "1.05.9" sorts above "1.05.10") with the same
+        /// total order NodesetFileCollection uses, so the two halves of the
+        /// pipeline cannot pick different winners: a declared version ranks
+        /// above a bare publication date, which is not comparable with it.
+        /// </summary>
+        internal static int CompareReferencedModels(
+            ModelDependencyReference candidate,
+            ModelDependencyReference existing)
+        {
+            int cmp = IsModelProducer(candidate).CompareTo(IsModelProducer(existing));
+            if (cmp == 0)
+            {
+                cmp = SemVer.CompareVersionStringsTotal(
+                    candidate.Version, existing.Version);
+            }
+            if (cmp == 0)
+            {
+                cmp = string.CompareOrdinal(
+                    candidate.PublicationDate, existing.PublicationDate);
+            }
+            return cmp;
         }
 
         private static bool IsModelProducer(ModelDependencyReference reference)
