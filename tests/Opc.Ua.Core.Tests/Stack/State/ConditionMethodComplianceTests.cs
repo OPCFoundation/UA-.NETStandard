@@ -32,6 +32,7 @@
 #pragma warning disable CA2000
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -110,6 +111,35 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             time.Advance(TimeSpan.FromDays(10) + TimeSpan.FromSeconds(1));
             Assert.That(timedUnshelveCount[0], Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// A4-5: a backward step of the wall clock does not delay the timed unshelve; the
+        /// shelve lasts the requested duration.
+        /// </summary>
+        [Test]
+        public void TimedShelveIgnoresBackwardClockStep()
+        {
+            var time = new SteppedTimeProvider();
+            TestAlarm alarm = CreateAlarm(time);
+            alarm.ShelvingState = new ShelvedStateMachineState(alarm);
+            alarm.ShelvingState.Create(
+                m_context, default, QualifiedName.From(BrowseNames.ShelvingState), default, false);
+            alarm.ShelvingState.UnshelveTime = PropertyState<double>.With<VariantBuilder>(alarm.ShelvingState);
+            int timedUnshelveCount = 0;
+            alarm.OnTimedUnshelve = (_, _) =>
+            {
+                timedUnshelveCount++;
+                return ServiceResult.Good;
+            };
+
+            alarm.SetShelvingState(m_context, true, false, TimeSpan.FromMinutes(10).TotalMilliseconds);
+
+            time.Advance(TimeSpan.FromMinutes(5));
+            time.Step = TimeSpan.FromHours(-1);
+            time.Advance(TimeSpan.FromMinutes(5) + TimeSpan.FromSeconds(1));
+
+            Assert.That(timedUnshelveCount, Is.EqualTo(1));
         }
 
         /// <summary>
@@ -443,6 +473,42 @@ namespace Opc.Ua.Core.Tests.Stack.State
             public ServiceResult CallTimedShelve(ISystemContext context, double shelvingTime)
             {
                 return OnTimedShelve(context, ShelvingState.TimedShelve ?? new MethodState(this), NodeId, shelvingTime);
+            }
+        }
+
+        /// <summary>
+        /// A fake time provider whose wall clock can be stepped while the monotonic
+        /// timestamp and the timers keep running on the fake time.
+        /// </summary>
+        private sealed class SteppedTimeProvider : TimeProvider
+        {
+            private readonly FakeTimeProvider m_time = new();
+
+            /// <summary>
+            /// The offset applied to the wall clock.
+            /// </summary>
+            public TimeSpan Step { get; set; }
+
+            public void Advance(TimeSpan delta)
+            {
+                m_time.Advance(delta);
+            }
+
+            public override DateTimeOffset GetUtcNow()
+            {
+                return m_time.GetUtcNow() + Step;
+            }
+
+            public override long GetTimestamp()
+            {
+                return m_time.GetTimestamp();
+            }
+
+            public override long TimestampFrequency => m_time.TimestampFrequency;
+
+            public override ITimer CreateTimer(TimerCallback callback, object state, TimeSpan dueTime, TimeSpan period)
+            {
+                return m_time.CreateTimer(callback, state, dueTime, period);
             }
         }
 

@@ -265,6 +265,7 @@ namespace Opc.Ua
             m_updateUnshelveTimer = null;
 
             UnshelveTime = DateTime.MinValue;
+            m_shelveTime = 0;
 
             if (!shelved)
             {
@@ -319,6 +320,11 @@ namespace Opc.Ua
                     UnshelveTime = shelveTime < (DateTime.MaxValue - now).TotalMilliseconds
                         ? now.AddMilliseconds(shelveTime)
                         : DateTime.MaxValue;
+
+                    // the unshelve timer measures the shelve time on the monotonic clock,
+                    // so a step of the wall clock does not change when the alarm is unshelved.
+                    m_shelveTime = shelveTime;
+                    m_shelveStartTimestamp = m_timeProvider.GetTimestamp();
 
                     m_updateUnshelveTimer = m_timeProvider.CreateTimer(
                         OnUnshelveTimeUpdate,
@@ -827,10 +833,10 @@ namespace Opc.Ua
             try
             {
                 // shelve times beyond the maximum timer due time are re-armed until reached.
-                DateTime unshelveTime = UnshelveTime;
-                if (unshelveTime != DateTime.MinValue)
+                if (m_shelveTime > 0)
                 {
-                    double remaining = (unshelveTime - m_timeProvider.GetUtcNow().UtcDateTime).TotalMilliseconds;
+                    double remaining = m_shelveTime -
+                        m_timeProvider.GetElapsedTime(m_shelveStartTimestamp).TotalMilliseconds;
                     if (remaining >= 1 && m_unshelveTimer is { } timer)
                     {
                         timer.Change(GetUnshelveTimerDueTime(remaining), Timeout.InfiniteTimeSpan);
@@ -887,6 +893,8 @@ namespace Opc.Ua
         private readonly ILogger m_logger;
         private readonly TimeProvider m_timeProvider = TimeProvider.System;
         private bool m_oneShot;
+        private double m_shelveTime;
+        private long m_shelveStartTimestamp;
         private ITimer? m_unshelveTimer;
         private ITimer? m_updateUnshelveTimer;
     }
