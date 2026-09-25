@@ -143,14 +143,15 @@ namespace Opc.Ua.Schema.Xsd
                     });
 
                     var choice = new XmlSchemaChoice();
-                    AddStructureFields(choice.Items, structure.Fields, forceOptional: true);
+                    AddStructureFields(choice.Items, structure.Fields, forceOptional: true, honorIsOptional: false);
                     sequence.Items.Add(choice);
                     complexType.Particle = sequence;
                 }
                 else
                 {
                     var sequence = new XmlSchemaSequence();
-                    if (HasOptionalFields(structure))
+                    bool hasOptionalFields = HasOptionalFields(structure);
+                    if (hasOptionalFields)
                     {
                         // Part 6 5.3.6: the XML encoding of a structure with optional
                         // fields starts with the EncodingMask of the present fields.
@@ -160,7 +161,11 @@ namespace Opc.Ua.Schema.Xsd
                             SchemaTypeName = Xs("unsignedInt")
                         });
                     }
-                    AddStructureFields(sequence.Items, structure.Fields, forceOptional: false);
+                    AddStructureFields(
+                        sequence.Items,
+                        structure.Fields,
+                        forceOptional: false,
+                        honorIsOptional: hasOptionalFields);
                     complexType.Particle = sequence;
                 }
 
@@ -200,41 +205,31 @@ namespace Opc.Ua.Schema.Xsd
 
             private static bool HasOptionalFields(StructureDefinition structure)
             {
-                if (structure.StructureType == StructureType.StructureWithOptionalFields)
-                {
-                    return true;
-                }
-
-                ArrayOf<StructureField> fields = structure.Fields;
-                for (int i = 0; i < fields.Count; i++)
-                {
-                    if (fields[i].IsOptional)
-                    {
-                        return true;
-                    }
-                }
-
-                return false;
+                // Part 3 8.51: IsOptional marks an optional field only in a structure with
+                // optional fields; in a structure with subtyped values it means AllowSubTypes,
+                // and those structures are encoded without an EncodingMask.
+                return structure.StructureType == StructureType.StructureWithOptionalFields;
             }
 
             private void AddStructureFields(
                 XmlSchemaObjectCollection items,
                 ArrayOf<StructureField> fields,
-                bool forceOptional)
+                bool forceOptional,
+                bool honorIsOptional)
             {
                 for (int i = 0; i < fields.Count; i++)
                 {
                     StructureField field = fields[i];
-                    items.Add(BuildFieldElement(field, i, forceOptional));
+                    items.Add(BuildFieldElement(field, i, forceOptional || (honorIsOptional && field.IsOptional)));
                 }
             }
 
-            private XmlSchemaElement BuildFieldElement(StructureField field, int index, bool forceOptional)
+            private XmlSchemaElement BuildFieldElement(StructureField field, int index, bool isOptional)
             {
                 var element = new XmlSchemaElement
                 {
                     Name = FieldName(field, index),
-                    MinOccurs = field.IsOptional || forceOptional ? 0 : 1
+                    MinOccurs = isOptional ? 0 : 1
                 };
 
                 if (field.ValueRank == ValueRanks.Scalar)

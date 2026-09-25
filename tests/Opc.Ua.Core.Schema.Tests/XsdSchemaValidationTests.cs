@@ -60,6 +60,7 @@ namespace Opc.Ua.Schema.Tests
             UaTypeDescription outer = SchemaTestData.Structure(
                 4101,
                 "ValidatedOuter",
+                StructureType.StructureWithOptionalFields,
                 SchemaTestData.Field("Id", SchemaTestData.BuiltIn(BuiltInType.Int32)),
                 SchemaTestData.Field("Name", SchemaTestData.BuiltIn(BuiltInType.String), optional: true),
                 SchemaTestData.Field("Values", SchemaTestData.BuiltIn(BuiltInType.Double), ValueRanks.OneDimension),
@@ -157,6 +158,7 @@ namespace Opc.Ua.Schema.Tests
             UaTypeDescription encoded = SchemaTestData.Structure(
                 4120,
                 "ValidatedEncoded",
+                StructureType.StructureWithOptionalFields,
                 SchemaTestData.Field("Id", SchemaTestData.BuiltIn(BuiltInType.Guid)),
                 SchemaTestData.Field("Status", SchemaTestData.BuiltIn(BuiltInType.StatusCode)),
                 SchemaTestData.Field("Note", SchemaTestData.BuiltIn(BuiltInType.String), optional: true),
@@ -193,6 +195,57 @@ namespace Opc.Ua.Schema.Tests
             }
 
             Assert.That(errors, Is.Empty, xml + "\n" + schema.ToSchemaString());
+        }
+
+        /// <summary>
+        /// A4-1: in a structure with subtyped values IsOptional means AllowSubTypes (Part 3
+        /// 8.51); the XmlEncoder writes no EncodingMask and every field, so the schema has
+        /// neither an EncodingMask nor optional fields.
+        /// </summary>
+        [Test]
+        public void SubtypedValuesStructureHasNoEncodingMask()
+        {
+            UaTypeDescription subtyped = SchemaTestData.Structure(
+                4130,
+                "ValidatedSubtyped",
+                StructureType.StructureWithSubtypedValues,
+                SchemaTestData.Field("Id", SchemaTestData.BuiltIn(BuiltInType.Int32)),
+                SchemaTestData.Field("Payload", SchemaTestData.BuiltIn(BuiltInType.Int32), optional: true));
+            DefaultSchemaProvider provider = CreateProvider(subtyped);
+            var schema = (XmlSchemaDocument)provider.GetXmlSchema(subtyped);
+            var document = XDocument.Parse(schema.ToSchemaString());
+
+            var context = ServiceMessageContext.Create(null);
+            var encoder = new XmlEncoder(
+                new XmlQualifiedName("ValidatedSubtyped", SchemaTestData.TestNamespace),
+                null!,
+                context);
+            encoder.PushNamespace(SchemaTestData.TestNamespace);
+            encoder.WriteInt32("Id", 1);
+            encoder.WriteInt32("Payload", 2);
+            encoder.PopNamespace();
+            string xml = encoder.CloseAndReturnText()!;
+
+            var errors = new List<string>();
+            var settings = new XmlReaderSettings { ValidationType = ValidationType.Schema };
+            settings.ValidationEventHandler += (_, e) => errors.Add(e.Severity + ": " + e.Message);
+            AddSchema(settings.Schemas, UaTypesNamespace, CreateStubSchema(UaTypesNamespace));
+            AddSchema(settings.Schemas, schema.TargetNamespace, schema.ToSchemaString());
+            using (var reader = XmlReader.Create(new StringReader(xml), settings))
+            {
+                while (reader.Read())
+                {
+                }
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    document.Descendants(Xsd("element")).Any(x => (string?)x.Attribute("name") == "EncodingMask"),
+                    Is.False);
+                Assert.That(Attribute(document, "Payload", "minOccurs"), Is.Not.EqualTo("0"));
+                Assert.That(errors, Is.Empty, xml + "\n" + schema.ToSchemaString());
+            });
         }
 
         private static UaTypeDescription Describe(
