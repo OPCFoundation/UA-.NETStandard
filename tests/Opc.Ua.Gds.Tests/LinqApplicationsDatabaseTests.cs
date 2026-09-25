@@ -416,6 +416,52 @@ namespace Opc.Ua.Gds.Tests
         }
 
         /// <summary>
+        /// A request persisted with its password by an earlier version keeps the
+        /// password across the upgrade (in memory only) instead of completing with
+        /// an unprotected key, and the next save no longer writes it.
+        /// </summary>
+        [Test]
+        public void LegacyPersistedPrivateKeyPasswordIsRestoredAndNoLongerWritten()
+        {
+            string fileName = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".json");
+            try
+            {
+                var database = JsonApplicationsDatabase.Load(fileName);
+                NodeId application = database.RegisterApplication(CreateServerApplication("urn:test:a", "ServerA"));
+                NodeId request = database.StartNewKeyPairRequest(
+                    application, "DefaultApplicationGroup", "RsaSha256ApplicationCertificateType",
+                    "CN=ServerA", ["localhost"], "PFX", "secret-password".AsSpan(), "admin");
+                database.ApproveRequest(request, false);
+
+                // Rewrite the file the way earlier versions stored the request.
+                var json = JsonNode.Parse(File.ReadAllText(fileName))!.AsObject();
+                JsonObject stored = json["CertificateRequests"]!.AsArray()[0]!.AsObject();
+                stored.Remove("HasPrivateKeyPassword");
+                var legacyPassword = new JsonArray();
+                foreach (char c in "secret-password")
+                {
+                    legacyPassword.Add(c.ToString());
+                }
+                stored["PrivateKeyPassword"] = legacyPassword;
+                File.WriteAllText(fileName, json.ToJsonString());
+
+                database = JsonApplicationsDatabase.Load(fileName);
+                Assert.That(
+                    database.ReadRequest(application, request, out _, out _, out _, out _, out _, out _,
+                        out ReadOnlySpan<char> password),
+                    Is.EqualTo(CertificateRequestState.Approved));
+                Assert.That(password.ToString(), Is.EqualTo("secret-password"));
+
+                database.RegisterApplication(CreateServerApplication("urn:test:b", "ServerB"));
+                Assert.That(File.ReadAllText(fileName), Does.Not.Contain("\"PrivateKeyPassword\""));
+            }
+            finally
+            {
+                File.Delete(fileName);
+            }
+        }
+
+        /// <summary>
         /// The applications the CTT GDS Application Directory and Query
         /// Applications units register (ServerCapabilities simplified).
         /// </summary>

@@ -94,6 +94,27 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         /// not completed with an unprotected private key.
         /// </summary>
         public bool HasPrivateKeyPassword { get; set; }
+
+        /// <summary>
+        /// Reads the private key password that earlier versions persisted, so a
+        /// request pending across an upgrade keeps its password (in memory only)
+        /// instead of being completed with an unprotected key. Never written.
+        /// </summary>
+        [JsonPropertyName("PrivateKeyPassword")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public char[]? PersistedPrivateKeyPassword
+        {
+            get => null;
+            set
+            {
+                if (value is { Length: > 0 })
+                {
+                    PrivateKeyPassword = value;
+                    HasPrivateKeyPassword = true;
+                }
+            }
+        }
+
         public string? AuthorityId { get; set; }
         public byte[]? Certificate { get; set; }
     }
