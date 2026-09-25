@@ -293,7 +293,7 @@ namespace Opc.Ua.Bindings
                     exception,
                     StatusCodes.BadTcpInternalError,
                     "Fatal error during connect."));
-                if (exception is SocketException or IOException)
+if (!ct.IsCancellationRequested && (exception is SocketException or IOException))
                 {
                     ct.ThrowIfCancellationRequested();
                     throw new ServiceResultException(
