@@ -82,7 +82,7 @@ namespace Opc.Ua.Server.Tests.Hosting
         [Test]
         public void DefaultPkiRootIsNotInTempDirectory()
         {
-            string pkiRoot = OpcUaServerHostedService.GetDefaultPkiRoot("DefaultPkiApp");
+            string pkiRoot = DefaultPkiRoot.Get("DefaultPkiApp");
             string appData = Environment.GetFolderPath(
                 Environment.SpecialFolder.LocalApplicationData,
                 Environment.SpecialFolderOption.DoNotVerify);

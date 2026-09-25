@@ -88,7 +88,9 @@ namespace Opc.Ua.Configuration
 
             string applicationName = effectiveOptions.ApplicationName;
             string pkiRoot = string.IsNullOrWhiteSpace(effectiveOptions.PkiRoot)
-                ? GetDefaultPkiRoot(applicationName)
+                ? DefaultPkiRoot.Get(
+                    applicationName,
+                    telemetry.CreateLogger<OpcUaApplicationConfigurationProvider>())
                 : effectiveOptions.PkiRoot;
             string subjectName = string.IsNullOrWhiteSpace(effectiveOptions.SubjectName)
                 ? $"CN={applicationName}, O=OPC Foundation, DC=localhost"
@@ -244,29 +246,6 @@ namespace Opc.Ua.Configuration
             using var certificates =
                 certificateManager.SnapshotApplicationCertificates();
             return certificates.Count > 0;
-        }
-
-        /// <summary>
-        /// The certificate store root used when <see cref="OpcUaApplicationOptions.PkiRoot"/>
-        /// is empty: a per-user application-data directory. The shared temporary
-        /// directory is not used because on Linux/macOS other local users can
-        /// pre-create it and plant trusted certificates or read the private key.
-        /// </summary>
-        /// <exception cref="InvalidOperationException">No per-user application-data
-        /// directory is available (e.g. HOME is not set); configure PkiRoot.</exception>
-        internal static string GetDefaultPkiRoot(string applicationName)
-        {
-            string appData = Environment.GetFolderPath(
-                Environment.SpecialFolder.LocalApplicationData,
-                Environment.SpecialFolderOption.DoNotVerify);
-            if (string.IsNullOrEmpty(appData))
-            {
-                throw new InvalidOperationException(
-                    "No per-user application data directory is available for the " +
-                    "certificate stores. Configure OpcUaApplicationOptions.PkiRoot.");
-            }
-
-            return Path.Combine(appData, "OPC Foundation", applicationName, "pki");
         }
 
         private readonly ICertificateManager? m_certificateManager;

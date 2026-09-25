@@ -326,7 +326,7 @@ namespace Opc.Ua.Configuration.Tests
             {
                 provider.DisposeAsync().AsTask().GetAwaiter().GetResult();
                 DeletePkiRoot(Path.GetDirectoryName(
-                    OpcUaApplicationConfigurationProvider.GetDefaultPkiRoot(
+                    DefaultPkiRoot.Get(
                         provider.Application.ApplicationName))!);
             }
         }

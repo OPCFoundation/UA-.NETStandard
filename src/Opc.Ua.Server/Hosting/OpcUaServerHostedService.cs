@@ -394,7 +394,7 @@ namespace Opc.Ua.Server.Hosting
                 ? "OpcUaServer"
                 : m_options.ApplicationName;
             string pkiRoot = string.IsNullOrEmpty(m_options.PkiRoot)
-                ? GetDefaultPkiRoot(appName)
+                ? DefaultPkiRoot.Get(appName, m_logger)
                 : m_options.PkiRoot;
             string subject = string.IsNullOrEmpty(m_options.SubjectName)
                 ? $"CN={appName}, O=OPC Foundation, DC=localhost"
@@ -425,29 +425,6 @@ namespace Opc.Ua.Server.Hosting
 
             ApplyDependencyInjectedCertificateManager(certificateManager);
             await securityOptions.CreateAsync(ct).ConfigureAwait(false);
-        }
-
-        /// <summary>
-        /// The certificate store root used when <see cref="OpcUaServerOptions.PkiRoot"/>
-        /// is empty: a per-user application-data directory. The shared temporary
-        /// directory is not used because on Linux/macOS other local users can
-        /// pre-create it and plant trusted certificates or read the private key.
-        /// </summary>
-        /// <exception cref="ServiceResultException">No per-user application-data
-        /// directory is available (e.g. HOME is not set); configure PkiRoot.</exception>
-        internal static string GetDefaultPkiRoot(string applicationName)
-        {
-            string appData = Environment.GetFolderPath(
-                Environment.SpecialFolder.LocalApplicationData,
-                Environment.SpecialFolderOption.DoNotVerify);
-            if (string.IsNullOrEmpty(appData))
-            {
-                throw ServiceResultException.ConfigurationError(
-                    "No per-user application data directory is available for the " +
-                    "certificate stores. Configure OpcUaServerOptions.PkiRoot.");
-            }
-
-            return Path.Combine(appData, "OPC Foundation", applicationName, "pki");
         }
 
         /// <summary>
