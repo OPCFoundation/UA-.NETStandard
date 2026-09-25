@@ -1725,6 +1725,75 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void WriteOpenAbandonedByClosedSessionIsReleasedForAnotherSession()
+        {
+            TrustListState node = CreateNode();
+            CreateTrustList(node);
+            var liveSessions = new List<ISession>();
+            var sessionManager = new Mock<ISessionManager>();
+            sessionManager.Setup(manager => manager.GetSessions()).Returns(() => [.. liveSessions]);
+            var writerId = new NodeId(Guid.NewGuid(), 1);
+            var otherId = new NodeId(Guid.NewGuid(), 1);
+            liveSessions.Add(CreateSession(writerId));
+            liveSessions.Add(CreateSession(otherId));
+            ServerSystemContext writer = CreateServerContext(sessionManager.Object, writerId);
+            ServerSystemContext other = CreateServerContext(sessionManager.Object, otherId);
+
+            uint writeHandle = 0;
+            ServiceResult writeOpen = node.Open.OnCall(
+                writer,
+                node.Open,
+                node.NodeId,
+                (int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting,
+                ref writeHandle);
+            Assert.That(ServiceResult.IsGood(writeOpen), Is.True);
+
+            // While the writing Session is alive its upload is protected.
+            uint otherHandle = 0;
+            ServiceResult blocked = node.Open.OnCall(
+                other,
+                node.Open,
+                node.NodeId,
+                (int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting,
+                ref otherHandle);
+            Assert.That(blocked.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
+            using Certificate cert = CreateTestCertificate("CN=TrustList Abandoned Handle");
+            ServiceResult blockedAdd = node.AddCertificate.OnCall(
+                other, node.AddCertificate, node.NodeId, cert.RawData.ToByteString(), true);
+            Assert.That(blockedAdd.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+
+            // The writing Session goes away without Close/CloseAndUpdate and
+            // without the host being told (e.g. a GDS certificate group
+            // TrustList): the abandoned handle must not lock the TrustList.
+            liveSessions.RemoveAt(0);
+
+            ServiceResult add = node.AddCertificate.OnCall(
+                other, node.AddCertificate, node.NodeId, cert.RawData.ToByteString(), true);
+            Assert.That(ServiceResult.IsGood(add), Is.True, add.ToString());
+            Assert.That(node.OpenCount.Value, Is.Zero);
+
+            node.Open.OnCall(
+                writer,
+                node.Open,
+                node.NodeId,
+                (int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting,
+                ref writeHandle);
+            ServiceResult reopen = node.Open.OnCall(
+                other,
+                node.Open,
+                node.NodeId,
+                (int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting,
+                ref otherHandle);
+            Assert.That(ServiceResult.IsGood(reopen), Is.True, reopen.ToString());
+            Assert.That(otherHandle, Is.Not.Zero);
+
+            // The stale handle of the closed Session is gone.
+            ServiceResult staleWrite = node.Write.OnCall(
+                writer, node.Write, node.NodeId, writeHandle, ByteString.From(new byte[] { 1 }));
+            Assert.That(ServiceResult.IsBad(staleWrite), Is.True);
+        }
+
+        [Test]
         public void WriteAndCloseAndUpdateOnReadHandleReturnBadInvalidState()
         {
             TrustListState node = CreateNode();
@@ -1945,6 +2014,25 @@ namespace Opc.Ua.Server.Tests
                 ServerUris = new StringTable(),
                 EncodeableFactory = EncodeableFactory.Create()
             };
+        }
+
+        private ServerSystemContext CreateServerContext(ISessionManager sessionManager, NodeId sessionId)
+        {
+            var server = new Mock<IServerInternal>();
+            server.Setup(s => s.NamespaceUris).Returns(new NamespaceTable());
+            server.Setup(s => s.ServerUris).Returns(new StringTable());
+            server.Setup(s => s.TypeTree).Returns(new TypeTable(new NamespaceTable()));
+            server.Setup(s => s.Factory).Returns(EncodeableFactory.Create());
+            server.Setup(s => s.Telemetry).Returns(m_telemetry);
+            server.Setup(s => s.SessionManager).Returns(sessionManager);
+            return new ServerSystemContext(server.Object) { SessionId = sessionId };
+        }
+
+        private static ISession CreateSession(NodeId sessionId)
+        {
+            var session = new Mock<ISession>();
+            session.Setup(s => s.Id).Returns(sessionId);
+            return session.Object;
         }
 
         private static ByteString EncodeTrustListPayload(ISystemContext context, TrustListDataType trustList)

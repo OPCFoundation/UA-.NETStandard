@@ -436,6 +436,62 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Closes an open handle whose owning Session no longer exists (or
+        /// is closing) before another Session operates on the TrustList.
+        /// Only <see cref="ConfigurationNodeManager"/> releases handles when a
+        /// Session closes; every other host (e.g. the GDS certificate group
+        /// TrustLists) relies on this check so an abandoned write open does
+        /// not lock the TrustList until the server restarts. A context that
+        /// does not expose the server's session manager leaves the handle
+        /// untouched.
+        /// </summary>
+        private void ReleaseAbandonedHandle(ISystemContext context)
+        {
+            NodeId ownerSessionId;
+            lock (m_lock)
+            {
+                ownerSessionId = m_sessionId;
+            }
+
+            if (ownerSessionId.IsNull ||
+                Utils.IsEqual(ownerSessionId, GetSessionId(context)) ||
+                context is not ServerSystemContext serverContext)
+            {
+                return;
+            }
+
+            bool ownerAlive;
+            try
+            {
+                ISessionManager? sessionManager = serverContext.Server.SessionManager;
+                if (sessionManager == null)
+                {
+                    return;
+                }
+
+                ownerAlive = sessionManager.GetSessions().Any(session =>
+                    session != null &&
+                    !session.IsClosing &&
+                    Utils.IsEqual(session.Id, ownerSessionId));
+            }
+            catch (Exception ex)
+            {
+                // The session table is unavailable (e.g. server shutting
+                // down): keep the handle rather than evicting a live owner.
+                m_logger.TrustListOwnerSessionLookupFailed(ex, ownerSessionId);
+                return;
+            }
+
+            if (!ownerAlive)
+            {
+                // NotifySessionClosing only discards the handle if it is
+                // still owned by the (now gone) Session.
+                m_logger.TrustListAbandonedHandleReleased(ownerSessionId);
+                NotifySessionClosing(ownerSessionId);
+            }
+        }
+
+        /// <summary>
         /// Closes the open handle. The caller holds <see cref="m_lock"/>.
         /// </summary>
         private void DiscardOpenHandleNoLock()
@@ -471,10 +527,12 @@ namespace Opc.Ua.Server
         /// The result AddCertificate and RemoveCertificate return while the
         /// TrustList is open (OPC 10000-12 §7.8.2.6/§7.8.2.7): Bad_NotWritable
         /// while it is open for reading, Bad_InvalidState while a write is in
-        /// progress.
+        /// progress. A handle abandoned by a closed Session is released first.
         /// </summary>
-        private ServiceResult GetOpenStateResult()
+        private ServiceResult GetOpenStateResult(ISystemContext context)
         {
+            ReleaseAbandonedHandle(context);
+
             lock (m_lock)
             {
                 if (m_sessionId.IsNull)
@@ -627,6 +685,10 @@ namespace Opc.Ua.Server
                     FileHandle = 0
                 };
             }
+
+            // A handle left open by a Session that no longer exists must not
+            // lock this Session out (OPC 10000-20 §4.2.2 below).
+            ReleaseAbandonedHandle(context);
 
             uint fileHandle = 0;
             MemoryStream? strm = null;
@@ -1442,7 +1504,7 @@ namespace Opc.Ua.Server
 
             NodeId sessionId = GetSessionId(context);
             ServiceResult result = StatusCodes.Good;
-            ServiceResult openState = GetOpenStateResult();
+            ServiceResult openState = GetOpenStateResult(context);
 
             if (ServiceResult.IsBad(openState))
             {
@@ -1648,7 +1710,7 @@ namespace Opc.Ua.Server
             HasSecureWriteAccess(context);
             NodeId sessionId = GetSessionId(context);
             ServiceResult result = StatusCodes.Good;
-            ServiceResult openState = GetOpenStateResult();
+            ServiceResult openState = GetOpenStateResult(context);
 
             if (ServiceResult.IsBad(openState))
             {
@@ -2272,5 +2334,18 @@ namespace Opc.Ua.Server
             this ILogger logger,
             Exception ex,
             string scope);
+
+        [LoggerMessage(EventId = ServerEventIds.TrustList + 3, Level = LogLevel.Debug,
+            Message = "Could not determine whether the Session {SessionId} owning the TrustList handle is alive.")]
+        public static partial void TrustListOwnerSessionLookupFailed(
+            this ILogger logger,
+            Exception ex,
+            NodeId sessionId);
+
+        [LoggerMessage(EventId = ServerEventIds.TrustList + 4, Level = LogLevel.Information,
+            Message = "Released the TrustList handle abandoned by the closed Session {SessionId}.")]
+        public static partial void TrustListAbandonedHandleReleased(
+            this ILogger logger,
+            NodeId sessionId);
     }
 }
