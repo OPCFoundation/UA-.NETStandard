@@ -196,7 +196,7 @@
     <NodeManagerSaveFile>Ctt.ReferenceServer.nodes.xml</NodeManagerSaveFile>
     <MinSubscriptionLifetime>10000</MinSubscriptionLifetime>
     <MaxPublishRequestCount>20</MaxPublishRequestCount>
-    <MaxSubscriptionCount>100</MaxSubscriptionCount>
+    <MaxSubscriptionCount>200</MaxSubscriptionCount>
     <MaxEventQueueSize>10000</MaxEventQueueSize>
     <!-- see https://opcfoundation-onlineapplications.org/profilereporting/ for list of available profiles -->
     <ServerProfileArray>

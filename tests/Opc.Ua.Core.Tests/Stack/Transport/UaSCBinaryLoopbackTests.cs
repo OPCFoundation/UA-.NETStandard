@@ -399,7 +399,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     () => channel.ReconnectAsync(null, CancellationToken.None).AsTask())
                     .ConfigureAwait(false);
 
-                Assert.That(reconnectError, Is.InstanceOf<SocketException>());
+                Assert.That(reconnectError, Is.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo((uint)StatusCodes.BadNotConnected)
+                    .And.Property(nameof(Exception.InnerException)).TypeOf<SocketException>());
             }
             finally
             {
