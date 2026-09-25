@@ -140,6 +140,9 @@ namespace Opc.Ua.Client.Redundancy
                     // reconnects would take the mirrored session back. Tear it down and,
                     // for Warm/Hot, reconnect a genuine standby session.
                     ManagedSession demoted = m_session;
+                    // With token reuse the new leader reactivates this very server
+                    // session: stop using it locally but never CloseSession it.
+                    bool abandon = m_options.EnableTokenReuse && m_sessionServedLeader;
                     m_session = null;
                     m_sessionServedLeader = false;
                     demoted.SessionConfigurationChanged -= OnSessionConfigurationChanged;
@@ -147,7 +150,14 @@ namespace Opc.Ua.Client.Redundancy
                     {
                         m_publishedSession = null;
                     }
-                    await demoted.DisposeAsync().ConfigureAwait(false);
+                    if (abandon)
+                    {
+                        await demoted.AbandonServerSessionAsync().ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await demoted.DisposeAsync().ConfigureAwait(false);
+                    }
                     if (m_options.Mode != ClientStandbyMode.Cold && !m_election.IsLeader)
                     {
                         m_session = await m_options.CreateSessionAsync!(m_cts.Token)

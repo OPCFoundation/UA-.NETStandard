@@ -424,6 +424,80 @@ namespace Opc.Ua.Client.Redundancy.Tests
             Assert.That(closedTokens[0].DeleteSubscriptions, Is.True);
         }
 
+        [TestCase(ClientStandbyMode.Warm)]
+        [TestCase(ClientStandbyMode.Hot)]
+        public async Task DemotedTokenReuseLeaderAbandonsTheSharedSessionWithoutClosingItAsync(
+            ClientStandbyMode mode)
+        {
+            using var store = new InMemorySharedKeyValueStore();
+            using var seedSession = SessionMock.Create();
+            seedSession.SetConnected();
+            SetServerNonce(seedSession, [1, 2, 3, 4]);
+            using var stream = new MemoryStream();
+            seedSession.SaveSessionConfiguration(stream);
+            await store.SetAsync("client-replica/session", new ByteString(stream.ToArray())).ConfigureAwait(false);
+
+            ConfiguredEndpoint endpoint = seedSession.ConfiguredEndpoint;
+            var closedOnOwnChannel = new List<(NodeId Token, bool DeleteSubscriptions)>();
+            var closedOnSharedChannel = new List<(NodeId Token, bool DeleteSubscriptions)>();
+            ManagedSession leaderSession = CreateManagedSessionForTokenReuse(
+                endpoint,
+                NodeId.Parse("s=auth"),
+                NodeId.Parse("s=follower-auth"),
+                closedOnOwnChannel,
+                closedOnSharedChannel);
+            ManagedSession standbySession = CreateManagedSessionForTokenReuse(endpoint, NodeId.Parse("s=auth"));
+            int created = 0;
+            var configured = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var demoted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var election = new ControllableLeaderElection();
+
+            var options = new ClientReplicaOptions
+            {
+                Mode = mode,
+                EnableTokenReuse = true,
+                CreateSessionAsync = _ =>
+                {
+                    created++;
+                    return new ValueTask<ManagedSession>(created == 1 ? leaderSession : standbySession);
+                },
+                ConfigureLeaderAsync = (_, fastActivated, _) =>
+                {
+                    configured.TrySetResult(fastActivated);
+                    return default;
+                }
+            };
+            await using var coordinator = new ClientReplicaCoordinator(
+                options, election, store, NullRecordProtector.Instance, m_telemetry);
+            coordinator.RoleChanged += isLeader =>
+            {
+                if (!isLeader)
+                {
+                    demoted.TrySetResult(true);
+                }
+            };
+
+            await coordinator.StartAsync().ConfigureAwait(false);
+            election.SetLeader(true);
+            Assert.That(
+                await configured.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false),
+                Is.True,
+                "the leader must have adopted the mirrored session");
+            NodeId sharedSessionId = leaderSession.SessionId;
+            Assert.That(sharedSessionId, Is.EqualTo(seedSession.SessionId));
+
+            // The leader loses the lease while it can still reach the server.
+            election.SetLeader(false);
+            await demoted.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+
+            Assert.That(leaderSession.Disposed, Is.True, "the ex-leader must stop using the shared session");
+            Assert.That(
+                closedOnSharedChannel,
+                Is.Empty,
+                "the ex-leader must not close the server session the new leader reactivates");
+            Assert.That(closedOnOwnChannel, Has.Count.EqualTo(1), "only the follower's own session is closed");
+        }
+
         private sealed class ControllableLeaderElection : ILeaderElection
         {
             public bool IsLeader { get; private set; }
@@ -493,7 +567,8 @@ namespace Opc.Ua.Client.Redundancy.Tests
             ConfiguredEndpoint endpoint,
             NodeId expectedAuthenticationToken,
             NodeId ownAuthenticationToken = default,
-            List<(NodeId Token, bool DeleteSubscriptions)> closedTokens = null)
+            List<(NodeId Token, bool DeleteSubscriptions)> closedTokens = null,
+            List<(NodeId Token, bool DeleteSubscriptions)> closedOnReactivatedChannel = null)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             ApplicationConfiguration configuration = new(telemetry)
@@ -535,6 +610,19 @@ namespace Opc.Ua.Client.Redundancy.Tests
                     DiagnosticInfos = []
                 }))
                 .Verifiable(Times.Once);
+            if (closedOnReactivatedChannel != null)
+            {
+                // A live channel: a dispose would send CloseSession over it.
+                managedChannel.SetupGet(c => c.State).Returns(ChannelState.Ready);
+            }
+            managedChannel
+                .Setup(c => c.SendRequestAsync(It.IsAny<CloseSessionRequest>(), It.IsAny<CancellationToken>()))
+                .Returns((IServiceRequest request, CancellationToken _) =>
+                {
+                    var close = (CloseSessionRequest)request;
+                    closedOnReactivatedChannel?.Add((close.RequestHeader.AuthenticationToken, close.DeleteSubscriptions));
+                    return new ValueTask<IServiceResponse>(new CloseSessionResponse());
+                });
             // The standby's own session still runs on its original channel until the
             // mirrored reactivation builds a new one.
             innerSession.Channel

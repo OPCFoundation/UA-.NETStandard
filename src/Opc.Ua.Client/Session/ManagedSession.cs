@@ -2698,8 +2698,30 @@ namespace Opc.Ua.Client
             }
         }
 
+        /// <summary>
+        /// Disposes this session like <see cref="DisposeAsync"/> but leaves the
+        /// server session (and its subscriptions) alive: the keep-alive, the
+        /// connection state machine and the reconnect machinery are stopped and
+        /// the channel is released, but no CloseSession is sent. Used by a demoted
+        /// client replica whose server session is taken over by the new leader
+        /// through token reuse.
+        /// </summary>
+        internal async ValueTask AbandonServerSessionAsync()
+        {
+            Volatile.Write(ref m_abandonServerSession, true);
+            await DisposeAsync().ConfigureAwait(false);
+        }
+
         private async ValueTask DisposeSessionResourcesAsync()
         {
+            if (Volatile.Read(ref m_abandonServerSession))
+            {
+                // First: from here on neither the identity refresh, the
+                // background work, the state machine close nor the inner
+                // dispose can reach the server session with its token.
+                m_session?.AbandonServerSession();
+            }
+
             await StopIdentityRefreshLoopAsync().ConfigureAwait(false);
             UnsubscribeCertificateChanges();
             await StopRevalidationLoopAsync().ConfigureAwait(false);
@@ -2777,6 +2799,7 @@ namespace Opc.Ua.Client
         private RenewUserIdentityEventHandler? m_renewUserIdentity;
         private volatile Session? m_session;
         private ClientChannelManager? m_ownedChannelManager;
+        private bool m_abandonServerSession;
         private IDisposable? m_ownedTransportResources;
         private readonly AsyncReaderWriterLock m_serviceLock = new();
         private readonly ApplicationConfiguration m_configuration;

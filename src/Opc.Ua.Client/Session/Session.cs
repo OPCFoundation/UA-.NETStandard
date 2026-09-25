@@ -3308,6 +3308,22 @@ namespace Opc.Ua.Client
                 networkRecovery: true);
         }
 
+        /// <summary>
+        /// Forgets the server session this client is bound to without closing it
+        /// on the server. Afterwards the client is no longer connected, so a later
+        /// close or dispose only tears down the local state and the channel and
+        /// never sends CloseSession. Used when another client (a promoted replica)
+        /// takes the same server session over by reactivating it.
+        /// </summary>
+        internal void AbandonServerSession()
+        {
+            DeleteSubscriptionsOnClose = false;
+            lock (m_lock)
+            {
+                SessionCreated(default, default);
+            }
+        }
+
         internal Task ReactivateMirroredSessionAsync(
             ConfiguredEndpoint endpoint,
             CancellationToken ct = default)
