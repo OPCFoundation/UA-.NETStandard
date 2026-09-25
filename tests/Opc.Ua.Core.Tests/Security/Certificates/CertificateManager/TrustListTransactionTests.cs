@@ -591,6 +591,68 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(trustedCerts, Is.Empty);
         }
 
+        /// <summary>
+        /// A staged CRL add or removal on stores that cannot hold CRLs (InMemory)
+        /// fails the commit with BadNotSupported before any store is changed.
+        /// Before the fix the store threw only on the CRL write, after the
+        /// certificate changes of both stores were applied.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CommitAsyncWithCrlOnStoreWithoutCrlSupportChangesNothingAsync(bool remove)
+        {
+            using var provider = new InMemoryStoreProvider();
+            await using var manager = new CertificateManager(m_telemetry, [provider]);
+            manager.RegisterTrustList(TrustListIdentifier.Peers, "InMemory:tlt-trusted", "InMemory:tlt-issuers");
+
+            using Certificate caCert = CertificateBuilder
+                .Create("CN=No CRL Support CA")
+                .SetCAConstraint()
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate trustedCert = CertificateBuilder
+                .Create("CN=No CRL Support Trusted")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate issuerCert = CertificateBuilder
+                .Create("CN=No CRL Support Issuer")
+                .SetCAConstraint()
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using (ICertificateStore setup = manager.OpenTrustedStore(TrustListIdentifier.Peers))
+            {
+                await setup.AddAsync(caCert).ConfigureAwait(false);
+                await setup.AddAsync(trustedCert).ConfigureAwait(false);
+            }
+            X509CRL crl = s_issuer.RevokeCertificates(caCert, null, null);
+
+            ITrustListTransaction transaction = await manager
+                .BeginUpdateAsync(TrustListIdentifier.Peers).ConfigureAwait(false);
+            await using (transaction.ConfigureAwait(false))
+            {
+                await transaction.RemoveTrustedCertificateAsync(trustedCert.Thumbprint).ConfigureAwait(false);
+                await transaction.AddIssuerCertificateAsync(issuerCert).ConfigureAwait(false);
+                if (remove)
+                {
+                    await transaction.RemoveCrlAsync(crl).ConfigureAwait(false);
+                }
+                else
+                {
+                    await transaction.AddCrlAsync(crl).ConfigureAwait(false);
+                }
+                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await transaction.CommitAsync().ConfigureAwait(false));
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+            }
+
+            using ICertificateStore trusted = manager.OpenTrustedStore(TrustListIdentifier.Peers);
+            using ICertificateStore issuers = manager.OpenIssuerStore(TrustListIdentifier.Peers);
+            using CertificateCollection trustedCerts = await trusted.EnumerateAsync().ConfigureAwait(false);
+            using CertificateCollection issuerCerts = await issuers.EnumerateAsync().ConfigureAwait(false);
+            Assert.That(trustedCerts, Has.Count.EqualTo(2));
+            Assert.That(issuerCerts, Is.Empty);
+        }
+
         private string CreateTempDir()
         {
             string dir = Path.Combine(

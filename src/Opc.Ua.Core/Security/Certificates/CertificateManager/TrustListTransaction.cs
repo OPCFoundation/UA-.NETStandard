@@ -223,6 +223,15 @@ namespace Opc.Ua
                     issuerStore,
                     ct).ConfigureAwait(false);
 
+                bool trustedSupportsCrls = trustedStore.SupportsCRLs;
+                bool issuerSupportsCrls = issuerStore?.SupportsCRLs ?? false;
+                if (m_removeCrls.Count > 0 && !trustedSupportsCrls && !issuerSupportsCrls)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNotSupported,
+                        "The trust list stores do not support CRLs.");
+                }
+
                 foreach (string thumbprint in m_removeTrusted)
                 {
                     ct.ThrowIfCancellationRequested();
@@ -260,8 +269,9 @@ namespace Opc.Ua
                 {
                     ct.ThrowIfCancellationRequested();
                     crlChanged = true;
-                    bool deleted = await trustedStore.DeleteCRLAsync(crl, ct).ConfigureAwait(false);
-                    if (!deleted && issuerStore != null)
+                    bool deleted = trustedSupportsCrls &&
+                        await trustedStore.DeleteCRLAsync(crl, ct).ConfigureAwait(false);
+                    if (!deleted && issuerStore != null && issuerSupportsCrls)
                     {
                         await issuerStore.DeleteCRLAsync(crl, ct).ConfigureAwait(false);
                     }
@@ -308,7 +318,8 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ServiceResultException">
         /// <see cref="StatusCodes.BadCertificateInvalid"/> when the issuer of a
-        /// staged CRL is in neither store.
+        /// staged CRL is in neither store; <see cref="StatusCodes.BadNotSupported"/>
+        /// when the store of a staged CRL cannot hold CRLs.
         /// </exception>
         private async Task<List<(X509CRL Crl, ICertificateStore Store)>> RouteCrlsAsync(
             ICertificateStore trustedStore,
@@ -329,14 +340,15 @@ namespace Opc.Ua
 
             foreach (X509CRL crl in m_addCrls)
             {
+                ICertificateStore store;
                 if (IsIssuerOf(crl, m_addTrusted, null) || IsIssuerOf(crl, trusted, m_removeTrusted))
                 {
-                    routes.Add((crl, trustedStore));
+                    store = trustedStore;
                 }
                 else if (issuerStore != null &&
                     (IsIssuerOf(crl, m_addIssuer, null) || IsIssuerOf(crl, issuers, m_removeIssuer)))
                 {
-                    routes.Add((crl, issuerStore));
+                    store = issuerStore;
                 }
                 else
                 {
@@ -344,6 +356,17 @@ namespace Opc.Ua
                         StatusCodes.BadCertificateInvalid,
                         "Could not find issuer of the CRL.");
                 }
+
+                // The store would only throw on the add, after the certificate
+                // changes were applied.
+                if (!store.SupportsCRLs)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNotSupported,
+                        "The store of the CRL issuer does not support CRLs.");
+                }
+
+                routes.Add((crl, store));
             }
 
             return routes;
