@@ -6992,6 +6992,11 @@ namespace Opc.Ua.Schema.Model
                 {
                     variable.DefaultValue = ParseDependencyDefaultValue(
                         c.DefaultValueXml);
+                    // The producer's table for the value's namespace indexes;
+                    // LinkDependencyChildren decodes the value against it.
+                    // Older payloads do not carry one.
+                    variable.DecodedValueNamespaceUris =
+                        CreateDependencyValueNamespaceTable(c.DefaultValueNamespaceUris);
                 }
             }
             else if (instance is MethodDesign method)
@@ -7074,6 +7079,18 @@ namespace Opc.Ua.Schema.Model
             // that iterate children for emission can short-circuit.
             instance.IsDeclaration = true;
             return instance;
+        }
+
+        private static NamespaceTable CreateDependencyValueNamespaceTable(
+            IReadOnlyList<string> namespaceUris)
+        {
+            if (namespaceUris == null ||
+                namespaceUris.Count == 0 ||
+                namespaceUris[0] != Ua.Types.Namespaces.OpcUa)
+            {
+                return null;
+            }
+            return new NamespaceTable(namespaceUris);
         }
 
         private static System.Xml.XmlElement ParseDependencyDefaultValue(
@@ -7163,12 +7180,42 @@ namespace Opc.Ua.Schema.Model
                     {
                         variable.DataTypeNode = dtNode as DataTypeDesign;
                     }
+                    if (instance is VariableDesign payloadVariable &&
+                        payloadVariable.DefaultValue != null &&
+                        payloadVariable.DecodedValue == null &&
+                        payloadVariable.DecodedValueNamespaceUris != null)
+                    {
+                        LinkPayloadDefaultValue(payloadVariable);
+                    }
                     if (instance is MethodDesign method)
                     {
                         LinkDependencyMethodArguments(method.InputArguments);
                         LinkDependencyMethodArguments(method.OutputArguments);
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        /// Decodes the default value of a payload child whose payload carries
+        /// the producer's namespace table, so that the value is emitted with
+        /// the producer's namespace URIs instead of resolving its indexes
+        /// against the target design's namespaces. The payload already
+        /// carries the effective ValueRank, so it is not inferred here.
+        /// </summary>
+        private void LinkPayloadDefaultValue(VariableDesign variable)
+        {
+            if (TryDecodeDependencyDefaultValue(
+                variable.DefaultValue,
+                variable.SymbolicId,
+                out Variant variant))
+            {
+                variable.DecodedValue = variant.AsBoxedObject(Variant.BoxingBehavior.Legacy);
+            }
+            else
+            {
+                // Not decoded: the value is emitted from its XML as before.
+                variable.DecodedValueNamespaceUris = null;
             }
         }
 

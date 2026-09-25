@@ -329,6 +329,8 @@ namespace Opc.Ua.SourceGeneration
                                     effectiveVariable.HistorizingSpecified;
                                 entryChild.DefaultValueXml =
                                     effectiveVariable.DefaultValue?.OuterXml;
+                                entryChild.DefaultValueNamespaceUris =
+                                    GetDefaultValueNamespaceUris(effectiveVariable);
                             }
                             else if (child is MethodDesign method)
                             {
@@ -410,6 +412,24 @@ namespace Opc.Ua.SourceGeneration
                 return c != 0 ? c : string.CompareOrdinal(a.SymbolicName, b.SymbolicName);
             });
             return payload;
+        }
+
+        /// <summary>
+        /// The namespace table the indexes in the default value XML of the
+        /// variable refer to: the table recorded when the value was decoded
+        /// from a NodeSet or a dependency design, otherwise this design's own
+        /// namespaces - the table the producer resolves the value against.
+        /// </summary>
+        private string[] GetDefaultValueNamespaceUris(VariableDesign variable)
+        {
+            if (variable.DefaultValue == null)
+            {
+                return null;
+            }
+            NamespaceTable table =
+                (variable.DecodedValue != null ? variable.DecodedValueNamespaceUris : null) ??
+                ModelDesignExtensions.CreateDesignNamespaceTable(m_context.ModelDesign.Namespaces);
+            return table.ToArray();
         }
 
         private static List<DependencyMethodArg> DependencyMethodArgs(Parameter[] args)

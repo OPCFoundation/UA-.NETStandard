@@ -614,6 +614,187 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(decoded.Nodes[0].Fields.Any(f => f.IsOptional), Is.False);
         }
 
+        /// <summary>
+        /// A2-5: the namespace table of each default value round trips
+        /// through the value namespace trailer; equal tables are shared and
+        /// a child without a table reads back without one.
+        /// </summary>
+        [Test]
+        public void WriteThenRead_RoundTripsDefaultValueNamespaceTables()
+        {
+            ModelDependencyV1 dependency = BuildValueSnapshot(withTables: true, withFlags: true);
+
+            var decoded = ModelDependencyV1.FromBase64Payload(dependency.ToBase64Payload());
+
+            IReadOnlyList<DependencyChild> children = decoded.Nodes[1].Children;
+            Assert.That(children[0].DefaultValueNamespaceUris, Is.EqualTo(s_producerTable));
+            Assert.That(children[1].DefaultValueNamespaceUris, Is.EqualTo(s_nodeSetTable));
+            Assert.That(children[2].DefaultValueNamespaceUris, Is.Null);
+            Assert.That(children[3].DefaultValueNamespaceUris, Is.EqualTo(s_producerTable));
+            Assert.That(decoded.Nodes[0].Children, Is.Empty);
+            // The trailers before it still read.
+            Assert.That(decoded.Nodes[0].Fields[0].IsOptional, Is.True);
+            Assert.That(decoded.FluentAccessorsEmitted, Is.Null);
+        }
+
+        /// <summary>
+        /// The value namespace trailer only appends to the V1 format: a
+        /// payload without tables is byte identical to an old one, a new
+        /// reader reads an old payload without tables (the consumer then
+        /// resolves the values as before), and an old reader, which ignores
+        /// the unknown capability bit and stops after the trailers it knows,
+        /// reads a new payload - with and without the structure field
+        /// trailer in front of it.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ValueNamespaceTrailerIsCompatibleWithOldPayloadsAndReaders(bool withFlags)
+        {
+            ModelDependencyV1 withTables = BuildValueSnapshot(withTables: true, withFlags);
+            ModelDependencyV1 withoutTables = BuildValueSnapshot(withTables: false, withFlags);
+
+            byte[] old = Inflate(withoutTables.ToBase64Payload());
+            byte[] full = Inflate(withTables.ToBase64Payload());
+            // The capability byte follows the body (the payload without any
+            // trailer); apart from the new capability bit the old payload is
+            // a prefix of the new one.
+            int capabilityOffset = Inflate(BuildValueSnapshot(withTables: false, withFlags: false)
+                .ToBase64Payload()).Length;
+            byte capabilities = full[capabilityOffset];
+            byte[] withoutNewBit = (byte[])full.Clone();
+            withoutNewBit[capabilityOffset] = (byte)(capabilities & ~0x08);
+            if (old.Length == capabilityOffset)
+            {
+                // No trailer before: the old payload has no capability byte.
+                Assert.That(full.Take(old.Length), Is.EqualTo(old), "the old payload is a prefix");
+            }
+            else
+            {
+                Assert.That(withoutNewBit.Take(old.Length), Is.EqualTo(old), "the old payload is a prefix");
+            }
+
+            // New reader, old payload.
+            ModelDependencyV1 fromOld = ModelDependencyV1.FromBase64Payload(Deflate(old));
+            Assert.That(
+                fromOld.Nodes.SelectMany(n => n.Children).Select(c => c.DefaultValueNamespaceUris),
+                Has.All.Null);
+            Assert.That(fromOld.Nodes[1].Children[0].DefaultValueXml, Is.Not.Null);
+
+            // Old reader, new payload.
+            Assert.That(capabilities & 0x08, Is.Not.Zero, "value namespace trailer bit is set");
+            Assert.That(capabilities & 0x20, Is.Not.Zero, "extended identifier trailer bit is set");
+            Assert.That(capabilities & 0x40, Is.Zero, "fluent accessors stay unknown");
+            byte[] asOldReaderSeesIt = (byte[])full.Clone();
+            asOldReaderSeesIt[capabilityOffset] = (byte)(capabilities & ~0x08);
+            ModelDependencyV1 oldView = ModelDependencyV1.FromBase64Payload(Deflate(asOldReaderSeesIt));
+            Assert.That(oldView, Is.Not.Null);
+            Assert.That(oldView.FluentAccessorsEmitted, Is.Null);
+            Assert.That(oldView.Nodes[1].Children, Has.Count.EqualTo(4));
+            Assert.That(
+                oldView.Nodes.SelectMany(n => n.Children).Select(c => c.DefaultValueNamespaceUris),
+                Has.All.Null);
+            Assert.That(oldView.Nodes[0].Fields[0].IsOptional, Is.EqualTo(withFlags));
+            // A reader that predates the structure field trailer as well.
+            asOldReaderSeesIt[capabilityOffset] = (byte)(capabilities & ~0x18);
+            oldView = ModelDependencyV1.FromBase64Payload(Deflate(asOldReaderSeesIt));
+            Assert.That(oldView, Is.Not.Null);
+            Assert.That(oldView.Nodes[0].Fields[0].IsOptional, Is.False);
+        }
+
+        /// <summary>
+        /// The value namespace trailer is length prefixed, so a later version
+        /// of it is skipped instead of failing the payload.
+        /// </summary>
+        [Test]
+        public void Read_SkipsAnUnknownValueNamespaceTrailerVersion()
+        {
+            ModelDependencyV1 withTables = BuildValueSnapshot(withTables: true, withFlags: false);
+            byte[] full = Inflate(withTables.ToBase64Payload());
+            // capabilities, extended identifier trailer (version, count, and
+            // two null strings per node), then the value namespace trailer.
+            int trailer = Inflate(BuildValueSnapshot(withTables: false, withFlags: false)
+                .ToBase64Payload()).Length + 1 + 1 + 4 + (2 * 2);
+            Assert.That(full[trailer], Is.EqualTo((byte)1));
+            full[trailer] = 2;
+
+            ModelDependencyV1 decoded = ModelDependencyV1.FromBase64Payload(Deflate(full));
+
+            Assert.That(decoded, Is.Not.Null);
+            Assert.That(
+                decoded.Nodes.SelectMany(n => n.Children).Select(c => c.DefaultValueNamespaceUris),
+                Has.All.Null);
+        }
+
+        private static readonly string[] s_producerTable =
+            ["http://opcfoundation.org/UA/", "http://example.org/UA/Values/"];
+
+        private static readonly string[] s_nodeSetTable =
+            ["http://opcfoundation.org/UA/", "http://example.org/UA/Other/", "http://example.org/UA/Values/"];
+
+        private static ModelDependencyV1 BuildValueSnapshot(bool withTables, bool withFlags)
+        {
+            const string ns = "http://example.org/UA/Values/";
+            const string qn =
+                "<uax:QualifiedName xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">" +
+                "<uax:NamespaceIndex>1</uax:NamespaceIndex><uax:Name>X</uax:Name></uax:QualifiedName>";
+            var dependency = new ModelDependencyV1 { ModelUri = ns };
+            dependency.Nodes.Add(new DependencyNode
+            {
+                SymbolicName = "Measurement",
+                SymbolicNamespace = ns,
+                ClassName = "Measurement",
+                Kind = DependencyNodeKind.DataType,
+                Fields =
+                [
+                    new DependencyDataField("Note", "String", "http://opcfoundation.org/UA/", -1)
+                    {
+                        IsOptional = withFlags
+                    }
+                ]
+            });
+            dependency.Nodes.Add(new DependencyNode
+            {
+                SymbolicName = "DeviceType",
+                SymbolicNamespace = ns,
+                ClassName = "Device",
+                Kind = DependencyNodeKind.ObjectType,
+                Children =
+                [
+                    new DependencyChild
+                    {
+                        BrowseName = "Label",
+                        SymbolicName = "Label",
+                        InstanceKind = 3,
+                        DefaultValueXml = qn,
+                        DefaultValueNamespaceUris = withTables ? s_producerTable : null
+                    },
+                    new DependencyChild
+                    {
+                        BrowseName = "Imported",
+                        SymbolicName = "Imported",
+                        InstanceKind = 3,
+                        DefaultValueXml = qn,
+                        DefaultValueNamespaceUris = withTables ? s_nodeSetTable : null
+                    },
+                    new DependencyChild
+                    {
+                        BrowseName = "Plain",
+                        SymbolicName = "Plain",
+                        InstanceKind = 1
+                    },
+                    new DependencyChild
+                    {
+                        BrowseName = "Other",
+                        SymbolicName = "Other",
+                        InstanceKind = 3,
+                        DefaultValueXml = qn,
+                        DefaultValueNamespaceUris = withTables ? [.. s_producerTable] : null
+                    }
+                ]
+            });
+            return dependency;
+        }
+
         private static ModelDependencyV1 BuildStructureSnapshot(bool withFlags, bool? fluent)
         {
             const string ns = "http://example.org/UA/Structures/";

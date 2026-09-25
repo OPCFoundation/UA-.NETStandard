@@ -405,6 +405,92 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 "context.NamespaceUris.GetIndexOrAppend(\"http://test.org/UA/Dep/\")));"));
         }
 
+        /// <summary>
+        /// A2-5 (payload path): the same dependency, but consumed through the
+        /// ModelDependencyV1 payload its generated assembly carries. The
+        /// payload records the producer's namespace table for each default
+        /// value, so the consumer emits the producer's URI for ns=1. A payload
+        /// without the tables (older producer) keeps the previous resolution
+        /// against the consumer's namespaces.
+        /// </summary>
+        [Test]
+        public void PayloadDefaultValuesKeepTheProducerNamespaces()
+        {
+            const string depUri = "http://test.org/UA/Dep/";
+            string depPath = Path.Combine(m_rootPath, "A", "Dep.xml");
+            string tgtPath = Path.Combine(m_rootPath, "B", "Tgt.xml");
+            File.WriteAllText(depPath, NamespacedDefaultsDependencyDesign);
+            File.WriteAllText(tgtPath, NamespacedDefaultsTargetDesign);
+
+            // The payload the producer's generated assembly carries.
+            ModelDependencyV1 payload = ReadSelfPayload(
+                Generate(targets: [depPath], dependencies: [depPath]));
+            DependencyChild label = payload.Nodes
+                .Single(n => n.SymbolicName == "DepType")
+                .Children.Single(c => c.SymbolicName == "Label");
+            Assert.That(
+                label.DefaultValueNamespaceUris,
+                Is.EqualTo(new[] { Ua.Types.Namespaces.OpcUa, depUri }));
+
+            string[] values = WrappedValuesWithNamespaces(Generate(
+                targets: [tgtPath],
+                dependencies: [tgtPath],
+                referencedModels: CreateReferencedModels(depUri, "Test.Dep", "Dep", payload)));
+
+            Assert.That(values, Is.Not.Empty);
+            Assert.That(values, Has.None.Contains("http://test.org/UA/Tgt/"));
+            Assert.That(values, Has.Some.EqualTo(
+                "baseState.WrappedValue = global::Opc.Ua.Variant.From(" +
+                "new global::Opc.Ua.QualifiedName(\"X\", " +
+                "context.NamespaceUris.GetIndexOrAppend(\"http://test.org/UA/Dep/\")));"));
+            Assert.That(values, Has.Some.EqualTo(
+                "baseState.WrappedValue = global::Opc.Ua.Variant.From(" +
+                "global::Opc.Ua.NodeId.Parse(\"i=77\").WithNamespaceIndex(" +
+                "context.NamespaceUris.GetIndexOrAppend(\"http://test.org/UA/Dep/\")));"));
+
+            // An older payload without the tables still generates, resolving
+            // the indexes against the consumer's namespaces as before.
+            foreach (DependencyChild child in payload.Nodes.SelectMany(n => n.Children))
+            {
+                child.DefaultValueNamespaceUris = null;
+            }
+            string[] legacy = WrappedValuesWithNamespaces(Generate(
+                targets: [tgtPath],
+                dependencies: [tgtPath],
+                referencedModels: CreateReferencedModels(depUri, "Test.Dep", "Dep", payload)));
+            Assert.That(legacy, Is.Not.Empty);
+            Assert.That(legacy, Has.All.Contains("http://test.org/UA/Tgt/"));
+        }
+
+        private static string[] WrappedValuesWithNamespaces(Dictionary<string, string> generated)
+        {
+            return [.. generated
+                .Where(f => f.Key.EndsWith(".cs", System.StringComparison.Ordinal))
+                .SelectMany(f => f.Value.Split('\n'))
+                .Select(l => l.Trim())
+                .Where(l => l.StartsWith("baseState.WrappedValue", System.StringComparison.Ordinal) &&
+                    l.IndexOf("GetIndexOrAppend", System.StringComparison.Ordinal) >= 0)];
+        }
+
+        /// <summary>
+        /// Reads the self payload from the generated
+        /// [assembly: ModelDependency] attribute of a producer.
+        /// </summary>
+        private static ModelDependencyV1 ReadSelfPayload(Dictionary<string, string> generated)
+        {
+            // The self entry is the first one and the only one with a payload.
+            string output = generated
+                .Single(f => f.Key.EndsWith(".ModelDependencies.g.cs", System.StringComparison.Ordinal))
+                .Value;
+            int payloadEnd = output.IndexOf("\")]", System.StringComparison.Ordinal);
+            Assert.That(payloadEnd, Is.GreaterThanOrEqualTo(0));
+            int payloadStart = output.LastIndexOf('"', payloadEnd - 1);
+            ModelDependencyV1 payload = ModelDependencyV1.FromBase64Payload(
+                output[(payloadStart + 1)..payloadEnd]);
+            Assert.That(payload, Is.Not.Null);
+            return payload;
+        }
+
         private const string NamespacedDefaultsDependencyDesign =
             """
             <?xml version="1.0" encoding="utf-8" ?>

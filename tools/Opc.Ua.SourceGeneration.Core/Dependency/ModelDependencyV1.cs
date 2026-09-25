@@ -263,6 +263,17 @@ namespace Opc.Ua.SourceGeneration.Dependency
         public string? DefaultValueXml { get; set; }
 
         /// <summary>
+        /// The namespace table the namespace indexes in
+        /// <see cref="DefaultValueXml"/> refer to in the producing model
+        /// (index 0 is the OPC UA namespace): the producer's design
+        /// namespaces, or the table of the NodeSet or dependency the value
+        /// was decoded from. Null when the payload does not carry it (older
+        /// producers); the consumer then resolves the indexes as before.
+        /// Carried in the value namespace trailer.
+        /// </summary>
+        public IReadOnlyList<string>? DefaultValueNamespaceUris { get; set; }
+
+        /// <summary>
         /// Input arguments (methods only).
         /// </summary>
         public IReadOnlyList<DependencyMethodArg> InputArguments { get; set; } = [];
@@ -412,6 +423,8 @@ namespace Opc.Ua.SourceGeneration.Dependency
         private const byte kExtendedIdentifierTrailerVersion = 1;
         private const byte kStructureFieldTrailer = 0x10;
         private const byte kStructureFieldTrailerVersion = 1;
+        private const byte kValueNamespaceTrailer = 0x08;
+        private const byte kValueNamespaceTrailerVersion = 1;
         private const byte kFieldIsOptional = 0x01;
         private const byte kFieldAllowSubTypes = 0x02;
         private const byte kAccessLevelSpecified = 0x01;
@@ -602,15 +615,18 @@ namespace Opc.Ua.SourceGeneration.Dependency
             }
             bool hasMethodIdentityTrailer = HasMethodIdentityTrailer();
             bool hasStructureFieldTrailer = HasStructureFieldTrailer();
-            // The structure field trailer is written after the extended
-            // identifier trailer, which is always written with it: a reader
-            // that predates the structure field trailer only reads the
+            bool hasValueNamespaceTrailer = HasValueNamespaceTrailer();
+            // The structure field and value namespace trailers are written
+            // after the extended identifier trailer, which is always written
+            // with them: a reader that predates them only reads the
             // capabilities as "trailers present" (honouring the
             // FluentAccessorsKnown bit) when the method identity or the
             // extended identifier bit is set, and it stops reading after the
-            // trailers it knows - so it never sees the new one.
+            // trailers it knows - so it never sees the new ones.
             bool hasExtendedIdentifierTrailer =
-                hasStructureFieldTrailer || HasExtendedIdentifierTrailer();
+                hasStructureFieldTrailer ||
+                hasValueNamespaceTrailer ||
+                HasExtendedIdentifierTrailer();
             if (FluentAccessorsEmitted.HasValue ||
                 hasMethodIdentityTrailer ||
                 hasExtendedIdentifierTrailer)
@@ -636,6 +652,10 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 {
                     capabilities |= kStructureFieldTrailer;
                 }
+                if (hasValueNamespaceTrailer)
+                {
+                    capabilities |= kValueNamespaceTrailer;
+                }
                 writer.Write(capabilities);
                 if (hasMethodIdentityTrailer)
                 {
@@ -648,6 +668,10 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 if (hasStructureFieldTrailer)
                 {
                     WriteStructureFieldTrailer(writer);
+                }
+                if (hasValueNamespaceTrailer)
+                {
+                    WriteValueNamespaceTrailer(writer);
                 }
             }
         }
@@ -827,11 +851,178 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 {
                     trailersReadable = ReadExtendedIdentifierTrailer(reader);
                 }
+                // The later trailers are length prefixed: an unknown version
+                // is skipped and the ones after it stay readable.
                 if (trailersReadable &&
                     (capabilities & kStructureFieldTrailer) != 0 &&
                     reader.BaseStream.Position < reader.BaseStream.Length)
                 {
                     ReadStructureFieldTrailer(reader);
+                }
+                if (trailersReadable &&
+                    (capabilities & kValueNamespaceTrailer) != 0 &&
+                    reader.BaseStream.Position < reader.BaseStream.Length)
+                {
+                    ReadValueNamespaceTrailer(reader);
+                }
+            }
+        }
+
+        private bool HasValueNamespaceTrailer()
+        {
+            foreach (DependencyNode node in Nodes)
+            {
+                foreach (DependencyChild child in node.Children)
+                {
+                    if (child.DefaultValueNamespaceUris != null)
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Writes the value namespace trailer: the distinct namespace tables
+        /// the default values of the children refer to, then per node and
+        /// child (in order) the index of the child's table, -1 for none. The
+        /// body is length prefixed so that a reader can skip a later version.
+        /// </summary>
+        private void WriteValueNamespaceTrailer(BinaryWriter writer)
+        {
+            var tables = new List<IReadOnlyList<string>>();
+            var tableIndexes = new Dictionary<string, int>(StringComparer.Ordinal);
+            using var body = new MemoryStream();
+            using (var bodyWriter = new BinaryWriter(body, Encoding.UTF8, leaveOpen: true))
+            {
+                var childTables = new List<int>();
+                foreach (DependencyNode node in Nodes)
+                {
+                    foreach (DependencyChild child in node.Children)
+                    {
+                        IReadOnlyList<string>? uris = child.DefaultValueNamespaceUris;
+                        if (uris == null)
+                        {
+                            childTables.Add(-1);
+                            continue;
+                        }
+                        string key = GetTableKey(uris);
+                        if (!tableIndexes.TryGetValue(key, out int index))
+                        {
+                            index = tables.Count;
+                            tables.Add(uris);
+                            tableIndexes.Add(key, index);
+                        }
+                        childTables.Add(index);
+                    }
+                }
+
+                bodyWriter.Write(tables.Count);
+                foreach (IReadOnlyList<string> table in tables)
+                {
+                    bodyWriter.Write(table.Count);
+                    foreach (string uri in table)
+                    {
+                        WriteString(bodyWriter, uri);
+                    }
+                }
+                int next = 0;
+                bodyWriter.Write(Nodes.Count);
+                foreach (DependencyNode node in Nodes)
+                {
+                    bodyWriter.Write(node.Children.Count);
+                    for (int j = 0; j < node.Children.Count; j++)
+                    {
+                        bodyWriter.Write(childTables[next++]);
+                    }
+                }
+            }
+            writer.Write(kValueNamespaceTrailerVersion);
+            writer.Write((int)body.Length);
+            writer.Write(body.GetBuffer(), 0, (int)body.Length);
+        }
+
+        /// <summary>
+        /// An unambiguous key for a namespace table (length prefixed URIs).
+        /// </summary>
+        private static string GetTableKey(IReadOnlyList<string> uris)
+        {
+            var key = new StringBuilder();
+            foreach (string uri in uris)
+            {
+                string value = uri ?? string.Empty;
+                key.Append(value.Length.ToString(System.Globalization.CultureInfo.InvariantCulture))
+                    .Append(':')
+                    .Append(value);
+            }
+            return key.ToString();
+        }
+
+        private void ReadValueNamespaceTrailer(BinaryReader reader)
+        {
+            byte trailerVersion = reader.ReadByte();
+            int length = reader.ReadInt32();
+            if (length < 0 || length > reader.BaseStream.Length - reader.BaseStream.Position)
+            {
+                throw new InvalidDataException(
+                    "ModelDependencyV1: invalid value namespace trailer length " + length);
+            }
+            if (trailerVersion != kValueNamespaceTrailerVersion)
+            {
+                // Length prefixed: a later version is skipped as a whole.
+                reader.BaseStream.Seek(length, SeekOrigin.Current);
+                return;
+            }
+
+            int tableCount = reader.ReadInt32();
+            if (tableCount is < 0 or > 100_000)
+            {
+                throw new InvalidDataException(
+                    "ModelDependencyV1: invalid value namespace table count " + tableCount);
+            }
+            string[][] tables = new string[tableCount][];
+            for (int i = 0; i < tableCount; i++)
+            {
+                int uriCount = reader.ReadInt32();
+                if (uriCount is < 1 or > ushort.MaxValue + 1)
+                {
+                    throw new InvalidDataException(
+                        "ModelDependencyV1: invalid value namespace table size " + uriCount);
+                }
+                string[] uris = new string[uriCount];
+                for (int k = 0; k < uriCount; k++)
+                {
+                    uris[k] = ReadString(reader);
+                }
+                tables[i] = uris;
+            }
+
+            int nodeCount = reader.ReadInt32();
+            if (nodeCount != Nodes.Count)
+            {
+                throw new InvalidDataException(
+                    "ModelDependencyV1: invalid value namespace node count " + nodeCount);
+            }
+            for (int i = 0; i < nodeCount; i++)
+            {
+                DependencyNode node = Nodes[i];
+                int childCount = reader.ReadInt32();
+                if (childCount != node.Children.Count)
+                {
+                    throw new InvalidDataException(
+                        "ModelDependencyV1: invalid value namespace child count " + childCount);
+                }
+                for (int j = 0; j < childCount; j++)
+                {
+                    int index = reader.ReadInt32();
+                    if (index < -1 || index >= tableCount)
+                    {
+                        throw new InvalidDataException(
+                            "ModelDependencyV1: invalid value namespace table index " + index);
+                    }
+                    node.Children[j].DefaultValueNamespaceUris =
+                        index < 0 ? null : tables[index];
                 }
             }
         }
