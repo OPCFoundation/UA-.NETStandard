@@ -286,9 +286,15 @@ than implying rollback. Returned outcomes and queued event payloads are detached
 from caller mutation.
 The native Method returns the committed outcome with
 `GoodResultsMayBeIncomplete` when completion reports a committed warning.
-For a logical Resource, the Method resolves the default once and validates that
-exact Version. A concurrent default change does not redirect validation or make
-the warning response describe another Version's outcome.
+With a versioned provider, the logical Resource Method resolves the default once
+and validates that exact Version. A concurrent default change does not redirect
+that validation. A default-only provider selects its own Version and reports the
+actual committed identity through
+`WotRegistryCommitDurabilityUncertainException.ValidatedVersionXid` when returning
+a committed warning. The stock deciding owner attaches this identity, including
+through provider decorators. Warning recovery never substitutes an earlier
+default's outcome; an unattributed default-only warning cannot supply a claimed
+exact-Version result.
 Post-decision metadata reconciliation does not use caller cancellation to
 turn that committed result into rollback.
 If post-commit generation capture fails or a commit is indeterminate, the same

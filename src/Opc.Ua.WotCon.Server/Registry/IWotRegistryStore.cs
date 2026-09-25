@@ -120,6 +120,27 @@ namespace Opc.Ua.WotCon.Server.Registry
         }
 
         /// <summary>
+        /// Initializes a committed validation warning with the exact Version identity chosen by the provider.
+        /// </summary>
+        /// <param name="committedSnapshot">The validated committed image.</param>
+        /// <param name="persistenceFailure">The warning reported after commitment.</param>
+        /// <param name="validatedVersionXid">The exact Version Xid whose validation outcome committed.</param>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ArgumentNullException"></exception>
+        public WotRegistryCommitDurabilityUncertainException(
+            WotRegistrySnapshot committedSnapshot,
+            Exception persistenceFailure,
+            string validatedVersionXid)
+            : this(committedSnapshot, persistenceFailure)
+        {
+            if (string.IsNullOrWhiteSpace(validatedVersionXid))
+            {
+                throw new ArgumentException("An exact validated Version Xid is required.", nameof(validatedVersionXid));
+            }
+            ValidatedVersionXid = validatedVersionXid;
+        }
+
+        /// <summary>
         /// Gets the validated snapshot that is now the primary generation.
         /// </summary>
         public WotRegistrySnapshot CommittedSnapshot { get; internal set; }
@@ -133,6 +154,20 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// Gets the persistence failure reported after the generation became active.
         /// </summary>
         public Exception PersistenceFailure { get; }
+
+        /// <summary>
+        /// Gets the exact Version whose validation committed, when supplied by the deciding provider.
+        /// This identity does not follow a subsequently changed Resource default.
+        /// </summary>
+        public string? ValidatedVersionXid { get; private set; }
+
+        internal void SetValidationIdentity(WotValidationChange? validation)
+        {
+            if (validation is not null)
+            {
+                ValidatedVersionXid = validation.ResourceXid + "/versions/" + validation.VersionId;
+            }
+        }
     }
 
     /// <summary>

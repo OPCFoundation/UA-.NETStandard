@@ -529,8 +529,12 @@ namespace Opc.Ua.WotCon.Server
             catch (WotRegistryCommitDurabilityUncertainException ex)
             {
                 m_logger.ValidationCommittedWithWarning(ex);
-                outcome = ex.CommittedSnapshot.FindResource(groupId, resourceId)?
-                    .FindVersion(selectedVersionId)?.Validation ??
+                WotResource? committed = ex.CommittedSnapshot.FindResource(groupId, resourceId);
+                WotResourceVersion? validated = ex.ValidatedVersionXid is { } validatedXid
+                    ? committed?.Versions.FirstOrDefault(version =>
+                        WotDependencyGraph.VersionXid(committed, version) == validatedXid)
+                    : m_registry is IWotVersionedRegistryService ? committed?.FindVersion(selectedVersionId) : null;
+                outcome = validated?.Validation ??
                     throw new InvalidOperationException("Committed validation has no outcome for the addressed Version.", ex);
                 status = ServiceResult.Create(StatusCodes.GoodResultsMayBeIncomplete,
                     "The validation outcome was committed, but completion reported a warning.");

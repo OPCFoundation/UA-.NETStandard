@@ -2617,6 +2617,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 }
                 catch (WotRegistryCommitDurabilityUncertainException exception)
                 {
+                    exception.SetValidationIdentity(validation);
                     exception.CommittedSnapshot = RestoreVersionIncarnations(exception.CommittedSnapshot, intended);
                     Volatile.Write(ref m_snapshot, exception.CommittedSnapshot);
                     await CompleteCommittedChangeAsync(previous, exception.CommittedSnapshot, changed,
@@ -2663,12 +2664,20 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 m_pendingValidation = new PendingValidationNotification(previous, committed, validation);
             }
-            await RefreshValidatedStoreGenerationAfterCommitAsync(committed, priorFailure).ConfigureAwait(false);
-            if (validation is not null)
+            try
             {
-                m_pendingValidation = null;
+                await RefreshValidatedStoreGenerationAfterCommitAsync(committed, priorFailure).ConfigureAwait(false);
+                if (validation is not null)
+                {
+                    m_pendingValidation = null;
+                }
+                RaiseChanged(previous, committed, changed, projectionOnly, priorFailure, validation: validation);
             }
-            RaiseChanged(previous, committed, changed, projectionOnly, priorFailure, validation: validation);
+            catch (WotRegistryCommitDurabilityUncertainException exception)
+            {
+                exception.SetValidationIdentity(validation);
+                throw;
+            }
         }
 
         private async ValueTask RefreshValidatedStoreGenerationAsync(CancellationToken cancellationToken)

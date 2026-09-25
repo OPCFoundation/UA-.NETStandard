@@ -352,8 +352,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(outcome!.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Failed));
         }
 
-        [Test]
-        public async Task LogicalValidationWarningKeepsItsOriginalDefaultVersionPin()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task LogicalValidationWarningReportsTheExecutedVersion(bool versioned)
         {
             m_coordinator.Dispose();
             var registry = new Mock<IWotRegistryService>(MockBehavior.Strict);
@@ -379,14 +380,17 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     await SelectSecondVersionAsync(groupId, resourceId, token).ConfigureAwait(false);
                     return await m_registry.ValidateResourceAsync(groupId, resourceId, token).ConfigureAwait(false);
                 });
-            registry.As<IWotVersionedRegistryService>().Setup(value => value.ValidateVersionAsync(
-                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .Returns(async (string groupId, string resourceId, string versionId, CancellationToken token) =>
-                {
-                    await SelectSecondVersionAsync(groupId, resourceId, token).ConfigureAwait(false);
-                    return await m_registry.ValidateVersionAsync(groupId, resourceId, versionId, token)
-                        .ConfigureAwait(false);
-                });
+            if (versioned)
+            {
+                registry.As<IWotVersionedRegistryService>().Setup(value => value.ValidateVersionAsync(
+                    It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                    .Returns(async (string groupId, string resourceId, string versionId, CancellationToken token) =>
+                    {
+                        await SelectSecondVersionAsync(groupId, resourceId, token).ConfigureAwait(false);
+                        return await m_registry.ValidateVersionAsync(groupId, resourceId, versionId, token)
+                            .ConfigureAwait(false);
+                    });
+            }
             m_coordinator = new WotMaterializationCoordinator(
                 registry.Object, new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle),
                 documentConverter: m_converter);
@@ -451,11 +455,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.GoodResultsMayBeIncomplete));
             Assert.That(response.Results[0].OutputArguments[0].TryGetStructure<WoTValidationOutcomeDataType>(
                 out WoTValidationOutcomeDataType? outcome), Is.True);
-            Assert.That(outcome!.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Skipped));
+            Assert.That(outcome!.FormatOutcome, Is.EqualTo(versioned ? WoTOutcomeEnum.Skipped : WoTOutcomeEnum.Failed));
             WotResource current = m_registry.Current.FindResourceByXid(resource.Xid)!;
             Assert.That(current.DefaultVersionId, Is.EqualTo("v2"));
-            Assert.That(current.FindVersion("v1")!.Validation!.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Skipped));
-            Assert.That(current.FindVersion("v2")!.Validation, Is.Null);
+            Assert.That(current.FindVersion(versioned ? "v1" : "v2")!.Validation!.FormatOutcome,
+                Is.EqualTo(outcome.FormatOutcome));
+            Assert.That(current.FindVersion(versioned ? "v2" : "v1")!.Validation, Is.Null);
         }
 
         [TestCase(0)]
