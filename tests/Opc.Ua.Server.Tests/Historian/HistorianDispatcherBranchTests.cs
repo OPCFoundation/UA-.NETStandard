@@ -796,6 +796,58 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         /// <summary>
+        /// Verifies that annotations outside the requested window count as data, so a window between
+        /// two annotations returns calculated zeros instead of Bad_NoData (Part 13 §5.4.3.20).
+        /// </summary>
+        [Test]
+        public async Task DispatchProcessedReadAnnotationCountBetweenAnnotationsReturnsZerosAsync()
+        {
+            HarnessFixture h = CreateHarnessWithAggregateManager();
+            await h.RegisterAggregateAsync(
+                ObjectIds.AggregateFunction_AnnotationCount).ConfigureAwait(false);
+            var nodeId = new NodeId($"anncount-between-{Guid.NewGuid():N}", 1);
+            h.Provider.Register(nodeId);
+
+            HistorianOperationContext context = HarnessFixture.CreateContext(h.SystemContext);
+            var annotations = new List<Annotation>
+            {
+                new() { Message = "a", UserName = "t", AnnotationTime = HarnessFixture.BaseTime },
+                new() { Message = "b", UserName = "t", AnnotationTime = HarnessFixture.BaseTime.AddSeconds(100) }
+            };
+            await h.Provider.InsertAnnotationsAsync(context, nodeId, annotations, CancellationToken.None).ConfigureAwait(false);
+
+            var details = new ReadProcessedDetails
+            {
+                StartTime = HarnessFixture.BaseTime.AddSeconds(40),
+                EndTime = HarnessFixture.BaseTime.AddSeconds(60),
+                ProcessingInterval = 10000
+            };
+            var nodeToRead = new HistoryReadValueId
+            {
+                NodeId = nodeId,
+                ContinuationPoint = ByteString.Empty
+            };
+
+            var result = new HistoryReadResult();
+            ServiceResult error = await HistorianDispatcher.DispatchProcessedReadAsync(
+                h.SystemContext, h.Provider, CreateVariable(nodeId), nodeToRead, details,
+                ObjectIds.AggregateFunction_AnnotationCount, TimestampsToReturn.Source,
+                result, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(error), Is.True);
+            Assert.That(result.HistoryData.TryGetValue(out HistoryData? hd), Is.True);
+            DataValue[] values = hd!.DataValues.ToArray()!;
+            Assert.That(values, Has.Length.EqualTo(2));
+            foreach (DataValue value in values)
+            {
+                Assert.That(value.StatusCode.CodeBits, Is.EqualTo(StatusCodes.Good));
+                Assert.That(value.StatusCode.AggregateBits, Is.EqualTo(AggregateBits.Calculated));
+                Assert.That(value.WrappedValue.TryGetValue(out int count), Is.True);
+                Assert.That(count, Is.Zero);
+            }
+        }
+
+        /// <summary>
         /// Verifies that AnnotationCount without an annotation provider returns BadAggregateNotSupported.
         /// </summary>
         [Test]
