@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -611,7 +612,62 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 .ToDictionary(c => c, c => Encoding.UTF8.GetString(fileSystem.Get(c)));
         }
 
-        private static Dictionary<string, string> GenerateForDeclarationBackedNodeSet()
+        /// <summary>
+        /// Regression: the typed top-level accessor built the root's NodeId with the
+        /// namespace of its BrowseName instead of the namespace of its NodeId. A NodeSet
+        /// instance <c>ns=1;i=2000</c> whose BrowseName is in a companion namespace
+        /// (<c>2:Device</c>) then resolved <c>ns=Companion;i=2000</c>, a node that does
+        /// not exist.
+        /// </summary>
+        [Test]
+        public void TopLevelAccessorUsesTheNodeIdNamespaceNotTheBrowseNameNamespace()
+        {
+            const string companionUri = "http://test.org/UA/Companion/";
+            Dictionary<string, string> files = GenerateForDeclarationBackedNodeSet(
+                xml => xml
+                    .Replace(
+                        "<Uri>http://test.org/UA/DeclarationBackedMethod/</Uri>",
+                        "<Uri>http://test.org/UA/DeclarationBackedMethod/</Uri>" +
+                            "<Uri>" + companionUri + "</Uri>",
+                        StringComparison.Ordinal)
+                    .Replace(
+                        "BrowseName=\"1:Device\"",
+                        "BrowseName=\"2:Device\"",
+                        StringComparison.Ordinal)
+                    .Replace(
+                        "<RequiredModel ModelUri=\"http://opcfoundation.org/UA/\"",
+                        "<RequiredModel ModelUri=\"" + companionUri +
+                            "\" PublicationDate=\"2024-01-01T00:00:00Z\" Version=\"1.0.0\"/>" +
+                            "<RequiredModel ModelUri=\"http://opcfoundation.org/UA/\"",
+                        StringComparison.Ordinal),
+                ("Companion.NodeSet2.xml",
+                    "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
+                    "<UANodeSet xmlns=\"http://opcfoundation.org/UA/2011/03/UANodeSet.xsd\">" +
+                    "<NamespaceUris><Uri>" + companionUri + "</Uri></NamespaceUris>" +
+                    "<Models><Model ModelUri=\"" + companionUri +
+                    "\" PublicationDate=\"2024-01-01T00:00:00Z\" Version=\"1.0.0\">" +
+                    "<RequiredModel ModelUri=\"http://opcfoundation.org/UA/\"" +
+                    " PublicationDate=\"2024-01-01T00:00:00Z\" Version=\"1.05.03\"/>" +
+                    "</Model></Models>" +
+                    "<UAObjectType NodeId=\"ns=1;i=1\" BrowseName=\"1:CompanionType\">" +
+                    "<DisplayName>CompanionType</DisplayName><References>" +
+                    "<Reference ReferenceType=\"i=45\" IsForward=\"false\">i=58</Reference>" +
+                    "</References></UAObjectType></UANodeSet>"));
+            string fb = files
+                .Single(kv => kv.Key.EndsWith(".FluentBuilders.g.cs", StringComparison.Ordinal)).Value;
+
+            int nodeId = fb.IndexOf("(new global::Opc.Ua.NodeId(2000u, __ns))", StringComparison.Ordinal);
+            Assert.That(nodeId, Is.GreaterThan(0), "Typed root accessor for Device not found:\n" + fb);
+            const string lookup = "__inner.Context.NamespaceUris.GetIndexOrAppend(\"";
+            int start = fb.LastIndexOf(lookup, nodeId, StringComparison.Ordinal) + lookup.Length;
+            string ns = fb[start..fb.IndexOf('"', start)];
+            Assert.That(ns, Is.EqualTo("http://test.org/UA/DeclarationBackedMethod/"),
+                "The root NodeId must use the namespace of the NodeId, not of the BrowseName.");
+        }
+
+        private static Dictionary<string, string> GenerateForDeclarationBackedNodeSet(
+            Func<string, string> transform = null,
+            (string FileName, string Content)? ignoredDependency = null)
         {
             const string nodeSetFile = "DeclarationBackedMethod.NodeSet2.xml";
             const string namespaceUri = "http://test.org/UA/DeclarationBackedMethod/";
@@ -619,8 +675,16 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             using var fileSystem = new VirtualFileSystem();
             string resources = Path.Combine(Directory.GetCurrentDirectory(), "Resources");
             string path = Path.Combine(resources, nodeSetFile);
+            if (transform != null)
+            {
+                path = Path.Combine(resources, "Transformed." + nodeSetFile);
+                fileSystem.Add(
+                    path,
+                    Encoding.UTF8.GetBytes(transform(File.ReadAllText(
+                        Path.Combine(resources, nodeSetFile)))));
+            }
 
-            var nodesets = new NodesetFileCollection(
+            ImmutableArray<(string, NodesetFileOptions)> inputs =
                 [
                     (path, new NodesetFileOptions
                     {
@@ -628,7 +692,16 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                         Name = "DeclarationBackedMethod",
                         Prefix = "DeclarationBackedMethod"
                     })
-                ],
+                ];
+            if (ignoredDependency is (string fileName, string content))
+            {
+                string dependencyPath = Path.Combine(resources, fileName);
+                fileSystem.Add(dependencyPath, Encoding.UTF8.GetBytes(content));
+                inputs = inputs.Add((dependencyPath, new NodesetFileOptions { Ignore = true }));
+            }
+
+            var nodesets = new NodesetFileCollection(
+                inputs,
                 [],
                 fileSystem,
                 telemetry);

@@ -899,7 +899,10 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 _ = GetBrowseName(root);
-                string nsUri = ResolveNodeBrowseNamespace(root);
+                // The NodeId lives in the node's own namespace (SymbolicId),
+                // which differs from the BrowseName namespace (SymbolicName)
+                // for a NodeSet instance named in a companion namespace.
+                string nsUri = ResolveNodeIdNamespace(root);
                 writer.WriteLine();
                 writer.WriteLine("    /// <inheritdoc/>");
                 writer.WriteLine("    public {0} {1}", wrapper.ClassName, accessor);
@@ -2051,6 +2054,16 @@ namespace Opc.Ua.SourceGeneration
         private string ResolveNodeBrowseNamespace(NodeDesign node)
         {
             string ns = node?.SymbolicName?.Namespace;
+            if (!string.IsNullOrEmpty(ns))
+            {
+                return ns;
+            }
+            return m_context.ModelDesign.TargetNamespace?.Value ?? string.Empty;
+        }
+
+        private string ResolveNodeIdNamespace(NodeDesign node)
+        {
+            string ns = node?.SymbolicId?.Namespace;
             if (!string.IsNullOrEmpty(ns))
             {
                 return ns;
