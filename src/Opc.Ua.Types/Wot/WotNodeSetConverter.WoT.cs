@@ -941,8 +941,16 @@ namespace Opc.Ua.Wot
             }
         }
 
-        private static bool TakesRestorePath(WotDocument document)
+        /// <summary>
+        /// Indicates whether conversion uses an envelope or a supported native projection rather than readable synthesis.
+        /// Unsupported native profiles leave readable members eligible for independent conversion.
+        /// </summary>
+        /// <param name="document">The document to classify; no native records are parsed by this check.</param>
+        /// <returns>Whether conversion takes a native restoration path.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static bool TakesRestorePath(WotDocument document)
         {
+            _ = document ?? throw new ArgumentNullException(nameof(document));
             return document.TryGetEnvelope(out _) ||
                 (document.TryGetNativeProjection(out JsonElement projection) &&
                     !WotNativeProjection.HasUnsupportedProfile(projection));

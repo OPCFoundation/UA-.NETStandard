@@ -83,6 +83,8 @@ An active definition owner emits its own declarations. Resolution-only
 definitions are emitted once by an active source in the prepared closure.
 Only a readable source can take that emission assignment. Native projection
 and envelope restoration preserve their native content and do not consume it.
+Admission uses the converter's supported-profile-aware classification: an
+unsupported native profile does not suppress usable readable declarations.
 Consumers sharing such declarations stay in one publication unit rather than
 registering the same type independently. Generated NodeSets declare the
 namespaces of their emitted Nodes; merely referencing a namespace does not

@@ -144,6 +144,20 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Value!.Items!.OfType<UADataType>().Count(), Is.EqualTo(1));
         }
 
+        [TestCase("1.0", true)]
+        [TestCase("99.0", false)]
+        public void NativePathClassificationDoesNotReadRecordsOfAnUnsupportedProfile(string profile, bool restores)
+        {
+            using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes($$$"""
+                {
+                  "title":"Readable",
+                  "uav:nodes":{"@type":"uav:NodeModel","profileVersion":"{{{profile}}}","nodes":{}}
+                }
+                """));
+
+            Assert.That(WotNodeSetConverter.TakesRestorePath(document), Is.EqualTo(restores));
+        }
+
         private static WotDocument DefinitionDocument(bool contextualIdentity = false)
         {
             string graphId = contextualIdentity ? "d:captured-reading" : "urn:test:captured-reading";

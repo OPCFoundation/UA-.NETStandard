@@ -52,6 +52,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [TestCase(1, false, false, false, 0, false)]
         [TestCase(2, false, false, false, 0, false)]
         [TestCase(3, false, false, false, 0, false)]
+        [TestCase(4, false, false, false, 0, false)]
         [TestCase(0, true, false, false, 0, false)]
         [TestCase(1, true, false, false, 0, false)]
         [TestCase(2, true, false, false, 0, false)]
@@ -168,8 +169,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 0 => "\"uav:dataTypeDefinition\":{\"@id\":\"urn:r30:native-reading-definition\"}",
                 1 => "\"uav:dataTypeName\":\"types:Reading\"",
                 3 => "\"uav:dataTypeDefinition\":{\"@id\":\"d:native-reading-definition\"}",
+                4 => "\"uav:dataTypeDefinition\":{\"@id\":\"urn:r30:native-reading-definition\"}",
                 _ => "\"uav:dataTypeId\":\"nsu=urn:r30:native-types;i=3000\""
             };
+            string unsupportedProjection = referenceForm == 4
+                ? ""","uav:nodes":{"@type":"uav:NodeModel","profileVersion":"99.0","nodes":{}}"""
+                : string.Empty;
             WotRegistryMutationResult source = await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
                 GroupId = WotRegistryGroups.ThingDescriptions, ResourceId = "native-sensor", VersionId = "v1",
@@ -192,7 +197,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                           "uav:id": "nsu=urn:r30:native-sensor;s=Reading",
                           {{{reference}}}
                         }
-                      }{{{nativeLink}}}
+                      }{{{nativeLink}}}{{{unsupportedProjection}}}
                     }
                     """))
             }).ConfigureAwait(false);

@@ -1468,7 +1468,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
             return (WotProjection.IsProjection(document), WotProjectionAdmission.GetError(
                 document, resource.Kind, version.Format, version.ContentType, m_converterOptions.ProjectionCompatibilityMode),
-                !document.TryGetEnvelope(out _) && !document.TryGetNativeProjection(out _));
+                !WotNodeSetConverter.TakesRestorePath(document));
         }
 
         private WotDocument? TryParseDocument(ByteString content)
