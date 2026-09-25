@@ -117,13 +117,68 @@ namespace Opc.Ua.Client.Tests.AuditRegressions
             Assert.That(selected, Is.Not.Null);
         }
 
+        /// <summary>
+        /// Review G17: an HTTPS endpoint with SecurityMode None is TLS protected
+        /// (Part 6, 7.4.1) and the discovery ran over the same TLS transport, so
+        /// with an https / opc.https discovery URL it is an acceptable fallback
+        /// under useSecurity (servers with HttpsMutualTls disabled only offer it).
+        /// </summary>
+        [TestCase("https://localhost:4843")]
+        [TestCase("opc.https://localhost:4843")]
+        public void SelectEndpointWithSecurityAcceptsHttpsNoneOverHttps(string discoveryUrl)
+        {
+            var url = new Uri(discoveryUrl);
+            ArrayOf<EndpointDescription> endpoints =
+            [
+                CreateEndpoint(MessageSecurityMode.None, SecurityPolicies.None, s_url),
+                CreateEndpoint(MessageSecurityMode.None, SecurityPolicies.None, url)
+            ];
+
+            EndpointDescription? selected = CoreClientUtils.SelectEndpoint(
+                null!,
+                url,
+                endpoints,
+                useSecurity: true,
+                NUnitTelemetryContext.Create());
+
+            Assert.That(selected, Is.Not.Null);
+            Assert.That(selected!.EndpointUrl, Does.StartWith(url.Scheme + "://"));
+            Assert.That(selected.SecurityMode, Is.EqualTo(MessageSecurityMode.None));
+        }
+
+        /// <summary>
+        /// Review G17: over HTTPS an endpoint with message security is still
+        /// preferred to the TLS-only None endpoint.
+        /// </summary>
+        [Test]
+        public void SelectEndpointWithSecurityPrefersSecureHttpsEndpoint()
+        {
+            var url = new Uri("opc.https://localhost:4843");
+            ArrayOf<EndpointDescription> endpoints =
+            [
+                CreateEndpoint(MessageSecurityMode.None, SecurityPolicies.None, url),
+                CreateEndpoint(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256, url)
+            ];
+
+            EndpointDescription? selected = CoreClientUtils.SelectEndpoint(
+                null!,
+                url,
+                endpoints,
+                useSecurity: true,
+                NUnitTelemetryContext.Create());
+
+            Assert.That(selected, Is.Not.Null);
+            Assert.That(selected!.SecurityMode, Is.EqualTo(MessageSecurityMode.SignAndEncrypt));
+        }
+
         private static EndpointDescription CreateEndpoint(
             MessageSecurityMode mode,
-            string policyUri)
+            string policyUri,
+            Uri? url = null)
         {
             return new EndpointDescription
             {
-                EndpointUrl = s_url.ToString(),
+                EndpointUrl = (url ?? s_url).ToString(),
                 SecurityMode = mode,
                 SecurityPolicyUri = policyUri
             };

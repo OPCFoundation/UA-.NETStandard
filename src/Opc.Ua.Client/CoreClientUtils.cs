@@ -292,7 +292,9 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <returns>The best matching endpoint, or <c>null</c> if none matches.
         /// With <paramref name="useSecurity"/> set, an endpoint without
-        /// message security is never returned.</returns>
+        /// message security is never returned, except an HTTPS endpoint with
+        /// SecurityMode None when the discovery URL is HTTPS (TLS protects it)
+        /// and no endpoint with message security matches.</returns>
         public static EndpointDescription? SelectEndpoint(
             ApplicationConfiguration configuration,
             Uri url,
@@ -371,14 +373,20 @@ namespace Opc.Ua.Client
             }
 
             // pick the first available endpoint by default. When security was
-            // requested the fallback must never hand out a None endpoint: the
-            // endpoint list comes over an unsecured discovery channel, so doing
-            // so would let a rogue server silently downgrade the connection.
+            // requested the fallback must never hand out a None endpoint over a
+            // transport without TLS: the endpoint list comes over an unsecured
+            // discovery channel, so doing so would let a rogue server silently
+            // downgrade the connection. HTTPS endpoints are the exception: the
+            // discovery ran over TLS and an HTTPS endpoint with SecurityMode None
+            // is still TLS protected (Part 6, 7.4.1).
             if (selectedEndpoint == null && endpoints.Count > 0)
             {
+                bool tlsDiscovery = IsHttpsScheme(url.Scheme);
                 selectedEndpoint = endpoints.Find(e =>
                     e.EndpointUrl?.StartsWith(url.Scheme, StringComparison.Ordinal) == true &&
-                    (!useSecurity || IsSecureMode(e.SecurityMode)));
+                    (!useSecurity ||
+                        IsSecureMode(e.SecurityMode) ||
+                        (tlsDiscovery && Utils.IsUriHttpsScheme(e.EndpointUrl))));
             }
 
             // return the selected endpoint.
@@ -391,6 +399,15 @@ namespace Opc.Ua.Client
         private static bool IsSecureMode(MessageSecurityMode mode)
         {
             return mode is MessageSecurityMode.Sign or MessageSecurityMode.SignAndEncrypt;
+        }
+
+        /// <summary>
+        /// Whether the URI scheme is carried over TLS (https or opc.https).
+        /// </summary>
+        private static bool IsHttpsScheme(string scheme)
+        {
+            return string.Equals(scheme, Utils.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(scheme, Utils.UriSchemeOpcHttps, StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>
