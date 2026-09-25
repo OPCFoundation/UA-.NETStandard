@@ -2065,7 +2065,9 @@ namespace Opc.Ua
         private static MatrixOf<T> ToMatrixOrThrow<T>(ArrayOf<T> elements, int[] dimensions)
         {
             // The inline matrix of a structure field has at least two
-            // dimensions (OPC 10000-6 5.2.5 Table 28, 5.3.4).
+            // dimensions (OPC 10000-6 5.2.5 Table 28, 5.3.4); a dimension
+            // <= 0 means no values, like in the binary encoding.
+            MatrixOf.NormalizeInlineMatrixDimensions(dimensions);
             if (!MatrixOf.IsValidInlineMatrix(dimensions, elements.Count))
             {
                 throw ServiceResultException.Create(
@@ -2589,7 +2591,12 @@ namespace Opc.Ua
                     // MatrixOf<T> below. Reject an absent, too-short, zero or
                     // negative dimension here so an empty matrix (which would
                     // otherwise satisfy the product check) is rejected. The
-                    // inline matrix of a structure field may be empty (5.2.5).
+                    // inline matrix of a structure field may be empty (5.2.5):
+                    // a dimension <= 0 means no values, like in binary.
+                    if (readRawValue)
+                    {
+                        MatrixOf.NormalizeInlineMatrixDimensions(dimensions);
+                    }
                     if (readRawValue
                         ? !MatrixOf.IsValidInlineMatrix(dimensions)
                         : !MatrixOf.IsValidMatrix(dimensions))

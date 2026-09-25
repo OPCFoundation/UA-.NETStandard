@@ -1553,20 +1553,8 @@ namespace Opc.Ua
             ExpandedNodeId encodeableTypeId) where T : IEncodeable
         {
             // see https://reference.opcfoundation.org/Core/Part6/v105/docs/5.2.5
-            if (values.IsNull)
-            {
-                WriteInt32(null, -1); // Dimensions
-                return;
-            }
-
-            ReadOnlySpan<T> elements = values.Span;
-            WriteInt32Array(null, MatrixOf.GetInlineMatrixDimensions(
-                values.Dimensions,
-                elements.Length));
-            for (int ii = 0; ii < elements.Length; ii++)
-            {
-                WriteEncodeable(null, elements[ii], encodeableTypeId);
-            }
+            WriteInlineMatrix(values, false,
+                (e, v) => e.WriteEncodeable(null, v, encodeableTypeId));
         }
 
         /// <inheritdoc/>
@@ -2070,6 +2058,12 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private void WriteInlineMatrix(in Variant value, BuiltInType builtInType, bool isNullMatrix)
         {
+            // A null inline matrix is the same for every element type.
+            if (isNullMatrix)
+            {
+                WriteInt32(null, -1);
+                return;
+            }
             switch (builtInType)
             {
                 case BuiltInType.Boolean:
@@ -2077,24 +2071,19 @@ namespace Opc.Ua
                         static (e, v) => e.WriteBoolean(null, v));
                     break;
                 case BuiltInType.SByte:
-                    WriteInlineMatrix(value.GetSByteMatrix(), isNullMatrix,
-                        static (e, v) => e.WriteSByte(null, v));
+                    WriteInlineMatrixFixed(value.GetSByteMatrix(), isNullMatrix);
                     break;
                 case BuiltInType.Byte:
-                    WriteInlineMatrix(value.GetByteMatrix(), isNullMatrix,
-                        static (e, v) => e.WriteByte(null, v));
+                    WriteInlineMatrixFixed(value.GetByteMatrix(), isNullMatrix);
                     break;
                 case BuiltInType.Int16:
-                    WriteInlineMatrix(value.GetInt16Matrix(), isNullMatrix,
-                        static (e, v) => e.WriteInt16(null, v));
+                    WriteInlineMatrixFixed(value.GetInt16Matrix(), isNullMatrix);
                     break;
                 case BuiltInType.UInt16:
-                    WriteInlineMatrix(value.GetUInt16Matrix(), isNullMatrix,
-                        static (e, v) => e.WriteUInt16(null, v));
+                    WriteInlineMatrixFixed(value.GetUInt16Matrix(), isNullMatrix);
                     break;
                 case BuiltInType.Int32:
-                    WriteInlineMatrix(value.GetInt32Matrix(), isNullMatrix,
-                        static (e, v) => e.WriteInt32(null, v));
+                    WriteInlineMatrixFixed(value.GetInt32Matrix(), isNullMatrix);
                     break;
                 case BuiltInType.Enumeration:
                     // encode enums as int32.
@@ -2102,24 +2091,19 @@ namespace Opc.Ua
                         static (e, v) => e.WriteEnumerated(null, v));
                     break;
                 case BuiltInType.UInt32:
-                    WriteInlineMatrix(value.GetUInt32Matrix(), isNullMatrix,
-                        static (e, v) => e.WriteUInt32(null, v));
+                    WriteInlineMatrixFixed(value.GetUInt32Matrix(), isNullMatrix);
                     break;
                 case BuiltInType.Int64:
-                    WriteInlineMatrix(value.GetInt64Matrix(), isNullMatrix,
-                        static (e, v) => e.WriteInt64(null, v));
+                    WriteInlineMatrixFixed(value.GetInt64Matrix(), isNullMatrix);
                     break;
                 case BuiltInType.UInt64:
-                    WriteInlineMatrix(value.GetUInt64Matrix(), isNullMatrix,
-                        static (e, v) => e.WriteUInt64(null, v));
+                    WriteInlineMatrixFixed(value.GetUInt64Matrix(), isNullMatrix);
                     break;
                 case BuiltInType.Float:
-                    WriteInlineMatrix(value.GetFloatMatrix(), isNullMatrix,
-                        static (e, v) => e.WriteFloat(null, v));
+                    WriteInlineMatrixFixed(value.GetFloatMatrix(), isNullMatrix);
                     break;
                 case BuiltInType.Double:
-                    WriteInlineMatrix(value.GetDoubleMatrix(), isNullMatrix,
-                        static (e, v) => e.WriteDouble(null, v));
+                    WriteInlineMatrixFixed(value.GetDoubleMatrix(), isNullMatrix);
                     break;
                 case BuiltInType.String:
                     WriteInlineMatrix(value.GetStringMatrix(), isNullMatrix,
@@ -2173,11 +2157,22 @@ namespace Opc.Ua
                     WriteInlineMatrix(value.GetVariantMatrix(), isNullMatrix,
                         static (e, v) => e.WriteVariant(null, v));
                     break;
-                case BuiltInType.DiagnosticInfo:
-                case BuiltInType.Null:
                 case BuiltInType.Number:
                 case BuiltInType.Integer:
                 case BuiltInType.UInteger:
+                    // abstract numbers are Variants (as the decoder reads them)
+                    if (!value.TryGetMatrix(out MatrixOf<Variant> numbers, builtInType))
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadEncodingError,
+                            "Unexpected value encountered while encoding an inline matrix: {0}",
+                            value.TypeInfo);
+                    }
+                    WriteInlineMatrix(numbers, false,
+                        static (e, v) => e.WriteVariant(null, v));
+                    break;
+                case BuiltInType.DiagnosticInfo:
+                case BuiltInType.Null:
                     throw ServiceResultException.Create(
                         StatusCodes.BadEncodingError,
                         "Unexpected type encountered while encoding an inline matrix: {0}",
@@ -2209,13 +2204,53 @@ namespace Opc.Ua
             }
 
             ReadOnlySpan<T> values = matrix.Span;
-            WriteInt32Array(null, MatrixOf.GetInlineMatrixDimensions(
-                matrix.Dimensions,
-                values.Length));
+            WriteInlineMatrixDimensions(matrix.Dimensions, values.Length);
             for (int ii = 0; ii < values.Length; ii++)
             {
                 writeElement(this, values[ii]);
             }
+        }
+
+        /// <summary>
+        /// Writes an inline matrix of a fixed width primitive type as the
+        /// dimensions followed by the values as one block.
+        /// </summary>
+        /// <typeparam name="T">The element type.</typeparam>
+        /// <exception cref="ServiceResultException"></exception>
+        private void WriteInlineMatrixFixed<T>(MatrixOf<T> matrix, bool isNullMatrix)
+            where T : unmanaged
+        {
+            if (isNullMatrix || matrix.IsNull)
+            {
+                WriteInt32(null, -1);
+                return;
+            }
+
+            ReadOnlySpan<T> values = matrix.Span;
+            WriteInlineMatrixDimensions(matrix.Dimensions, values.Length);
+            WriteFixedWidthArray(values);
+        }
+
+        /// <summary>
+        /// Writes the dimensions of an inline matrix (at least two, see
+        /// <see cref="MatrixOf.GetInlineMatrixDimensions(int[], int)"/>) after
+        /// checking the element count against
+        /// <see cref="IServiceMessageContext.MaxArrayLength"/>, the limit the
+        /// array encoding of the values enforces and a peer applies when
+        /// decoding the matrix.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void WriteInlineMatrixDimensions(int[] dimensions, int count)
+        {
+            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < count)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxArrayLength {0} < {1}",
+                    Context.MaxArrayLength,
+                    count);
+            }
+            WriteInt32Array(null, MatrixOf.GetInlineMatrixDimensions(dimensions, count));
         }
 
         /// <summary>

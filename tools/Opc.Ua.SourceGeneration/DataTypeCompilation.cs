@@ -269,6 +269,22 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
+        /// True if the type and all its containing types are declared public,
+        /// so the namespace-level activator can be public as well.
+        /// </summary>
+        private static bool IsEffectivelyPublic(INamedTypeSymbol symbol)
+        {
+            for (INamedTypeSymbol type = symbol; type != null; type = type.ContainingType)
+            {
+                if (type.DeclaredAccessibility != Accessibility.Public)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
         /// Fill in the nesting of a nested type: the partial declarations of
         /// its containing types, its qualified name and a unique identifier
         /// for the namespace-level activator.
@@ -338,16 +354,28 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
-        /// Emit a batch of compilations as one file per namespace.
+        /// Report the diagnostics of a batch of compilations. The locations
+        /// are re-created in the syntax trees of <paramref name="compilation"/>
+        /// so that <c>#pragma warning</c>, per-file severity configuration and
+        /// <c>#line</c> mapping apply to them. Kept apart from
+        /// <see cref="EmitBatch"/> so the source output does not depend on the
+        /// compilation and stays cached.
         /// </summary>
-        public static void EmitBatch(
+        public static void ReportDiagnostics(
             SourceProductionContext sourceContext,
             ImmutableArray<DataTypeCompilation> compilations,
-            bool publicExtensions)
+            Compilation compilation)
         {
             foreach (DataTypeCompilation comp in compilations)
             {
-                Location location = comp.Location.ToLocation();
+                if (comp.UnsupportedReason == null &&
+                    comp.UnresolvedNamespaceExpression.Length == 0 &&
+                    comp.ErrorMessage == null &&
+                    comp.Diagnostics.Count == 0)
+                {
+                    continue;
+                }
+                Location location = comp.Location.ToLocation(compilation);
                 if (comp.UnsupportedReason != null)
                 {
                     sourceContext.ReportDiagnostic(
@@ -397,7 +425,17 @@ namespace Opc.Ua.SourceGeneration
                                 message));
                 }
             }
+        }
 
+        /// <summary>
+        /// Emit a batch of compilations as one file per namespace. The
+        /// diagnostics are reported by <see cref="ReportDiagnostics"/>.
+        /// </summary>
+        public static void EmitBatch(
+            SourceProductionContext sourceContext,
+            ImmutableArray<DataTypeCompilation> compilations,
+            bool publicExtensions)
+        {
             // Roslyn compares hint names case-insensitively, so namespaces
             // differing only in case ("Acme.Types" and "Acme.types") would
             // claim the same hint name and the second AddSource would throw.
@@ -480,6 +518,7 @@ namespace Opc.Ua.SourceGeneration
                 BinaryEncodingId = binaryEncodingId,
                 XmlEncodingId = xmlEncodingId,
                 ContainingTypeDeclarations = EquatableArray<string>.Empty,
+                IsEffectivelyPublic = IsEffectivelyPublic(symbol),
                 EnumMembers = EquatableArray<TypeEnumMember>.Empty,
                 IsRecord = symbol.IsRecord,
                 IsEnum = false,
@@ -553,7 +592,12 @@ namespace Opc.Ua.SourceGeneration
                     members.Add(new TypeEnumMember
                     {
                         Name = field.Name,
-                        Value = field.ConstantValue?.ToString() ?? "0"
+                        // Invariant: the generator parses the value with the
+                        // invariant culture, and a culture with U+2212 as
+                        // negative sign would otherwise make it unparsable.
+                        Value = field.ConstantValue is null
+                            ? "0"
+                            : Convert.ToString(field.ConstantValue, CultureInfo.InvariantCulture)
                     });
                 }
             }
@@ -569,6 +613,7 @@ namespace Opc.Ua.SourceGeneration
                 BinaryEncodingId = binaryEncodingId,
                 XmlEncodingId = xmlEncodingId,
                 ContainingTypeDeclarations = EquatableArray<string>.Empty,
+                IsEffectivelyPublic = IsEffectivelyPublic(symbol),
                 Fields = EquatableArray<TypeFieldModel>.Empty,
                 IsEnum = true,
                 IsFlags = symbol.GetAttributes().Any(a =>

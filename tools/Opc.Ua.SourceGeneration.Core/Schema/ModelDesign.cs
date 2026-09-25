@@ -1237,6 +1237,14 @@ namespace Opc.Ua.Schema.Model
         public TypeDesign BaseTypeNode { get; set; }
 
         /// <summary>
+        /// True if the type is excluded from generation (for example a
+        /// Draft type with the Draft exclusion), so no state class is
+        /// emitted for it. Set by the validator.
+        /// </summary>
+        [XmlIgnore]
+        public bool IsExcludedFromGeneration { get; set; }
+
+        /// <summary>
         /// Deep copy the type design.
         /// </summary>
         /// <returns></returns>

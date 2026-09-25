@@ -526,7 +526,7 @@ namespace Opc.Ua.SourceGeneration
             #if !OPCUA_FUZZING_COVERAGE
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
             #endif
-            public sealed class {{Tokens.ClassName}}Activator : global::Opc.Ua.EncodeableType<{{Tokens.TypeName}}>
+            {{Tokens.AccessModifier}} sealed class {{Tokens.ClassName}}Activator : global::Opc.Ua.EncodeableType<{{Tokens.TypeName}}>
             {
                 /// <summary>
                 /// The singleton instance of the activator.
@@ -605,7 +605,7 @@ namespace Opc.Ua.SourceGeneration
             #if !OPCUA_FUZZING_COVERAGE
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
             #endif
-            public sealed class {{Tokens.ClassName}}Activator : global::Opc.Ua.EnumeratedType<{{Tokens.TypeName}}>
+            {{Tokens.AccessModifier}} sealed class {{Tokens.ClassName}}Activator : global::Opc.Ua.EnumeratedType<{{Tokens.TypeName}}>
             {
                 /// <summary>
                 /// The singleton instance of the activator.

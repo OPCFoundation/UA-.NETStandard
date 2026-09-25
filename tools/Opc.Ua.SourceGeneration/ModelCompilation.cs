@@ -138,52 +138,12 @@ namespace Opc.Ua.SourceGeneration
                     new Dictionary<NodeManagerAttributeBinding, NodeManagerAttributeDiscovery>();
                 foreach (NodeManagerAttributeDiscovery discovery in m_nodeManagerBindings)
                 {
-                    if (discovery == null)
+                    // An invalid discovery is reported by
+                    // NodeManagerAttributeDiscovery.ReportDiagnostics, in a
+                    // separate output that has the compilation to report it
+                    // at a source location.
+                    if (discovery == null || discovery.IsInvalid)
                     {
-                        continue;
-                    }
-                    if (discovery.InvalidExpressions.Count > 0)
-                    {
-                        string targetType = string.IsNullOrEmpty(
-                            discovery.Binding.TargetNamespace)
-                                ? discovery.Binding.TargetClassName
-                                : discovery.Binding.TargetNamespace +
-                                    "." +
-                                    discovery.Binding.TargetClassName;
-                        foreach (NodeManagerAttributeExpressionError error in
-                            discovery.InvalidExpressions)
-                        {
-                            m_context.ReportDiagnostic(
-                                Diagnostic.Create(
-                                    SourceGenerator.NodeManagerArgumentUnresolved,
-                                    error.Location.ToLocation(),
-                                    error.ArgumentName,
-                                    error.Expression,
-                                    targetType));
-                        }
-                        continue;
-                    }
-                    if (discovery.UnsupportedReason != null)
-                    {
-                        m_context.ReportDiagnostic(
-                            Diagnostic.Create(
-                                SourceGenerator.NodeManagerUnsupportedTarget,
-                                discovery.Location.ToLocation(),
-                                discovery.Binding.TargetNamespace +
-                                "." +
-                                discovery.Binding.TargetClassName,
-                                discovery.UnsupportedReason));
-                        continue;
-                    }
-                    if (!discovery.IsPartial)
-                    {
-                        m_context.ReportDiagnostic(
-                            Diagnostic.Create(
-                                SourceGenerator.NodeManagerNotPartial,
-                                discovery.Location.ToLocation(),
-                                discovery.Binding.TargetNamespace +
-                                "." +
-                                discovery.Binding.TargetClassName));
                         continue;
                     }
                     bindings.Add(discovery.Binding);
@@ -192,6 +152,9 @@ namespace Opc.Ua.SourceGeneration
 
                 void reportBinding(NodeManagerAttributeBinding binding, string message)
                 {
+                    // Reported while the models are generated, which does not
+                    // depend on the compilation (to stay cached), so there is
+                    // no syntax tree to report at: an external location.
                     Location loc =
                         bindingByPayload.TryGetValue(binding, out NodeManagerAttributeDiscovery d) &&
                         d != null

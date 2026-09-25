@@ -1766,9 +1766,18 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// A named field is the raw value of a structure field, whose
+        /// matrix is written as an inline matrix (OPC 10000-6 5.2.5, 5.3.4).
+        /// Without a field name the content of the Variant is written with
+        /// the Variant rules (the way <see cref="WriteVariant"/> writes it),
+        /// e.g. the value of a Variable in a NodeSet or a serialized Variant:
+        /// a null matrix is a nil ListOf element, a matrix with a single
+        /// dimension an array.
+        /// </remarks>
         public void WriteVariantValue(string? fieldName, in Variant value)
         {
-            WriteVariantValue(fieldName, in value, true);
+            WriteVariantValue(fieldName, in value, fieldName != null);
         }
 
         /// <summary>

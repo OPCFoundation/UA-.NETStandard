@@ -67,13 +67,43 @@ namespace Opc.Ua.SourceGeneration
 
         /// <summary>
         /// Re-create the location, or <see cref="Location.None"/> for
-        /// <c>default</c>.
+        /// <c>default</c>. The location is outside source (it has no syntax
+        /// tree), so <c>#pragma</c>, per-file severity configuration and
+        /// <c>#line</c> mapping do not apply to a diagnostic reported at
+        /// it; prefer <see cref="ToLocation(Compilation)"/>.
         /// </summary>
         public Location ToLocation()
         {
             return FilePath == null
                 ? Location.None
                 : Location.Create(FilePath, TextSpan, LineSpan);
+        }
+
+        /// <summary>
+        /// Re-create the location in the syntax tree of the compilation that
+        /// has the snapshot's file path, so that a diagnostic reported at it
+        /// is subject to <c>#pragma warning</c>, per-file severity
+        /// configuration and <c>#line</c> mapping. Falls back to
+        /// <see cref="ToLocation()"/> when no such tree exists.
+        /// </summary>
+        public Location ToLocation(Compilation compilation)
+        {
+            if (FilePath == null)
+            {
+                return Location.None;
+            }
+            if (compilation != null)
+            {
+                foreach (SyntaxTree tree in compilation.SyntaxTrees)
+                {
+                    if (string.Equals(tree.FilePath, FilePath, System.StringComparison.Ordinal) &&
+                        TextSpan.End <= tree.Length)
+                    {
+                        return Location.Create(tree, TextSpan);
+                    }
+                }
+            }
+            return ToLocation();
         }
     }
 }

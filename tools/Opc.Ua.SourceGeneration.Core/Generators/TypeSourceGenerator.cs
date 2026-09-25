@@ -365,7 +365,8 @@ namespace Opc.Ua.SourceGeneration
             {
                 // A matrix field is an inline matrix (OPC 10000-6 5.2.5):
                 // matrices of structures use the typed inline matrix call,
-                // every other element type the raw Variant value - the calls
+                // every other element type the raw Variant value, normalized
+                // to an inline matrix by WriteInlineMatrixValue - the calls
                 // the model driven generator and the DataTypeDefinition
                 // driven codec (Structure.EncodeProperty) make.
                 encodeLine = field.IsEncodeable
@@ -374,7 +375,7 @@ namespace Opc.Ua.SourceGeneration
                         field.FieldName.Escape(),
                         field.PropertyName)
                     : CoreUtils.Format(
-                        "encoder.WriteVariantValue(\"{0}\", global::Opc.Ua.Variant.From({1}));",
+                        "global::Opc.Ua.EncoderExtensions.WriteInlineMatrixValue(encoder, \"{0}\", global::Opc.Ua.Variant.From({1}));",
                         field.FieldName.Escape(),
                         field.PropertyName);
             }
@@ -433,9 +434,11 @@ namespace Opc.Ua.SourceGeneration
             // Omitting a field is only round-trip safe when a missing field
             // decodes to the omitted value: the property initializer (or the
             // CLR default without one). An initializer that cannot be
-            // compared against keeps the field on the wire.
+            // compared against keeps the field on the wire. A SetIfMissing
+            // field decodes a missing field as the CLR default whatever the
+            // initializer, so only the CLR default may be omitted.
             if ((field.DefaultValueHandling & 1) == 0 &&
-                !field.HasNonConstantInitializer)
+                (IsSetIfMissing(field) || !field.HasNonConstantInitializer))
             {
                 encodeLine = CoreUtils.Format(
                     "if (!encoder.CanOmitFields || {0}) {1}",
@@ -765,6 +768,10 @@ namespace Opc.Ua.SourceGeneration
             // symbol name and refers to a nested type by its qualified name.
             context.Template.AddReplacement(Tokens.ClassName, model.SymbolName ?? model.ClassName);
             context.Template.AddReplacement(Tokens.TypeName, model.TypeReference ?? model.ClassName);
+            // EncodeableType<T> / EnumeratedType<T> is only as accessible as
+            // T, so a public activator of a non-public type is CS0060.
+            context.Template.AddReplacement(Tokens.AccessModifier,
+                model.IsEffectivelyPublic ? "public" : "internal");
             context.Template.AddBrowseNameReplacement(
                 Tokens.BrowseName,
                 Tokens.BrowseNameLiteral,
@@ -1214,13 +1221,22 @@ namespace Opc.Ua.SourceGeneration
                 ["XmlElement"] = "!{0}.IsNull"
             };
 
+        /// <summary>
+        /// True for DefaultValueHandling.SetIfMissing (2): the field is always
+        /// decoded, so a missing field yields the CLR default.
+        /// </summary>
+        private static bool IsSetIfMissing(TypeFieldModel field)
+        {
+            return (field.DefaultValueHandling & 2) != 0;
+        }
+
         private static string GetNotDefaultCheck(TypeFieldModel field)
         {
             if (field.IsArray || field.IsMatrix)
             {
                 return $"!{field.PropertyName}.IsNull";
             }
-            if (field.DefaultValueLiteral != null)
+            if (field.DefaultValueLiteral != null && !IsSetIfMissing(field))
             {
                 return $"{field.PropertyName} != {field.DefaultValueLiteral}";
             }

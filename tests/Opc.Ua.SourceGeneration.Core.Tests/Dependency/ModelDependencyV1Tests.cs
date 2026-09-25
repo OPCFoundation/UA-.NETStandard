@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -525,6 +526,129 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(
                 decoded.Nodes[0].Children[0].MethodStateNamespace,
                 Is.EqualTo("http://example.org/UA/Edge/"));
+        }
+
+        /// <summary>
+        /// A2-7: IsOptional, AllowSubTypes and ArrayDimensions of structure
+        /// fields round trip through the structure field trailer.
+        /// </summary>
+        [Test]
+        public void WriteThenRead_RoundTripsStructureFieldFlags()
+        {
+            ModelDependencyV1 dependency = BuildStructureSnapshot(withFlags: true, fluent: null);
+
+            var decoded = ModelDependencyV1.FromBase64Payload(dependency.ToBase64Payload());
+
+            Assert.That(decoded.FluentAccessorsEmitted, Is.Null);
+            Assert.That(decoded.Nodes[0].GuidId, Is.Null);
+            IReadOnlyList<DependencyDataField> fields = decoded.Nodes[0].Fields;
+            Assert.That(fields, Is.EqualTo(dependency.Nodes[0].Fields));
+            Assert.That(fields[0].IsOptional, Is.False);
+            Assert.That(fields[1].IsOptional, Is.True);
+            Assert.That(fields[2].AllowSubTypes, Is.True);
+            Assert.That(fields[3].ArrayDimensions, Is.EqualTo("0,0,0"));
+        }
+
+        /// <summary>
+        /// The structure field trailer only appends to the V1 format: a payload
+        /// without flagged fields is byte identical to an old one, and a
+        /// payload with them starts with the old payload, so a new reader reads
+        /// an old payload (no flags) and an old reader, which ignores the
+        /// unknown capability bit and stops after the trailers it knows, reads
+        /// a new one - including the "fluent accessors unknown" state.
+        /// </summary>
+        [Test]
+        public void StructureFieldTrailerIsCompatibleWithOldPayloadsAndReaders()
+        {
+            ModelDependencyV1 withFlags = BuildStructureSnapshot(withFlags: true, fluent: null);
+            ModelDependencyV1 withoutFlags = BuildStructureSnapshot(withFlags: false, fluent: null);
+
+            byte[] old = Inflate(withoutFlags.ToBase64Payload());
+            byte[] full = Inflate(withFlags.ToBase64Payload());
+            Assert.That(full.Take(old.Length), Is.EqualTo(old), "the old payload is a prefix");
+
+            // New reader, old payload: the fields read without flags.
+            ModelDependencyV1 fromOld = ModelDependencyV1.FromBase64Payload(Deflate(old));
+            Assert.That(fromOld.Nodes[0].Fields, Is.EqualTo(withoutFlags.Nodes[0].Fields));
+            Assert.That(fromOld.Nodes[0].Fields.Any(f => f.IsOptional || f.AllowSubTypes), Is.False);
+
+            // Old reader, new payload: an old reader only honours the
+            // FluentAccessorsKnown bit when a trailer bit it knows is set.
+            byte capabilities = full[old.Length];
+            Assert.That(capabilities & 0x20, Is.Not.Zero, "extended identifier trailer bit is set");
+            Assert.That(capabilities & 0x40, Is.Zero, "fluent accessors stay unknown");
+            byte[] asOldReaderSeesIt = (byte[])full.Clone();
+            asOldReaderSeesIt[old.Length] = (byte)(capabilities & ~0x10);
+            ModelDependencyV1 oldView = ModelDependencyV1.FromBase64Payload(Deflate(asOldReaderSeesIt));
+            Assert.That(oldView, Is.Not.Null);
+            Assert.That(oldView.FluentAccessorsEmitted, Is.Null);
+            Assert.That(oldView.Nodes[0].GuidId, Is.Null);
+            Assert.That(oldView.Nodes[0].Fields, Is.EqualTo(withoutFlags.Nodes[0].Fields));
+
+            // Known fluent capability plus the trailer still round trips.
+            ModelDependencyV1 fluent = ModelDependencyV1.FromBase64Payload(
+                BuildStructureSnapshot(withFlags: true, fluent: true).ToBase64Payload());
+            Assert.That(fluent.FluentAccessorsEmitted, Is.True);
+            Assert.That(fluent.Nodes[0].Fields[1].IsOptional, Is.True);
+        }
+
+        /// <summary>
+        /// The structure field trailer is length prefixed, so a later version
+        /// of it is skipped instead of failing the payload.
+        /// </summary>
+        [Test]
+        public void Read_SkipsAnUnknownStructureFieldTrailerVersion()
+        {
+            ModelDependencyV1 withFlags = BuildStructureSnapshot(withFlags: true, fluent: null);
+            byte[] full = Inflate(withFlags.ToBase64Payload());
+            // capabilities, extended identifier trailer (version, count, and
+            // two null strings per node), then the structure field trailer.
+            int structureTrailer = Inflate(BuildStructureSnapshot(withFlags: false, fluent: null)
+                .ToBase64Payload()).Length + 1 + 1 + 4 + 2;
+            Assert.That(full[structureTrailer], Is.EqualTo((byte)1));
+            full[structureTrailer] = 2;
+
+            ModelDependencyV1 decoded = ModelDependencyV1.FromBase64Payload(Deflate(full));
+
+            Assert.That(decoded, Is.Not.Null);
+            Assert.That(decoded.Nodes[0].Fields.Any(f => f.IsOptional), Is.False);
+        }
+
+        private static ModelDependencyV1 BuildStructureSnapshot(bool withFlags, bool? fluent)
+        {
+            const string ns = "http://example.org/UA/Structures/";
+            var dependency = new ModelDependencyV1
+            {
+                ModelUri = ns,
+                FluentAccessorsEmitted = fluent
+            };
+            dependency.Nodes.Add(new DependencyNode
+            {
+                SymbolicName = "Measurement",
+                SymbolicNamespace = ns,
+                ClassName = "Measurement",
+                Kind = DependencyNodeKind.DataType,
+                BaseTypeName = "Structure",
+                BaseTypeNamespace = "http://opcfoundation.org/UA/",
+                NumericId = 1,
+                Fields =
+                [
+                    new DependencyDataField("Id", "Int32", "http://opcfoundation.org/UA/", -1),
+                    new DependencyDataField("Note", "String", "http://opcfoundation.org/UA/", -1)
+                    {
+                        IsOptional = withFlags
+                    },
+                    new DependencyDataField("Payload", "Structure", "http://opcfoundation.org/UA/", -1)
+                    {
+                        AllowSubTypes = withFlags
+                    },
+                    new DependencyDataField("Cube", "Double", "http://opcfoundation.org/UA/", 0)
+                    {
+                        ArrayDimensions = withFlags ? "0,0,0" : null
+                    }
+                ]
+            });
+            return dependency;
         }
 
         private static ModelDependencyV1 BuildTrailerSnapshot(string methodStateName, string guidId)

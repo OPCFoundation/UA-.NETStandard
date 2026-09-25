@@ -205,7 +205,15 @@ namespace Opc.Ua.Schema.Model
             if (instance is not VariableDesign variable)
 
             {
-                return GetNodeStateNameSimple(instance.TypeDefinitionNode);
+                // No state class is emitted for an excluded ObjectType: use
+                // the nearest emitted supertype's.
+                TypeDesign typeDefinition = instance.TypeDefinitionNode;
+                while (typeDefinition is ObjectTypeDesign { IsExcludedFromGeneration: true } &&
+                    typeDefinition.BaseTypeNode != null)
+                {
+                    typeDefinition = typeDefinition.BaseTypeNode;
+                }
+                return GetNodeStateNameSimple(typeDefinition);
             }
             var variableType = instance.TypeDefinitionNode as VariableTypeDesign;
 

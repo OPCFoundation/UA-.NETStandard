@@ -1291,10 +1291,21 @@ namespace Opc.Ua.SourceGeneration
         /// Resolves the C# state class for an ObjectType design. Uses
         /// the model's namespace prefix table to find the C# namespace
         /// the type lives in; strips the conventional <c>Type</c>
-        /// suffix and appends <c>State</c>.
+        /// suffix and appends <c>State</c>. No state class is emitted for
+        /// an excluded type, so it resolves to the state class of the
+        /// nearest emitted ancestor (the rule the proxy generator uses for
+        /// base types), falling back to <c>BaseObjectState</c>.
         /// </summary>
         private string ResolveObjectTypeStateClr(ObjectTypeDesign type)
         {
+            while (type != null && m_context.ModelDesign.IsExcluded(type))
+            {
+                type = type.BaseTypeNode as ObjectTypeDesign;
+                if (type == null)
+                {
+                    return "global::Opc.Ua.BaseObjectState";
+                }
+            }
             string typeName = type?.SymbolicName?.Name;
             if (string.IsNullOrEmpty(typeName))
             {

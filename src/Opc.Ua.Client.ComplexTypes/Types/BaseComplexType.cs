@@ -351,7 +351,31 @@ namespace Opc.Ua.Client.ComplexTypes
                     encoder.WriteVariant(name, variant);
                     break;
                 default:
-                    encoder.WriteVariantValue(name, variant);
+                    // A raw binary value is written without type
+                    // information, so a null Variant must still carry the
+                    // field's type and shape (default scalar, null array or
+                    // null inline matrix), never nothing at all.
+                    if (variant.IsNull &&
+                        encoder.EncodingType == EncodingType.Binary &&
+                        !(property.TypeInfo.IsScalar &&
+                            property.TypeInfo.BuiltInType is
+                                BuiltInType.Number or
+                                BuiltInType.Integer or
+                                BuiltInType.UInteger or
+                                BuiltInType.DiagnosticInfo))
+                    {
+                        variant = Variant.CreateDefault(property.TypeInfo);
+                    }
+                    if (property.TypeInfo.IsMatrix)
+                    {
+                        // An inline matrix (OPC 10000-6 5.2.5) has at least
+                        // two dimensions, also when it is empty.
+                        encoder.WriteInlineMatrixValue(name, variant);
+                    }
+                    else
+                    {
+                        encoder.WriteVariantValue(name, variant);
+                    }
                     break;
             }
         }

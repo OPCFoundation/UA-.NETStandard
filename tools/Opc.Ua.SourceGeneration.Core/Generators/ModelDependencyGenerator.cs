@@ -243,7 +243,17 @@ namespace Opc.Ua.SourceGeneration
                                 name: field.Name ?? string.Empty,
                                 dataTypeName: field.DataType?.Name ?? string.Empty,
                                 dataTypeNamespace: field.DataType?.Namespace ?? string.Empty,
-                                valueRank: (int)field.ValueRank));
+                                valueRank: (int)field.ValueRank)
+                            {
+                                // A subtype in a consumer model needs these to
+                                // continue the encoding mask and publish the
+                                // inherited fields' definition correctly.
+                                IsOptional = field.IsOptional,
+                                AllowSubTypes = field.AllowSubTypes,
+                                ArrayDimensions = string.IsNullOrEmpty(field.ArrayDimensions)
+                                    ? null
+                                    : field.ArrayDimensions
+                            });
                         }
                         entry.Fields = fields;
                     }

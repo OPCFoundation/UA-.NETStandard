@@ -79,6 +79,80 @@ namespace Opc.Ua.SourceGeneration
             = EquatableArray<NodeManagerAttributeExpressionError>.Empty;
 
         /// <summary>
+        /// True if the discovery cannot be bound: an unresolved expression,
+        /// an unsupported target or a class that is not partial. Such a
+        /// discovery is reported by <see cref="ReportDiagnostics"/> and
+        /// skipped by the model compilation.
+        /// </summary>
+        public bool IsInvalid =>
+            InvalidExpressions.Count > 0 ||
+            UnsupportedReason != null ||
+            !IsPartial;
+
+        /// <summary>
+        /// Reports why discoveries cannot be bound, at locations re-created
+        /// in the syntax trees of <paramref name="compilation"/> so that
+        /// <c>#pragma warning</c>, per-file severity configuration and
+        /// <c>#line</c> mapping apply.
+        /// </summary>
+        public static void ReportDiagnostics(
+            SourceProductionContext context,
+            IEnumerable<NodeManagerAttributeDiscovery> discoveries,
+            Compilation compilation)
+        {
+            foreach (NodeManagerAttributeDiscovery discovery in discoveries)
+            {
+                if (discovery == null)
+                {
+                    continue;
+                }
+                if (discovery.InvalidExpressions.Count > 0)
+                {
+                    string targetType = string.IsNullOrEmpty(
+                        discovery.Binding.TargetNamespace)
+                            ? discovery.Binding.TargetClassName
+                            : discovery.Binding.TargetNamespace +
+                                "." +
+                                discovery.Binding.TargetClassName;
+                    foreach (NodeManagerAttributeExpressionError error in
+                        discovery.InvalidExpressions)
+                    {
+                        context.ReportDiagnostic(
+                            Diagnostic.Create(
+                                SourceGenerator.NodeManagerArgumentUnresolved,
+                                error.Location.ToLocation(compilation),
+                                error.ArgumentName,
+                                error.Expression,
+                                targetType));
+                    }
+                    continue;
+                }
+                if (discovery.UnsupportedReason != null)
+                {
+                    context.ReportDiagnostic(
+                        Diagnostic.Create(
+                            SourceGenerator.NodeManagerUnsupportedTarget,
+                            discovery.Location.ToLocation(compilation),
+                            discovery.Binding.TargetNamespace +
+                            "." +
+                            discovery.Binding.TargetClassName,
+                            discovery.UnsupportedReason));
+                    continue;
+                }
+                if (!discovery.IsPartial)
+                {
+                    context.ReportDiagnostic(
+                        Diagnostic.Create(
+                            SourceGenerator.NodeManagerNotPartial,
+                            discovery.Location.ToLocation(compilation),
+                            discovery.Binding.TargetNamespace +
+                            "." +
+                            discovery.Binding.TargetClassName));
+                }
+            }
+        }
+
+        /// <summary>
         /// Predicate used by <see cref="SyntaxProvider.ForAttributeWithMetadataName"/>.
         /// </summary>
         public static bool Handles(SyntaxNode node, CancellationToken ct)

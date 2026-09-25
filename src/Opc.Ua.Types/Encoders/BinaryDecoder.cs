@@ -1522,20 +1522,10 @@ namespace Opc.Ua
             ExpandedNodeId encodeableTypeId) where T : IEncodeable
         {
             // see https://reference.opcfoundation.org/Core/Part6/v105/docs/5.2.5
-            int[]? dimensions = ReadInt32Array(null).ToArray();
-            if (dimensions == null)
-            {
-                return default;
-            }
             // An encodeable can encode to no bytes at all, only the
             // MaxArrayLength limit applies to its element count.
-            int count = GetInlineMatrixElementCount(dimensions, 0, encodeableTypeId);
-            var values = new T[count];
-            for (int ii = 0; ii < values.Length; ii++)
-            {
-                values[ii] = ReadEncodeable<T>(null, encodeableTypeId);
-            }
-            return new MatrixOf<T>(values, dimensions);
+            return ReadInlineMatrix(encodeableTypeId, 0,
+                d => d.ReadEncodeable<T>(null, encodeableTypeId));
         }
 
         /// <inheritdoc/>
@@ -2023,38 +2013,28 @@ namespace Opc.Ua
                     return Variant.From(ReadInlineMatrix(typeInfo, 1,
                         static d => d.ReadBoolean(null)));
                 case BuiltInType.SByte:
-                    return Variant.From(ReadInlineMatrix(typeInfo, 1,
-                        static d => d.ReadSByte(null)));
+                    return Variant.From(ReadInlineMatrixFixed<sbyte>(typeInfo));
                 case BuiltInType.Byte:
-                    return Variant.From(ReadInlineMatrix(typeInfo, 1,
-                        static d => d.ReadByte(null)));
+                    return Variant.From(ReadInlineMatrixFixed<byte>(typeInfo));
                 case BuiltInType.Int16:
-                    return Variant.From(ReadInlineMatrix(typeInfo, 2,
-                        static d => d.ReadInt16(null)));
+                    return Variant.From(ReadInlineMatrixFixed<short>(typeInfo));
                 case BuiltInType.UInt16:
-                    return Variant.From(ReadInlineMatrix(typeInfo, 2,
-                        static d => d.ReadUInt16(null)));
+                    return Variant.From(ReadInlineMatrixFixed<ushort>(typeInfo));
                 case BuiltInType.Int32:
-                    return Variant.From(ReadInlineMatrix(typeInfo, 4,
-                        static d => d.ReadInt32(null)));
+                    return Variant.From(ReadInlineMatrixFixed<int>(typeInfo));
                 case BuiltInType.Enumeration:
                     return Variant.From(ReadInlineMatrix(typeInfo, 4,
                         static d => d.ReadEnumerated(null)));
                 case BuiltInType.UInt32:
-                    return Variant.From(ReadInlineMatrix(typeInfo, 4,
-                        static d => d.ReadUInt32(null)));
+                    return Variant.From(ReadInlineMatrixFixed<uint>(typeInfo));
                 case BuiltInType.Int64:
-                    return Variant.From(ReadInlineMatrix(typeInfo, 8,
-                        static d => d.ReadInt64(null)));
+                    return Variant.From(ReadInlineMatrixFixed<long>(typeInfo));
                 case BuiltInType.UInt64:
-                    return Variant.From(ReadInlineMatrix(typeInfo, 8,
-                        static d => d.ReadUInt64(null)));
+                    return Variant.From(ReadInlineMatrixFixed<ulong>(typeInfo));
                 case BuiltInType.Float:
-                    return Variant.From(ReadInlineMatrix(typeInfo, 4,
-                        static d => d.ReadFloat(null)));
+                    return Variant.From(ReadInlineMatrixFixed<float>(typeInfo));
                 case BuiltInType.Double:
-                    return Variant.From(ReadInlineMatrix(typeInfo, 8,
-                        static d => d.ReadDouble(null)));
+                    return Variant.From(ReadInlineMatrixFixed<double>(typeInfo));
                 case BuiltInType.String:
 #pragma warning disable CS8620 // Argument cannot be used due to differences in nullability
                     return Variant.From(ReadInlineMatrix(typeInfo, 4,
@@ -2155,6 +2135,29 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Reads an inline matrix of a fixed width primitive type, whose
+        /// values follow the dimensions as one block.
+        /// </summary>
+        /// <typeparam name="T">The element type.</typeparam>
+        /// <exception cref="ServiceResultException"></exception>
+        private MatrixOf<T> ReadInlineMatrixFixed<T>(object description)
+            where T : unmanaged
+        {
+            int[]? dimensions = ReadInt32Array(null).ToArray();
+            if (dimensions == null)
+            {
+                return default;
+            }
+            int count = GetInlineMatrixElementCount(
+                dimensions,
+                Unsafe.SizeOf<T>(),
+                description);
+            return new MatrixOf<T>(
+                count == 0 ? Array.Empty<T>() : ReadFixedWidthArray<T>(count),
+                dimensions);
+        }
+
+        /// <summary>
         /// Validates the dimensions of an inline matrix read from the wire and
         /// returns the number of values that follow them. A dimension
         /// &lt;= 0 means no values are encoded (OPC 10000-6 5.2.5 Table 28),
@@ -2175,58 +2178,54 @@ namespace Opc.Ua
                     description);
             }
 
-            bool isEmpty = false;
-            for (int ii = 0; ii < dimensions.Length; ii++)
+            MatrixOf.NormalizeInlineMatrixDimensions(dimensions);
+
+            // The dimensions are bounded also when the matrix is empty: the
+            // product of the non zero dimensions (which bounds each single
+            // dimension) must neither overflow nor exceed MaxArrayLength, or
+            // a consumer materializing the shape (Array.CreateInstance) of
+            // e.g. [100000,100000,0] runs out of memory.
+            if (!MatrixOf.TryGetInlineMatrixElementCount(
+                dimensions,
+                out int count,
+                out int shapeLength))
             {
-                if (dimensions[ii] <= 0)
-                {
-                    dimensions[ii] = 0;
-                    isEmpty = true;
-                }
-            }
-            if (isEmpty)
-            {
-                return 0;
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Inline matrix dimensions [{0}] exceed the maximum number of elements ({1}).",
+                    string.Join(",", dimensions),
+                    description);
             }
 
-            long count = 1;
-            for (int ii = 0; ii < dimensions.Length; ii++)
-            {
-                count *= dimensions[ii];
-                if (count > int.MaxValue)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadDecodingError,
-                        "Inline matrix dimensions [{0}] exceed the maximum number of elements ({1}).",
-                        string.Join(",", dimensions),
-                        description);
-                }
-            }
-
-            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < count)
+            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < shapeLength)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
                     "MaxArrayLength exceeded in inline matrix: {0} < {1} ({2})",
                     Context.MaxArrayLength,
-                    count,
+                    shapeLength,
                     description);
+            }
+
+            if (count == 0)
+            {
+                return 0;
             }
 
             // Each element takes at least minElementSize bytes: reject a
             // matrix the remaining message cannot hold before allocating it.
             long remaining = GetRemainingLength();
-            if (minElementSize > 0 && remaining >= 0 && count * minElementSize > remaining)
+            if (minElementSize > 0 && remaining >= 0 && (long)count * minElementSize > remaining)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
                     "Inline matrix dimensions [{0}] need at least {1} bytes, only {2} remain ({3}).",
                     string.Join(",", dimensions),
-                    count * minElementSize,
+                    (long)count * minElementSize,
                     remaining,
                     description);
             }
-            return (int)count;
+            return count;
         }
 
         /// <summary>

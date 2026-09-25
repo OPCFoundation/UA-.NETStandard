@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Globalization;
 using System.IO;
@@ -886,6 +887,110 @@ namespace AB.C
                 hintNames,
                 Is.EqualTo(expectedHintNames),
                 "the hint name has to keep the namespace's dots to stay unique");
+        }
+
+        /// <summary>
+        /// A4-3: [DataType] diagnostics were reported at a location outside
+        /// source (no syntax tree), so #pragma warning disable did not
+        /// suppress them. They are reported in the annotated type's syntax
+        /// tree again.
+        /// </summary>
+        [Test]
+        public void DataTypeWarningHonoursPragmaSuppression()
+        {
+            const string declaration = @"
+    [DataType]
+    public partial class WithHelper
+    {
+        public int Value { get; set; }
+        public Helper Link { get; set; }
+    }
+
+    public class Helper { }";
+            ImmutableArray<Diagnostic> reported = RunGeneratorForDiagnostics(
+                "using Opc.Ua;\nnamespace TestApp.Pragma\n{" + declaration + "\n}");
+            Diagnostic warning = reported.Single(d => d.Id == "MODELGEN002");
+            Assert.That(warning.IsSuppressed, Is.False);
+            Assert.That(warning.Location.IsInSource, Is.True, "reported in the syntax tree");
+            Assert.That(warning.Location.SourceTree.FilePath, Is.EqualTo("TestSource.cs"));
+
+            ImmutableArray<Diagnostic> suppressed = RunGeneratorForDiagnostics(
+                "using Opc.Ua;\nnamespace TestApp.Pragma\n{\n#pragma warning disable MODELGEN002" +
+                declaration + "\n#pragma warning restore MODELGEN002\n}");
+            Assert.That(
+                suppressed.Where(d => d.Id == "MODELGEN002" && !d.IsSuppressed),
+                Is.Empty,
+                "#pragma warning disable suppresses the warning");
+        }
+
+        /// <summary>
+        /// A4-3: the [NodeManager] target diagnostics are reported in the
+        /// annotated class's syntax tree as well.
+        /// </summary>
+        [Test]
+        public void NodeManagerDiagnosticIsReportedInSource()
+        {
+            const string source =
+                """
+                namespace Opc.Ua.Server.Fluent
+                {
+                    public sealed class NodeManagerAttribute : global::System.Attribute
+                    {
+                        public string NamespaceUri { get; set; }
+                    }
+                }
+                namespace TestApp.Managers
+                {
+                    [global::Opc.Ua.Server.Fluent.NodeManager(NamespaceUri = "http://test.org/UA/Any")]
+                    public class NotPartialManager
+                    {
+                    }
+                }
+                """;
+            var options = new AnalyzerOptionsProvider(
+                new Dictionary<string, string>
+                {
+                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true"
+                });
+            ImmutableArray<Diagnostic> reported = RunGeneratorForDiagnostics(
+                source,
+                options,
+                [EmbeddedText.From("DemoModel.xml")]);
+
+            Diagnostic notPartial = reported.Single(d => d.Id == "MODELGEN011");
+            Assert.That(notPartial.Location.IsInSource, Is.True, "reported in the syntax tree");
+            Assert.That(notPartial.Location.SourceTree.FilePath, Is.EqualTo("TestSource.cs"));
+        }
+
+        private static ImmutableArray<Diagnostic> RunGeneratorForDiagnostics(
+            string source,
+            AnalyzerOptionsProvider options = null,
+            ImmutableArray<AdditionalText> additionalTexts = default)
+        {
+            CSharpCompilation compilation = OptimizationLevel.Release
+                .CreateCompilation()
+                .AddCode(
+                    new[] { new System.Collections.Generic.KeyValuePair<string, string>(
+                        "TestSource.cs", source) }
+                    .WithOpcUaGeneratedStack(),
+                    LanguageVersion.Preview);
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(new ModelSourceGenerator())
+                .WithUpdatedParseOptions(new CSharpParseOptions()
+                    .WithKind(SourceCodeKind.Regular)
+                    .WithLanguageVersion(LanguageVersion.Preview));
+            if (options != null)
+            {
+                driver = driver.WithUpdatedAnalyzerConfigOptions(options);
+            }
+            if (!additionalTexts.IsDefaultOrEmpty)
+            {
+                driver = driver.AddAdditionalTexts(additionalTexts);
+            }
+            driver.RunGeneratorsAndUpdateCompilation(
+                compilation,
+                out _,
+                out ImmutableArray<Diagnostic> diagnostics);
+            return diagnostics;
         }
 
         private static GeneratorRunResult RunGenerator(

@@ -159,6 +159,15 @@ namespace Opc.Ua.SourceGeneration
         public bool IsInternal { get; set; }
 
         /// <summary>
+        /// True if the type and every type it is nested in are declared
+        /// public. The namespace-level activator derives from a generic
+        /// base closed over the type, so it can only be public when the
+        /// type is reachable from outside the assembly; otherwise it is
+        /// emitted internal.
+        /// </summary>
+        public bool IsEffectivelyPublic { get; set; } = true;
+
+        /// <summary>
         /// True if the user's partial class already defines a
         /// Clone() or MemberwiseClone() method (the generator
         /// should skip emitting these).

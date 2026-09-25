@@ -1032,7 +1032,7 @@ namespace Opc.Ua.SourceGeneration
             return (CSharpCompilation)outputCompilation;
         }
 
-        private static CSharpCompilation CreateStackCompilation(string assemblyName)
+        internal static CSharpCompilation CreateStackCompilation(string assemblyName)
         {
             CSharpCompilation compilation =
                 OptimizationLevel.Release.CreateCompilation(assemblyName);

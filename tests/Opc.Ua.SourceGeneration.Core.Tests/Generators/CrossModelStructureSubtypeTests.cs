@@ -227,6 +227,89 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         /// <summary>
+        /// A2-7: a consumer subtype of a payload-only structure with optional
+        /// fields has to continue the base's encoding mask (one mask on the
+        /// wire) and publish the inherited fields with their optional flag
+        /// and array dimensions. The payload used to drop IsOptional,
+        /// AllowSubTypes and ArrayDimensions, so the subtype wrote a second
+        /// mask and republished the fields as mandatory rank 2 matrices.
+        /// </summary>
+        [Test]
+        public void SubtypeOfPayloadStructureWithOptionalFieldsContinuesTheEncodingMask()
+        {
+            var payload = new ModelDependencyV1 { ModelUri = ModelAUri };
+            payload.Nodes.Add(new DependencyNode
+            {
+                SymbolicName = "OptBase",
+                SymbolicNamespace = ModelAUri,
+                ClassName = "OptBase",
+                Kind = DependencyNodeKind.DataType,
+                BaseTypeName = "Structure",
+                BaseTypeNamespace = Ua.Types.Namespaces.OpcUa,
+                NumericId = 10,
+                Fields =
+                [
+                    new DependencyDataField(
+                        "Id", "Int32", Ua.Types.Namespaces.OpcUa, (int)ValueRank.Scalar),
+                    new DependencyDataField(
+                        "Note", "String", Ua.Types.Namespaces.OpcUa, (int)ValueRank.Scalar)
+                    {
+                        IsOptional = true
+                    },
+                    new DependencyDataField(
+                        "Cube", "Double", Ua.Types.Namespaces.OpcUa, (int)ValueRank.OneOrMoreDimensions)
+                    {
+                        IsOptional = true,
+                        ArrayDimensions = "0,0,0"
+                    }
+                ]
+            });
+            // Through the wire format, as a referenced assembly carries it.
+            payload = ModelDependencyV1.FromBase64Payload(payload.ToBase64Payload());
+
+            string modelEPath = Path.Combine(m_rootPath, "B", "ModelE.xml");
+            File.WriteAllText(modelEPath, ModelEDesign);
+
+            Dictionary<string, string> generated = Generate(
+                targets: [modelEPath],
+                dependencies: [modelEPath],
+                referencedModels: CreateReferencedModels(
+                    ModelAUri, "Test.ModelA", "ModelA", payload));
+
+            string dataTypes = generated.Keys
+                .Where(f => f.EndsWith("DataTypes.g.cs", System.StringComparison.Ordinal))
+                .Select(f => generated[f])
+                .Single();
+            Assert.That(dataTypes, Does.Contain("class OptDerived"));
+            Assert.That(dataTypes, Does.Not.Contain("WriteEncodingMask"),
+                "the base writes the one encoding mask");
+            Assert.That(dataTypes, Does.Not.Contain("ReadEncodingMask"),
+                "the base reads the one encoding mask");
+            Assert.That(dataTypes, Does.Contain("override uint EncodingMask"));
+
+            int definition = dataTypes.IndexOf(
+                "StructureDefinition CreateOptDerived(", System.StringComparison.Ordinal);
+            Assert.That(definition, Is.GreaterThanOrEqualTo(0));
+            string text = dataTypes[definition..];
+            text = text[..text.IndexOf("\n        }", System.StringComparison.Ordinal)];
+            Assert.That(text, Does.Contain("StructureType.StructureWithOptionalFields"));
+            Assert.That(FieldText(text, "Note"), Does.Contain("IsOptional = true"));
+            Assert.That(FieldText(text, "Id"), Does.Contain("IsOptional = false"));
+            string cube = FieldText(text, "Cube");
+            Assert.That(cube, Does.Contain("IsOptional = true"));
+            Assert.That(cube, Does.Contain("0, 0, 0").Or.Contain("0u, 0u, 0u"),
+                "the three dimensions survive: " + cube);
+        }
+
+        private static string FieldText(string definition, string name)
+        {
+            int start = definition.IndexOf("Name = \"" + name + "\"", System.StringComparison.Ordinal);
+            Assert.That(start, Is.GreaterThanOrEqualTo(0), name);
+            int end = definition.IndexOf("new global::Opc.Ua.StructureField", start, System.StringComparison.Ordinal);
+            return end < 0 ? definition[start..] : definition[start..end];
+        }
+
+        /// <summary>
         /// Validator-level checks for the payload flow: the payload
         /// materialised base structure must be linked well enough for the
         /// generators (BasicDataType, IsStructure, field data types).
@@ -520,6 +603,32 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
               <opc:DataType SymbolicName="DerivedStruct" BaseType="s0:BaseStruct">
                 <opc:Fields>
                   <opc:Field Name="Extra" DataType="ua:UInt32" />
+                </opc:Fields>
+              </opc:DataType>
+            </opc:ModelDesign>
+            """;
+
+        /// <summary>
+        /// Subtypes the payload-only OptBase (ModelA) and adds an optional
+        /// field of its own.
+        /// </summary>
+        private const string ModelEDesign =
+            """
+            <?xml version="1.0" encoding="utf-8" ?>
+            <opc:ModelDesign
+              xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+              xmlns:ua="http://opcfoundation.org/UA/"
+              xmlns:s0="http://test.org/UA/ModelA/"
+              xmlns="http://test.org/UA/ModelE/"
+              TargetNamespace="http://test.org/UA/ModelE/">
+              <opc:Namespaces>
+                <opc:Namespace Name="ModelE" Prefix="Test.ModelE">http://test.org/UA/ModelE/</opc:Namespace>
+                <opc:Namespace Name="ModelA" Prefix="Test.ModelA">http://test.org/UA/ModelA/</opc:Namespace>
+                <opc:Namespace Name="OpcUa" Prefix="Opc.Ua" XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/</opc:Namespace>
+              </opc:Namespaces>
+              <opc:DataType SymbolicName="OptDerived" BaseType="s0:OptBase">
+                <opc:Fields>
+                  <opc:Field Name="Extra" DataType="ua:UInt32" IsOptional="true" />
                 </opc:Fields>
               </opc:DataType>
             </opc:ModelDesign>

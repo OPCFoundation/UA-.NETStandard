@@ -98,6 +98,25 @@ namespace Opc.Ua.SourceGeneration.Dependency
         public int ValueRank { get; }
 
         /// <summary>
+        /// True if the structure field is optional (encoding mask bit).
+        /// Carried in the structure field trailer.
+        /// </summary>
+        public bool IsOptional { get; init; }
+
+        /// <summary>
+        /// True if the structure field allows subtypes of its data type
+        /// (encoded as ExtensionObject). Carried in the structure field
+        /// trailer.
+        /// </summary>
+        public bool AllowSubTypes { get; init; }
+
+        /// <summary>
+        /// The declared array dimensions ("0,0,0"), or <c>null</c>.
+        /// Carried in the structure field trailer.
+        /// </summary>
+        public string? ArrayDimensions { get; init; }
+
+        /// <summary>
         /// Constructor.
         /// </summary>
         public DependencyDataField(string name, string dataTypeName, string dataTypeNamespace, int valueRank)
@@ -391,6 +410,10 @@ namespace Opc.Ua.SourceGeneration.Dependency
         private const byte kMethodIdentityTrailerVersion = 1;
         private const byte kExtendedIdentifierTrailer = 0x20;
         private const byte kExtendedIdentifierTrailerVersion = 1;
+        private const byte kStructureFieldTrailer = 0x10;
+        private const byte kStructureFieldTrailerVersion = 1;
+        private const byte kFieldIsOptional = 0x01;
+        private const byte kFieldAllowSubTypes = 0x02;
         private const byte kAccessLevelSpecified = 0x01;
         private const byte kRawAccessLevel = 0x02;
         private const byte kRawUserAccessLevel = 0x04;
@@ -578,7 +601,16 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 }
             }
             bool hasMethodIdentityTrailer = HasMethodIdentityTrailer();
-            bool hasExtendedIdentifierTrailer = HasExtendedIdentifierTrailer();
+            bool hasStructureFieldTrailer = HasStructureFieldTrailer();
+            // The structure field trailer is written after the extended
+            // identifier trailer, which is always written with it: a reader
+            // that predates the structure field trailer only reads the
+            // capabilities as "trailers present" (honouring the
+            // FluentAccessorsKnown bit) when the method identity or the
+            // extended identifier bit is set, and it stops reading after the
+            // trailers it knows - so it never sees the new one.
+            bool hasExtendedIdentifierTrailer =
+                hasStructureFieldTrailer || HasExtendedIdentifierTrailer();
             if (FluentAccessorsEmitted.HasValue ||
                 hasMethodIdentityTrailer ||
                 hasExtendedIdentifierTrailer)
@@ -600,6 +632,10 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 {
                     capabilities |= kExtendedIdentifierTrailer;
                 }
+                if (hasStructureFieldTrailer)
+                {
+                    capabilities |= kStructureFieldTrailer;
+                }
                 writer.Write(capabilities);
                 if (hasMethodIdentityTrailer)
                 {
@@ -608,6 +644,10 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 if (hasExtendedIdentifierTrailer)
                 {
                     WriteExtendedIdentifierTrailer(writer);
+                }
+                if (hasStructureFieldTrailer)
+                {
+                    WriteStructureFieldTrailer(writer);
                 }
             }
         }
@@ -785,8 +825,118 @@ namespace Opc.Ua.SourceGeneration.Dependency
                     hasExtendedIdentifierTrailer &&
                     reader.BaseStream.Position < reader.BaseStream.Length)
                 {
-                    ReadExtendedIdentifierTrailer(reader);
+                    trailersReadable = ReadExtendedIdentifierTrailer(reader);
                 }
+                if (trailersReadable &&
+                    (capabilities & kStructureFieldTrailer) != 0 &&
+                    reader.BaseStream.Position < reader.BaseStream.Length)
+                {
+                    ReadStructureFieldTrailer(reader);
+                }
+            }
+        }
+
+        private bool HasStructureFieldTrailer()
+        {
+            foreach (DependencyNode node in Nodes)
+            {
+                foreach (DependencyDataField field in node.Fields)
+                {
+                    if (field.IsOptional ||
+                        field.AllowSubTypes ||
+                        !string.IsNullOrEmpty(field.ArrayDimensions))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Writes the structure field trailer: the IsOptional, AllowSubTypes
+        /// and ArrayDimensions of every field, in node and field order. The
+        /// body is length prefixed so that a reader can skip a later version.
+        /// </summary>
+        private void WriteStructureFieldTrailer(BinaryWriter writer)
+        {
+            using var body = new MemoryStream();
+            using (var bodyWriter = new BinaryWriter(body, Encoding.UTF8, leaveOpen: true))
+            {
+                bodyWriter.Write(Nodes.Count);
+                foreach (DependencyNode node in Nodes)
+                {
+                    bodyWriter.Write(node.Fields.Count);
+                    foreach (DependencyDataField field in node.Fields)
+                    {
+                        byte fieldFlags = 0;
+                        if (field.IsOptional)
+                        {
+                            fieldFlags |= kFieldIsOptional;
+                        }
+                        if (field.AllowSubTypes)
+                        {
+                            fieldFlags |= kFieldAllowSubTypes;
+                        }
+                        bodyWriter.Write(fieldFlags);
+                        WriteNullableString(
+                            bodyWriter,
+                            string.IsNullOrEmpty(field.ArrayDimensions) ? null : field.ArrayDimensions);
+                    }
+                }
+            }
+            writer.Write(kStructureFieldTrailerVersion);
+            writer.Write((int)body.Length);
+            writer.Write(body.GetBuffer(), 0, (int)body.Length);
+        }
+
+        private void ReadStructureFieldTrailer(BinaryReader reader)
+        {
+            byte trailerVersion = reader.ReadByte();
+            int length = reader.ReadInt32();
+            if (length < 0 || length > reader.BaseStream.Length - reader.BaseStream.Position)
+            {
+                throw new InvalidDataException(
+                    "ModelDependencyV1: invalid structure field trailer length " + length);
+            }
+            if (trailerVersion != kStructureFieldTrailerVersion)
+            {
+                // Length prefixed: a later version is skipped as a whole.
+                reader.BaseStream.Seek(length, SeekOrigin.Current);
+                return;
+            }
+
+            int nodeCount = reader.ReadInt32();
+            if (nodeCount != Nodes.Count)
+            {
+                throw new InvalidDataException(
+                    "ModelDependencyV1: invalid structure field node count " + nodeCount);
+            }
+            for (int i = 0; i < nodeCount; i++)
+            {
+                DependencyNode node = Nodes[i];
+                int fieldCount = reader.ReadInt32();
+                if (fieldCount != node.Fields.Count)
+                {
+                    throw new InvalidDataException(
+                        "ModelDependencyV1: invalid structure field count " + fieldCount);
+                }
+                if (fieldCount == 0)
+                {
+                    continue;
+                }
+                var fields = new DependencyDataField[fieldCount];
+                for (int j = 0; j < fieldCount; j++)
+                {
+                    byte fieldFlags = reader.ReadByte();
+                    fields[j] = node.Fields[j] with
+                    {
+                        IsOptional = (fieldFlags & kFieldIsOptional) != 0,
+                        AllowSubTypes = (fieldFlags & kFieldAllowSubTypes) != 0,
+                        ArrayDimensions = ReadNullableString(reader)
+                    };
+                }
+                node.Fields = fields;
             }
         }
 
@@ -816,12 +966,17 @@ namespace Opc.Ua.SourceGeneration.Dependency
             }
         }
 
-        private void ReadExtendedIdentifierTrailer(BinaryReader reader)
+        /// <summary>
+        /// Reads the extended identifier trailer. Returns false when the
+        /// trailer has a version this reader does not know - its body is
+        /// then left unread and no later trailer can be located.
+        /// </summary>
+        private bool ReadExtendedIdentifierTrailer(BinaryReader reader)
         {
             byte trailerVersion = reader.ReadByte();
             if (trailerVersion != kExtendedIdentifierTrailerVersion)
             {
-                return;
+                return false;
             }
 
             int nodeCount = reader.ReadInt32();
@@ -835,6 +990,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 Nodes[i].GuidId = ReadNullableString(reader);
                 Nodes[i].OpaqueId = ReadNullableString(reader);
             }
+            return true;
         }
 
         private bool HasMethodIdentityTrailer()

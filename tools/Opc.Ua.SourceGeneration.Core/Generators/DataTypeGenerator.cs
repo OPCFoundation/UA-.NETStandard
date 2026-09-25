@@ -157,43 +157,61 @@ namespace Opc.Ua.SourceGeneration
                 datatype.IsStructure &&
                 !datatype.IsAbstract)
             {
-                return HasPoolableBase(datatype)
+                DataTypeDesign poolableBase = GetPoolableBase(datatype);
+                if (poolableBase == null)
+                {
+                    return DataTypeTemplates.PooledExtensionClass;
+                }
+                // Only a base generated in this compilation is known to have
+                // the overridable ResetForReuse(); a base from another model
+                // may come from an assembly built by an older generator.
+                return IsGeneratedInThisModel(poolableBase)
                     ? DataTypeTemplates.DerivedPooledExtensionClass
-                    : DataTypeTemplates.PooledExtensionClass;
+                    : DataTypeTemplates.ForeignDerivedPooledExtensionClass;
             }
             return null;
         }
 
         /// <summary>
-        /// Returns true when the data type derives from another
-        /// concrete structure type that will itself receive a pooled
-        /// extension in this compilation — meaning the sentinel field,
-        /// <c>Reuse()</c> and <c>ClearPooledSentinel()</c> are
-        /// inherited from that base and the derived type must use
-        /// <c>new</c> to hide them. Walks up the inheritance chain
-        /// to find the first non-abstract ancestor that is a
-        /// generated structure (not in the Opc.Ua.Types library).
+        /// True if the data type is declared by the target model, i.e. its
+        /// class is generated in this compilation.
         /// </summary>
-        private static bool HasPoolableBase(DataTypeDesign datatype)
+        private bool IsGeneratedInThisModel(DataTypeDesign dataType)
+        {
+            return string.Equals(
+                dataType.SymbolicId?.Namespace,
+                m_context.ModelDesign.TargetNamespace?.Value,
+                StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// Returns the nearest ancestor that is a concrete generated
+        /// structure (not in the Opc.Ua.Types library) and therefore has a
+        /// pooled extension of its own - meaning the sentinel field,
+        /// <c>Reuse()</c> and <c>ClearPooledSentinel()</c> are inherited
+        /// from that base and the derived type must use <c>new</c> to hide
+        /// them - or <c>null</c> if there is none.
+        /// </summary>
+        private static DataTypeDesign GetPoolableBase(DataTypeDesign datatype)
         {
             var current = datatype.BaseTypeNode as DataTypeDesign;
             while (current is not null)
             {
                 if (current.BasicDataType == BasicDataType.Structure)
                 {
-                    return false;
+                    return null;
                 }
                 if (current.BasicDataType == BasicDataType.UserDefined &&
                     current.IsStructure &&
                     !current.IsAbstract &&
                     !current.IsPartOfOpcUaTypesLibrary())
                 {
-                    return true;
+                    return current;
                 }
 
                 current = current.BaseTypeNode as DataTypeDesign;
             }
-            return false;
+            return null;
         }
 
         private TemplateString LoadTemplate_ListOfActivatorRegistrations(ILoadContext context)
@@ -284,29 +302,6 @@ namespace Opc.Ua.SourceGeneration
             else
             {
                 // Structure definition
-                StructureType structureType = StructureType.Structure;
-                if (dataType.IsUnion)
-                {
-                    structureType = StructureType.Union;
-                }
-                foreach (Parameter field in dataType.Fields ?? [])
-                {
-                    if (field.IsOptional)
-                    {
-                        structureType = StructureType.StructureWithOptionalFields;
-                        break;
-                    }
-                    if (field.AllowSubTypes)
-                    {
-                        if (dataType.IsUnion)
-                        {
-                            structureType = StructureType.UnionWithSubtypedValues;
-                            break;
-                        }
-                        structureType = StructureType.StructureWithSubtypedValues;
-                        break;
-                    }
-                }
                 List<Parameter> fields = [];
                 context.Template.AddReplacement(
                     Tokens.BaseType,
@@ -315,7 +310,26 @@ namespace Opc.Ua.SourceGeneration
                         kNamespaceTableContextVariable));
                 context.Template.AddReplacement(
                     Tokens.FirstExplicitFieldIndex,
-                    CollectStructureDefinitionFields(dataType, ref structureType, fields));
+                    CollectStructureDefinitionFields(dataType, fields));
+
+                // The kind is a property of the whole encoding, inherited
+                // fields included: the base Encode writes an inherited
+                // AllowSubTypes field as an ExtensionObject and an inherited
+                // optional field under the encoding mask. Optional fields
+                // win over subtyped values, no StructureType expresses both.
+                StructureType structureType = dataType.IsUnion
+                    ? StructureType.Union
+                    : StructureType.Structure;
+                if (fields.Any(f => f.IsOptional))
+                {
+                    structureType = StructureType.StructureWithOptionalFields;
+                }
+                else if (fields.Any(f => f.AllowSubTypes))
+                {
+                    structureType = dataType.IsUnion
+                        ? StructureType.UnionWithSubtypedValues
+                        : StructureType.StructureWithSubtypedValues;
+                }
                 context.Template.AddReplacement(
                     Tokens.StructureType,
                     structureType);
@@ -327,7 +341,6 @@ namespace Opc.Ua.SourceGeneration
 
                 static int CollectStructureDefinitionFields(
                     DataTypeDesign dataType,
-                    ref StructureType structureType,
                     List<Parameter> fields)
                 {
                     if (dataType == null)
@@ -340,23 +353,11 @@ namespace Opc.Ua.SourceGeneration
                     // fields of its ancestors.
                     if (dataType.BaseTypeNode is DataTypeDesign baseType)
                     {
-                        CollectStructureDefinitionFields(
-                            baseType,
-                            ref structureType,
-                            fields);
+                        CollectStructureDefinitionFields(baseType, fields);
                     }
 
                     int start = fields.Count;
-                    foreach (Parameter field in dataType.Fields ?? [])
-                    {
-                        if (field.IsOptional)
-                        {
-                            // inherit optional fields flag if derived structure
-                            // contains no optional fields
-                            structureType = StructureType.StructureWithOptionalFields;
-                        }
-                        fields.Add(field);
-                    }
+                    fields.AddRange(dataType.Fields ?? []);
                     return start;
                 }
             }
@@ -1197,7 +1198,8 @@ namespace Opc.Ua.SourceGeneration
         /// Variant framing - exactly as the DataTypeDefinition driven codec
         /// (<c>Structure.EncodeProperty</c>) writes the same field: through
         /// <c>WriteEncodeableMatrix</c> for concrete <see cref="IEncodeable"/>
-        /// matrices and through <c>WriteVariantValue</c> for everything else.
+        /// matrices and through <c>EncoderExtensions.WriteInlineMatrixValue</c>
+        /// (which keeps an empty matrix at two dimensions) for everything else.
         /// </summary>
         private static void EmitMatrixWriteCall(
             ILoadContext context,
@@ -1221,7 +1223,7 @@ namespace Opc.Ua.SourceGeneration
                 // extension objects. FromStructure turns a null matrix into a
                 // null Variant, which carries no shape; keep a null matrix.
                 context.Out.WriteLine(
-                    "encoder.WriteVariantValue({0}, {1}.IsNull ? " +
+                    "global::Opc.Ua.EncoderExtensions.WriteInlineMatrixValue(encoder, {0}, {1}.IsNull ? " +
                     "global::Opc.Ua.Variant.From(default(global::Opc.Ua.MatrixOf<global::Opc.Ua.ExtensionObject>)) : " +
                     "global::Opc.Ua.Variant.FromStructure({1}));",
                     fieldName,
@@ -1233,7 +1235,7 @@ namespace Opc.Ua.SourceGeneration
             // Number/Integer/UInteger/BaseDataType (Variant) all flow
             // through the typed Variant.From overloads.
             context.Out.WriteLine(
-                "encoder.WriteVariantValue({0}, global::Opc.Ua.Variant.From({1}));",
+                "global::Opc.Ua.EncoderExtensions.WriteInlineMatrixValue(encoder, {0}, global::Opc.Ua.Variant.From({1}));",
                 fieldName,
                 valueName);
         }
@@ -1599,9 +1601,15 @@ namespace Opc.Ua.SourceGeneration
         /// do not have a pooled extension of their own (abstract structures
         /// and structures of the Opc.Ua.Types library). They are reset
         /// through their public properties. A string entry is emitted as is.
+        /// When the nearest pooled ancestor is generated by another model
+        /// its <c>ResetForReuse()</c> is not relied upon (see
+        /// <see cref="DataTypeTemplates.ForeignDerivedPooledExtensionClass"/>),
+        /// so the fields of the whole chain are reset.
         /// </summary>
         private List<object> GetInheritedFieldResets(DataTypeDesign dataType)
         {
+            DataTypeDesign poolableBase = GetPoolableBase(dataType);
+            bool resetWholeChain = poolableBase != null && !IsGeneratedInThisModel(poolableBase);
             var ancestors = new List<DataTypeDesign>();
             for (var current = dataType.BaseTypeNode as DataTypeDesign;
                 current != null &&
@@ -1609,7 +1617,9 @@ namespace Opc.Ua.SourceGeneration
                 current.BasicDataType == BasicDataType.UserDefined;
                 current = current.BaseTypeNode as DataTypeDesign)
             {
-                if (!current.IsAbstract && !current.IsPartOfOpcUaTypesLibrary())
+                if (!resetWholeChain &&
+                    !current.IsAbstract &&
+                    !current.IsPartOfOpcUaTypesLibrary())
                 {
                     // Has a pooled extension that resets its own chain.
                     break;

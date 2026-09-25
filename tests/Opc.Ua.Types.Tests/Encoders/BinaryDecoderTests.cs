@@ -18,6 +18,9 @@ namespace Opc.Ua.Types.Tests.Encoders
     [Parallelizable]
     public class BinaryDecoderTests
     {
+        private static readonly int[] s_twoByZero = [2, 0];
+        private static readonly int[] s_zeroByOne = [0, 1];
+
         [Test]
         public void ConstructorWithByteArrayCreatesDecoderSuccessfully()
         {
@@ -1218,7 +1221,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.IsNull, Is.False);
             MatrixOf<int> resultMatrix = result.GetInt32Matrix();
             Assert.That(resultMatrix.IsNull, Is.False);
-            Assert.That(resultMatrix.Dimensions, Is.EqualTo(new[] { 2, 0 }));
+            Assert.That(resultMatrix.Dimensions, Is.EqualTo(s_twoByZero));
             Assert.That(resultMatrix.Count, Is.Zero);
             Assert.That(decoder.Position, Is.EqualTo(buffer.Count));
         }
@@ -6645,7 +6648,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 TypeInfo.Create(BuiltInType.Int32, ValueRanks.TwoDimensions)).GetInt32Matrix();
             Assert.That(matrix.IsNull, Is.False);
             Assert.That(matrix.Count, Is.Zero);
-            Assert.That(matrix.Dimensions, Is.EqualTo(new[] { 0, 1 }));
+            Assert.That(matrix.Dimensions, Is.EqualTo(s_zeroByOne));
             Assert.That(decoder.Position, Is.EqualTo(buffer.Length));
         }
 

@@ -268,7 +268,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
                 foreach (string name in s_variantValueMatrixFields)
                 {
                     Assert.That(code, Does.Contain(
-                        $"encoder.WriteVariantValue(\"{name}\", global::Opc.Ua.Variant.From({name}));"));
+                        $"global::Opc.Ua.EncoderExtensions.WriteInlineMatrixValue(encoder, \"{name}\", global::Opc.Ua.Variant.From({name}));"));
                 }
             });
 

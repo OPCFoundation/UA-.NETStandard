@@ -656,7 +656,18 @@ namespace Opc.Ua
     /// The shape of a <see cref="MatrixOf{T}"/> independent of its element
     /// type.
     /// </summary>
-    internal interface IMatrixOf : INullable;
+    internal interface IMatrixOf : INullable
+    {
+        /// <summary>
+        /// The dimensions of the matrix, empty for a null matrix.
+        /// </summary>
+        int[] Dimensions { get; }
+
+        /// <summary>
+        /// The number of elements of the flattened matrix.
+        /// </summary>
+        int Count { get; }
+    }
 
     /// <summary>
     /// MatrixOf extensions
@@ -737,43 +748,90 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// The largest number of elements an inline matrix may describe, the
+        /// maximum length of a .NET array (Array.MaxLength). It bounds the
+        /// product of the non zero dimensions also of an empty inline matrix,
+        /// whose shape is materialized by consumers (Array.CreateInstance).
+        /// </summary>
+        internal const int MaxInlineMatrixLength = 0x7FFFFFC7;
+
+        /// <summary>
         /// Validates the dimensions of an inline matrix, the representation
         /// of a multi-dimensional structure field (OPC 10000-6 5.2.5, 5.3.4,
         /// 5.4.5). There are at least two dimensions (Table 28). Unlike a
         /// matrix Variant (<see cref="IsValidMatrix(int[], int)"/>) a
-        /// dimension may be zero, in which case no values are encoded.
+        /// dimension may be &lt;= 0, in which case no values are encoded
+        /// (Table 28); decoders normalize such a dimension to 0 (see
+        /// <see cref="NormalizeInlineMatrixDimensions(int[])"/>). The product
+        /// of the non zero dimensions must not exceed
+        /// <see cref="MaxInlineMatrixLength"/>, also when the matrix is empty.
         /// </summary>
         internal static bool IsValidInlineMatrix(
             ReadOnlySpan<int> dimensions,
             int elementCount = -1)
         {
+            return TryGetInlineMatrixElementCount(dimensions, out int count, out _) &&
+                (elementCount < 0 || elementCount == count);
+        }
+
+        /// <summary>
+        /// Computes the number of values that follow the dimensions of an
+        /// inline matrix (OPC 10000-6 5.2.5 Table 28): 0 if any dimension is
+        /// &lt;= 0, otherwise the product of the dimensions.
+        /// </summary>
+        /// <param name="dimensions">The dimensions.</param>
+        /// <param name="count">The number of encoded values.</param>
+        /// <param name="shapeLength">The product of the dimensions that are
+        /// greater than zero, which bounds every single dimension.</param>
+        /// <returns><c>false</c> if there are fewer than two dimensions or
+        /// the product of the non zero dimensions exceeds
+        /// <see cref="MaxInlineMatrixLength"/>.</returns>
+        internal static bool TryGetInlineMatrixElementCount(
+            ReadOnlySpan<int> dimensions,
+            out int count,
+            out int shapeLength)
+        {
+            count = 0;
+            shapeLength = 0;
             if (dimensions.Length < 2)
             {
                 return false;
             }
             bool isEmpty = false;
+            long product = 1;
+            for (int ii = 0; ii < dimensions.Length; ii++)
+            {
+                if (dimensions[ii] <= 0)
+                {
+                    isEmpty = true;
+                    continue;
+                }
+                product *= dimensions[ii];
+                if (product > MaxInlineMatrixLength)
+                {
+                    return false;
+                }
+            }
+            shapeLength = (int)product;
+            count = isEmpty ? 0 : shapeLength;
+            return true;
+        }
+
+        /// <summary>
+        /// Normalizes the dimensions of a decoded inline matrix in place: a
+        /// dimension &lt; 0 means no values are encoded (OPC 10000-6 5.2.5
+        /// Table 28) exactly like a dimension of 0, and becomes 0.
+        /// </summary>
+        internal static int[] NormalizeInlineMatrixDimensions(int[] dimensions)
+        {
             for (int ii = 0; ii < dimensions.Length; ii++)
             {
                 if (dimensions[ii] < 0)
                 {
-                    return false;
-                }
-                isEmpty |= dimensions[ii] == 0;
-            }
-            if (isEmpty)
-            {
-                return elementCount <= 0;
-            }
-            long product = 1;
-            for (int ii = 0; ii < dimensions.Length; ii++)
-            {
-                product *= dimensions[ii];
-                if (product > int.MaxValue)
-                {
-                    return false;
+                    dimensions[ii] = 0;
                 }
             }
-            return elementCount < 0 || product == elementCount;
+            return dimensions;
         }
 
         /// <summary>

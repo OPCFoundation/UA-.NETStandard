@@ -3104,8 +3104,10 @@ namespace Opc.Ua
                             MatrixOf.IsValidInlineMatrix(dimensions.Span, structures.Count))
                         {
                             // The inline matrix has at least two dimensions
-                            // and may be empty (5.4.5, 5.2.5 Table 28).
-                            values = structures.ToMatrix(dimensions);
+                            // and may be empty (5.4.5, 5.2.5 Table 28); a
+                            // dimension <= 0 means no values, like in binary.
+                            values = structures.ToMatrix(
+                                MatrixOf.NormalizeInlineMatrixDimensions(dimensions.ToArray()!));
                             return true;
                         }
                         values = default;
@@ -3147,8 +3149,10 @@ namespace Opc.Ua
                             MatrixOf.IsValidInlineMatrix(dimensions.Span, structures.Count))
                         {
                             // The inline matrix has at least two dimensions
-                            // and may be empty (5.4.5, 5.2.5 Table 28).
-                            values = structures.ToMatrix(dimensions);
+                            // and may be empty (5.4.5, 5.2.5 Table 28); a
+                            // dimension <= 0 means no values, like in binary.
+                            values = structures.ToMatrix(
+                                MatrixOf.NormalizeInlineMatrixDimensions(dimensions.ToArray()!));
                             return true;
                         }
                         values = default;
@@ -3750,6 +3754,12 @@ namespace Opc.Ua
                     {
                         value = default;
                         return false;
+                    }
+                    if (readRawValue)
+                    {
+                        // a dimension < 0 means no values, like in binary
+                        dims = MatrixOf.NormalizeInlineMatrixDimensions(dims.ToArray()!)
+                            .ToArrayOf();
                     }
 
                     switch (typeInfo.BuiltInType)

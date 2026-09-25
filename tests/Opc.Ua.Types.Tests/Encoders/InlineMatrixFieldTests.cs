@@ -77,6 +77,16 @@ namespace Opc.Ua.Types.Tests.Encoders
             Cube
         }
 
+        private static readonly int[] s_twoByTwo = [2, 2];
+        private static readonly int[] s_twoByZero = [2, 0];
+        private static readonly int[] s_zeroByZero = [0, 0];
+        private static readonly int[] s_zeroByThree = [0, 3];
+        private static readonly int[] s_zeroByFive = [0, 5];
+        private static readonly int[] s_emptyCube = [100, 200, 0];
+        private static readonly int[] s_oneToFour = [1, 2, 3, 4];
+        private static readonly int[] s_oneToSix = [1, 2, 3, 4, 5, 6];
+        private static readonly double[] s_halfDoubles = [0.5, 1.5, 2.5, 3.5, 4.5, 5.5];
+
         private static readonly BuiltInType[] s_elementTypes =
         [
             BuiltInType.Double,
@@ -122,7 +132,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void BinaryInlineMatrixIsDimensionsThenValues()
         {
-            Variant value = Variant.From(new int[] { 1, 2, 3, 4, 5, 6 }.ToArrayOf().ToMatrix(2, 3));
+            Variant value = Variant.From(s_oneToSix.ToArrayOf().ToMatrix(2, 3));
 
             byte[] encoded = EncodeBinary(value);
 
@@ -135,7 +145,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void BinaryDoubleInlineMatrixExactBytes()
         {
-            Variant value = Variant.From(new double[] { 0.5, 1.5, 2.5, 3.5, 4.5, 5.5 }
+            Variant value = Variant.From(s_halfDoubles
                 .ToArrayOf().ToMatrix(2, 3));
 
             byte[] encoded = EncodeBinary(value);
@@ -274,8 +284,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(decoder.ReadInt32("A"), Is.EqualTo(7));
             MatrixOf<Pair> decoded = decoder.ReadEncodeableMatrix<Pair>("M");
             Assert.That(decoder.ReadInt32("B"), Is.EqualTo(9));
-            Assert.That(decoded.Dimensions, Is.EqualTo(new[] { 2, 2 }));
-            Assert.That(decoded.Span.ToArray().Select(p => p.X), Is.EqualTo(new[] { 1, 2, 3, 4 }));
+            Assert.That(decoded.Dimensions, Is.EqualTo(s_twoByTwo));
+            Assert.That(decoded.Span.ToArray().Select(p => p.X), Is.EqualTo(s_oneToFour));
         }
 
         /// <summary>
@@ -305,8 +315,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(decoder.ReadEncodeableMatrix<Pair>("N").IsNull, Is.True);
             MatrixOf<Pair> empty = decoder.ReadEncodeableMatrix<Pair>("E");
             Assert.That(empty.IsNull, Is.False);
-            Assert.That(empty.Dimensions, Is.EqualTo(new[] { 0, 0 }));
-            Assert.That(decoder.ReadEncodeableMatrix<Pair>("R").Dimensions, Is.EqualTo(new[] { 2, 0 }));
+            Assert.That(empty.Dimensions, Is.EqualTo(s_zeroByZero));
+            Assert.That(decoder.ReadEncodeableMatrix<Pair>("R").Dimensions, Is.EqualTo(s_twoByZero));
             Assert.That(decoder.ReadEncodeableMatrix<Pair>("T", new ExpandedNodeId(77790u)).Count, Is.Zero);
             Assert.That(decoder.ReadInt32("B"), Is.EqualTo(9));
         }
@@ -324,7 +334,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(encoded, Is.EqualTo(Int32s(7, 2, 0, 3, 9)));
             Assert.That(
                 DecodeBinary(encoded, BuiltInType.Int32).GetInt32Matrix().Dimensions,
-                Is.EqualTo(new[] { 0, 3 }));
+                Is.EqualTo(s_zeroByThree));
         }
 
         /// <summary>
@@ -339,7 +349,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(encoded, Is.EqualTo(Int32s(7, 2, 0, 0, 9)));
             MatrixOf<double> decoded = DecodeBinary(encoded, BuiltInType.Double).GetDoubleMatrix();
             Assert.That(decoded.IsNull, Is.False);
-            Assert.That(decoded.Dimensions, Is.EqualTo(new[] { 0, 0 }));
+            Assert.That(decoded.Dimensions, Is.EqualTo(s_zeroByZero));
         }
 
         /// <summary>
@@ -353,7 +363,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(CreateContext());
             var value = Variant.From(new double[] { 1, 2 }.ToArrayOf().ToMatrix(2));
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
-                () => encoder.WriteVariantValue("M", value));
+                () => encoder.WriteInlineMatrixValue("M", value));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
 
             ex = Assert.Throws<ServiceResultException>(
@@ -374,22 +384,28 @@ namespace Opc.Ua.Types.Tests.Encoders
                 .GetDoubleMatrix();
 
             Assert.That(decoded.IsNull, Is.False);
-            Assert.That(decoded.Dimensions, Is.EqualTo(new[] { 0, 5 }));
+            Assert.That(decoded.Dimensions, Is.EqualTo(s_zeroByFive));
         }
 
         /// <summary>
-        /// A zero dimension makes the matrix empty whatever the product of the
-        /// other dimensions.
+        /// A zero dimension makes the matrix empty, but the other dimensions
+        /// are still bounded: a consumer materializing the shape of an empty
+        /// [65536, 65537, 0] matrix would run out of memory.
         /// </summary>
         [Test]
-        public void BinaryZeroDimensionWithHugeOtherDimensionsIsEmpty()
+        public void BinaryZeroDimensionWithHugeOtherDimensionsIsRejected()
         {
-            MatrixOf<int> decoded = DecodeBinary(
+            AssertDecodingFails(
                 Int32s(7, 3, 65536, 65537, 0, 9),
-                BuiltInType.Int32).GetInt32Matrix();
+                d => ReadField(d, TypeInfo.Create(BuiltInType.Int32, 3)),
+                StatusCodes.BadDecodingError);
 
+            MatrixOf<int> decoded = DecodeBinary(
+                Int32s(7, 3, 100, 200, 0, 9),
+                BuiltInType.Int32,
+                3).GetInt32Matrix();
             Assert.That(decoded.Count, Is.Zero);
-            Assert.That(decoded.Dimensions, Is.EqualTo(new[] { 65536, 65537, 0 }));
+            Assert.That(decoded.Dimensions, Is.EqualTo(s_emptyCube));
         }
 
         /// <summary>
@@ -401,7 +417,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             ServiceMessageContext context = CreateContext();
             using var encoder = new BinaryEncoder(context);
-            encoder.WriteVariant(null, Variant.From(new int[] { 1, 2, 3, 4, 5, 6 }.ToArrayOf().ToMatrix(2, 3)));
+            encoder.WriteVariant(null, Variant.From(s_oneToSix.ToArrayOf().ToMatrix(2, 3)));
             byte[] encoded = encoder.CloseAndReturnBuffer();
 
             byte[] expected = Concat(
@@ -558,7 +574,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             string json;
             using (var encoder = new JsonEncoder(context, JsonEncoderOptions.Verbose))
             {
-                encoder.WriteVariantValue("M", Variant.From(MatrixOf<double>.Empty));
+                encoder.WriteInlineMatrixValue("M", Variant.From(MatrixOf<double>.Empty));
                 encoder.WriteEncodeableMatrix("E", MatrixOf<Pair>.Empty);
                 json = encoder.CloseAndReturnText();
             }
@@ -769,7 +785,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         private static void WriteField(IEncoder encoder, Variant value)
         {
             encoder.WriteInt32("A", 7);
-            encoder.WriteVariantValue("M", value);
+            encoder.WriteInlineMatrixValue("M", value);
             encoder.WriteInt32("B", 9);
         }
 

@@ -100,7 +100,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(code, Does.Contain(
-                    "encoder.WriteVariantValue(\"Doubles\", global::Opc.Ua.Variant.From(Doubles));"));
+                    "global::Opc.Ua.EncoderExtensions.WriteInlineMatrixValue(encoder, \"Doubles\", global::Opc.Ua.Variant.From(Doubles));"));
                 Assert.That(code, Does.Contain(
                     "Doubles = decoder.ReadVariantValue(\"Doubles\", global::Opc.Ua.TypeInfo.Create(" +
                     "global::Opc.Ua.BuiltInType.Double, global::Opc.Ua.ValueRanks.TwoDimensions)).GetDoubleMatrix();"));

@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -213,7 +214,7 @@ namespace Opc.Ua.SourceGeneration
             }
 
             Assert.That(m_generated, Does.Contain(
-                "encoder.WriteVariantValue(\"Pixels\", global::Opc.Ua.Variant.From(Pixels));"));
+                "global::Opc.Ua.EncoderExtensions.WriteInlineMatrixValue(encoder, \"Pixels\", global::Opc.Ua.Variant.From(Pixels));"));
             Assert.That(m_generated, Does.Contain(
                 "Pixels = decoder.ReadVariantValue(\"Pixels\", global::Opc.Ua.TypeInfo.Create(" +
                 "global::Opc.Ua.BuiltInType.Int32, global::Opc.Ua.ValueRanks.TwoDimensions)).GetInt32Matrix();"));
@@ -435,6 +436,218 @@ namespace Opc.Ua.SourceGeneration
                 Is.EqualTo(new[] { ("Read", 0L), ("Write", 1L), ("Exec", 2L) }));
         }
 
+        /// <summary>
+        /// A3-2: the namespace-level activator derives from
+        /// EncodeableType&lt;T&gt;/EnumeratedType&lt;T&gt;, so it has to be
+        /// internal when T is not effectively public (CS0060 otherwise).
+        /// </summary>
+        [Test]
+        public void NonPublicDataTypesGetInternalActivatorsAndRoundTrip()
+        {
+            const string source =
+                """
+                using Opc.Ua;
+
+                namespace TestApp.Access
+                {
+                    [DataType(Namespace = "urn:access", DataTypeId = "i=1")]
+                    internal partial class TopInternal
+                    {
+                        public int A { get; set; }
+                    }
+
+                    public static partial class PublicHost
+                    {
+                        [DataType(Namespace = "urn:access", DataTypeId = "i=2")]
+                        internal partial class NestedInternal
+                        {
+                            public string B { get; set; }
+                        }
+                    }
+
+                    internal static partial class InternalHost
+                    {
+                        [DataType(Namespace = "urn:access", DataTypeId = "i=3")]
+                        public partial class NestedPublic
+                        {
+                            public double C { get; set; }
+                        }
+
+                        [DataType(Namespace = "urn:access", DataTypeId = "i=4")]
+                        public enum Mode
+                        {
+                            Off = 0,
+                            On = 1
+                        }
+                    }
+
+                    [DataType(Namespace = "urn:access", DataTypeId = "i=5")]
+                    public partial class StillPublic
+                    {
+                        public int D { get; set; }
+                    }
+                }
+                """;
+            Assembly assembly = CompileAndLoad(source, out string generated, expectNoWarnings: true);
+
+            Assert.That(generated, Does.Contain("internal sealed class TopInternalActivator"));
+            Assert.That(generated, Does.Contain("internal sealed class PublicHost_NestedInternalActivator"));
+            Assert.That(generated, Does.Contain("internal sealed class InternalHost_NestedPublicActivator"));
+            Assert.That(generated, Does.Contain("internal sealed class InternalHost_ModeActivator"));
+            Assert.That(generated, Does.Contain("public sealed class StillPublicActivator"));
+
+            (string Type, string Property, object Value)[] cases =
+            [
+                ("TestApp.Access.TopInternal", "A", 42),
+                ("TestApp.Access.PublicHost+NestedInternal", "B", "b"),
+                ("TestApp.Access.InternalHost+NestedPublic", "C", 1.5)
+            ];
+            foreach ((string typeName, string property, object value) in cases)
+            {
+                Type type = assembly.GetType(typeName, throwOnError: true);
+                var original = (IEncodeable)Activator.CreateInstance(type, nonPublic: true);
+                Set(original, property, value);
+                byte[] bytes = EncodeBinary(original);
+                var decoded = (IEncodeable)Activator.CreateInstance(type, nonPublic: true);
+                using (var decoder = new BinaryDecoder(bytes, m_context))
+                {
+                    decoded.Decode(decoder);
+                }
+                Assert.That(Get(decoded, property), Is.EqualTo(value), typeName);
+                Assert.That(Get(JsonRoundTrip(original), property), Is.EqualTo(value), typeName);
+            }
+        }
+
+        /// <summary>
+        /// D-2: enum member values were captured with the current culture and
+        /// parsed with the invariant culture, so with U+2212 as negative sign
+        /// negative members were published as 0 and negative flag bits lost.
+        /// </summary>
+        [Test]
+        public void NegativeEnumValuesSurviveCultureWithUnicodeMinus()
+        {
+            const string source =
+                """
+                using System;
+                using Opc.Ua;
+
+                namespace TestApp.Minus
+                {
+                    [DataType(Namespace = "urn:defs", DataTypeId = "i=1")]
+                    public enum Mode
+                    {
+                        Invalid = -1,
+                        A = 0,
+                        B = 1
+                    }
+
+                    [Flags]
+                    [DataType(Namespace = "urn:defs", DataTypeId = "i=2")]
+                    public enum Bits
+                    {
+                        None = 0,
+                        Low = 1,
+                        High = unchecked((int)0x80000000)
+                    }
+                }
+                """;
+            CultureInfo previous = CultureInfo.CurrentCulture;
+            var culture = (CultureInfo)CultureInfo.InvariantCulture.Clone();
+            culture.NumberFormat.NegativeSign = "−";
+            Assembly assembly;
+            try
+            {
+                CultureInfo.CurrentCulture = culture;
+                Assert.That((-1).ToString(CultureInfo.CurrentCulture), Does.StartWith("−"));
+                assembly = CompileAndLoad(source, out _);
+            }
+            finally
+            {
+                CultureInfo.CurrentCulture = previous;
+            }
+
+            EnumDefinition mode = GetEnumDefinition(assembly, "TestApp.Minus.ModeActivator");
+            Assert.That(
+                mode.Fields.ToArray().Select(f => (f.Name, f.Value)),
+                Is.EqualTo(new[] { ("Invalid", -1L), ("A", 0L), ("B", 1L) }));
+
+            EnumDefinition bits = GetEnumDefinition(assembly, "TestApp.Minus.BitsActivator");
+            Assert.That(bits.IsOptionSet, Is.True);
+            Assert.That(
+                bits.Fields.ToArray().Select(f => (f.Name, f.Value)),
+                Is.EqualTo(new[] { ("Low", 0L), ("High", 31L) }));
+        }
+
+        /// <summary>
+        /// A3-1: a SetIfMissing field is always decoded, so a missing field
+        /// comes back as the CLR default. Omitting a value equal to the
+        /// property initializer (D-8) therefore lost it; only the CLR default
+        /// may be omitted.
+        /// </summary>
+        [Test]
+        public void SetIfMissingFieldAtInitializerRoundTrips()
+        {
+            const string source =
+                """
+                using Opc.Ua;
+
+                namespace TestApp.SetIfMissing
+                {
+                    [DataType(Namespace = "urn:defs", DataTypeId = "i=1")]
+                    public partial class Counter
+                    {
+                        [DataTypeField(Order = 0, DefaultValueHandling = DefaultValueHandling.SetIfMissing)]
+                        public int Count { get; set; } = 5;
+
+                        [DataTypeField(Order = 1, DefaultValueHandling = DefaultValueHandling.SetIfMissing)]
+                        public bool Flag { get; set; } = true;
+
+                        [DataTypeField(Order = 2, DefaultValueHandling = DefaultValueHandling.SetIfMissing)]
+                        public string Text { get; set; } = "abc";
+                    }
+                }
+                """;
+            Assembly assembly = CompileAndLoad(source, out _);
+            Type type = assembly.GetType("TestApp.SetIfMissing.Counter", throwOnError: true);
+
+            // The initializer values must survive.
+            var original = (IEncodeable)Activator.CreateInstance(type);
+            object json = JsonRoundTrip(original);
+            Assert.That(Get(json, "Count"), Is.EqualTo(5), "JSON");
+            Assert.That(Get(json, "Flag"), Is.True, "JSON");
+            Assert.That(Get(json, "Text"), Is.EqualTo("abc"), "JSON");
+
+            ServiceMessageContext context = CreateContext();
+            context.Factory.Builder.AddEncodeableTypes(assembly).Commit();
+            object xml = XmlRoundTrip(context, original, original.TypeId);
+            Assert.That(Get(xml, "Count"), Is.EqualTo(5), "XML");
+            Assert.That(Get(xml, "Flag"), Is.True, "XML");
+            Assert.That(Get(xml, "Text"), Is.EqualTo("abc"), "XML");
+
+            // The CLR defaults are omitted and decoded as the CLR default.
+            var zero = (IEncodeable)Activator.CreateInstance(type);
+            Set(zero, "Count", 0);
+            Set(zero, "Flag", false);
+            Set(zero, "Text", null);
+            string zeroJson = EncodeJson(zero);
+            Assert.That(zeroJson, Does.Not.Contain("Count"));
+            object decodedZero = JsonRoundTrip(zero);
+            Assert.That(Get(decodedZero, "Count"), Is.Zero);
+            Assert.That(Get(decodedZero, "Flag"), Is.False);
+            Assert.That(Get(decodedZero, "Text"), Is.Null);
+        }
+
+        private static EnumDefinition GetEnumDefinition(Assembly assembly, string activatorName)
+        {
+            var namespaceUris = new NamespaceTable();
+            namespaceUris.Append(NamespaceUri);
+            Type activator = assembly.GetType(activatorName, throwOnError: true);
+            var source = (IDataTypeDefinitionSource)activator
+                .GetField("Instance", BindingFlags.Public | BindingFlags.Static)
+                .GetValue(null);
+            return (EnumDefinition)source.GetDataTypeDefinition(namespaceUris);
+        }
+
         private StructureDefinition GetDefinition(string typeName)
         {
             Type activator = m_assembly.GetType(
@@ -485,7 +698,10 @@ namespace Opc.Ua.SourceGeneration
             return decoded;
         }
 
-        private static Assembly CompileAndLoad(string source, out string generated)
+        private static Assembly CompileAndLoad(
+            string source,
+            out string generated,
+            bool expectNoWarnings = false)
         {
             var generator = new ModelSourceGenerator();
             CSharpCompilation compilation = OptimizationLevel.Debug
@@ -505,6 +721,18 @@ namespace Opc.Ua.SourceGeneration
             Assert.That(
                 diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToArray(),
                 Is.Empty);
+            if (expectNoWarnings)
+            {
+                Assert.That(diagnostics, Is.Empty, "generator diagnostics");
+                outputCompilation.GetDiagnostics().Check(
+                    TestContext.Out,
+                    out int compileErrors,
+                    out int compileWarnings);
+                Assert.That(compileErrors, Is.Zero, "compilation errors");
+#if !NETFRAMEWORK
+                Assert.That(compileWarnings, Is.Zero, "compilation warnings");
+#endif
+            }
             generated = string.Join(
                 "\n",
                 driver.GetRunResult().Results[0].GeneratedSources

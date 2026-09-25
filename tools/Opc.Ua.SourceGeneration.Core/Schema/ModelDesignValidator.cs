@@ -210,6 +210,27 @@ namespace Opc.Ua.Schema.Model
             allFilePaths.AddRange(dependencyFilePaths);
 
             ValidateModel(allFilePaths, identifierFilePath);
+            MarkExcludedObjectTypes();
+        }
+
+        /// <summary>
+        /// Flags the ObjectTypes that are excluded from generation, so an
+        /// instance typed by one is created with the state class of its
+        /// nearest emitted supertype (no state class exists for the type).
+        /// </summary>
+        private void MarkExcludedObjectTypes()
+        {
+            if (m_nodes == null)
+            {
+                return;
+            }
+            foreach (NodeDesign node in m_nodes.Values)
+            {
+                if (node is ObjectTypeDesign objectType)
+                {
+                    objectType.IsExcludedFromGeneration = IsExcluded(objectType);
+                }
+            }
         }
 
         /// <summary>
@@ -4801,11 +4822,14 @@ namespace Opc.Ua.Schema.Model
                 else if (rank == 0)
                 {
                     field.ArrayDimensions = "0,0";
-                    m_logger.LogInformation(
-                        "Field {Field} of data type {DataType} has ValueRank OneOrMoreDimensions " +
-                        "without ArrayDimensions; a two dimensional matrix (ValueRank 2) is assumed.",
-                        field.Name,
-                        dataType.SymbolicId?.Name);
+                    if (m_logger.IsEnabled(LogLevel.Information))
+                    {
+                        m_logger.LogInformation(
+                            "Field {Field} of data type {DataType} has ValueRank OneOrMoreDimensions " +
+                            "without ArrayDimensions; a two dimensional matrix (ValueRank 2) is assumed.",
+                            field.Name,
+                            dataType.SymbolicId?.Name);
+                    }
                 }
             }
         }
@@ -6892,6 +6916,9 @@ namespace Opc.Ua.Schema.Model
                             f.DataTypeName ?? string.Empty,
                             f.DataTypeNamespace ?? string.Empty),
                         ValueRank = (ValueRank)f.ValueRank,
+                        IsOptional = f.IsOptional,
+                        AllowSubTypes = f.AllowSubTypes,
+                        ArrayDimensions = f.ArrayDimensions,
                         Description = new LocalizedText()
                     };
                 }

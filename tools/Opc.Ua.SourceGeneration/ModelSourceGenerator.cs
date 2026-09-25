@@ -246,18 +246,51 @@ namespace Opc.Ua.SourceGeneration
                     .Select((p, _) => p.GlobalOptions.GetBool(
                         "PublicDataTypeExtensions"));
 
-            context.RegisterSourceOutput(context.SyntaxProvider.ForAttributeWithMetadataName(
+            IncrementalValueProvider<ImmutableArray<DataTypeCompilation>> dataTypeCompilations =
+                context.SyntaxProvider.ForAttributeWithMetadataName(
                     "Opc.Ua.DataTypeAttribute",
                     static (node, ct) => DataTypeCompilation.Handles(node, ct),
                     static (context, ct) => new DataTypeCompilation(context, ct))
                 .Where(static m => m is not null)
                 .WithTrackingName(TrackingNames.DataTypeCompilations)
-                .Collect()
-                .Combine(publicDataTypeExtensions),
+                .Collect();
+
+            context.RegisterSourceOutput(
+                dataTypeCompilations.Combine(publicDataTypeExtensions),
                 static (spc, pair) => SourceGenerator.Guard(
                     spc,
                     () => DataTypeCompilation.EmitBatch(
                         spc, pair.Left, pair.Right)));
+
+            // The pipeline values carry value-equatable location snapshots
+            // (LocationInfo), not locations, so the sources above stay cached.
+            // Diagnostics are reported from separate outputs that combine the
+            // snapshots with the compilation and re-create each location in
+            // its syntax tree: a location without a tree is not subject to
+            // #pragma warning, per-file severity configuration or #line.
+            context.RegisterSourceOutput(
+                dataTypeCompilations.Combine(context.CompilationProvider),
+                static (spc, pair) => SourceGenerator.Guard(
+                    spc,
+                    () => DataTypeCompilation.ReportDiagnostics(
+                        spc, pair.Left, pair.Right)));
+
+            context.RegisterSourceOutput(
+                nodeManagerBindings
+                    .Combine(inputFiles.Select(static (files, _) => files.Length > 0))
+                    .Combine(context.CompilationProvider),
+                static (spc, pair) => SourceGenerator.Guard(
+                    spc,
+                    () =>
+                    {
+                        // Reported only when there are models to bind to,
+                        // like the binding itself.
+                        if (pair.Left.Right)
+                        {
+                            NodeManagerAttributeDiscovery.ReportDiagnostics(
+                                spc, pair.Left.Left, pair.Right);
+                        }
+                    }));
         }
 
         /// <summary>

@@ -1042,14 +1042,15 @@ namespace Opc.Ua
         /// <summary>
         /// Whether the value is written as an inline matrix (OPC 10000-6
         /// 5.2.5) when it is the raw value of a multi-dimensional structure
-        /// field. This is the case for a matrix type info and for every
-        /// <see cref="MatrixOf{T}"/> value, also one whose shape the type
-        /// info lost: a null matrix has no dimensions (value rank
-        /// OneOrMoreDimensions) and an empty matrix a single zero dimension
-        /// (value rank OneDimension). A non empty matrix with a single
-        /// dimension is rejected by the encoders (see
-        /// <see cref="MatrixOf.GetInlineMatrixDimensions(int[], int)"/>)
-        /// rather than silently written as an array.
+        /// field. This is the case for a matrix type info and for a null
+        /// <see cref="MatrixOf{T}"/> whose shape the type info lost (a null
+        /// matrix has no dimensions, value rank OneOrMoreDimensions). A
+        /// <see cref="MatrixOf{T}"/> with a single dimension (including
+        /// <see cref="MatrixOf{T}.Empty"/>) is an array, the way
+        /// <see cref="TryGetArray{T}(out ArrayOf{T}, BuiltInType)"/> treats
+        /// it, and the encoders write it as an array. The value of a field
+        /// that is declared as a matrix is normalized with
+        /// <see cref="ToInlineMatrix(in Variant)"/> before it is written.
         /// </summary>
         /// <param name="isNull">Whether the matrix is null.</param>
         internal bool IsInlineMatrix(out bool isNull)
@@ -1057,10 +1058,68 @@ namespace Opc.Ua
             if (m_value is IMatrixOf matrix)
             {
                 isNull = matrix.IsNull;
-                return true;
+                return isNull || matrix.Dimensions.Length != 1;
             }
             isNull = m_value is null || (m_value is INullable nullable && nullable.IsNull);
             return TypeInfo.IsMatrix;
+        }
+
+        /// <summary>
+        /// Normalizes the value of a structure field declared as a matrix
+        /// (ValueRank &gt;= 2) so that the raw encoders write it as the inline
+        /// matrix of OPC 10000-6 5.2.5 Table 28, which has at least two
+        /// dimensions: an empty value with fewer dimensions (e.g.
+        /// <see cref="MatrixOf{T}.Empty"/> or an empty array) becomes the
+        /// empty 0 x 0 matrix and a null array a null matrix.
+        /// </summary>
+        /// <exception cref="ServiceResultException">with
+        /// <see cref="StatusCodes.BadEncodingError"/> for a non empty value
+        /// with fewer than two dimensions, which cannot be written as an
+        /// inline matrix.</exception>
+        internal static Variant ToInlineMatrix(in Variant value)
+        {
+            TypeInfo typeInfo = value.TypeInfo;
+            if (value.IsNull || typeInfo.IsScalar || typeInfo.IsMatrix)
+            {
+                return value;
+            }
+            int dimensionCount;
+            int count;
+            if (value.m_value is IMatrixOf matrix)
+            {
+                if (matrix.IsNull || matrix.Dimensions.Length >= 2)
+                {
+                    return value;
+                }
+                dimensionCount = matrix.Dimensions.Length;
+                count = matrix.Count;
+            }
+            else if (value.m_value is null ||
+                (value.m_value is INullable nullable && nullable.IsNull))
+            {
+                return CreateDefault(TypeInfo.Create(
+                    typeInfo.BuiltInType,
+                    ValueRanks.TwoDimensions));
+            }
+            else if (value.m_value is IConvertableToArray array)
+            {
+                dimensionCount = 1;
+                count = array.ToArray()?.Length ?? 0;
+            }
+            else
+            {
+                return value;
+            }
+            if (count == 0)
+            {
+                return CreateEmptyMatrix(typeInfo.BuiltInType, [0, 0]);
+            }
+            throw ServiceResultException.Create(
+                StatusCodes.BadEncodingError,
+                "A matrix with {0} dimension(s) and {1} element(s) cannot be encoded " +
+                "as an inline matrix which requires at least 2 dimensions.",
+                dimensionCount,
+                count);
         }
 
         /// <summary>
@@ -1155,6 +1214,24 @@ namespace Opc.Ua
         /// </summary>
         public Variant Copy()
         {
+            if (m_value is IMatrixOf)
+            {
+                // Clone a matrix as a matrix whatever rank the type info
+                // derived from its dimensions (a null matrix has rank 0, an
+                // empty one rank 1): cloning it as an array would lose the
+                // null/empty matrix identity the inline matrix encoding of a
+                // structure field depends on (OPC 10000-6 5.2.5).
+                return m_value switch
+                {
+                    MatrixOf<ExtensionObject> matrix =>
+                        new Variant(m_union, m_typeInfo, CoreUtils.Clone(matrix)),
+                    MatrixOf<DataValue> matrix =>
+                        new Variant(m_union, m_typeInfo, CoreUtils.Clone(matrix)),
+                    MatrixOf<Variant> matrix =>
+                        new Variant(m_union, m_typeInfo, CoreUtils.Clone(matrix)),
+                    _ => this
+                };
+            }
             if (m_value is not null)
             {
                 if (TypeInfo.IsScalar)

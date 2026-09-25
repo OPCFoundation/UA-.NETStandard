@@ -488,4 +488,39 @@ namespace Opc.Ua
         /// </summary>
         Json
     }
+
+    /// <summary>
+    /// Extensions for <see cref="IEncoder"/>.
+    /// </summary>
+    public static class EncoderExtensions
+    {
+        /// <summary>
+        /// Writes the value of a structure field that is declared as a
+        /// matrix (ValueRank &gt;= 2) as the inline matrix OPC 10000-6 5.2.5
+        /// Table 28 prescribes (the dimensions followed by the values).
+        /// <see cref="IEncoder.WriteVariantValue(string?, in Variant)"/>
+        /// alone only knows the value, not the declared rank: it writes a
+        /// value with a single dimension (e.g. <see cref="MatrixOf{T}.Empty"/>)
+        /// as an array. This method normalizes such a value first: an empty
+        /// value becomes the empty 0 x 0 matrix and a null array a null
+        /// matrix.
+        /// </summary>
+        /// <param name="encoder">The encoder.</param>
+        /// <param name="fieldName">The name of the field.</param>
+        /// <param name="value">The matrix value.</param>
+        /// <exception cref="ServiceResultException">with
+        /// StatusCode BadEncodingError for a non empty value
+        /// with fewer than two dimensions.</exception>
+        public static void WriteInlineMatrixValue(
+            this IEncoder encoder,
+            string? fieldName,
+            in Variant value)
+        {
+            if (encoder == null)
+            {
+                throw new ArgumentNullException(nameof(encoder));
+            }
+            encoder.WriteVariantValue(fieldName, Variant.ToInlineMatrix(in value));
+        }
+    }
 }
