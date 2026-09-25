@@ -429,7 +429,8 @@ namespace Opc.Ua.Bindings
                 {
                     ChunkReassemblyBudget budget = isServerContext && !final
                         ? Quotas.ChunkReassemblyBudget : null;
-                    if (budget == null || budget.TryReserve(chunk.Array.Length))
+                    if (budget == null || budget.TryReserve(
+                        chunk.Array.Length, this is TcpListenerChannel listener && listener.UsedBySession))
                     {
                         m_partialMessageReservedBytes += budget == null ? 0 : chunk.Array.Length;
                         m_partialRequestId = requestId;

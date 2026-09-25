@@ -855,6 +855,7 @@ namespace Opc.Ua
                 var settings = new TransportListenerSettings
                 {
                     ChunkReassemblyBudget = m_chunkReassemblyBudget,
+                    HasActivatedSession = HasActivatedSession,
                     Descriptions = endpoints,
                     Configuration = endpointConfiguration,
                     ServerCertificateTypesProvider = InstanceCertificateTypesProvider,
@@ -1800,6 +1801,8 @@ namespace Opc.Ua
         private IServiceMessageContext m_messageContext;
         private RequestQueue m_requestQueue;
         private ITelemetryContext m_telemetry;
+
+        internal Func<string, bool> HasActivatedSession { get; set; }
 
         private Bindings.ChunkReassemblyBudget m_chunkReassemblyBudget;
         private bool m_disposed;

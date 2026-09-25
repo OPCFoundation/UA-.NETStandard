@@ -59,26 +59,98 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(ChunkReassemblyBudget.CreateDefault(size).MaxBytes, Is.EqualTo(expected));
         }
 
-        [Test]
-        public void ConcurrentReservationsNeverExceedCapacityAndCanBeReused()
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ConcurrentReservationsNeverExceedCapacityAndCanBeReused(bool activated)
         {
             var budget = new ChunkReassemblyBudget(1000);
+            long limit = activated ? 1000 : 500;
             Parallel.For(0, 100, _ =>
             {
                 for (int i = 0; i < 100; i++)
                 {
-                    if (budget.TryReserve(37))
+                    if (budget.TryReserve(37, activated))
                     {
-                        Assert.That(budget.ReservedBytes, Is.InRange(37L, 1000L));
+                        Assert.That(budget.ReservedBytes, Is.InRange(37L, limit));
                         budget.Release(37);
                     }
                 }
             });
             Assert.That(budget.ReservedBytes, Is.Zero);
-            Assert.That(budget.TryReserve(1000), Is.True);
-            Assert.That(budget.TryReserve(1), Is.False);
+            Assert.That(budget.TryReserve(limit, activated), Is.True);
+            Assert.That(budget.TryReserve(1, activated), Is.False);
             Assert.Throws<InvalidOperationException>(() => budget.Release(1001));
-            budget.Release(1000);
+            budget.Release(limit);
+        }
+
+        [TestCase(1000)]
+        [TestCase(1001)]
+        public void SessionlessThresholdIncludesActivatedReservations(long capacity)
+        {
+            var budget = new ChunkReassemblyBudget(capacity);
+            long half = capacity / 2;
+            Assert.That(budget.TryReserve(half - 1, true), Is.True);
+            Assert.That(budget.TryReserve(2, false), Is.False);
+            Assert.That(budget.TryReserve(1, false), Is.True);
+            Assert.That(budget.TryReserve(1, false), Is.False);
+            Assert.That(budget.TryReserve(capacity - half, true), Is.True);
+            Assert.That(budget.ReservedBytes, Is.EqualTo(capacity));
+            budget.Release(capacity);
+            Assert.That(budget.TryReserve(half, false), Is.True);
+            budget.Release(half);
+        }
+
+        [Test]
+        public void LiveMembershipOverridesActivationResponseHintAndDowngradeReleasesBuffers()
+        {
+            var budget = new ChunkReassemblyBudget(1024);
+            bool activated = true;
+            var quotas = new ChannelQuotas(new ServiceMessageContext(NUnitTelemetryContext.Create()))
+            {
+                ChunkReassemblyBudget = budget,
+                HasActivatedSession = id => id == "test-1" && activated
+            };
+            using var owner = new TestChannel(budget, quotas);
+            owner.SetSession(false); // A failed/late response cannot downgrade a live session.
+            Assert.That(owner.UsedBySession, Is.True);
+            for (int i = 0; i < 3; i++)
+            {
+                owner.Receive(TcpMessageType.Message | TcpMessageType.Intermediate, [], 1);
+            }
+            Assert.That(budget.ReservedBytes, Is.EqualTo(768));
+            using var sessionless = new TestChannel(budget);
+            sessionless.SetSession(false);
+            sessionless.Receive(TcpMessageType.Message | TcpMessageType.Intermediate, [], 1);
+            Assert.That(sessionless.Closed, Is.True);
+            Assert.That(budget.ReservedBytes, Is.EqualTo(768));
+
+            activated = false;
+            owner.SetSession(true); // A successful but stale response cannot restore membership.
+            Assert.That(owner.UsedBySession, Is.False);
+            Assert.That(budget.ReservedBytes, Is.EqualTo(768), "Downgrade does not evict retained chunks.");
+            owner.Receive(TcpMessageType.Message | TcpMessageType.Intermediate, [], 1);
+            Assert.That(owner.Closed, Is.True);
+            Assert.That(owner.Pool.Outstanding, Is.Zero);
+            Assert.That(budget.ReservedBytes, Is.Zero);
+            using var next = new TestChannel(budget);
+            next.SetSession(false);
+            next.Receive(TcpMessageType.Message | TcpMessageType.Intermediate, [], 1);
+            Assert.That(next.Closed, Is.False);
+        }
+
+        [Test]
+        public void DowngradedChannelCanStillCompleteAnAlreadyRetainedRequest()
+        {
+            var budget = new ChunkReassemblyBudget(256);
+            using var channel = new TestChannel(budget);
+            byte[] body = channel.EncodeRequest();
+            int split = body.Length / 2;
+            channel.Receive(TcpMessageType.Message | TcpMessageType.Intermediate, body.Take(split).ToArray(), 1);
+            channel.SetSession(false);
+            channel.Receive(TcpMessageType.Message | TcpMessageType.Final, body.Skip(split).ToArray(), 1);
+            Assert.That(channel.Requests.Count, Is.EqualTo(1));
+            Assert.That(channel.Pool.Outstanding, Is.Zero);
+            Assert.That(budget.ReservedBytes, Is.Zero);
         }
 
         [TestCase(false)]
@@ -104,8 +176,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                         Assert.That(channel.LastError, Is.EqualTo(StatusCodes.BadTcpNotEnoughResources));
                     }
                 }
-                Assert.That(channels.Count(c => !c.Closed), Is.EqualTo(4));
-                Assert.That(budget.ReservedBytes, Is.EqualTo(1024));
+                Assert.That(channels.Count(c => !c.Closed), Is.EqualTo(activatedSession ? 4 : 2));
+                Assert.That(budget.ReservedBytes, Is.EqualTo(activatedSession ? 1024 : 512));
             }
             finally
             {
@@ -163,6 +235,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             using var holder = new TestChannel(budget);
             using var other = new TestChannel(budget);
             holder.Receive(TcpMessageType.Message | TcpMessageType.Intermediate, [], 1);
+            other.SetSession(false);
             other.Receive(TcpMessageType.Message | TcpMessageType.Final, other.EncodeRequest(), 1);
             Assert.That(other.Requests.Count, Is.EqualTo(1));
             Assert.That(other.Pool.Outstanding, Is.Zero);
@@ -282,12 +355,13 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public void StandaloneListenerCreatesDefaultBudgetAndTwoListenersShareInjectedBudget()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var budget = new ChunkReassemblyBudget(256);
+            var budget = new ChunkReassemblyBudget(512);
             using var first = new TcpTransportListener(telemetry);
             using var second = new TcpTransportListener(telemetry);
             using var standalone = new TcpTransportListener(telemetry);
-            OpenListener(first, budget, telemetry);
-            OpenListener(second, budget, telemetry);
+            Func<string, bool> membership = _ => false;
+            OpenListener(first, budget, telemetry, membership);
+            OpenListener(second, budget, telemetry, membership);
             OpenListener(standalone, null, telemetry);
             var firstQuotas = (ChannelQuotas)typeof(TcpTransportListener)
                 .GetField("m_quotas", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(first);
@@ -295,6 +369,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 .GetField("m_quotas", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(second);
             var standaloneQuotas = (ChannelQuotas)typeof(TcpTransportListener)
                 .GetField("m_quotas", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(standalone);
+            Assert.That(firstQuotas.HasActivatedSession, Is.SameAs(membership));
+            Assert.That(secondQuotas.HasActivatedSession, Is.SameAs(membership));
+            Assert.That(standaloneQuotas.HasActivatedSession, Is.Null);
             Assert.That(firstQuotas.ChunkReassemblyBudget, Is.SameAs(budget));
             Assert.That(secondQuotas.ChunkReassemblyBudget, Is.SameAs(budget));
             Assert.That(standaloneQuotas.ChunkReassemblyBudget.MaxBytes, Is.EqualTo(64L * 1024 * 1024));
@@ -316,16 +393,23 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 .SetValue(server, new ApplicationConfiguration(telemetry) { ServerConfiguration = new ServerConfiguration() });
             typeof(ServerBase).GetProperty("MessageContext")
                 .SetValue(server, new ServiceMessageContext(telemetry));
+            Func<string, bool> membership = id => id == "activated";
+            server.HasActivatedSession = membership;
             var captured = new List<ChunkReassemblyBudget>();
+            var capturedMembership = new List<Func<string, bool>>();
             var listener = new Mock<ITransportListener>();
             listener.Setup(l => l.Open(It.IsAny<Uri>(), It.IsAny<TransportListenerSettings>(), It.IsAny<ITransportListenerCallback>()))
                 .Callback<Uri, TransportListenerSettings, ITransportListenerCallback>((uri, settings, callback) =>
-                    captured.Add(settings.ChunkReassemblyBudget));
+                {
+                    captured.Add(settings.ChunkReassemblyBudget);
+                    capturedMembership.Add(settings.HasActivatedSession);
+                });
             var endpoint = new Uri("opc.tcp://localhost:12345");
             server.CreateServiceHostEndpoint(endpoint, [], EndpointConfiguration.Create(), listener.Object, null);
             server.CreateServiceHostEndpoint(endpoint, [], EndpointConfiguration.Create(), listener.Object, null);
             Assert.That(captured[0], Is.Not.Null);
             Assert.That(captured[1], Is.SameAs(captured[0]));
+            Assert.That(capturedMembership.All(query => ReferenceEquals(query, membership)), Is.True);
             await server.StopAsync().ConfigureAwait(false);
             typeof(ServerBase).GetProperty("MessageContext")
                 .SetValue(server, new ServiceMessageContext(telemetry));
@@ -338,7 +422,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var context = new ServiceMessageContext(telemetry);
-            var budget = new ChunkReassemblyBudget(16384);
+            var budget = new ChunkReassemblyBudget(32768);
             using var first = new TcpTransportListener(telemetry);
             using var second = new TcpTransportListener(telemetry);
             OpenListener(first, budget, telemetry);
@@ -381,12 +465,12 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
                 await Task.Delay(10, timeout.Token).ConfigureAwait(false);
             }
-            Assert.That(budget.ReservedBytes, Is.EqualTo(budget.MaxBytes));
+            Assert.That(budget.ReservedBytes, Is.EqualTo(budget.MaxBytes / 2));
             await WriteBytesAsync(two.GetStream(), partialOpen, timeout.Token).ConfigureAwait(false);
             byte[] error = await ReadFrameAsync(two.GetStream(), timeout.Token).ConfigureAwait(false);
             Assert.That(BitConverter.ToUInt32(error, 0), Is.EqualTo(TcpMessageType.Error));
             Assert.That(BitConverter.ToUInt32(error, 8), Is.EqualTo(StatusCodes.BadTcpNotEnoughResources));
-            Assert.That(budget.ReservedBytes, Is.EqualTo(budget.MaxBytes));
+            Assert.That(budget.ReservedBytes, Is.EqualTo(budget.MaxBytes / 2));
             one.Close();
             while (budget.ReservedBytes != 0)
             {
@@ -439,7 +523,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
         }
 
-        private static void OpenListener(TcpTransportListener listener, ChunkReassemblyBudget budget, ITelemetryContext telemetry)
+        private static void OpenListener(
+            TcpTransportListener listener,
+            ChunkReassemblyBudget budget,
+            ITelemetryContext telemetry,
+            Func<string, bool> membership = null)
         {
             var context = new ServiceMessageContext(telemetry);
             int port;
@@ -470,7 +558,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 }],
                 NamespaceUris = context.NamespaceUris,
                 Factory = context.Factory,
-                ChunkReassemblyBudget = budget
+                ChunkReassemblyBudget = budget,
+                HasActivatedSession = membership
             }, null);
         }
 
@@ -519,6 +608,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 typeof(BufferManager).GetField("m_arrayPool", BindingFlags.Instance | BindingFlags.NonPublic)
                     .SetValue(BufferManager, Pool);
                 ChannelId = 1;
+                UsedBySession = true;
                 var token = CreateToken();
                 token.TokenId = 1;
                 ActivateToken(token);

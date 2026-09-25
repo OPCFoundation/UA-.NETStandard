@@ -59,16 +59,18 @@ namespace Opc.Ua.Bindings
             return new ChunkReassemblyBudget(capacity);
         }
 
-        internal bool TryReserve(long bytes)
+        internal bool TryReserve(long bytes, bool hasActivatedSession)
         {
             if (bytes < 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(bytes));
             }
+            // Sessionless reservations share the same total, but cannot cross half capacity.
+            long limit = hasActivatedSession ? MaxBytes : MaxBytes / 2;
             long reserved = ReservedBytes;
             while (true)
             {
-                if (bytes > MaxBytes - reserved)
+                if (bytes > limit - reserved)
                 {
                     return false;
                 }
