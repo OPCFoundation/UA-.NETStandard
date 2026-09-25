@@ -815,10 +815,12 @@ namespace Opc.Ua.WotCon.Server.Registry
                 }
                 return new WoTValidationOutcomeDataType
                 {
-                    FormatValidated = true,
-                    FormatOutcome = WoTOutcomeEnum.Success,
+                    FormatValidated = false,
+                    FormatOutcome = WoTOutcomeEnum.Skipped,
+                    FormatReason = "Syntax and document admission were checked; full format validation was not performed.",
                     CompatibilityValidated = false,
                     CompatibilityOutcome = WoTOutcomeEnum.Skipped,
+                    CompatibilityReason = "No compatibility validation was performed.",
                     ValidatedAt = DateTime.UtcNow,
                     VocabularyVersion = WotNodeSetConverter.VocabularyNamespace
                 };
@@ -2253,7 +2255,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                         next,
                         [updated.Xid],
                         projectionOnly: true,
-                        cancellationToken)
+                        cancellationToken,
+                        validation: new WotValidationChange(updated.Xid, versionId))
                     .ConfigureAwait(false);
             }
             finally
@@ -2583,7 +2586,8 @@ namespace Opc.Ua.WotCon.Server.Registry
             IReadOnlyList<string> changed,
             bool projectionOnly,
             CancellationToken cancellationToken,
-            WotRegistryCommitScope commitScope = WotRegistryCommitScope.Full)
+            WotRegistryCommitScope commitScope = WotRegistryCommitScope.Full,
+            WotValidationChange? validation = null)
         {
             IWotRegistryPreparedCommit? prepared = null;
             try
@@ -2618,7 +2622,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                     await RefreshValidatedStoreGenerationAfterCommitAsync(
                         exception.CommittedSnapshot, exception.PersistenceFailure).ConfigureAwait(false);
                     RaiseChanged(
-                        previous, exception.CommittedSnapshot, changed, projectionOnly, exception.PersistenceFailure);
+                        previous, exception.CommittedSnapshot, changed, projectionOnly,
+                        exception.PersistenceFailure, validation: validation);
                     throw;
                 }
                 catch (WotRegistryCommitNotCommittedException)
@@ -2634,7 +2639,7 @@ namespace Opc.Ua.WotCon.Server.Registry
 
                 Volatile.Write(ref m_snapshot, intended);
                 await RefreshValidatedStoreGenerationAfterCommitAsync(intended).ConfigureAwait(false);
-                RaiseChanged(previous, intended, changed, projectionOnly);
+                RaiseChanged(previous, intended, changed, projectionOnly, validation: validation);
             }
             finally
             {
@@ -2743,7 +2748,8 @@ namespace Opc.Ua.WotCon.Server.Registry
             IReadOnlyList<string> changed,
             bool projectionOnly,
             Exception? priorFailure = null,
-            bool materializationHandled = false)
+            bool materializationHandled = false,
+            WotValidationChange? validation = null)
         {
             EventHandler<WotRegistryChangedEventArgs>? observers = Changed;
             if (observers is null)
@@ -2751,7 +2757,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 return;
             }
             var change = new WotRegistryChangedEventArgs(
-                previous, current, changed, projectionOnly, materializationHandled);
+                previous, current, changed, projectionOnly, materializationHandled, validation);
             List<Exception>? failures = null;
             foreach (EventHandler<WotRegistryChangedEventArgs> observer in observers.GetInvocationList())
             {

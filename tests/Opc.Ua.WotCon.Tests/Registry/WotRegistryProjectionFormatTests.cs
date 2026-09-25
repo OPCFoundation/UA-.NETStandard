@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.Json.Nodes;
@@ -121,8 +122,8 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(actual, Is.EqualTo(request.Content));
             WoTValidationOutcomeDataType validation = await service.ValidateVersionAsync(
                 "plans", "view", version.VersionId).ConfigureAwait(false);
-            Assert.That(validation.FormatValidated, Is.True);
-            Assert.That(validation.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Success));
+            Assert.That(validation.FormatValidated, Is.False);
+            Assert.That(validation.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Skipped));
             Assert.That(validation.CompatibilityValidated, Is.False);
         }
 
@@ -201,7 +202,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(stored, Is.EqualTo(request.Content));
             WoTValidationOutcomeDataType validation = await compatible.ValidateResourceAsync("plans", "view")
                 .ConfigureAwait(false);
-            Assert.That(validation.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Success));
+            Assert.That(validation.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Skipped));
         }
 
         [TestCase(-1)]
@@ -286,7 +287,8 @@ namespace Opc.Ua.WotCon.Tests.Registry
         [Test]
         public async Task ChangingContentTypeForIdenticalBytesInvalidatesValidationAndRuntimeAdmission()
         {
-            using var service = new WotRegistryService();
+            await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync().ConfigureAwait(false);
+            WotRegistryService service = await runtime.CreateRegistryAsync().ConfigureAwait(false);
             var request = new WotUpsertResourceRequest
             {
                 GroupId = "ordinary",
@@ -295,13 +297,17 @@ namespace Opc.Ua.WotCon.Tests.Registry
             };
             WotRegistryMutationResult created = await service.UpsertResourceAsync(request).ConfigureAwait(false);
             WotResourceVersion original = created.Resource!.DefaultVersion!;
-            var host = new FakeWotProjectionHost();
+            var changes = new List<ArrayOf<WotProjectionChange>>();
+            IWotInvocationProjectionHost host = runtime.Observe(changes.Add);
             using var coordinator = new WotMaterializationCoordinator(
-                service, host, documentConverter: new FakeWotDocumentConverter());
+                service, host, documentConverter: new FakeWotDocumentConverter())
+            {
+                ServerNamespaceUris = runtime.Namespaces
+            };
             await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
             WoTValidationOutcomeDataType validation = await service.ValidateResourceAsync("ordinary", "source")
                 .ConfigureAwait(false);
-            Assert.That(validation.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Success));
+            Assert.That(validation.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Skipped));
 
             request.ContentType = "application/td+json; charset=utf-8";
             WotRegistryMutationResult changed = await service.UpsertResourceAsync(request).ConfigureAwait(false);
@@ -315,7 +321,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(resource.LoadState, Is.EqualTo(WoTLoadStateEnum.Unloaded));
             WotRefreshResult refreshed = await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
             Assert.That(refreshed.Results.Single().Outcome, Is.Not.EqualTo(WoTOutcomeEnum.Unchanged));
-            Assert.That(host.ShadowCount, Is.EqualTo(1));
+            Assert.That(changes, Has.Count.EqualTo(2));
+            Assert.That(changes[0].ToList().Single().Current, Is.Null);
+            Assert.That(changes[1].ToList().Single().Current, Is.Not.Null);
         }
 
         [TestCase("unchanged")]
@@ -374,7 +382,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             if (mutation == "unchanged")
             {
                 WoTValidationOutcomeDataType result = await validating.ConfigureAwait(false);
-                Assert.That(result.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Success));
+                Assert.That(result.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Skipped));
                 Assert.That(service.Current.FindResource("ordinary", "source")!.DefaultVersion!.Validation,
                     Is.Not.Null);
             }

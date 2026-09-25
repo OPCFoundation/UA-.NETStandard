@@ -558,6 +558,30 @@ namespace Opc.Ua.WotCon.Server
             // including projection-only callbacks (which must never re-trigger
             // materialization).
             m_reconcileQueue.Enqueue(e);
+            if (e.Validation is { } validated)
+            {
+                WotResource resource = e.Current.FindResourceByXid(validated.ResourceXid) ??
+                    throw new InvalidOperationException("A validation notification has no committed Resource.");
+                WoTValidationOutcomeDataType outcome = resource.FindVersion(validated.VersionId)?.Validation ??
+                    throw new InvalidOperationException("A validation notification has no exact committed outcome.");
+                bool formatFailed = outcome.FormatOutcome is WoTOutcomeEnum.Failed or WoTOutcomeEnum.Rejected;
+                if (formatFailed || outcome.CompatibilityOutcome is WoTOutcomeEnum.Failed or WoTOutcomeEnum.Rejected)
+                {
+                    var failure = new WotMaterializationEventArgs(WotMaterializationEventKind.ValidationFailure)
+                    {
+                        Xid = resource.Xid,
+                        ResourceId = resource.ResourceId,
+                        VersionId = validated.VersionId,
+                        DocumentKind = resource.Kind,
+                        Generation = e.Current.RefreshGeneration,
+                        Phase = formatFailed ? WoTPhaseEnum.FormatValidation : WoTPhaseEnum.CompatibilityValidation,
+                        Outcome = WoTOutcomeEnum.Failed,
+                        Reason = formatFailed ? outcome.FormatReason ?? string.Empty :
+                            outcome.CompatibilityReason ?? string.Empty
+                    };
+                    m_reconcileQueue.Enqueue(() => ReportCoordinatorEventAsync(failure, outcome, null));
+                }
+            }
             if (e.ProjectionOnly || e.MaterializationHandled || !m_options.AutoRefresh)
             {
                 return;

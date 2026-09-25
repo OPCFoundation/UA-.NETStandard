@@ -1298,7 +1298,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 NodeId rootNodeId = perMemberRoot.TryGetValue(member.Xid, out ExpandedNodeId root)
                     ? ResolveRootNodeId(root)
                     : NodeId.Null;
-                WoTValidationOutcomeDataType validation = SuccessValidation();
+                WoTValidationOutcomeDataType validation = ProjectionValidation();
                 results.Add(new WoTResourceLoadResultDataType
                 {
                     Xid = member.Xid,
@@ -1705,7 +1705,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 generation,
                 plan.MaterializedNodeCount,
                 viewNodeId,
-                SuccessValidation(),
+                ProjectionValidation(),
                 OmissionDiagnostics(plan.Omissions),
                 DateTime.UtcNow)
             {
@@ -2417,14 +2417,16 @@ namespace Opc.Ua.WotCon.Server.Materialization
             };
         }
 
-        private static WoTValidationOutcomeDataType SuccessValidation()
+        private static WoTValidationOutcomeDataType ProjectionValidation()
         {
             return new()
             {
-                FormatValidated = true,
-                FormatOutcome = WoTOutcomeEnum.Success,
-                CompatibilityValidated = true,
-                CompatibilityOutcome = WoTOutcomeEnum.Success,
+                FormatValidated = false,
+                FormatOutcome = WoTOutcomeEnum.Skipped,
+                FormatReason = "Projection succeeded; full format validation was not performed.",
+                CompatibilityValidated = false,
+                CompatibilityOutcome = WoTOutcomeEnum.Skipped,
+                CompatibilityReason = "Projection success does not establish compatibility validation.",
                 ValidatedAt = DateTime.UtcNow,
                 VocabularyVersion = WotNodeSetConverter.VocabularyNamespace
             };

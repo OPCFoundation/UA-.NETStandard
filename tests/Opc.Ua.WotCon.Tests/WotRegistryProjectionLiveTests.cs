@@ -1679,7 +1679,7 @@ namespace Opc.Ua.WotCon.Tests
             ByteString downloaded = await resource.DownloadAsync().ConfigureAwait(false);
             Assert.That(downloaded, Is.EqualTo(content));
             WoTValidationOutcomeDataType validation = await resource.ValidateAsync().ConfigureAwait(false);
-            Assert.That(validation.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Success));
+            Assert.That(validation.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Skipped));
         }
 
         [Test]
@@ -1739,12 +1739,12 @@ namespace Opc.Ua.WotCon.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(outcome.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Success));
+                Assert.That(outcome.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Skipped));
                 Assert.That(stored.DefaultVersionId, Is.EqualTo("v1"));
                 Assert.That(stored.FindVersion("v1")!.Validation, Is.Null);
                 Assert.That(
                     stored.FindVersion("v2")!.Validation!.FormatOutcome,
-                    Is.EqualTo(WoTOutcomeEnum.Success));
+                    Is.EqualTo(WoTOutcomeEnum.Skipped));
             });
         }
 

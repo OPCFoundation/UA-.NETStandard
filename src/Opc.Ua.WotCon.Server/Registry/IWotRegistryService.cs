@@ -288,13 +288,15 @@ namespace Opc.Ua.WotCon.Server.Registry
             WotRegistrySnapshot current,
             IReadOnlyList<string> changedResourceXids,
             bool projectionOnly,
-            bool materializationHandled = false)
+            bool materializationHandled = false,
+            WotValidationChange? validation = null)
         {
             Previous = previous;
             Current = current;
             ChangedResourceXids = changedResourceXids;
             ProjectionOnly = projectionOnly;
             MaterializationHandled = materializationHandled;
+            Validation = validation;
         }
 
         /// <summary>
@@ -323,7 +325,11 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// Such a change still reconciles registry content but must not trigger another automatic refresh.
         /// </summary>
         public bool MaterializationHandled { get; }
+
+        internal WotValidationChange? Validation { get; }
     }
+
+    internal sealed record WotValidationChange(string ResourceXid, string VersionId);
 
     /// <summary>
     /// The projection state recorded back into the registry snapshot by the

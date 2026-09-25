@@ -257,6 +257,33 @@ These rules report outcomes supplied by the configured conversion and binding
 providers. They do not add a JSON Schema validator or infer compatibility success
 from parsing.
 
+## Exact-Version validation observations
+
+The stock `Validate` path checks JSON syntax, configured parsing bounds and
+document admission. Passing those checks does not establish full TD/TM format
+validation or compatibility-policy success. Unperformed policies report
+`Validated = false` and `Skipped`, with an explicit reason. Successful projection
+likewise does not invent validation success. A known syntax or admission failure
+still reports its actual failed phase; a skipped policy is not a passed policy.
+
+`ValidateVersionAsync` and the native `Validate` Method store their outcome on
+the addressed exact Version. A non-default Version does not replace the
+default's diagnostic view, active pointer, native root or refresh generation.
+Publication rechecks the Version incarnation, kind, format, content type and
+digest. Validation-only metadata changes do not schedule automatic projection.
+
+A committed explicit validation failure emits `WoTValidationFailureEventType`
+from that Version, with its real phase and serving refresh generation, whether
+automatic refresh is enabled or disabled. The existing registry change
+notification and reconciliation queue carry this intent after the metadata
+decision. Confirmed noncommit and pre-decision cancellation emit no failure
+intent. A committed durability warning retains the committed observation rather
+than implying rollback. Returned outcomes and queued event payloads are detached
+from caller mutation.
+
+Full JSON Schema and compatibility-policy implementations are not supplied by
+these observation and lifecycle contracts.
+
 ## Coordinated lifecycle mutations
 
 A hosted registry routes logical Resource deletion, exact-Version deletion,

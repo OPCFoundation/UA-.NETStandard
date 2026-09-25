@@ -86,6 +86,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
         private SecureChannelContext m_secureChannelContext = null!;
 
         private WotRegistryService m_registry = null!;
+        private FileWotRegistryStore? m_testStore;
         private WotMaterializationCoordinator m_coordinator = null!;
         private WotRegistryServerOptions m_options = null!;
 
@@ -124,7 +125,8 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                     RequiredRoleId = UaObjectIds.WellKnownRole_Anonymous
                 }
             };
-            m_registry = new WotRegistryService(null, m_options.Bounds, m_options.IdentityBindings);
+            m_testStore = new FileWotRegistryStore(Path.Combine(m_pkiRoot, "registry"));
+            m_registry = new WotRegistryService(m_testStore, m_options.Bounds, m_options.IdentityBindings);
             var host = new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle);
             m_coordinator = new WotMaterializationCoordinator(
                 m_registry, host, documentConverter: new SensorConverter());
@@ -148,6 +150,8 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             m_server?.Dispose();
             m_startupStore?.Dispose();
             m_startupStore = null;
+            m_testStore?.Dispose();
+            m_testStore = null;
 
             if (!string.IsNullOrEmpty(m_pkiRoot) && Directory.Exists(m_pkiRoot))
             {
@@ -375,7 +379,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             Assert.That(validate.OutputArguments[0].TryGetValue(out ExtensionObject outcomeExtension), Is.True);
             Assert.That(outcomeExtension.TryGetValue(
                 out WoTValidationOutcomeDataType outcome), Is.True);
-            Assert.That(outcome.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Success));
+            Assert.That(outcome.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Skipped));
 
             // 5. SetEnabled(false) through the document Method.
             NodeId setEnabledId = await FindChildAsync(resourceNodeId, "SetEnabled")

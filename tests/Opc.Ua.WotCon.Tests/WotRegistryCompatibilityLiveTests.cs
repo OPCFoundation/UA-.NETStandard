@@ -55,7 +55,7 @@ namespace Opc.Ua.WotCon.Tests
     public sealed class WotRegistryCompatibilityLiveTests
     {
         [Test]
-        public async Task RegistryWithoutOptionalVersionCapabilityPreservesLifecycleAndLegacyMetadata()
+        public async Task RegistryWithoutPreparedCapabilityKeepsValidationAndLegacyMetadata()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             string pkiRoot = Path.Combine(
@@ -172,18 +172,21 @@ namespace Opc.Ua.WotCon.Tests
                         "urn:legacy-model-1",
                         StringComparison.Ordinal)).ConfigureAwait(false);
 
-                await resource.SetEnabledAsync(false, expectedEpoch: 0).ConfigureAwait(false);
+                await Assert.ThatAsync(async () => await resource.SetEnabledAsync(false, expectedEpoch: 0)
+                    .ConfigureAwait(false), Throws.TypeOf<ServiceResultException>()).ConfigureAwait(false);
                 await resource.SetDefaultVersionAsync(
                         stored.DefaultVersionId!,
                         expectedEpoch: 0)
                     .ConfigureAwait(false);
-                await resource.DeleteAsync(expectedEpoch: 0).ConfigureAwait(false);
+                await Assert.ThatAsync(async () => await resource.DeleteAsync(expectedEpoch: 0).ConfigureAwait(false),
+                    Throws.TypeOf<ServiceResultException>()).ConfigureAwait(false);
 
                 Assert.Multiple(() =>
                 {
                     Assert.That(versionId, Is.Empty);
-                    Assert.That(materialized, Is.True);
-                    Assert.That(validation.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Success));
+                    Assert.That(materialized, Is.False,
+                        "A provider without prepared publication must not get an unsafe activation fallback.");
+                    Assert.That(validation.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Skipped));
                     Assert.That(stored.DefaultVersion, Is.Not.Null);
                     Assert.That(stored.ThingId, Is.EqualTo("urn:legacy"));
                     Assert.That(stored.Title, Is.EqualTo("urn:legacy-1"));
@@ -193,14 +196,16 @@ namespace Opc.Ua.WotCon.Tests
                         materializationEvents.Any(evt =>
                             evt.Kind == WotMaterializationEventKind.Resource &&
                             evt.Xid == stored.Xid && evt.ResourceId == "legacy"),
-                        Is.True);
+                        Is.False);
                     NodeId abstractResourceEvent = ExpandedNodeId.ToNodeId(
                         ObjectTypeIds.WoTResourceEventType, server.CurrentInstance.NamespaceUris);
                     Assert.That(reportedEvents.Any(evt =>
                         evt.EventType!.Value == abstractResourceEvent), Is.False);
                     Assert.That(inner.Current.FindResource(
                         WotRegistryGroups.ThingDescriptions,
-                        "legacy"), Is.Null);
+                        "legacy"), Is.Not.Null);
+                    Assert.That(inner.Current.FindResource(
+                        WotRegistryGroups.ThingDescriptions, "legacy")!.Enabled, Is.True);
                 });
             }
             finally

@@ -255,7 +255,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
         }
 
-        private async Task<uint> CreateFailureContextSubscriptionAsync()
+        private async Task<uint> CreateFailureContextSubscriptionAsync(bool includeValidation = false)
         {
             await m_session.FetchNamespaceTablesAsync().ConfigureAwait(false);
             ushort ns = (ushort)m_session.NamespaceUris.GetIndex(Namespaces.WotCon);
@@ -272,6 +272,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     FailureField(BrowseNames.RequestId, ns)
                 ]
             };
+            if (includeValidation)
+            {
+                filter.SelectClauses = [.. filter.SelectClauses, FailureField(BrowseNames.ValidationOutcome, ns)];
+            }
             CreateSubscriptionResponse subscription = await m_session.CreateSubscriptionAsync(
                 null, 100, 1000, 1, 0, true, 0, CancellationToken.None).ConfigureAwait(false);
             try
@@ -304,7 +308,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         private async Task<ArrayOf<Variant>> CollectFailureContextAsync(
-            uint subscription, string resourceId, WotMaterializationEventKind kind, string requestId)
+            uint subscription, string resourceId, WotMaterializationEventKind kind, string requestId,
+            int fieldCount = 7, int? expectedFailureCount = null)
         {
             NodeId type = ExpandedNodeId.ToNodeId(kind switch
             {
@@ -315,6 +320,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             NodeId completed = ExpandedNodeId.ToNodeId(
                 ObjectTypeIds.WoTRefreshCompletedEventType, m_session.NamespaceUris);
             ArrayOf<Variant> failure = default;
+            int failures = 0;
             bool finished = false;
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             for (int attempt = 0; attempt < 30 && !finished; attempt++)
@@ -329,11 +335,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     foreach (EventFieldList item in notification.Events)
                     {
                         ArrayOf<Variant> fields = item.EventFields;
-                        Assert.That(fields.Count, Is.EqualTo(7));
+                        Assert.That(fields.Count, Is.EqualTo(fieldCount));
                         Assert.That(fields[0].TryGetValue(out NodeId eventType), Is.True);
                         if (eventType == type && fields[5].TryGetValue(out string resource) && resource == resourceId)
                         {
                             failure = fields;
+                            failures++;
                         }
                         if (eventType == completed && fields[6].TryGetValue(out string request) && request == requestId)
                         {
@@ -343,7 +350,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 }
             }
             Assert.That(finished, Is.True, "A concrete refresh completion is the native event delivery barrier.");
-            Assert.That(failure.IsEmpty, Is.False, "The expected producer failure must reach its exact Version notifier.");
+            if (expectedFailureCount is { } expected)
+            {
+                Assert.That(failures, Is.EqualTo(expected), "Validation notifications must follow the committed decision.");
+            }
+            else
+            {
+                Assert.That(failure.IsEmpty, Is.False, "The expected producer failure must reach its exact Version notifier.");
+            }
             return failure;
         }
 

@@ -628,12 +628,13 @@ namespace Opc.Ua.WotCon.Tests.Registry
 
             Assert.Multiple(() =>
             {
-                Assert.That(outcome.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Success));
+                Assert.That(outcome.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Skipped));
+                Assert.That(outcome.FormatValidated, Is.False);
                 Assert.That(resource.DefaultVersionId, Is.EqualTo("v1"));
                 Assert.That(resource.FindVersion("v1")!.Validation, Is.Null);
                 Assert.That(
                     resource.FindVersion("v2")!.Validation!.FormatOutcome,
-                    Is.EqualTo(WoTOutcomeEnum.Success));
+                    Is.EqualTo(WoTOutcomeEnum.Skipped));
                 Assert.That(resource.Validation, Is.Null);
             });
         }
