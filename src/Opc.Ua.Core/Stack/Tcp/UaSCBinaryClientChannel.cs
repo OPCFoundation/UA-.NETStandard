@@ -293,9 +293,12 @@ namespace Opc.Ua.Bindings
                     exception,
                     StatusCodes.BadTcpInternalError,
                     "Fatal error during connect."));
-if (!ct.IsCancellationRequested && (exception is SocketException or IOException))
+                if (exception is SocketException or IOException)
                 {
-                    ct.ThrowIfCancellationRequested();
+                    if (ct.IsCancellationRequested)
+                    {
+                        throw new OperationCanceledException("Connection attempt was cancelled.", exception, ct);
+                    }
                     throw new ServiceResultException(
                         StatusCodes.BadNotConnected,
                         "Could not connect to the remote endpoint.",
