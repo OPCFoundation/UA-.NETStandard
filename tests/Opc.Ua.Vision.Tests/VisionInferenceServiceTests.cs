@@ -102,7 +102,9 @@ namespace Opc.Ua.Vision.Tests
             {
                 Assert.That(result.ResultKind, Is.EqualTo(VisionResultKind.Detection));
                 Assert.That(result.DetectionSummary, Is.Not.Null);
-                Assert.That(result.DetectionSummary!.Items.Count, Is.LessThanOrEqualTo(3));
+                Assert.That(result.DetectionSummary!.TotalDetections, Is.EqualTo(4));
+                Assert.That(result.DetectionSummary.Items.Count, Is.EqualTo(3));
+                Assert.That(result.DetectionSummary.Items[2].DetectionId, Is.EqualTo("third"));
             });
         }
 
@@ -130,6 +132,9 @@ namespace Opc.Ua.Vision.Tests
                 Assert.That(result.DetectionSummary, Is.Not.Null);
                 Assert.That(result.DetectionSummary!.FrameId, Is.EqualTo("world"));
                 Assert.That(result.DetectionSummary.ModelVersionUsed, Is.EqualTo("v1.0"));
+                Assert.That(result.DetectionSummary.TotalDetections, Is.EqualTo(4));
+                Assert.That(result.DetectionSummary.Items.Count, Is.EqualTo(4));
+                Assert.That(result.DetectionSummary.Items[3].DetectionId, Is.EqualTo("fourth"));
                 Assert.That(result.RequestedPipelineNodeId, Is.EqualTo(harness.PipelineNodeId));
                 Assert.That(result.PipelineId, Is.EqualTo(new NodeId(3002u, 3)));
                 Assert.That(result.SensorId, Is.EqualTo(harness.SensorNodeId));
@@ -804,6 +809,14 @@ namespace Opc.Ua.Vision.Tests
                 new(5002u, 3), "world");
             harness.AddValueChild(harness.InferenceResultNodeId, BrowseNames.ModelVersionUsed,
                 new(5003u, 3), "v1.0");
+            harness.AddValueChild(harness.InferenceResultNodeId, BrowseNames.Detections,
+                new(5006u, 3), Variant.FromStructure<VisionDetectionDataType>(
+                [
+                    new() { DetectionId = "first", ClassLabel = "part", Confidence = 0.9 },
+                    new() { DetectionId = "second", ClassLabel = "part", Confidence = 0.8 },
+                    new() { DetectionId = "third", ClassLabel = "part", Confidence = 0.7 },
+                    new() { DetectionId = "fourth", ClassLabel = "part", Confidence = 0.6 }
+                ]));
         }
 
         private static void SetupResultTypeDefinition(

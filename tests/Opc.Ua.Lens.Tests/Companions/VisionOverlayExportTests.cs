@@ -303,7 +303,7 @@ namespace UaLens.Tests.Companions
 
         private static string CreateRoot()
         {
-            string root = Path.Combine(Path.GetTempPath(), "ualens-vision-overlay-" + Guid.NewGuid().ToString("N"));
+            string root = OpenUsdTestPaths.NewDestination();
             Directory.CreateDirectory(root);
             return root;
         }
