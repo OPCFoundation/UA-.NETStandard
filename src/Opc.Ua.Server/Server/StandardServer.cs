@@ -3957,7 +3957,13 @@ namespace Opc.Ua.Server
                     configuration,
                     MessageContext,
                     TimeProvider,
-                    SecurityPolicyRegistry);
+                    SecurityPolicyRegistry)
+                {
+                    // the validator CreateSession checks client certificates
+                    // with; ActivateSession validates an embedded user token
+                    // signing certificate with it.
+                    CertificateValidator = CertificateManager
+                };
 
                 foreach (IUserTokenAuthenticator authenticator in m_preStartAuthenticators)
                 {
