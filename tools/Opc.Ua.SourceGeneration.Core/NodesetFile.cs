@@ -564,8 +564,8 @@ namespace Opc.Ua.SourceGeneration
         private static string ToKeywordSafeIdentifier(string name)
         {
             string identifier = name.ToCSharpIdentifierPreserveCase();
-            return identifier.StartsWith("@", StringComparison.Ordinal)
-                ? identifier.Substring(1) + "_"
+            return identifier.Length > 0 && identifier[0] == '@'
+                ? identifier[1..] + "_"
                 : identifier;
         }
 

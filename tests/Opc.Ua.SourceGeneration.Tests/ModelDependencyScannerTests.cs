@@ -87,7 +87,7 @@ namespace Opc.Ua.SourceGeneration
                 winners.Add(winner.AssemblyName);
             }
 
-            Assert.That(winners, Is.EquivalentTo(new[] { "X" }));
+            Assert.That(winners, Is.EquivalentTo(s_onlyX));
         }
 
         [Test]
@@ -1159,6 +1159,8 @@ namespace Opc.Ua.SourceGeneration
         }
 
         private const string DemoModelUri = "urn:opcfoundation.org:2024-01:DemoModel";
+
+        private static readonly string[] s_onlyX = ["X"];
 
         private static readonly Lazy<CSharpCompilation> s_diProducer =
             new(CreateGeneratedDiProducer);

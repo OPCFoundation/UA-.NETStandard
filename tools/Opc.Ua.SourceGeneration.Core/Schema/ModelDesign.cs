@@ -973,6 +973,7 @@ namespace Opc.Ua.Schema.Model
         /// the design's own namespaces (OPC UA first).
         /// </summary>
         [XmlIgnore]
+        [field: NonSerialized]
         public NamespaceTable DecodedValueNamespaceUris { get; set; }
 
         /// <summary>
@@ -1084,6 +1085,7 @@ namespace Opc.Ua.Schema.Model
         /// <see cref="VariableDesign.DecodedValueNamespaceUris"/>.
         /// </summary>
         [XmlIgnore]
+        [field: NonSerialized]
         public NamespaceTable DecodedValueNamespaceUris { get; set; }
 
         /// <summary>

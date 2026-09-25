@@ -249,7 +249,7 @@ namespace Opc.Ua.Schema.Model
                 }
 
                 string name = text[start..stop];
-                int colon = name.IndexOf(':');
+                int colon = name.IndexOf(':', StringComparison.Ordinal);
                 return (colon < 0 ? name : name[(colon + 1)..]) == "UANodeSet";
             }
 

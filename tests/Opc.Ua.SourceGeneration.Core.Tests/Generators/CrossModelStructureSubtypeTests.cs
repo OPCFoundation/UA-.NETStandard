@@ -391,7 +391,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 .SelectMany(f => f.Value.Split('\n'))
                 .Select(l => l.Trim())
                 .Where(l => l.StartsWith("baseState.WrappedValue", System.StringComparison.Ordinal) &&
-                    l.Contains("GetIndexOrAppend", System.StringComparison.Ordinal))];
+                    ContainsOrdinal(l, "GetIndexOrAppend"))];
 
             Assert.That(values, Is.Not.Empty);
             Assert.That(values, Has.None.Contains("http://test.org/UA/Tgt/"));
@@ -569,6 +569,15 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 .Single(f => f.Name == "Details")
                 .DataTypeNode;
             Assert.That(details.SymbolicName.Name, Is.EqualTo("Structure"));
+        }
+
+        private static bool ContainsOrdinal(string text, string value)
+        {
+#if NETFRAMEWORK
+            return text.IndexOf(value, System.StringComparison.Ordinal) >= 0;
+#else
+            return text.Contains(value, System.StringComparison.Ordinal);
+#endif
         }
 
         private static void AssertGeneratedDerivedStruct(Dictionary<string, string> generated)

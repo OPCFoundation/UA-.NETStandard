@@ -924,8 +924,7 @@ namespace Opc.Ua.Schema.Model.Tests
             {
                 uint parentId = 100000u + (uint)ii;
                 uint childId = 200000u + (uint)ii;
-                nodes.Append(
-                    CultureInfo.InvariantCulture,
+                nodes.Append(FormattableString.Invariant(
                     $"""
                     <UAObject NodeId="ns=1;i={parentId}" BrowseName="1:Device{ii}">
                         <DisplayName>Device</DisplayName>
@@ -941,7 +940,7 @@ namespace Opc.Ua.Schema.Model.Tests
                         </References>
                     </UAObject>
 
-                    """);
+                    """));
             }
 
             var stopwatch = Stopwatch.StartNew();

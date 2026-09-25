@@ -111,7 +111,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                     .GetMethod(nameof(MatrixOf.From), BindingFlags.Public | BindingFlags.Static)
                     .MakeGenericMethod(cellType)
                     .Invoke(null, [cells]));
-                Set(grids, "Loose", Variant.From(new[] { 1, 2 }.ToArrayOf()));
+                Set(grids, "Loose", Variant.From(s_oneTwo.ToArrayOf()));
             }
             Set(grids, "After", 9);
 
@@ -214,6 +214,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             """;
 
         private static readonly string[] s_matrixChildren = ["Dimensions", "Elements"];
+        private static readonly int[] s_oneTwo = [1, 2];
         private Assembly m_assembly;
         private string m_modelSchema;
         private string m_uaSchema;

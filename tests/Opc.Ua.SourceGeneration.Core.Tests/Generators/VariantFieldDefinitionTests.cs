@@ -90,7 +90,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         {
             var original = (IEncodeable)System.Activator.CreateInstance(m_looseType);
             Set(original, "Before", 7);
-            Set(original, "Mixed", Variant.From(new[] { 1, 2, 3 }.ToArrayOf()));
+            Set(original, "Mixed", Variant.From(s_oneTwoThree.ToArrayOf()));
             Set(original, "Anything", Variant.From(2.5));
             Set(original, "Line", Variant.From("x"));
             Set(original, "After", 9);
@@ -110,7 +110,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
             var structure = (IStructure)Decode(json, runtimeContext, Encode(json, generatedContext, original));
             Assert.That(structure["Before"].GetInt32(), Is.EqualTo(7));
-            Assert.That(structure["Mixed"].GetInt32Array().ToArray(), Is.EqualTo(new[] { 1, 2, 3 }));
+            Assert.That(structure["Mixed"].GetInt32Array().ToArray(), Is.EqualTo(s_oneTwoThree));
             Assert.That(structure["Anything"].GetDouble(), Is.EqualTo(2.5));
             Assert.That(structure["Line"].GetString(), Is.EqualTo("x"));
             Assert.That(structure["After"].GetInt32(), Is.EqualTo(9));
@@ -195,6 +195,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             """;
 
         private static readonly string[] s_variantFields = ["Mixed", "Anything", "Line"];
+        private static readonly int[] s_oneTwoThree = [1, 2, 3];
         private Assembly m_assembly;
         private System.Type m_looseType;
     }
