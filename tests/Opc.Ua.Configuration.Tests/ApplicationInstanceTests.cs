@@ -37,6 +37,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
@@ -218,6 +219,49 @@ namespace Opc.Ua.Configuration.Tests
                 }
             }
             Assert.That(provider.OpenCount, customProvider ? Is.GreaterThan(0) : Is.Zero);
+        }
+
+        [Test]
+        public async Task DeleteCertificateUsesConfiguredStoresForManagerWithoutResolverAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var application = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (application.ConfigureAwait(false))
+            {
+                ApplicationConfiguration configuration = await application.Build(ApplicationUri, ProductUri).AsClient()
+                    .AddSecurityConfiguration(ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                        SubjectName, CertificateStoreType.Directory, m_pkiRoot), m_pkiRoot)
+                    .CreateAsync().ConfigureAwait(false);
+                configuration.SecurityConfiguration.AddAppCertToTrustedStore = true;
+                Assert.That(await application.CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait(false),
+                    Is.True);
+                ICertificateManager originalManager = configuration.CertificateManager;
+                using CertificateEntry entry = originalManager.AcquireApplicationCertificateByType(
+                    ObjectTypeIds.RsaSha256ApplicationCertificateType);
+                var legacyManager = new Mock<ICertificateManager>(MockBehavior.Strict);
+                legacyManager.Setup(manager => manager.SnapshotApplicationCertificates())
+                    .Returns(originalManager.SnapshotApplicationCertificates);
+                configuration.CertificateManager = legacyManager.Object;
+                try
+                {
+                    await application.DeleteApplicationInstanceCertificateAsync().ConfigureAwait(false);
+                    CertificateIdentifier identifier = configuration.SecurityConfiguration.ApplicationCertificates[0];
+                    using ICertificateStore own = CertificateIdentifierResolver.OpenStore(identifier, telemetry);
+                    using CertificateCollection remaining = await own.EnumerateAsync().ConfigureAwait(false);
+                    using ICertificateStore trusted = configuration.SecurityConfiguration.TrustedPeerCertificates
+                        .OpenStore(telemetry);
+                    using CertificateCollection peers = await trusted.FindByThumbprintAsync(entry.Certificate.Thumbprint)
+                        .ConfigureAwait(false);
+                    Assert.That(remaining, Is.Empty);
+                    Assert.That(peers, Is.Empty);
+                    legacyManager.Verify(manager => manager.OpenTrustedStore(It.IsAny<TrustListIdentifier>()),
+                        Times.Never);
+                }
+                finally
+                {
+                    configuration.CertificateManager = originalManager;
+                }
+            }
         }
 
         [TestCase(false)]

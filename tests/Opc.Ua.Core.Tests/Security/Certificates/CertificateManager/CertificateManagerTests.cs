@@ -233,6 +233,36 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 customProvider ? Times.Once() : Times.Never());
         }
 
+        [TestCase(null)]
+        [TestCase("")]
+        public async Task PrivateKeyLoadingInfersUnspecifiedStoreTypeAsync(string storeType)
+        {
+            using Certificate certificate = CertificateBuilder.Create("CN=InferredStoreType")
+                .SetRSAKeySize(2048).CreateForRSA();
+            string storePath = CreateTempDir();
+            await certificate.AddToStoreAsync(CertificateStoreType.Directory, storePath, null, m_telemetry)
+                .ConfigureAwait(false);
+            using var manager = new CertificateManager(m_telemetry);
+            var resolver = new Mock<ICertificateStoreResolver>(MockBehavior.Strict);
+            resolver.Setup(instance => instance.OpenCertificateStore(storePath, null, false))
+                .Returns(() => manager.OpenCertificateStore(storePath, noPrivateKeys: false));
+            var identifier = new CertificateIdentifier
+            {
+                StorePath = storePath,
+                StoreType = storeType,
+                Thumbprint = certificate.Thumbprint,
+                SubjectName = certificate.Subject
+            };
+
+            using Certificate loaded = await CertificateIdentifierResolver.LoadPrivateKeyWithStoreResolverAsync(
+                identifier, resolver.Object, telemetry: m_telemetry).ConfigureAwait(false);
+
+            Assert.That(loaded, Is.Not.Null);
+            Assert.That(loaded.HasPrivateKey, Is.True);
+            Assert.That(loaded.Thumbprint, Is.EqualTo(certificate.Thumbprint));
+            resolver.Verify(instance => instance.OpenCertificateStore(storePath, null, false), Times.Once);
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public async Task ScopedKeyProviderPreservesRotationLookupAsync(bool coldPath)

@@ -1085,8 +1085,10 @@ namespace Opc.Ua.Configuration
 
                 if (!string.IsNullOrEmpty(thumbprint))
                 {
-                    using ICertificateStore store = configuration.CertificateManager != null
-                        ? configuration.CertificateManager.OpenTrustedStore(TrustListIdentifier.Peers)
+                    using ICertificateStore store = configuration.CertificateManager is ICertificateStoreResolver resolver
+                        ? resolver.OpenCertificateStore(
+                            configuration.SecurityConfiguration.TrustedPeerCertificates.StorePath!,
+                            configuration.SecurityConfiguration.TrustedPeerCertificates.StoreType)
                         : configuration.SecurityConfiguration.TrustedPeerCertificates.OpenStore(m_telemetry!);
                     if (store != null)
                     {
@@ -1146,8 +1148,10 @@ namespace Opc.Ua.Configuration
 
             try
             {
-                using ICertificateStore? store = configuration.CertificateManager != null
-                    ? configuration.CertificateManager.OpenTrustedStore(TrustListIdentifier.Peers)
+                using ICertificateStore? store = configuration.CertificateManager is ICertificateStoreResolver resolver
+                    ? resolver.OpenCertificateStore(
+                        configuration.SecurityConfiguration.TrustedPeerCertificates.StorePath!,
+                        configuration.SecurityConfiguration.TrustedPeerCertificates.StoreType)
                     : configuration.SecurityConfiguration.TrustedPeerCertificates.OpenStore(m_telemetry!);
 
                 if (store == null)

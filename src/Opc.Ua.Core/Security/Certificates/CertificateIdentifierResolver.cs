@@ -350,7 +350,10 @@ namespace Opc.Ua
 
             if (storeResolver != null)
             {
-                return storeResolver.OpenCertificateStore(identifier.StorePath, identifier.StoreType, noPrivateKeys: false);
+                return storeResolver.OpenCertificateStore(
+                    identifier.StorePath,
+                    string.IsNullOrEmpty(identifier.StoreType) ? null : identifier.StoreType,
+                    noPrivateKeys: false);
             }
 
             CertificateStoreIdentifier storeIdentifier = string.IsNullOrEmpty(identifier.StoreType)
