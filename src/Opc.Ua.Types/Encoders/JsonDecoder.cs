@@ -3100,15 +3100,22 @@ namespace Opc.Ua
                             TryGetEncodeableArrayFromElement(
                                 GetPropertyElement(JsonProperties.Array),
                                 encodeableTypeId,
-                                out ArrayOf<T> structures) &&
-                            MatrixOf.IsValidInlineMatrix(dimensions.Span, structures.Count))
+                                out ArrayOf<T> structures))
                         {
                             // The inline matrix has at least two dimensions
                             // and may be empty (5.4.5, 5.2.5 Table 28); a
                             // dimension <= 0 means no values, like in binary.
-                            values = structures.ToMatrix(
-                                MatrixOf.NormalizeInlineMatrixDimensions(dimensions.ToArray()!));
-                            return true;
+                            // Earlier versions wrote an empty matrix with the
+                            // single dimension 0.
+                            int[] dims = MatrixOf.NormalizeLegacyEmptyInlineMatrixDimensions(
+                                dimensions.ToArray() ?? [],
+                                structures.Count);
+                            if (MatrixOf.IsValidInlineMatrix(dims, structures.Count))
+                            {
+                                values = structures.ToMatrix(
+                                    MatrixOf.NormalizeInlineMatrixDimensions(dims));
+                                return true;
+                            }
                         }
                         values = default;
                         return false;
@@ -3145,15 +3152,22 @@ namespace Opc.Ua
                                 out ArrayOf<int> dimensions) &&
                             TryGetEncodeableArrayFromElement(
                                 GetPropertyElement(JsonProperties.Array),
-                                out ArrayOf<T> structures) &&
-                            MatrixOf.IsValidInlineMatrix(dimensions.Span, structures.Count))
+                                out ArrayOf<T> structures))
                         {
                             // The inline matrix has at least two dimensions
                             // and may be empty (5.4.5, 5.2.5 Table 28); a
                             // dimension <= 0 means no values, like in binary.
-                            values = structures.ToMatrix(
-                                MatrixOf.NormalizeInlineMatrixDimensions(dimensions.ToArray()!));
-                            return true;
+                            // Earlier versions wrote an empty matrix with the
+                            // single dimension 0.
+                            int[] dims = MatrixOf.NormalizeLegacyEmptyInlineMatrixDimensions(
+                                dimensions.ToArray() ?? [],
+                                structures.Count);
+                            if (MatrixOf.IsValidInlineMatrix(dims, structures.Count))
+                            {
+                                values = structures.ToMatrix(
+                                    MatrixOf.NormalizeInlineMatrixDimensions(dims));
+                                return true;
+                            }
                         }
                         values = default;
                         return false;

@@ -842,6 +842,26 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Maps the single dimension an empty encodeable matrix was persisted
+        /// with in XML or JSON by earlier versions (the dimensions of
+        /// <see cref="MatrixOf{T}.Empty"/>, <c>[0]</c>, written verbatim) to
+        /// the empty 0 x 0 inline matrix, so that such documents still load.
+        /// Any other shape is returned unchanged and validated as an inline
+        /// matrix (OPC 10000-6 5.2.5 Table 28). Only used by the text
+        /// decoders; the binary decoder stays strict.
+        /// </summary>
+        internal static int[] NormalizeLegacyEmptyInlineMatrixDimensions(
+            int[] dimensions,
+            int elementCount)
+        {
+            if (dimensions.Length == 1 && dimensions[0] <= 0 && elementCount == 0)
+            {
+                return [0, 0];
+            }
+            return dimensions;
+        }
+
+        /// <summary>
         /// Returns the dimensions a <see cref="MatrixOf{T}"/> is written with
         /// as the inline matrix of a structure field (OPC 10000-6 5.2.5
         /// Table 28), which needs at least two dimensions. An empty matrix

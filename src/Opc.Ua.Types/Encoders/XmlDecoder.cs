@@ -2066,7 +2066,11 @@ namespace Opc.Ua
         {
             // The inline matrix of a structure field has at least two
             // dimensions (OPC 10000-6 5.2.5 Table 28, 5.3.4); a dimension
-            // <= 0 means no values, like in the binary encoding.
+            // <= 0 means no values, like in the binary encoding. Earlier
+            // versions wrote an empty matrix with the single dimension 0.
+            dimensions = MatrixOf.NormalizeLegacyEmptyInlineMatrixDimensions(
+                dimensions,
+                elements.Count);
             MatrixOf.NormalizeInlineMatrixDimensions(dimensions);
             if (!MatrixOf.IsValidInlineMatrix(dimensions, elements.Count))
             {

@@ -583,14 +583,73 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(json, Does.Contain("\"E\":{\"Dimensions\":[0,0],\"Array\":[]}"));
 
             using var decoder = new JsonDecoder(
-                "{\"M\":{\"Array\":[],\"Dimensions\":[0]},\"E\":{\"Dimensions\":[0],\"Array\":[]}}",
+                "{\"M\":{\"Array\":[],\"Dimensions\":[0]},\"N\":{\"Dimensions\":[2],\"Array\":[{},{}]}}",
                 context);
             Assert.That(
                 () => decoder.ReadVariantValue("M", TypeInfo.Create(BuiltInType.Double, ValueRanks.TwoDimensions)),
                 Throws.TypeOf<ServiceResultException>());
             Assert.That(
-                () => decoder.ReadEncodeableMatrix<Pair>("E"),
+                () => decoder.ReadEncodeableMatrix<Pair>("N"),
                 Throws.TypeOf<ServiceResultException>());
+        }
+
+        /// <summary>
+        /// Earlier versions wrote the empty encodeable MatrixOf to JSON and
+        /// XML with its single dimension 0; such documents still load as the
+        /// empty 0 x 0 matrix (binary stays strict).
+        /// </summary>
+        [Test]
+        public void LegacyOneDimensionalEmptyEncodeableMatrixLoads()
+        {
+            ServiceMessageContext context = CreateContext();
+
+            using (var jsonDecoder = new JsonDecoder(
+                "{\"E\":{\"Dimensions\":[0],\"Array\":[]},\"T\":{\"Array\":[],\"Dimensions\":[0]}}",
+                context))
+            {
+                MatrixOf<Pair> empty = jsonDecoder.ReadEncodeableMatrix<Pair>("E");
+                Assert.That(empty.IsNull, Is.False);
+                Assert.That(empty.Count, Is.Zero);
+                Assert.That(empty.Dimensions, Is.EqualTo(s_zeroByZero));
+                MatrixOf<Pair> typed = jsonDecoder.ReadEncodeableMatrix<Pair>("T", new ExpandedNodeId(77790u));
+                Assert.That(typed.IsNull, Is.False);
+                Assert.That(typed.Dimensions, Is.EqualTo(s_zeroByZero));
+            }
+
+            string xml;
+            using (var encoder = new XmlEncoder(context))
+            {
+                encoder.PushNamespace(Namespaces.OpcUaXsd);
+                encoder.WriteEncodeableMatrix("E", MatrixOf<Pair>.Empty);
+                encoder.PopNamespace();
+                xml = encoder.CloseAndReturnText();
+            }
+            // Rewrite the dimensions to what earlier versions wrote.
+            int start = xml.IndexOf("<Dimensions>", StringComparison.Ordinal);
+            int end = xml.IndexOf("</Dimensions>", StringComparison.Ordinal);
+            Assert.That(start, Is.GreaterThanOrEqualTo(0));
+            Assert.That(end, Is.GreaterThan(start));
+            string legacy =
+                xml[..start] +
+                "<Dimensions><Int32>0</Int32></Dimensions>" +
+                xml[(end + "</Dimensions>".Length)..];
+            Assert.That(legacy, Is.Not.EqualTo(xml));
+
+            using (var parser = new XmlParser(legacy, context))
+            {
+                parser.PushNamespace(Namespaces.OpcUaXsd);
+                MatrixOf<Pair> parsed = parser.ReadEncodeableMatrix<Pair>("E");
+                Assert.That(parsed.IsNull, Is.False);
+                Assert.That(parsed.Dimensions, Is.EqualTo(s_zeroByZero));
+            }
+
+            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(legacy));
+            using var reader = XmlReader.Create(stream, CoreUtils.DefaultXmlReaderSettings());
+            using var xmlDecoder = new XmlDecoder(reader, context);
+            xmlDecoder.PushNamespace(Namespaces.OpcUaXsd);
+            MatrixOf<Pair> decoded = xmlDecoder.ReadEncodeableMatrix<Pair>("E");
+            Assert.That(decoded.IsNull, Is.False);
+            Assert.That(decoded.Dimensions, Is.EqualTo(s_zeroByZero));
         }
 
         private static void AssertDecodingFails(
