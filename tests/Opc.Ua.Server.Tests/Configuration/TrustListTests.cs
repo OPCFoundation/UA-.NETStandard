@@ -1936,6 +1936,120 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task CloseAndUpdateWithValidationDoesNotResolveIssuersFromReplacedStoresAsync()
+        {
+            TrustListState node = CreateNode();
+            TrustList trustList = CreateTrustList(node);
+            // As for the server's DefaultApplicationGroup, the validating
+            // SecurityConfiguration's Peers stores are the stores the upload
+            // replaces.
+            trustList.SetCertificateValidation(new SecurityConfiguration
+            {
+                TrustedPeerCertificates = new CertificateTrustList { StorePath = m_trustedStore.StorePath },
+                TrustedIssuerCertificates = new CertificateTrustList { StorePath = m_issuerStore.StorePath }
+            });
+            ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
+
+            using Certificate caCert = CertificateBuilder
+                .Create("CN=TrustList Replaced CA")
+                .SetCAConstraint()
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate leaf = CertificateBuilder
+                .Create("CN=TrustList Replaced Leaf")
+                .SetIssuer(caCert)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using (ICertificateStore issuerStore = m_issuerStore.OpenStore(m_telemetry))
+            {
+                await issuerStore.AddAsync(caCert).ConfigureAwait(false);
+            }
+
+            // The new TrustList drops the CA but keeps the certificate it
+            // issued: the CA still in the current issuer store must not make
+            // the orphaned certificate validate (OPC 10000-12 §7.8.2.5).
+            ServiceResult result = CloseAndUpdateWith(node, context, new TrustListDataType
+            {
+                SpecifiedLists = (uint)(TrustListMasks.TrustedCertificates | TrustListMasks.IssuerCertificates),
+                TrustedCertificates = [leaf.RawData.ToByteString()]
+            });
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadCertificateInvalid));
+
+            using (ICertificateStore issuerStore = m_issuerStore.OpenStore(m_telemetry))
+            {
+                using CertificateCollection issuers = await issuerStore.EnumerateAsync().ConfigureAwait(false);
+                Assert.That(issuers, Has.Count.EqualTo(1), "the rejected update must not be applied");
+            }
+
+            // The same certificate with its CA in the uploaded list is valid.
+            result = CloseAndUpdateWith(node, context, new TrustListDataType
+            {
+                SpecifiedLists = (uint)(TrustListMasks.TrustedCertificates | TrustListMasks.IssuerCertificates),
+                TrustedCertificates = [leaf.RawData.ToByteString()],
+                IssuerCertificates = [caCert.RawData.ToByteString()]
+            });
+            Assert.That(ServiceResult.IsGood(result), Is.True, result.ToString());
+        }
+
+        [Test]
+        public void CloseAndUpdateWithValidationRejectsCertificateRevokedByUploadedCrl()
+        {
+            TrustListState node = CreateNode();
+            TrustList trustList = CreateTrustList(node);
+            trustList.SetCertificateValidation(new SecurityConfiguration());
+            ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
+
+            using Certificate caCert = CertificateBuilder
+                .Create("CN=TrustList Revoking CA")
+                .SetCAConstraint()
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate leaf = CertificateBuilder
+                .Create("CN=TrustList Revoked Leaf")
+                .SetIssuer(caCert)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            IX509CRL crl = CrlBuilder
+                .Create(caCert.SubjectName)
+                .SetNextUpdate(DateTime.UtcNow.AddDays(30))
+                .AddRevokedCertificate(leaf)
+                .CreateForRSA(caCert);
+
+            // The uploaded TrustList revokes one of its own certificates.
+            ServiceResult result = CloseAndUpdateWith(node, context, new TrustListDataType
+            {
+                SpecifiedLists = (uint)(TrustListMasks.TrustedCertificates |
+                    TrustListMasks.IssuerCertificates | TrustListMasks.IssuerCrls),
+                TrustedCertificates = [leaf.RawData.ToByteString()],
+                IssuerCertificates = [caCert.RawData.ToByteString()],
+                IssuerCrls = [crl.RawData.ToByteString()]
+            });
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadCertificateInvalid));
+        }
+
+        private static ServiceResult CloseAndUpdateWith(
+            TrustListState node,
+            ISystemContext context,
+            TrustListDataType trustListData)
+        {
+            uint fileHandle = 0;
+            ServiceResult open = node.Open.OnCall(
+                context,
+                node.Open,
+                node.NodeId,
+                (int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting,
+                ref fileHandle);
+            Assert.That(ServiceResult.IsGood(open), Is.True, open.ToString());
+            ServiceResult write = node.Write.OnCall(
+                context, node.Write, node.NodeId, fileHandle, EncodeTrustListPayload(context, trustListData));
+            Assert.That(ServiceResult.IsGood(write), Is.True, write.ToString());
+
+            bool restartRequired = false;
+            return node.CloseAndUpdate.OnCall(
+                context, node.CloseAndUpdate, node.NodeId, fileHandle, ref restartRequired);
+        }
+
+        [Test]
         public void CloseAndUpdateWithValidationRejectsNonCaIssuerCertificate()
         {
             TrustListState node = CreateNode();

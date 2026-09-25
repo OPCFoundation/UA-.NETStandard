@@ -257,10 +257,13 @@ namespace Opc.Ua.Server
         /// <c>CloseAndUpdate</c> (§7.8.2.5) then reject certificates that fail
         /// a non-suppressible check (signature, key size, missing issuer, ...).
         /// Without a call to this method only the encoding of the certificates
-        /// is checked.
+        /// is checked. Issuers and CRLs are taken from the TrustList content
+        /// only (for CloseAndUpdate: the uploaded lists), never from the
+        /// stores of <paramref name="securityConfiguration"/>.
         /// </summary>
         /// <param name="securityConfiguration">
-        /// The security configuration whose validation rules apply.
+        /// The security configuration whose validation rules (minimum key
+        /// size, SHA-1 rejection, ...) apply.
         /// </param>
         /// <exception cref="ArgumentNullException">
         /// When <paramref name="securityConfiguration"/> is <see langword="null"/>.
@@ -1192,6 +1195,8 @@ namespace Opc.Ua.Server
                 result = await ValidateNewTrustListAsync(
                     issuerCertificates,
                     trustedCertificates,
+                    issuerCrls,
+                    trustedCrls,
                     m_validationConfiguration,
                     cancellationToken).ConfigureAwait(false);
             }
@@ -1943,17 +1948,24 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Validates a certificate passed to AddCertificate against the
-        /// current TrustList. Suppressible errors are ignored.
+        /// current TrustList (its certificates and CRLs). Suppressible errors
+        /// are ignored.
         /// </summary>
         private async Task<ServiceResult> ValidateAddedCertificateAsync(
             Certificate certificate,
             SecurityConfiguration securityConfiguration,
             CancellationToken cancellationToken)
         {
-            using CertificateCollection trusted = await GetStore(m_trustedStore)
+            ICertificateStore trustedStore = GetStore(m_trustedStore);
+            ICertificateStore issuerStore = GetStore(m_issuerStore);
+            using CertificateCollection trusted = await trustedStore
                 .EnumerateAsync(cancellationToken).ConfigureAwait(false);
-            using CertificateCollection issuers = await GetStore(m_issuerStore)
+            using CertificateCollection issuers = await issuerStore
                 .EnumerateAsync(cancellationToken).ConfigureAwait(false);
+            X509CRLCollection trustedCrls = await trustedStore
+                .EnumerateCRLsAsync(cancellationToken).ConfigureAwait(false);
+            X509CRLCollection issuerCrls = await issuerStore
+                .EnumerateCRLsAsync(cancellationToken).ConfigureAwait(false);
             CertificateManager validator = CertificateManagerFactory.Create(
                 securityConfiguration,
                 m_telemetry);
@@ -1962,20 +1974,24 @@ namespace Opc.Ua.Server
                 return await ValidateCertificateAsync(
                     validator,
                     certificate,
-                    trusted.Concat(issuers),
+                    [.. trusted.Concat(issuers)],
+                    [.. trustedCrls.Concat(issuerCrls)],
                     cancellationToken).ConfigureAwait(false);
             }
         }
 
         /// <summary>
         /// Validates every certificate of an uploaded TrustList against the
-        /// issuers of the new TrustList (the uploaded lists, or the current
-        /// store contents for lists that were not specified). Certificates in
-        /// IssuerCertificates must be CA certificates.
+        /// content of the new TrustList: the uploaded certificates and CRLs,
+        /// or the current store contents for lists that were not specified.
+        /// The stores being replaced are never consulted for a specified list.
+        /// Certificates in IssuerCertificates must be CA certificates.
         /// </summary>
         private async Task<ServiceResult> ValidateNewTrustListAsync(
             CertificateCollection? issuerCertificates,
             CertificateCollection? trustedCertificates,
+            X509CRLCollection? issuerCrls,
+            X509CRLCollection? trustedCrls,
             SecurityConfiguration securityConfiguration,
             CancellationToken cancellationToken)
         {
@@ -1992,6 +2008,11 @@ namespace Opc.Ua.Server
                 : null;
             Certificate[] pool = [.. (issuerCertificates ?? currentIssuers!)
                 .Concat(trustedCertificates ?? currentTrusted!)];
+            X509CRLCollection newIssuerCrls = issuerCrls ??
+                await GetStore(m_issuerStore).EnumerateCRLsAsync(cancellationToken).ConfigureAwait(false);
+            X509CRLCollection newTrustedCrls = trustedCrls ??
+                await GetStore(m_trustedStore).EnumerateCRLsAsync(cancellationToken).ConfigureAwait(false);
+            X509CRL[] crlPool = [.. newIssuerCrls.Concat(newTrustedCrls)];
 
             foreach (Certificate issuer in issuerCertificates ?? [])
             {
@@ -2015,6 +2036,7 @@ namespace Opc.Ua.Server
                         validator,
                         certificate,
                         pool,
+                        crlPool,
                         cancellationToken).ConfigureAwait(false);
                     if (ServiceResult.IsBad(validation))
                     {
@@ -2032,7 +2054,8 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Runs the OPC 10000-4 validation for <paramref name="certificate"/>
-        /// with <paramref name="issuers"/> as the candidate issuer chain. The
+        /// with <paramref name="issuers"/> as the only candidate issuers and
+        /// <paramref name="crls"/> as the only revocation lists. The
         /// certificate is not required to be trusted and every suppressible
         /// error except a missing issuer is ignored, as required by
         /// OPC 10000-12 §7.8.2.
@@ -2040,7 +2063,8 @@ namespace Opc.Ua.Server
         private static async Task<ServiceResult> ValidateCertificateAsync(
             CertificateManager validator,
             Certificate certificate,
-            IEnumerable<Certificate> issuers,
+            IReadOnlyList<Certificate> issuers,
+            IReadOnlyList<X509CRL> crls,
             CancellationToken cancellationToken)
         {
             using var validationChain = new CertificateCollection { certificate };
@@ -2069,18 +2093,61 @@ namespace Opc.Ua.Server
 
             try
             {
+                // The TrustList content is the only trust material: validate
+                // against a trust list without stores so the issuers come from
+                // the supplied chain alone, never from the server's own (Peers)
+                // stores, which may be the very stores being replaced.
                 CertificateValidationResult validationResult = await validator.ValidateAsync(
                     validationChain,
-                    trustList: null,
+                    trustList: s_contentOnlyTrustList,
                     options: options,
                     cancellationToken).ConfigureAwait(false);
                 validationResult.ThrowIfInvalid();
-                return ServiceResult.Good;
             }
             catch (ServiceResultException ex)
             {
                 return ex.Result;
             }
+
+            return CheckRevocation(certificate, issuers, crls);
+        }
+
+        /// <summary>
+        /// Reports <see cref="StatusCodes.BadCertificateRevoked"/> when a CRL
+        /// of the TrustList that is signed by an issuer of
+        /// <paramref name="certificate"/> revokes it.
+        /// </summary>
+        private static ServiceResult CheckRevocation(
+            Certificate certificate,
+            IReadOnlyList<Certificate> issuers,
+            IReadOnlyList<X509CRL> crls)
+        {
+            if (crls.Count == 0 || X509Utils.IsSelfSigned(certificate))
+            {
+                return ServiceResult.Good;
+            }
+
+            foreach (X509CRL crl in crls)
+            {
+                if (!X509Utils.CompareDistinguishedName(certificate.IssuerName, crl.IssuerName))
+                {
+                    continue;
+                }
+
+                bool signedByIssuer = issuers.Any(issuer =>
+                    X509Utils.CompareDistinguishedName(issuer.SubjectName, crl.IssuerName) &&
+                    IsIssuedBy(certificate, issuer) &&
+                    crl.VerifySignature(issuer, false));
+                if (signedByIssuer && crl.IsRevoked(certificate))
+                {
+                    return ServiceResult.Create(
+                        StatusCodes.BadCertificateRevoked,
+                        "Certificate {0} is revoked by a CRL of the TrustList.",
+                        certificate.Subject);
+                }
+            }
+
+            return ServiceResult.Good;
         }
 
         /// <summary>
@@ -2297,6 +2364,12 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadUserAccessDenied);
             }
         }
+
+        /// <summary>
+        /// A trust list that is never registered with the validating
+        /// certificate manager, so validation against it consults no store.
+        /// </summary>
+        private static readonly TrustListIdentifier s_contentOnlyTrustList = new("TrustListContent");
 
         private readonly Lock m_lock = new();
         private readonly SecureAccess m_readAccess;
