@@ -93,6 +93,82 @@ namespace Opc.Ua.Types.Tests.State
             };
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public void CopyOwnsMethodArgumentsAndNestedChildren(bool useClone)
+        {
+            BaseObjectState original = CreateObjectNode();
+            var method = new MethodState(original)
+            {
+                NodeId = new NodeId(1001),
+                BrowseName = QualifiedName.From("Read"),
+                Executable = true,
+                UserExecutable = true
+            };
+            method.CreateChild(m_context, QualifiedName.From("InputArguments"), false);
+            method.CreateChild(m_context, QualifiedName.From("OutputArguments"), false);
+            Assert.That(method.InputArguments, Is.Not.Null);
+            Assert.That(method.OutputArguments, Is.Not.Null);
+            PropertyState nested = CreatePropertyChild(method.InputArguments, "Metadata");
+            method.InputArguments.AddChild(nested);
+            original.AddChild(method);
+
+            BaseObjectState copy;
+            if (useClone)
+            {
+                copy = (BaseObjectState)original.Clone();
+            }
+            else
+            {
+                copy = new BaseObjectState(null);
+                copy.Create(m_context, original);
+            }
+            var copiedMethod = (MethodState)copy.FindChild(m_context, method.BrowseName);
+            Assert.That(copiedMethod, Is.Not.Null);
+            BaseInstanceState copiedNested = copiedMethod.InputArguments.FindChild(m_context, nested.BrowseName);
+            Assert.Multiple(() =>
+            {
+                Assert.That(copiedMethod, Is.Not.SameAs(method));
+                Assert.That(copiedMethod.Parent, Is.SameAs(copy));
+                Assert.That(copiedMethod.InputArguments, Is.Not.SameAs(method.InputArguments));
+                Assert.That(copiedMethod.OutputArguments, Is.Not.SameAs(method.OutputArguments));
+                Assert.That(copiedMethod.InputArguments.Parent, Is.SameAs(copiedMethod));
+                Assert.That(copiedMethod.OutputArguments.Parent, Is.SameAs(copiedMethod));
+                Assert.That(copiedNested, Is.Not.SameAs(nested));
+                Assert.That(copiedNested.Parent, Is.SameAs(copiedMethod.InputArguments));
+                Assert.That(method.Parent, Is.SameAs(original));
+                Assert.That(method.InputArguments.Parent, Is.SameAs(method));
+                Assert.That(nested.Parent, Is.SameAs(method.InputArguments));
+            });
+            copiedNested.DisplayName = LocalizedText.From("Changed");
+            Assert.That(nested.DisplayName, Is.EqualTo(LocalizedText.From("Metadata")));
+        }
+
+        [Test]
+        public void ClonePreservesAbsentArgumentsAndExternalParent()
+        {
+            BaseObjectState parent = CreateObjectNode();
+            var source = new MethodState(parent)
+            {
+                NodeId = new NodeId(1001),
+                BrowseName = QualifiedName.From("Method"),
+                Executable = true,
+                UserExecutable = false,
+                MethodDeclarationId = new NodeId(1002)
+            };
+            var copy = (MethodState)source.Clone();
+            Assert.Multiple(() =>
+            {
+                Assert.That(copy.Parent, Is.SameAs(parent));
+                Assert.That(copy.InputArguments, Is.Null);
+                Assert.That(copy.OutputArguments, Is.Null);
+                Assert.That(copy.NodeId, Is.EqualTo(source.NodeId));
+                Assert.That(copy.MethodDeclarationId, Is.EqualTo(source.MethodDeclarationId));
+                Assert.That(copy.Executable, Is.True);
+                Assert.That(copy.UserExecutable, Is.False);
+            });
+        }
+
         [Test]
         public void ConstructorSetsNodeClass()
         {

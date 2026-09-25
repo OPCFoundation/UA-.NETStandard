@@ -1065,6 +1065,69 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         /// <summary>
+        /// The shape of CTT GDS Application Directory 005.js: a Call request whose
+        /// String input argument is MaxStringLength + 10 %, sent in two chunks.
+        /// The Bad_EncodingLimitsExceeded ServiceFault (OPC 10000-4 §5.3) echoes
+        /// the RequestHandle (OPC 10000-4 §7.34), read from the first chunk.
+        /// </summary>
+        [Test]
+        public async Task OversizedCallArgumentInChunkedRequestFaultEchoesRequestHandleAsync()
+        {
+            const int maxStringLength = 1000;
+            var pool = new TrackingArrayPool();
+            using TestServerChannel channel = CreateOpenChannel(pool, maxStringLength: maxStringLength);
+            var transport = new GateByteTransport(expectedSendCount: 1, captureSentChunks: true);
+            channel.SetTransport(transport);
+
+            var request = new CallRequest
+            {
+                RequestHeader = new RequestHeader
+                {
+                    AuthenticationToken = new NodeId(Guid.NewGuid()),
+                    Timestamp = DateTime.UtcNow,
+                    RequestHandle = 18
+                },
+                MethodsToCall =
+                [
+                    new CallMethodRequest
+                    {
+                        ObjectId = new NodeId(141u, 2),
+                        MethodId = new NodeId(143u, 2),
+                        InputArguments = [new Variant(new string('u', maxStringLength + (maxStringLength / 10)))]
+                    }
+                ]
+            };
+            var encodeContext = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
+            encodeContext.MaxStringLength = 0;
+            byte[] body = BinaryEncoder.EncodeMessage(request, encodeContext);
+            int split = body.Length / 2;
+
+            await channel.FeedReceivedChunkAsync(
+                channel.CreateRequestChunkForTest(
+                    TcpMessageType.Message,
+                    isFinal: false,
+                    sequenceNumber: 1,
+                    requestId: 7,
+                    body: body.AsSpan(0, split).ToArray()))
+                .ConfigureAwait(false);
+            await channel.FeedReceivedChunkAsync(
+                channel.CreateRequestChunkForTest(
+                    TcpMessageType.Message,
+                    isFinal: true,
+                    sequenceNumber: 2,
+                    requestId: 7,
+                    body: body.AsSpan(split).ToArray()))
+                .ConfigureAwait(false);
+
+            ServiceFault fault = await ReadSentServiceFaultAsync(transport, expectedRequestId: 7)
+                .ConfigureAwait(false);
+            Assert.That(
+                fault.ResponseHeader.ServiceResult,
+                Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
+            Assert.That(fault.ResponseHeader.RequestHandle, Is.EqualTo(18u));
+        }
+
+        /// <summary>
         /// A discovery-only channel rejects a non-discovery request from its
         /// encoding id before decoding it; the ServiceFault still echoes the
         /// RequestHandle, for a single-chunk request as well as for the first

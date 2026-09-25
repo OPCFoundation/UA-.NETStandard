@@ -362,10 +362,13 @@ namespace Opc.Ua
                 {
                     if (DisableDataTypeDictionary)
                     {
-                        return false;
+                        allTypesLoaded = false;
                     }
-                    allTypesLoaded = await LoadDictionaryDataTypesAsync(serverEnumTypes, true, ct)
-                        .ConfigureAwait(false);
+                    else
+                    {
+                        allTypesLoaded = await LoadDictionaryDataTypesAsync(serverEnumTypes, true, ct)
+                            .ConfigureAwait(false);
+                    }
                 }
                 else
                 {

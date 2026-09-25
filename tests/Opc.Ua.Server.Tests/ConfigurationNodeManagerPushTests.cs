@@ -1004,6 +1004,48 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task CreateSigningRequestUsesScopedOwnStoreProviderAsync()
+        {
+            ApplicationConfiguration configuration = m_fixture.Config;
+            CertificateIdentifier identifier = configuration.SecurityConfiguration.ApplicationCertificates
+                .ToList().First(candidate => candidate.CertificateType == ObjectTypeIds.RsaSha256ApplicationCertificateType);
+            string originalStoreType = identifier.StoreType;
+            ICertificateManager originalManager = configuration.CertificateManager;
+            const string storeType = "ScopedCsrDirectory";
+            var provider = new Mock<ICertificateStoreProvider>(MockBehavior.Strict);
+            provider.SetupGet(instance => instance.StoreTypeName).Returns(storeType);
+            provider.Setup(instance => instance.SupportsStorePath(It.IsAny<string>())).Returns(false);
+            provider.Setup(instance => instance.CreateStore(It.IsAny<ITelemetryContext>()))
+                .Returns((ITelemetryContext telemetry) => new DirectoryCertificateStore(false, telemetry));
+            using var manager = new CertificateManager(s_telemetry, [provider.Object]);
+            try
+            {
+                identifier.StoreType = storeType;
+                manager.MapFromSecurityConfiguration(configuration.SecurityConfiguration);
+                await manager.LoadApplicationCertificatesAsync(configuration.SecurityConfiguration,
+                    configuration.ApplicationUri).ConfigureAwait(false);
+                configuration.CertificateManager = manager;
+                provider.Invocations.Clear();
+
+                CreateSigningRequestMethodStateResult result = await m_configNode.CreateSigningRequest.OnCallAsync(
+                    CreateAdminContext(), m_configNode.CreateSigningRequest, m_configNode.NodeId,
+                    ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
+                    ObjectTypeIds.RsaSha256ApplicationCertificateType, string.Empty, false, ByteString.Empty,
+                    CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
+                Assert.That(result.CertificateRequest.Length, Is.GreaterThan(0));
+                Assert.That(result.CertificateRequest[0], Is.EqualTo(0x30));
+                provider.Verify(instance => instance.CreateStore(It.IsAny<ITelemetryContext>()), Times.Once);
+            }
+            finally
+            {
+                configuration.CertificateManager = originalManager;
+                identifier.StoreType = originalStoreType;
+            }
+        }
+
+        [Test]
         public async Task CreateSigningRequestWithRegeneratedPrivateKeyDisposesOnShutdownAsync()
         {
             long leakedBefore = Certificate.InstancesLeaked;

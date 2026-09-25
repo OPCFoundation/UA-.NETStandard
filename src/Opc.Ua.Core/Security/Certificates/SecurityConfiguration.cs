@@ -69,6 +69,14 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public void Validate(ITelemetryContext telemetry)
         {
+            Validate(telemetry, null);
+        }
+
+        /// <summary>
+        /// Validates security settings and configured stores through an optional instance-scoped resolver.
+        /// </summary>
+        internal void Validate(ITelemetryContext telemetry, ICertificateStoreResolver? storeResolver)
+        {
             if (m_rejectedCertificateTypes.Count > 0)
             {
                 ILogger<SecurityConfiguration> logger = telemetry
@@ -93,25 +101,25 @@ namespace Opc.Ua
                     "ApplicationCertificate must be specified.");
             }
             // ensure mandatory stores are valid
-            ValidateStore(TrustedIssuerCertificates, nameof(TrustedIssuerCertificates), telemetry);
-            ValidateStore(TrustedPeerCertificates, nameof(TrustedPeerCertificates), telemetry);
+            ValidateStore(TrustedIssuerCertificates, nameof(TrustedIssuerCertificates), telemetry, storeResolver);
+            ValidateStore(TrustedPeerCertificates, nameof(TrustedPeerCertificates), telemetry, storeResolver);
 
             //ensure optional stores are valid if specified
             if (TrustedHttpsCertificates != null)
             {
-                ValidateStore(TrustedHttpsCertificates, nameof(TrustedHttpsCertificates), telemetry);
+                ValidateStore(TrustedHttpsCertificates, nameof(TrustedHttpsCertificates), telemetry, storeResolver);
             }
             if (HttpsIssuerCertificates != null)
             {
-                ValidateStore(HttpsIssuerCertificates, nameof(HttpsIssuerCertificates), telemetry);
+                ValidateStore(HttpsIssuerCertificates, nameof(HttpsIssuerCertificates), telemetry, storeResolver);
             }
             if (TrustedUserCertificates != null)
             {
-                ValidateStore(TrustedUserCertificates, nameof(TrustedUserCertificates), telemetry);
+                ValidateStore(TrustedUserCertificates, nameof(TrustedUserCertificates), telemetry, storeResolver);
             }
             if (UserIssuerCertificates != null)
             {
-                ValidateStore(UserIssuerCertificates, nameof(UserIssuerCertificates), telemetry);
+                ValidateStore(UserIssuerCertificates, nameof(UserIssuerCertificates), telemetry, storeResolver);
             }
 
             if ((TrustedHttpsCertificates != null && HttpsIssuerCertificates == null) ||
@@ -144,7 +152,8 @@ namespace Opc.Ua
         private static void ValidateStore(
             CertificateTrustList? storeIdentifier,
             string storeName,
-            ITelemetryContext telemetry)
+            ITelemetryContext telemetry,
+            ICertificateStoreResolver? storeResolver)
         {
             if (string.IsNullOrEmpty(storeIdentifier?.StorePath))
             {
@@ -153,7 +162,9 @@ namespace Opc.Ua
             }
             try
             {
-                using ICertificateStore store = storeIdentifier!.OpenStore(telemetry) ??
+                using ICertificateStore store = (storeResolver == null
+                    ? storeIdentifier!.OpenStore(telemetry)
+                    : storeResolver.OpenCertificateStore(storeIdentifier!.StorePath, storeIdentifier.StoreType)) ??
                     throw ServiceResultException.ConfigurationError(
                         "Failed to open {0} store", storeName);
             }
