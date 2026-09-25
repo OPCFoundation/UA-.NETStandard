@@ -2080,8 +2080,9 @@ namespace Opc.Ua
                             if (StatusCode.IsBad(indexRange.UpdateRange(ref newValue, valueToWrite)))
                             {
                                 // the handler accepted the write but the cache cannot represent
-                                // it; keep the cached value rather than storing the slice.
-                                return writeResult.Result;
+                                // it; keep the cached value rather than storing the slice, but
+                                // still report the change so monitored items re-read the value.
+                                newValue = m_value;
                             }
                         }
 

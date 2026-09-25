@@ -371,6 +371,45 @@ namespace Opc.Ua.Types.Tests.State
                 "An index-range write must only replace the addressed elements of the cached value.");
         }
 
+        [Test]
+        public async Task WriteAttributeAsyncReportsChangeWhenCacheCannotAbsorbIndexRangeSlice()
+        {
+            SystemContext ctx = CreateSystemContext();
+            var v = new BaseDataVariableState(null)
+            {
+                NodeId = new NodeId("ArrNoCache", 0),
+                BrowseName = new QualifiedName("ArrNoCache", 0),
+                DisplayName = new LocalizedText("ArrNoCache"),
+                DataType = DataTypeIds.Int32,
+                ValueRank = ValueRanks.OneDimension,
+                AccessLevel = AccessLevels.CurrentReadOrWrite,
+                UserAccessLevel = AccessLevels.CurrentReadOrWrite
+            };
+
+            // the handler owns the data; the cached value was never assigned.
+            v.OnWriteValueAsync = (c, n, range, value, ct) =>
+                new ValueTask<AttributeWriteResult>(
+                    new AttributeWriteResult(ServiceResult.Good));
+            v.ClearChangeMasks(ctx, false);
+
+            var sourceTimestamp = new DateTimeUtc(2024, 1, 2, 3, 4, 5);
+            var dv = new DataValue(
+                Variant.From(s_slice),
+                StatusCodes.Uncertain,
+                sourceTimestamp);
+
+            ServiceResult result = await v.WriteAttributeAsync(
+                ctx, Attributes.Value, NumericRange.Parse("1:2"), dv).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(v.Value.IsNull, Is.True,
+                "The slice must not be stored as the whole value.");
+            Assert.That(v.ChangeMasks & NodeStateChangeMasks.Value, Is.EqualTo(NodeStateChangeMasks.Value),
+                "A successful handler write must still raise a value change.");
+            Assert.That(v.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Uncertain));
+            Assert.That(v.Timestamp, Is.EqualTo(sourceTimestamp));
+        }
+
         // -----------------------------------------------------------------
         // OnSimpleWriteValueAsync
         // -----------------------------------------------------------------
