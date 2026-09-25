@@ -382,16 +382,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             File.WriteAllText(depPath, NamespacedDefaultsDependencyDesign);
             File.WriteAllText(tgtPath, NamespacedDefaultsTargetDesign);
 
-            Dictionary<string, string> generated = Generate(
+            string[] values = WrappedValuesWithNamespaces(Generate(
                 targets: [tgtPath],
-                dependencies: [tgtPath, depPath]);
-
-            string[] values = [.. generated
-                .Where(f => f.Key.EndsWith(".cs", System.StringComparison.Ordinal))
-                .SelectMany(f => f.Value.Split('\n'))
-                .Select(l => l.Trim())
-                .Where(l => l.StartsWith("baseState.WrappedValue", System.StringComparison.Ordinal) &&
-                    ContainsOrdinal(l, "GetIndexOrAppend"))];
+                dependencies: [tgtPath, depPath]));
 
             Assert.That(values, Is.Not.Empty);
             Assert.That(values, Has.None.Contains("http://test.org/UA/Tgt/"));
@@ -464,12 +457,15 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
         private static string[] WrappedValuesWithNamespaces(Dictionary<string, string> generated)
         {
+            // net48 has no string.Contains(string, StringComparison).
+#pragma warning disable CA2249
             return [.. generated
                 .Where(f => f.Key.EndsWith(".cs", System.StringComparison.Ordinal))
                 .SelectMany(f => f.Value.Split('\n'))
                 .Select(l => l.Trim())
                 .Where(l => l.StartsWith("baseState.WrappedValue", System.StringComparison.Ordinal) &&
                     l.IndexOf("GetIndexOrAppend", System.StringComparison.Ordinal) >= 0)];
+#pragma warning restore CA2249
         }
 
         /// <summary>
