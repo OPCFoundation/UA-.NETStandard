@@ -153,6 +153,7 @@ namespace Opc.Ua.Client.Redundancy
                     abandon = m_options.EnableTokenReuse && m_sessionServedLeader;
                     m_session = null;
                     m_sessionServedLeader = false;
+                    m_adoptedSession = null;
                     demoted.SessionConfigurationChanged -= OnSessionConfigurationChanged;
                     if (ReferenceEquals(m_publishedSession, demoted))
                     {
@@ -277,6 +278,13 @@ namespace Opc.Ua.Client.Redundancy
             {
                 return false;
             }
+            if (ReferenceEquals(m_session, m_adoptedSession))
+            {
+                // A retry after a failed configure/publish step: this session already
+                // is the reactivated mirrored leader session. Closing it as the
+                // follower's own session would delete it with all its subscriptions.
+                return true;
+            }
 
             bool mutatedForReuse = false;
             try
@@ -317,6 +325,7 @@ namespace Opc.Ua.Client.Redundancy
                     }
                     await m_session.ReactivateMirroredSessionAsync(m_session.ConfiguredEndpoint, ct)
                         .ConfigureAwait(false);
+                    m_adoptedSession = m_session;
                     return true;
                 }
             }
@@ -448,6 +457,7 @@ namespace Opc.Ua.Client.Redundancy
         private ManagedSession? m_session;
         private ManagedSession? m_publishedSession;
         private bool m_sessionServedLeader;
+        private ManagedSession? m_adoptedSession;
     }
 
     /// <summary>

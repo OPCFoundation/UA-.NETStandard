@@ -425,6 +425,67 @@ namespace Opc.Ua.Client.Redundancy.Tests
             Assert.That(closedTokens[0].DeleteSubscriptions, Is.True);
         }
 
+        [Test]
+        public async Task PromotionRetryKeepsTheAdoptedMirroredSessionAsync()
+        {
+            using var store = new InMemorySharedKeyValueStore();
+            using var seedSession = SessionMock.Create();
+            seedSession.SetConnected();
+            SetServerNonce(seedSession, [1, 2, 3, 4]);
+            using var stream = new MemoryStream();
+            seedSession.SaveSessionConfiguration(stream);
+            await store.SetAsync("client-replica/session", new ByteString(stream.ToArray())).ConfigureAwait(false);
+
+            ConfiguredEndpoint endpoint = seedSession.ConfiguredEndpoint;
+            var closedOnOwnChannel = new List<(NodeId Token, bool DeleteSubscriptions)>();
+            var closedOnSharedChannel = new List<(NodeId Token, bool DeleteSubscriptions)>();
+            ManagedSession followerSession = CreateManagedSessionForTokenReuse(
+                endpoint,
+                NodeId.Parse("s=auth"),
+                NodeId.Parse("s=follower-auth"),
+                closedOnOwnChannel,
+                closedOnSharedChannel);
+            int configureCalls = 0;
+            var configured = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            var options = new ClientReplicaOptions
+            {
+                Mode = ClientStandbyMode.Warm,
+                EnableTokenReuse = true,
+                CreateSessionAsync = _ => new ValueTask<ManagedSession>(followerSession),
+                ConfigureLeaderAsync = (_, fastActivated, _) =>
+                {
+                    if (++configureCalls == 1)
+                    {
+                        // A transient failure after the mirrored session was adopted.
+                        throw new ServiceResultException(StatusCodes.BadCommunicationError);
+                    }
+                    configured.TrySetResult(fastActivated);
+                    return default;
+                }
+            };
+            await using var coordinator = new ClientReplicaCoordinator(
+                options,
+                new StaticLeaderElection(true),
+                store,
+                NullRecordProtector.Instance,
+                m_telemetry);
+
+            await coordinator.StartAsync().ConfigureAwait(false);
+
+            bool fastActivated = await configured.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+
+            Assert.That(configureCalls, Is.EqualTo(2));
+            Assert.That(fastActivated, Is.True, "the retry still runs on the adopted mirrored session");
+            Assert.That(coordinator.CurrentSession, Is.SameAs(followerSession));
+            Assert.That(followerSession.SessionId, Is.EqualTo(seedSession.SessionId));
+            Assert.That(
+                closedOnSharedChannel,
+                Is.Empty,
+                "the retry must not close the adopted mirrored leader session");
+            Assert.That(closedOnOwnChannel, Has.Count.EqualTo(1), "only the follower's own session is closed");
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public async Task DemotionIsReportedEvenWhenTheStandbyConnectFailsOrHangsAsync(bool hang)
