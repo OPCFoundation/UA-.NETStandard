@@ -1336,6 +1336,64 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// The creation is still pending when the worker first looks, and
+        /// completes (id assigned, in-progress flag cleared) before the
+        /// worker decides what to do with the unresolved response. The
+        /// orphan delete must be decided on the same pending snapshot the
+        /// lookup used, so the healthy subscription is never deleted.
+        /// </summary>
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task PublishWorkerDoesNotDeleteSubscriptionCreatedAfterPendingCheckAsync(
+            CancellationToken testCt)
+        {
+            var session = new FakeSubscriptionManagerContext();
+            OptionsMonitor<SubscriptionOptions> options =
+                OptionsFactory.Create<SubscriptionOptions>();
+            var creating = new FakeManagedSubscription { Id = 0u, Created = true };
+            int armed = 0;
+            int pendingReads = 0;
+            creating.OnIsCreationInProgress = () =>
+            {
+                if (Volatile.Read(ref armed) == 0)
+                {
+                    return true;
+                }
+                if (Interlocked.Increment(ref pendingReads) == 1)
+                {
+                    // Still pending at the first check after the response.
+                    return true;
+                }
+                // The creation completes right after that first check.
+                creating.Id = 4242u;
+                return false;
+            };
+
+            var sut = new SubscriptionManager(session,
+                m_telemetry.LoggerFactory, DiagnosticsMasks.None);
+            await using (sut.ConfigureAwait(false))
+            {
+                session.CreateSubscriptionFactory = (_, _, _) => creating;
+                sut.Add(m_mockNotificationDataHandler.Object, options);
+
+                session.OnPublishAsync = (h, a, ct) =>
+                {
+                    Volatile.Write(ref armed, 1);
+                    return new ValueTask<PublishResponse>(
+                        CreatePublishResponse(4242u, h.RequestHandle));
+                };
+
+                sut.MinPublishWorkerCount = 1;
+                sut.MaxPublishWorkerCount = 1;
+                sut.Resume();
+
+                await WaitUntilAsync(() => creating.OnPublishReceivedCalls.Count > 0,
+                    testCt).ConfigureAwait(false);
+                Assert.That(session.DeleteCalls, Is.Empty);
+            }
+        }
+
+        /// <summary>
         /// A subscription created through the classic <c>Session.AddSubscription</c>
         /// API is unknown to this manager's registry, but it is live and owned by
         /// the application. Deleting it as abandoned takes it down on the server

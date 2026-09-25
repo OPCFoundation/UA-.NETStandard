@@ -2065,18 +2065,21 @@ namespace Opc.Ua.Client.Subscriptions
                         m_consecutivePublishErrors = 0;
                         m_lastLoggedErrorStatus = default;
 
+                        //
+                        // Snapshot the pending-creation state BEFORE the id
+                        // lookup. A creation assigns its id before it clears
+                        // its in-progress flag, so a creation that is no
+                        // longer pending at the snapshot has its id visible
+                        // to the lookup, and one that completes after the
+                        // snapshot is still covered by the snapshot. The
+                        // orphan delete below is decided on this snapshot
+                        // only; a later, separate check could observe the
+                        // creation completed after a lookup that missed it.
+                        //
+                        bool creationPending = m_outer.HasSubscriptionsPendingCreation();
+
                         // Get the subscription with the provided identifier
                         IManagedSubscription? subscription = m_outer.GetById(subscriptionId);
-                        if (subscription == null &&
-                            !m_outer.m_subscriptionHistory.Contains(subscriptionId) &&
-                            !m_outer.HasSubscriptionsPendingCreation())
-                        {
-                            // A creation can complete between the lookup and
-                            // the pending check: it assigns the id before it
-                            // clears its in-progress flag. Look again so that
-                            // subscription is not deleted as an orphan below.
-                            subscription = m_outer.GetById(subscriptionId);
-                        }
                         publishLatency = m_outer.m_timeProvider.GetElapsedTime(
                             publishLatencyStart);
                         publishLatencyRunning = false;
@@ -2136,7 +2139,7 @@ namespace Opc.Ua.Client.Subscriptions
                                 await DelayUnresolvedSubscriptionAsync(ct)
                                     .ConfigureAwait(false);
                             }
-                            else if (m_outer.HasSubscriptionsPendingCreation())
+                            else if (creationPending)
                             {
                                 // Log only the first response of a run for the
                                 // same identifier so a long lived creation window
