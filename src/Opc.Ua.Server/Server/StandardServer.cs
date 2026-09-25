@@ -4146,13 +4146,12 @@ namespace Opc.Ua.Server
                     m_serverInternal,
                     configuration);
 
-                //add the MonitoredItemQueueFactory to the datastore; a factory supplied through
-                //the MonitoredItemQueueFactory property is owned by the caller and survives restarts.
+                //add the MonitoredItemQueueFactory to the datastore; a factory the server
+                //does not own (e.g. supplied by the caller) survives restarts.
                 m_serverInternal.SetMonitoredItemQueueFactory(
                     monitoredItemQueueFactory!,
-                    ownsFactory: !ReferenceEquals(
-                        monitoredItemQueueFactory,
-                        MonitoredItemQueueFactory));
+                    ownsFactory: monitoredItemQueueFactory != null &&
+                        OwnsMonitoredItemQueueFactory(monitoredItemQueueFactory));
 
                 //create the SubscriptionStore
                 ISubscriptionStore? subscriptionStore = CreateSubscriptionStore(
@@ -5135,6 +5134,18 @@ namespace Opc.Ua.Server
         {
             return MonitoredItemQueueFactory
                 ?? new MonitoredItemQueueFactory(MessageContext.Telemetry);
+        }
+
+        /// <summary>
+        /// Whether the server owns (and disposes on stop) the factory returned by
+        /// <see cref="CreateMonitoredItemQueueFactory"/>. A factory supplied through
+        /// <see cref="MonitoredItemQueueFactory"/> is owned by the caller.
+        /// </summary>
+        /// <param name="factory">The factory returned by <see cref="CreateMonitoredItemQueueFactory"/>.</param>
+        /// <returns><c>true</c> when the server disposes the factory on shutdown.</returns>
+        protected virtual bool OwnsMonitoredItemQueueFactory(IMonitoredItemQueueFactory factory)
+        {
+            return !ReferenceEquals(factory, MonitoredItemQueueFactory);
         }
 
         /// <summary>
