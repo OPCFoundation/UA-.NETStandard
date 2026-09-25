@@ -144,8 +144,29 @@ namespace Opc.Ua.Server
             IPushConfigurationTransactionCoordinator? coordinator,
             int maxTrustListSize,
             int maxTrustListSizeSafetyCeiling)
+            : this(node, trustedListStore, issuerListStore, readAccess, writeAccess, telemetry,
+                coordinator, maxTrustListSize, maxTrustListSizeSafetyCeiling, null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a trust list with an optional instance-scoped certificate store resolver.
+        /// Existing access checks, transaction coordination and store lifetime remain unchanged.
+        /// </summary>
+        public TrustList(
+            TrustListState node,
+            CertificateStoreIdentifier trustedListStore,
+            CertificateStoreIdentifier issuerListStore,
+            SecureAccess readAccess,
+            SecureAccess writeAccess,
+            ITelemetryContext telemetry,
+            IPushConfigurationTransactionCoordinator? coordinator,
+            int maxTrustListSize,
+            int maxTrustListSizeSafetyCeiling,
+            ICertificateStoreResolver? storeResolver)
         {
             m_telemetry = telemetry;
+            m_storeResolver = storeResolver;
             m_logger = telemetry.CreateLogger<TrustList>();
             m_node = node;
             m_trustedStore = trustedListStore;
@@ -305,7 +326,9 @@ namespace Opc.Ua.Server
                 return store;
             }
 
-            ICertificateStore created = storeIdentifier.OpenStore(m_telemetry) ??
+            ICertificateStore created = (m_storeResolver == null
+                ? storeIdentifier.OpenStore(m_telemetry)
+                : m_storeResolver.OpenCertificateStore(storeIdentifier.StorePath!, storeIdentifier.StoreType)) ??
                 throw ServiceResultException.ConfigurationError(
                     "Failed to open certificate store.");
             ICertificateStore? current = Interlocked.CompareExchange(ref instance, created, null);
@@ -1867,6 +1890,7 @@ namespace Opc.Ua.Server
         private ICertificateStore? m_trustedStoreInstance;
         private ICertificateStore? m_issuerStoreInstance;
         private readonly ITelemetryContext m_telemetry;
+        private readonly ICertificateStoreResolver? m_storeResolver;
         private readonly ILogger m_logger;
         private readonly TrustListState m_node;
         private readonly IPushConfigurationTransactionCoordinator? m_coordinator;

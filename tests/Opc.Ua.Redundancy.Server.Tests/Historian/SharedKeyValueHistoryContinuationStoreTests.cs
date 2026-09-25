@@ -49,6 +49,13 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
     public class SharedKeyValueHistoryContinuationStoreTests
     {
         /// <summary>
+        /// Upper bound for waiting on a signal the store's background cleanup must raise.
+        /// Every wait using it expects the signal, so it only bounds a hang and does not
+        /// slow a passing run; short bounds failed on loaded CI runners.
+        /// </summary>
+        private static readonly TimeSpan kSignalTimeout = TimeSpan.FromSeconds(30);
+
+        /// <summary>
         /// Verifies that shared history continuations reject a process-local key-value store.
         /// </summary>
         [Test]
@@ -754,7 +761,7 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             await Task.Delay(50).ConfigureAwait(false);
             Assert.That(disposeTask.IsCompleted, Is.False);
             keyValueStore.ReleaseCleanup();
-            await disposeTask.WaitAsync(TimeSpan.FromSeconds(2))
+            await disposeTask.WaitAsync(kSignalTimeout)
                 .ConfigureAwait(false);
 
             await using var restartedStore =
@@ -842,12 +849,12 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             Task disposal = store.DisposeAsync().AsTask();
             try
             {
-                await disposal.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                await disposal.WaitAsync(kSignalTimeout).ConfigureAwait(false);
             }
             finally
             {
                 keyValueStore.ReleaseCleanupResolution();
-                await disposal.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                await disposal.WaitAsync(kSignalTimeout).ConfigureAwait(false);
             }
         }
 
@@ -988,7 +995,7 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
                 .ConfigureAwait(false);
 
             await firstStore.DisposeAsync().AsTask()
-                .WaitAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+                .WaitAsync(kSignalTimeout).ConfigureAwait(false);
             await using var restartedStore =
                 new SharedKeyValueHistoryContinuationStore(
                     keyValueStore,
@@ -1149,7 +1156,7 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             public async Task WaitForCleanupResolutionBlockedAsync()
             {
                 await m_cleanupResolutionBlocked.Task
-                    .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    .WaitAsync(kSignalTimeout).ConfigureAwait(false);
             }
 
             public void ReleaseCleanupResolution()
@@ -1159,7 +1166,8 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
 
             public async Task WaitForCleanupAttemptsAsync(int expected)
             {
-                for (int i = 0; i < 1_000; i++)
+                DateTime deadline = DateTime.UtcNow + kSignalTimeout;
+                while (DateTime.UtcNow < deadline)
                 {
                     if (Volatile.Read(ref m_cleanupAttempts) >= expected)
                     {
@@ -1173,7 +1181,7 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             public async Task WaitForCleanupBlockedAsync()
             {
                 await m_cleanupBlocked.Task
-                    .WaitAsync(TimeSpan.FromSeconds(2))
+                    .WaitAsync(kSignalTimeout)
                     .ConfigureAwait(false);
             }
 
@@ -1185,7 +1193,7 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             public async Task WaitForCleanupCompletionAsync()
             {
                 await m_cleanupCompleted.Task
-                    .WaitAsync(TimeSpan.FromSeconds(2))
+                    .WaitAsync(kSignalTimeout)
                     .ConfigureAwait(false);
             }
 

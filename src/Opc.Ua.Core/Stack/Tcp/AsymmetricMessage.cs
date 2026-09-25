@@ -55,7 +55,10 @@ namespace Opc.Ua.Bindings
         Certificate? SenderCertificate,
         uint RequestId,
         uint SequenceNumber,
-        byte[] Signature);
+        byte[] Signature)
+    {
+        internal ByteString SenderCertificateChain { get; init; }
+    }
 
     /// <summary>
     /// The result of writing an asymmetric message.

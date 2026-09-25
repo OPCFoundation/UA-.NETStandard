@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -365,9 +366,7 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
-        /// Cancels every running iterator, waits for them to drain (bounded
-        /// by each source's <see cref="EventPublishOptions.CancellationTimeout"/>),
-        /// and stops the reconcile loop. Idempotent.
+        /// Cancels every running iterator and initiates asynchronous cleanup.
         /// </summary>
         public void Dispose()
         {
@@ -415,61 +414,46 @@ namespace Opc.Ua.Server.Fluent
             {
             }
 
-            // Wait for the reconcile task to actually exit. We must wait long
-            // enough to cover the worst case where the loop is mid-pass when
-            // the cancel fires: the in-flight ReconcileAll may DeactivateSource
-            // each registered source, and each DeactivateSource blocks on its
-            // worker task for up to entry.Options.CancellationTimeout. Use the
-            // largest per-source timeout, plus a safety margin, instead of a
-            // hardcoded 5s that could be exceeded by a single slow source.
-            TimeSpan waitFor = ComputeReconcileWaitTimeout();
-            try
-            {
-                m_reconcileTask.Wait(waitFor);
-            }
-            catch (AggregateException)
-            {
-            }
-
-            // Deactivate every source so their iterators get cancelled.
-            List<SourceEntry> snapshot;
-            lock (m_sourcesLock)
-            {
-                snapshot = [.. m_sources.Values];
-                m_sources.Clear();
-            }
-
-            foreach (SourceEntry entry in snapshot)
-            {
-                DeactivateSource(entry, force: true);
-            }
-
-            m_reconcileSignal.Dispose();
-            m_managerCts.Dispose();
+            _ = DisposeSourcesAsync();
         }
 
-        private TimeSpan ComputeReconcileWaitTimeout()
+        private async Task DisposeSourcesAsync()
         {
-            TimeSpan maxPerSource = TimeSpan.Zero;
-            lock (m_sourcesLock)
+            Exception? failure = null;
+            try
             {
-                foreach (SourceEntry entry in m_sources.Values)
+                await m_reconcileTask.ConfigureAwait(false);
+                List<SourceEntry> snapshot;
+                lock (m_sourcesLock)
                 {
-                    TimeSpan t = entry.Options.CancellationTimeout;
-                    if (t == Timeout.InfiniteTimeSpan)
-                    {
-                        return Timeout.InfiniteTimeSpan;
-                    }
-                    if (t > maxPerSource)
-                    {
-                        maxPerSource = t;
-                    }
+                    snapshot = [.. m_sources.Values];
+                    m_sources.Clear();
                 }
+                foreach (SourceEntry entry in snapshot)
+                {
+                    DeactivateSource(entry, force: true);
+                }
+                await Task.WhenAll(snapshot.Select(entry => entry.StoppingTask)).ConfigureAwait(false);
             }
-            // The reconcile loop only needs the larger of its in-flight pass and
-            // a small bookkeeping margin; per-source deactivation runs again on
-            // the disposer thread below.
-            return maxPerSource + TimeSpan.FromSeconds(5);
+            catch (Exception error)
+            {
+                m_logger.PublishRegistryShutdownFailed(error);
+                failure = error;
+            }
+            finally
+            {
+                m_reconcileSignal.Dispose();
+                m_managerCts.Dispose();
+            }
+            if (failure == null)
+            {
+                m_disposalCompleted.TrySetResult(true);
+            }
+            else
+            {
+                m_disposalCompleted.TrySetException(failure);
+                _ = m_disposalCompleted.Task.Exception;
+            }
         }
 
         private async Task RunReconcileLoopAsync(CancellationToken ct)
@@ -553,9 +537,19 @@ namespace Opc.Ua.Server.Fluent
                 var ready = new List<Task>();
                 foreach (SourceEntry entry in snapshot)
                 {
-                    if (entry.WorkerCts is not null && IsNotifierAncestor(waiter.Source, entry.Notifier))
+                    if (!IsNotifierAncestor(waiter.Source, entry.Notifier))
+                    {
+                        continue;
+                    }
+                    if (entry.WorkerCts is not null)
                     {
                         ready.Add(entry.Ready.Task);
+                    }
+                    else if (entry.Options.AlwaysOn || entry.Notifier.AreEventsMonitored)
+                    {
+                        // The drain may finish after activation was deferred; still await the replacement.
+                        ready.Add(WaitForStoppedSourceReadinessAsync(
+                            entry, entry.StoppingTask, m_managerCts.Token));
                     }
                 }
                 _ = CompleteWaiterAsync(waiter, ready);
@@ -613,11 +607,20 @@ namespace Opc.Ua.Server.Fluent
             }
         }
 
+        private async Task WaitForStoppedSourceReadinessAsync(
+            SourceEntry entry,
+            Task stopped,
+            CancellationToken ct)
+        {
+            await stopped.WaitAsync(ct).ConfigureAwait(false);
+            await WaitUntilReadyAsync(entry.Notifier, ct).ConfigureAwait(false);
+        }
+
         private void ActivateSource(SourceEntry entry)
         {
             lock (m_sourcesLock)
             {
-                if (Volatile.Read(ref m_disposed) != 0 || entry.WorkerCts != null)
+                if (Volatile.Read(ref m_disposed) != 0 || entry.WorkerCts != null || !entry.StoppingTask.IsCompleted)
                 {
                     return;
                 }
@@ -643,6 +646,10 @@ namespace Opc.Ua.Server.Fluent
                 entry.WorkerCts = null;
                 entry.WorkerTask = null;
                 entry.FailedGeneration = null;
+                if (cts != null)
+                {
+                    entry.Ready.TrySetCanceled();
+                }
             }
 
             if (cts == null)
@@ -658,22 +665,8 @@ namespace Opc.Ua.Server.Fluent
             {
             }
 
-            try
-            {
-                bool completed = worker?.Wait(entry.Options.CancellationTimeout) ?? true;
-                if (!completed)
-                {
-                    Volatile.Write(ref entry.LeakedFaulted, 1);
-                    m_logger?.PublishSourceForBrowseIdNodeIdDid(
-                        entry.Notifier.BrowseName,
-                        entry.Notifier.NodeId,
-                        entry.Options.CancellationTimeout);
-                }
-            }
-            catch (AggregateException ex)
-            {
-                ex.Handle(e => e is OperationCanceledException);
-            }
+            entry.StoppingTask = CompleteDeactivationAsync(entry, worker);
+            _ = ReconcileAfterStopAsync(entry.StoppingTask);
             if (force)
             {
                 m_logger?.PublishToreDownSourceForBrowseId(entry.Notifier.BrowseName, entry.Notifier.NodeId);
@@ -682,6 +675,43 @@ namespace Opc.Ua.Server.Fluent
             {
                 m_logger?.PublishDeactivatedSourceForBrowseIdNodeId(entry.Notifier.BrowseName, entry.Notifier.NodeId);
             }
+        }
+
+        private async Task CompleteDeactivationAsync(SourceEntry entry, Task? worker)
+        {
+            try
+            {
+                if (worker != null)
+                {
+                    await worker.WaitAsync(entry.Options.CancellationTimeout, m_timeProvider).ConfigureAwait(false);
+                }
+            }
+            catch (TimeoutException)
+            {
+                lock (m_sourcesLock)
+                {
+                    if (entry.WorkerCts == null)
+                    {
+                        Volatile.Write(ref entry.LeakedFaulted, 1);
+                    }
+                }
+                m_logger?.PublishSourceForBrowseIdNodeIdDid(
+                    entry.Notifier.BrowseName, entry.Notifier.NodeId, entry.Options.CancellationTimeout);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception error)
+            {
+                m_logger?.PublishReleaseFailedForBrowseIdNodeId(
+                    entry.Notifier.BrowseName, entry.Notifier.NodeId, error);
+            }
+        }
+
+        private async Task ReconcileAfterStopAsync(Task stopped)
+        {
+            await stopped.ConfigureAwait(false);
+            SignalReconcile();
         }
 
         private async Task RunSourceAsync(
@@ -1053,6 +1083,7 @@ namespace Opc.Ua.Server.Fluent
             }
 
             Dispose();
+            await m_disposalCompleted.Task.ConfigureAwait(false);
         }
 
         private sealed class SourceEntry
@@ -1084,6 +1115,7 @@ namespace Opc.Ua.Server.Fluent
             public bool RegisteredRootNotifier { get; set; }
             public CancellationTokenSource? WorkerCts;
             public Task? WorkerTask;
+            public Task StoppingTask = Task.CompletedTask;
             public CancellationTokenSource? FailedGeneration;
             public DateTimeOffset RetryAfter;
             public int ConsecutiveFailures;
@@ -1108,6 +1140,10 @@ namespace Opc.Ua.Server.Fluent
         private readonly List<BaseObjectState> m_pendingRootNotifiers = [];
         private readonly Dictionary<NodeId, SourceEntry> m_sources = [];
         private readonly List<ReadinessWaiter> m_waiters = [];
+
+        private readonly TaskCompletionSource<bool> m_disposalCompleted =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
         private int m_disposed;
     }
 
@@ -1234,5 +1270,9 @@ namespace Opc.Ua.Server.Fluent
             Exception exception,
             QualifiedName browse,
             NodeId nodeId);
+
+        [LoggerMessage(EventId = ServerEventIds.EventSourceRegistry + 13, Level = LogLevel.Error,
+            Message = "Publish: event-source registry shutdown failed.")]
+        public static partial void PublishRegistryShutdownFailed(this ILogger logger, Exception exception);
     }
 }

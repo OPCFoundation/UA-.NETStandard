@@ -733,8 +733,10 @@ namespace Opc.Ua.Server
                 // load the certificate for the security profile. The session
                 // takes its own ref-counted handle on the certificate, so the
                 // acquired entry is disposed when this scope exits.
-                using CertificateEntry? instanceEntry = CertificateManager!
-                    .AcquireApplicationCertificateBySecurityPolicy(context.SecurityPolicyUri);
+                CertificateManager certificates = CertificateManager ??
+                    throw ServiceResultException.ConfigurationError("CertificateManager has not been initialized.");
+                using CertificateEntry? instanceEntry = AcquireEndpointCertificate(
+                    context.ChannelContext!.EndpointDescription!, certificates, SecurityPolicyRegistry);
                 Certificate instanceCertificate = instanceEntry?.Certificate!;
 
                 // create the session.
@@ -773,7 +775,7 @@ namespace Opc.Ua.Server
                             EndpointUrl = new Uri(endpointUrl)
                         };
 
-                        CertificateManager.ValidateDomains(
+                        certificates.ValidateDomains(
                             instanceCertificate,
                             configuredEndpoint,
                             serverValidation: true);
@@ -803,7 +805,7 @@ namespace Opc.Ua.Server
                     if (requireEncryption)
                     {
                         // check if complete chain should be sent.
-                        if (CertificateManager.SendCertificateChain)
+                        if (certificates.SendCertificateChain)
                         {
                             serverCertificate = instanceEntry!.GetEncodedChainBlob().ToByteString();
                         }
@@ -5020,8 +5022,16 @@ namespace Opc.Ua.Server
             // and return an independent ref-counted handle to the session manager,
             // which disposes it after the restored session takes its own reference
             // (the Session constructor AddRefs the server certificate).
-            using CertificateEntry? entry = CertificateManager?
-                .AcquireApplicationCertificateBySecurityPolicy(securityPolicyUri);
+            CertificateManager? certificates = CertificateManager;
+            if (certificates == null)
+            {
+                return null;
+            }
+            EndpointDescription? endpoint = Endpoints.Find(
+                candidate => candidate.SecurityPolicyUri == securityPolicyUri);
+            using CertificateEntry? entry = endpoint == null
+                ? certificates.AcquireApplicationCertificateBySecurityPolicy(securityPolicyUri)
+                : AcquireEndpointCertificate(endpoint, certificates, SecurityPolicyRegistry);
             return entry?.Certificate?.AddRef();
         }
 

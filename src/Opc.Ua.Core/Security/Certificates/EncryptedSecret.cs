@@ -174,9 +174,9 @@ namespace Opc.Ua
         public ICertificateValidatorEx? Validator { get; }
 
         /// <summary>
-        /// Gets or sets the security policy.
+        /// Gets the negotiated security policy.
         /// </summary>
-        public SecurityPolicyInfo SecurityPolicy { get; private set; }
+        public SecurityPolicyInfo SecurityPolicy { get; }
 
         /// <summary>
         /// Service message context to use
@@ -1153,10 +1153,9 @@ namespace Opc.Ua
 
             int length = (int)decoder.ReadUInt32(null) + decoder.Position;
 
-            SecurityPolicy = SecurityPolicies.Default.GetInfo(decoder.ReadString(null)!)
-                ?? throw new ServiceResultException(StatusCodes.BadSecurityPolicyRejected);
-
-            if (SecurityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
+            string? encryptedSecretPolicyUri = decoder.ReadString(null);
+            if (!string.Equals(encryptedSecretPolicyUri, SecurityPolicy.Uri, StringComparison.Ordinal) ||
+                SecurityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
                 throw new ServiceResultException(StatusCodes.BadSecurityPolicyRejected);
             }
@@ -1336,10 +1335,9 @@ namespace Opc.Ua
 
             int length = (int)decoder.ReadUInt32(null) + decoder.Position;
 
-            SecurityPolicy = SecurityPolicies.Default.GetInfo(decoder.ReadString(null)!)
-                ?? throw new ServiceResultException(StatusCodes.BadSecurityPolicyRejected);
-
-            if (SecurityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
+            string? encryptedSecretPolicyUri = decoder.ReadString(null);
+            if (!string.Equals(encryptedSecretPolicyUri, SecurityPolicy.Uri, StringComparison.Ordinal) ||
+                SecurityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
                 throw new ServiceResultException(StatusCodes.BadSecurityPolicyRejected);
             }

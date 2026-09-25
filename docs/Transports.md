@@ -306,12 +306,40 @@ A few notes:
 * The WSS client requires the server to select the requested WebSocket
   sub-protocol. If the server returns anything else the connection
   fails with `BadNotConnected`.
-* The WSS-JSON client opens a fresh `ClientWebSocket` per request
+* The WSS-JSON client (`opcua+uajson`) opens a fresh `ClientWebSocket` per request
   (simplest correct behaviour). A pooled / persistent-WebSocket
   variant can be added without changing the public shape.
 * The HTTPS client (binary or JSON) reuses a single `HttpClient` per
   channel; the encoding is selected from
   `EndpointDescription.TransportProfileUri` at request time.
+
+The WSS OpenAPI client (`opcua+openapi`) keeps a persistent connection and
+multiplexes requests, so an outstanding Publish does not block other services.
+It assigns unique, nonzero wire request handles for that connection while
+preserving caller-owned request objects and caller-visible response handles.
+Concurrent requests must use distinct caller handles; a handle can be reused
+after completion, cancellation or timeout. The shared `ClientBase` caller-handle
+sequence can wrap; it is separate from the connection-local wire allocator.
+Terminal requests release their pending state without waiting for a server reply, and late replies cannot
+complete a newer request.
+
+An attributable response-decoding failure, such as exceeding `MaxArrayLength`,
+fails only that request. Other pending requests and subsequent requests keep
+using the connection. Transport/framing failures and responses that cannot be
+attributed to an issued wire handle still close it.
+
+Caller cancellation and request timeout cancel send-lock admission and the
+pending response, not an already-started WebSocket send. An admitted send uses
+the connection's shutdown token and finishes independently of the caller;
+shutdown drains it before disposing the socket.
+
+`CancelRequest.RequestHandle` is translated to the wire handle of the currently
+outstanding request with that caller handle. A retired or unknown target maps
+to a reserved, never-issued wire handle, so it cannot cancel an unrelated request.
+Wire handles never wrap: exhaustion closes the connection with
+`BadConnectionClosed` and requires reopening it. Shutdown closes operation
+admission, cancels queued sends and close operations, and drains admitted
+socket users before disposing connection resources.
 
 HTTPS binary, JSON, and OpenAPI clients obtain response headers before
 buffering the body. A positive `MaxMessageSize` limits the actual body bytes, including

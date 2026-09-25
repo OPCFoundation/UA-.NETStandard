@@ -3118,6 +3118,63 @@ namespace Opc.Ua.Client.Tests
                     Times.Exactly(2));
         }
 
+        [TestCase(0u)]
+        [TestCase(5u)]
+        public async Task HistoryDeleteEventsUsesEventOperationLimitAsync(uint dataLimit)
+        {
+            using var session = SessionMock.Create();
+            session.OperationLimits.MaxNodesPerHistoryUpdateEvents = 2;
+            session.OperationLimits.MaxNodesPerHistoryUpdateData = dataLimit;
+            var batchSizes = new List<int>();
+            var requestedNodes = new List<NodeId>();
+            var details = Enumerable.Range(1, 5)
+                .Select(index => new ExtensionObject(new DeleteEventDetails
+                {
+                    NodeId = new NodeId((uint)index)
+                }))
+                .ToArrayOf();
+            session.Channel
+                .Setup(channel => channel.SendRequestAsync(
+                    It.IsAny<IServiceRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync((IServiceRequest request, CancellationToken _) =>
+                {
+                    if (request is not HistoryUpdateRequest update)
+                    {
+                        throw new InvalidOperationException("Expected HistoryUpdate.");
+                    }
+                    if (update.HistoryUpdateDetails.Count > 2)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadTooManyOperations);
+                    }
+                    batchSizes.Add(update.HistoryUpdateDetails.Count);
+                    var results = new List<HistoryUpdateResult>();
+                    foreach (ExtensionObject detail in update.HistoryUpdateDetails)
+                    {
+                        Assert.That(detail.TryGetValue(out DeleteEventDetails delete), Is.True);
+                        requestedNodes.Add(delete.NodeId);
+                        results.Add(new HistoryUpdateResult
+                        {
+                            OperationResults = [(uint)requestedNodes.Count]
+                        });
+                    }
+                    return new HistoryUpdateResponse { Results = results };
+                });
+
+            HistoryUpdateResponse response = await session.HistoryUpdateAsync(
+                null, details, CancellationToken.None).ConfigureAwait(false);
+
+            int[] expectedBatchSizes = [2, 2, 1];
+            Assert.That(batchSizes, Is.EqualTo(expectedBatchSizes));
+            Assert.That(requestedNodes, Is.EqualTo(
+            [
+                new NodeId(1u), new NodeId(2u), new NodeId(3u), new NodeId(4u), new NodeId(5u)
+            ]));
+            Assert.That(
+                response.Results.ToList().Select(result => result.OperationResults[0]),
+                Is.EqualTo(new StatusCode[] { 1u, 2u, 3u, 4u, 5u }));
+        }
+
         [Theory]
         public void HistoryUpdateAsyncShouldHandleBatchingWhenSecondOperationFails(
             RequestHeader requestHeader)

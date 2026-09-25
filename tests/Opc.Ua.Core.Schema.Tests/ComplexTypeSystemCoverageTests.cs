@@ -203,6 +203,32 @@ namespace Opc.Ua.Schema.Tests
         }
 
         [Test]
+        public async Task LoadAsyncCommitsAvailableDefinitionsWhenDictionaryIsDisabled()
+        {
+            var resolver = new TestComplexTypeResolver();
+            resolver.AddDataType(
+                CreateEnumNode(TestIds.EnumNodeId, "TestEnum", CreateEnumDefinition("First", "Second")),
+                DataTypeIds.Enumeration);
+            resolver.AddDataType(new DataTypeNode
+            {
+                NodeId = new NodeId(7999, SchemaTestData.TestNamespaceIndex),
+                BrowseName = new QualifiedName("MissingDefinition", SchemaTestData.TestNamespaceIndex)
+            }, DataTypeIds.Enumeration);
+            using var system = new ComplexTypeSystem(resolver, new RecordingComplexTypeFactory(), null!)
+            {
+                DisableDataTypeDictionary = true
+            };
+
+            bool loaded = await system.LoadAsync(throwOnError: true).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(loaded, Is.False);
+                Assert.That(resolver.Factory.TryGetEnumeratedType(TestIds.EnumType, out _), Is.True);
+            });
+        }
+
+        [Test]
         public async Task LoadAsyncUsesBinaryDictionaryWhenDataTypeDefinitionsAreDisabled()
         {
             var resolver = new TestComplexTypeResolver();

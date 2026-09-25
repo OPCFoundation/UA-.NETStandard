@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System.IO;
+using System.Runtime.Serialization;
+using System.Text.Json.Serialization;
 
 namespace Opc.Ua.Client
 {
@@ -49,16 +51,33 @@ namespace Opc.Ua.Client
         /// for the high-level <see cref="IUserIdentity"/> wrapper.
         /// </summary>
         [DataTypeField(Order = 2, StructureHandling = StructureHandling.ExtensionObject)]
-        public UserIdentityToken? IdentityToken { get; set; }
+        public UserIdentityToken? IdentityToken
+        {
+            get;
+            set
+            {
+                field = value is UserNameIdentityToken userName
+                    ? new UserNameIdentityToken { UserName = userName.UserName, PolicyId = userName.PolicyId }
+                    : value;
+                m_identity = null;
+            }
+        }
 
         /// <summary>
         /// The identity used to create the session.
-        /// This is a convenience property that wraps <see cref="IdentityToken"/>.
+        /// Credentials supplied here are retained only in memory. After loading
+        /// a snapshot, resupply credentials here or through <see cref="ISession.RenewUserIdentity"/>.
         /// </summary>
+        [IgnoreDataMember]
+        [JsonIgnore]
         public IUserIdentity? Identity
         {
-            get => IdentityToken != null ? new UserIdentity(IdentityToken) : null;
-            set => IdentityToken = value?.TokenHandler?.Token;
+            get => m_identity ?? (IdentityToken != null ? new UserIdentity(IdentityToken) : null);
+            set
+            {
+                IdentityToken = value?.TokenHandler?.Token;
+                m_identity = value;
+            }
         }
 
         /// <summary>
@@ -72,6 +91,8 @@ namespace Opc.Ua.Client
         /// </summary>
         [DataTypeField(Order = 4)]
         public partial bool CheckDomain { get; init; }
+
+        private IUserIdentity? m_identity;
     }
 
     /// <summary>

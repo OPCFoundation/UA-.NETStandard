@@ -53,6 +53,174 @@ namespace Opc.Ua.Client.Tests
     [SetUICulture("en-us")]
     public sealed class NodeCacheTests
     {
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task GetNodeCancellationDoesNotPoisonSharedFetchAsync(bool cancelFirst)
+        {
+            var nodeId = new NodeId("shared-node", 2);
+            var expected = new VariableNode { NodeId = nodeId, BrowseName = new QualifiedName("Shared", 2) };
+            var fetch = new TaskCompletionSource<Node>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var context = new Mock<INodeCacheContext>();
+            context.Setup(value => value.FetchNodeAsync(
+                    null, nodeId, NodeClass.Unspecified, false, It.IsAny<CancellationToken>()))
+                .Returns((RequestHeader _, NodeId _, NodeClass _, bool _, CancellationToken ct) =>
+                    new ValueTask<Node>(fetch.Task.WaitAsync(ct)));
+            context.Setup(value => value.FetchReferencesAsync(null, nodeId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync([]);
+            using var cache = new NodeCache(context.Object, NUnitTelemetryContext.Create());
+            using var canceled = new CancellationTokenSource();
+            Task<INode> first = cache.GetNodeAsync(
+                nodeId, cancelFirst ? canceled.Token : CancellationToken.None).AsTask();
+            Task<INode> second = cache.GetNodeAsync(
+                nodeId, cancelFirst ? CancellationToken.None : canceled.Token).AsTask();
+            Task<INode> canceledLookup = cancelFirst ? first : second;
+            Task<INode> liveLookup = cancelFirst ? second : first;
+
+            try
+            {
+                canceled.Cancel();
+                Assert.That(
+                    async () => _ = await canceledLookup.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false),
+                    Throws.InstanceOf<OperationCanceledException>());
+                Assert.That(liveLookup.IsCompleted, Is.False);
+            }
+            finally
+            {
+                fetch.TrySetResult(expected);
+                try
+                {
+                    await Task.WhenAll(first, second).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (canceled.IsCancellationRequested)
+                {
+                }
+            }
+
+            INode node = await liveLookup.ConfigureAwait(false);
+            Assert.That(node.NodeId, Is.EqualTo(nodeId));
+            Assert.That(node.BrowseName, Is.EqualTo(new QualifiedName("Shared", 2)));
+            Assert.That(await cache.GetNodeAsync(nodeId, default).ConfigureAwait(false), Is.SameAs(node));
+            context.Verify(value => value.FetchNodeAsync(
+                null, nodeId, NodeClass.Unspecified, false, It.IsAny<CancellationToken>()), Times.Once);
+            context.Verify(value => value.FetchReferencesAsync(
+                null, nodeId, It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Test]
+        public async Task GetValueCancellationDoesNotPoisonSharedFetchAsync()
+        {
+            var nodeId = new NodeId("shared-value", 2);
+            var expected = new DataValue(Variant.From(42), StatusCodes.GoodClamped);
+            var fetch = new TaskCompletionSource<DataValue>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var context = new Mock<INodeCacheContext>();
+            context.Setup(value => value.FetchValueAsync(null, nodeId, It.IsAny<CancellationToken>()))
+                .Returns((RequestHeader _, NodeId _, CancellationToken ct) =>
+                    new ValueTask<DataValue>(fetch.Task.WaitAsync(ct)));
+            using var cache = new NodeCache(context.Object, NUnitTelemetryContext.Create());
+            using var canceled = new CancellationTokenSource();
+            Task<DataValue> first = cache.GetValueAsync(nodeId, canceled.Token).AsTask();
+            Task<DataValue> second = cache.GetValueAsync(nodeId, default).AsTask();
+
+            try
+            {
+                canceled.Cancel();
+                Assert.That(
+                    async () => _ = await first.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false),
+                    Throws.InstanceOf<OperationCanceledException>());
+                Assert.That(second.IsCompleted, Is.False);
+            }
+            finally
+            {
+                fetch.TrySetResult(expected);
+                try
+                {
+                    await Task.WhenAll(first, second).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (canceled.IsCancellationRequested)
+                {
+                }
+            }
+
+            DataValue result = await second.ConfigureAwait(false);
+            Assert.That(result.WrappedValue, Is.EqualTo(Variant.From(42)));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.GoodClamped));
+            Assert.That(await cache.GetValueAsync(nodeId, default).ConfigureAwait(false), Is.EqualTo(expected));
+            context.Verify(value => value.FetchValueAsync(
+                null, nodeId, It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Test]
+        public async Task GetReferencesCancellationDoesNotPoisonSharedFetchAsync()
+        {
+            var nodeId = new NodeId("shared-references", 2);
+            var childId = new NodeId("child", 2);
+            var expected = new VariableNode { NodeId = childId, BrowseName = new QualifiedName("Child", 2) };
+            var fetch = new TaskCompletionSource<ArrayOf<ReferenceDescription>>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var context = new Mock<INodeCacheContext>();
+            context.SetupGet(value => value.NamespaceUris).Returns(new NamespaceTable());
+            context.Setup(value => value.FetchReferencesAsync(null, nodeId, It.IsAny<CancellationToken>()))
+                .Returns((RequestHeader _, NodeId _, CancellationToken ct) =>
+                    new ValueTask<ArrayOf<ReferenceDescription>>(fetch.Task.WaitAsync(ct)));
+            context.Setup(value => value.FetchNodesAsync(
+                    null,
+                    It.Is<ArrayOf<NodeId>>(ids => ids.Count == 1 && ids[0] == childId),
+                    false,
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ResultSet<Node>
+                {
+                    Results = [expected],
+                    Errors = [ServiceResult.Good]
+                });
+            using var cache = new NodeCache(context.Object, NUnitTelemetryContext.Create());
+            using var canceled = new CancellationTokenSource();
+            Task<ArrayOf<INode>> first = cache.GetReferencesAsync(
+                nodeId, ReferenceTypeIds.HasComponent, false, false, canceled.Token).AsTask();
+            Task<ArrayOf<INode>> second = cache.GetReferencesAsync(
+                nodeId, ReferenceTypeIds.HasComponent, false, false, default).AsTask();
+
+            try
+            {
+                canceled.Cancel();
+                Assert.That(
+                    async () => _ = await first.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false),
+                    Throws.InstanceOf<OperationCanceledException>());
+                Assert.That(second.IsCompleted, Is.False);
+            }
+            finally
+            {
+                fetch.TrySetResult(
+                [
+                    new ReferenceDescription
+                    {
+                        NodeId = childId,
+                        ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                        IsForward = true
+                    }
+                ]);
+                try
+                {
+                    await Task.WhenAll(first, second).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (canceled.IsCancellationRequested)
+                {
+                }
+            }
+
+            ArrayOf<INode> result = await second.ConfigureAwait(false);
+            Assert.That(result, Has.Count.EqualTo(1));
+            Assert.That(result[0].NodeId, Is.EqualTo(childId));
+            Assert.That(result[0].BrowseName, Is.EqualTo(new QualifiedName("Child", 2)));
+            ArrayOf<INode> cached = await cache.GetReferencesAsync(
+                nodeId, ReferenceTypeIds.HasComponent, false, false, default).ConfigureAwait(false);
+            Assert.That(cached, Has.Count.EqualTo(1));
+            Assert.That(cached[0], Is.SameAs(result[0]));
+            context.Verify(value => value.FetchReferencesAsync(
+                null, nodeId, It.IsAny<CancellationToken>()), Times.Once);
+            context.Verify(value => value.FetchNodesAsync(
+                null, It.IsAny<ArrayOf<NodeId>>(), false, It.IsAny<CancellationToken>()), Times.Once);
+        }
+
         [Test]
         public async Task FetchRemainingNodesAsyncShouldHandleErrorsAsync()
         {

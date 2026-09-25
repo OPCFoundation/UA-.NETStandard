@@ -681,11 +681,6 @@ namespace Opc.Ua.Server
             public LinkedListNode<DataValue> EarlyBound { get; set; } = null!;
 
             /// <summary>
-            /// The latest non-Bad value before the slice.
-            /// </summary>
-            public LinkedListNode<DataValue> NonBadEarlyBound { get; set; } = null!;
-
-            /// <summary>
             /// The second early bound for the slice (always earlier than the first).
             /// </summary>
             public LinkedListNode<DataValue> SecondEarlyBound { get; set; } = null!;
@@ -802,11 +797,6 @@ namespace Opc.Ua.Server
                     // check if before the beginning of the slice.
                     if (CompareTimestamps(slice.StartTime, ii) >= 0)
                     {
-                        if (StatusCode.IsNotBad(ii.Value.StatusCode))
-                        {
-                            slice.NonBadEarlyBound = ii;
-                        }
-
                         if (IsGood(ii.Value))
                         {
                             slice.SecondEarlyBound = slice.EarlyBound;
@@ -843,11 +833,6 @@ namespace Opc.Ua.Server
                     // check if before the beginning of the slice.
                     if (CompareTimestamps(slice.StartTime, ii) > 0)
                     {
-                        if (StatusCode.IsNotBad(ii.Value.StatusCode))
-                        {
-                            slice.NonBadEarlyBound = ii;
-                        }
-
                         if (IsGood(ii.Value))
                         {
                             slice.SecondEarlyBound = slice.EarlyBound;

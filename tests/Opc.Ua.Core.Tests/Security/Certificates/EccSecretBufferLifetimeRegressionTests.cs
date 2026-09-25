@@ -47,6 +47,51 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     public sealed class EccSecretBufferLifetimeRegressionTests
     {
         /// <summary>
+        /// Verifies ECC decryption uses the negotiated policy rather than the policy selected by the token header.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task EccSecretRejectsDifferentNegotiatedPolicyAsync(bool differentPolicy, bool asynchronous)
+        {
+            const string negotiatedPolicy = SecurityPolicies.ECC_nistP256;
+            string encodedPolicy = differentPolicy ? SecurityPolicies.ECC_nistP256_AesGcm : negotiatedPolicy;
+            if (!SecurityPolicies.SupportsRawEccSecretAgreement())
+            {
+                Assert.That(SecurityPolicies.Default.GetInfo(negotiatedPolicy), Is.Null);
+                return;
+            }
+            using Certificate sender = CertificateBuilder.Create("CN=Policy Sender")
+                .SetECCurve(ECCurve.NamedCurves.nistP256).CreateForECDsa();
+            using Certificate receiver = CertificateBuilder.Create("CN=Policy Receiver")
+                .SetECCurve(ECCurve.NamedCurves.nistP256).CreateForECDsa();
+            using var senderNonce = Nonce.CreateNonce(encodedPolicy);
+            using var receiverNonce = Nonce.CreateNonce(negotiatedPolicy);
+            using var issuers = new CertificateCollection();
+            IServiceMessageContext context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
+            using var encryptor = EncryptedSecret.CreateForEcc(
+                context, encodedPolicy, issuers, receiver, receiverNonce, sender, senderNonce,
+                doNotEncodeSenderCertificate: true);
+            byte[] encoded = encryptor.Encrypt(s_secret, s_nonce);
+            using var decryptor = new EncryptedSecret(
+                context, negotiatedPolicy, issuers, receiver, receiverNonce, sender, senderNonce);
+            bool success;
+            byte[] secret;
+            if (asynchronous)
+            {
+                (success, secret) = await decryptor.TryDecryptAsync(encoded, s_nonce).ConfigureAwait(false);
+            }
+            else
+            {
+                success = decryptor.TryDecrypt(encoded, s_nonce, out secret);
+            }
+            Assert.That(success, Is.EqualTo(!differentPolicy));
+            Assert.That(decryptor.SecurityPolicy.Uri, Is.EqualTo(negotiatedPolicy));
+            Assert.That(secret, differentPolicy ? Is.Null : Is.EqualTo(s_secret));
+        }
+
+        /// <summary>
         /// Verifies decryption erases derived keys and owned payload bytes without changing headers or the returned
         /// secret.
         /// </summary>

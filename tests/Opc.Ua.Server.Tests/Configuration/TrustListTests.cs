@@ -33,6 +33,7 @@ using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
@@ -89,6 +90,89 @@ namespace Opc.Ua.Server.Tests
             {
                 Directory.Delete(m_basePath, true);
             }
+        }
+
+        [Test]
+        public async Task ScopedResolverReusesStoresAndDisposesThemAsync()
+        {
+            TrustListState node = CreateNode();
+            m_trustedStore.StoreType = "ScopedTrusted";
+            m_issuerStore.StoreType = "ScopedIssuers";
+            var trusted = new Mock<ICertificateStore>();
+            var issuers = new Mock<ICertificateStore>();
+            trusted.Setup(store => store.EnumerateAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(() => new CertificateCollection());
+            issuers.Setup(store => store.EnumerateAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(() => new CertificateCollection());
+            var resolver = new Mock<ICertificateStoreResolver>(MockBehavior.Strict);
+            resolver.Setup(instance => instance.OpenCertificateStore(m_trustedStore.StorePath, "ScopedTrusted", true))
+                .Returns(trusted.Object);
+            resolver.Setup(instance => instance.OpenCertificateStore(m_issuerStore.StorePath, "ScopedIssuers", true))
+                .Returns(issuers.Object);
+            using (var trustList = new TrustList(node, m_trustedStore, m_issuerStore,
+                AllowAccess, AllowAccess, m_telemetry, null, 0, TrustList.DefaultMaxTrustListSizeSafetyCeiling,
+                resolver.Object))
+            {
+                ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
+                for (int repeat = 0; repeat < 2; repeat++)
+                {
+                    OpenWithMasksMethodStateResult result = await node.OpenWithMasks.OnCallAsync(
+                        context, node.OpenWithMasks, node.NodeId,
+                        (uint)(TrustListMasks.TrustedCertificates | TrustListMasks.IssuerCertificates),
+                        CancellationToken.None).ConfigureAwait(false);
+                    Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
+                }
+                trusted.Verify(store => store.Dispose(), Times.Never);
+                issuers.Verify(store => store.Dispose(), Times.Never);
+            }
+            resolver.Verify(instance => instance.OpenCertificateStore(
+                m_trustedStore.StorePath, "ScopedTrusted", true), Times.Once);
+            resolver.Verify(instance => instance.OpenCertificateStore(
+                m_issuerStore.StorePath, "ScopedIssuers", true), Times.Once);
+            trusted.Verify(store => store.Dispose(), Times.Once);
+            issuers.Verify(store => store.Dispose(), Times.Once);
+            trusted.Verify(store => store.EnumerateAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
+            issuers.Verify(store => store.EnumerateAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
+            resolver.VerifyNoOtherCalls();
+            Assert.That(Directory.Exists(m_basePath), Is.False);
+        }
+
+        [TestCase(TrustListMasks.TrustedCertificates)]
+        [TestCase(TrustListMasks.IssuerCertificates)]
+        public void ScopedResolverFailureDoesNotFallBackToDirectory(TrustListMasks mask)
+        {
+            TrustListState node = CreateNode();
+            CertificateStoreIdentifier identifier = mask == TrustListMasks.TrustedCertificates
+                ? m_trustedStore : m_issuerStore;
+            var resolver = new Mock<ICertificateStoreResolver>(MockBehavior.Strict);
+            var failure = new IOException("Scoped provider unavailable");
+            var trusted = new Mock<ICertificateStore>();
+            if (mask == TrustListMasks.IssuerCertificates)
+            {
+                resolver.Setup(instance => instance.OpenCertificateStore(
+                    m_trustedStore.StorePath, m_trustedStore.StoreType, true)).Returns(trusted.Object);
+            }
+            resolver.Setup(instance => instance.OpenCertificateStore(identifier.StorePath, identifier.StoreType, true))
+                .Throws(failure);
+            using var trustList = new TrustList(node, m_trustedStore, m_issuerStore,
+                AllowAccess, AllowAccess, m_telemetry, null, 0, TrustList.DefaultMaxTrustListSizeSafetyCeiling,
+                resolver.Object);
+            ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
+
+            IOException actual = Assert.ThrowsAsync<IOException>(async () =>
+                await node.OpenWithMasks.OnCallAsync(context, node.OpenWithMasks, node.NodeId,
+                    (uint)mask, CancellationToken.None).ConfigureAwait(false));
+
+            Assert.That(actual, Is.SameAs(failure));
+            resolver.Verify(instance => instance.OpenCertificateStore(
+                identifier.StorePath, identifier.StoreType, true), Times.Once);
+            if (mask == TrustListMasks.IssuerCertificates)
+            {
+                resolver.Verify(instance => instance.OpenCertificateStore(
+                    m_trustedStore.StorePath, m_trustedStore.StoreType, true), Times.Once);
+            }
+            resolver.VerifyNoOtherCalls();
+            Assert.That(Directory.Exists(m_basePath), Is.False);
         }
 
         [Test]

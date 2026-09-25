@@ -37,8 +37,12 @@ namespace Opc.Ua
     /// <summary>
     /// Represents a transaction for modifying a trust-list.
     /// Changes are staged until <see cref="CommitAsync"/> is called.
-    /// Disposing without committing rolls back all changes.
+    /// Disposing before a commit discards the staged changes.
     /// </summary>
+    /// <remarks>
+    /// The last staged operation wins for each certificate thumbprint or identical CRL encoding.
+    /// Certificate thumbprints are compared without regard to case.
+    /// </remarks>
     public interface ITrustListTransaction : IAsyncDisposable
     {
         /// <summary>
@@ -97,10 +101,14 @@ namespace Opc.Ua
         Task RemoveCrlAsync(X509CRL crl, CancellationToken ct = default);
 
         /// <summary>
-        /// Commits all staged changes atomically.
+        /// Applies all staged changes.
         /// A <c>TrustListUpdatedAuditEvent</c> should be emitted after
         /// a successful commit.
         /// </summary>
+        /// <remarks>
+        /// Required store configuration is checked before writes begin. A backing-store failure
+        /// during commit can leave partial writes; disposal does not undo already-applied changes.
+        /// </remarks>
         /// <param name="ct">Cancellation token.</param>
         Task CommitAsync(CancellationToken ct = default);
     }

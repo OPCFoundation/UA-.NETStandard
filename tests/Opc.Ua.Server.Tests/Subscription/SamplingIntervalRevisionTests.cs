@@ -42,7 +42,7 @@ namespace Opc.Ua.Server.Tests
     [Category("Subscription")]
     [Category("SamplingInterval")]
     [Parallelizable(ParallelScope.All)]
-    public class SamplingIntervalRevisionTests
+    public sealed class SamplingIntervalRevisionTests
     {
         private const double kPublishingInterval = 500;
         private const double kMinSupportedSamplingInterval = 2000;
@@ -169,7 +169,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void MaxValueSamplingIntervalIsCappedToOneYear()
+        public void MaxValueSamplingIntervalIsCappedToTimerRange()
         {
             double revised = SubscriptionManager.CalculateRevisedSamplingInterval(
                 double.MaxValue,
@@ -177,7 +177,7 @@ namespace Opc.Ua.Server.Tests
                 MinimumSamplingIntervals.Indeterminate,
                 kMinSupportedSamplingInterval);
 
-            Assert.That(revised, Is.EqualTo(365 * 24 * 3600 * 1000.0));
+            Assert.That(revised, Is.EqualTo((double)int.MaxValue));
         }
 
         [Test]
@@ -189,7 +189,22 @@ namespace Opc.Ua.Server.Tests
                 MinimumSamplingIntervals.Continuous,
                 0);
 
-            Assert.That(revised, Is.EqualTo(365 * 24 * 3600 * 1000.0));
+            Assert.That(revised, Is.EqualTo((double)int.MaxValue));
+        }
+
+        [TestCase(double.NaN, 500)]
+        [TestCase(double.PositiveInfinity, int.MaxValue)]
+        [TestCase(double.NegativeInfinity, 500)]
+        [TestCase(3_000_000_000d, int.MaxValue)]
+        [TestCase(2_147_483_648d, int.MaxValue)]
+        [TestCase(2_147_483_647d, int.MaxValue)]
+        [TestCase(2_147_483_646d, 2_147_483_646d)]
+        public void NonFiniteAndLargeRequestsProduceTimerSafeIntervals(double requested, double expected)
+        {
+            double revised = SubscriptionManager.CalculateRevisedSamplingInterval(
+                requested, 500, MinimumSamplingIntervals.Continuous, 0);
+
+            Assert.That(revised, Is.EqualTo(expected));
         }
 
         [Test]

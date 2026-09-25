@@ -46,6 +46,7 @@ using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
+using Opc.Ua.Client.Tests.Stack.Client.Fakes;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 
@@ -1594,33 +1595,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client
 
         private static ConfiguredEndpoint GetSessionEndpoint(string endpointUrl)
         {
-            var endpointConfiguration = new EndpointConfiguration
-            {
-                OperationTimeout = 6000
-            };
-            var description = new EndpointDescription
-            {
-                EndpointUrl = endpointUrl,
-                SecurityMode = MessageSecurityMode.None,
-                SecurityPolicyUri = SecurityPolicies.None,
-                TransportProfileUri = Profiles.UaTcpTransport,
-                UserIdentityTokens =
-                [
-                    new UserTokenPolicy
-                    {
-                        PolicyId = "anonymous",
-                        TokenType = UserTokenType.Anonymous,
-                        SecurityPolicyUri = SecurityPolicies.None
-                    }
-                ]
-            };
-            description.Server.ApplicationUri = endpointUrl;
-            description.Server.ApplicationType = ApplicationType.Server;
-
-            return new ConfiguredEndpoint(null, description, endpointConfiguration)
-            {
-                UpdateBeforeConnect = false
-            };
+            return SessionChannelHarness.CreateEndpoint(endpointUrl);
         }
 
         private static KeyValuePair<string, object?> Tag(string key, object? value)
@@ -1676,330 +1651,6 @@ namespace Opc.Ua.Client.Tests.Stack.Client
         }
 
         public interface IChannel : ITransportChannel, ISecureChannel;
-
-        private sealed class SessionChannelHarness : IAsyncDisposable
-        {
-            public SessionChannelHarness()
-            {
-                ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-                Configuration = CreateConfiguration(telemetry);
-                m_bindings = new Mock<ITransportChannelBindings>();
-                m_bindings.Setup(b => b.Create(It.IsAny<string>(), It.IsAny<ITelemetryContext>()))
-                    .Returns((string _, ITelemetryContext context) => CreateManagedChannel(context));
-                Manager = new ClientChannelManager(
-                    Configuration,
-                    telemetry,
-                    m_bindings.Object,
-                    new ExponentialBackoffChannelReconnectPolicy
-                    {
-                        MinDelay = TimeSpan.Zero,
-                        MaxDelay = TimeSpan.Zero,
-                        MaxAttempts = 1
-                    });
-            }
-
-            public ApplicationConfiguration Configuration { get; }
-
-            public ClientChannelManager Manager { get; }
-
-            public List<ScriptedChannel> CreatedChannels { get; } = [];
-
-            public async ValueTask DisposeAsync()
-            {
-                await Manager.DisposeAsync().ConfigureAwait(false);
-            }
-
-            public Task<Session> CreateSessionAsync(ConfiguredEndpoint endpoint)
-            {
-                return Session.CreateAsync(
-                    Manager,
-                    Configuration,
-                    endpoint,
-                    updateBeforeConnect: false,
-                    checkDomain: false,
-                    sessionName: "ClientChannelManagerManagedTests",
-                    sessionTimeout: 60000,
-                    identity: new UserIdentity(),
-                    ct: default);
-            }
-
-            public ScriptedChannel CreateOpenedStandaloneChannel(ConfiguredEndpoint endpoint)
-            {
-                var channel = new ScriptedChannel(Configuration.CreateMessageContext());
-                channel.OpenForEndpoint(endpoint);
-                return channel;
-            }
-
-            private static ApplicationConfiguration CreateConfiguration(ITelemetryContext telemetry)
-            {
-                return new ApplicationConfiguration(telemetry)
-                {
-                    ApplicationName = "ClientChannelManagerManagedTests",
-                    ApplicationType = ApplicationType.Client,
-                    ApplicationUri = "urn:localhost:ClientChannelManagerManagedTests",
-                    ProductUri = "urn:localhost:ClientChannelManagerManagedTests",
-                    ClientConfiguration = new ClientConfiguration
-                    {
-                        DefaultSessionTimeout = 60000,
-                        MinSubscriptionLifetime = 10000
-                    },
-                    TransportQuotas = new TransportQuotas
-                    {
-                        OperationTimeout = 6000,
-                        MaxMessageSize = 1_048_576,
-                        MaxStringLength = 1_048_576,
-                        MaxByteStringLength = 1_048_576,
-                        MaxArrayLength = 65_535
-                    }
-                };
-            }
-
-            private ITransportChannel CreateManagedChannel(ITelemetryContext telemetry)
-            {
-                var channel = new ScriptedChannel(Configuration.CreateMessageContext(), telemetry);
-                CreatedChannels.Add(channel);
-                return channel.Channel;
-            }
-
-            private readonly Mock<ITransportChannelBindings> m_bindings;
-        }
-
-        private sealed class ScriptedChannel
-        {
-            public ScriptedChannel(IServiceMessageContext messageContext, ITelemetryContext? telemetry = null)
-            {
-                m_messageContext = messageContext;
-                Mock = new Mock<IChannel>();
-                Mock.Setup(c => c.SupportedFeatures).Returns(() => SupportedFeatures);
-                Mock.Setup(c => c.EndpointDescription).Returns(() => m_description);
-                Mock.Setup(c => c.EndpointConfiguration).Returns(() => m_endpointConfiguration);
-                Mock.Setup(c => c.MessageContext).Returns(m_messageContext);
-                Mock.Setup(c => c.ChannelThumbprint).Returns([]);
-                Mock.Setup(c => c.ClientChannelCertificate).Returns([]);
-                Mock.Setup(c => c.ServerChannelCertificate).Returns([]);
-                Mock.Setup(c => c.OperationTimeout).Returns(() => m_operationTimeout);
-                Mock.SetupSet(c => c.OperationTimeout = It.IsAny<int>())
-                    .Callback<int>(value => m_operationTimeout = value);
-                Mock.Setup(c => c.CurrentToken).Returns((ChannelToken?)null);
-                Mock.Setup(c => c.OpenAsync(
-                        It.IsAny<Uri>(),
-                        It.IsAny<TransportChannelSettings>(),
-                        It.IsAny<CancellationToken>()))
-                    .Returns<Uri, TransportChannelSettings, CancellationToken>(OpenAsync);
-                Mock.Setup(c => c.OpenAsync(
-                        It.IsAny<ITransportWaitingConnection>(),
-                        It.IsAny<TransportChannelSettings>(),
-                        It.IsAny<CancellationToken>()))
-                    .Returns<ITransportWaitingConnection, TransportChannelSettings, CancellationToken>(
-                        OpenReverseAsync);
-                Mock.Setup(c => c.ReconnectAsync(
-                        It.IsAny<ITransportWaitingConnection?>(),
-                        It.IsAny<CancellationToken>()))
-                    .Returns<ITransportWaitingConnection?, CancellationToken>(ReconnectAsync);
-                Mock.Setup(c => c.SendRequestAsync(
-                        It.IsAny<IServiceRequest>(),
-                        It.IsAny<CancellationToken>()))
-                    .Returns<IServiceRequest, CancellationToken>(SendRequestAsync);
-                Mock.Setup(c => c.CloseAsync(It.IsAny<CancellationToken>()))
-                    .Returns<CancellationToken>(CloseAsync);
-                Mock.Setup(c => c.Dispose()).Callback(() => DisposeCount++);
-                _ = telemetry;
-            }
-
-            public Mock<IChannel> Mock { get; }
-
-            public ITransportChannel Channel => Mock.Object;
-
-            public TransportChannelFeatures SupportedFeatures { get; set; }
-
-            public int CloseCount { get; private set; }
-
-            public int DisposeCount { get; private set; }
-
-            public int ReconnectCount { get; private set; }
-
-            public int SendRequestCount { get; private set; }
-
-            public string? OpenedEndpointUrl { get; private set; }
-
-            public void OpenForEndpoint(ConfiguredEndpoint endpoint)
-            {
-                m_description = endpoint.Description;
-                m_endpointConfiguration = endpoint.Configuration!;
-                OpenedEndpointUrl = endpoint.Description.EndpointUrl;
-            }
-
-            private ValueTask OpenAsync(
-                Uri uri,
-                TransportChannelSettings settings,
-                CancellationToken ct)
-            {
-                _ = uri;
-                _ = ct;
-                OpenWithSettings(settings);
-                return new ValueTask();
-            }
-
-            private ValueTask OpenReverseAsync(
-                ITransportWaitingConnection connection,
-                TransportChannelSettings settings,
-                CancellationToken ct)
-            {
-                _ = connection;
-                _ = ct;
-                OpenWithSettings(settings);
-                return new ValueTask();
-            }
-
-            private ValueTask ReconnectAsync(
-                ITransportWaitingConnection? connection,
-                CancellationToken ct)
-            {
-                _ = connection;
-                _ = ct;
-                ReconnectCount++;
-                return new ValueTask();
-            }
-
-            private ValueTask<IServiceResponse> SendRequestAsync(
-                IServiceRequest request,
-                CancellationToken ct)
-            {
-                _ = ct;
-                SendRequestCount++;
-                return new ValueTask<IServiceResponse>(CreateResponse(request));
-            }
-
-            private ValueTask CloseAsync(CancellationToken ct)
-            {
-                _ = ct;
-                CloseCount++;
-                return new ValueTask();
-            }
-
-            private void OpenWithSettings(TransportChannelSettings settings)
-            {
-                EndpointDescription description = settings.Description
-                    ?? throw new InvalidOperationException("Transport settings do not include an endpoint.");
-                EndpointConfiguration endpointConfiguration = settings.Configuration
-                    ?? throw new InvalidOperationException("Transport settings do not include endpoint configuration.");
-
-                m_description = description;
-                m_endpointConfiguration = endpointConfiguration;
-                OpenedEndpointUrl = description.EndpointUrl;
-            }
-
-            private IServiceResponse CreateResponse(IServiceRequest request)
-            {
-                return request switch
-                {
-                    CreateSessionRequest => CreateSessionResponse(),
-                    ActivateSessionRequest => CreateActivateSessionResponse(),
-                    ReadRequest readRequest => CreateReadResponse(readRequest),
-                    CloseSessionRequest => new CloseSessionResponse { ResponseHeader = CreateGoodHeader() },
-                    _ => throw ServiceResultException.Create(
-                        StatusCodes.BadServiceUnsupported,
-                        "Unexpected request type {0}.",
-                        request.GetType().Name)
-                };
-            }
-
-            private CreateSessionResponse CreateSessionResponse()
-            {
-                m_sessionCounter++;
-                string suffix = m_sessionCounter.ToString(CultureInfo.InvariantCulture);
-                return new CreateSessionResponse
-                {
-                    ResponseHeader = CreateGoodHeader(),
-                    SessionId = new NodeId($"session-{suffix}", 1),
-                    AuthenticationToken = new NodeId($"token-{suffix}", 1),
-                    RevisedSessionTimeout = 60000,
-                    ServerNonce = ByteString.Empty,
-                    ServerCertificate = ByteString.Empty,
-                    ServerSignature = new SignatureData(),
-                    ServerEndpoints = [m_description],
-                    MaxRequestMessageSize = 1_048_576
-                };
-            }
-
-            private static ActivateSessionResponse CreateActivateSessionResponse()
-            {
-                return new ActivateSessionResponse
-                {
-                    ResponseHeader = CreateGoodHeader(),
-                    ServerNonce = ByteString.Empty,
-                    Results = [],
-                    DiagnosticInfos = []
-                };
-            }
-
-            private static ReadResponse CreateReadResponse(ReadRequest request)
-            {
-                return new ReadResponse
-                {
-                    ResponseHeader = CreateGoodHeader(),
-                    Results = CreateReadResults(request),
-                    DiagnosticInfos = []
-                };
-            }
-
-            private static ResponseHeader CreateGoodHeader()
-            {
-                return new ResponseHeader
-                {
-                    ServiceResult = StatusCodes.Good,
-                    Timestamp = DateTime.UtcNow
-                };
-            }
-
-            private static ArrayOf<DataValue> CreateReadResults(ReadRequest request)
-            {
-                int count = request.NodesToRead.Count;
-                if (count == 1 &&
-                    Equals(request.NodesToRead[0].NodeId, VariableIds.Server_ServerStatus_State))
-                {
-                    return [CreateDataValue(new Variant((int)ServerState.Running))];
-                }
-
-                if (count == 2)
-                {
-                    return
-                    [
-                        CreateDataValue(new Variant(ArrayOf.Wrapped(Namespaces.OpcUa))),
-                        CreateDataValue(new Variant(ArrayOf.Wrapped("urn:localhost:server")))
-                    ];
-                }
-
-                var values = new DataValue[count];
-                for (int index = 0; index < count; index++)
-                {
-                    if (count > 1 && index is 12 or 13 or 14)
-                    {
-                        values[index] = CreateDataValue(new Variant((ushort)0));
-                    }
-                    else if (count > 1 && index == 18)
-                    {
-                        values[index] = CreateDataValue(new Variant(0d));
-                    }
-                    else
-                    {
-                        values[index] = CreateDataValue(new Variant(0u));
-                    }
-                }
-                return new ArrayOf<DataValue>(values);
-            }
-
-            private static DataValue CreateDataValue(Variant value)
-            {
-                return new DataValue(value, StatusCodes.Good);
-            }
-
-            private readonly IServiceMessageContext m_messageContext;
-            private EndpointDescription m_description = new();
-            private EndpointConfiguration m_endpointConfiguration = new();
-            private int m_operationTimeout;
-            private int m_sessionCounter;
-        }
 
         private sealed class ChannelActivityListener : IDisposable
         {
@@ -2183,6 +1834,12 @@ namespace Opc.Ua.Client.Tests.Stack.Client
             public ConfiguredEndpoint Endpoint { get; }
             public int NotificationCount => Volatile.Read(ref m_notificationCount);
 
+            /// <inheritdoc/>
+            public IRetryBudget? CreateReconnectBudget(TimeProvider timeProvider)
+            {
+                return null;
+            }
+
             public ValueTask<ParticipantReconnectResult> OnReconnectAsync(
                 IManagedTransportChannel channel,
                 int reconnectAttempt,
@@ -2266,7 +1923,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                 return completion.Task;
             }
 
-            private readonly System.Threading.Lock m_lock = new();
+            private readonly Lock m_lock = new();
             private readonly List<(int Target, TaskCompletionSource<bool> Completion)> m_waiters = [];
             private int m_timerCount;
         }

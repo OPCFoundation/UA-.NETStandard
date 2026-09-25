@@ -62,14 +62,18 @@ namespace Opc.Ua
     {
         private readonly CertificateCache m_cache;
         private readonly ITelemetryContext m_telemetry;
+        private readonly ICertificateStoreResolver? m_storeResolver;
         private int m_disposed;
 
         /// <summary>
         /// Creates a new provider with a private cache.
         /// </summary>
-        public CertificateProvider(ITelemetryContext telemetry)
+        public CertificateProvider(
+            ITelemetryContext telemetry,
+            ICertificateStoreResolver? storeResolver = null)
         {
             m_telemetry = telemetry;
+            m_storeResolver = storeResolver;
             m_cache = new CertificateCache(telemetry);
         }
 
@@ -119,7 +123,7 @@ namespace Opc.Ua
 
             // Cold-path: load from the underlying store and write back.
             Certificate? loaded = await CertificateIdentifierResolver
-                .LoadPrivateKeyAsync(identifier, passwordProvider, applicationUri, m_telemetry, ct)
+                .LoadPrivateKeyCoreAsync(identifier, passwordProvider, applicationUri, m_telemetry, m_storeResolver, ct)
                 .ConfigureAwait(false);
 
             if (loaded != null && loaded.HasPrivateKey && !string.IsNullOrEmpty(loaded.Thumbprint))

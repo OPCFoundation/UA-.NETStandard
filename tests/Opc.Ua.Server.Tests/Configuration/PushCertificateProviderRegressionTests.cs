@@ -240,6 +240,69 @@ namespace Opc.Ua.Server.Tests
                 Times.Never);
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CommittedCertificateRetainsPrivateKeyBeforeDeferredReloadAsync(bool emptySlot)
+        {
+            using Harness harness = await CreateHarnessAsync(
+                new InMemoryPendingCertificateKeyStore(), new AdditionalEntropyCertificateKeyGenerator())
+                .ConfigureAwait(false);
+            ITelemetryContext telemetry = m_fixture.Server.CurrentInstance.Telemetry;
+            using var registry = new CertificateManager(telemetry);
+            if (emptySlot)
+            {
+                using ICertificateStore store = new CertificateStoreIdentifier(
+                    harness.Identifier.StorePath, harness.Identifier.StoreType, noPrivateKeys: false)
+                    .OpenStore(telemetry);
+                Assert.That(await store.DeleteAsync(harness.Identifier.Thumbprint).ConfigureAwait(false), Is.True);
+                harness.Identifier.Thumbprint = null;
+            }
+            harness.Configuration.CertificateManager = registry;
+            await registry.UpdateAsync(
+                harness.Configuration.SecurityConfiguration, harness.Configuration.ApplicationUri)
+                .ConfigureAwait(false);
+            harness.Manager.ApplyChangesGracePeriod = TimeSpan.FromHours(1);
+
+            using Certificate replacement = DefaultCertificateFactory.Instance.CreateApplicationCertificate(
+                harness.Configuration.ApplicationUri, harness.Configuration.ApplicationName,
+                harness.Identifier.SubjectName, ["localhost"])
+                .CreateForRSA();
+            try
+            {
+                ServerConfigurationState node = harness.Node;
+                UpdateCertificateMethodStateResult updated = await node.UpdateCertificate.OnCallAsync(
+                    m_context, node.UpdateCertificate, node.NodeId,
+                    ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
+                    ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                    new ByteString(replacement.RawData), [], "PFX",
+                    new ByteString(
+                        replacement.Export(System.Security.Cryptography.X509Certificates.X509ContentType.Pfx)),
+                    CancellationToken.None).ConfigureAwait(false);
+                Assert.That(updated.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                ServiceResult applied = await node.ApplyChanges.OnCallMethod2Async(
+                    m_context, node.ApplyChanges, node.NodeId, [], [], CancellationToken.None).ConfigureAwait(false);
+                Assert.That(applied.StatusCode, Is.EqualTo(StatusCodes.Good));
+
+                using CertificateEntry installed = registry.AcquireApplicationCertificateByType(
+                    ObjectTypeIds.RsaSha256ApplicationCertificateType);
+                Assert.That(installed, Is.Not.Null);
+                Assert.That(installed.Certificate.RawData, Is.EqualTo(replacement.RawData));
+                Assert.That(installed.Certificate.HasPrivateKey, Is.True);
+                using RSA privateKey = installed.Certificate.GetRSAPrivateKey();
+                using RSA publicKey = replacement.GetRSAPublicKey();
+                byte[] hash = new byte[32];
+                byte[] signature = privateKey.SignHash(hash, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+                Assert.That(publicKey.VerifyHash(hash, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1),
+                    Is.True);
+            }
+            finally
+            {
+                harness.Manager.Dispose();
+                await harness.Manager.DrainPendingApplyChangesAsync().WaitAsync(TimeSpan.FromSeconds(30))
+                    .ConfigureAwait(false);
+            }
+        }
+
         /// <summary>
         /// Verifies that regeneration resolves an omitted subject from storage before creating a distinct pending key.
         /// </summary>

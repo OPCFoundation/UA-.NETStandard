@@ -154,6 +154,33 @@ namespace Opc.Ua
         protected abstract NodeState CreateCopy();
 
         /// <summary>
+        /// Whether a requested optional child still needs its declaration defaults.
+        /// </summary>
+        /// <param name="child">The requested optional child.</param>
+        protected static bool NeedsOptionalInitialization(BaseInstanceState child)
+        {
+            return !child.m_initializedFromSource && !child.IsCreated;
+        }
+
+        /// <summary>
+        /// Clones a child and assigns the copy to its new parent.
+        /// </summary>
+        /// <typeparam name="TChild">The child state type.</typeparam>
+        /// <param name="child">The child to copy, if present.</param>
+        /// <param name="parent">The parent of the copied child.</param>
+        protected static TChild? CloneChild<TChild>(TChild? child, NodeState parent)
+            where TChild : BaseInstanceState
+        {
+            if (child == null)
+            {
+                return null;
+            }
+            var copy = (TChild)child.Clone();
+            copy.Parent = parent;
+            return copy;
+        }
+
+        /// <summary>
         /// Copy all state to the target node state. This performs
         /// the actual deep copy of the node state.
         /// </summary>
@@ -192,7 +219,7 @@ namespace Opc.Ua
                 target.m_children = new List<BaseInstanceState>(children.Count);
                 for (int ii = 0; ii < children.Count; ii++)
                 {
-                    var child = (BaseInstanceState)children[ii].Clone();
+                    BaseInstanceState child = CloneChild(children[ii], target)!;
                     target.m_children.Add(child);
                 }
             }
@@ -209,6 +236,7 @@ namespace Opc.Ua
             // the source instead of the bits the property setters and
             // AddReferences above raise.
             target.m_changeMasks = m_changeMasks;
+            target.m_initializedFromSource = m_initializedFromSource;
         }
 
         /// <summary>
@@ -259,6 +287,7 @@ namespace Opc.Ua
         protected virtual void Initialize(ISystemContext context)
         {
             Initialize(context.Telemetry);
+            m_initializedFromSource = false;
 
             // defined by subclass.
         }
@@ -327,6 +356,7 @@ namespace Opc.Ua
         protected virtual void Initialize(ISystemContext context, NodeState source)
         {
             Initialize(context.Telemetry);
+            m_initializedFromSource = false;
 
             Handle = source.Handle;
             SymbolicName = source.SymbolicName;
@@ -381,6 +411,7 @@ namespace Opc.Ua
                 IReference reference = references[ii];
                 AddReference(reference.ReferenceTypeId, reference.IsInverse, reference.TargetId);
             }
+            m_initializedFromSource = true;
         }
 
         /// <summary>
@@ -3624,6 +3655,7 @@ namespace Opc.Ua
             OnAfterDelete(context);
 
             IsCreated = false;
+            m_initializedFromSource = false;
             ChangeMasks = NodeStateChangeMasks.Deleted;
             ClearChangeMasks(context, false);
         }
@@ -6609,6 +6641,8 @@ namespace Opc.Ua
         /// Indicates what has changed in the node.
         /// </summary>
         protected NodeStateChangeMasks m_changeMasks;
+
+        private bool m_initializedFromSource;
 
         /// <summary>Lazily published; see <see cref="GetOrCreateNotifiersLock"/>.</summary>
         private Lock? m_notifiersLock;

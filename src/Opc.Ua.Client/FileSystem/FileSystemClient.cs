@@ -917,23 +917,20 @@ namespace Opc.Ua.Client.FileSystem
             };
         }
 
-        // ----------------------------------------------------------------
-        // Internals
-        // ----------------------------------------------------------------
-
         private async ValueTask<UaFileInfo> GetOrCreateFileAsync(string path, CancellationToken ct)
         {
             UaFileSystemInfo? existing = await GetInfoAsync(path, ct).ConfigureAwait(false);
-            if (existing is UaFileInfo file)
+            if (existing is not UaFileInfo file)
             {
-                return file;
+                if (existing is UaDirectoryInfo)
+                {
+                    throw new IOException(
+                        $"Cannot write to '{path}': path refers to a directory.");
+                }
+                file = await CreateFileAsync(path, true, ct).ConfigureAwait(false);
             }
-            if (existing is UaDirectoryInfo)
-            {
-                throw new IOException(
-                    $"Cannot write to '{path}': path refers to a directory.");
-            }
-            return await CreateFileAsync(path, true, ct).ConfigureAwait(false);
+            await file.RefreshAsync(ct).ConfigureAwait(false);
+            return file;
         }
 
         private async ValueTask<ResolvedNode?> ResolveSegmentsAsync(

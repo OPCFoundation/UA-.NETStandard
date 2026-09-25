@@ -1235,8 +1235,9 @@ namespace Opc.Ua.Server
                     .SecurityConfiguration
                     .CertificatePasswordProvider;
                 certWithPrivateKey = await CertificateIdentifierResolver
-                    .LoadPrivateKeyAsync(
+                    .LoadPrivateKeyWithStoreResolverAsync(
                         existingCertIdentifier,
+                        m_configuration.CertificateManager as ICertificateStoreResolver,
                         passwordProvider,
                         m_configuration.ApplicationUri,
                         Server.Telemetry,

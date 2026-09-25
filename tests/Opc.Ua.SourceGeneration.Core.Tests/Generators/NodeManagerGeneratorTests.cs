@@ -242,7 +242,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 "await RegisterAuthoredNodesAsync(__m_builder, cancellationToken)",
                 StringComparison.Ordinal);
             int idxBase = mgr.IndexOf(
-                "await base.CreateAddressSpaceAsync(",
+                "await LoadPredefinedNodesAsync(SystemContext, externalReferences, cancellationToken)",
                 StringComparison.Ordinal);
             Assert.That(idxConfigureAsync, Is.GreaterThan(idxBase),
                 "ConfigureAsync must run after the predefined nodes are loaded");

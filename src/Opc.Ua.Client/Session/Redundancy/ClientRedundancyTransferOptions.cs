@@ -46,6 +46,8 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// The active client's session name used to find its session diagnostics.
+        /// The backup session is excluded. If multiple other sessions share this
+        /// name, discovery fails; specify <see cref="ActiveSessionId"/> instead.
         /// </summary>
         public string ActiveSessionName { get; init; } = string.Empty;
 

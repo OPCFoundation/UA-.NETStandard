@@ -436,6 +436,12 @@ namespace Opc.Ua.Client.FileSystem
                 }
                 return total;
             }
+            catch
+            {
+                // The server may have advanced its cursor before the reply was lost.
+                m_serverPosition = -1;
+                throw;
+            }
             finally
             {
                 m_lock.Release();
@@ -485,6 +491,12 @@ namespace Opc.Ua.Client.FileSystem
                         m_length = m_position;
                     }
                 }
+            }
+            catch
+            {
+                // A failed call does not prove that the server left the cursor unchanged.
+                m_serverPosition = -1;
+                throw;
             }
             finally
             {

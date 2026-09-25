@@ -52,6 +52,37 @@ await manager.LoadApplicationCertificatesAsync(securityConfiguration);
 
 The `CertificateManager` is also automatically initialized by `ServerBase` and `ApplicationInstance` during startup.
 
+#### Instance-scoped store resolution
+
+`CertificateManager` also implements the optional `ICertificateStoreResolver` capability.
+This interface is separate from `ICertificateManager`, so existing custom manager implementations
+do not acquire a new required member. A resolver opens stores through the providers registered on
+that manager; it does not register them globally or substitute another store after a provider fails.
+The caller owns and disposes the returned store. Trust-store access defaults to `noPrivateKeys: true`;
+application identity operations explicitly request private-key access.
+
+For identifier-based private-key loading, pass the manager's resolver capability:
+
+```csharp
+using Certificate? certificate = await CertificateIdentifierResolver.LoadPrivateKeyWithStoreResolverAsync(
+    identifier,
+    configuration.CertificateManager as ICertificateStoreResolver,
+    configuration.SecurityConfiguration.CertificatePasswordProvider,
+    configuration.ApplicationUri,
+    telemetry,
+    cancellationToken).ConfigureAwait(false);
+```
+
+A null resolver preserves the existing built-in store lookup. An injected resolver's exceptions
+propagate without falling back to Directory. The lookup retains the password, cancellation token,
+and thumbprint/subject/application-URI rotation fallbacks of `LoadPrivateKeyAsync`.
+
+Configuration validation, manager startup loading, the certificate-provider cache cold path and
+`ApplicationInstance` provisioning/reload/deletion use this capability when available. The existing-key
+GDS signing-request path and server-hosted `TrustList` access use it as well. Direct `TrustList` hosts
+can use the overload accepting `ICertificateStoreResolver`; existing constructors retain their behavior.
+Provider routing does not change trust acceptance, GDS access controls or transaction semantics.
+
 #### Validating Certificates
 
 ```csharp
@@ -95,6 +126,20 @@ listed issuers. The manager snapshots the configuration; call `UpdateAsync`
 to replace those snapshots and invalidate cached validation results.
 An explicit-only list can validate certificates without a `StorePath`;
 store-management operations still require a configured backing store.
+
+Set `CertificateValidationOptions.RecordRejectedCertificates = false` for
+re-evaluating an existing connection without adding failures to the rejected
+store. This changes only the recording side effect, not the trust decision.
+New-connection validation records rejected certificates by default.
+An admitted validation preserves its result, including URI and hostname errors,
+if the manager shuts down before rejected-store recording can begin. Recording
+is skipped once shutdown closes writer admission; explicitly requesting
+`RejectCertificateAsync` after disposal still fails.
+
+Concatenated certificate blobs are framed by their outer DER sequences, with at
+most 16 certificates. Framing does not interpret the signature algorithm;
+native import and certificate validation determine whether each certificate is
+supported and acceptable, including PSS and EdDSA signatures.
 
 **Inline issuer revocation policy:** when an inline issuer's list has a backing
 store that checks CRLs, `RejectUnknownRevocationStatus = true` rejects
@@ -167,6 +212,29 @@ await manager.UpdateApplicationCertificateAsync(
     issuerChain);
 ```
 
+Certificate-change notifications borrow their certificate and issuer-chain
+handles for the synchronous notification. An observer that queues work must
+take independent references before returning and release them after processing.
+The built-in client rotation pump does this for pending, replaced and processed
+notifications.
+
+#### Certificates for SecurityMode None
+
+On `SecurityMode.None` endpoints, encrypted username or issued-token policies
+use an RSA application certificate compatible with every advertised encrypted
+token policy. The selected certificate is also used for `CreateSession`, restored-session certificate
+resolution and certificate-deletion protection. An ECC-first application
+certificate list does not change this selection.
+Generic RSA-family certificate types, including `ApplicationCertificateType`,
+are accepted only when the certificate has an actual RSA public key within every
+applicable token policy's key-size bounds.
+
+An unspecified encrypted token policy defaults to `Basic256Sha256`. If no
+compatible RSA certificate exists, the server omits that policy and logs a
+configuration error; it never substitutes ECC or RSA_DH on a None endpoint.
+Anonymous, X.509 and explicitly unencrypted token policies retain their existing
+semantics. This follows [OPC 10000-4, 7.41](https://reference.opcfoundation.org/specs/OPC-10000-4/7.41.md).
+
 #### Server-Side Certificate Rotation via Push (OPC UA Part 12 §7.10.9)
 
 When a client rotates a server's application certificate through the standard `ServerConfiguration.UpdateCertificate` + `ServerConfiguration.ApplyChanges` push flow, the server must — once the `ApplyChanges` response has been delivered — force the SecureChannels that were negotiated against the old certificate to renegotiate. The session (and any subscriptions) stay alive so the client's reconnect logic can transfer them onto a fresh channel.
@@ -177,6 +245,10 @@ The stack implements this contract in two pieces:
 2. **`ITransportListenerCertificateRotation`** is an optional capability interface on `ITransportListener`. `TcpTransportListener` implements it by thumbprint-matching the per-channel `ServerCertificate` and force-closing only affected channels (listener socket stays bound). `HttpsTransportListener` implements it by cycling its Kestrel host (`Stop()` + `Start()`).
 
 Tests and hosts that need deterministic timing can await the deferred work via `IConfigurationNodeManager.DrainPendingApplyChangesAsync(CancellationToken)`.
+
+The commit installs the key-bearing certificate in the live registry before
+that deferred reload. Signing and token decryption can use the new key during
+the response-flush grace period, including when the commit fills an empty slot.
 
 Custom transport listeners opt into the renegotiate hook by implementing the capability interface:
 
@@ -207,6 +279,20 @@ Server-base subclasses that want to observe rotation in custom ways can still su
 
 The effect fan-out runs after the same grace/flush boundary as certificate rotation and is awaitable through `IConfigurationNodeManager.DrainPendingApplyChangesAsync(CancellationToken)`.
 
+Both TCP listeners retain the complete peer chain validated at
+`OpenSecureChannel`, including intermediates supplied only by the client.
+Their `ITransportListenerPeerCertificateChainRotation` capability passes an
+owned chain snapshot to `CloseChannelsForUntrustedPeerChainsAsync`. The default
+effect handler prefers this capability and validates without writing to the
+rejected store. An unrelated trust addition therefore does not misclassify a
+peer whose intermediate is absent from the server's issuer store; removal of
+its trust anchor still closes the affected channel.
+
+Custom transports should implement the chain-aware capability when peers can
+supply intermediates. The leaf-only capability below remains supported as a
+compatibility fallback. A chain snapshot must remain alive until its predicate
+finishes, even if the channel closes concurrently.
+
 Two seams make this behaviour injectable and testable:
 
 1. **`ITransportListenerPeerCertificateRotation`** — an optional capability interface on `ITransportListener` (sibling to `ITransportListenerCertificateRotation`). Each implementing listener advertises the single TrustList scope it validates its peer certificates against through `PeerCertificateTrustListScope`, and a committed change is routed to it **only** when the change targets that scope — so an `opc.tcp` listener is never re-validated or closed against the HTTPS store, and vice versa. Both `opc.tcp` listeners — the raw-socket `TcpTransportListener` and the Kestrel-hosted `KestrelTcpTransportListener` — implement it with the `Peers` scope, re-validating each tracked channel's client certificate through a caller-supplied async predicate and force-closing only the channels that fail (listener socket stays bound). The UA-HTTPS listener deliberately does **not** implement this capability (see the HTTPS bullet above). Custom transports opt in the same way:
@@ -231,6 +317,8 @@ Two seams make this behaviour injectable and testable:
    ```
 
 2. **`IPushConfigurationTrustListEffectHandler`** — the injectable provider that performs the two effects above. `ConfigurationNodeManager` builds a `PushConfigurationTrustListEffectContext` (the committed effects plus the live transport listeners, session manager, certificate validator and a session-close delegate) and dispatches it to the handler after the grace boundary. A default `PushConfigurationTrustListEffectHandler` is created automatically; hosts can register their own through DI (`services.TryAddSingleton<IPushConfigurationTrustListEffectHandler, ...>()`) or pass one to `MainNodeManagerFactory` / `ConfigurationNodeManager` directly.
+
+The default handler's SecureChannel renegotiation summary logs only the aggregate number of affected channels, not their identifiers or certificate contents.
 
 #### Origin-Independent Enforcement of Trust-Material Changes
 
@@ -362,7 +450,7 @@ times out. Partial TrustList commits use the same policy to restore their
 stores. Rollback failures are reported explicitly and do not replace the
 original commit failure with success.
 
-`DeleteCertificate`'s endpoint-reference safety check (§7.10.7: "Certificates that are referenced by EndpointDescriptions shall not be deleted. This determination happens when ApplyChanges is called.") resolves the exact certificate each active `EndpointDescription` presents **from the active certificate registry** — keyed by the endpoint's `SecurityPolicyUri`, exactly as the channel handshake resolves the presented certificate — and rejects the transaction with `Bad_InvalidState` at `ApplyChanges` if the deleted certificate is still referenced. Resolving from the live registry (rather than the `EndpointDescription.ServerCertificate` blob captured when the endpoints were created) ensures a certificate that was rotated after startup is still protected. A delete that is superseded within the same transaction by a `CreateSelfSignedCertificate`/`UpdateCertificate` for the same slot coalesces to the later operation (§7.10.2 ordered-queue semantics), so replacing a referenced certificate in one transaction remains allowed. A conservative net "last remaining certificate" check still runs at staging time for immediate feedback.
+`DeleteCertificate`'s endpoint-reference safety check (§7.10.7: "Certificates that are referenced by EndpointDescriptions shall not be deleted. This determination happens when ApplyChanges is called.") resolves the exact certificate each active `EndpointDescription` presents **from the active certificate registry**, using its security policy and, on None endpoints, its encrypted user-token policies. It rejects the transaction with `Bad_InvalidState` at `ApplyChanges` if the deleted certificate is still referenced. Resolving from the live registry (rather than the `EndpointDescription.ServerCertificate` blob captured when the endpoints were created) ensures a certificate that was rotated after startup is still protected. A delete that is superseded within the same transaction by a `CreateSelfSignedCertificate`/`UpdateCertificate` for the same slot coalesces to the later operation (§7.10.2 ordered-queue semantics), so replacing a referenced certificate in one transaction remains allowed. A conservative net "last remaining certificate" check still runs at staging time for immediate feedback.
 
 #### Certificate-Expiration and TrustList-Staleness Alarms (OPC UA Part 12 §7.8.3)
 
@@ -454,6 +542,10 @@ owns the standard concerns and only delegates the actual reset to the injected
   credentials may no longer work, waits the grace period, and only then invokes
   the provider. The deferred reset honors the server shutdown token, so a server
   that stops while the reset is pending abandons it cleanly.
+- Coalesces concurrent reset requests. Once an in-place reset finishes, fails,
+  or is cancelled by the provider, the previous status and shutdown fields are
+  restored before the reset completes. A real server shutdown or a subsequent
+  fault state is never replaced by that restoration.
 
 ```csharp
 public sealed class MyResetProvider : IServerConfigurationResetProvider
@@ -642,18 +734,25 @@ manager.RegisterTrustList(
 using ICertificateStore trustedStore = manager.OpenTrustedStore(TrustListIdentifier.Peers);
 using CertificateCollection certs = await trustedStore.EnumerateAsync();
 
-// Transactional trust-list update (atomic commit/rollback)
+// Stage a trust-list update
 await using ITrustListTransaction tx = await manager.BeginUpdateAsync(TrustListIdentifier.Peers);
 await tx.AddTrustedCertificateAsync(newTrustedCert);
 await tx.RemoveTrustedCertificateAsync(oldThumbprint);
-await tx.CommitAsync();  // Atomic apply; disposing without commit rolls back
+await tx.CommitAsync();  // Disposing before commit discards staged changes
 
 // Read/write trust-list as a blob (GDS Push Management)
 TrustListData data = await manager.ReadTrustListAsync(TrustListIdentifier.Peers);
 await manager.WriteTrustListAsync(TrustListIdentifier.Peers, data);
 ```
 
-> **Note:** `ITrustListTransaction`/`BeginUpdateAsync` above is a local, in-process API on `CertificateManager` for application code that wants an atomic trust-list edit. It is unrelated to the OPC UA PushManagement transaction model (`ApplyChanges`/`CancelChanges`, see *PushManagement Transactions* above), which is driven remotely by a Client over the `ServerConfiguration` address space and governs `TrustList`/`ServerConfiguration` Methods called through `ConfigurationNodeManager`.
+The last staging operation wins for each trusted/issuer certificate thumbprint
+(case-insensitive) and each identical CRL encoding. Remove-then-add performs a
+real replacement, including when the certificate is already present. Required
+issuer-store configuration is checked before any trusted-certificate or CRL
+write. A later backing-store failure can still leave partial writes; affected
+validation caches are invalidated in that case.
+
+> **Note:** `ITrustListTransaction`/`BeginUpdateAsync` above is a local, in-process staging API on `CertificateManager`. It is unrelated to the OPC UA PushManagement transaction model (`ApplyChanges`/`CancelChanges`, see *PushManagement Transactions* above), which is driven remotely by a Client over the `ServerConfiguration` address space and governs `TrustList`/`ServerConfiguration` Methods called through `ConfigurationNodeManager`.
 
 ### Interfaces Reference
 

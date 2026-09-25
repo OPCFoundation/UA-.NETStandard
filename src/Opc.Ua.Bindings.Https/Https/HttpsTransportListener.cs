@@ -1082,7 +1082,8 @@ namespace Opc.Ua.Bindings
                 ServerBase.SetServerCertificateInEndpointDescription(
                     description,
                     serverCertificates,
-                    false);
+                    false,
+                    m_quotas.SecurityPolicyRegistry);
             }
         }
 
@@ -2348,6 +2349,36 @@ namespace Opc.Ua.Bindings
                 ServerChannelCertificate,
                 peerAddress: context.Connection.RemoteIpAddress);
 
+            await ReceiveOpenApiWebSocketMessagesAsync(
+                ws,
+                channelContext,
+                MakeEndpoint(context.Connection.RemoteIpAddress, context.Connection.RemotePort),
+                ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Receives concurrent OpenAPI requests with admission before copying or scheduling.
+        /// Each outstanding request, including a response waiting to send, occupies one
+        /// maximum-frame slot within the connection's message-size quota. Unlimited message
+        /// sizes use the transport default. The default chunk-count quota also caps tiny frames.
+        /// </summary>
+        internal async Task ReceiveOpenApiWebSocketMessagesAsync(
+            WebSocket ws,
+            SecureChannelContext channelContext,
+            IPEndPoint? remoteEndpoint,
+            CancellationToken ct)
+        {
+            int retainedLimit = m_quotas.MaxMessageSize > 0
+                ? m_quotas.MaxMessageSize
+                : TcpMessageLimits.DefaultMaxMessageSize;
+            int requestLimit = Math.Max(1, Math.Min(
+                TcpMessageLimits.DefaultMaxChunkCount, retainedLimit / Math.Max(1, m_quotas.MaxBufferSize)));
+            var requests = new List<Task>();
+            var sendGate = new SemaphoreSlim(1, 1);
+            var shutdown = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            CancellationToken requestCancellation = shutdown.Token;
+            WebSocketCloseStatus closeStatus = WebSocketCloseStatus.NormalClosure;
+            string closeDescription = string.Empty;
             byte[]? receiveBuffer = null;
             try
             {
@@ -2372,19 +2403,13 @@ namespace Opc.Ua.Bindings
                             .ConfigureAwait(false);
                         if (result.MessageType == WebSocketMessageType.Close)
                         {
-                            await ws.CloseAsync(
-                                WebSocketCloseStatus.NormalClosure,
-                                "Client requested close.",
-                                ct).ConfigureAwait(false);
                             return;
                         }
                         totalRead += result.Count;
                         if (totalRead > m_quotas.MaxBufferSize)
                         {
-                            await ws.CloseAsync(
-                                WebSocketCloseStatus.MessageTooBig,
-                                "Message exceeded configured limit.",
-                                ct).ConfigureAwait(false);
+                            closeStatus = WebSocketCloseStatus.MessageTooBig;
+                            closeDescription = "Message exceeded configured limit.";
                             return;
                         }
                         completed = result.EndOfMessage;
@@ -2395,55 +2420,48 @@ namespace Opc.Ua.Bindings
                             // ever terminating the message would spin this
                             // loop (CPU DoS). Mirrors the
                             // WebSocketByteTransport guard for opcua+uacp.
-                            await ws.CloseAsync(
-                                WebSocketCloseStatus.MessageTooBig,
-                                "WebSocket continuation frame made no progress.",
-                                ct).ConfigureAwait(false);
+                            closeStatus = WebSocketCloseStatus.MessageTooBig;
+                            closeDescription = "WebSocket continuation frame made no progress.";
                             return;
                         }
                     }
                     while (!completed);
 
-                    IServiceResponse responseToSend;
+                    for (int index = requests.Count - 1; index >= 0; index--)
+                    {
+                        Task completedRequest = requests[index];
+                        if (completedRequest.IsCompleted)
+                        {
+                            await completedRequest.ConfigureAwait(false);
+                            requests.RemoveAt(index);
+                        }
+                    }
+                    if (requests.Count >= requestLimit)
+                    {
+                        closeStatus = kWebSocketTryAgainLater;
+                        closeDescription = "Server request capacity is exhausted.";
+                        return;
+                    }
+
+                    using var admission = new OpenApiWebSocketAdmission();
+                    IServerResourceIsolationProvider? isolation = m_quotas.ResourceIsolationProvider;
+                    if (isolation != null && !admission.TryAcquire(isolation, remoteEndpoint, totalRead))
+                    {
+                        closeStatus = kWebSocketTryAgainLater;
+                        closeDescription = "Server request capacity is exhausted.";
+                        return;
+                    }
+                    requestCancellation.ThrowIfCancellationRequested();
+                    // Charge the exact retained frame copy (at least one byte for an empty frame).
+                    // The connection's existing body lease continues to cover its receive buffer.
                     byte[] messageBytes = new byte[totalRead];
                     Buffer.BlockCopy(receiveBuffer, 0, messageBytes, 0, totalRead);
-                    try
+                    Task request = admission.RunAsync(async () =>
                     {
-                        IServiceRequest request = JsonDecoder.DecodeMessage<IServiceRequest>(
-                            messageBytes,
-                            m_quotas.MessageContext);
-                        request.RequestHeader ??= new RequestHeader();
-
-                        responseToSend = await m_callback!
-                            .ProcessRequestAsync(channelContext, request, ct)
-                            .ConfigureAwait(false);
-                    }
-                    catch (ServiceResultException sre)
-                    {
-                        responseToSend = JsonRequestMapper.CreateFault(m_logger, messageBytes, sre);
-                    }
-                    catch (Exception ex)
-                    {
-                        m_logger.ErrorProcessingOpenApiRequest(ex);
-                        responseToSend = JsonRequestMapper.CreateFault(m_logger, messageBytes, ex);
-                    }
-
-                    byte[] responseBytes = JsonRequestMapper.EncodeResponse(
-                        responseToSend,
-                        m_quotas.MessageContext);
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
-                    await ws.SendAsync(
-                        new ReadOnlyMemory<byte>(responseBytes, 0, responseBytes.Length),
-                        WebSocketMessageType.Text,
-                        endOfMessage: true,
-                        ct).ConfigureAwait(false);
-#else
-                    await ws.SendAsync(
-                        new ArraySegment<byte>(responseBytes, 0, responseBytes.Length),
-                        WebSocketMessageType.Text,
-                        endOfMessage: true,
-                        ct).ConfigureAwait(false);
-#endif
+                        await ProcessAdmittedOpenApiWebSocketRequestAsync(
+                            ws, sendGate, channelContext, messageBytes, requestCancellation).ConfigureAwait(false);
+                    });
+                    requests.Add(request);
                 }
             }
             catch (OperationCanceledException)
@@ -2456,6 +2474,8 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
+                await StopOpenApiWebSocketRequestsAsync(
+                    requests, sendGate, shutdown, ws, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
                 if (receiveBuffer != null)
                 {
                     m_bufferManager.ReturnBuffer(receiveBuffer, nameof(AcceptWebSocketOpenApiAsync));
@@ -2464,17 +2484,206 @@ namespace Opc.Ua.Bindings
                 {
                     if (ws.State is WebSocketState.Open or WebSocketState.CloseReceived)
                     {
-                        await ws.CloseAsync(
-                            WebSocketCloseStatus.NormalClosure,
-                            string.Empty,
+                        await ws.CloseOutputAsync(
+                            closeStatus,
+                            closeDescription,
                             CancellationToken.None).ConfigureAwait(false);
                     }
                 }
-                catch
+                catch (WebSocketException exception)
                 {
-                    // Best-effort.
+                    m_logger.UnexpectedOpenApiWebSocketError(exception);
                 }
-                ws.Dispose();
+                finally
+                {
+                    ws.Dispose();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Owns request admission until copying succeeds and the processing task takes over.
+        /// Rejection, cancellation or preparation failure returns every acquired lease.
+        /// </summary>
+        internal sealed class OpenApiWebSocketAdmission : IDisposable
+        {
+            /// <summary>
+            /// Acquires both stages using only the observed source before decoding or allocating a copy.
+            /// The core scheduler independently classifies, validates and leases the decoded request.
+            /// </summary>
+            public bool TryAcquire(
+                IServerResourceIsolationProvider provider,
+                IPEndPoint? remoteEndpoint,
+                int messageSize)
+            {
+                ResourceIsolationOwner owner = provider.ClassifyConnection(remoteEndpoint);
+                return provider.TryAcquire(
+                    ResourceIsolationStage.RequestQueue, owner, 1, out m_requestLease, out _) &&
+                    provider.TryAcquire(
+                        ResourceIsolationStage.RequestQueueBytes, owner,
+                        Math.Max(1, messageSize), out m_bodyLease, out _);
+            }
+
+            /// <summary>
+            /// Transfers leases synchronously into the task's scopes before scheduling any work.
+            /// Scheduling is not cancellable, so even a late worker enters and releases its leases.
+            /// </summary>
+            public async Task RunAsync(Func<Task> process)
+            {
+                using IDisposable? requestLease = Interlocked.Exchange(ref m_requestLease, null);
+                using IDisposable? bodyLease = Interlocked.Exchange(ref m_bodyLease, null);
+                await Task.Run(process, CancellationToken.None).ConfigureAwait(false);
+            }
+
+            /// <summary>
+            /// Returns untransferred admission even if returning one lease fails.
+            /// </summary>
+            public void Dispose()
+            {
+                try
+                {
+                    Interlocked.Exchange(ref m_bodyLease, null)?.Dispose();
+                }
+                finally
+                {
+                    Interlocked.Exchange(ref m_requestLease, null)?.Dispose();
+                }
+            }
+
+            private IDisposable? m_requestLease;
+            private IDisposable? m_bodyLease;
+        }
+
+        /// <summary>
+        /// Observes processing failures and checks cancellation before decoding an admitted frame.
+        /// The admission task retains ownership until this operation, including its send, exits.
+        /// </summary>
+        private async Task ProcessAdmittedOpenApiWebSocketRequestAsync(
+            WebSocket socket,
+            SemaphoreSlim sendGate,
+            SecureChannelContext channelContext,
+            byte[] messageBytes,
+            CancellationToken ct)
+        {
+            try
+            {
+                ct.ThrowIfCancellationRequested();
+                await ProcessOpenApiWebSocketRequestAsync(
+                    socket, sendGate, channelContext, messageBytes, ct).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                // The task still owns and releases admission even if cancelled before dispatch.
+            }
+            catch (Exception exception)
+            {
+                m_logger.UnexpectedOpenApiWebSocketError(exception);
+                socket.Abort();
+            }
+        }
+
+        /// <summary>
+        /// Cancels admitted requests and bounds connection shutdown without releasing the
+        /// resources of a worker that has not actually finished.
+        /// </summary>
+        private async Task StopOpenApiWebSocketRequestsAsync(
+            List<Task> requests,
+            SemaphoreSlim sendGate,
+            CancellationTokenSource shutdown,
+            WebSocket socket,
+            TimeSpan timeout)
+        {
+            try
+            {
+                shutdown.Cancel();
+            }
+            catch (AggregateException exception)
+            {
+                m_logger.UnexpectedOpenApiWebSocketError(exception);
+            }
+            Task drained = CompleteOpenApiWebSocketRequestsAsync(requests, sendGate, shutdown);
+            try
+            {
+                await drained.WaitAsync(timeout).ConfigureAwait(false);
+            }
+            catch (TimeoutException exception)
+            {
+                m_logger.UnexpectedOpenApiWebSocketError(exception);
+                socket.Abort();
+            }
+        }
+
+        /// <summary>
+        /// Keeps send synchronization and cancellation alive until every admitted task exits,
+        /// even if the connection's bounded shutdown wait expires first.
+        /// </summary>
+        private async Task CompleteOpenApiWebSocketRequestsAsync(
+            List<Task> requests,
+            SemaphoreSlim sendGate,
+            CancellationTokenSource shutdown)
+        {
+            using (sendGate)
+            using (shutdown)
+            {
+                try
+                {
+                    await Task.WhenAll(requests).ConfigureAwait(false);
+                }
+                catch (Exception exception)
+                {
+                    m_logger.UnexpectedOpenApiWebSocketError(exception);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Processes concurrent OpenAPI messages while serializing response frames on their WebSocket.
+        /// </summary>
+        private async ValueTask ProcessOpenApiWebSocketRequestAsync(
+            WebSocket socket,
+            SemaphoreSlim sendGate,
+            SecureChannelContext channelContext,
+            byte[] messageBytes,
+            CancellationToken ct)
+        {
+            IServiceResponse response;
+            try
+            {
+                IServiceRequest request = JsonDecoder.DecodeMessage<IServiceRequest>(
+                    messageBytes, m_quotas.MessageContext);
+                request.RequestHeader ??= new RequestHeader();
+                response = await m_callback!.ProcessRequestAsync(channelContext, request, ct).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (ServiceResultException exception)
+            {
+                response = JsonRequestMapper.CreateFault(m_logger, messageBytes, exception);
+            }
+            catch (Exception exception)
+            {
+                m_logger.ErrorProcessingOpenApiRequest(exception);
+                response = JsonRequestMapper.CreateFault(m_logger, messageBytes, exception);
+            }
+            ct.ThrowIfCancellationRequested();
+            byte[] payload = JsonRequestMapper.EncodeResponse(response, m_quotas.MessageContext);
+            await sendGate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                ct.ThrowIfCancellationRequested();
+                await socket.SendAsync(new ArraySegment<byte>(payload), WebSocketMessageType.Text,
+                    endOfMessage: true, ct).ConfigureAwait(false);
+            }
+            catch (WebSocketException exception)
+            {
+                m_logger.UnexpectedOpenApiWebSocketError(exception);
+                socket.Abort();
+            }
+            finally
+            {
+                sendGate.Release();
             }
         }
 
@@ -2814,6 +3023,11 @@ namespace Opc.Ua.Bindings
         private const string kApplicationContentType = "application/octet-stream";
         private const string kAuthorizationKey = "Authorization";
         private const string kBearerKey = "Bearer";
+
+        /// <summary>
+        /// WebSocket "Try Again Later" close status for temporary server capacity exhaustion.
+        /// </summary>
+        private const WebSocketCloseStatus kWebSocketTryAgainLater = (WebSocketCloseStatus)1013;
 
         /// <summary>
         /// Budgets two body-size units for reader growth storage and one for the retained payload copy.

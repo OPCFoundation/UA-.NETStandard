@@ -829,7 +829,7 @@ namespace Opc.Ua
         /// </summary>
         /// <remarks>
         /// A reconnect cycle that stopped because the reconnect policy ran out of
-        /// attempts, or because the caller's retry budget ran out of time, is a
+        /// attempts, its deadline expired, or a participant reported a fatal channel error, is a
         /// deliberate terminal outcome rather than a race. It leaves the entry
         /// <see cref="ChannelState.Faulted"/> with
         /// <see cref="StatusCodes.BadSecureChannelClosed"/> - indistinguishable from a
@@ -844,7 +844,7 @@ namespace Opc.Ua
             CancellationToken ct)
         {
             return !ct.IsCancellationRequested &&
-                !entry.ReconnectStoppedByRetryPolicy &&
+                !entry.ReconnectStoppedIntentionally &&
                 sre.StatusCode == StatusCodes.BadSecureChannelClosed &&
                 entry.IsClosing;
         }
@@ -853,6 +853,7 @@ namespace Opc.Ua
         /// Reattaches a lease to a usable entry after reconnect backoff, opening a replacement with current
         /// certificates.
         /// </summary>
+        /// <exception cref="ServiceResultException">A reverse channel requires a fresh waiting connection.</exception>
         private async ValueTask<ChannelEntry> SwapFaultedEntryAsync(
             ManagedTransportChannelLease lease,
             CancellationToken ct)
@@ -863,6 +864,11 @@ namespace Opc.Ua
             if (!original.IsClosing)
             {
                 return original;
+            }
+            if (original.IsReverse)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecureChannelClosed, "A fresh reverse connection is required.");
             }
 
             TimeSpan delay = GetSwapDelay(lease.SwapCount);

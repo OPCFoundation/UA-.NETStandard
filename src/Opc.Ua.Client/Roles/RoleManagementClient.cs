@@ -109,10 +109,15 @@ namespace Opc.Ua.Client.Roles
                 {
                     continue;
                 }
-                if (!reference.TypeDefinition.IsNull &&
-                    ExpandedNodeId.ToNodeId(reference.TypeDefinition, Session.NamespaceUris) != ObjectTypeIds.RoleType)
+                if (!reference.TypeDefinition.IsNull)
                 {
-                    continue;
+                    var typeId = ExpandedNodeId.ToNodeId(reference.TypeDefinition, Session.NamespaceUris);
+                    if (typeId != ObjectTypeIds.RoleType &&
+                        !await Session.NodeCache.IsTypeOfAsync(
+                            typeId, ObjectTypeIds.RoleType, cancellationToken).ConfigureAwait(false))
+                    {
+                        continue;
+                    }
                 }
                 RoleInfo info = await ReadRoleAsync(roleId, cancellationToken).ConfigureAwait(false);
                 roles.Add(info);

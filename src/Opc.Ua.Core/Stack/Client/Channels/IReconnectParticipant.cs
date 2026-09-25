@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -65,6 +66,22 @@ namespace Opc.Ua
         ConfiguredEndpoint Endpoint { get; }
 
         /// <summary>
+        /// Creates a fresh budget for one shared channel recovery cycle.
+        /// Return null to impose no participant-specific deadline.
+        /// </summary>
+        /// <remarks>
+        /// The manager samples active participants outside its entry lock and
+        /// keeps the earliest participant or caller deadline. This method must
+        /// return promptly and must not start recovery itself.
+        /// A failure creating or evaluating a participant budget terminates the shared
+        /// recovery with final participant notifications and a Faulted channel state;
+        /// it is not treated as an unlimited budget.
+        /// </remarks>
+        /// <param name="timeProvider">The channel manager's monotonic clock.</param>
+        /// <returns>The cycle budget, or null to leave the limit to other participants and callers.</returns>
+        IRetryBudget? CreateReconnectBudget(TimeProvider timeProvider);
+
+        /// <summary>
         /// Invoked by the manager when the underlying channel has been
         /// (re)opened and the participant should re-establish its
         /// session-level state (e.g. ActivateSession). May be called
@@ -76,8 +93,7 @@ namespace Opc.Ua
         /// current cycle (0-based). A value of <c>-1</c> indicates the
         /// manager is shutting down the channel and the participant
         /// should release any state associated with it.</param>
-        /// <param name="ct">Cancellation token bound to the manager's
-        /// shutdown.</param>
+        /// <param name="ct">Cancellation for shutdown, the cycle deadline, or this callback's timeout.</param>
         /// <returns>
         /// A <see cref="ParticipantReconnectResult"/> describing the
         /// outcome from this participant's perspective.
@@ -100,7 +116,7 @@ namespace Opc.Ua
         /// The recovery view supplied to <see cref="OnReconnectAsync"/> remains valid
         /// during this callback, but must not be used after it completes.
         /// </remarks>
-        /// <param name="ct">Cancellation token bound to the manager's shutdown.</param>
+        /// <param name="ct">Cancellation for shutdown, the cycle deadline, or this callback's timeout.</param>
         /// <returns>The asynchronous recreation work.</returns>
         ValueTask RecreateAsync(CancellationToken ct = default)
         {
@@ -128,7 +144,7 @@ namespace Opc.Ua
         /// The recovery view supplied to <see cref="IReconnectParticipant.OnReconnectAsync"/>
         /// remains valid during this callback, but must not be used after it completes.
         /// </remarks>
-        /// <param name="ct">Cancellation token bound to the manager's shutdown.</param>
+        /// <param name="ct">Cancellation for shutdown, the cycle deadline, or this callback's timeout.</param>
         /// <returns>The asynchronous recreation work.</returns>
 #if NETSTANDARD2_1 || NET8_0_OR_GREATER
         new ValueTask RecreateAsync(CancellationToken ct = default);
@@ -144,6 +160,11 @@ namespace Opc.Ua
     /// Recovery channels expire when their callback completes, times out, or is cancelled.
     /// Do not retain them or pass them to application callbacks or background workers.
     /// Ordinary requests continue to use the owning lease and wait until the entry is ready.
+    /// Implementations must observe cancellation and finish local recovery cleanup.
+    /// The manager awaits their cancelled recovery callbacks before another owner can recover the session.
+    /// A final notification through <see cref="IReconnectParticipant.OnReconnectAsync"/>
+    /// must release local recovery state before its first asynchronous wait.
+    /// The manager can stop waiting for the rest of that notification without delaying outer recovery.
     /// </remarks>
     public interface IChannelRecoveryParticipant : IReconnectParticipant
     {

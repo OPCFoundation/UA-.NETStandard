@@ -1284,9 +1284,29 @@ namespace Opc.Ua.Server.Tests.Hosting
                     .Value.MaterializeAliasNodes, Is.False);
             }
 
+            NodeId addedAliasId = default;
+            TaskCompletionSource<bool> refreshed = NewSignal<bool>();
+            if (materialize)
+            {
+                addedAliasId = new NodeId(
+                    Utils.Format("{0}.{1}", categoryId, "BuildNumber"), aliasId.NamespaceIndex);
+                category.OnStateChanged += (_, _, _) =>
+                {
+                    if (fixture.Context.FindPredefinedNode<AliasNameState>(addedAliasId) != null &&
+                        category.ReferenceExists(ReferenceTypeIds.Organizes, false, addedAliasId))
+                    {
+                        refreshed.TrySetResult(true);
+                    }
+                };
+            }
+
             StatusCode[] changes = await store.AddAliasesAsync(categoryId,
                 [new AliasAddRequest("BuildNumber", VariableIds.Server_ServerStatus_BuildInfo_BuildNumber,
                     null, ReferenceTypeIds.AliasFor)], CancellationToken.None).ConfigureAwait(false);
+            if (materialize)
+            {
+                await refreshed.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            }
             ArrayOf<AliasNameDataType> current = await FindAliasesAsync(fixture.Context, category)
                 .ConfigureAwait(false);
             Assert.That(changes, Has.Length.EqualTo(1));
@@ -1297,12 +1317,21 @@ namespace Opc.Ua.Server.Tests.Hosting
             category.GetReferences(fixture.Context.DefaultSystemContext, references);
             Assert.That(references.Count(reference =>
                 reference.ReferenceTypeId == ReferenceTypeIds.Organizes && !reference.IsInverse),
-                Is.EqualTo(materialize ? 1 : 0),
-                "Later mutations must not rebuild the startup browse snapshot.");
+                Is.EqualTo(materialize ? 2 : 0),
+                "Materialized aliases must follow store changes by default.");
             if (materialize)
             {
                 Assert.That(category.LastChange.Value, Is.EqualTo(1u));
                 Assert.That(fixture.Context.FindPredefinedNode<AliasNameState>(aliasId), Is.SameAs(aliases[0]));
+                AliasNameState addedAlias = fixture.Context.FindPredefinedNode<AliasNameState>(addedAliasId);
+                Assert.That(addedAlias, Is.Not.Null);
+                Assert.That(addedAlias.BrowseName.Name, Is.EqualTo("BuildNumber"));
+                Assert.That(addedAlias.TypeDefinitionId, Is.EqualTo(ObjectTypeIds.AliasNameType));
+                Assert.That(addedAlias.ReferenceExists(
+                    ReferenceTypeIds.AliasFor, false, VariableIds.Server_ServerStatus_BuildInfo_BuildNumber), Is.True);
+                BaseVariableState target = fixture.Context.FindPredefinedNode<BaseVariableState>(
+                    VariableIds.Server_ServerStatus_BuildInfo_BuildNumber);
+                Assert.That(target.ReferenceExists(ReferenceTypeIds.AliasFor, true, addedAliasId), Is.True);
             }
         }
 

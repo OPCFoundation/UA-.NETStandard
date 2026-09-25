@@ -196,31 +196,14 @@ namespace Opc.Ua.Bindings
                 var description = new EndpointDescription
                 {
                     EndpointUrl = uri.ToString(),
-                    Server = serverDescription
+                    Server = serverDescription,
+                    SecurityMode = bestPolicy.SecurityMode,
+                    SecurityPolicyUri = bestPolicy.SecurityPolicyUri,
+                    SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(
+                        bestPolicy.SecurityMode,
+                        bestPolicy.SecurityPolicyUri,
+                        logger)
                 };
-
-                if (serverCertificates != null)
-                {
-                    using CertificateEntry? instanceEntry = serverCertificates
-                        .AcquireApplicationCertificateBySecurityPolicy(bestPolicy.SecurityPolicyUri);
-                    Certificate? instanceCertificate = instanceEntry?.Certificate;
-                    description.ServerCertificate =
-                        instanceCertificate!.RawData.ToByteString();
-
-                    // check if complete chain should be sent.
-                    if (serverCertificates.SendCertificateChain)
-                    {
-                        description.ServerCertificate =
-                            instanceEntry!.GetEncodedChainBlob().ToByteString();
-                    }
-                }
-
-                description.SecurityMode = bestPolicy.SecurityMode;
-                description.SecurityPolicyUri = bestPolicy.SecurityPolicyUri;
-                description.SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(
-                    bestPolicy.SecurityMode,
-                    bestPolicy.SecurityPolicyUri,
-                    logger);
                 description.UserIdentityTokens = serverBase.GetUserTokenPolicies(
                     configuration,
                     description);
@@ -234,6 +217,15 @@ namespace Opc.Ua.Bindings
                 {
                     description.UserIdentityTokens = description.UserIdentityTokens
                         .Filter(token => token.TokenType != UserTokenType.Anonymous);
+                }
+
+                if (serverCertificates != null)
+                {
+                    ServerBase.SetServerCertificateInEndpointDescription(
+                        description,
+                        serverCertificates,
+                        checkRequireEncryption: false,
+                        serverBase.SecurityPolicyRegistry);
                 }
 
                 ITransportListener listener = Create(serverBase.MessageContext.Telemetry);
