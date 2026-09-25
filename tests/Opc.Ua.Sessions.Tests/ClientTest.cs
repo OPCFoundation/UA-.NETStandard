@@ -337,9 +337,10 @@ namespace Opc.Ua.Sessions.Tests
                 CancellationToken.None).ConfigureAwait(false);
             await client.CloseAsync(CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(servers.Servers.Count, Is.GreaterThan(0));
-            Assert.That(servers.Servers[0].ApplicationName.Locale, Is.EqualTo(locale));
-            Assert.That(servers.Servers[0].ApplicationName.Text, Is.Not.Empty);
+            ApplicationDescription self = servers.Servers.ToArray()!.Single(s =>
+                s.ApplicationUri == ServerFixture.Config.ApplicationUri);
+            Assert.That(self.ApplicationName.Locale, Is.EqualTo(locale));
+            Assert.That(self.ApplicationName.Text, Is.Not.Empty);
             Assert.That(endpoints.Endpoints.Count, Is.GreaterThan(0));
             foreach (EndpointDescription endpoint in endpoints.Endpoints)
             {
