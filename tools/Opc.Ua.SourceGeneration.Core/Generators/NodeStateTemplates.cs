@@ -930,7 +930,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static readonly TemplateString InitializeOptionalChild = TemplateString.Parse(
             $$"""
-            if ({{Tokens.ChildName}} != null && NeedsOptionalInitialization({{Tokens.ChildName}}))
+            if ({{Tokens.ChildName}} != null && global::Opc.Ua.NodeState.NeedsOptionalInitialization({{Tokens.ChildName}}))
             {
                 {{Tokens.ChildName}}.Create(
                     context,
