@@ -52,7 +52,7 @@ namespace Opc.Ua.Server
     /// released. Callers that can await should still prefer <see cref="DisposeAsync"/>
     /// so the shutdown does not block their thread.
     /// </remarks>
-    public class StandardServer : SessionServerBase, IStandardServer, IAsyncDisposable
+    public class StandardServer : SessionServerBase, IStandardServer, IAsyncDisposable, ISessionBindingProvider
     {
         /// <inheritdoc/>
         public StandardServer(ITelemetryContext telemetry)
@@ -3550,7 +3550,6 @@ namespace Opc.Ua.Server
             Uri endpointUri)
         {
             base.ConfigureTransportListenerSettings(settings, endpointUri);
-
             IServerRateLimiterProvider? provider = m_rateLimiterProvider;
             if (provider != null)
             {
@@ -3561,6 +3560,27 @@ namespace Opc.Ua.Server
 
                 settings.ConnectionRateLimiter = provider.ConnectionRateLimiter;
             }
+        }
+
+        /// <inheritdoc/>
+        bool ISessionBindingProvider.HasSession(string secureChannelId)
+        {
+            return (m_serverInternal?.SessionManager as ISessionBindingProvider)?
+                .HasSession(secureChannelId) ?? false;
+        }
+
+        /// <inheritdoc/>
+        bool ISessionBindingProvider.TryGetSessionContext(
+            NodeId authenticationToken,
+            SecureChannelContext channelContext,
+            [NotNullWhen(true)] out SessionBindingContext? context)
+        {
+            if (m_serverInternal?.SessionManager is ISessionBindingProvider provider)
+            {
+                return provider.TryGetSessionContext(authenticationToken, channelContext, out context);
+            }
+            context = null;
+            return false;
         }
 
         /// <summary>

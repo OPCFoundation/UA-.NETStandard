@@ -53,6 +53,81 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
     [NonParallelizable]
     public sealed class TcpAdmissionLifetimeRegressionTests
     {
+        [Test]
+        public async Task IncompleteOpenMessagesStayWithinSharedBudgetAndANewClientConnectsAfterCleanupAsync()
+        {
+            var budget = new ChunkReassemblyBudget(64 * 1024);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var clock = new FakeTimeProvider();
+            using var factory = new DefaultBufferManagerFactory(new BufferManagerFactoryOptions
+            {
+                ImplementationKind = BufferManagerImplementationKind.Fast
+            });
+            await using var harness = new AcceptHarness(
+                telemetry, maxChannels: 8, bufferManagerFactory: factory, clock: clock);
+            harness.Quotas.MaxBufferSize = 8192;
+            harness.Quotas.MaxMessageSize = 32768;
+            harness.Quotas.ChannelLifetime = 1000;
+            harness.Quotas.ChunkReassemblyBudget = budget;
+            var clients = new List<Socket>();
+            try
+            {
+                (Socket first, Socket accepted) = await harness.CreateFirstConnectionAsync().ConfigureAwait(false);
+                clients.Add(first);
+                harness.Admit(accepted);
+                await CompleteHelloAsync(harness, first).ConfigureAwait(false);
+                for (int i = 1; i < 3; i++)
+                {
+                    Socket client = await harness.ConnectAsync().ConfigureAwait(false);
+                    clients.Add(client);
+                    await CompleteHelloAsync(harness, client).ConfigureAwait(false);
+                }
+                Assert.That(harness.Channels, Has.Count.EqualTo(3));
+
+                bool peerClosed = false;
+                for (uint sequence = 1; sequence <= 2 && !peerClosed && harness.Channels.Count == 3; sequence++)
+                {
+                    byte[] chunk = harness.CreateIntermediateOpenChunk(sequence);
+                    foreach (Socket client in clients)
+                    {
+                        using var stream = new NetworkStream(client, ownsSocket: false);
+                        try
+                        {
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+                            await stream.WriteAsync(chunk.AsMemory()).ConfigureAwait(false);
+#else
+                            await stream.WriteAsync(chunk, 0, chunk.Length).ConfigureAwait(false);
+#endif
+                        }
+                        catch (System.IO.IOException)
+                        {
+                            peerClosed = true;
+                            break;
+                        }
+                        Assert.That(budget.ReservedBytes, Is.LessThanOrEqualTo(budget.MaxBytesWithoutSession));
+                    }
+                }
+
+                await WaitForAsync(() => harness.Channels.Count < 3).ConfigureAwait(false);
+                Assert.That(budget.ReservedBytes, Is.LessThanOrEqualTo(budget.MaxBytesWithoutSession));
+                clock.Advance(TimeSpan.FromSeconds(2));
+                await WaitForAsync(() => harness.Channels.IsEmpty && budget.ReservedBytes == 0)
+                    .ConfigureAwait(false);
+
+                using Socket healthy = await harness.ConnectAsync().ConfigureAwait(false);
+                await CompleteHelloAsync(harness, healthy).ConfigureAwait(false);
+                Assert.That(harness.Channels, Has.Count.EqualTo(1));
+                Assert.That(budget.ReservedBytes, Is.Zero);
+            }
+            finally
+            {
+                foreach (Socket client in clients)
+                {
+                    client.Dispose();
+                }
+            }
+        }
+
         /// <summary>
         /// Verifies blocked peers are closed without consuming capacity and an allowed peer can complete Hello
         /// afterward.
@@ -268,6 +343,37 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// </summary>
         /// <typeparam name="T">The value type of the listener field.</typeparam>
         /// <exception cref="InvalidOperationException"></exception>
+        private static async Task CompleteHelloAsync(AcceptHarness harness, Socket socket)
+        {
+            using var stream = new NetworkStream(socket, ownsSocket: false);
+            byte[] hello = harness.CreateHello();
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+            await stream.WriteAsync(hello.AsMemory()).ConfigureAwait(false);
+#else
+            await stream.WriteAsync(hello, 0, hello.Length).ConfigureAwait(false);
+#endif
+            byte[] acknowledge = new byte[28];
+            int offset = 0;
+            while (offset < acknowledge.Length)
+            {
+                int read = await stream.ReadAsync(acknowledge, offset, acknowledge.Length - offset)
+                    .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.That(read, Is.GreaterThan(0));
+                offset += read;
+            }
+            Assert.That(BitConverter.ToUInt32(acknowledge, 0), Is.EqualTo(TcpMessageType.Acknowledge));
+            Assert.That(BitConverter.ToUInt32(acknowledge, 24), Is.EqualTo(4));
+        }
+
+        private static async Task WaitForAsync(Func<bool> condition)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            while (!condition())
+            {
+                await Task.Delay(10, timeout.Token).ConfigureAwait(false);
+            }
+        }
+
         private static void SetField<T>(TcpTransportListener listener, string name, T value)
         {
             FieldInfo field = typeof(TcpTransportListener).GetField(name, BindingFlags.NonPublic | BindingFlags.Instance)
@@ -361,12 +467,21 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             /// <summary>
             /// Creates isolated listener state with an optional channel-capacity limit.
             /// </summary>
-            public AcceptHarness(ITelemetryContext telemetry, int maxChannels = 0)
+            public AcceptHarness(
+                ITelemetryContext telemetry,
+                int maxChannels = 0,
+                IBufferManagerFactory? bufferManagerFactory = null,
+                FakeTimeProvider? clock = null)
             {
-                Listener = new TcpTransportListener(telemetry, new FakeTimeProvider());
+                Listener = new TcpTransportListener(
+                    telemetry,
+                    clock ?? new FakeTimeProvider(),
+                    bufferManagerFactory ?? DefaultBufferManagerFactory.Instance);
                 Context = ServiceMessageContext.Create(telemetry);
                 Quotas = new ChannelQuotas(Context);
-                Buffers = new BufferManager("admission-regression", 65536, telemetry);
+                Buffers = new BufferManager(
+                    (bufferManagerFactory ?? DefaultBufferManagerFactory.Instance)
+                        .Create("admission-regression", 65536, telemetry));
                 m_socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                 m_socket.Bind(new IPEndPoint(IPAddress.Loopback, 0));
                 m_socket.Listen(8);
@@ -491,6 +606,26 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 encoder.WriteUInt32(null, 0);
                 encoder.WriteUInt32(null, 0);
                 encoder.WriteString(null, $"opc.tcp://127.0.0.1:{Endpoint.Port}");
+                int count = encoder.Close();
+                BitConverter.GetBytes(count).CopyTo(buffer, 4);
+                return buffer.AsSpan(0, count).ToArray();
+            }
+
+            public byte[] CreateIntermediateOpenChunk(uint sequence)
+            {
+                byte[] buffer = new byte[8192];
+                using var encoder = new BinaryEncoder(buffer, 0, buffer.Length, Context);
+                encoder.WriteUInt32(null, TcpMessageType.Open | TcpMessageType.Intermediate);
+                encoder.WriteUInt32(null, 0);
+                encoder.WriteUInt32(null, 0);
+                encoder.WriteString(null, SecurityPolicies.None);
+                encoder.WriteByteString(null, ByteString.Empty);
+                encoder.WriteByteString(null, ByteString.Empty);
+                encoder.WriteUInt32(null, sequence);
+                encoder.WriteUInt32(null, 1);
+                byte[] body = new byte[8000];
+                body.AsSpan().Fill(0x78);
+                encoder.WriteRawBytes(body, 0, body.Length);
                 int count = encoder.Close();
                 BitConverter.GetBytes(count).CopyTo(buffer, 4);
                 return buffer.AsSpan(0, count).ToArray();

@@ -100,11 +100,11 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path "$env:TOOLS_DIR" | Out-Null
-          dotnet tool install --version 3.0.0 --tool-path "$env:TOOLS_DIR" AzureSignTool
+          dotnet tool install --version 7.0.1 --tool-path "$env:TOOLS_DIR" AzureSignTool
           if ($LASTEXITCODE -ne 0) {
               throw 'AzureSignTool installation failed.'
           }
-          dotnet tool install --version 3.0.45 --tool-path "$env:TOOLS_DIR" NuGetKeyVaultSignTool
+          dotnet tool install --version 3.2.3 --tool-path "$env:TOOLS_DIR" NuGetKeyVaultSignTool
           if ($LASTEXITCODE -ne 0) {
               throw 'NuGetKeyVaultSignTool installation failed.'
           }

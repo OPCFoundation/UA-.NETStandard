@@ -19,8 +19,8 @@ parameters:
 # unconditionally and has no switch that hands any of it back. Since the Azure
 # context was dropped from the master ruleset this pipeline no longer runs on
 # pull requests at all (`pr: none` below), so this parameter now only decides
-# how much of the Actions workload the remaining push, schedule and manual runs
-# duplicate while both systems run in parallel.
+# how much of the Actions workload the remaining push and manual runs duplicate
+# while both systems run in parallel.
 #
 #   ado     - duplicate the full workload here: the Linux all-TFM build leg, the
 #             Linux test leg and Native AoT run alongside the Windows matrix.
@@ -96,21 +96,9 @@ pr: none
 # would block every pull request into the new line.  See
 # docs/DeveloperGuide.md#migration-status.
 
-# Weekly full-scope run.  Fires every Sunday at 02:00 UTC (late Saturday
-# night in the Americas / early Sunday morning in EU).  `always: true`
-# forces the run even when there are no commits since the previous one so
-# the badge in README.md reflects a recent green build. All stages that
-# are gated on `ScheduledBuild` (AOT, Debug, .NET 9/8/472/netstandard)
-# are automatically included because Build.Reason is 'Schedule' for these runs.
-# macOS jobs are additionally controlled by MacOSJobsEnabled and are disabled
-# while GitHub Actions owns them.
-schedules:
-- cron: '0 2 * * 0'
-  displayName: 'Weekly full-scope tests (Sat night UTC)'
-  branches:
-    include:
-    - master
-  always: true
+# The weekly full-scope schedule moved to .github/workflows/nightly.yml. Keep
+# the Azure stage graph available for manual recovery runs only; stages gated on
+# `ScheduledBuild` still run when a maintainer queues this pipeline manually.
 
 variables:
   FullBuild: ${{ ne(variables['Build.Reason'], 'PullRequest') }}
@@ -120,7 +108,7 @@ variables:
   # normally Schedule/Manual-only here, then also runs on push builds.
   AdoOwnsMatrix: ${{ eq(parameters.ciBuildBackend, 'ado') }}
   # GitHub Actions owns macOS validation. Keep the Azure definitions available
-  # for emergency/manual use, but do not schedule them unless explicitly enabled.
+  # for emergency/manual use, but do not run them unless explicitly enabled.
   MacOSJobsEnabled: false
   macImage: 'macOS-15'
   # Two pool profiles are defined so stages can be routed independently and the

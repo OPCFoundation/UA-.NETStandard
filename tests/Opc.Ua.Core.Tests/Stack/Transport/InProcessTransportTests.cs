@@ -121,9 +121,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             const int bufferSize = 8192;
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var limited = new LimitingBufferManager(
-                new FastBufferManager("inproc-limited", bufferSize, telemetry),
-                new BufferManagerMemoryLimiter(bufferSize));
+            var inner = new FastBufferManager("inproc-limited", bufferSize, telemetry);
+            using var limiter = new BufferManagerMemoryLimiter(inner.GetExpectedBufferSize(bufferSize));
+            var limited = new LimitingBufferManager(inner, limiter);
             var buffers = new BufferManager(limited);
             (InProcessTransport client, InProcessTransport server) =
                 InProcessTransport.CreatePair(buffers, bufferSize, telemetry);

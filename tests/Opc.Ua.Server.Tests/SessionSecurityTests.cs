@@ -185,6 +185,29 @@ namespace Opc.Ua.Server.Tests
             AssertRequestAcceptedOnOriginalChannel(created);
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SecuredReadOnlyLookupRejectsMissingOrDifferentChannelCertificateAsync(bool missingCertificate)
+        {
+            EndpointDescription endpoint = CreateEndpoint(MessageSecurityMode.SignAndEncrypt);
+            using SecuritySessionManager manager = CreateManager();
+            CreatedSession created = await CreateAndActivateAsync(
+                manager, endpoint, "channel-1", m_clientCertificate, default).ConfigureAwait(false);
+            Assert.That(manager.TryGetSessionContext(
+                created.Result.AuthenticationToken, created.Context.ChannelContext!, out var original), Is.True);
+            var invalidChannel = new SecureChannelContext(
+                "channel-1", endpoint, RequestEncoding.Binary,
+                missingCertificate ? null : m_otherClientCertificate.RawData);
+
+            Assert.That(manager.TryGetSessionContext(
+                created.Result.AuthenticationToken, invalidChannel, out var rejected), Is.False);
+            Assert.That(rejected, Is.Null);
+            Assert.That(manager.TryGetSessionContext(
+                created.Result.AuthenticationToken, created.Context.ChannelContext!, out var current), Is.True);
+            Assert.That(current, Is.SameAs(original));
+            Assert.That(manager.HasSession("channel-1"), Is.True);
+        }
+
         [Test]
         public async Task NewChannelWithDifferentUsernameIsRejectedWhenDisplayAliasMatchesAsync()
         {

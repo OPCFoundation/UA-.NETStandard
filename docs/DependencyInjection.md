@@ -131,7 +131,13 @@ services.AddOpcUa()
 
 Transport listeners and channels resolve `IBufferManagerFactory` from dependency injection. The default factory selects `FastBufferManager` in Release builds, `CookieBufferManager` in Debug builds, and `TracingBufferManager` when the stack is compiled with `TRACK_MEMORY`.
 
-Register options before `AddOpcUa()` to select an implementation explicitly or apply a process-wide outstanding-buffer budget:
+The factory does not limit outstanding buffers by default. Incomplete server
+messages have a separate, enabled-by-default
+[chunk reassembly budget](RateLimiting.md#incomplete-messages), so they do not
+consume the allocation capacity needed for unrelated requests and responses.
+
+Register options before `AddOpcUa()` to select an implementation explicitly or
+opt into an outstanding-buffer budget:
 
 ```csharp
 services.AddSingleton(new BufferManagerFactoryOptions
@@ -145,7 +151,16 @@ services.AddOpcUa()
     .AddHttpsTransport();
 ```
 
-When `MaxOutstandingBytesPerProcess` is positive, the singleton factory wraps every manager it creates with `LimitingBufferManager` and shares one `BufferManagerMemoryLimiter` across them. A synchronous rent blocks without holding a manager lock until another buffer is returned. A single rent whose conservative expected size exceeds the budget fails immediately instead of waiting forever.
+When `MaxOutstandingBytesPerProcess` is positive, the singleton factory wraps every
+manager it creates with `LimitingBufferManager` and shares one
+`BufferManagerMemoryLimiter` across them. A rent waits synchronously for
+capacity. Use this optional policy only where
+buffer returns can progress independently; it is not a substitute for the
+nonblocking server reassembly budget. A single rent whose conservative expected
+size exceeds the budget fails immediately rather than waiting forever.
+Zero or `null` leaves allocation unrestricted. Independently constructed
+factories have independent budgets. Accounting uses actual rented-array lengths,
+including pool rounding and metadata, and excludes arrays returned to the pool.
 
 Capacity changes notify only currently registered renters; idle buffer returns
 do not accumulate wakeups. Cancellation removes any unclaimed wakeup, and
@@ -782,6 +797,23 @@ properties (bindable from `IConfiguration` or set via the
 | `ConfigureLoadedConfiguration` | Code-only callback | Override individual settings of the configuration loaded from `ConfigurationFile` / `ConfigurationStream`. |
 | `ConfigureBuilder` | Code-only callback | Pre-security server-policy and server-option escape hatch, including max failed authentication attempts, sessions, channels, auditing, and HTTPS mutual TLS. |
 | `ConfigureRateLimits` | Code-only callback | Tunes the default connection and session-establishment admission controls. |
+
+Configure incomplete-message capacity with
+`builder.AddServer(...).WithChunkReassemblyBudget(maxBytes)`. This registers one
+`ChunkReassemblyBudget` for all listeners of the hosted server. Without an
+explicit budget, the server sizes one from `MaxMessageSize`; see
+[incomplete messages](RateLimiting.md#incomplete-messages) for the defaults,
+sessionless headroom, and direct-construction equivalent.
+
+### Committed session bindings
+
+Managed servers automatically supply their session manager's committed-binding
+view to transport listeners. A custom `ISessionBindingProvider` registered as a
+singleton is applied by the hosted server; direct hosts can assign
+`ServerBase.SessionBindingProvider` before startup. This optional seam preserves
+existing session-manager and transport-callback interfaces. Its snapshots are
+classification inputs, not authorization decisions; see
+[committed session bindings](Transports.md#committed-session-bindings).
 
 ### Server-side reverse connect
 
