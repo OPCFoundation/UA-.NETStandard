@@ -3415,7 +3415,11 @@ namespace Opc.Ua.Wot
                 {
                     return name;
                 }
-                int namespaceIndex = GetOrAppendNamespaceUri(nodeSet, namespaceUri);
+                if (!TryGetOrAppendNamespaceUri(
+                    nodeSet, namespaceUri, diagnostics, out int namespaceIndex))
+                {
+                    return rawBrowseName;
+                }
                 return namespaceIndex.ToString(
                     System.Globalization.CultureInfo.InvariantCulture) +
                     ":" +
@@ -3473,7 +3477,11 @@ namespace Opc.Ua.Wot
                 {
                     return name;
                 }
-                int namespaceIndex = GetOrAppendNamespaceUri(nodeSet, namespaceUri);
+                if (!TryGetOrAppendNamespaceUri(
+                    nodeSet, namespaceUri, diagnostics, out int namespaceIndex))
+                {
+                    return rawBrowseName;
+                }
                 return namespaceIndex.ToString(
                     System.Globalization.CultureInfo.InvariantCulture) +
                     ":" +
@@ -3532,7 +3540,11 @@ namespace Opc.Ua.Wot
                 {
                     return identifier;
                 }
-                int namespaceIndex = GetOrAppendNamespaceUri(nodeSet, namespaceUri);
+                if (!TryGetOrAppendNamespaceUri(
+                    nodeSet, namespaceUri, diagnostics, out int namespaceIndex))
+                {
+                    return portableNodeId;
+                }
                 return "ns=" +
                     namespaceIndex.ToString(
                         System.Globalization.CultureInfo.InvariantCulture) +
@@ -3556,30 +3568,80 @@ namespace Opc.Ua.Wot
             return WotPortableIdentity.IsSessionLocalNodeId(nodeId);
         }
 
-        private static int GetOrAppendNamespaceUri(
+        /// <summary>
+        /// Gets the NamespaceIndex of a URI in the NodeSet's namespace table,
+        /// appending the URI when the table does not hold it yet.
+        /// </summary>
+        /// <remarks>
+        /// The lookup goes through an index kept beside the NodeSet rather than
+        /// a scan of the table, which made every nsu= identifier of a document
+        /// that introduces U namespaces cost O(U). A NamespaceIndex is a
+        /// UInt16 (OPC 10000-3 8.2.2), so a document cannot introduce more
+        /// namespaces than one can address; that bound is also what keeps the
+        /// table - rewritten on every new URI - from growing without limit.
+        /// </remarks>
+        private static bool TryGetOrAppendNamespaceUri(
             UANodeSet nodeSet,
-            string namespaceUri)
+            string namespaceUri,
+            List<WotDiagnostic> diagnostics,
+            out int namespaceIndex)
         {
-            if (nodeSet.NamespaceUris is not null)
+            string[] uris = nodeSet.NamespaceUris ?? [];
+            NamespaceIndex index = s_namespaceIndexes.GetValue(
+                nodeSet, static _ => new NamespaceIndex());
+            if (!ReferenceEquals(index.Table, uris))
             {
-                for (int ii = 0; ii < nodeSet.NamespaceUris.Length; ii++)
+                // Built on first use, and again if anything else replaced the
+                // table; the first entry of a URI listed twice is its index.
+                index.Indexes.Clear();
+                for (int ii = 0; ii < uris.Length; ii++)
                 {
-                    if (string.Equals(
-                        nodeSet.NamespaceUris[ii],
-                        namespaceUri,
-                        StringComparison.Ordinal))
+                    if (uris[ii] is not null && !index.Indexes.ContainsKey(uris[ii]))
                     {
-                        return ii + 1;
+                        index.Indexes[uris[ii]] = ii + 1;
                     }
                 }
+                index.Table = uris;
             }
-            var uris = nodeSet.NamespaceUris is null
-                ? new List<string>()
-                : new List<string>(nodeSet.NamespaceUris);
-            uris.Add(namespaceUri);
-            nodeSet.NamespaceUris = [.. uris];
-            return uris.Count;
+            if (index.Indexes.TryGetValue(namespaceUri, out namespaceIndex))
+            {
+                return true;
+            }
+            if (uris.Length >= ushort.MaxValue)
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.ValidationError,
+                    $"The namespace '{namespaceUri}' cannot be added: the NodeSet " +
+                    $"already holds {uris.Length} namespaces, the most a UInt16 " +
+                    "NamespaceIndex can address.",
+                    new WotLocation(reference: namespaceUri)));
+                namespaceIndex = 0;
+                return false;
+            }
+            string[] appended = new string[uris.Length + 1];
+            Array.Copy(uris, appended, uris.Length);
+            appended[uris.Length] = namespaceUri;
+            nodeSet.NamespaceUris = appended;
+            namespaceIndex = appended.Length;
+            index.Indexes[namespaceUri] = namespaceIndex;
+            index.Table = appended;
+            return true;
         }
+
+        /// <summary>
+        /// The NamespaceIndex of every URI of the namespace table it was built
+        /// from.
+        /// </summary>
+        private sealed class NamespaceIndex
+        {
+            public string[]? Table { get; set; }
+
+            public Dictionary<string, int> Indexes { get; } = new(StringComparer.Ordinal);
+        }
+
+        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<UANodeSet, NamespaceIndex>
+            s_namespaceIndexes = new();
 
         private static bool HasTypeAnnotation(WotDocument document, string annotation)
         {

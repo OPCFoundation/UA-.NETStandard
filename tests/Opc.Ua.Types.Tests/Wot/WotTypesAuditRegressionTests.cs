@@ -406,6 +406,66 @@ namespace Opc.Ua.Types.Tests.Wot
             TestContext.Out.WriteLine($"{count} components linked in {watch.Elapsed}.");
         }
 
+        [Test]
+        public void ManyNamespacesAreLookedUpWithoutScanningTheTable()
+        {
+            // Every nsu= identifier scanned the whole namespace table and every
+            // new URI copied it: O(U^2) compares for U namespaces.
+            const int count = 60000;
+            WotConversionResult<UANodeSet> result = ConvertNamespaces(count, out TimeSpan elapsed);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Value!.NamespaceUris, Does.Contain("urn:ns" + (count - 1)));
+                Assert.That(elapsed, Is.LessThan(TimeSpan.FromSeconds(20)));
+            });
+            TestContext.Out.WriteLine($"{count} namespaces converted in {elapsed}.");
+        }
+
+        [Test]
+        public void MoreNamespacesThanANamespaceIndexAddressesAreReported()
+        {
+            // A NamespaceIndex is a UInt16: a table beyond 65535 URIs cannot be
+            // addressed, and nothing bounded it before.
+            WotConversionResult<UANodeSet> result = ConvertNamespaces(ushort.MaxValue + 5, out TimeSpan elapsed);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    result.Diagnostics.Any(d =>
+                        d.Severity == WotDiagnosticSeverity.Error &&
+                        d.Message.Contains("UInt16 NamespaceIndex", StringComparison.Ordinal)),
+                    Is.True);
+                Assert.That(
+                    result.Value?.NamespaceUris?.Length ?? 0,
+                    Is.LessThanOrEqualTo(ushort.MaxValue));
+            });
+            TestContext.Out.WriteLine($"{ushort.MaxValue + 5} namespaces converted in {elapsed}.");
+        }
+
+        private static WotConversionResult<UANodeSet> ConvertNamespaces(int count, out TimeSpan elapsed)
+        {
+            var properties = new StringBuilder();
+            for (int ii = 0; ii < count; ii++)
+            {
+                if (ii > 0)
+                {
+                    properties.Append(',');
+                }
+                properties.Append("\"p").Append(ii).Append("\":{\"type\":\"number\",\"uav:id\":\"nsu=urn:ns")
+                    .Append(ii).Append(";s=x\"}");
+            }
+            using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(
+                "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"}]," +
+                "\"@type\":\"uav:object\",\"title\":\"Thing\"," +
+                "\"properties\":{" + properties + "}}"));
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+            elapsed = watch.Elapsed;
+            return result;
+        }
+
         private static WotConversionResult<UANodeSet> ConvertDataTypes(string definitions)
         {
             using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(
