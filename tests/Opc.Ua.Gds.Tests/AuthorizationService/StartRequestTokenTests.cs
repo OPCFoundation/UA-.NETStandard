@@ -210,6 +210,50 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                 "not to the client-supplied request token.");
         }
 
+        /// <summary>
+        /// The GDS method handlers pass the session identity to every provider that
+        /// accepts one, including an InMemoryAccessTokenProvider registered directly.
+        /// </summary>
+        [Test]
+        public async Task InMemoryProviderStartRequestTokenBindsSubjectToCallerIdentity()
+        {
+            using Certificate certificate = CreateSigningCertificate();
+            using var certificateProvider = new InProcessCertificateProvider(certificate);
+            var options = new AuthorizationServiceOptions
+            {
+                IssuerUri = Issuer,
+                SigningCertificate = new CertificateIdentifier { Thumbprint = certificate.Thumbprint }
+            };
+            options.AllowedAudiences.Add(Audience);
+            options.DefaultScopes.Add("read");
+
+            var issuer = new CertificateJwtIssuer(options, certificateProvider, NUnitTelemetryContext.Create());
+            var provider = new InMemoryAccessTokenProvider(issuer, options);
+            Assert.That(provider, Is.InstanceOf<ICallerIdentityAccessTokenProvider>());
+            Assert.That(
+                new AuthorizationServiceManager(provider, issuer, options),
+                Is.InstanceOf<ICallerIdentityAccessTokenProvider>());
+
+            (_, Guid requestId) = await ((ICallerIdentityAccessTokenProvider)provider)
+                .StartRequestTokenAsync(
+                    Audience,
+                    "jwt",
+                    ByteString.From(Encoding.UTF8.GetBytes("read")),
+                    new UserIdentity("authenticated-user", []))
+                .ConfigureAwait(false);
+            AccessTokenResult tokenResult = await provider
+                .FinishRequestTokenAsync(
+                    requestId,
+                    Array.Empty<string>().ToArrayOf(),
+                    new UserNameIdentityToken { UserName = "admin" },
+                    new SignatureData())
+                .ConfigureAwait(false);
+
+            IIdentityClaims claims = await AuthenticateAsync(certificate, tokenResult.AccessToken)
+                .ConfigureAwait(false);
+            Assert.That(claims.Subject, Is.EqualTo("authenticated-user"));
+        }
+
         [Test]
         public async Task LegacyRequestAccessTokenIssuesAnonymousUnprivilegedToken()
         {

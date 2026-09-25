@@ -43,7 +43,7 @@ namespace Opc.Ua.Gds.Server
     /// AuthorizationService coordinator used by the GDS node manager and
     /// hosted-service wiring.
     /// </summary>
-    public sealed class AuthorizationServiceManager : IAccessTokenProvider
+    public sealed class AuthorizationServiceManager : IAccessTokenProvider, ICallerIdentityAccessTokenProvider
     {
         private static readonly char[] s_scopeSeparators = [' ', ',', ';', '\r', '\n', '\t'];
 

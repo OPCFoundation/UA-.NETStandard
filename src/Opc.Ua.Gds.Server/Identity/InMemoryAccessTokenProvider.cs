@@ -45,7 +45,7 @@ namespace Opc.Ua.Gds.Server.Identity
     /// In-memory AuthorizationService provider that delegates token
     /// signing to an <see cref="ITokenIssuer"/>.
     /// </summary>
-    public sealed class InMemoryAccessTokenProvider : IAccessTokenProvider
+    public sealed class InMemoryAccessTokenProvider : IAccessTokenProvider, ICallerIdentityAccessTokenProvider
     {
         private static readonly char[] s_scopeSeparators = [' ', ',', ';', '\r', '\n', '\t'];
         private readonly AuthorizationServiceOptions m_options;

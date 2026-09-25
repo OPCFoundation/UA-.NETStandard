@@ -2660,15 +2660,11 @@ namespace Opc.Ua.Gds.Server
                 // access control applies and the token subject is the caller.
                 IUserIdentity? callerIdentity = (context as ISessionSystemContext)?.UserIdentity;
 #pragma warning disable CS0618 // Legacy wire method is intentionally kept functional.
-                result.AccessToken = provider switch
-                {
-                    AuthorizationServiceManager manager => await manager.RequestAccessTokenAsync(
-                        identityToken, resourceId, callerIdentity, cancellationToken).ConfigureAwait(false),
-                    InMemoryAccessTokenProvider inMemory => await inMemory.RequestAccessTokenAsync(
-                        identityToken, resourceId, callerIdentity, cancellationToken).ConfigureAwait(false),
-                    _ => await provider.RequestAccessTokenAsync(
-                        identityToken, resourceId, cancellationToken).ConfigureAwait(false)
-                };
+                result.AccessToken = provider is ICallerIdentityAccessTokenProvider callerAware
+                    ? await callerAware.RequestAccessTokenAsync(
+                        identityToken, resourceId, callerIdentity, cancellationToken).ConfigureAwait(false)
+                    : await provider.RequestAccessTokenAsync(
+                        identityToken, resourceId, cancellationToken).ConfigureAwait(false);
 #pragma warning restore CS0618
             }
             catch (Exception ex)
@@ -2710,8 +2706,8 @@ namespace Opc.Ua.Gds.Server
             {
                 IUserIdentity? callerIdentity = (context as ISessionSystemContext)?.UserIdentity;
 
-                (ByteString serviceData, Guid requestId) = provider is AuthorizationServiceManager manager
-                    ? await manager.StartRequestTokenAsync(
+                (ByteString serviceData, Guid requestId) = provider is ICallerIdentityAccessTokenProvider callerAware
+                    ? await callerAware.StartRequestTokenAsync(
                         resourceId,
                         policyId,
                         requestorData,
