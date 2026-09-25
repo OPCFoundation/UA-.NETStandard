@@ -33,6 +33,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Tests;
@@ -349,6 +350,112 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 out WoTValidationOutcomeDataType? outcome), Is.True);
             Assert.That(outcome, Is.Not.Null);
             Assert.That(outcome!.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Failed));
+        }
+
+        [Test]
+        public async Task LogicalValidationWarningKeepsItsOriginalDefaultVersionPin()
+        {
+            m_coordinator.Dispose();
+            var registry = new Mock<IWotRegistryService>(MockBehavior.Strict);
+            registry.SetupGet(value => value.Current).Returns(() => m_registry.Current);
+            registry.SetupGet(value => value.Bounds).Returns(m_registry.Bounds);
+            registry.Setup(value => value.InitializeAsync(It.IsAny<CancellationToken>()))
+                .Returns((CancellationToken token) => m_registry.InitializeAsync(token));
+            registry.SetupAdd(value => value.Changed += It.IsAny<EventHandler<WotRegistryChangedEventArgs>>())
+                .Callback<EventHandler<WotRegistryChangedEventArgs>>(handler => m_registry.Changed += handler);
+            registry.SetupRemove(value => value.Changed -= It.IsAny<EventHandler<WotRegistryChangedEventArgs>>())
+                .Callback<EventHandler<WotRegistryChangedEventArgs>>(handler => m_registry.Changed -= handler);
+            async ValueTask SelectSecondVersionAsync(string groupId, string resourceId, CancellationToken token)
+            {
+                WotRegistryMutationResult changed = await m_registry.SetDefaultVersionAsync(
+                    groupId, resourceId, "v2", cancellationToken: token).ConfigureAwait(false);
+                Assert.That(changed.Changed, Is.True, changed.Message);
+                m_committedWarning = true;
+            }
+            registry.Setup(value => value.ValidateResourceAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns(async (string groupId, string resourceId, CancellationToken token) =>
+                {
+                    await SelectSecondVersionAsync(groupId, resourceId, token).ConfigureAwait(false);
+                    return await m_registry.ValidateResourceAsync(groupId, resourceId, token).ConfigureAwait(false);
+                });
+            registry.As<IWotVersionedRegistryService>().Setup(value => value.ValidateVersionAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns(async (string groupId, string resourceId, string versionId, CancellationToken token) =>
+                {
+                    await SelectSecondVersionAsync(groupId, resourceId, token).ConfigureAwait(false);
+                    return await m_registry.ValidateVersionAsync(groupId, resourceId, versionId, token)
+                        .ConfigureAwait(false);
+                });
+            m_coordinator = new WotMaterializationCoordinator(
+                registry.Object, new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle),
+                documentConverter: m_converter);
+            var registration = await m_server.NodeManagerLifecycle.AddAsync(new WotRegistryNodeManagerFactory(
+                new WotRegistryServerOptions
+                {
+                    AutoRefresh = false,
+                    ManagementAccess = new WotManagementAccessPolicy
+                    {
+                        MinimumSecurityMode = MessageSecurityMode.None,
+                        AllowAnonymous = true,
+                        RequiredRoleId = Ua.ObjectIds.WellKnownRole_Anonymous
+                    }
+                }, registry.Object, m_coordinator), callerContext: null).ConfigureAwait(false);
+            WotRegistryMutationResult first = await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
+            {
+                GroupId = WotRegistryGroups.ThingDescriptions, ResourceId = "validation-default-race", VersionId = "v1",
+                Content = ByteString.From(Encoding.UTF8.GetBytes("""
+                    {"id":"urn:validation-default-race","title":"First"}
+                    """))
+            }).ConfigureAwait(false);
+            WotRegistryMutationResult second = await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
+            {
+                GroupId = first.Resource!.GroupId, ResourceId = first.Resource.ResourceId,
+                VersionId = "v2", SetAsDefault = false,
+                Content = ByteString.From(Encoding.UTF8.GetBytes("""
+                    {"id":"urn:validation-default-race","title":"Second","uav:metadata":{"nested":{"depth":3}}}
+                    """))
+            }).ConfigureAwait(false);
+            Assert.That(second.Changed, Is.True, second.Message);
+            await ((WotRegistryNodeManager)registration.NodeManager).DispatchProjectionAsync(
+                _ => default, CancellationToken.None).ConfigureAwait(false);
+            await m_session.FetchNamespaceTablesAsync().ConfigureAwait(false);
+            m_session.MessageContext.Factory.Builder.AddOpcUaWotCon().Commit();
+            WotResource resource = second.Resource!;
+            long generation = m_registry.Current.Generation;
+            int depth = m_registry.Bounds.MaxJsonDepth;
+            CallResponse response;
+            try
+            {
+                m_registry.Bounds.MaxJsonDepth = 2;
+                response = await m_session.CallAsync(null,
+                    [
+                        new CallMethodRequest
+                        {
+                            ObjectId = ResourceId(resource),
+                            MethodId = ExpandedNodeId.ToNodeId(MethodIds.WoTDocumentType_Validate, m_session.NamespaceUris),
+                            InputArguments = []
+                        }
+                    ], CancellationToken.None).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_registry.Bounds.MaxJsonDepth = depth;
+                m_committedWarning = false;
+            }
+
+            Assert.That(m_registry.Current.Generation, Is.EqualTo(generation + 2),
+                "Both the intervening default change and the validation observation must have committed.");
+            Assert.That(m_registry.Current.FindResourceByXid(resource.Xid)!.DefaultVersionId, Is.EqualTo("v2"));
+            Assert.That(response.Results.Count, Is.EqualTo(1));
+            Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.GoodResultsMayBeIncomplete));
+            Assert.That(response.Results[0].OutputArguments[0].TryGetStructure<WoTValidationOutcomeDataType>(
+                out WoTValidationOutcomeDataType? outcome), Is.True);
+            Assert.That(outcome!.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Skipped));
+            WotResource current = m_registry.Current.FindResourceByXid(resource.Xid)!;
+            Assert.That(current.DefaultVersionId, Is.EqualTo("v2"));
+            Assert.That(current.FindVersion("v1")!.Validation!.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Skipped));
+            Assert.That(current.FindVersion("v2")!.Validation, Is.Null);
         }
 
         [TestCase(0)]

@@ -496,12 +496,12 @@ namespace Opc.Ua.WotCon.Server
             try
             {
                 if (m_registry is IWotVersionedRegistryService versioned &&
-                    !string.IsNullOrEmpty(versionId))
+                    !string.IsNullOrEmpty(selectedVersionId))
                 {
                     outcome = await versioned.ValidateVersionAsync(
                             groupId,
                             resourceId,
-                            versionId,
+                            selectedVersionId,
                             ct)
                         .ConfigureAwait(false);
                 }

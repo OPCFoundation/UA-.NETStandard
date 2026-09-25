@@ -286,6 +286,9 @@ than implying rollback. Returned outcomes and queued event payloads are detached
 from caller mutation.
 The native Method returns the committed outcome with
 `GoodResultsMayBeIncomplete` when completion reports a committed warning.
+For a logical Resource, the Method resolves the default once and validates that
+exact Version. A concurrent default change does not redirect validation or make
+the warning response describe another Version's outcome.
 Post-decision metadata reconciliation does not use caller cancellation to
 turn that committed result into rollback.
 If post-commit generation capture fails or a commit is indeterminate, the same
