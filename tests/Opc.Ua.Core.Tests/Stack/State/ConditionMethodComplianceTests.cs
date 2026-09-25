@@ -196,6 +196,80 @@ namespace Opc.Ua.Core.Tests.Stack.State
         }
 
         /// <summary>
+        /// A4-3: an EventId superseded by a later state change (here AddComment) still
+        /// identifies its unacknowledged state, so Acknowledge and Confirm accept it.
+        /// </summary>
+        [Test]
+        public void SupersededEventIdOfUnackedStateCanBeAcknowledgedAndConfirmed()
+        {
+            TestAlarm alarm = CreateAlarm();
+            alarm.AutoReportStateChanges = true;
+            alarm.ConfirmedState = new TwoStateVariableState(alarm);
+            alarm.ConfirmedState.Create(
+                m_context, default, QualifiedName.From(BrowseNames.ConfirmedState), default, false);
+            alarm.SetConfirmedState(m_context, true);
+            alarm.SetAcknowledgedState(m_context, false);
+            alarm.EventId.Value = Uuid.NewUuid().ToByteString();
+            MonitorEvents(alarm);
+            ByteString t1 = alarm.EventId.Value;
+
+            ServiceResult comment = alarm.CallAddComment(m_context, t1, LocalizedText.From("x"));
+            Assert.That(ServiceResult.IsGood(comment), Is.True, comment.ToString());
+            Assert.That(alarm.EventId.Value, Is.Not.EqualTo(t1));
+
+            ServiceResult ack = alarm.CallAcknowledge(m_context, t1);
+            Assert.That(ServiceResult.IsGood(ack), Is.True, ack.ToString());
+            Assert.That(alarm.AckedState.Id.Value, Is.True);
+
+            ServiceResult again = alarm.CallAcknowledge(m_context, t1);
+            Assert.That(again.StatusCode, Is.EqualTo(StatusCodes.BadConditionBranchAlreadyAcked));
+
+            // the acknowledgement left the condition unconfirmed; comment again, confirm the old EventId.
+            ByteString t2 = alarm.EventId.Value;
+            comment = alarm.CallAddComment(m_context, t2, LocalizedText.From("y"));
+            Assert.That(ServiceResult.IsGood(comment), Is.True, comment.ToString());
+
+            ServiceResult confirm = alarm.CallConfirm(m_context, t2);
+            Assert.That(ServiceResult.IsGood(confirm), Is.True, confirm.ToString());
+            Assert.That(alarm.ConfirmedState.Id.Value, Is.True);
+
+            // a new unacknowledged state does not make the acknowledged EventId acknowledgeable again.
+            alarm.SetAcknowledgedState(m_context, false);
+            ServiceResult stale = alarm.CallAcknowledge(m_context, t1);
+            Assert.That(stale.StatusCode, Is.EqualTo(StatusCodes.BadConditionBranchAlreadyAcked));
+            Assert.That(alarm.AckedState.Id.Value, Is.False);
+        }
+
+        /// <summary>
+        /// A4-3: a branch EventId superseded by a comment on the branch acknowledges the branch.
+        /// </summary>
+        [Test]
+        public void SupersededBranchEventIdAcknowledgesTheBranch()
+        {
+            TestAlarm alarm = CreateAlarm();
+            alarm.AutoReportStateChanges = true;
+            alarm.EventId.Value = Uuid.NewUuid().ToByteString();
+            MonitorEvents(alarm);
+
+            ConditionState branch = alarm.CreateBranch(m_context, new NodeId(42));
+            Assert.That(branch, Is.Not.Null);
+            ((AcknowledgeableConditionState)branch).SetAcknowledgedState(m_context, false);
+            ByteString b1 = branch.EventId.Value;
+
+            ServiceResult comment = alarm.CallAddComment(m_context, b1, LocalizedText.From("branch"));
+            Assert.That(ServiceResult.IsGood(comment), Is.True, comment.ToString());
+            Assert.That(branch.EventId.Value, Is.Not.EqualTo(b1));
+
+            ServiceResult ack = alarm.CallAcknowledge(m_context, b1);
+            Assert.That(ServiceResult.IsGood(ack), Is.True, ack.ToString());
+            Assert.That(((AcknowledgeableConditionState)branch).AckedState.Id.Value, Is.True);
+            Assert.That(alarm.GetBranchCount(), Is.Zero);
+
+            ServiceResult again = alarm.CallAcknowledge(m_context, b1);
+            Assert.That(again.StatusCode, Is.EqualTo(StatusCodes.BadConditionBranchAlreadyAcked));
+        }
+
+        /// <summary>
         /// S1-3: AddComment rejects unknown EventIds and a branch comment only goes to the branch.
         /// </summary>
         [Test]

@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
@@ -482,7 +483,12 @@ namespace Opc.Ua
                 // create a new event instance.
                 PropertyState<ByteString> eventId = EventId!; // ConditionState.Initialize creates EventId
                 PropertyState<DateTimeUtc> time = Time!; // ConditionState.Initialize creates Time
+
+                // the superseded EventId keeps identifying the state it was reported for.
+                ConditionState root = GetRootCondition();
+                root.RecordEventId(this, eventId.Value);
                 eventId.Value = Uuid.NewUuid().ToByteString();
+                root.RecordEventId(this, eventId.Value);
                 time.Value = DateTimeUtc.Now;
                 ReceiveTime!.Value = time.Value; // ConditionState.Initialize creates ReceiveTime
 
@@ -529,7 +535,7 @@ namespace Opc.Ua
             {
                 // Part 9 5.5.6: the comment belongs to the event occurrence identified by
                 // the EventId. A branch comment is applied (and reported) by the branch only.
-                ConditionState? branch = GetBranch(eventId);
+                ConditionState? branch = GetBranch(eventId) ?? ResolveEventId(eventId)?.Owner;
                 if (branch != null && !ReferenceEquals(branch, this))
                 {
                     return branch.OnAddCommentCalled(context, method, objectId, eventId, comment);
@@ -613,8 +619,9 @@ namespace Opc.Ua
                 return StatusCodes.BadConditionDisabled;
             }
 
-            // Part 9 5.5.6: comments are added to event occurrences identified by the EventId.
-            if (GetEventByEventId(eventId) == null)
+            // Part 9 5.5.6: comments are added to event occurrences identified by the EventId,
+            // including one whose EventId was superseded by a later state change.
+            if (ResolveEventId(eventId) is not { IsLive: true })
             {
                 return StatusCodes.BadEventIdUnknown;
             }
@@ -859,6 +866,202 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Records the EventId of a reported state change of this condition.
+        /// </summary>
+        public override void ReportEvent(ISystemContext context, IFilterTarget e)
+        {
+            RecordReportedEvent(e);
+            base.ReportEvent(context, e);
+        }
+
+        /// <summary>
+        /// Records the EventId of a reported state change of this condition.
+        /// </summary>
+        public override ValueTask ReportEventAsync(
+            ISystemContext context,
+            IFilterTarget e,
+            CancellationToken cancellationToken = default)
+        {
+            RecordReportedEvent(e);
+            return base.ReportEventAsync(context, e, cancellationToken);
+        }
+
+        /// <summary>
+        /// Resolves the trunk or branch whose state an EventId identifies.
+        /// </summary>
+        /// <remarks>
+        /// Part 9 5.5.6/5.7.3/5.7.4: an EventId identifies the state of the condition (or
+        /// of a branch) reported with that event notification. The EventId stays valid
+        /// after a later state change reported a new EventId, so superseded EventIds are
+        /// resolved through the EventIds recently reported by the condition and its branches.
+        /// </remarks>
+        /// <param name="eventId">The EventId passed to a condition method.</param>
+        /// <returns>The reported event, or null if the EventId is not known.</returns>
+        private protected ReportedConditionEvent? ResolveEventId(ByteString eventId)
+        {
+            ConditionState root = GetRootCondition();
+
+            ConditionState? current = GetEventByEventId(eventId);
+            if (current != null)
+            {
+                // remember the state as it is before the method changes it, so the
+                // EventId still refers to it once a later state change supersedes it.
+                root.RecordEventId(current, eventId);
+                return new ReportedConditionEvent(current, true, true, 0, 0);
+            }
+
+            ReportedConditionEvent? reported;
+            lock (root.m_reportedEventIdsLock)
+            {
+                if (root.m_reportedEventIds == null ||
+                    !root.m_reportedEventIds.TryGetValue(eventId, out reported))
+                {
+                    return null;
+                }
+            }
+
+            bool isLive = ReferenceEquals(reported.Owner, root) || ReferenceEquals(reported.Owner, this);
+            if (!isLive)
+            {
+                lock (root.m_branchesLock)
+                {
+                    isLive = root.m_branches != null && root.m_branches.ContainsValue(reported.Owner);
+                }
+            }
+
+            return reported with { IsCurrent = false, IsLive = isLive };
+        }
+
+        /// <summary>
+        /// Returns the condition that owns the branch table: the trunk for a branch, else this condition.
+        /// </summary>
+        private ConditionState GetRootCondition()
+        {
+            return BranchId is { Value.IsNull: false } && Parent is ConditionState trunk ? trunk : this;
+        }
+
+        /// <summary>
+        /// Records the EventId of a reported event of this condition.
+        /// </summary>
+        private void RecordReportedEvent(IFilterTarget e)
+        {
+            if (EventId is { } eventId &&
+                (ReferenceEquals(e, this) ||
+                    (e is InstanceStateSnapshot snapshot && ReferenceEquals(snapshot.Handle, this))))
+            {
+                GetRootCondition().RecordEventId(this, eventId.Value);
+            }
+        }
+
+        /// <summary>
+        /// Remembers the owner of an EventId, together with the number of times the owner
+        /// was acknowledged and confirmed when the EventId was reported. Keeps the first record.
+        /// </summary>
+        private void RecordEventId(ConditionState owner, ByteString eventId)
+        {
+            if (eventId.IsEmpty)
+            {
+                return;
+            }
+
+            lock (m_reportedEventIdsLock)
+            {
+                m_reportedEventIds ??= [];
+                if (!m_reportedEventIds.TryAdd(
+                    eventId,
+                    new ReportedConditionEvent(owner, false, false, owner.m_acknowledgeCount, owner.m_confirmCount)))
+                {
+                    return;
+                }
+
+                (m_reportedEventIdOrder ??= new Queue<ByteString>()).Enqueue(eventId);
+                while (m_reportedEventIdOrder.Count > kMaxReportedEventIds)
+                {
+                    m_reportedEventIds.Remove(m_reportedEventIdOrder.Dequeue());
+                }
+            }
+        }
+
+        /// <summary>
+        /// Removes a branch from the branch table, whatever EventId it is keyed by.
+        /// </summary>
+        private protected void RemoveBranch(ConditionState branch)
+        {
+            lock (m_branchesLock)
+            {
+                RemoveBranchEntry(branch);
+            }
+        }
+
+        /// <summary>
+        /// Keys a branch by its current EventId, whatever EventId it was keyed by before.
+        /// </summary>
+        private protected void RekeyBranch(ConditionState branch)
+        {
+            string newKey = branch.EventId!.Value.ToHexString(); // ConditionState.Initialize creates EventId
+
+            lock (m_branchesLock)
+            {
+                RemoveBranchEntry(branch);
+                (m_branches ??= [])[newKey] = branch;
+            }
+        }
+
+        /// <summary>
+        /// Removes every branch table entry of the branch. Caller holds the branches lock.
+        /// </summary>
+        private void RemoveBranchEntry(ConditionState branch)
+        {
+            if (m_branches == null)
+            {
+                return;
+            }
+
+            List<string>? keys = null;
+            foreach (KeyValuePair<string, ConditionState> entry in m_branches)
+            {
+                if (ReferenceEquals(entry.Value, branch))
+                {
+                    (keys ??= []).Add(entry.Key);
+                }
+            }
+
+            if (keys != null)
+            {
+                foreach (string key in keys)
+                {
+                    m_branches.Remove(key);
+                }
+            }
+        }
+
+        /// <summary>
+        /// A reported EventId of the condition or one of its branches.
+        /// </summary>
+        /// <param name="Owner">The trunk or branch that reported the EventId.</param>
+        /// <param name="IsCurrent">True if the EventId is the current EventId of the owner.</param>
+        /// <param name="IsLive">True if the owner is the condition or one of its current branches.</param>
+        /// <param name="AcknowledgeCount">The acknowledgements of the owner when the EventId was reported.</param>
+        /// <param name="ConfirmCount">The confirmations of the owner when the EventId was reported.</param>
+        private protected sealed record class ReportedConditionEvent(
+            ConditionState Owner,
+            bool IsCurrent,
+            bool IsLive,
+            uint AcknowledgeCount,
+            uint ConfirmCount)
+        {
+            /// <summary>
+            /// True if the owner was acknowledged after the EventId was reported.
+            /// </summary>
+            public bool AcknowledgedSince => !IsCurrent && Owner.m_acknowledgeCount != AcknowledgeCount;
+
+            /// <summary>
+            /// True if the owner was confirmed after the EventId was reported.
+            /// </summary>
+            public bool ConfirmedSince => !IsCurrent && Owner.m_confirmCount != ConfirmCount;
+        }
+
+        /// <summary>
         /// Branches
         /// </summary>
         protected Dictionary<string, ConditionState>? m_branches;
@@ -867,6 +1070,21 @@ namespace Opc.Ua
         /// Lock protecting all access to <see cref="m_branches"/>.
         /// </summary>
         protected readonly Lock m_branchesLock = new();
+
+        /// <summary>
+        /// The number of times this condition was acknowledged.
+        /// </summary>
+        private protected uint m_acknowledgeCount;
+
+        /// <summary>
+        /// The number of times this condition was confirmed.
+        /// </summary>
+        private protected uint m_confirmCount;
+
+        private const int kMaxReportedEventIds = 64;
+        private readonly Lock m_reportedEventIdsLock = new();
+        private Dictionary<ByteString, ReportedConditionEvent>? m_reportedEventIds;
+        private Queue<ByteString>? m_reportedEventIdOrder;
         private PropertyState<bool>? m_supportsFilteredRetain;
     }
 

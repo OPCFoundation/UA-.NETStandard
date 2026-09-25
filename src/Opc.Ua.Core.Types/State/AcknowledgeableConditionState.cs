@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Threading;
 
 namespace Opc.Ua
@@ -57,6 +56,7 @@ namespace Opc.Ua
             if (acknowledged)
             {
                 UpdateStateAfterAcknowledge(context);
+                m_acknowledgeCount++;
             }
             else
             {
@@ -77,6 +77,7 @@ namespace Opc.Ua
             if (confirmed)
             {
                 UpdateStateAfterConfirm(context);
+                m_confirmCount++;
             }
             else
             {
@@ -148,21 +149,22 @@ namespace Opc.Ua
 
             if (ServiceResult.IsGood(error))
             {
-                AddHandledEventId(m_acknowledgedEventIds, eventId);
-
                 AcknowledgeableConditionState? branch = GetAcknowledgeableBranch(eventId);
 
                 if (branch != null)
                 {
-                    branch.OnAcknowledgeCalled(context, method, objectId, eventId, comment);
+                    error = branch.OnAcknowledgeCalled(context, method, objectId, eventId, comment);
 
-                    if (SupportsConfirm())
+                    if (ServiceResult.IsGood(error))
                     {
-                        ReplaceBranchEvent(eventId, branch);
-                    }
-                    else
-                    {
-                        RemoveBranchEvent(eventId);
+                        if (SupportsConfirm())
+                        {
+                            RekeyBranch(branch);
+                        }
+                        else
+                        {
+                            RemoveBranch(branch);
+                        }
                     }
                 }
                 else
@@ -174,7 +176,10 @@ namespace Opc.Ua
                         SetConfirmedState(context, false);
                     }
                 }
+            }
 
+            if (ServiceResult.IsGood(error))
+            {
                 // If this is a branch, the comment goes to both the branch and the original event
                 if (CanSetComment(comment))
                 {
@@ -248,20 +253,23 @@ namespace Opc.Ua
                 return StatusCodes.BadConditionDisabled;
             }
 
-            // Part 9 5.7.3: the EventId must identify the current state of the condition
-            // or of one of its branches, and that state must still need acknowledgement.
-            if (GetEventByEventId(eventId) is not AcknowledgeableConditionState target)
+            // Part 9 5.7.3: the EventId identifies a state the condition or one of its branches
+            // reported (possibly superseded by a later state change), and only a state that
+            // was not acknowledged yet can be acknowledged.
+            if (ResolveEventId(eventId) is not { Owner: AcknowledgeableConditionState target } reported)
             {
-                // the EventId of a state that was acknowledged before is superseded by
-                // the EventId of the state change the acknowledgement reported.
-                return IsHandledEventId(m_acknowledgedEventIds, eventId)
-                    ? StatusCodes.BadConditionBranchAlreadyAcked
-                    : StatusCodes.BadEventIdUnknown;
+                return StatusCodes.BadEventIdUnknown;
             }
 
-            if (target.AckedState?.Id?.Value == true)
+            if (target.AckedState?.Id?.Value == true || reported.AcknowledgedSince)
             {
                 return StatusCodes.BadConditionBranchAlreadyAcked;
+            }
+
+            if (!reported.IsLive)
+            {
+                // the branch that reported the EventId no longer exists.
+                return StatusCodes.BadEventIdUnknown;
             }
 
             if (OnAcknowledge != null)
@@ -342,20 +350,25 @@ namespace Opc.Ua
 
             if (ServiceResult.IsGood(error))
             {
-                AddHandledEventId(m_confirmedEventIds, eventId);
-
                 AcknowledgeableConditionState? branch = GetAcknowledgeableBranch(eventId);
 
                 if (branch != null)
                 {
-                    branch.OnConfirmCalled(context, method, objectId, eventId, comment);
-                    RemoveBranchEvent(eventId);
+                    error = branch.OnConfirmCalled(context, method, objectId, eventId, comment);
+
+                    if (ServiceResult.IsGood(error))
+                    {
+                        RemoveBranch(branch);
+                    }
                 }
                 else
                 {
                     SetConfirmedState(context, true);
                 }
+            }
 
+            if (ServiceResult.IsGood(error))
+            {
                 // If this is a branch, the comment goes to both the branch and the original event
                 if (CanSetComment(comment))
                 {
@@ -429,20 +442,23 @@ namespace Opc.Ua
                 return StatusCodes.BadConditionDisabled;
             }
 
-            // Part 9 5.7.4: the EventId must identify the current state of the condition
-            // or of one of its branches, and that state must still need confirmation.
-            if (GetEventByEventId(eventId) is not AcknowledgeableConditionState target)
+            // Part 9 5.7.4: the EventId identifies a state the condition or one of its branches
+            // reported (possibly superseded by a later state change), and only a state that
+            // was not confirmed yet can be confirmed.
+            if (ResolveEventId(eventId) is not { Owner: AcknowledgeableConditionState target } reported)
             {
-                // the EventId of a state that was confirmed before is superseded by
-                // the EventId of the state change the confirmation reported.
-                return IsHandledEventId(m_confirmedEventIds, eventId)
-                    ? StatusCodes.BadConditionBranchAlreadyConfirmed
-                    : StatusCodes.BadEventIdUnknown;
+                return StatusCodes.BadEventIdUnknown;
             }
 
-            if (target.ConfirmedState?.Id?.Value == true)
+            if (target.ConfirmedState?.Id?.Value == true || reported.ConfirmedSince)
             {
                 return StatusCodes.BadConditionBranchAlreadyConfirmed;
+            }
+
+            if (!reported.IsLive)
+            {
+                // the branch that reported the EventId no longer exists.
+                return StatusCodes.BadEventIdUnknown;
             }
 
             if (OnConfirm != null)
@@ -561,19 +577,14 @@ namespace Opc.Ua
         /// </returns>
         private AcknowledgeableConditionState? GetAcknowledgeableBranch(ByteString eventId)
         {
-            AcknowledgeableConditionState? acknowledgeableBranch = null;
-            ConditionState? branch = GetBranch(eventId);
-
-            if (branch != null)
+            // the EventId may be a superseded EventId of the branch.
+            if ((GetBranch(eventId) ?? ResolveEventId(eventId)?.Owner) is AcknowledgeableConditionState branch &&
+                !ReferenceEquals(branch, this))
             {
-                object? acknowledgeable = branch as AcknowledgeableConditionState;
-                if (acknowledgeable != null)
-                {
-                    acknowledgeableBranch = (AcknowledgeableConditionState)acknowledgeable;
-                }
+                return branch;
             }
 
-            return acknowledgeableBranch;
+            return null;
         }
 
         /// <summary>
@@ -603,44 +614,5 @@ namespace Opc.Ua
 
             return retainState;
         }
-
-        /// <summary>
-        /// Remembers an EventId whose state was acknowledged or confirmed.
-        /// </summary>
-        private void AddHandledEventId(Queue<ByteString> handled, ByteString eventId)
-        {
-            lock (m_handledEventIdsLock)
-            {
-                handled.Enqueue(eventId);
-                while (handled.Count > kMaxHandledEventIds)
-                {
-                    handled.Dequeue();
-                }
-            }
-        }
-
-        /// <summary>
-        /// Returns true if the EventId identifies a state that was acknowledged or confirmed.
-        /// </summary>
-        private bool IsHandledEventId(Queue<ByteString> handled, ByteString eventId)
-        {
-            lock (m_handledEventIdsLock)
-            {
-                foreach (ByteString id in handled)
-                {
-                    if (id == eventId)
-                    {
-                        return true;
-                    }
-                }
-            }
-
-            return false;
-        }
-
-        private const int kMaxHandledEventIds = 16;
-        private readonly Lock m_handledEventIdsLock = new();
-        private readonly Queue<ByteString> m_acknowledgedEventIds = new();
-        private readonly Queue<ByteString> m_confirmedEventIds = new();
     }
 }
