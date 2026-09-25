@@ -250,12 +250,30 @@ namespace Opc.Ua.Client.WebApi
                 ProfileUris = default
             };
 
+            // The HttpClient timeout is infinite because OperationTimeout
+            // governs each request, so bound this call by OperationTimeout
+            // too - otherwise a server that accepts TLS but never answers
+            // hangs OpenAsync forever.
+            int operationTimeout = OperationTimeout;
+            using CancellationTokenSource? timeoutCts = operationTimeout > 0
+                ? m_timeProvider.CreateCancellationTokenSource(
+                    TimeSpan.FromMilliseconds(operationTimeout))
+                : null;
+            using CancellationTokenSource? linkedCts = timeoutCts != null
+                ? CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token)
+                : null;
+
             GetEndpointsResponse response;
             try
             {
                 response = await m_client
-                    .GetEndpointsAsync(request, ct)
+                    .GetEndpointsAsync(request, linkedCts?.Token ?? ct)
                     .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                // The caller cancelled the open - do not report success.
+                throw;
             }
             catch
             {

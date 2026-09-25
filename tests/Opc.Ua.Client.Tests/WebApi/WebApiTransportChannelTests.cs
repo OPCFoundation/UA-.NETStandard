@@ -255,6 +255,79 @@ namespace Opc.Ua.Client.Tests.WebApi
                 Throws.InstanceOf<OperationCanceledException>());
         }
 
+        /// <summary>
+        /// Review G14: the HttpClient timeout is infinite (OperationTimeout
+        /// governs each request), so the GetEndpoints hydrate issued by
+        /// OpenAsync must be bounded by OperationTimeout as well - a server
+        /// that never answers must not hang the open forever.
+        /// </summary>
+        [Test]
+        public async Task OpenBoundsEndpointHydrateByOperationTimeoutAsync()
+        {
+            using var channel = new WebApiTransportChannel(
+                NUnitTelemetryContext.Create(),
+                new WebApiClientOptions
+                {
+                    HttpMessageHandler = new StubHandler(async (_, ct) =>
+                    {
+                        await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false);
+                        return new HttpResponseMessage(HttpStatusCode.OK);
+                    })
+                });
+            TransportChannelSettings settings = CreateSettings();
+            settings.Configuration!.OperationTimeout = 200;
+            settings.Description = new EndpointDescription
+            {
+                EndpointUrl = "https://localhost:4843/",
+                SecurityMode = MessageSecurityMode.None,
+                SecurityPolicyUri = SecurityPolicies.None
+            };
+
+            Task open = channel.OpenAsync(
+                new Uri("https://localhost:4843/"),
+                settings,
+                CancellationToken.None).AsTask();
+            Task completed = await Task.WhenAny(open, Task.Delay(30_000)).ConfigureAwait(false);
+
+            Assert.That(completed, Is.SameAs(open), "OpenAsync hung on the endpoint hydrate.");
+            await open.ConfigureAwait(false);
+            Assert.That(settings.Description.ServerCertificate.Length, Is.Zero);
+        }
+
+        /// <summary>
+        /// Review G14: caller cancellation of the open is not swallowed by the
+        /// best-effort endpoint hydrate.
+        /// </summary>
+        [Test]
+        public void OpenPropagatesCallerCancellationDuringEndpointHydrate()
+        {
+            using var channel = new WebApiTransportChannel(
+                NUnitTelemetryContext.Create(),
+                new WebApiClientOptions
+                {
+                    HttpMessageHandler = new StubHandler(async (_, ct) =>
+                    {
+                        await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false);
+                        return new HttpResponseMessage(HttpStatusCode.OK);
+                    })
+                });
+            TransportChannelSettings settings = CreateSettings();
+            settings.Description = new EndpointDescription
+            {
+                EndpointUrl = "https://localhost:4843/",
+                SecurityMode = MessageSecurityMode.None,
+                SecurityPolicyUri = SecurityPolicies.None
+            };
+            using var cts = new CancellationTokenSource(100);
+
+            Assert.That(
+                async () => await channel.OpenAsync(
+                    new Uri("https://localhost:4843/"),
+                    settings,
+                    cts.Token).ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>());
+        }
+
         [Test]
         public void OpenRejectsCredentialsOverPlainHttp()
         {
