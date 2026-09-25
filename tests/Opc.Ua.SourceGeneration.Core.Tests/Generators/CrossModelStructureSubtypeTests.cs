@@ -301,6 +301,72 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 "the three dimensions survive: " + cube);
         }
 
+        /// <summary>
+        /// A2-8: a dependency design file is linked, not validated, so its
+        /// single-dimension "matrix" field (OneOrMoreDimensions with one
+        /// array dimension) was not normalised to the array it is. A target
+        /// structure that contains or subtypes such a dependency structure
+        /// was then taken for one with an inline matrix and dropped from the
+        /// binary schema, although the dependency's own build encodes the
+        /// field as a length-prefixed array.
+        /// </summary>
+        [Test]
+        public void DependencySingleDimensionMatrixFieldIsNormalisedToAnArray()
+        {
+            string vectorPath = Path.Combine(m_rootPath, "A", "ModelV.xml");
+            string holderPath = Path.Combine(m_rootPath, "B", "ModelH.xml");
+            File.WriteAllText(vectorPath, ModelVDesign);
+            File.WriteAllText(holderPath, ModelHDesign);
+
+            Dictionary<string, string> generated = Generate(
+                targets: [holderPath],
+                dependencies: [holderPath, vectorPath]);
+
+            string bsd = generated.Keys
+                .Where(f => f.EndsWith(".Types.bsd", System.StringComparison.Ordinal))
+                .Select(f => generated[f])
+                .FirstOrDefault();
+            Assert.That(bsd, Is.Not.Null, "No binary schema generated.");
+            Assert.That(bsd, Does.Contain("<opc:StructuredType Name=\"HolderStruct\""));
+            Assert.That(bsd, Does.Contain("<opc:StructuredType Name=\"SubVectorStruct\""));
+
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+            using var virtualFileSystem = new VirtualFileSystem();
+            IFileSystem fileSystem = typeof(ModelDesignValidator).Assembly
+                .AsFileSystem("Opc.Ua.SourceGeneration.Design")
+                .WithFallback(virtualFileSystem);
+            IModelDesign model = fileSystem.OpenModelDesign(
+                new DesignFileCollection
+                {
+                    Targets = [holderPath],
+                    Dependencies = [vectorPath],
+                    Options = new DesignFileOptions()
+                },
+                exclusions: null,
+                telemetry,
+                useAllowSubtypes: false);
+            var vector = model.Nodes
+                .OfType<DataTypeDesign>()
+                .Single(n => n.SymbolicName.Name == "SubVectorStruct")
+                .BaseTypeNode as DataTypeDesign;
+            Assert.That(vector, Is.Not.Null);
+            Assert.That(vector.Fields.Single(f => f.Name == "Values").ValueRank, Is.EqualTo(ValueRank.Array));
+            Assert.That(vector.HasInlineMatrixField(), Is.False);
+            var grid = model.Nodes
+                .OfType<DataTypeDesign>()
+                .Single(n => n.SymbolicName.Name == "SubGridStruct")
+                .BaseTypeNode as DataTypeDesign;
+            Assert.That(grid, Is.Not.Null);
+            // A matrix without dimensions is taken as rank 2 (ValueRank-0
+            // normalisation), as for the target's own types.
+            Assert.That(grid.Fields.Single(f => f.Name == "Grid").ArrayDimensions, Is.EqualTo("0,0"));
+            Assert.That(grid.HasInlineMatrixField(), Is.True, "Grid is a real matrix");
+            Assert.That(
+                model.Nodes.OfType<DataTypeDesign>().Single(n => n.SymbolicName.Name == "HolderStruct")
+                    .HasInlineMatrixField(),
+                Is.False);
+        }
+
         private static string FieldText(string definition, string name)
         {
             int start = definition.IndexOf("Name = \"" + name + "\"", System.StringComparison.Ordinal);
@@ -601,6 +667,70 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 <opc:Namespace Name="OpcUa" Prefix="Opc.Ua" XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/</opc:Namespace>
               </opc:Namespaces>
               <opc:DataType SymbolicName="DerivedStruct" BaseType="s0:BaseStruct">
+                <opc:Fields>
+                  <opc:Field Name="Extra" DataType="ua:UInt32" />
+                </opc:Fields>
+              </opc:DataType>
+            </opc:ModelDesign>
+            """;
+
+        /// <summary>
+        /// Dependency of A2-8: VectorStruct has a single-dimension "matrix"
+        /// field (an array) and a matrix field without dimensions.
+        /// </summary>
+        private const string ModelVDesign =
+            """
+            <?xml version="1.0" encoding="utf-8" ?>
+            <opc:ModelDesign
+              xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+              xmlns:ua="http://opcfoundation.org/UA/"
+              xmlns="http://test.org/UA/ModelV/"
+              TargetNamespace="http://test.org/UA/ModelV/">
+              <opc:Namespaces>
+                <opc:Namespace Name="OpcUa" Prefix="Opc.Ua" XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/</opc:Namespace>
+                <opc:Namespace Name="ModelV" Prefix="Test.ModelV">http://test.org/UA/ModelV/</opc:Namespace>
+              </opc:Namespaces>
+              <opc:DataType SymbolicName="VectorStruct" BaseType="ua:Structure">
+                <opc:Fields>
+                  <opc:Field Name="Values" DataType="ua:Double" ValueRank="OneOrMoreDimensions" ArrayDimensions="5" />
+                </opc:Fields>
+              </opc:DataType>
+              <opc:DataType SymbolicName="GridStruct" BaseType="VectorStruct">
+                <opc:Fields>
+                  <opc:Field Name="Grid" DataType="ua:Double" ValueRank="OneOrMoreDimensions" />
+                </opc:Fields>
+              </opc:DataType>
+            </opc:ModelDesign>
+            """;
+
+        /// <summary>
+        /// Target of A2-8: contains and subtypes ModelV's VectorStruct.
+        /// </summary>
+        private const string ModelHDesign =
+            """
+            <?xml version="1.0" encoding="utf-8" ?>
+            <opc:ModelDesign
+              xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+              xmlns:ua="http://opcfoundation.org/UA/"
+              xmlns:s0="http://test.org/UA/ModelV/"
+              xmlns="http://test.org/UA/ModelH/"
+              TargetNamespace="http://test.org/UA/ModelH/">
+              <opc:Namespaces>
+                <opc:Namespace Name="ModelH" Prefix="Test.ModelH">http://test.org/UA/ModelH/</opc:Namespace>
+                <opc:Namespace Name="ModelV" Prefix="Test.ModelV">http://test.org/UA/ModelV/</opc:Namespace>
+                <opc:Namespace Name="OpcUa" Prefix="Opc.Ua" XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/</opc:Namespace>
+              </opc:Namespaces>
+              <opc:DataType SymbolicName="HolderStruct" BaseType="ua:Structure">
+                <opc:Fields>
+                  <opc:Field Name="Vector" DataType="s0:VectorStruct" />
+                </opc:Fields>
+              </opc:DataType>
+              <opc:DataType SymbolicName="SubVectorStruct" BaseType="s0:VectorStruct">
+                <opc:Fields>
+                  <opc:Field Name="Extra" DataType="ua:UInt32" />
+                </opc:Fields>
+              </opc:DataType>
+              <opc:DataType SymbolicName="SubGridStruct" BaseType="s0:GridStruct">
                 <opc:Fields>
                   <opc:Field Name="Extra" DataType="ua:UInt32" />
                 </opc:Fields>

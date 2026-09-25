@@ -7449,6 +7449,11 @@ namespace Opc.Ua.Schema.Model
                     continue;
                 }
 
+                // The same field normalisation as the target's own types, so
+                // HasInlineMatrixField and the inherited field encoding of a
+                // target type agree with what the dependency's build emitted.
+                NormalizeSingleDimensionMatrixFields(dataType);
+
                 foreach (Parameter parameter in dataType.Fields)
                 {
                     parameter.Parent ??= dataType;
