@@ -4767,7 +4767,7 @@ namespace Opc.Ua.Client
                     {
                         m_logger.KeepAliveReadFailedServiceResultEndpointUrl(
                             error,
-                            Endpoint?.EndpointUrl,
+                            m_endpoint.Description?.EndpointUrl,
                             GoodPublishRequestCount,
                             OutstandingRequestCount,
                             SessionId);
@@ -4874,9 +4874,11 @@ namespace Opc.Ua.Client
                 //keep alive read timed out
                 TimeSpan elapsed = m_timeProvider.GetElapsedTime(
                     Interlocked.Read(ref m_lastKeepAliveTimestamp));
+                // Log the configured endpoint: ClientBase.Endpoint dereferences the
+                // transport channel, which is null once the channel was detached.
                 m_logger.KEEPALIVELATEDurationMsEndpointUrl(
                     elapsed.TotalMilliseconds,
-                    Endpoint?.EndpointUrl,
+                    m_endpoint.Description?.EndpointUrl,
                     GoodPublishRequestCount,
                     OutstandingRequestCount,
                     SessionId);

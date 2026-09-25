@@ -416,7 +416,8 @@ namespace Opc.Ua.Bindings
             };
             m_quotas = new ChannelQuotas(messageContext)
             {
-                SecurityPolicyRegistry = settings.SecurityPolicyRegistry
+                SecurityPolicyRegistry = settings.SecurityPolicyRegistry,
+                SessionBindingProvider = settings.SessionBindingProvider
             };
 
             if (configuration != null)
@@ -437,6 +438,13 @@ namespace Opc.Ua.Bindings
             }
 
             m_quotas.CertificateValidator = settings.CertificateValidator;
+
+            // Bound what incomplete messages may hold across all the channels,
+            // not only per channel: without it every connection may keep the
+            // negotiated maximum message size alive by never sending a final
+            // chunk, and enough connections exhaust the memory of the process.
+            m_quotas.ChunkReassemblyBudget = settings.ChunkReassemblyBudget ??
+                global::Opc.Ua.Bindings.ChunkReassemblyBudget.CreateDefault(configuration);
 
             // save the server certificate.
             m_serverCertificates = settings.ServerCertificates!;
@@ -1371,6 +1379,12 @@ namespace Opc.Ua.Bindings
         /// The maximum number of secure channels
         /// </summary>
         public int MaxChannelCount { get; private set; }
+
+        /// <summary>
+        /// The budget the channels of the listener reserve the chunks of their
+        /// incomplete messages against, once the listener is open.
+        /// </summary>
+        internal ChunkReassemblyBudget? ChunkReassemblyBudget => m_quotas?.ChunkReassemblyBudget;
 
         /// <summary>
         /// Handles requests arriving from a channel.

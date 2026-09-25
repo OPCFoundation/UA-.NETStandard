@@ -33,6 +33,7 @@ using System.ComponentModel;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
@@ -110,6 +111,8 @@ namespace Opc.Ua.Bindings
             // transitions without needing to subclass.
             TokenActivatedCallback = (current, previous)
                 => m_tokenActivated?.Invoke(this, current, previous);
+
+            quotas.MessageAssemblyScheduler.Register(this, TimeProvider, quotas.MessageAssemblyLifetime);
         }
 
         /// <summary>
@@ -153,6 +156,7 @@ namespace Opc.Ua.Bindings
             if (disposing)
             {
                 Volatile.Write(ref m_disposed, 1);
+                Quotas.MessageAssemblyScheduler.Unregister(this, TimeProvider);
             }
             base.Dispose(disposing);
         }
@@ -369,7 +373,16 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Gets whether at least one active session is using the channel.
         /// </summary>
-        public bool UsedBySession => Volatile.Read(ref m_sessionCount) > 0;
+        /// <remarks>
+        /// Managed servers use distinct committed session bindings. Without a provider this
+        /// falls back to legacy response-count hints, not authoritative live membership.
+        /// </remarks>
+        public bool UsedBySession =>
+            Quotas.SessionBindingProvider?.HasSession(GlobalChannelId) ??
+            Volatile.Read(ref m_sessionCount) > 0;
+
+        /// <inheritdoc/>
+        private protected override bool ServesActivatedSession => UsedBySession;
 
         /// <summary>
         /// Records an active session on the channel.
@@ -709,14 +722,15 @@ namespace Opc.Ua.Bindings
         private protected void ForceChannelFaultCore(ServiceResult reason)
         {
             CompleteReverseHello(new ServiceResultException(reason));
+            TakeSavedChunks().Release(BufferManager, nameof(ForceChannelFaultCore));
 
-            // nothing to do if channel already in a faulted state.
-            if (State == TcpChannelState.Faulted)
+            bool resourceLimitReached = reason.StatusCode == StatusCodes.BadTcpNotEnoughResources;
+            if (State == TcpChannelState.Faulted && !resourceLimitReached)
             {
                 return;
             }
 
-            bool close = false;
+            bool close = resourceLimitReached;
             if (State is not TcpChannelState.Connecting and not TcpChannelState.Opening)
             {
                 EndPoint? remoteEndpoint = Transport?.RemoteEndpoint;
@@ -737,9 +751,18 @@ namespace Opc.Ua.Bindings
             }
 
             // send error and close response.
-            if (Transport != null && m_responseRequired)
+            if (Transport != null && m_responseRequired && !resourceLimitReached)
             {
-                SendErrorMessage(reason);
+                try
+                {
+                    SendErrorMessage(reason);
+                }
+                catch (ServiceResultException e) when (e.StatusCode == StatusCodes.BadTcpNotEnoughResources)
+                {
+                    HandleMessageProcessingError(e.Result);
+                    close = true;
+                    resourceLimitReached = true;
+                }
             }
 
             State = TcpChannelState.Faulted;
@@ -760,11 +783,68 @@ namespace Opc.Ua.Bindings
                 }
 
                 // close channel immediately.
-                ChannelFaulted();
+                ChannelFaulted(resourceLimitReached ? TcpChannelState.Closed : TcpChannelState.Faulted);
             }
 
             // notify any monitors.
             NotifyMonitors(reason, close);
+        }
+
+        /// <summary>
+        /// Reclaims incomplete messages even when the hosting listener has no inactivity sweep.
+        /// </summary>
+        internal void CheckMessageAssemblyTimeout()
+        {
+            if (Volatile.Read(ref m_disposed) != 0 ||
+                !HasExpiredPartialMessage ||
+                Interlocked.CompareExchange(ref m_messageCleanupPending, 1, 0) != 0)
+            {
+                return;
+            }
+            if (!BackgroundWork.Run(nameof(CleanupExpiredMessageAsync), CleanupExpiredMessageAsync))
+            {
+                Volatile.Write(ref m_messageCleanupPending, 0);
+            }
+        }
+
+        private async ValueTask CleanupExpiredMessageAsync(CancellationToken ct)
+        {
+            try
+            {
+                using (await Gate.EnterAsync(ct).ConfigureAwait(false))
+                {
+                    if (Volatile.Read(ref m_disposed) != 0 || !HasExpiredPartialMessage)
+                    {
+                        return;
+                    }
+                    var reason = new ServiceResult(
+                        StatusCodes.BadTimeout,
+                        LocalizedText.From("Incomplete message exceeded its assembly deadline."));
+                    try
+                    {
+                        if (Transport != null)
+                        {
+                            SendErrorMessage(reason);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.UaSCChannelTerminalWriteFailed(ex, ChannelId);
+                    }
+                    finally
+                    {
+                        if (State is TcpChannelState.Open or TcpChannelState.Connecting)
+                        {
+                            State = TcpChannelState.Closing;
+                        }
+                        CleanupCore(reason);
+                    }
+                }
+            }
+            finally
+            {
+                Volatile.Write(ref m_messageCleanupPending, 0);
+            }
         }
 
         /// <summary>
@@ -774,33 +854,26 @@ namespace Opc.Ua.Bindings
         {
             using (Gate.Enter())
             {
-                // nothing to do if the channel is now open or closed.
-                if (State is TcpChannelState.Closed or TcpChannelState.Open)
-                {
-                    return;
-                }
-
-                // get reason for cleanup.
-                if (state is not ServiceResult reason)
-                {
-                    reason = new ServiceResult(StatusCodes.BadTimeout);
-                }
-
-                if (m_logger.IsEnabled(LogLevel.Information))
-                {
-                    m_logger.TcpListenChannelLog5(
-                        ChannelName,
-                        Transport?.RemoteEndpoint,
-                        CurrentToken != null ? CurrentToken.ChannelId : 0,
-                        CurrentToken != null ? CurrentToken.TokenId : 0,
-                        reason.ToString());
-                }
-
-                // close channel. Safe under the gate: the listener removes the
-                // channel from a lock-free map and disposes it, and disposal
-                // deliberately does not take the gate.
-                ChannelClosed();
+                CleanupCore(state is ServiceResult reason ? reason : new ServiceResult(StatusCodes.BadTimeout));
             }
+        }
+
+        private void CleanupCore(ServiceResult reason)
+        {
+            if (State is TcpChannelState.Closed or TcpChannelState.Open)
+            {
+                return;
+            }
+            if (m_logger.IsEnabled(LogLevel.Information))
+            {
+                m_logger.TcpListenChannelLog5(
+                    ChannelName,
+                    Transport?.RemoteEndpoint,
+                    CurrentToken != null ? CurrentToken.ChannelId : 0,
+                    CurrentToken != null ? CurrentToken.TokenId : 0,
+                    reason.ToString());
+            }
+            ChannelClosed();
         }
 
         /// <summary>
@@ -816,6 +889,8 @@ namespace Opc.Ua.Bindings
             finally
             {
                 State = TcpChannelState.Closed;
+                ClosePartialMessage();
+                Quotas.MessageAssemblyScheduler.Unregister(this, TimeProvider);
                 Listener.ChannelClosed(ChannelId);
 
                 // notify any monitors.
@@ -829,13 +904,20 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void ChannelFaulted()
         {
+            ChannelFaulted(TcpChannelState.Faulted);
+        }
+
+        private void ChannelFaulted(TcpChannelState finalState)
+        {
             try
             {
                 Transport?.Close();
             }
             finally
             {
-                State = TcpChannelState.Faulted;
+                State = finalState;
+                ClosePartialMessage();
+                Quotas.MessageAssemblyScheduler.Unregister(this, TimeProvider);
                 Listener.ChannelClosed(ChannelId);
             }
         }
@@ -1095,6 +1177,7 @@ namespace Opc.Ua.Bindings
         /// Prevents new transport attachment or admission cleanup after disposal begins.
         /// </summary>
         private int m_disposed;
+        private int m_messageCleanupPending;
         private volatile TcpChannelRequestEventHandler? m_requestReceived;
         private volatile ReportAuditOpenSecureChannelEventHandler? m_reportAuditOpenSecureChannelEvent;
         private volatile ReportAuditCloseSecureChannelEventHandler? m_reportAuditCloseSecureChannelEvent;

@@ -343,8 +343,11 @@ namespace Opc.Ua.Client
                 using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, timeout.Token);
                 try
                 {
+                    // Wait on the linked token rather than the caller's token: the wait must not end before
+                    // the discovery token observes the caller's cancellation, or disposing the linked source
+                    // below would unhook it from the caller's token and leave the discovery running.
                     endpoint = await ResolveEndpointAsync(server.ServerUri, currentEndpoint, linked.Token)
-                        .WaitAsync(m_peerDiscoveryTimeout, m_timeProvider, ct).ConfigureAwait(false);
+                        .WaitAsync(m_peerDiscoveryTimeout, m_timeProvider, linked.Token).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
                 {

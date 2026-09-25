@@ -74,6 +74,83 @@ callbacks, retires idle channels outside the listener lock, and closes rejected
 sockets. Invalid response sequences fail pending requests promptly with
 `BadSecurityChecksFailed`; diagnostics retain `BadSequenceNumberInvalid`.
 
+Raw TCP, Kestrel TCP, and UACP WebSocket listeners honor the configured
+`ConnectionRateLimiter` before allocating a channel or accepting a WebSocket
+upgrade. Kestrel and UACP WebSocket listeners reserve their configured
+`MaxChannelCount` capacity atomically, including pending admissions. The
+reservation follows the physical transport through a reverse-connect handoff
+and is released on closure, cancellation, failed attachment, or listener stop.
+The host retains ownership of a supplied limiter. These limits are not
+per-tenant fairness policies, and HTTP/JSON requests are not counted as UASC
+channels.
+
+### Committed session bindings
+
+Managed servers expose `ISessionBindingProvider` to their listeners.
+`SessionManager` maintains distinct committed session/channel membership:
+reactivation does not add another session, transfer moves only that session's
+binding, and closure, timeout cleanup, or shutdown removes it. Resource
+eligibility no longer depends on counting activation and close responses.
+
+`TryGetSessionContext` provides an immutable `SessionBindingContext` after a
+read-only lookup of a live, activated, unexpired session and its transport
+binding. It does not refresh session activity or perform service authorization.
+Full service validation is still required; re-query after queueing and compare
+snapshot identity and activation sequence before reusing classification.
+Sequences belong to a live session instance, so a restored session's snapshot
+must not be confused with the earlier instance. Anonymous sessions do not
+establish trusted tenants, and identity keys must not become unbounded metric
+labels.
+
+`StandardServer` uses its current session manager's optional capability by
+default. A custom manager without that capability grants no managed session
+classification. Core-only standalone channels without a provider retain
+legacy response-count hints for compatibility; those hints are not authoritative
+membership and must not be used to grant trusted reservations.
+
+### Incomplete-message resource limits
+
+UA Secure Conversation channels enforce message-size and chunk-count limits
+including the incoming chunk, before retaining it. Exceeding a limit releases
+the partial message and closes the channel; no final chunk is required to
+trigger cleanup. A valid Abort chunk is not additional message payload: it
+discards the partial message without consuming its size, chunk-count, or
+reassembly-budget allowance. The channel stays open; a client reports the
+peer's abort status for that request.
+
+On server channels, `ChannelLifetime` also bounds assembly of an incomplete
+message from its first retained chunk. Further chunks or other activity do not
+restart that deadline. Channels sharing listener quotas and a clock share one
+assembly timer, checked at half-lifetime intervals. Idle channels do not take
+the partial-message lock during that check. The timer is released when the last
+channel leaves the scope. This also works in bindings without an inactivity
+sweep. For assembly deadlines, a zero or negative `ChannelLifetime` uses the
+30-second transport default rather than disabling cleanup; other quota values
+are not changed. Expiry attempts an ERR carrying `BadTimeout` before closing,
+and cleanup still completes if that error cannot be sent.
+Completed or discarded messages clear their assembly state,
+and subsequent messages receive a fresh deadline. This applies before an OPC UA
+session is created and to the UA-TCP, Kestrel TCP, and WebSocket bindings using
+the server-channel pipeline.
+
+Per-channel limits alone do not bound memory across many connections.
+`ChunkReassemblyBudget` counts the actual arrays retained for intermediate
+chunks across all listeners of a server. Its default is **64 MiB** for the
+reference server, with half reserved as headroom for channels carrying activated
+sessions. Reservations are released on completion, replacement, abort, fault, or
+closure. Final chunks and normal response allocations are not charged.
+
+A rejected chunk releases the partial message, reports
+`BadTcpNotEnoughResources` when an error response can be sent, and closes the
+channel permanently. General buffer allocation remains unrestricted by default.
+See [reassembly-budget configuration](RateLimiting.md#incomplete-messages) for
+sizing and scope. `MaxSessionCount` does not limit connections that have not
+created a session.
+
+Hello negotiation also updates TCP and WebSocket receive-buffer sizes. The
+Kestrel pipe transport rents for the actual chunk size instead of the listener
+maximum, avoiding unnecessary retained capacity for small chunks.
+
 ## Assembly layout
 
 * **`Opc.Ua.Core`** (this is what every Server / Client application

@@ -921,7 +921,7 @@ namespace (legacy MSBuild mode) or the user class's namespace
   - `LoadPredefinedNodesAsync` returns
     `new NodeStateCollection().Add{Ns}(context)` wrapped in a
     `ValueTask<NodeStateCollection>`.
-  - `CreateAddressSpaceAsync` `await`s `base.CreateAddressSpaceAsync`,
+  - `CreateAddressSpaceAsync` `await`s `LoadPredefinedNodesAsync`,
     then builds a fluent `INodeManagerBuilder`, `await`s
     `ConfigureAsync(builder, ct)` (the awaitable wiring seam — see
     below), invokes `Configure(builder)`, `await`s
@@ -983,7 +983,7 @@ sequenceDiagram
     participant U as Your partial or override
     participant B as NodeManagerBuilder
 
-    M->>M: await base.CreateAddressSpaceAsync
+    M->>M: await LoadPredefinedNodesAsync
     Note over M: LoadPredefinedNodesAsync has<br/>populated PredefinedNodes
     M->>B: construct, then AttachToBuilder
 
@@ -1553,8 +1553,37 @@ builder is sealed, or after the staged graph has been registered, throws
 throws `BadNodeIdInvalid`, and a parent in one of the manager's *own*
 namespaces that was never created throws `BadNodeIdUnknown`.
 
-Hand-written managers that drive `CreateFluentBuilder` themselves get
-the same surface by calling
+A hand-written manager deriving from `FluentNodeManagerBase` gets the
+whole pipeline without writing it: the base `CreateAddressSpaceAsync`
+loads the predefined nodes, builds a builder for the manager's
+`NamespaceIndex`, awaits `ConfigureAsync(builder, ct)`, registers the
+authored nodes, runs `CompleteConfigureAsync` and seals the builder. The
+manager only overrides `ConfigureAsync`:
+
+```csharp
+public sealed class MyNodeManager : FluentNodeManagerBase
+{
+    public MyNodeManager(IServerInternal server, ApplicationConfiguration configuration)
+        : base(server, configuration, "urn:my:namespace")
+    {
+    }
+
+    protected override ValueTask ConfigureAsync(
+        INodeManagerBuilder builder,
+        CancellationToken cancellationToken)
+    {
+        FolderState devices = builder.AddFolder("Devices").Node;
+        builder.AddVariable<int>("Speed", devices.NodeId).Writable();
+        return default;
+    }
+}
+```
+
+Hand-written managers that need a different order (for example work
+between completing and sealing, as `DiNodeManager` does) override
+`CreateAddressSpaceAsync` *without* calling the base implementation,
+load their predefined nodes through `LoadPredefinedNodesAsync`, drive
+`CreateFluentBuilder` themselves and get the same surface by calling
 `FluentNodeManagerBase.RegisterAuthoredNodesAsync(builder)` in the same
 position — after the configuration delegate, before
 `CompleteConfigureAsync`. A builder that created nothing registers

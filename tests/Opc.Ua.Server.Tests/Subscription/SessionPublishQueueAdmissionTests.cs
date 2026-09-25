@@ -58,13 +58,10 @@ namespace Opc.Ua.Server.Tests
             (IServerInternal server, ISession session) = CreateHost();
             using var subscription = new Subscription(
                 server, session, 1, 60000, 30, 10, 0, 0, true, 10, clock);
-            // two requests is the lowest limit for a session with one subscription.
-            using var queue = new SessionPublishQueue(server, session, 2, clock);
+            using var queue = new SessionPublishQueue(server, session, 1, clock);
             using var cancellation = new CancellationTokenSource();
             queue.Add(subscription);
 
-            Task<ISubscriptionPublishPipeline> live = queue.PublishAsync(
-                "channel", DateTime.MaxValue, false, null, CancellationToken.None);
             Task<ISubscriptionPublishPipeline> expired = queue.PublishAsync(
                 "channel", clock.GetUtcNow().UtcDateTime.AddMilliseconds(100), false, null, cancellation.Token);
             Assert.That(expired.IsCompleted, Is.False);
@@ -82,22 +79,25 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
             }
 
+            // One Subscription raises the effective limit to two queued requests.
             Task<ISubscriptionPublishPipeline> replacement = queue.PublishAsync(
                 "channel", DateTime.MaxValue, false, null, CancellationToken.None);
-            Assert.That(replacement.IsCompleted, Is.False);
-            Assert.That(live.IsCompleted, Is.False, "Only live Publish requests consume admission capacity.");
-
-            // a request beyond the limit de-queues the oldest live request (OPC 10000-4 5.14.5.1).
-            Task<ISubscriptionPublishPipeline> newest = queue.PublishAsync(
+            Task<ISubscriptionPublishPipeline> second = queue.PublishAsync(
                 "channel", DateTime.MaxValue, false, null, CancellationToken.None);
-            Assert.That(newest.IsCompleted, Is.False);
+            Assert.Multiple(() =>
+            {
+                Assert.That(replacement.IsCompleted, Is.False, "Only live Publish requests consume admission capacity.");
+                Assert.That(second.IsCompleted, Is.False);
+            });
+            Task<ISubscriptionPublishPipeline> overflow = queue.PublishAsync(
+                "channel", DateTime.MaxValue, false, null, CancellationToken.None);
             ServiceResultException full = Assert.CatchAsync<ServiceResultException>(
-                async () => await live.ConfigureAwait(false));
+                async () => await replacement.ConfigureAwait(false));
             Assert.That(full.StatusCode, Is.EqualTo(StatusCodes.BadTooManyPublishRequests));
+            Assert.That(overflow.IsCompleted, Is.False);
 
             queue.PublishCompleted(subscription, true);
-            Assert.That(await replacement.ConfigureAwait(false), Is.SameAs(subscription));
-            Assert.That(newest.IsCompleted, Is.False);
+            Assert.That(await second.ConfigureAwait(false), Is.SameAs(subscription));
         }
 
         /// <summary>
@@ -139,12 +139,8 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(first.IsCompleted, Is.False);
                 Assert.That(second.IsCompleted, Is.False);
             });
-
-            // the cancelled request no longer counts, so a request beyond the limit
-            // de-queues the oldest live request (OPC 10000-4 5.14.5.1).
             Task<ISubscriptionPublishPipeline> third = queue.PublishAsync(
                 "channel", DateTime.MaxValue, false, null, CancellationToken.None);
-            Assert.That(third.IsCompleted, Is.False);
             ServiceResultException full = Assert.CatchAsync<ServiceResultException>(
                 async () => await first.ConfigureAwait(false));
             Assert.That(full.StatusCode, Is.EqualTo(StatusCodes.BadTooManyPublishRequests));

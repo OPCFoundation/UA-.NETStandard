@@ -1860,8 +1860,9 @@ namespace Opc.Ua.Bindings
                 // check for an abort.
                 if (TcpMessageType.IsAbort(messageType))
                 {
-                    // get the chunks to process.
-                    chunksToProcess = GetSavedChunks(requestId, messageBody, false, gateHeld: false);
+                    // The abort is not message payload and remains owned until its error body has been decoded.
+                    chunksToProcess = TakeSavedChunks();
+                    chunksToProcess.Add(messageBody);
 
                     ServiceResult error;
 

@@ -147,27 +147,17 @@ namespace Opc.Ua.Server
 
                 RemoveCompletedRequests();
 
-                // Completion retires admission before exposing the completed task.
-                // OPC 10000-4 5.14.5.1: a new request that exceeds the limit de-queues the
-                // oldest queued request, which returns Bad_TooManyPublishRequests. New requests
-                // are added last and requeued ones first, so the head is the oldest. A requeued
-                // request was admitted before every request still queued, so it is itself the
-                // oldest and is the one rejected.
-                // The Server shall also accept more queued requests than created Subscriptions,
-                // so the limit is raised to one more than the Subscriptions of the Session.
-                int maxRequestCount = Math.Max(m_maxRequestCount, m_queuedSubscriptions.Count + 1);
-                while (Volatile.Read(ref m_pendingRequestCount) >= maxRequestCount)
+                // A requeued request is the one currently being processed, not a new
+                // Publish request, so it skips the admission check and never evicts a
+                // queued request; the pending count may briefly exceed the limit by the
+                // requeued requests. For a new request that exceeds the limit the oldest
+                // queued request is failed instead (OPC 10000-4, 5.14.5.1). Completion
+                // retires admission before exposing the completed task.
+                if (!requeue &&
+                    m_queuedRequests.Count > 0 &&
+                    Volatile.Read(ref m_pendingRequestCount) >= GetMaxRequestCount())
                 {
-                    if (requeue || m_queuedRequests.Count == 0)
-                    {
-                        return Task.FromException<ISubscriptionPublishPipeline>(
-                            new ServiceResultException(StatusCodes.BadTooManyPublishRequests));
-                    }
-
-                    QueuedPublishRequest oldest = m_queuedRequests.First!.Value;
-                    m_queuedRequests.RemoveFirst();
-                    oldest.TrySetException(new ServiceResultException(StatusCodes.BadTooManyPublishRequests));
-                    oldest.Dispose();
+                    FailOldestRequest();
                 }
 
                 // add to queue.
@@ -897,6 +887,32 @@ namespace Opc.Ua.Server
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Returns the number of Publish requests the session may queue. A Server shall
+        /// accept more queued Publish requests than created Subscriptions
+        /// (OPC 10000-4, 5.14.5.1), so the configured limit is raised when the session
+        /// owns at least as many Subscriptions.
+        /// </summary>
+        private int GetMaxRequestCount()
+        {
+            return Math.Max(m_maxRequestCount, m_queuedSubscriptions.Count + 1);
+        }
+
+        /// <summary>
+        /// De-queues the oldest Publish request and fails it with
+        /// Bad_TooManyPublishRequests to make room for a new request.
+        /// </summary>
+        private void FailOldestRequest()
+        {
+            QueuedPublishRequest request = m_queuedRequests.First!.Value;
+            m_queuedRequests.RemoveFirst();
+
+            // If the request completed concurrently (cancelled or timed out) it already
+            // released its admission slot, so the new request still fits the limit.
+            request.TrySetException(new ServiceResultException(StatusCodes.BadTooManyPublishRequests));
+            request.Dispose();
         }
 
         /// <summary>
