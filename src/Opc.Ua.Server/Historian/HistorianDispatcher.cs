@@ -1131,39 +1131,21 @@ namespace Opc.Ua.Server.Historian
             }
             if (provider is IHistorianDataProvider raw)
             {
-                var rawRequest = new HistorianRawReadRequest
+                // Only the edges matter: the first raw value of a forward read with bounds is
+                // the earliest one, the first of a reverse read the latest one.
+                DateTimeUtc? firstRaw = await ReadEdgeRawTimestampAsync(
+                    raw, opContext, node.NodeId, windowStart, windowEnd, true, cancellationToken)
+                    .ConfigureAwait(false);
+                DateTimeUtc? lastRaw = await ReadEdgeRawTimestampAsync(
+                    raw, opContext, node.NodeId, windowStart, windowEnd, false, cancellationToken)
+                    .ConfigureAwait(false);
+                if (firstRaw is DateTimeUtc first && first < startOfData)
                 {
-                    NodeId = node.NodeId,
-                    StartTime = windowStart,
-                    EndTime = windowEnd,
-                    MaxValues = 0,
-                    IsForward = true,
-                    ReturnBounds = true
-                };
-                HistorianResumeToken rawToken = default;
-                while (true)
+                    startOfData = first;
+                }
+                if (lastRaw is DateTimeUtc last && last > endOfData)
                 {
-                    HistorianPage<HistoricalDataValue> rawPage = await raw.ReadRawAsync(
-                        opContext, rawRequest, rawToken, cancellationToken).ConfigureAwait(false);
-                    foreach (HistoricalDataValue sample in rawPage.Values)
-                    {
-                        // skip bound placeholders as AggregateCalculator.QueueRawValue does.
-                        StatusCode status = sample.Value.StatusCode;
-                        if (sample.Value.IsNull ||
-                            status == StatusCodes.BadNoData ||
-                            status == StatusCodes.BadBoundNotFound)
-                        {
-                            continue;
-                        }
-                        DateTimeUtc sampleTime = sample.Value.SourceTimestamp;
-                        startOfData = sampleTime < startOfData ? sampleTime : startOfData;
-                        endOfData = sampleTime > endOfData ? sampleTime : endOfData;
-                    }
-                    if (rawPage.IsFinal)
-                    {
-                        break;
-                    }
-                    rawToken = rawPage.NextToken;
+                    endOfData = last;
                 }
             }
 
@@ -3306,6 +3288,54 @@ namespace Opc.Ua.Server.Historian
                 if (page.IsFinal)
                 {
                     return;
+                }
+                token = page.NextToken;
+            }
+        }
+
+        /// <summary>
+        /// Returns the timestamp of the first stored raw value that a read with bounds over
+        /// the window returns in the given direction: the earliest value at or before the
+        /// window for a forward read, the latest at or after it for a reverse read, or
+        /// <c>null</c> when the node has no raw data. Reads at most one value and a bound.
+        /// </summary>
+        private static async ValueTask<DateTimeUtc?> ReadEdgeRawTimestampAsync(
+            IHistorianDataProvider raw,
+            HistorianOperationContext context,
+            NodeId nodeId,
+            DateTimeUtc windowStart,
+            DateTimeUtc windowEnd,
+            bool isForward,
+            CancellationToken cancellationToken)
+        {
+            var request = new HistorianRawReadRequest
+            {
+                NodeId = nodeId,
+                StartTime = windowStart,
+                EndTime = windowEnd,
+                MaxValues = 2,
+                IsForward = isForward,
+                ReturnBounds = true
+            };
+            HistorianResumeToken token = default;
+            while (true)
+            {
+                HistorianPage<HistoricalDataValue> page = await raw.ReadRawAsync(
+                    context, request, token, cancellationToken).ConfigureAwait(false);
+                foreach (HistoricalDataValue sample in page.Values)
+                {
+                    // skip bound placeholders as AggregateCalculator.QueueRawValue does.
+                    StatusCode status = sample.Value.StatusCode;
+                    if (!sample.Value.IsNull &&
+                        status != StatusCodes.BadNoData &&
+                        status != StatusCodes.BadBoundNotFound)
+                    {
+                        return sample.Value.SourceTimestamp;
+                    }
+                }
+                if (page.IsFinal)
+                {
+                    return null;
                 }
                 token = page.NextToken;
             }
