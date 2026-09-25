@@ -484,6 +484,71 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         }
 
         /// <summary>
+        /// A String-typed operand holding a null string (e.g. a decoded
+        /// string of length -1) is NULL and must not throw.
+        /// </summary>
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public void EqualsWithNullStringOperandIsNull(bool lhsNull, bool rhsNull)
+        {
+            ContentFilterElement equals = Element(
+                FilterOperator.Equals,
+                new LiteralOperand(lhsNull ? Variant.From((string)null) : Variant.From("a")),
+                new LiteralOperand(rhsNull ? Variant.From((string)null) : Variant.From("a")));
+            Assert.That(Filter(equals).Evaluate(m_context, m_target), Is.False);
+            Assert.That(
+                Filter(Element(FilterOperator.IsNull, new ElementOperand(1)), equals)
+                    .Evaluate(m_context, m_target),
+                Is.True);
+        }
+
+        [Test]
+        public void InListWithNullStringValueIsNull()
+        {
+            ContentFilterElement inList = Element(
+                FilterOperator.InList,
+                new LiteralOperand(Variant.From((string)null)),
+                new LiteralOperand(Variant.From("a")));
+            Assert.That(
+                Filter(Element(FilterOperator.IsNull, new ElementOperand(1)), inList)
+                    .Evaluate(m_context, m_target),
+                Is.True);
+        }
+
+        [Test]
+        public void InListWithNullStringEntryAndNoMatchIsNull()
+        {
+            ContentFilterElement inList = Element(
+                FilterOperator.InList,
+                new LiteralOperand(Variant.From("a")),
+                new LiteralOperand(Variant.From((string)null)),
+                new LiteralOperand(Variant.From("b")));
+            Assert.That(
+                Filter(Element(FilterOperator.IsNull, new ElementOperand(1)), inList)
+                    .Evaluate(m_context, m_target),
+                Is.True);
+        }
+
+        [Test]
+        public void OrNullStringCompareWithTrueRightYieldsTrue()
+        {
+            ContentFilterElement equals = Element(
+                FilterOperator.Equals,
+                new LiteralOperand(Variant.From((string)null)),
+                new LiteralOperand(Variant.From("a")));
+            Assert.That(
+                Filter(
+                    Element(
+                        FilterOperator.Or,
+                        new ElementOperand(1),
+                        new LiteralOperand(Variant.From(true))),
+                    equals)
+                    .Evaluate(m_context, m_target),
+                Is.True);
+        }
+
+        /// <summary>
         /// OPC 10000-4 7.7.3: the bitwise result matches the size of the largest
         /// operand.
         /// </summary>
