@@ -70,6 +70,49 @@ namespace Opc.Ua.Schema.Model.Tests
         }
 
         /// <summary>
+        /// A NodeSet that declares a model but no nodes deserializes with a
+        /// null Items array; AssignSymbolicIds threw a NullReferenceException.
+        /// </summary>
+        [Test]
+        public void ImportNodeSetWithoutNodesYieldsEmptyModel()
+        {
+            const string path = "memory://Empty.NodeSet2.xml";
+            m_fileSystem.Add(
+                path,
+                Encoding.UTF8.GetBytes(
+                    """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+                        <NamespaceUris>
+                            <Uri>http://test.org/UA/Import/</Uri>
+                        </NamespaceUris>
+                        <Models>
+                            <Model ModelUri="http://test.org/UA/Import/" Version="1.0.0" />
+                        </Models>
+                    </UANodeSet>
+                    """));
+
+            ModelDesign design = new NodeSetToModelDesign(
+                m_fileSystem,
+                path,
+                new NodeSetReaderSettings(),
+                NUnitTelemetryContext.Create(logLevel: LogLevel.Error))
+                .Import("Import", "Import");
+
+            Assert.That(design.TargetNamespace, Is.EqualTo(TestNamespaceUri));
+            Assert.That(design.Items ?? [], Is.Empty);
+
+            Assert.That(
+                new NodeSetToModelDesign(
+                    m_fileSystem,
+                    path,
+                    new NodeSetReaderSettings(),
+                    NUnitTelemetryContext.Create(logLevel: LogLevel.Error))
+                    .GetImportedSymbols(TestNamespaceUri),
+                Is.Empty);
+        }
+
+        /// <summary>
         /// N-13: a minified NodeSet (declaration and root on one line) was not
         /// recognized because every line starting with "&lt;?" was skipped.
         /// </summary>

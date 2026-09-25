@@ -151,18 +151,19 @@ namespace Opc.Ua.Schema.Model
                 }
             }
 
-            if (m_nodeset.Items != null)
+            // A NodeSet without nodes deserializes with a null Items array;
+            // treat it as empty so every pass below imports nothing.
+            m_nodeset.Items ??= [];
+
+            foreach (UANode node in m_nodeset.Items)
             {
-                foreach (UANode node in m_nodeset.Items)
+                NodeId nodeId = ImportNodeId(node.NodeId, false);
+                if (nodeId.IsNull)
                 {
-                    NodeId nodeId = ImportNodeId(node.NodeId, false);
-                    if (nodeId.IsNull)
-                    {
-                        throw new InvalidDataException(
-                            $"NodeId ({node.BrowseName}) is not valid.");
-                    }
-                    m_index.Add(nodeId, node);
+                    throw new InvalidDataException(
+                        $"NodeId ({node.BrowseName}) is not valid.");
                 }
+                m_index.Add(nodeId, node);
             }
         }
 
