@@ -108,13 +108,26 @@ namespace Opc.Ua
         /// <see langword="null"/> when no match is found. The caller owns
         /// the reference and must dispose it.
         /// </returns>
-        public static async Task<Certificate?> ResolveAsync(
+        public static Task<Certificate?> ResolveAsync(
             CertificateIdentifier identifier,
             ICertificateRegistry? registry = null,
             bool needPrivateKey = false,
             string? applicationUri = null,
             ITelemetryContext? telemetry = null,
             CancellationToken ct = default)
+        {
+            return ResolveCoreAsync(identifier, registry, needPrivateKey, applicationUri, telemetry,
+                registry as ICertificateStoreResolver, ct);
+        }
+
+        private static async Task<Certificate?> ResolveCoreAsync(
+            CertificateIdentifier identifier,
+            ICertificateRegistry? registry,
+            bool needPrivateKey,
+            string? applicationUri,
+            ITelemetryContext? telemetry,
+            ICertificateStoreResolver? storeResolver,
+            CancellationToken ct)
         {
             if (identifier == null)
             {
@@ -152,7 +165,7 @@ namespace Opc.Ua
             }
 
             // 3) Open the identifier's store and search.
-            using ICertificateStore? store = OpenStore(identifier, telemetry);
+            using ICertificateStore? store = OpenStore(identifier, telemetry, storeResolver);
             if (store == null)
             {
                 return null;
@@ -192,12 +205,42 @@ namespace Opc.Ua
         /// An <see cref="Certificate.AddRef"/>'d certificate carrying the
         /// private key, or <see langword="null"/> when no match exists.
         /// </returns>
-        public static async Task<Certificate?> LoadPrivateKeyAsync(
+        public static Task<Certificate?> LoadPrivateKeyAsync(
             CertificateIdentifier identifier,
             ICertificatePasswordProvider? passwordProvider = null,
             string? applicationUri = null,
             ITelemetryContext? telemetry = null,
             CancellationToken ct = default)
+        {
+            return LoadPrivateKeyCoreAsync(identifier, passwordProvider, applicationUri, telemetry, null, ct);
+        }
+
+        /// <summary>
+        /// Loads a private-key certificate using an instance-scoped store resolver.
+        /// </summary>
+        /// <param name="identifier">The certificate identifier.</param>
+        /// <param name="storeResolver">The optional resolver; null retains built-in store resolution.</param>
+        /// <param name="passwordProvider">The private-key password provider.</param>
+        /// <param name="applicationUri">The application URI used for rotation fallbacks.</param>
+        /// <param name="telemetry">The telemetry context.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>An owned certificate reference or null when no matching certificate exists.</returns>
+        public static Task<Certificate?> LoadPrivateKeyWithStoreResolverAsync(
+            CertificateIdentifier identifier,
+            ICertificateStoreResolver? storeResolver,
+            ICertificatePasswordProvider? passwordProvider = null,
+            string? applicationUri = null,
+            ITelemetryContext? telemetry = null,
+            CancellationToken ct = default) =>
+            LoadPrivateKeyCoreAsync(identifier, passwordProvider, applicationUri, telemetry, storeResolver, ct);
+
+        internal static async Task<Certificate?> LoadPrivateKeyCoreAsync(
+            CertificateIdentifier identifier,
+            ICertificatePasswordProvider? passwordProvider,
+            string? applicationUri,
+            ITelemetryContext? telemetry,
+            ICertificateStoreResolver? storeResolver,
+            CancellationToken ct)
         {
             if (identifier == null)
             {
@@ -206,7 +249,7 @@ namespace Opc.Ua
 
             if (identifier.StoreType != CertificateStoreType.X509Store)
             {
-                using ICertificateStore? store = OpenStore(identifier, telemetry);
+                using ICertificateStore? store = OpenStore(identifier, telemetry, storeResolver);
                 if (store?.SupportsLoadPrivateKey != true)
                 {
                     return null;
@@ -259,12 +302,13 @@ namespace Opc.Ua
 
             // X509Store: fall through to a registry-less store search that
             // requires a private key.
-            return await ResolveAsync(
+            return await ResolveCoreAsync(
                     identifier,
                     registry: null,
                     needPrivateKey: true,
                     applicationUri: applicationUri,
                     telemetry: telemetry,
+                    storeResolver: storeResolver,
                     ct: ct)
                 .ConfigureAwait(false);
         }
@@ -284,9 +328,29 @@ namespace Opc.Ua
             CertificateIdentifier identifier,
             ITelemetryContext? telemetry)
         {
+            return OpenStore(identifier, telemetry, null);
+        }
+
+        /// <summary>
+        /// Opens the identifier's store using an optional instance-scoped resolver.
+        /// </summary>
+        /// <param name="identifier">The certificate identifier.</param>
+        /// <param name="telemetry">The telemetry context for built-in resolution.</param>
+        /// <param name="storeResolver">The optional scoped resolver.</param>
+        /// <returns>An opened store owned by the caller, or null when no store path is configured.</returns>
+        public static ICertificateStore? OpenStore(
+            CertificateIdentifier identifier,
+            ITelemetryContext? telemetry,
+            ICertificateStoreResolver? storeResolver)
+        {
             if (identifier == null || string.IsNullOrEmpty(identifier.StorePath))
             {
                 return null;
+            }
+
+            if (storeResolver != null)
+            {
+                return storeResolver.OpenCertificateStore(identifier.StorePath, identifier.StoreType, noPrivateKeys: false);
             }
 
             CertificateStoreIdentifier storeIdentifier = string.IsNullOrEmpty(identifier.StoreType)

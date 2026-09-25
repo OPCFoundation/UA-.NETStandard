@@ -42,7 +42,7 @@ namespace Opc.Ua
     /// Currently implements trust-list management; other interfaces
     /// will be added in subsequent phases.
     /// </summary>
-    public sealed class CertificateManager : ICertificateManager, IDisposable, IAsyncDisposable
+    public sealed class CertificateManager : ICertificateManager, ICertificateStoreResolver, IDisposable, IAsyncDisposable
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="CertificateManager"/> class.
@@ -104,7 +104,7 @@ namespace Opc.Ua
                 m_telemetry,
                 m_timeProvider);
 
-            m_certificateProvider = new CertificateProvider(m_telemetry);
+            m_certificateProvider = new CertificateProvider(m_telemetry, this);
         }
 
         /// <summary>
@@ -132,6 +132,32 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public IObservable<CertificateChangeEvent> CertificateChanges => m_changeSubject;
+
+        /// <inheritdoc/>
+        public ICertificateStore OpenCertificateStore(
+            string storePath,
+            string? storeType = null,
+            bool noPrivateKeys = true)
+        {
+            ThrowIfDisposed();
+            if (string.IsNullOrEmpty(storePath))
+            {
+                throw new ArgumentException("Store path must not be null or empty.", nameof(storePath));
+            }
+            storeType ??= ResolveStoreType(storePath);
+
+            ICertificateStore store = CertificateStoreIdentifier.CreateStore(storeType, m_telemetry, m_storeProviders);
+            try
+            {
+                store.Open(storePath, noPrivateKeys);
+                return store;
+            }
+            catch
+            {
+                store.Dispose();
+                throw;
+            }
+        }
 
         /// <inheritdoc/>
         public void RegisterTrustList(
@@ -601,11 +627,12 @@ namespace Opc.Ua
                     // certificate is picked up even when the configured
                     // identifier's thumbprint still references the old cert.
                     using Certificate? certificate = await CertificateIdentifierResolver
-                        .LoadPrivateKeyAsync(
+                        .LoadPrivateKeyCoreAsync(
                             certId,
                             passwordProvider,
                             applicationUri,
                             m_telemetry,
+                            this,
                             ct)
                         .ConfigureAwait(false);
                     if (certificate != null)
@@ -1552,19 +1579,7 @@ namespace Opc.Ua
         /// </summary>
         private ICertificateStore OpenStore(string storePath, string? storeType)
         {
-            storeType ??= ResolveStoreType(storePath);
-
-            ICertificateStore store = CertificateStoreIdentifier.CreateStore(storeType, m_telemetry, m_storeProviders);
-            try
-            {
-                store.Open(storePath);
-                return store;
-            }
-            catch
-            {
-                store.Dispose();
-                throw;
-            }
+            return OpenCertificateStore(storePath, storeType);
         }
 
         /// <summary>

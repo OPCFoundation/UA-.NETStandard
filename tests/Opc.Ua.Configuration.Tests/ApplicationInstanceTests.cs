@@ -150,6 +150,145 @@ namespace Opc.Ua.Configuration.Tests
             }
         }
 
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task ScopedStoreProvisioningCreatesAndReusesIdentityAsync(bool customProvider, bool customTrust)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var provider = new ProvisioningStoreProvider();
+            string thumbprint = null;
+            for (int iteration = 0; iteration < 2; iteration++)
+            {
+                var application = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+                await using (application.ConfigureAwait(false))
+                {
+                    var builder = application.Build(ApplicationUri, ProductUri).AsClient()
+                        .AddSecurityConfiguration(ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                            SubjectName, CertificateStoreType.Directory, m_pkiRoot), m_pkiRoot);
+                    SecurityConfiguration security = application.ApplicationConfiguration.SecurityConfiguration;
+                    if (customProvider)
+                    {
+                        foreach (CertificateIdentifier identifier in security.ApplicationCertificates)
+                        {
+                            identifier.StoreType = provider.StoreTypeName;
+                        }
+                    }
+                    if (customTrust)
+                    {
+                        security.TrustedPeerCertificates.StoreType = provider.StoreTypeName;
+                        security.TrustedIssuerCertificates.StoreType = provider.StoreTypeName;
+                    }
+                    security.AddAppCertToTrustedStore = true;
+                    application.ApplicationConfiguration.CertificateManager = CertificateManagerFactory.Create(security,
+                        telemetry, options =>
+                        {
+                            if (customProvider)
+                            {
+                                options.AddStoreProvider(provider);
+                            }
+                        });
+                    ApplicationConfiguration configuration = await builder.CreateAsync().ConfigureAwait(false);
+                    bool valid = await application.CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait(false);
+                    Assert.That(valid, Is.True);
+                    using CertificateEntry entry = configuration.CertificateManager.AcquireApplicationCertificateByType(
+                        ObjectTypeIds.RsaSha256ApplicationCertificateType);
+                    Assert.That(entry, Is.Not.Null);
+                    Assert.That(entry.Certificate.HasPrivateKey, Is.True);
+                    if (iteration == 0)
+                    {
+                        thumbprint = entry.Certificate.Thumbprint;
+                    }
+                    Assert.That(entry.Certificate.Thumbprint, Is.EqualTo(thumbprint));
+                    using ICertificateStore trusted = configuration.CertificateManager.OpenTrustedStore(TrustListIdentifier.Peers);
+                    using CertificateCollection peers = await trusted.FindByThumbprintAsync(thumbprint).ConfigureAwait(false);
+                    Assert.That(peers, Has.Count.EqualTo(1));
+                    if (iteration == 1)
+                    {
+                        CertificateIdentifier identifier = security.ApplicationCertificates[0];
+                        await application.DeleteApplicationInstanceCertificateAsync().ConfigureAwait(false);
+                        using ICertificateStore own = ((ICertificateStoreResolver)configuration.CertificateManager)
+                            .OpenCertificateStore(identifier.StorePath, identifier.StoreType, false);
+                        using CertificateCollection remaining = await own.EnumerateAsync().ConfigureAwait(false);
+                        using CertificateCollection trustedAfterDelete = await trusted.FindByThumbprintAsync(thumbprint)
+                            .ConfigureAwait(false);
+                        Assert.That(remaining, Is.Empty);
+                        Assert.That(trustedAfterDelete, Is.Empty);
+                    }
+                }
+            }
+            Assert.That(provider.OpenCount, customProvider ? Is.GreaterThan(0) : Is.Zero);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ScopedStoreProvisioningRejectsUnavailablePrivateKeyAsync(bool publicOnly)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var provider = new ProvisioningStoreProvider();
+            var application = new ApplicationInstance(telemetry)
+            {
+                ApplicationName = ApplicationName,
+                DisableCertificateAutoCreation = !publicOnly
+            };
+            await using (application.ConfigureAwait(false))
+            {
+                var builder = application.Build(ApplicationUri, ProductUri).AsClient()
+                    .AddSecurityConfiguration(ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                        SubjectName, CertificateStoreType.Directory, m_pkiRoot), m_pkiRoot);
+                SecurityConfiguration security = application.ApplicationConfiguration.SecurityConfiguration;
+                CertificateIdentifier identifier = security.ApplicationCertificates[0];
+                identifier.StoreType = provider.StoreTypeName;
+                var manager = CertificateManagerFactory.Create(security, telemetry, options => options.AddStoreProvider(provider));
+                application.ApplicationConfiguration.CertificateManager = manager;
+                string originalThumbprint = null;
+                using (ICertificateStore store = manager.OpenCertificateStore(identifier.StorePath, identifier.StoreType, false))
+                {
+                    if (publicOnly)
+                    {
+                        using Certificate keyPair = CertificateBuilder.Create(SubjectName).SetRSAKeySize(2048).CreateForRSA();
+                        using var certificate = new Certificate(keyPair.RawData);
+                        originalThumbprint = certificate.Thumbprint;
+                        await store.AddAsync(certificate).ConfigureAwait(false);
+                    }
+                }
+                await builder.CreateAsync().ConfigureAwait(false);
+                ServiceResultException failure = null;
+                try
+                {
+                    await application.CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait(false);
+                }
+                catch (ServiceResultException exception)
+                {
+                    failure = exception;
+                }
+                Assert.That(failure, Is.Not.Null);
+                Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+                using ICertificateStore own = manager.OpenCertificateStore(identifier.StorePath, identifier.StoreType, false);
+                using CertificateCollection remaining = await own.EnumerateAsync().ConfigureAwait(false);
+                Assert.That(remaining, Has.Count.EqualTo(publicOnly ? 1 : 0));
+                if (publicOnly)
+                {
+                    Assert.That(remaining[0].Thumbprint, Is.EqualTo(originalThumbprint));
+                    Assert.That(remaining[0].HasPrivateKey, Is.False);
+                }
+            }
+        }
+
+        private sealed class ProvisioningStoreProvider : ICertificateStoreProvider
+        {
+            public string StoreTypeName => "ScopedProvisioningDirectory";
+            public int OpenCount { get; private set; }
+
+            public bool SupportsStorePath(string storePath) => false;
+
+            public ICertificateStore CreateStore(ITelemetryContext telemetry)
+            {
+                OpenCount++;
+                return new DirectoryCertificateStore(false, telemetry);
+            }
+        }
+
         [Test]
         public async Task TestNoFileConfigRespectsMinimumKeySizeOnCreationAsync()
         {

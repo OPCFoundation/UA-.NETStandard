@@ -719,7 +719,8 @@ namespace Opc.Ua.Server
                     Server.Telemetry,
                     m_coordinator,
                     m_configuration.ServerConfiguration!.MaxTrustListSize,
-                    m_serverConfigurationOptions.MaxTrustListSizeSafetyCeiling);
+                    m_serverConfigurationOptions.MaxTrustListSizeSafetyCeiling,
+                    m_configuration.CertificateManager as ICertificateStoreResolver);
                 certGroup.Node.ClearChangeMasks(systemContext, true);
             }
 
@@ -1088,13 +1089,10 @@ namespace Opc.Ua.Server
         /// the type from the path alone (the single-argument constructor)
         /// would silently downgrade a configured custom store type to a
         /// directory store, making the push path write through a different
-        /// store implementation than the validator reads. The preserved type
-        /// resolves through <see cref="CertificateStoreIdentifier.OpenStore()"/>,
-        /// i.e. the built-in types plus any type registered via
-        /// <see cref="CertificateStoreType.RegisterCertificateStoreType"/>;
-        /// DI-registered <see cref="ICertificateStoreProvider"/>s are not
-        /// reachable through identifier-based store access (a pre-existing
-        /// limitation of the TrustList store plumbing).
+        /// store implementation than the validator reads. The TrustList uses
+        /// the configured manager's optional <see cref="ICertificateStoreResolver"/>
+        /// to resolve this metadata through instance-scoped providers. Without
+        /// that capability, identifier-based built-in store access is retained.
         /// </summary>
         private static CertificateStoreIdentifier CreateGroupStoreIdentifier(
             CertificateStoreIdentifier source)

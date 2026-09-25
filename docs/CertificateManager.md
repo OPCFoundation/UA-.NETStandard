@@ -52,6 +52,37 @@ await manager.LoadApplicationCertificatesAsync(securityConfiguration);
 
 The `CertificateManager` is also automatically initialized by `ServerBase` and `ApplicationInstance` during startup.
 
+#### Instance-scoped store resolution
+
+`CertificateManager` also implements the optional `ICertificateStoreResolver` capability.
+This interface is separate from `ICertificateManager`, so existing custom manager implementations
+do not acquire a new required member. A resolver opens stores through the providers registered on
+that manager; it does not register them globally or substitute another store after a provider fails.
+The caller owns and disposes the returned store. Trust-store access defaults to `noPrivateKeys: true`;
+application identity operations explicitly request private-key access.
+
+For identifier-based private-key loading, pass the manager's resolver capability:
+
+```csharp
+using Certificate? certificate = await CertificateIdentifierResolver.LoadPrivateKeyWithStoreResolverAsync(
+    identifier,
+    configuration.CertificateManager as ICertificateStoreResolver,
+    configuration.SecurityConfiguration.CertificatePasswordProvider,
+    configuration.ApplicationUri,
+    telemetry,
+    cancellationToken).ConfigureAwait(false);
+```
+
+A null resolver preserves the existing built-in store lookup. An injected resolver's exceptions
+propagate without falling back to Directory. The lookup retains the password, cancellation token,
+and thumbprint/subject/application-URI rotation fallbacks of `LoadPrivateKeyAsync`.
+
+Configuration validation, manager startup loading, the certificate-provider cache cold path and
+`ApplicationInstance` provisioning/reload/deletion use this capability when available. The existing-key
+GDS signing-request path and server-hosted `TrustList` access use it as well. Direct `TrustList` hosts
+can use the overload accepting `ICertificateStoreResolver`; existing constructors retain their behavior.
+Provider routing does not change trust acceptance, GDS access controls or transaction semantics.
+
 #### Validating Certificates
 
 ```csharp
