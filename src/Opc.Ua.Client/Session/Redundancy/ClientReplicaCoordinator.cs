@@ -130,8 +130,16 @@ namespace Opc.Ua.Client.Redundancy
                 if (isLeader)
                 {
                     await PromoteToLeaderAsync(m_cts.Token).ConfigureAwait(false);
+                    if (m_election.IsLeader)
+                    {
+                        RaiseRoleChanged(true);
+                    }
+                    return;
                 }
-                else if (m_session != null &&
+
+                ManagedSession? demoted = null;
+                bool abandon = false;
+                if (m_session != null &&
                     (m_options.Mode == ClientStandbyMode.Cold || m_sessionServedLeader))
                 {
                     // A Warm/Hot session that served as leader still carries the leader's
@@ -139,24 +147,39 @@ namespace Opc.Ua.Client.Redundancy
                     // Kept alive, it would keep publishing next to the new leader and its
                     // reconnects would take the mirrored session back. Tear it down and,
                     // for Warm/Hot, reconnect a genuine standby session.
-                    ManagedSession demoted = m_session;
+                    demoted = m_session;
+                    // With token reuse the new leader reactivates this very server
+                    // session: stop using it locally but never CloseSession it.
+                    abandon = m_options.EnableTokenReuse && m_sessionServedLeader;
                     m_session = null;
                     m_sessionServedLeader = false;
+                    m_adoptedSession = null;
                     demoted.SessionConfigurationChanged -= OnSessionConfigurationChanged;
                     if (ReferenceEquals(m_publishedSession, demoted))
                     {
                         m_publishedSession = null;
                     }
-                    await demoted.DisposeAsync().ConfigureAwait(false);
-                    if (m_options.Mode != ClientStandbyMode.Cold && !m_election.IsLeader)
-                    {
-                        m_session = await m_options.CreateSessionAsync!(m_cts.Token)
-                            .ConfigureAwait(false);
-                    }
                 }
-                if (isLeader == m_election.IsLeader)
+
+                if (demoted != null)
                 {
-                    RoleChanged?.Invoke(isLeader);
+                    await DisposeDemotedSessionAsync(demoted, abandon).ConfigureAwait(false);
+                }
+
+                // The demotion is reported once the leader session is stopped, before and
+                // independent of the standby connect: a slow or failing connect must not
+                // keep the application acting as leader.
+                if (!m_election.IsLeader)
+                {
+                    RaiseRoleChanged(false);
+                }
+
+                if (demoted != null &&
+                    m_options.Mode != ClientStandbyMode.Cold &&
+                    !m_election.IsLeader &&
+                    m_session == null)
+                {
+                    await ConnectStandbySessionAsync(m_cts.Token).ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
@@ -164,6 +187,51 @@ namespace Opc.Ua.Client.Redundancy
                 m_logger.ClientReplicaRoleChangeLeaderIsLeader(
                     ex,
                     isLeader);
+            }
+        }
+
+        private void RaiseRoleChanged(bool isLeader)
+        {
+            try
+            {
+                RoleChanged?.Invoke(isLeader);
+            }
+            catch (Exception ex)
+            {
+                m_logger.ClientReplicaRoleChangeLeaderIsLeader(ex, isLeader);
+            }
+        }
+
+        private async ValueTask DisposeDemotedSessionAsync(ManagedSession demoted, bool abandon)
+        {
+            try
+            {
+                if (abandon)
+                {
+                    await demoted.AbandonServerSessionAsync().ConfigureAwait(false);
+                }
+                else
+                {
+                    await demoted.DisposeAsync().ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                m_logger.DisposingDemotedLeaderSessionFailed(ex);
+            }
+        }
+
+        private async ValueTask ConnectStandbySessionAsync(CancellationToken ct)
+        {
+            try
+            {
+                m_session = await m_options.CreateSessionAsync!(ct).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // The replica stays without a standby session; the next promotion
+                // creates one (EnsureLeaderSessionAsync) like a cold standby would.
+                m_logger.ConnectingStandbySessionAfterDemotionFailed(ex);
             }
         }
 
@@ -210,6 +278,13 @@ namespace Opc.Ua.Client.Redundancy
             {
                 return false;
             }
+            if (ReferenceEquals(m_session, m_adoptedSession))
+            {
+                // A retry after a failed configure/publish step: this session already
+                // is the reactivated mirrored leader session. Closing it as the
+                // follower's own session would delete it with all its subscriptions.
+                return true;
+            }
 
             bool mutatedForReuse = false;
             try
@@ -250,6 +325,7 @@ namespace Opc.Ua.Client.Redundancy
                     }
                     await m_session.ReactivateMirroredSessionAsync(m_session.ConfiguredEndpoint, ct)
                         .ConfigureAwait(false);
+                    m_adoptedSession = m_session;
                     return true;
                 }
             }
@@ -381,6 +457,7 @@ namespace Opc.Ua.Client.Redundancy
         private ManagedSession? m_session;
         private ManagedSession? m_publishedSession;
         private bool m_sessionServedLeader;
+        private ManagedSession? m_adoptedSession;
     }
 
     /// <summary>
@@ -414,6 +491,18 @@ namespace Opc.Ua.Client.Redundancy
         [LoggerMessage(EventId = ClientEventIds.ClientReplicaCoordinator + 4, Level = LogLevel.Information,
             Message = "Closing the standby's own session before token reuse failed; it expires on the server.")]
         public static partial void ClosingStandbySessionBeforeTokenReuseFailed(
+            this ILogger logger,
+            Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.ClientReplicaCoordinator + 5, Level = LogLevel.Warning,
+            Message = "Tearing down the demoted leader session failed; ignoring.")]
+        public static partial void DisposingDemotedLeaderSessionFailed(
+            this ILogger logger,
+            Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.ClientReplicaCoordinator + 6, Level = LogLevel.Warning,
+            Message = "Connecting the standby session after demotion failed; the next promotion connects.")]
+        public static partial void ConnectingStandbySessionAfterDemotionFailed(
             this ILogger logger,
             Exception? exception);
     }

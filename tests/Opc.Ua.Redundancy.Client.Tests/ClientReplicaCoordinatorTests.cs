@@ -368,7 +368,8 @@ namespace Opc.Ua.Client.Redundancy.Tests
                 leaderSession.Disposed,
                 Is.True,
                 "the ex-leader must not keep running the leader session next to the new leader");
-            Assert.That(coordinator.CurrentSession, Is.SameAs(standbySession));
+            // The standby connect follows the demotion notification.
+            Assert.That(() => coordinator.CurrentSession, Is.SameAs(standbySession).After(10000, 20));
             Assert.That(created, Is.EqualTo(2));
         }
 
@@ -422,6 +423,206 @@ namespace Opc.Ua.Client.Redundancy.Tests
                 "the follower's own server session must be closed, not orphaned");
             Assert.That(closedTokens[0].Token, Is.EqualTo(followerToken));
             Assert.That(closedTokens[0].DeleteSubscriptions, Is.True);
+        }
+
+        [Test]
+        public async Task PromotionRetryKeepsTheAdoptedMirroredSessionAsync()
+        {
+            using var store = new InMemorySharedKeyValueStore();
+            using var seedSession = SessionMock.Create();
+            seedSession.SetConnected();
+            SetServerNonce(seedSession, [1, 2, 3, 4]);
+            using var stream = new MemoryStream();
+            seedSession.SaveSessionConfiguration(stream);
+            await store.SetAsync("client-replica/session", new ByteString(stream.ToArray())).ConfigureAwait(false);
+
+            ConfiguredEndpoint endpoint = seedSession.ConfiguredEndpoint;
+            var closedOnOwnChannel = new List<(NodeId Token, bool DeleteSubscriptions)>();
+            var closedOnSharedChannel = new List<(NodeId Token, bool DeleteSubscriptions)>();
+            ManagedSession followerSession = CreateManagedSessionForTokenReuse(
+                endpoint,
+                NodeId.Parse("s=auth"),
+                NodeId.Parse("s=follower-auth"),
+                closedOnOwnChannel,
+                closedOnSharedChannel);
+            int configureCalls = 0;
+            var configured = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            var options = new ClientReplicaOptions
+            {
+                Mode = ClientStandbyMode.Warm,
+                EnableTokenReuse = true,
+                CreateSessionAsync = _ => new ValueTask<ManagedSession>(followerSession),
+                ConfigureLeaderAsync = (_, fastActivated, _) =>
+                {
+                    if (++configureCalls == 1)
+                    {
+                        // A transient failure after the mirrored session was adopted.
+                        throw new ServiceResultException(StatusCodes.BadCommunicationError);
+                    }
+                    configured.TrySetResult(fastActivated);
+                    return default;
+                }
+            };
+            await using var coordinator = new ClientReplicaCoordinator(
+                options,
+                new StaticLeaderElection(true),
+                store,
+                NullRecordProtector.Instance,
+                m_telemetry);
+
+            await coordinator.StartAsync().ConfigureAwait(false);
+
+            bool fastActivated = await configured.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+
+            Assert.That(configureCalls, Is.EqualTo(2));
+            Assert.That(fastActivated, Is.True, "the retry still runs on the adopted mirrored session");
+            Assert.That(coordinator.CurrentSession, Is.SameAs(followerSession));
+            Assert.That(followerSession.SessionId, Is.EqualTo(seedSession.SessionId));
+            Assert.That(
+                closedOnSharedChannel,
+                Is.Empty,
+                "the retry must not close the adopted mirrored leader session");
+            Assert.That(closedOnOwnChannel, Has.Count.EqualTo(1), "only the follower's own session is closed");
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DemotionIsReportedEvenWhenTheStandbyConnectFailsOrHangsAsync(bool hang)
+        {
+            using var store = new InMemorySharedKeyValueStore();
+            var endpoint = new ConfiguredEndpoint(null!, new EndpointDescription("opc.tcp://demote:4840"));
+            ManagedSession leaderSession = CreateManagedSessionForTokenReuse(endpoint, NodeId.Parse("s=auth"));
+            int created = 0;
+            var releaseStandby = new TaskCompletionSource<ManagedSession>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var configured = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var demoted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var election = new ControllableLeaderElection();
+
+            var options = new ClientReplicaOptions
+            {
+                Mode = ClientStandbyMode.Warm,
+                EnableTokenReuse = false,
+                CreateSessionAsync = _ =>
+                {
+                    created++;
+                    if (created == 1)
+                    {
+                        return new ValueTask<ManagedSession>(leaderSession);
+                    }
+                    if (hang)
+                    {
+                        return new ValueTask<ManagedSession>(releaseStandby.Task);
+                    }
+                    throw new ServiceResultException(StatusCodes.BadTooManySessions);
+                },
+                ConfigureLeaderAsync = (_, fastActivated, _) =>
+                {
+                    configured.TrySetResult(fastActivated);
+                    return default;
+                }
+            };
+            await using var coordinator = new ClientReplicaCoordinator(
+                options, election, store, NullRecordProtector.Instance, m_telemetry);
+            coordinator.RoleChanged += isLeader =>
+            {
+                if (!isLeader)
+                {
+                    demoted.TrySetResult(true);
+                }
+            };
+
+            await coordinator.StartAsync().ConfigureAwait(false);
+            election.SetLeader(true);
+            await configured.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+
+            election.SetLeader(false);
+            try
+            {
+                await demoted.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                Assert.That(coordinator.CurrentSession, Is.Null);
+                Assert.That(leaderSession.Disposed, Is.True);
+            }
+            finally
+            {
+                // Unblock the pending standby connect so the coordinator can dispose.
+                releaseStandby.TrySetCanceled();
+            }
+        }
+
+        [TestCase(ClientStandbyMode.Warm)]
+        [TestCase(ClientStandbyMode.Hot)]
+        public async Task DemotedTokenReuseLeaderAbandonsTheSharedSessionWithoutClosingItAsync(
+            ClientStandbyMode mode)
+        {
+            using var store = new InMemorySharedKeyValueStore();
+            using var seedSession = SessionMock.Create();
+            seedSession.SetConnected();
+            SetServerNonce(seedSession, [1, 2, 3, 4]);
+            using var stream = new MemoryStream();
+            seedSession.SaveSessionConfiguration(stream);
+            await store.SetAsync("client-replica/session", new ByteString(stream.ToArray())).ConfigureAwait(false);
+
+            ConfiguredEndpoint endpoint = seedSession.ConfiguredEndpoint;
+            var closedOnOwnChannel = new List<(NodeId Token, bool DeleteSubscriptions)>();
+            var closedOnSharedChannel = new List<(NodeId Token, bool DeleteSubscriptions)>();
+            ManagedSession leaderSession = CreateManagedSessionForTokenReuse(
+                endpoint,
+                NodeId.Parse("s=auth"),
+                NodeId.Parse("s=follower-auth"),
+                closedOnOwnChannel,
+                closedOnSharedChannel);
+            ManagedSession standbySession = CreateManagedSessionForTokenReuse(endpoint, NodeId.Parse("s=auth"));
+            int created = 0;
+            var configured = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var demoted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var election = new ControllableLeaderElection();
+
+            var options = new ClientReplicaOptions
+            {
+                Mode = mode,
+                EnableTokenReuse = true,
+                CreateSessionAsync = _ =>
+                {
+                    created++;
+                    return new ValueTask<ManagedSession>(created == 1 ? leaderSession : standbySession);
+                },
+                ConfigureLeaderAsync = (_, fastActivated, _) =>
+                {
+                    configured.TrySetResult(fastActivated);
+                    return default;
+                }
+            };
+            await using var coordinator = new ClientReplicaCoordinator(
+                options, election, store, NullRecordProtector.Instance, m_telemetry);
+            coordinator.RoleChanged += isLeader =>
+            {
+                if (!isLeader)
+                {
+                    demoted.TrySetResult(true);
+                }
+            };
+
+            await coordinator.StartAsync().ConfigureAwait(false);
+            election.SetLeader(true);
+            Assert.That(
+                await configured.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false),
+                Is.True,
+                "the leader must have adopted the mirrored session");
+            NodeId sharedSessionId = leaderSession.SessionId;
+            Assert.That(sharedSessionId, Is.EqualTo(seedSession.SessionId));
+
+            // The leader loses the lease while it can still reach the server.
+            election.SetLeader(false);
+            await demoted.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+
+            Assert.That(leaderSession.Disposed, Is.True, "the ex-leader must stop using the shared session");
+            Assert.That(
+                closedOnSharedChannel,
+                Is.Empty,
+                "the ex-leader must not close the server session the new leader reactivates");
+            Assert.That(closedOnOwnChannel, Has.Count.EqualTo(1), "only the follower's own session is closed");
         }
 
         private sealed class ControllableLeaderElection : ILeaderElection
@@ -493,7 +694,8 @@ namespace Opc.Ua.Client.Redundancy.Tests
             ConfiguredEndpoint endpoint,
             NodeId expectedAuthenticationToken,
             NodeId ownAuthenticationToken = default,
-            List<(NodeId Token, bool DeleteSubscriptions)> closedTokens = null)
+            List<(NodeId Token, bool DeleteSubscriptions)> closedTokens = null,
+            List<(NodeId Token, bool DeleteSubscriptions)> closedOnReactivatedChannel = null)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             ApplicationConfiguration configuration = new(telemetry)
@@ -535,6 +737,19 @@ namespace Opc.Ua.Client.Redundancy.Tests
                     DiagnosticInfos = []
                 }))
                 .Verifiable(Times.Once);
+            if (closedOnReactivatedChannel != null)
+            {
+                // A live channel: a dispose would send CloseSession over it.
+                managedChannel.SetupGet(c => c.State).Returns(ChannelState.Ready);
+            }
+            managedChannel
+                .Setup(c => c.SendRequestAsync(It.IsAny<CloseSessionRequest>(), It.IsAny<CancellationToken>()))
+                .Returns((IServiceRequest request, CancellationToken _) =>
+                {
+                    var close = (CloseSessionRequest)request;
+                    closedOnReactivatedChannel?.Add((close.RequestHeader.AuthenticationToken, close.DeleteSubscriptions));
+                    return new ValueTask<IServiceResponse>(new CloseSessionResponse());
+                });
             // The standby's own session still runs on its original channel until the
             // mirrored reactivation builds a new one.
             innerSession.Channel
