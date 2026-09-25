@@ -44,6 +44,36 @@ namespace Opc.Ua.OpenUsd.Server.Tests
     [Category("OpenUsd")]
     public sealed class OpenUsdRepresentationAuthoringTests
     {
+        [TestCase(false)]
+        [TestCase(true)]
+        public void NamedBindingsHaveDistinctRootsAndMemberIdentifiers(bool component)
+        {
+            OpenUsdRepresentationState representation = NewRepresentation(
+                out SystemContext context, out ushort ns);
+            var identifiers = new HashSet<NodeId>();
+            for (int index = 0; index < 2; index++)
+            {
+                string name = index == 0 ? "First" : "Second";
+                NodeState binding = component
+                    ? representation.AddComponentBinding(context, ns, name, Guid.NewGuid(),
+                        OpenUsdCardinalityEnum.One, OpenUsdCompositionArcEnum.Reference, "/Cell/" + name)
+                    : representation.AddLiveBinding(context, ns, new NodeId(4242u, ns), name, Guid.NewGuid(),
+                        new NodeId((uint)(77 + index), ns), "/Cell/" + name, "value", "double",
+                        OpenUsdRenderTargetKindEnum.Custom, 1);
+                Assert.That(binding.NodeId.IsNull, Is.False);
+                Assert.That(identifiers.Add(binding.NodeId), Is.True, binding.BrowseName.ToString());
+                var members = new List<BaseInstanceState>();
+                binding.GetChildren(context, members);
+                Assert.That(members, Is.Not.Empty);
+                foreach (BaseInstanceState member in members)
+                {
+                    Assert.That(member.NodeId.IsNull, Is.False);
+                    Assert.That(identifiers.Add(member.NodeId), Is.True, member.BrowseName.ToString());
+                    Assert.That(member.Parent, Is.SameAs(binding));
+                }
+            }
+        }
+
         [Test]
         public void CreateRepresentationAttachesABrowsableAddInToTheOwner()
         {

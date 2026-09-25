@@ -324,6 +324,7 @@ namespace Opc.Ua.AI.Server
 
             if (parent.FindChild(SystemContext, qualifiedName) is TChild existing)
             {
+                BindMethodDeclaration(parent, existing, qualifiedName);
                 return existing;
             }
 
@@ -356,7 +357,24 @@ namespace Opc.Ua.AI.Server
                 ? Opc.Ua.ReferenceTypeIds.HasProperty
                 : Opc.Ua.ReferenceTypeIds.HasComponent;
 
+            BindMethodDeclaration(parent, typed, qualifiedName);
             return typed;
+        }
+
+        private void BindMethodDeclaration(NodeState parent, BaseInstanceState child, QualifiedName browseName)
+        {
+            if (child is not MethodState method)
+            {
+                return;
+            }
+            if (parent is not BaseInstanceState instance ||
+                FindPredefinedNode<NodeState>(instance.TypeDefinitionId) is not { } type ||
+                type.FindChild(SystemContext, browseName) is not MethodState declaration)
+            {
+                throw new InvalidOperationException(
+                    $"The {browseName} method has no declaration on {parent.BrowseName}'s type.");
+            }
+            method.MethodDeclarationId = declaration.NodeId;
         }
 
         /// <summary>

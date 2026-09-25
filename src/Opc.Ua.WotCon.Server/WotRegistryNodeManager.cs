@@ -254,6 +254,10 @@ namespace Opc.Ua.WotCon.Server
 
         private void ApplyRegistrySettings(ISystemContext context, BaseObjectState registry)
         {
+            if (registry is WoTRegistryState typed)
+            {
+                typed.AddAutoRefresh(context);
+            }
             SetChildValue(registry, "AutoRefresh", new Variant(m_options.AutoRefresh));
             SetChildValue(registry, "RefreshMode",
                 new Variant((int)WoTRefreshModeEnum.EventDriven));

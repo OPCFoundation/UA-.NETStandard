@@ -2014,8 +2014,18 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
+            bool placeholder = reference.TargetNode is InstanceDesign
+            {
+                ModellingRule: ModellingRule.MandatoryPlaceholder or ModellingRule.OptionalPlaceholder
+            };
+            if (placeholder)
+            {
+                context.Out.WriteLine("if (!forInstance)");
+                context.Out.WriteLine("{");
+            }
             context.Out.WriteLine(
-                "state.AddReference({0}, {1}, {2});",
+                "{0}state.AddReference({1}, {2}, {3});",
+                placeholder ? "    " : string.Empty,
                 m_context.ModelDesign.GetNodeIdConstant(
                     reference.ReferenceTypeId,
                     "<ReferenceType>",
@@ -2024,6 +2034,10 @@ namespace Opc.Ua.SourceGeneration
                 reference.TargetNode.GetNodeIdAsCode(
                     m_context.ModelDesign.Namespaces,
                     kNamespaceTableContextVariable));
+            if (placeholder)
+            {
+                context.Out.WriteLine("}");
+            }
             return null;
         }
 
