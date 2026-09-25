@@ -218,6 +218,64 @@ namespace Opc.Ua.Schema.Model.Tests
         }
 
         /// <summary>
+        /// ALT-6: the argument properties are ensured per direction, in the
+        /// target and the dependency path alike. A method that declares its
+        /// InputArguments property explicitly keeps that one (the target path
+        /// used to add a second) and still gets its OutputArguments property
+        /// (the dependency path used to skip both when either existed).
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ExplicitArgumentPropertyIsKeptAndTheOtherDirectionAdded(bool fromDependency)
+        {
+            const string machine =
+                """
+                <opc:ObjectType SymbolicName="MoverType" BaseType="ua:BaseObjectType">
+                  <opc:Children>
+                    <opc:Method SymbolicName="Move" ModellingRule="Mandatory">
+                      <opc:Children>
+                        <opc:Property SymbolicName="ua:InputArguments" DataType="ua:Argument" ValueRank="Array" ModellingRule="Mandatory" />
+                      </opc:Children>
+                      <opc:InputArguments>
+                        <opc:Argument Name="Distance" DataType="ua:Double" />
+                      </opc:InputArguments>
+                      <opc:OutputArguments>
+                        <opc:Argument Name="Reached" DataType="ua:Boolean" />
+                      </opc:OutputArguments>
+                    </opc:Method>
+                  </opc:Children>
+                </opc:ObjectType>
+                """;
+            ModelDesignValidator validator = CreateValidator();
+            string ns;
+            if (fromDependency)
+            {
+                string dependency = AddDesign("Dep", machine);
+                string target = AddDesign(
+                    "Tgt",
+                    """<opc:ObjectType SymbolicName="SubMoverType" BaseType="dep:MoverType" />""",
+                    "Dep");
+                validator.Validate([target], [dependency], null);
+                ns = "Dep";
+            }
+            else
+            {
+                validator.Validate([AddDesign("Movers", machine)], [], null);
+                ns = "Movers";
+            }
+
+            var type = (TypeDesign)FindNode(validator, "MoverType", ns);
+            var method = (MethodDesign)type.Children.Items.Single(c => c.SymbolicName.Name == "Move");
+            List<string> names = [.. method.Children.Items.Select(c => c.SymbolicName.Name)];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(names.Count(n => n == "InputArguments"), Is.EqualTo(1), string.Join(",", names));
+                Assert.That(names.Count(n => n == "OutputArguments"), Is.EqualTo(1), string.Join(",", names));
+            });
+        }
+
+        /// <summary>
         /// The trailing "_&lt;digits&gt;" naming convention only supplies an
         /// enum value when none is authored: an explicit Identifier wins.
         /// </summary>

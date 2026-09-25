@@ -4720,34 +4720,7 @@ namespace Opc.Ua.Schema.Model
                 method.HasArguments =
                     MethodDesignArgumentResolver.HasMethodArguments(method);
 
-                if (method.Parent != null)
-                {
-                    var children = new List<InstanceDesign>();
-
-                    if (method.Children != null && method.Children.Items != null)
-
-                    {
-                        children.AddRange(method.Children.Items);
-                    }
-                    // Part 3 only defines the argument properties for
-                    // methods that have arguments of that direction.
-                    if (method.InputArguments.Length > 0)
-                    {
-                        children.Add(CreateArgumentProperty(method, "InputArguments"));
-                    }
-                    if (method.OutputArguments.Length > 0)
-                    {
-                        children.Add(CreateArgumentProperty(method, "OutputArguments"));
-                    }
-                    if (children.Count > 0)
-                    {
-                        method.Children = new ListOfChildren
-                        {
-                            Items = [.. children]
-                        };
-                        method.HasChildren = true;
-                    }
-                }
+                EnsureArgumentProperties(method);
             }
         }
 
@@ -7371,45 +7344,76 @@ namespace Opc.Ua.Schema.Model
                 // Mirror ValidateInstance: a child method carries the
                 // InputArguments / OutputArguments argument properties as
                 // children, so a target instance of the dependency type
-                // materialises them into its hierarchy. Guarded by the
-                // symbolic id so an already validated or linked method is
-                // not extended twice. Like there, a property is only created
-                // when the method has arguments of that direction.
-                if (method.Parent != null &&
-                    !HasArgumentProperty(method, "InputArguments") &&
-                    !HasArgumentProperty(method, "OutputArguments"))
-                {
-                    var children = new List<InstanceDesign>();
-
-                    if (method.Children != null && method.Children.Items != null)
-                    {
-                        children.AddRange(method.Children.Items);
-                    }
-                    if (method.InputArguments.Length > 0)
-                    {
-                        children.Add(CreateArgumentProperty(method, "InputArguments"));
-                    }
-                    if (method.OutputArguments.Length > 0)
-                    {
-                        children.Add(CreateArgumentProperty(method, "OutputArguments"));
-                    }
-                    if (children.Count > 0)
-                    {
-                        method.Children = new ListOfChildren
-                        {
-                            Items = [.. children]
-                        };
-                        method.HasChildren = true;
-                    }
-                }
+                // materialises them into its hierarchy.
+                EnsureArgumentProperties(method);
             }
         }
 
-        private bool HasArgumentProperty(MethodDesign method, string type)
+        /// <summary>
+        /// Adds the InputArguments / OutputArguments properties to a child
+        /// method (shared by ValidateInstance and LinkDependencyInstance).
+        /// Part 3 only defines an argument property for a direction that has
+        /// arguments, and each direction is handled on its own: a property
+        /// the design declares explicitly, or one an earlier validation or
+        /// link pass already added, is kept and not duplicated, and the other
+        /// direction is still created.
+        /// </summary>
+        private void EnsureArgumentProperties(MethodDesign method)
         {
-            return m_nodes.ContainsKey(new XmlQualifiedName(
+            if (method.Parent == null)
+            {
+                return;
+            }
+
+            var children = new List<InstanceDesign>();
+            if (method.Children?.Items != null)
+            {
+                children.AddRange(method.Children.Items);
+            }
+            int count = children.Count;
+            if (method.InputArguments?.Length > 0 &&
+                !HasArgumentProperty(method, children, "InputArguments"))
+            {
+                children.Add(CreateArgumentProperty(method, "InputArguments"));
+            }
+            if (method.OutputArguments?.Length > 0 &&
+                !HasArgumentProperty(method, children, "OutputArguments"))
+            {
+                children.Add(CreateArgumentProperty(method, "OutputArguments"));
+            }
+            if (children.Count > count)
+            {
+                method.Children = new ListOfChildren
+                {
+                    Items = [.. children]
+                };
+                method.HasChildren = true;
+            }
+        }
+
+        private bool HasArgumentProperty(
+            MethodDesign method,
+            List<InstanceDesign> children,
+            string type)
+        {
+            var symbolicId = new XmlQualifiedName(
                 NodeDesign.CreateSymbolicId(method.SymbolicId.Name, type),
-                method.SymbolicId.Namespace));
+                method.SymbolicId.Namespace);
+            if (m_nodes.ContainsKey(symbolicId))
+            {
+                return true;
+            }
+            foreach (InstanceDesign child in children)
+            {
+                if (child != null &&
+                    (child.SymbolicId == symbolicId ||
+                    child.SymbolicName?.Name == type ||
+                    string.Equals(child.BrowseName, type, StringComparison.Ordinal)))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
