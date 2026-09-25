@@ -1118,6 +1118,53 @@ namespace Opc.Ua.Server.Historian
                 }
                 token = page.NextToken;
             }
+
+            // Part 13 §5.4.3.20: intervals before the start or after the end of data are
+            // Bad_NoData and intervals overlapping either edge are Partial. The data is the
+            // raw history (read with bounds, as for the other aggregates) and the annotations.
+            DateTimeUtc startOfData = DateTimeUtc.MaxValue;
+            DateTimeUtc endOfData = DateTimeUtc.MinValue;
+            foreach (DateTimeUtc annotationTime in annotationTimes)
+            {
+                startOfData = annotationTime < startOfData ? annotationTime : startOfData;
+                endOfData = annotationTime > endOfData ? annotationTime : endOfData;
+            }
+
+            // Annotations outside the window are data too: the nearest one before and after it.
+            DateTimeUtc? annotationBefore = await ReadEdgeAnnotationTimestampAsync(
+                annotationProvider, opContext, node.NodeId, DateTimeUtc.MinValue, windowStart, false,
+                cancellationToken).ConfigureAwait(false);
+            DateTimeUtc? annotationAfter = await ReadEdgeAnnotationTimestampAsync(
+                annotationProvider, opContext, node.NodeId, windowEnd, DateTimeUtc.MaxValue, true,
+                cancellationToken).ConfigureAwait(false);
+            if (annotationBefore is DateTimeUtc before && before < startOfData)
+            {
+                startOfData = before;
+            }
+            if (annotationAfter is DateTimeUtc after && after > endOfData)
+            {
+                endOfData = after;
+            }
+            if (provider is IHistorianDataProvider raw)
+            {
+                // Only the edges matter: the first raw value of a forward read with bounds is
+                // the earliest one, the first of a reverse read the latest one.
+                DateTimeUtc? firstRaw = await ReadEdgeRawTimestampAsync(
+                    raw, opContext, node.NodeId, windowStart, windowEnd, true, cancellationToken)
+                    .ConfigureAwait(false);
+                DateTimeUtc? lastRaw = await ReadEdgeRawTimestampAsync(
+                    raw, opContext, node.NodeId, windowStart, windowEnd, false, cancellationToken)
+                    .ConfigureAwait(false);
+                if (firstRaw is DateTimeUtc first && first < startOfData)
+                {
+                    startOfData = first;
+                }
+                if (lastRaw is DateTimeUtc last && last > endOfData)
+                {
+                    endOfData = last;
+                }
+            }
+
             ArrayOf<DataValue> outputs;
             try
             {
@@ -1126,6 +1173,8 @@ namespace Opc.Ua.Server.Historian
                     startTime,
                     endTime,
                     details.ProcessingInterval,
+                    startOfData,
+                    endOfData,
                     kMaxProcessedBufferedOutputs,
                     cancellationToken);
             }
@@ -3255,6 +3304,108 @@ namespace Opc.Ua.Server.Historian
                 if (page.IsFinal)
                 {
                     return;
+                }
+                token = page.NextToken;
+            }
+        }
+
+        /// <summary>
+        /// Returns the timestamp of the first stored raw value that a read with bounds over
+        /// the window returns in the given direction: the earliest value at or before the
+        /// window for a forward read, the latest at or after it for a reverse read, or
+        /// <c>null</c> when the node has no raw data. Reads at most one value and a bound.
+        /// </summary>
+        private static async ValueTask<DateTimeUtc?> ReadEdgeRawTimestampAsync(
+            IHistorianDataProvider raw,
+            HistorianOperationContext context,
+            NodeId nodeId,
+            DateTimeUtc windowStart,
+            DateTimeUtc windowEnd,
+            bool isForward,
+            CancellationToken cancellationToken)
+        {
+            var request = new HistorianRawReadRequest
+            {
+                NodeId = nodeId,
+                StartTime = windowStart,
+                EndTime = windowEnd,
+                MaxValues = 2,
+                IsForward = isForward,
+                ReturnBounds = true
+            };
+            HistorianResumeToken token = default;
+            while (true)
+            {
+                HistorianPage<HistoricalDataValue> page = await raw.ReadRawAsync(
+                    context, request, token, cancellationToken).ConfigureAwait(false);
+                foreach (HistoricalDataValue sample in page.Values)
+                {
+                    // skip bound placeholders as AggregateCalculator.QueueRawValue does.
+                    StatusCode status = sample.Value.StatusCode;
+                    if (!sample.Value.IsNull &&
+                        status != StatusCodes.BadNoData &&
+                        status != StatusCodes.BadBoundNotFound)
+                    {
+                        return sample.Value.SourceTimestamp;
+                    }
+                }
+                if (page.IsFinal)
+                {
+                    return null;
+                }
+                token = page.NextToken;
+            }
+        }
+
+        /// <summary>
+        /// Returns the timestamp of the first annotation in the range in the given direction,
+        /// or <c>null</c> when the range has none. Reads at most one annotation.
+        /// </summary>
+        private static async ValueTask<DateTimeUtc?> ReadEdgeAnnotationTimestampAsync(
+            IHistorianAnnotationProvider provider,
+            HistorianOperationContext context,
+            NodeId nodeId,
+            DateTimeUtc startTime,
+            DateTimeUtc endTime,
+            bool isForward,
+            CancellationToken cancellationToken)
+        {
+            var request = new HistorianAnnotationReadRequest
+            {
+                NodeId = nodeId,
+                StartTime = startTime,
+                EndTime = endTime,
+                MaxValues = 1,
+                IsForward = isForward
+            };
+            HistorianResumeToken token = default;
+            while (true)
+            {
+                if (provider is IHistorianTimestampedAnnotationProvider timestamped)
+                {
+                    HistorianPage<HistorianAnnotation> timestampedPage =
+                        await timestamped.ReadAnnotationsWithTimestampsAsync(
+                            context, request, token, cancellationToken).ConfigureAwait(false);
+                    foreach (HistorianAnnotation annotation in timestampedPage.Values)
+                    {
+                        return annotation.SourceTimestamp;
+                    }
+                    if (timestampedPage.IsFinal)
+                    {
+                        return null;
+                    }
+                    token = timestampedPage.NextToken;
+                    continue;
+                }
+                HistorianPage<Annotation> page = await provider.ReadAnnotationsAsync(
+                    context, request, token, cancellationToken).ConfigureAwait(false);
+                foreach (Annotation annotation in page.Values)
+                {
+                    return annotation.AnnotationTime;
+                }
+                if (page.IsFinal)
+                {
+                    return null;
                 }
                 token = page.NextToken;
             }

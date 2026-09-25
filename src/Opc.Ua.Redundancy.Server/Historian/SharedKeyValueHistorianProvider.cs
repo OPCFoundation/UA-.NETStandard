@@ -2404,6 +2404,23 @@ namespace Opc.Ua.Redundancy.Server
             ArrayOf<DateTimeUtc> timestamps = archive == null
                 ? []
                 : archive.Annotations.Keys.ToArrayOf();
+
+            // Part 13 §5.4.3.20: intervals outside the raw data and annotations are
+            // Bad_NoData, intervals overlapping their edges are Partial. Both are sorted.
+            DateTimeUtc startOfData = DateTimeUtc.MaxValue;
+            DateTimeUtc endOfData = DateTimeUtc.MinValue;
+            if (archive != null && archive.Raw.Count > 0)
+            {
+                startOfData = archive.Raw.Keys.First().SourceTimestamp;
+                endOfData = archive.Raw.Keys.Last().SourceTimestamp;
+            }
+            if (timestamps.Count > 0)
+            {
+                startOfData = timestamps[0] < startOfData ? timestamps[0] : startOfData;
+                endOfData = timestamps[timestamps.Count - 1] > endOfData
+                    ? timestamps[timestamps.Count - 1]
+                    : endOfData;
+            }
             return
             [
                 .. CountAggregateCalculator.CalculateAnnotationCounts(
@@ -2411,6 +2428,8 @@ namespace Opc.Ua.Redundancy.Server
                     request.StartTime,
                     request.EndTime,
                     request.ProcessingInterval,
+                    startOfData,
+                    endOfData,
                     kMaxProcessedValues,
                     ct)
             ];
