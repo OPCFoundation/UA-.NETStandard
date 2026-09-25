@@ -252,6 +252,16 @@ namespace Opc.Ua.SourceGeneration
                 /// <inheritdoc/>
                 public void Reuse()
                 {
+                    ReuseCore();
+                }
+
+                /// <summary>
+                /// Resets the instance and returns it to the pool of its
+                /// runtime type, also when <c>Reuse()</c> is called through
+                /// a reference typed as a base class.
+                /// </summary>
+                protected virtual void ReuseCore()
+                {
                     if (global::System.Threading.Interlocked.CompareExchange(
                         ref m_pooledSentinel, 1, 0) != 0)
                     {
@@ -298,6 +308,12 @@ namespace Opc.Ua.SourceGeneration
                 /// <inheritdoc/>
                 public new void Reuse()
                 {
+                    ReuseCore();
+                }
+
+                /// <inheritdoc/>
+                protected override void ReuseCore()
+                {
                     if (global::System.Threading.Interlocked.CompareExchange(
                         ref m_pooledSentinel, 1, 0) != 0)
                     {
@@ -342,6 +358,17 @@ namespace Opc.Ua.SourceGeneration
                 /// <inheritdoc/>
                 public new void Reuse()
                 {
+                    ReuseCore();
+                }
+
+            #pragma warning disable CS0109 // The member does not hide an accessible member
+                /// <summary>
+                /// Resets the instance and returns it to the pool of its
+                /// runtime type, also when <c>Reuse()</c> is called through
+                /// a reference typed as this class.
+                /// </summary>
+                protected new virtual void ReuseCore()
+                {
                     if (global::System.Threading.Interlocked.CompareExchange(
                         ref m_pooledSentinel, 1, 0) != 0)
                     {
@@ -351,7 +378,6 @@ namespace Opc.Ua.SourceGeneration
                     {{Tokens.ClassName}}Activator.Instance.Return(this);
                 }
 
-            #pragma warning disable CS0109 // The member does not hide an accessible member
                 /// <summary>
                 /// Resets every field, including the inherited ones, the
                 /// encoding mask and the switch field, to the value a newly

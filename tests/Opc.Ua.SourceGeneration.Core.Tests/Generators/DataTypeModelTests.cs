@@ -190,6 +190,28 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         /// <summary>
+        /// E-2: Reuse() called through a reference typed as the (pooled)
+        /// base class has to return a derived instance to the pool of its
+        /// runtime type, not to the pool of the base.
+        /// </summary>
+        [Test]
+        public void ReuseThroughBaseReferenceReturnsToRuntimeTypePool()
+        {
+            object derived = Rent("FromConcrete");
+            Type baseType = m_assembly.GetType("Test.DT.WithDefaults", throwOnError: true);
+            Assert.That(derived, Is.InstanceOf(baseType));
+
+            // A non-virtual call of the base Reuse(), as C# emits it for
+            // ((WithDefaults)derived).Reuse().
+            baseType.GetMethod("Reuse", Type.EmptyTypes).Invoke(derived, null);
+
+            object rentedBase = Rent("WithDefaults");
+            Assert.That(rentedBase, Is.Not.SameAs(derived));
+            Assert.That(rentedBase.GetType(), Is.EqualTo(baseType));
+            Assert.That(Rent("FromConcrete"), Is.SameAs(derived));
+        }
+
+        /// <summary>
         /// D-6: an OptionSet using bit 63 of a UInt64 threw an
         /// OverflowException in the generator. The EnumField value is the
         /// bit position.
