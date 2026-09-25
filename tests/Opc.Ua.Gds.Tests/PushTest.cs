@@ -1464,6 +1464,11 @@ namespace Opc.Ua.Gds.Tests
                     .AsClient()
                     .AddSecurityConfiguration(victimCertIds, victimPkiRoot, victimPkiRoot)
                     .SetAutoAcceptUntrustedCertificates(true)
+                    // The victim holds no CRL for the CA that issued the push server's
+                    // current certificate; this test is about the server enforcing the
+                    // pushed CRL, so the victim tolerates an unknown server revocation
+                    // status (OPC 10000-4 6.1.3: Find Revocation List is suppressible).
+                    .SetRejectUnknownRevocationStatus(false)
                     .SetRejectSHA1SignedCertificates(false)
                     .SetMinimumCertificateKeySize(1024)
                     .CreateAsync()
