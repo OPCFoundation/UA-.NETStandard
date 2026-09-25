@@ -65,7 +65,12 @@
     <MaxArrayLength>65535</MaxArrayLength>
     <MaxMessageSize>4194304</MaxMessageSize>
     <MaxBufferSize>65535</MaxBufferSize>
-    <ChannelLifetime>30000</ChannelLifetime>
+    <!--
+    Channels without traffic are closed after ChannelLifetime. CTT Security None 007.js and
+    Security Basic256Sha256 005.js keep SecureChannels without a Session idle for about 50 s
+    and expect the newest one to still be open (its SecurityToken is valid for at least 60 s).
+    -->
+    <ChannelLifetime>120000</ChannelLifetime>
     <SecurityTokenLifetime>3600000</SecurityTokenLifetime>
   </TransportQuotas>
   <ServerConfiguration>

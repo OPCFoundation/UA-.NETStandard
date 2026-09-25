@@ -140,7 +140,6 @@ namespace Opc.Ua.Server
                 lock (m_lock)
                 {
                     m_shutdownEvent.Set();
-                    m_samplingRates.Clear();
                 }
 
                 if (m_samplingTask != null)
@@ -546,6 +545,23 @@ namespace Opc.Ua.Server
                     // update monitored items.
                     for (int ii = 0; ii < items.Count; ii++)
                     {
+                        ServiceResult permissionResult = await m_nodeManager
+                            .ValidateRolePermissionsAsync(
+                                context,
+                                itemsToRead[ii].NodeId,
+                                PermissionType.Read,
+                                cancellationToken)
+                            .ConfigureAwait(false);
+                        if (ServiceResult.IsBad(permissionResult))
+                        {
+                            items[ii].QueueValue(
+                                DataValue.FromStatusCode(
+                                    permissionResult.StatusCode,
+                                    m_timeProvider.GetUtcNow().UtcDateTime),
+                                permissionResult);
+                            continue;
+                        }
+
                         if (values[ii].IsNull)
                         {
                             values[ii] = DataValue.FromStatusCode(
@@ -627,5 +643,4 @@ namespace Opc.Ua.Server
             Message = "Server: Unexpected error sampling values.")]
         public static partial void ServerUnexpectedErrorSamplingValues(this ILogger logger, Exception ex);
     }
-
 }

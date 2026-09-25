@@ -337,6 +337,22 @@ namespace Opc.Ua.Server.Tests
 
         [Test]
         [NonParallelizable]
+        public void ReportEventsWhenEnabledRetainsOnlyTheMostRecentBoundedSet()
+        {
+            ServerUtils.EventsEnabled = true;
+            var nodeId = new NodeId("bounded-event-node", 2);
+            var value = new DataValue(new Variant(42), StatusCodes.Good);
+
+            for (int index = 0; index < 1_025; index++)
+            {
+                ServerUtils.ReportQueuedValue(nodeId, (uint)index, value);
+            }
+
+            Assert.That(GetQueuedEventCount(), Is.EqualTo(1_024));
+        }
+
+        [Test]
+        [NonParallelizable]
         public void ReportEventsWhenDisabledDoNotQueue()
         {
             ServerUtils.EventsEnabled = false;

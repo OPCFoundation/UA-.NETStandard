@@ -241,6 +241,47 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             listenerMock.Verify(l => l.ChannelClosed(0u), Times.Once());
         }
 
+        /// <summary>
+        /// A client that negotiates small chunks may send proportionally more of
+        /// them, and an incomplete message keeps the whole buffer of each chunk
+        /// alive. The Hello therefore sizes the buffers the transport receives
+        /// into to the negotiated chunk size rather than to the size the
+        /// connection was accepted with.
+        /// </summary>
+        [Test]
+        public async Task ProcessHelloMessageSizesTheTransportReceiveBuffersAsync()
+        {
+            Mock<ITcpChannelListener> listenerMock = CreateListenerMock();
+            var transport = new SizedRecordingByteTransport();
+            using TestServerChannel channel = BuildChannel(listenerMock);
+            channel.SetTransport(transport);
+            channel.CurrentState = TcpChannelState.Connecting;
+
+            byte[] hello = BuildChunk(TcpMessageType.Hello, encoder =>
+            {
+                encoder.WriteUInt32(null, 0); // protocol version
+                encoder.WriteUInt32(null, 65535); // client receive buffer size
+                encoder.WriteUInt32(null, TcpMessageLimits.MinBufferSize); // client send buffer size
+                encoder.WriteUInt32(null, 0); // max message size
+                encoder.WriteUInt32(null, 0); // max chunk count
+                encoder.WriteInt32(null, -1); // endpoint url
+            });
+            await channel.FeedIncomingMessageAsync(
+                TcpMessageType.Hello,
+                new ArraySegment<byte>(hello)).ConfigureAwait(false);
+
+            Assert.That(
+                await CompletesWithinAsync(transport.FirstSendTask, 30).ConfigureAwait(false),
+                Is.True,
+                "channel never acknowledged the hello");
+            byte[] sent = transport.LastSent;
+            AcknowledgeMessage acknowledge = TcpMessageParsers.ReadAcknowledgeMessage(
+                new ArraySegment<byte>(sent, 8, sent.Length - 8));
+            Assert.That(acknowledge.ReceiveBufferSize, Is.EqualTo((uint)TcpMessageLimits.MinBufferSize));
+            Assert.That(transport.ReceiveBufferSize, Is.EqualTo(TcpMessageLimits.MinBufferSize));
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Opening));
+        }
+
         [Test]
         public async Task BeginReverseConnectWritesReverseHelloMessageAsync()
         {
@@ -308,8 +349,39 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             uint messageType = BinaryPrimitives.ReadUInt32LittleEndian(captured.AsSpan(0));
             Assert.That(messageType & 0x00FFFFFFu, Is.EqualTo(TcpMessageType.Open));
             Assert.That(
-                DecodeServiceFaultStatusCode(captured),
+                DecodeServiceFault(captured).ResponseHeader.ServiceResult.Code,
                 Is.EqualTo((uint)StatusCodes.BadCertificateUntrusted));
+        }
+
+        /// <summary>
+        /// The asymmetric (OpenSecureChannel) fault echoes the RequestHandle it is
+        /// given and carries a response Timestamp (OPC 10000-4 §7.33).
+        /// </summary>
+        [Test]
+        public async Task SendServiceFaultWithRequestHandleEchoesItAsync()
+        {
+            Mock<ITcpChannelListener> listenerMock = CreateListenerMock();
+            var transport = new RecordingByteTransport();
+            using TestServerChannel channel = BuildChannel(listenerMock);
+            channel.SetTransport(transport);
+            channel.CurrentState = TcpChannelState.Opening;
+
+            channel.CallSendServiceFault(
+                requestId: 42u,
+                renew: false,
+                fault: new ServiceResult(StatusCodes.BadSecurityChecksFailed),
+                requestHandle: 99u);
+
+            Assert.That(
+                await CompletesWithinAsync(transport.FirstSendTask, 30).ConfigureAwait(false),
+                Is.True,
+                "channel never emitted the service fault message");
+            ServiceFault fault = DecodeServiceFault(transport.LastSent);
+            Assert.That(fault.ResponseHeader.ServiceResult.Code, Is.EqualTo((uint)StatusCodes.BadSecurityChecksFailed));
+            Assert.That(fault.ResponseHeader.RequestHandle, Is.EqualTo(99u));
+            Assert.That(
+                (DateTime)fault.ResponseHeader.Timestamp,
+                Is.GreaterThan(DateTime.UtcNow.AddMinutes(-1)));
         }
 
         /// <summary>
@@ -413,7 +485,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 channel.SetTransport(transport);
                 channel.StartReceiveLoopForTest();
 
-                Assert.That(channel.DetachTransportForTest(), Is.SameAs(transport));
+                // Reusing the same transport requires its cancelled reader to finish first.
+                Assert.That(
+                    await channel.DetachTransportAsync().ConfigureAwait(false),
+                    Is.SameAs(transport));
 
                 channel.SetTransport(transport);
                 channel.StartReceiveLoopForTest();
@@ -534,7 +609,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             return error.StatusCode;
         }
 
-        private uint DecodeServiceFaultStatusCode(byte[] chunk)
+        private ServiceFault DecodeServiceFault(byte[] chunk)
         {
             using var decoder = new BinaryDecoder(
                 new ArraySegment<byte>(chunk, 8, chunk.Length - 8), m_context);
@@ -544,8 +619,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             _ = decoder.ReadByteString(null); // receiver certificate thumbprint
             _ = decoder.ReadUInt32(null); // sequence number
             _ = decoder.ReadUInt32(null); // request id
-            ServiceFault fault = decoder.DecodeMessage<ServiceFault>();
-            return fault.ResponseHeader.ServiceResult.Code;
+            return decoder.DecodeMessage<ServiceFault>();
         }
 
         private static Certificate CreateSmallCertificate()
@@ -609,11 +683,6 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 StartReceiveLoop();
             }
 
-            public IUaSCByteTransport? DetachTransportForTest()
-            {
-                return DetachTransport();
-            }
-
             protected override ValueTask OnChunkReceivedAsync(
                 ArraySegment<byte> message,
                 CancellationToken ct)
@@ -639,6 +708,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             public void CallSendServiceFault(uint requestId, bool renew, ServiceResult fault)
             {
                 SendServiceFault(requestId, renew, fault);
+            }
+
+            public void CallSendServiceFault(uint requestId, bool renew, ServiceResult fault, uint requestHandle)
+            {
+                SendServiceFault(requestId, renew, fault, requestHandle);
             }
         }
 
@@ -734,6 +808,59 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
                 m_firstSend.TrySetResult(true);
             }
+        }
+
+        /// <summary>
+        /// A recording transport that also observes the receive-buffer size the
+        /// channel negotiates for it.
+        /// </summary>
+        private sealed class SizedRecordingByteTransport : IUaSCByteTransport, IUaSCByteTransportLimits
+        {
+            public EndPoint? LocalEndpoint => null;
+
+            public EndPoint? RemoteEndpoint => null;
+
+            public TransportChannelFeatures Features => default;
+
+            public string Implementation => "UA-FAKE-SIZED";
+
+            public Task FirstSendTask => m_inner.FirstSendTask;
+
+            public byte[] LastSent => m_inner.LastSent;
+
+            public int ReceiveBufferSize { get; private set; }
+
+            public ValueTask ConnectAsync(Uri url, CancellationToken ct)
+            {
+                return m_inner.ConnectAsync(url, ct);
+            }
+
+            public ValueTask SendChunkAsync(ReadOnlyMemory<byte> chunk, CancellationToken ct)
+            {
+                return m_inner.SendChunkAsync(chunk, ct);
+            }
+
+            public ValueTask SendChunkAsync(BufferCollection buffers, CancellationToken ct)
+            {
+                return m_inner.SendChunkAsync(buffers, ct);
+            }
+
+            public ValueTask<ArraySegment<byte>> ReceiveChunkAsync(CancellationToken ct)
+            {
+                return m_inner.ReceiveChunkAsync(ct);
+            }
+
+            public void Close()
+            {
+                m_inner.Close();
+            }
+
+            public void SetReceiveBufferSize(int receiveBufferSize)
+            {
+                ReceiveBufferSize = receiveBufferSize;
+            }
+
+            private readonly RecordingByteTransport m_inner = new();
         }
     }
 }

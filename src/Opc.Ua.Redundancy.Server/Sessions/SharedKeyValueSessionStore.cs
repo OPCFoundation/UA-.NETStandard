@@ -93,8 +93,11 @@ namespace Opc.Ua.Redundancy.Server
                     "Session entry must have a non-null authentication token.",
                     nameof(entry));
             }
+            string key = KeyFor(entry.AuthenticationToken);
             return m_store.SetAsync(
-                KeyFor(entry.AuthenticationToken), m_protector.Protect(Encode(entry)), ct);
+                key,
+                m_protector.Protect(RecordProtectionContext.Create("session", key), Encode(entry)),
+                ct);
         }
 
         /// <inheritdoc/>
@@ -106,7 +109,9 @@ namespace Opc.Ua.Redundancy.Server
             (bool found, ByteString value) = await m_store
                 .TryGetAsync(key, ct)
                 .ConfigureAwait(false);
-            if (found && m_protector.TryUnprotect(value, out ByteString payload))
+            if (found &&
+                m_protector.TryUnprotect(
+                    RecordProtectionContext.Create("session", key), value, out ByteString payload))
             {
                 try
                 {

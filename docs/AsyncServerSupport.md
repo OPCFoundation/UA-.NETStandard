@@ -6,7 +6,7 @@ In addition to the APM, the TAP (Task Asynchronous Pattern) is now also supporte
 
 In the future APM support will be deprecated, as it was never implemented for NodeManagers.
 
-Starting with 1.5.378 the server library allows users to also implement Task based NodeManagers.
+The server library lets users implement Task based NodeManagers.
 Implementing the TAP allows to improve the scalability of the server, as the TAP is significantly more efficient in terms of resource usage and performance.
 
 In order to support the TAP pattern, the following changes have been made to the server library:

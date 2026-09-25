@@ -773,7 +773,7 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
-        public void FilteredIndexOrderIsNotTheUnfilteredInsertionOrder()
+        public void FilteredBrowseKeepsTheUnfilteredInsertionOrder()
         {
             SystemContext context = CreateContext();
             var node = new BaseObjectState(null);
@@ -786,7 +786,7 @@ namespace Opc.Ua.Types.Tests.State
             node.AddReferences(input);
             AssertSameReferences(GetReferences(node, context), input);
             using INodeBrowser browser = CreateBrowser(node, context, ReferenceTypeIds.HasComponent, false);
-            AssertSameReferences(ReadBrowser(browser), [input[1], input[2], input[0]]);
+            AssertSameReferences(ReadBrowser(browser), input);
         }
 
         [Test]

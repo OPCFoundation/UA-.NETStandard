@@ -33,6 +33,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
 
 namespace Opc.Ua.Client.Subscriptions.Fakes
@@ -53,13 +54,14 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         public uint ServerId => Id;
 
         public bool Created { get; set; }
+        public bool IsCreationInProgress { get; set; }
         public TimeSpan CurrentPublishingInterval { get; set; }
         public byte CurrentPriority { get; set; }
         public uint CurrentLifetimeCount { get; set; }
         public uint CurrentKeepAliveCount { get; set; }
         public bool CurrentPublishingEnabled { get; set; }
         public uint CurrentMaxNotificationsPerPublish { get; set; }
-        public IMonitoredItemCollection MonitoredItems { get; set; } = null!;
+        public IMonitoredItemCollection MonitoredItems { get; set; } = Mock.Of<IMonitoredItemCollection>();
         public long MissingMessageCount { get; set; }
         public long RepublishMessageCount { get; set; }
 

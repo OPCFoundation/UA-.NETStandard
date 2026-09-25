@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: test code manages disposables at fixture scope or transfers ownership deliberately.
+#pragma warning disable CA2000
 using System;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
@@ -334,6 +336,36 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             decryptor.SenderCertificate?.Dispose();
         }
 
+        [TestCase(SecurityPolicies.ECC_nistP256)]
+        [TestCase(SecurityPolicies.ECC_nistP384)]
+        [Category("EncryptedSecretCoverage")]
+        public void TryDecryptEccAcceptsSpecCompliantCbcPayload(string policyUri)
+        {
+            RequireEccPolicy(policyUri);
+            ECCurve curve = CurveForPolicy(policyUri);
+            using Certificate senderCertificate = CreateEccCertificate(curve);
+            using Certificate receiverCertificate = CreateEccCertificate(curve);
+            using Nonce receiverEphemeralKey = CreateEphemeralKey(policyUri);
+            using Nonce senderEphemeralKey = CreateEphemeralKey(policyUri);
+            byte[] secret = SecretBytes();
+            byte[] nonce = NonceBytes();
+            byte[] encoded = CreateSpecCompliantEccEncryptedSecret(
+                policyUri,
+                senderCertificate,
+                receiverCertificate,
+                receiverEphemeralKey,
+                senderEphemeralKey,
+                secret,
+                nonce);
+
+            EncryptedSecret decryptor = CreateEccDecryptor(policyUri, receiverCertificate, receiverEphemeralKey);
+            bool ok = decryptor.TryDecrypt(encoded, nonce, out byte[] decrypted);
+
+            Assert.That(ok, Is.True);
+            Assert.That(decrypted, Is.EqualTo(secret));
+            decryptor.SenderCertificate?.Dispose();
+        }
+
         [Test]
         [Category("EncryptedSecretCoverage")]
         public void EccEncryptThenTryDecryptReturnsOriginalSecretWhenSenderCertificateNotEncoded()
@@ -441,7 +473,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
         [Test]
         [Category("EncryptedSecretCoverage")]
-        public async Task DecryptAsyncEccThrowsBadNonceInvalidWhenNonceMismatchedAsync()
+        public Task DecryptAsyncEccThrowsBadNonceInvalidWhenNonceMismatchedAsync()
         {
             const string policyUri = SecurityPolicies.ECC_nistP256;
             RequireEccPolicy(policyUri);
@@ -469,6 +501,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             Assert.That(ex.StatusCode.Code, Is.EqualTo(StatusCodes.BadNonceInvalid));
             decryptor.SenderCertificate?.Dispose();
+            return Task.CompletedTask;
         }
 
         [Test]
@@ -953,9 +986,151 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .CreateForECDsa();
         }
 
+        private byte[] CreateSpecCompliantEccEncryptedSecret(
+            string policyUri,
+            Certificate senderCertificate,
+            Certificate receiverCertificate,
+            Nonce receiverEphemeralKey,
+            Nonce senderEphemeralKey,
+            byte[] secret,
+            byte[] nonce)
+        {
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.Default.GetInfo(policyUri)
+                ?? throw new InvalidOperationException($"Security policy '{policyUri}' is not supported.");
+
+            if (securityPolicy.SymmetricEncryptionAlgorithm is not
+                (SymmetricEncryptionAlgorithm.Aes128Cbc or SymmetricEncryptionAlgorithm.Aes256Cbc))
+            {
+                throw new NotSupportedException("The test helper supports ECC security policies with CBC encryption only.");
+            }
+
+            byte[] senderNonce = senderEphemeralKey.Data ?? throw new InvalidOperationException("Missing sender nonce.");
+            byte[] receiverNonce = receiverEphemeralKey.Data ?? throw new InvalidOperationException("Missing receiver nonce.");
+            byte[] secretMaterial = senderEphemeralKey.GenerateSecret(receiverEphemeralKey, null)
+                ?? throw new InvalidOperationException("Failed to derive the shared secret.");
+            byte[] derivedKeyData = null;
+            byte[] encryptingKey = null;
+            byte[] iv = null;
+            byte[] payload = null;
+            byte[] encryptedPayload = null;
+
+            try
+            {
+                byte[] keyLength = BitConverter.GetBytes(
+                    (ushort)(securityPolicy.SymmetricEncryptionKeyLength + securityPolicy.InitializationVectorLength));
+                byte[] salt = Utils.Append(keyLength, System.Text.Encoding.UTF8.GetBytes("opcua-secret"), senderNonce, receiverNonce);
+                derivedKeyData = senderEphemeralKey.DeriveKeyData(
+                    secretMaterial,
+                    salt,
+                    securityPolicy.KeyDerivationAlgorithm,
+                    securityPolicy.SymmetricEncryptionKeyLength + securityPolicy.InitializationVectorLength);
+                encryptingKey = new byte[securityPolicy.SymmetricEncryptionKeyLength];
+                iv = new byte[securityPolicy.InitializationVectorLength];
+                Buffer.BlockCopy(derivedKeyData, 0, encryptingKey, 0, encryptingKey.Length);
+                Buffer.BlockCopy(derivedKeyData, encryptingKey.Length, iv, 0, iv.Length);
+
+                using (var payloadEncoder = new BinaryEncoder(m_context))
+                {
+                    int startOfPayload = payloadEncoder.Position;
+                    payloadEncoder.WriteByteString(null, nonce);
+                    payloadEncoder.WriteByteString(null, secret);
+                    int paddingCount = GetSpecPaddingCount(
+                        securityPolicy.InitializationVectorLength,
+                        secret.Length,
+                        payloadEncoder.Position - startOfPayload);
+
+                    for (int ii = 0; ii < paddingCount; ii++)
+                    {
+                        payloadEncoder.WriteByte(null, (byte)paddingCount);
+                    }
+
+                    payloadEncoder.WriteUInt16(null, (ushort)paddingCount);
+                    payload = payloadEncoder.CloseAndReturnBuffer();
+                }
+
+                encryptedPayload = EncryptCbcWithoutPadding(payload!, encryptingKey, iv);
+                int signatureLength = CryptoUtils.GetSignatureLength(senderCertificate);
+
+                using var encoder = new BinaryEncoder(m_context);
+                encoder.WriteNodeId(null, DataTypeIds.EccEncryptedSecret);
+                encoder.WriteByte(null, (byte)ExtensionObjectEncoding.Binary);
+                int lengthPosition = encoder.Position;
+                encoder.WriteUInt32(null, 0);
+                encoder.WriteString(null, securityPolicy.Uri);
+                encoder.WriteByteString(null, senderCertificate.RawData);
+                encoder.WriteDateTime(null, DateTime.UtcNow);
+                encoder.WriteUInt16(null, (ushort)(senderNonce.Length + receiverNonce.Length + 8));
+                encoder.WriteByteString(null, senderNonce);
+                encoder.WriteByteString(null, receiverNonce);
+
+                foreach (byte value in encryptedPayload)
+                {
+                    encoder.WriteByte(null, value);
+                }
+
+                for (int ii = 0; ii < signatureLength; ii++)
+                {
+                    encoder.WriteByte(null, 0);
+                }
+
+                byte[] encoded = encoder.CloseAndReturnBuffer()!;
+                int length = encoded.Length - lengthPosition - 4;
+                encoded[lengthPosition++] = (byte)(length & 0xFF);
+                encoded[lengthPosition++] = (byte)((length >> 8) & 0xFF);
+                encoded[lengthPosition++] = (byte)((length >> 16) & 0xFF);
+                encoded[lengthPosition] = (byte)((length >> 24) & 0xFF);
+
+                byte[] signature = CryptoUtils.Sign(
+                    new ArraySegment<byte>(encoded, 0, encoded.Length - signatureLength),
+                    senderCertificate,
+                    securityPolicy.AsymmetricSignatureAlgorithm)
+                    ?? throw new InvalidOperationException("Failed to sign the encrypted secret.");
+                Buffer.BlockCopy(signature, 0, encoded, encoded.Length - signatureLength, signatureLength);
+                return encoded;
+            }
+            finally
+            {
+                CryptoUtils.ZeroMemory(secretMaterial);
+                CryptoUtils.ZeroMemory(derivedKeyData);
+                CryptoUtils.ZeroMemory(encryptingKey);
+                CryptoUtils.ZeroMemory(iv);
+                CryptoUtils.ZeroMemory(payload);
+                CryptoUtils.ZeroMemory(encryptedPayload);
+            }
+        }
+
         private static Nonce CreateEphemeralKey(string policyUri)
         {
             return Nonce.CreateNonce(SecurityPolicies.Default.GetInfo(policyUri)!);
+        }
+
+        private static byte[] EncryptCbcWithoutPadding(byte[] payload, byte[] encryptingKey, byte[] iv)
+        {
+            using var aes = Aes.Create();
+            aes.Mode = CipherMode.CBC;
+            aes.Padding = PaddingMode.None;
+            aes.Key = encryptingKey;
+            aes.IV = iv;
+            // Protocol vectors require the supplied derived IV. TODO: remove when CA5401 tracks nonce-derived IVs.
+#pragma warning disable CA5401
+            using ICryptoTransform encryptor = aes.CreateEncryptor();
+#pragma warning restore CA5401
+            return encryptor.TransformFinalBlock(payload, 0, payload.Length);
+        }
+
+        private static int GetSpecPaddingCount(int blockSize, int secretLength, int dataLength)
+        {
+            dataLength += 2;
+            int paddingCount = dataLength % blockSize == 0
+                ? 0
+                : blockSize - (dataLength % blockSize);
+
+            if (paddingCount + secretLength < blockSize)
+            {
+                paddingCount += blockSize;
+            }
+
+            return paddingCount;
         }
 
         private static DateTime EarliestValidSigningTime()

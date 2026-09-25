@@ -54,8 +54,8 @@ namespace Opc.Ua.Client.Tests.Alarms
     /// <see cref="AlarmClient"/>. Drives the
     /// <c>ShelvedStateMachineTypeClient</c> proxy via a mocked
     /// <see cref="ISessionClient"/> and asserts the wired-up
-    /// <c>conditionId</c> propagates as the <c>StartingNode</c> of the
-    /// proxy's browse-path requests.
+    /// condition's <c>ShelvingState</c> child is resolved before the
+    /// state-machine proxy is used.
     /// </summary>
     [TestFixture]
     [Category("Client")]
@@ -78,20 +78,31 @@ namespace Opc.Ua.Client.Tests.Alarms
         }
 
         [Test]
-        public async Task GetShelvingStateAsyncForwardsConditionIdToShelvedStateMachineTypeClient()
+        public async Task GetShelvingStateAsyncResolvesShelvingStateChildBeforeReadingStateAsync()
         {
-            ArrayOf<BrowsePath> captured = default;
-            SetupTranslate(allEmpty: true, capture: p => captured = p);
+            var shelvingStateId = new NodeId(100u, 4);
+            var captured = new List<ArrayOf<BrowsePath>>();
+            SetupShelvingTranslate(
+                shelvingStateId,
+                capture: p => captured.Add(p),
+                finiteResults:
+                [
+                    MakeEmptyResult(),
+                    MakeEmptyResult(),
+                    MakeEmptyResult(),
+                    MakeEmptyResult()
+                ]);
 
             FiniteStateSnapshot snapshot = await m_client
                 .GetShelvingStateAsync(m_conditionId).ConfigureAwait(false);
 
             Assert.That(snapshot, Is.Not.Null);
-            Assert.That(captured.Count, Is.EqualTo(4));
-            foreach (BrowsePath bp in captured)
-            {
-                Assert.That(bp.StartingNode, Is.EqualTo(m_conditionId));
-            }
+            Assert.That(captured, Has.Count.EqualTo(2));
+            Assert.That(captured[0][0].StartingNode, Is.EqualTo(m_conditionId));
+            Assert.That(captured[0][0].RelativePath.Elements[0].TargetName.Name,
+                Is.EqualTo(BrowseNames.ShelvingState));
+            Assert.That(captured[1], Has.Count.EqualTo(4));
+            Assert.That(captured[1][0].StartingNode, Is.EqualTo(shelvingStateId));
         }
 
         [Test]
@@ -115,15 +126,16 @@ namespace Opc.Ua.Client.Tests.Alarms
             // return empty targets — the snapshot is built from a single
             // Read of the CurrentState variable.
             var currentStateNodeId = new NodeId(101u, 0);
-            SetupTranslate(
-                results:
+            SetupShelvingTranslate(
+                new NodeId(100u, 4),
+                capture: null,
+                finiteResults:
                 [
                     MakeResult((ExpandedNodeId)currentStateNodeId),
                     MakeEmptyResult(),
                     MakeEmptyResult(),
                     MakeEmptyResult()
-                ],
-                capture: null);
+                ]);
 
             var expected = new LocalizedText("en", "Unshelved");
             m_sessionMock.Setup(s => s.ReadAsync(
@@ -146,7 +158,7 @@ namespace Opc.Ua.Client.Tests.Alarms
                 .GetShelvingStateAsync(m_conditionId).ConfigureAwait(false);
 
             Assert.That(snapshot.CurrentState, Is.EqualTo(expected));
-            Assert.That(snapshot.StateMachineId, Is.EqualTo(m_conditionId));
+            Assert.That(snapshot.StateMachineId, Is.EqualTo(new NodeId(100u, 4)));
         }
 
         [Test]
@@ -167,6 +179,26 @@ namespace Opc.Ua.Client.Tests.Alarms
                 count++;
             }
             Assert.That(count, Is.Zero);
+        }
+
+        [Test]
+        public void ObserveShelvingTransitionsAsyncReturnsEmptyWhenShelvingStateIsAbsent()
+        {
+            SetupTranslate(allEmpty: true, capture: null);
+
+            IAsyncEnumerable<FiniteStateSnapshot> enumerable =
+                m_client.ObserveShelvingTransitionsAsync(
+                    m_conditionId,
+                    new EmptyStreamingSubscription());
+
+            Assert.That(
+                async () =>
+                {
+                    await foreach (FiniteStateSnapshot _ in enumerable.ConfigureAwait(false))
+                    {
+                    }
+                },
+                Throws.Nothing);
         }
 
         private void SetupTranslate(
@@ -201,6 +233,34 @@ namespace Opc.Ua.Client.Tests.Alarms
                         Results = results,
                         DiagnosticInfos = []
                     }));
+        }
+
+        private void SetupShelvingTranslate(
+            NodeId shelvingStateId,
+            Action<ArrayOf<BrowsePath>>? capture,
+            ArrayOf<BrowsePathResult> finiteResults)
+        {
+            int callCount = 0;
+            m_sessionMock.Setup(s => s.TranslateBrowsePathsToNodeIdsAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<BrowsePath>>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<RequestHeader, ArrayOf<BrowsePath>, CancellationToken>(
+                    (_, paths, _) => capture?.Invoke(paths))
+                .Returns<RequestHeader, ArrayOf<BrowsePath>, CancellationToken>(
+                    (_, _, _) =>
+                    {
+                        ArrayOf<BrowsePathResult> results = callCount++ == 0
+                            ? ArrayOf.Wrapped([MakeResult((ExpandedNodeId)shelvingStateId)])
+                            : finiteResults;
+                        return new ValueTask<TranslateBrowsePathsToNodeIdsResponse>(
+                            new TranslateBrowsePathsToNodeIdsResponse
+                            {
+                                ResponseHeader = new ResponseHeader(),
+                                Results = results,
+                                DiagnosticInfos = []
+                            });
+                    });
         }
 
         private static BrowsePathResult MakeResult(ExpandedNodeId target)

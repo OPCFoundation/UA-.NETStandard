@@ -73,7 +73,14 @@ namespace Opc.Ua
             {
                 assembly = typeof(TelemetryContextBase).Assembly;
             }
-            (string name, string version) = GetAssemblyInfo(assembly);
+            return CreateMeter(assembly);
+        }
+
+        /// <inheritdoc/>
+        public Meter CreateMeter(Assembly assembly)
+        {
+            (string name, string version) = GetAssemblyInfo(
+                assembly ?? throw new ArgumentNullException(nameof(assembly)));
             return new Meter(name, version);
         }
 
@@ -92,9 +99,16 @@ namespace Opc.Ua
                 {
                     assembly = typeof(TelemetryContextBase).Assembly;
                 }
-                return s_sources.GetOrAdd(GetAssemblyInfo(assembly),
-                    key => new ActivitySource(key.Item1, key.Item2));
+                return GetActivitySource(assembly);
             }
+        }
+
+        /// <inheritdoc/>
+        public ActivitySource GetActivitySource(Assembly assembly)
+        {
+            return s_sources.GetOrAdd(
+                GetAssemblyInfo(assembly ?? throw new ArgumentNullException(nameof(assembly))),
+                key => new ActivitySource(key.Item1, key.Item2));
         }
 
         private static (string, string) GetAssemblyInfo(Assembly assembly)

@@ -15,12 +15,14 @@
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Core.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Bindings.Https.WebApi.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Core.TestFramework" />
     <InternalsVisibleTo Include="Opc.Ua.Core.Encoders.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Security.Certificates.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.MigrationAnalyzer.Core" />
     <InternalsVisibleTo Include="Opc.Ua.Bindings.Https" />
     <InternalsVisibleTo Include="Opc.Ua.Client" />
+    <InternalsVisibleTo Include="Opc.Ua.Configuration" />
     <InternalsVisibleTo Include="Opc.Ua.Server" />
     <InternalsVisibleTo Include="Opc.Ua.Server.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Core.Diagnostics" />
@@ -40,6 +42,11 @@
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'net48' OR '$(TargetFramework)' == 'net472'">
     <Reference Include="System.Net.Http" />
+  </ItemGroup>
+  <!-- Windows ACLs (FileSystemAclExtensions) that DirectoryCertificateStore uses to restrict
+       private key directories are not part of netstandard2.1. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.1'">
+    <PackageReference Include="System.IO.FileSystem.AccessControl" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj" />

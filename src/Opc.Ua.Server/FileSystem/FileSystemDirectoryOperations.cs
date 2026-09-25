@@ -39,6 +39,52 @@ namespace Opc.Ua.Server.FileSystem
     /// </summary>
     internal static class FileSystemDirectoryOperations
     {
+        /// <summary>
+        /// Resolves provider-specific aliases before indexing file-handle ownership.
+        /// </summary>
+        internal static string GetPathIdentity(IFileSystemProvider provider, string path)
+        {
+            return provider is IFileSystemPathIdentityProvider identities ? identities.GetPathIdentity(path) : path;
+        }
+
+        /// <summary>
+        /// Opens a file through canonical handle state and releases failed or retired bags.
+        /// </summary>
+        internal static async ValueTask<(ServiceResult Result, uint Handle)> OpenFileAsync(
+            IFileSystemHost host,
+            NodeId nodeId,
+            string providerPath,
+            NodeId sessionId,
+            byte mode,
+            CancellationToken cancellationToken)
+        {
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                FileHandle? handle = host.GetOrCreateHandle(nodeId, providerPath);
+                if (handle == null)
+                {
+                    return (ServiceResult.Create(StatusCodes.BadInvalidState, "File handle unavailable."), 0);
+                }
+                try
+                {
+                    (ServiceResult result, uint id) = await handle.OpenAsync(sessionId, mode, cancellationToken)
+                        .ConfigureAwait(false);
+                    if (result.StatusCode != StatusCodes.BadShutdown)
+                    {
+                        return (result, id);
+                    }
+                }
+                finally
+                {
+                    host.ReleaseHandle(handle);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Validates a directory name, applies its creation through the host and returns the new node identifier.
+        /// </summary>
         public static async ValueTask<CreateDirectoryMethodStateResult> CreateDirectoryAsync(
             IFileSystemHost host,
             string providerPath,
@@ -64,8 +110,17 @@ namespace Opc.Ua.Server.FileSystem
             string newPath = host.CombineProviderPath(providerPath, directoryName);
             try
             {
-                await host.Provider.CreateDirectoryAsync(newPath, cancellationToken).ConfigureAwait(false);
-                await host.OnProviderChangedAsync(cancellationToken).ConfigureAwait(false);
+                if (await host.Provider.GetEntryAsync(newPath, cancellationToken).ConfigureAwait(false) != null)
+                {
+                    return new CreateDirectoryMethodStateResult
+                    {
+                        ServiceResult = ServiceResult.Create(StatusCodes.BadBrowseNameDuplicated,
+                            "Directory or file with same name exists.")
+                    };
+                }
+                await host.ApplyMutationAsync(
+                    FileSystemMutationKind.CreateDirectory, newPath, string.Empty, NodeId.Null, cancellationToken)
+                    .ConfigureAwait(false);
                 return new CreateDirectoryMethodStateResult
                 {
                     ServiceResult = ServiceResult.Good,
@@ -98,6 +153,9 @@ namespace Opc.Ua.Server.FileSystem
             }
         }
 
+        /// <summary>
+        /// Creates a file through the host and optionally opens it for the requesting session.
+        /// </summary>
         public static async ValueTask<CreateFileMethodStateResult> CreateFileAsync(
             IFileSystemHost host,
             ISystemContext context,
@@ -133,8 +191,9 @@ namespace Opc.Ua.Server.FileSystem
             NodeId fileNodeId = host.BuildFileNodeId(newPath);
             try
             {
-                await host.Provider.CreateFileAsync(newPath, cancellationToken).ConfigureAwait(false);
-                await host.OnProviderChangedAsync(cancellationToken).ConfigureAwait(false);
+                await host.ApplyMutationAsync(
+                    FileSystemMutationKind.CreateFile, newPath, string.Empty, NodeId.Null, cancellationToken)
+                    .ConfigureAwait(false);
                 if (!requestFileOpen)
                 {
                     return new CreateFileMethodStateResult
@@ -145,17 +204,8 @@ namespace Opc.Ua.Server.FileSystem
                     };
                 }
 
-                FileHandle? handle = host.GetOrCreateHandle(fileNodeId, newPath);
-                if (handle == null)
-                {
-                    return new CreateFileMethodStateResult
-                    {
-                        ServiceResult = ServiceResult.Create(StatusCodes.BadInvalidState,
-                            "Failed to obtain file handle.")
-                    };
-                }
-
-                ServiceResult openResult = handle.Open(sessionId, 0x6, out uint fileHandle);
+                (ServiceResult openResult, uint fileHandle) = await OpenFileAsync(
+                    host, fileNodeId, newPath, sessionId, 0x6, cancellationToken).ConfigureAwait(false);
                 return new CreateFileMethodStateResult
                 {
                     ServiceResult = openResult,
@@ -189,6 +239,9 @@ namespace Opc.Ua.Server.FileSystem
             }
         }
 
+        /// <summary>
+        /// Deletes a hosted file or directory while rejecting attempts to delete the mount root.
+        /// </summary>
         public static async ValueTask<DeleteFileMethodStateResult> DeleteAsync(
             IFileSystemHost host,
             NodeId objectToDelete,
@@ -210,7 +263,7 @@ namespace Opc.Ua.Server.FileSystem
                         "Not a file-system object.")
                 };
             }
-            if (isRoot)
+            if (isRoot || string.IsNullOrEmpty(providerPath))
             {
                 return new DeleteFileMethodStateResult
                 {
@@ -221,9 +274,9 @@ namespace Opc.Ua.Server.FileSystem
 
             try
             {
-                await host.Provider.DeleteAsync(providerPath, cancellationToken).ConfigureAwait(false);
-                host.ForgetHandle(objectToDelete);
-                await host.OnProviderChangedAsync(cancellationToken).ConfigureAwait(false);
+                await host.ApplyMutationAsync(
+                    FileSystemMutationKind.Delete, providerPath, string.Empty, objectToDelete, cancellationToken)
+                    .ConfigureAwait(false);
                 return new DeleteFileMethodStateResult { ServiceResult = ServiceResult.Good };
             }
             catch (FileNotFoundException ex)
@@ -260,6 +313,9 @@ namespace Opc.Ua.Server.FileSystem
             }
         }
 
+        /// <summary>
+        /// Validates and applies a hosted move or copy and returns the destination node identifier.
+        /// </summary>
         public static async ValueTask<MoveOrCopyMethodStateResult> MoveOrCopyAsync(
             IFileSystemHost host,
             NodeId objectToMoveOrCopy,
@@ -278,7 +334,8 @@ namespace Opc.Ua.Server.FileSystem
             }
             if (!host.TryGetProviderPath(objectToMoveOrCopy, out string sourcePath, out bool sourceIsDirectory,
                     out bool sourceIsRoot) ||
-                sourceIsRoot)
+                sourceIsRoot ||
+                string.IsNullOrEmpty(sourcePath))
             {
                 return new MoveOrCopyMethodStateResult
                 {
@@ -307,17 +364,9 @@ namespace Opc.Ua.Server.FileSystem
 
             try
             {
-                if (createCopy)
-                {
-                    await host.Provider.CopyAsync(sourcePath, targetPath, cancellationToken).ConfigureAwait(false);
-                }
-                else
-                {
-                    await host.Provider.MoveAsync(sourcePath, targetPath, cancellationToken).ConfigureAwait(false);
-                    host.ForgetHandle(objectToMoveOrCopy);
-                }
-
-                await host.OnProviderChangedAsync(cancellationToken).ConfigureAwait(false);
+                await host.ApplyMutationAsync(
+                    createCopy ? FileSystemMutationKind.Copy : FileSystemMutationKind.Move,
+                    sourcePath, targetPath, objectToMoveOrCopy, cancellationToken).ConfigureAwait(false);
                 NodeId newNodeId = sourceIsDirectory
                     ? host.BuildDirectoryNodeId(targetPath)
                     : host.BuildFileNodeId(targetPath);
@@ -361,6 +410,42 @@ namespace Opc.Ua.Server.FileSystem
             }
         }
 
+        /// <summary>
+        /// Dispatches an admitted mutation to the provider and retires source handles after deletion or movement.
+        /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        public static async ValueTask ApplyProviderMutationAsync(
+            IFileSystemHost host,
+            FileSystemMutationKind kind,
+            string path,
+            string targetPath,
+            NodeId sourceNodeId,
+            CancellationToken cancellationToken)
+        {
+            switch (kind)
+            {
+                case FileSystemMutationKind.CreateFile:
+                    await host.Provider.CreateFileAsync(path, cancellationToken).ConfigureAwait(false);
+                    break;
+                case FileSystemMutationKind.CreateDirectory:
+                    await host.Provider.CreateDirectoryAsync(path, cancellationToken).ConfigureAwait(false);
+                    break;
+                case FileSystemMutationKind.Delete:
+                    await host.Provider.DeleteAsync(path, cancellationToken).ConfigureAwait(false);
+                    host.ForgetHandle(sourceNodeId);
+                    break;
+                case FileSystemMutationKind.Move:
+                    await host.Provider.MoveAsync(path, targetPath, cancellationToken).ConfigureAwait(false);
+                    host.ForgetHandle(sourceNodeId);
+                    break;
+                case FileSystemMutationKind.Copy:
+                    await host.Provider.CopyAsync(path, targetPath, cancellationToken).ConfigureAwait(false);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(kind));
+            }
+        }
+
         private static bool CanCreate(IFileSystemHost host, out ServiceResult result)
         {
             if (!host.Provider.IsWritable || !host.AllowCreate)
@@ -389,7 +474,7 @@ namespace Opc.Ua.Server.FileSystem
         /// still be escaped on Windows by a name such as
         /// <c>"..\..\Windows\System32\evil"</c>, which contains no
         /// slash-delimited <c>".."</c> segment yet is resolved as traversal by
-        /// <see cref="System.IO.Path"/>.
+        /// <see cref="Path"/>.
         /// </para>
         /// <para>
         /// This is deliberately a defence in depth: providers remain
@@ -402,7 +487,8 @@ namespace Opc.Ua.Server.FileSystem
         private static bool IsValidEntryName(string name, out ServiceResult result)
         {
             if (string.IsNullOrWhiteSpace(name) ||
-                name.IndexOfAny(kEntryNameSeparators) >= 0 ||
+                name.AsSpan().IndexOf('/') >= 0 ||
+                (Path.DirectorySeparatorChar == '\\' && name.IndexOfAny(kEntryNameSeparators) >= 0) ||
                 name == "." ||
                 name == "..")
             {
@@ -418,7 +504,7 @@ namespace Opc.Ua.Server.FileSystem
             return true;
         }
 
-        private static readonly char[] kEntryNameSeparators = ['/', '\\', ':'];
+        private static readonly char[] kEntryNameSeparators = ['\\', ':'];
 
         private static DeleteFileMethodStateResult CreateNotFoundDeleteResult(Exception ex)
         {

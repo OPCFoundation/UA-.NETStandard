@@ -37,6 +37,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
+using Opc.Ua.Identity;
 using Opc.Ua.Schema;
 using Opc.Ua.Security.Certificates;
 
@@ -51,7 +52,7 @@ namespace Opc.Ua.Server
     /// released. Callers that can await should still prefer <see cref="DisposeAsync"/>
     /// so the shutdown does not block their thread.
     /// </remarks>
-    public class StandardServer : SessionServerBase, IStandardServer, IAsyncDisposable
+    public class StandardServer : SessionServerBase, IStandardServer, IAsyncDisposable, ISessionBindingProvider
     {
         /// <inheritdoc/>
         public StandardServer(ITelemetryContext telemetry)
@@ -262,6 +263,9 @@ namespace Opc.Ua.Server
             return new ValueTask(dispose);
         }
 
+        /// <summary>
+        /// Performs orderly shutdown before releasing registration, configuration and owned server resources.
+        /// </summary>
         private async Task DisposeCoreAsync()
         {
             // Run the orderly server shutdown (idempotent) before releasing base resources,
@@ -270,11 +274,7 @@ namespace Opc.Ua.Server
             await StopAsync(CancellationToken.None).ConfigureAwait(false);
 
             // halt any outstanding timer and configuration watcher.
-            lock (m_registrationLock)
-            {
-                m_registrationTimer?.Dispose();
-                m_registrationTimer = null;
-            }
+            await StopRegistrationAsync().ConfigureAwait(false);
             m_configurationWatcher?.Dispose();
             m_configurationWatcher = null;
 
@@ -603,6 +603,8 @@ namespace Opc.Ua.Server
             using IDisposable? rateLimitLease = BeginSessionEstablishmentOrThrow();
 
             ISession? session = null;
+            CertificateCollection? clientIssuerCertificates = null;
+            Certificate? parsedClientCertificate = null;
             try
             {
                 // check the server uri.
@@ -619,15 +621,15 @@ namespace Opc.Ua.Server
                     requireEncryption = true;
                 }
 
-                CertificateCollection? clientIssuerCertificates = null;
-
                 // validate client application instance certificate.
-                Certificate? parsedClientCertificate = null;
-
-                if (requireEncryption && clientCertificate.Length > 0)
+                if (context.SecurityPolicyUri != SecurityPolicies.None)
                 {
                     try
                     {
+                        if (clientCertificate.IsEmpty)
+                        {
+                            throw new ServiceResultException(StatusCodes.BadCertificateInvalid);
+                        }
                         using CertificateCollection clientCertificateChain
                             = Utils.ParseCertificateChainBlob(
                                 clientCertificate,
@@ -643,39 +645,42 @@ namespace Opc.Ua.Server
                             }
                         }
 
-                        if (context.SecurityPolicyUri != SecurityPolicies.None)
+                        CertificateValidationResult clientCertResult = await CertificateManager!
+                            .ValidateAsync(
+                                clientCertificateChain,
+                                TrustListIdentifier.Peers,
+                                options: null,
+                                ct: requestLifetime.CancellationToken)
+                            .ConfigureAwait(false);
+                        // Preserve nested validation failures for client-status masking and detailed audit reporting.
+                        clientCertResult.ThrowIfInvalid();
+
+                        string applicationUri = clientDescription?.ApplicationUri ?? string.Empty;
+                        if (string.IsNullOrEmpty(applicationUri) ||
+                            !X509Utils.CompareApplicationUriWithCertificate(parsedClientCertificate, applicationUri))
                         {
-                            // verify if applicationUri from ApplicationDescription matches the applicationUris in the client certificate.
-                            if (!string.IsNullOrEmpty(clientDescription?.ApplicationUri))
-                            {
-                                if (!X509Utils.CompareApplicationUriWithCertificate(parsedClientCertificate!, clientDescription!.ApplicationUri!))
-                                {
-                                    // report the AuditCertificateDataMismatch event for invalid uri
-                                    ServerInternal?.ReportAuditCertificateDataMismatchEvent(
-                                        parsedClientCertificate,
-                                        null,
-                                        clientDescription.ApplicationUri,
-                                        StatusCodes.BadCertificateUriInvalid,
-                                        m_logger);
+                            ServerInternal?.ReportAuditCertificateDataMismatchEvent(
+                                parsedClientCertificate,
+                                null,
+                                applicationUri,
+                                StatusCodes.BadCertificateUriInvalid,
+                                m_logger);
 
-                                    throw ServiceResultException.Create(
-                                        StatusCodes.BadCertificateUriInvalid,
-                                        "The URI specified in the ApplicationDescription {0} does not match the URIs in the Certificate.",
-                                        clientDescription.ApplicationUri!);
-                                }
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadCertificateUriInvalid,
+                                "The URI specified in the ApplicationDescription {0} does not match the URIs in the Certificate.",
+                                applicationUri);
+                        }
 
-                                CertificateValidationResult clientCertResult = await CertificateManager!
-                                    .ValidateAsync(
-                                        clientCertificateChain,
-                                        TrustListIdentifier.Peers,
-                                        options: null,
-                                        ct: requestLifetime.CancellationToken)
-                                    .ConfigureAwait(false);
-                                if (!clientCertResult.IsValid)
-                                {
-                                    throw new ServiceResultException(clientCertResult.StatusCode);
-                                }
-                            }
+                        string? profile = context.ChannelContext.EndpointDescription!.TransportProfileUri;
+                        if (profile is Profiles.UaTcpTransport or Profiles.UaWssTransport &&
+                            !Utils.IsEqual(
+                                parsedClientCertificate.RawData,
+                                context.ChannelContext.ClientChannelCertificate))
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadSecurityChecksFailed,
+                                "The session certificate does not match the SecureChannel certificate.");
                         }
                     }
                     catch (Exception e)
@@ -698,18 +703,16 @@ namespace Opc.Ua.Server
                 }
 
                 // verify the nonce provided by the client.
-                if (!clientNonce.IsEmpty)
+                if (context.SecurityPolicyUri != SecurityPolicies.None)
                 {
-                    if (clientNonce.Length < m_minNonceLength)
+                    if (clientNonce.Length < m_minNonceLength || clientNonce.Length > 128)
                     {
                         throw new ServiceResultException(StatusCodes.BadNonceInvalid);
                     }
-
-                    // ignore nonce if security policy set to none
-                    if (context.SecurityPolicyUri == SecurityPolicies.None)
-                    {
-                        clientNonce = default;
-                    }
+                }
+                else
+                {
+                    clientNonce = default;
                 }
 
                 // load the certificate for the security profile. The session
@@ -735,6 +738,11 @@ namespace Opc.Ua.Server
                     .ConfigureAwait(false);
 
                 session = result.Session;
+                ServerInternal.UpdateServerDiagnostics(diagnostics =>
+                {
+                    diagnostics.CurrentSessionCount++;
+                    diagnostics.CumulatedSessionCount++;
+                });
                 sessionId = result.SessionId;
                 authenticationToken = result.AuthenticationToken;
                 serverNonce = result.ServerNonce;
@@ -758,10 +766,11 @@ namespace Opc.Ua.Server
                     catch (ServiceResultException sre)
                         when (sre.StatusCode == StatusCodes.BadCertificateHostNameInvalid)
                     {
+                        Debug.Assert(session != null);
                         m_logger.ServerClientConnectsWithAnEndpointUrlEndpointUrl(endpointUrl);
                         ServerInternal.ReportAuditUrlMismatchEvent(
                             context.AuditEntryId!,
-                            session,
+                            session!,
                             revisedSessionTimeout,
                             endpointUrl,
                             m_logger);
@@ -806,18 +815,12 @@ namespace Opc.Ua.Server
                     clientNonce,
                     serverNonce);
 
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.CurrentSessionCount++;
-                    diagnostics.CumulatedSessionCount++;
-                });
-
                 m_logger.ServerSESSIONCREATEDSessionIdSessionId(sessionId);
 
                 // report audit for successful create session
                 ServerInternal.ReportAuditCreateSessionEvent(
                     context.AuditEntryId!,
-                    session,
+                    session!,
                     revisedSessionTimeout,
                     m_logger);
 
@@ -841,8 +844,14 @@ namespace Opc.Ua.Server
                     MaxRequestMessageSize = maxRequestMessageSize
                 };
             }
-            catch (ServiceResultException e)
+            catch (Exception exception)
             {
+                ServiceResultException e = exception as ServiceResultException
+                    ?? ServiceResultException.Create(
+                        StatusCodes.BadUnexpectedError,
+                        exception,
+                        "CreateSession failed: {0}",
+                        exception.Message);
                 m_logger.ServerSESSIONCREATEFailedErrorMessage(e.Message);
 
                 // report the failed AuditCreateSessionEvent
@@ -855,7 +864,13 @@ namespace Opc.Ua.Server
 
                 if (session != null)
                 {
-                    await ServerInternal.SessionManager.CloseSessionAsync(session.Id, requestLifetime.CancellationToken).ConfigureAwait(false);
+                    await ServerInternal.SessionManager.CloseSessionAsync(session.Id, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    parsedClientCertificate?.Dispose();
+                    clientIssuerCertificates?.Dispose();
                 }
 
                 ServerInternal.UpdateServerDiagnostics(diagnostics =>
@@ -1067,6 +1082,7 @@ namespace Opc.Ua.Server
                     m_logger,
                     context.AuditEntryId!,
                     session!,
+                    ExtractAuditUserIdentityToken(userIdentityToken),
                     e);
 
                 ServerInternal.UpdateServerDiagnostics(diagnostics =>
@@ -1127,6 +1143,26 @@ namespace Opc.Ua.Server
                 error == StatusCodes.BadCertificateHostNameInvalid ||
                 error == StatusCodes.BadCertificatePolicyCheckFailed ||
                 error == StatusCodes.BadApplicationSignatureInvalid;
+        }
+
+        private static UserIdentityToken? ExtractAuditUserIdentityToken(ExtensionObject userIdentityToken)
+        {
+            if (userIdentityToken.TryGetValue(out UserIdentityToken? decodedToken))
+            {
+                return decodedToken;
+            }
+
+            if (userIdentityToken.Encoding != ExtensionObjectEncoding.Binary ||
+                !userIdentityToken.TryGetAsBinary(out ByteString _))
+            {
+                return null;
+            }
+
+            return BaseVariableState.DecodeExtensionObject(
+                null!,
+                typeof(UserIdentityToken),
+                userIdentityToken,
+                false) as UserIdentityToken;
         }
 
         /// <summary>
@@ -2757,25 +2793,8 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public IServerInternal CurrentInstance
-        {
-            get
-            {
-                m_semaphoreSlim.Wait();
-                try
-                {
-                    if (m_serverInternal == null)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadServerHalted);
-                    }
-                    return m_serverInternal;
-                }
-                finally
-                {
-                    m_semaphoreSlim.Release();
-                }
-            }
-        }
+        public IServerInternal CurrentInstance =>
+            Volatile.Read(ref m_serverInternal) ?? throw new ServiceResultException(StatusCodes.BadServerHalted);
 
         /// <summary>
         /// Returns the current status of the server.
@@ -2914,6 +2933,10 @@ namespace Opc.Ua.Server
                             m_registeredWithDiscoveryServer = m_registrationInfo!.IsOnline;
                             return true;
                         }
+                        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                        {
+                            throw;
+                        }
                         catch (Exception e)
                         {
                             m_logger.RegisterServerApiFailedForEndpointUrlException(
@@ -2929,11 +2952,15 @@ namespace Opc.Ua.Server
                                 try
                                 {
                                     await client.CloseAsync(ct).ConfigureAwait(false);
-                                    client = null;
                                 }
                                 catch (Exception e)
                                 {
                                     m_logger.NotCleanlyCloseConnectionWithLDSException(e.Message);
+                                }
+                                finally
+                                {
+                                    client.Dispose();
+                                    client = null;
                                 }
                             }
                         }
@@ -2951,65 +2978,99 @@ namespace Opc.Ua.Server
         /// Registers the server endpoints with the LDS.
         /// </summary>
         /// <param name="state">The state.</param>
-        private async void OnRegisterServerAsync(object? state)
+        private void OnRegisterServer(object? state)
+        {
+            long generation = (long)state!;
+            lock (m_registrationLock)
+            {
+                if (m_registrationStopped ||
+                    generation != m_registrationGeneration ||
+                    m_registrationTask is { IsCompleted: false })
+                {
+                    return;
+                }
+                m_registrationTimer?.Dispose();
+                m_registrationTimer = null;
+                m_registrationTask = RegisterServerIterationAsync(generation, m_registrationCts!.Token);
+            }
+        }
+
+        /// <summary>
+        /// Attempts discovery registration and schedules the next retry only for the active registration generation.
+        /// </summary>
+        private async Task RegisterServerIterationAsync(long generation, CancellationToken cancellationToken)
         {
             try
             {
+                bool registered = await RegisterWithDiscoveryServerAsync(cancellationToken).ConfigureAwait(false);
                 lock (m_registrationLock)
                 {
-                    // halt any outstanding timer.
-                    m_registrationTimer?.Dispose();
-                    m_registrationTimer = null;
-                }
-
-                if (await RegisterWithDiscoveryServerAsync().ConfigureAwait(false))
-                {
-                    // schedule next registration.
-                    lock (m_registrationLock)
+                    if (m_registrationStopped ||
+                        generation != m_registrationGeneration ||
+                        cancellationToken.IsCancellationRequested ||
+                        m_maxRegistrationInterval <= 0)
                     {
-                        if (m_maxRegistrationInterval > 0)
-                        {
-                            m_registrationTimer = TimeProvider.CreateTimer(
-                                OnRegisterServerAsync,
-                                this,
-                                TimeSpan.FromMilliseconds(m_maxRegistrationInterval),
-                                Timeout.InfiniteTimeSpan);
-
-                            m_lastRegistrationInterval = m_minRegistrationInterval;
-                            m_logger.RegisterServerSucceededRegisteringAgainInRegistrationInterval(
-                                m_maxRegistrationInterval);
-                        }
+                        return;
                     }
-                }
-                else
-                {
-                    lock (m_registrationLock)
+                    int delay;
+                    if (registered)
                     {
-                        if (m_registrationTimer == null)
-                        {
-                            // calculate next registration attempt.
-                            m_lastRegistrationInterval *= 2;
-
-                            if (m_lastRegistrationInterval > m_maxRegistrationInterval)
-                            {
-                                m_lastRegistrationInterval = m_maxRegistrationInterval;
-                            }
-
-                            m_logger.RegisterServerFailedTryingAgainInRegistrationInterval(m_lastRegistrationInterval);
-
-                            // create timer.
-                            m_registrationTimer = TimeProvider.CreateTimer(
-                                OnRegisterServerAsync,
-                                this,
-                                TimeSpan.FromMilliseconds(m_lastRegistrationInterval),
-                                Timeout.InfiniteTimeSpan);
-                        }
+                        delay = m_maxRegistrationInterval;
+                        m_lastRegistrationInterval = m_minRegistrationInterval;
+                        m_logger.RegisterServerSucceededRegisteringAgainInRegistrationInterval(delay);
                     }
+                    else
+                    {
+                        delay = (int)Math.Min((long)m_lastRegistrationInterval * 2, m_maxRegistrationInterval);
+                        m_lastRegistrationInterval = delay;
+                        m_logger.RegisterServerFailedTryingAgainInRegistrationInterval(delay);
+                    }
+                    m_registrationTimer = TimeProvider.CreateTimer(
+                        OnRegisterServer,
+                        ++m_registrationGeneration,
+                        TimeSpan.FromMilliseconds(delay),
+                        Timeout.InfiniteTimeSpan);
                 }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // The registration owner is stopping.
             }
             catch (Exception e)
             {
                 m_logger.UnexpectedExceptionHandlingRegistrationTimer(e);
+            }
+        }
+
+        /// <summary>
+        /// Prevents registration rearming, cancels the active attempt and drains it before releasing cancellation
+        /// state.
+        /// </summary>
+        private async ValueTask StopRegistrationAsync()
+        {
+            CancellationTokenSource? cancellation;
+            Task? registration;
+            lock (m_registrationLock)
+            {
+                m_registrationStopped = true;
+                m_registrationGeneration++;
+                m_registrationTimer?.Dispose();
+                m_registrationTimer = null;
+                cancellation = m_registrationCts;
+                m_registrationCts = null;
+                registration = m_registrationTask;
+            }
+            try
+            {
+                cancellation?.Cancel();
+                if (registration != null)
+                {
+                    await registration.ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                cancellation?.Dispose();
             }
         }
 
@@ -3111,17 +3172,7 @@ namespace Opc.Ua.Server
             ServiceResult result)
         {
             // see https://reference.opcfoundation.org/Core/Part4/v105/docs/6.1.3
-            StatusCode resultCode = result.StatusCode;
-            if (resultCode == StatusCodes.BadCertificateInvalid ||
-                resultCode == StatusCodes.BadCertificateRevoked ||
-                resultCode == StatusCodes.BadCertificateUntrusted ||
-                resultCode == StatusCodes.BadCertificateIssuerRevoked ||
-                resultCode == StatusCodes.BadCertificateRevocationUnknown ||
-                resultCode == StatusCodes.BadCertificateChainIncomplete ||
-                resultCode == StatusCodes.BadCertificateIssuerRevocationUnknown)
-            {
-                resultCode = StatusCodes.BadSecurityChecksFailed;
-            }
+            StatusCode resultCode = CertificateErrorReporting.GetClientStatusCode(result);
 
             throw new ServiceResultException(new ServiceResult(resultCode, result));
         }
@@ -3372,21 +3423,13 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException"></exception>
         protected virtual void OnRequestComplete(OperationContext context)
         {
-            m_semaphoreSlim.Wait();
-            try
+            if (Volatile.Read(ref m_serverInternal) == null)
             {
-                if (m_serverInternal == null)
-                {
-                    throw new ServiceResultException(StatusCodes.BadServerHalted);
-                }
+                throw new ServiceResultException(StatusCodes.BadServerHalted);
+            }
 
-                // The request itself is completed by disposing the OperationContext, which owns
-                // the execution scope. This hook remains for derived servers that extend it.
-            }
-            finally
-            {
-                m_semaphoreSlim.Release();
-            }
+            // The request itself is completed by disposing the OperationContext, which owns
+            // the execution scope. This hook remains for derived servers that extend it.
         }
 
         /// <summary>
@@ -3505,7 +3548,6 @@ namespace Opc.Ua.Server
             Uri endpointUri)
         {
             base.ConfigureTransportListenerSettings(settings, endpointUri);
-
             IServerRateLimiterProvider? provider = m_rateLimiterProvider;
             if (provider != null)
             {
@@ -3516,6 +3558,27 @@ namespace Opc.Ua.Server
 
                 settings.ConnectionRateLimiter = provider.ConnectionRateLimiter;
             }
+        }
+
+        /// <inheritdoc/>
+        bool ISessionBindingProvider.HasSession(string secureChannelId)
+        {
+            return (m_serverInternal?.SessionManager as ISessionBindingProvider)?
+                .HasSession(secureChannelId) ?? false;
+        }
+
+        /// <inheritdoc/>
+        bool ISessionBindingProvider.TryGetSessionContext(
+            NodeId authenticationToken,
+            SecureChannelContext channelContext,
+            [NotNullWhen(true)] out SessionBindingContext? context)
+        {
+            if (m_serverInternal?.SessionManager is ISessionBindingProvider provider)
+            {
+                return provider.TryGetSessionContext(authenticationToken, channelContext, out context);
+            }
+            context = null;
+            return false;
         }
 
         /// <summary>
@@ -3727,6 +3790,15 @@ namespace Opc.Ua.Server
                     TimeProvider,
                     SecurityPolicyRegistry);
 
+                foreach (IUserTokenAuthenticator authenticator in m_preStartAuthenticators)
+                {
+                    m_serverInternal.IdentityRegistry.Register(authenticator);
+                }
+                foreach (IIdentityAugmenter augmenter in m_preStartIdentityAugmenters)
+                {
+                    m_serverInternal.IdentityRegistry.RegisterAugmenter(augmenter);
+                }
+
                 m_serverInternal.SetNodeIdFactory(NodeIdFactory);
                 m_serverInternal.SetNodeIdCollisionDetection(DetectNodeIdCollisions);
                 if (NodeIdFactory is Hosting.IServerPreStartupTask factoryInitialization)
@@ -3886,6 +3958,7 @@ namespace Opc.Ua.Server
                 ServerError = null!;
 
                 // setup registration information.
+                await StopRegistrationAsync().ConfigureAwait(false);
                 lock (m_registrationLock)
                 {
                     m_maxRegistrationInterval = configuration.ServerConfiguration!
@@ -3957,10 +4030,12 @@ namespace Opc.Ua.Server
 
                     if (m_maxRegistrationInterval > 0)
                     {
+                        m_registrationStopped = false;
+                        m_registrationCts = new CancellationTokenSource();
                         m_logger.ServerRegistrationTimerStarted();
                         m_registrationTimer = TimeProvider.CreateTimer(
-                            OnRegisterServerAsync,
-                            this,
+                            OnRegisterServer,
+                            ++m_registrationGeneration,
                             TimeSpan.FromMilliseconds(m_minRegistrationInterval),
                             Timeout.InfiniteTimeSpan);
                     }
@@ -4036,6 +4111,38 @@ namespace Opc.Ua.Server
             }
         }
 
+        internal void RegisterIdentityAuthenticator(IUserTokenAuthenticator authenticator)
+        {
+            if (authenticator == null)
+            {
+                throw new ArgumentNullException(nameof(authenticator));
+            }
+
+            if (m_serverInternal is { } serverInternal)
+            {
+                serverInternal.IdentityRegistry.Register(authenticator);
+                return;
+            }
+
+            m_preStartAuthenticators.Add(authenticator);
+        }
+
+        internal void RegisterIdentityAugmenter(IIdentityAugmenter augmenter)
+        {
+            if (augmenter == null)
+            {
+                throw new ArgumentNullException(nameof(augmenter));
+            }
+
+            if (m_serverInternal is { } serverInternal)
+            {
+                serverInternal.IdentityRegistry.RegisterAugmenter(augmenter);
+                return;
+            }
+
+            m_preStartIdentityAugmenters.Add(augmenter);
+        }
+
         /// <inheritdoc/>
         protected override async ValueTask OnServerStartedAsync(
             CancellationToken cancellationToken = default)
@@ -4061,11 +4168,7 @@ namespace Opc.Ua.Server
             ShutDownDelay();
 
             // halt the registration timer.
-            lock (m_registrationLock)
-            {
-                m_registrationTimer?.Dispose();
-                m_registrationTimer = null;
-            }
+            await StopRegistrationAsync().ConfigureAwait(false);
 
             if (m_maxRegistrationInterval > 0 && m_registeredWithDiscoveryServer)
             {
@@ -4120,6 +4223,11 @@ namespace Opc.Ua.Server
             // Drain in-flight requests by disposing the request queue before the address space
             // is torn down.
             StopRequestQueue();
+
+            await RunShutdownStageAsync(
+                    failures,
+                    serverInternal.DrainRoleStateBindingAsync)
+                .ConfigureAwait(false);
 
             if (lifecycle is not null)
             {
@@ -5004,6 +5112,26 @@ namespace Opc.Ua.Server
         private ConfiguredEndpointCollection? m_registrationEndpoints;
         private RegisteredServer? m_registrationInfo;
         private ITimer? m_registrationTimer;
+
+        /// <summary>
+        /// Cancels the currently owned discovery-registration attempt during shutdown.
+        /// </summary>
+        private CancellationTokenSource? m_registrationCts;
+
+        /// <summary>
+        /// Tracks the registration attempt that shutdown must drain.
+        /// </summary>
+        private Task? m_registrationTask;
+
+        /// <summary>
+        /// Distinguishes current registration callbacks from callbacks belonging to a retired timer.
+        /// </summary>
+        private long m_registrationGeneration;
+
+        /// <summary>
+        /// Prevents discovery-registration callbacks from starting or rearming after shutdown.
+        /// </summary>
+        private bool m_registrationStopped = true;
         private int m_minRegistrationInterval;
         private int m_maxRegistrationInterval;
         private int m_lastRegistrationInterval;
@@ -5016,8 +5144,9 @@ namespace Opc.Ua.Server
         private readonly List<HistorianProviderRegistration>
             m_historianProviders = [];
 
-        private readonly List<Hosting.IServerPreStartupTask> m_preStartupTasks =
-            [];
+        private readonly List<Hosting.IServerPreStartupTask> m_preStartupTasks = [];
+        private readonly List<IUserTokenAuthenticator> m_preStartAuthenticators = [];
+        private readonly List<IIdentityAugmenter> m_preStartIdentityAugmenters = [];
 
         private IDisposable? m_certManagerSubscription;
         private ServerRateLimitOptions? m_rateLimitOptions;

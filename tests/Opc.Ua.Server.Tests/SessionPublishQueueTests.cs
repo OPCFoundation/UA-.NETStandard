@@ -93,22 +93,90 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void PublishAsync_QueueFull_ThrowsBadTooManyPublishRequests()
+        public void PublishAsync_QueueFull_FailsOldestRequestAndQueuesNewRequest()
         {
-            using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, 1);
+            using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, kMaxPublishRequests);
 
             var subMock = new Mock<ISubscriptionPublishPipeline>();
             subMock.Setup(s => s.Id).Returns(1);
             queue.Add(subMock.Object);
 
-            // First publish request should be queued
-            Task<ISubscriptionPublishPipeline> task1 = queue.PublishAsync("channel1", DateTime.MaxValue, false, null, CancellationToken.None);
-            Assert.That(task1.IsCompleted, Is.False);
+            var queued = new List<Task<ISubscriptionPublishPipeline>>();
+            for (int ii = 0; ii < kMaxPublishRequests; ii++)
+            {
+                queued.Add(queue.PublishAsync("channel1", DateTime.MaxValue, false, null, CancellationToken.None));
+            }
+            Assert.That(queued.TrueForAll(t => !t.IsCompleted), Is.True);
 
-            // Second publish request should fail because max queue size is 1
+            // OPC 10000-4, 5.14.5.1: the oldest request is de-queued, the new one is queued.
+            Task<ISubscriptionPublishPipeline> newRequest =
+                queue.PublishAsync("channel1", DateTime.MaxValue, false, null, CancellationToken.None);
+
             ServiceResultException ex =
-                Assert.CatchAsync<ServiceResultException>(() => queue.PublishAsync("channel2", DateTime.MaxValue, false, null, CancellationToken.None));
+                Assert.CatchAsync<ServiceResultException>(async () => await queued[0].ConfigureAwait(false));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTooManyPublishRequests));
+            Assert.That(newRequest.IsCompleted, Is.False);
+            Assert.That(queued.GetRange(1, kMaxPublishRequests - 1).TrueForAll(t => !t.IsCompleted), Is.True);
+
+            // Capacity accounting stays exact: the next request evicts the next oldest only.
+            Task<ISubscriptionPublishPipeline> nextRequest =
+                queue.PublishAsync("channel1", DateTime.MaxValue, false, null, CancellationToken.None);
+            Assert.That(queued[1].IsFaulted, Is.True);
+            Assert.That(queued[2].IsCompleted, Is.False);
+            Assert.That(nextRequest.IsCompleted, Is.False);
+        }
+
+        [Test]
+        public void PublishAsync_RequeueWhenQueueFull_DoesNotFailQueuedRequests()
+        {
+            using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, kMaxPublishRequests);
+
+            var subMock = new Mock<ISubscriptionPublishPipeline>();
+            subMock.Setup(s => s.Id).Returns(1);
+            queue.Add(subMock.Object);
+
+            var queued = new List<Task<ISubscriptionPublishPipeline>>();
+            for (int ii = 0; ii < kMaxPublishRequests; ii++)
+            {
+                queued.Add(queue.PublishAsync("channel1", DateTime.MaxValue, false, null, CancellationToken.None));
+            }
+
+            // A requeued request is already being processed and is not a new Publish request.
+            Task<ISubscriptionPublishPipeline> requeued =
+                queue.PublishAsync("channel1", DateTime.MaxValue, true, null, CancellationToken.None);
+
+            Assert.That(requeued.IsCompleted, Is.False);
+            Assert.That(queued.TrueForAll(t => !t.IsCompleted), Is.True);
+        }
+
+        [Test]
+        public void PublishAsync_AcceptsMoreRequestsThanSubscriptions()
+        {
+            // The configured limit is lower than the number of Subscriptions.
+            const int subscriptionCount = 3;
+            using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, 1);
+
+            for (uint id = 1; id <= subscriptionCount; id++)
+            {
+                var subMock = new Mock<ISubscriptionPublishPipeline>();
+                subMock.Setup(s => s.Id).Returns(id);
+                queue.Add(subMock.Object);
+            }
+
+            // OPC 10000-4, 5.14.5.1: more queued Publish requests than Subscriptions are accepted.
+            var queued = new List<Task<ISubscriptionPublishPipeline>>();
+            for (int ii = 0; ii <= subscriptionCount; ii++)
+            {
+                queued.Add(queue.PublishAsync("channel1", DateTime.MaxValue, false, null, CancellationToken.None));
+            }
+            Assert.That(queued.TrueForAll(t => !t.IsCompleted), Is.True);
+
+            Task<ISubscriptionPublishPipeline> overflow =
+                queue.PublishAsync("channel1", DateTime.MaxValue, false, null, CancellationToken.None);
+            ServiceResultException ex =
+                Assert.CatchAsync<ServiceResultException>(async () => await queued[0].ConfigureAwait(false));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTooManyPublishRequests));
+            Assert.That(overflow.IsCompleted, Is.False);
         }
 
         [Test]

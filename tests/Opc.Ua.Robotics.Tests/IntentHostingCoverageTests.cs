@@ -31,11 +31,13 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Robotics.Server;
 using Opc.Ua.Robotics.Server.Builders;
@@ -297,6 +299,160 @@ namespace Opc.Ua.Robotics.Tests
             await WaitUntilAsync(() => manager.BaseDisposeStarted).ConfigureAwait(false);
 
             Assert.That(host.ResourcesDisposed, Is.True);
+        }
+
+        /// <summary>
+        /// Verifies asynchronous disposal joins deferred hosts even after synchronous or concurrent disposal starts.
+        /// </summary>
+        [TestCase(false, 0)]
+        [TestCase(false, 10)]
+        [TestCase(true, 0)]
+        [TestCase(true, 10)]
+        public async Task NodeManagerAsyncDisposalWaitsForDeferredHostsAsync(
+            bool synchronousFirst,
+            double shutdownTimeoutMs)
+        {
+            await using var fixture = new IntentServerFixture();
+            await fixture.CreateServerAsync().ConfigureAwait(false);
+            RobotIntentNodeManager manager = fixture.CreateManager(new RobotIntentServerOptions(), null);
+            using var executor = new BlockingExecutor();
+            IntentControllerHost host = StartBlockedHost(manager, executor, shutdownTimeoutMs);
+            Task? disposal = null;
+            Task? concurrentDisposal = null;
+            try
+            {
+                await executor.Started.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                if (synchronousFirst)
+                {
+                    await Task.Run(manager.Dispose).WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    Assert.That(host.IsShutdownDeferred, Is.True);
+                    Assert.That(host.ResourcesDisposed, Is.False);
+                    Assert.That(manager.BaseDisposeStarted, Is.False);
+                }
+
+                disposal = manager.DisposeAsync().AsTask();
+                await WaitUntilAsync(() => host.IsShutdownDeferred).ConfigureAwait(false);
+                Assert.That(disposal.IsCompleted, Is.False,
+                    "The asynchronous node-manager contract must include deferred host cleanup.");
+                Assert.That(manager.BaseDisposeStarted, Is.False);
+                concurrentDisposal = manager.DisposeAsync().AsTask();
+                Assert.That(concurrentDisposal.IsCompleted, Is.False,
+                    "Another disposer must join the same host drain after the host list is detached.");
+                Assert.That(manager.BaseDisposeStarted, Is.False);
+
+                executor.Release();
+                await disposal.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                await concurrentDisposal.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+                Assert.That(host.ResourcesDisposed, Is.True);
+                Assert.That(host.IsShutdownDeferred, Is.False);
+                Assert.That(manager.BaseDisposeStarted, Is.True);
+                await manager.DisposeAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                executor.Release();
+                await WaitUntilAsync(() => host.ResourcesDisposed).ConfigureAwait(false);
+                if (disposal != null)
+                {
+                    await disposal.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                }
+                if (concurrentDisposal != null)
+                {
+                    await concurrentDisposal.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                }
+                await manager.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Verifies deferred host completion cannot bypass base cleanup or hide its failure from any async caller.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task NodeManagerDisposalWaitsForBaseCleanupAndReportsItsFailureAsync(
+            bool synchronousFirst,
+            bool cleanupFails)
+        {
+            await using var fixture = new IntentServerFixture();
+            await fixture.CreateServerAsync().ConfigureAwait(false);
+            var manager = new RobotIntentNodeManager(fixture.Server.CurrentInstance, fixture.Configuration);
+            using var executor = new BlockingExecutor();
+            IntentControllerHost host = StartBlockedHost(manager, executor, shutdownTimeoutMs: 0);
+            FieldInfo writeField = typeof(AsyncCustomNodeManager).GetField(
+                "m_writeSemaphore", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            var writeGate = (SemaphoreSlim)writeField.GetValue(manager)!;
+            FieldInfo itemsField = typeof(AsyncCustomNodeManager).GetField(
+                "m_monitoredItemManager", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            var originalItems = (IMonitoredItemManager)itemsField.GetValue(manager)!;
+            var failure = new InvalidOperationException("Controlled base cleanup failure.");
+            var items = new Mock<IMonitoredItemManager>(MockBehavior.Strict);
+            items.Setup(value => value.Dispose()).Callback(() =>
+            {
+                originalItems.Dispose();
+                if (cleanupFails)
+                {
+                    throw failure;
+                }
+            });
+            itemsField.SetValue(manager, items.Object);
+            await writeGate.WaitAsync().ConfigureAwait(false);
+            bool gateHeld = true;
+            try
+            {
+                await executor.Started.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                if (synchronousFirst)
+                {
+                    manager.Dispose();
+                }
+                Task disposal = manager.DisposeAsync().AsTask();
+                await WaitUntilAsync(() => host.IsShutdownDeferred).ConfigureAwait(false);
+                executor.Release();
+                await WaitUntilAsync(() => manager.BaseDisposeStarted).ConfigureAwait(false);
+
+                Assert.That(host.ResourcesDisposed, Is.True);
+                Assert.That(disposal.IsCompleted, Is.False, "Base cleanup is still waiting for its semaphore owner.");
+                Task concurrentDisposal = manager.DisposeAsync().AsTask();
+                Assert.That(concurrentDisposal.IsCompleted, Is.False);
+                items.Verify(value => value.Dispose(), Times.Never);
+
+                writeGate.Release();
+                gateHeld = false;
+                if (cleanupFails)
+                {
+                    AggregateException error = Assert.ThrowsAsync<AggregateException>(async () =>
+                        await disposal.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false))!;
+                    AggregateException repeated = Assert.ThrowsAsync<AggregateException>(async () =>
+                        await concurrentDisposal.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false))!;
+                    Assert.That(error.InnerExceptions, Is.EqualTo(new[] { failure }));
+                    Assert.That(repeated, Is.SameAs(error));
+                }
+                else
+                {
+                    await disposal.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    await concurrentDisposal.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                }
+                items.Verify(value => value.Dispose(), Times.Once);
+            }
+            finally
+            {
+                executor.Release();
+                if (gateHeld)
+                {
+                    writeGate.Release();
+                }
+                try
+                {
+                    await manager.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                }
+                catch (AggregateException ex) when (cleanupFails && ex.InnerExceptions.Count == 1 &&
+                    ReferenceEquals(ex.InnerExceptions[0], failure))
+                {
+                    // The expected cleanup failure is replayed by repeated disposal during test teardown.
+                }
+            }
         }
 
         [Test]
@@ -664,6 +820,36 @@ namespace Opc.Ua.Robotics.Tests
             BaseInstanceState? child = children.FirstOrDefault(node => node.BrowseName.Name == browseName);
             Assert.That(child, Is.Not.Null, browseName);
             return child!;
+        }
+
+        /// <summary>
+        /// Starts a real controller host with an executor held beyond its configured shutdown wait.
+        /// </summary>
+        private static IntentControllerHost StartBlockedHost(
+            RobotIntentNodeManager manager,
+            BlockingExecutor executor,
+            double shutdownTimeoutMs)
+        {
+            SystemContext context = CreateSystemContext();
+            var controller = new IntentControllerState(null);
+            controller.Create(
+                context,
+                new NodeId("AwaitedDeferredController", 1),
+                new QualifiedName("AwaitedDeferredController", 1),
+                new LocalizedText("AwaitedDeferredController"),
+                true);
+            var options = new IntentControllerHostOptions
+            {
+                RequireControlAuthority = false,
+                ExecutorShutdownTimeoutMs = shutdownTimeoutMs
+            };
+            options.Accept(global::Opc.Ua.RobotIntent.DataTypeIds.LinearMoveIntentDataType);
+            var host = new IntentControllerHost(controller, executor, (_, _) => default, options);
+            manager.RegisterIntentControllerHost(host);
+            host.Start(context);
+            IntentAdmission admission = host.SubmitIntent(context, null, Move("awaited-shutdown"));
+            Assert.That(admission.Accepted, Is.True, admission.Message);
+            return host;
         }
 
         private static async Task WaitUntilAsync(Func<bool> predicate)

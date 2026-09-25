@@ -104,7 +104,8 @@ namespace Opc.Ua.Redundancy.Server
                 }
             }
 
-            ByteString encoded = protector.Protect(descriptor);
+            ByteString encoded = protector.Protect(
+                RecordProtectionContext.Create("replica-identity", Key), descriptor);
             if (await store.CompareAndSwapAsync(Key, default, encoded, cancellationToken).ConfigureAwait(false))
             {
                 return;
@@ -119,7 +120,8 @@ namespace Opc.Ua.Redundancy.Server
 
         private static void Validate(IRecordProtector protector, ByteString stored, ByteString descriptor)
         {
-            if (!protector.TryUnprotect(stored, out ByteString actual))
+            if (!protector.TryUnprotect(
+                RecordProtectionContext.Create("replica-identity", Key), stored, out ByteString actual))
             {
                 throw new ServiceResultException(
                     StatusCodes.BadSecurityChecksFailed,

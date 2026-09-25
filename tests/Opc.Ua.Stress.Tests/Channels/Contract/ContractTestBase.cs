@@ -70,10 +70,15 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
             return s_factory.CreateCertificate($"CN={commonName}").CreateForRSA();
         }
 
+        /// <summary>
+        /// Creates isolated channel-manager contracts with owned certificate references and injectable transport
+        /// timing.
+        /// </summary>
         protected static ContractTestEnvironment CreateEnvironment(
             Certificate applicationCertificate,
             Func<string, FakeTransport>? transportFactory = null,
-            IChannelReconnectPolicy? reconnectPolicy = null)
+            IChannelReconnectPolicy? reconnectPolicy = null,
+            TimeProvider? timeProvider = null)
         {
             if (applicationCertificate == null)
             {
@@ -103,7 +108,8 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
                 configuration,
                 telemetry,
                 bindings,
-                reconnectPolicy ?? new ImmediateReconnectPolicy());
+                reconnectPolicy ?? new ImmediateReconnectPolicy(),
+                timeProvider);
             managerInstance.UpdateClientCertificate(applicationCertificate.AddRef(), null);
 
             return new ContractTestEnvironment(

@@ -28,8 +28,11 @@
  * ======================================================================*/
 
 using System;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Core.Tests.Security.Identity
@@ -106,6 +109,87 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         }
 
         [Test]
+        public async Task EccEncryptionReleasesTemporaryNonceAndIssuerHandlesAsync(
+            [Values] bool missingTokenData,
+            [Values] bool rsaDh)
+        {
+            string policyUri = rsaDh ? SecurityPolicies.RSA_DH_AesGcm : SecurityPolicies.ECC_nistP256;
+            SecurityPolicyInfo policy = SecurityPolicies.Default.GetInfo(policyUri);
+            IServiceMessageContext context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
+            if (policy == null)
+            {
+                var unsupported = new IssuedIdentityTokenHandler(Profiles.JwtUserToken, [1, 2, 3]);
+                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await unsupported.EncryptAsync(null, [], policyUri, context).ConfigureAwait(false));
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
+                return;
+            }
+
+            using Certificate sender = CreateSigningCertificate("CN=Issued Token Sender", rsaDh);
+            using Certificate receiver = CreateSigningCertificate("CN=Issued Token Receiver", rsaDh);
+            using Certificate issuerTemplate = CreateSigningCertificate("CN=Issued Token Issuer", rsaDh, ca: true);
+            X509Certificate2 issuerNative = issuerTemplate.AsX509Certificate2();
+            using var issuer = Certificate.From(issuerNative);
+            using var chain = new CertificateCollection { sender, issuer };
+            using var receiverKey = Nonce.CreateNonce(policy);
+            using var temporarySenderKey = Nonce.CreateNonce(policy);
+            byte[] expected = [0x10, 0x20, 0x30];
+            byte[] nonce = Nonce.CreateRandomNonceData(32);
+            var handler = new IssuedIdentityTokenHandler(
+                new IssuedIdentityToken { PolicyId = Profiles.JwtUserToken },
+                null,
+                _ => temporarySenderKey)
+            {
+                DecryptedTokenData = missingTokenData ? null : expected
+            };
+
+            if (missingTokenData)
+            {
+                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await handler.EncryptAsync(
+                        receiver, nonce, policyUri, context, receiverKey, sender, chain, true).ConfigureAwait(false));
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
+            }
+            else
+            {
+                await handler.EncryptAsync(
+                    receiver, nonce, policyUri, context, receiverKey, sender, chain, true).ConfigureAwait(false);
+                using var decryptor = EncryptedSecret.CreateForEcc(
+                    context, policyUri, chain, receiver, receiverKey, sender, null);
+                (bool success, byte[] secret) = await decryptor.TryDecryptAsync(
+                    ((IssuedIdentityToken)handler.Token).TokenData.ToArray(), nonce).ConfigureAwait(false);
+                Assert.That(success, Is.True);
+                Assert.That(secret, Is.EqualTo(expected));
+                CryptoUtils.ZeroMemory(secret);
+            }
+
+            Assert.That(chain, Has.Count.EqualTo(2));
+            Assert.That(chain[1].Thumbprint, Is.EqualTo(issuer.Thumbprint));
+            chain.Dispose();
+            issuer.Dispose();
+            byte[] retainedSecret = temporarySenderKey.GenerateSecret(receiverKey, null);
+            try
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(retainedSecret?.Length, Is.Null,
+                        "The temporary sender agreement key must be released.");
+                    Assert.That(issuerNative.Handle, Is.EqualTo(IntPtr.Zero),
+                        "The filtered issuer collection must not retain an extra owning handle.");
+                    Assert.That(sender.HasPrivateKey, Is.True);
+                    Assert.That(receiver.HasPrivateKey, Is.True);
+                });
+            }
+            finally
+            {
+                if (retainedSecret != null)
+                {
+                    CryptoUtils.ZeroMemory(retainedSecret);
+                }
+            }
+        }
+
+        [Test]
         public void UpdatePolicyChangesPolicyAndProfile()
         {
             var handler = new IssuedIdentityTokenHandler(Profiles.JwtUserToken, [1]);
@@ -117,7 +201,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
 
             handler.UpdatePolicy(policy);
 
-            Assert.That(((IssuedIdentityToken)handler.Token).PolicyId, Is.EqualTo("issued"));
+            Assert.That(handler.Token.PolicyId, Is.EqualTo("issued"));
             Assert.That(handler.IssuedTokenTypeProfileUri, Is.EqualTo(policy.IssuedTokenType));
             Assert.That(handler.IssuedTokenType, Is.EqualTo(IssuedTokenType.SAML));
         }
@@ -141,8 +225,10 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         [Test]
         public void CloneCopiesTokenAndEqualsComparesTokenData()
         {
-            var handler = new IssuedIdentityTokenHandler(Profiles.JwtUserToken, [7, 8, 9]);
-            handler.DecryptedTokenData = [7, 8, 9];
+            var handler = new IssuedIdentityTokenHandler(Profiles.JwtUserToken, [7, 8, 9])
+            {
+                DecryptedTokenData = [7, 8, 9]
+            };
 
             var clone = (IssuedIdentityTokenHandler)handler.Clone();
 
@@ -153,6 +239,16 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             bool equalsOtherHandler = handler.Equals(new UserNameIdentityTokenHandler("user", [1]));
             Assert.That(equalsClone, Is.True);
             Assert.That(equalsOtherHandler, Is.False);
+        }
+
+        private static Certificate CreateSigningCertificate(string subject, bool rsa, bool ca = false)
+        {
+            ICertificateBuilder builder = CertificateBuilder.Create(subject);
+            if (ca)
+            {
+                builder.SetCAConstraint();
+            }
+            return rsa ? builder.CreateForRSA() : builder.SetECCurve(ECCurve.NamedCurves.nistP256).CreateForECDsa();
         }
     }
 }

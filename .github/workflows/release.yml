@@ -1,8 +1,16 @@
 name: Release to nuget.org
 
 # Manual promotion of the exact signed package bytes produced by a successful
-# nuget-publish.yml run on a release/* branch. The release environment provides
-# the approval boundary and NuGet trusted publishing identity.
+# nuget-publish.yml run on a canonical "release/<major>.<minor>" branch (e.g.
+# release/2.0). The release environment provides the approval boundary (its
+# deployment_branch_policy restricts execution to release/* branches) and the
+# NuGet trusted publishing identity. This workflow additionally requires the
+# candidate's base package version to be an exact stable release (no
+# prerelease label or build metadata, e.g. "2.0.0") - a preview candidate is
+# already published automatically by nuget-publish.yml and must never be
+# promoted here. See docs/ReleaseProcess.md ("Approved promotion") for the
+# full procedure, including how to pick a release_run_id and how to recover
+# from a partial or failed promotion.
 #
 # One-time nuget.org trusted publishing policy:
 #   Repository Owner: OPCFoundation
@@ -14,7 +22,7 @@ on:
   workflow_dispatch:
     inputs:
       release_run_id:
-        description: Successful nuget-publish.yml run ID from a release/* branch
+        description: Successful nuget-publish.yml run ID from a release/<major>.<minor> branch
         required: true
         type: string
       dry_run:
@@ -27,6 +35,7 @@ permissions:
   actions: read
   contents: read
   id-token: write
+  packages: write
 
 concurrency:
   group: nuget-release
@@ -39,13 +48,17 @@ jobs:
     environment: release
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
+      # Deliberately no checkout here. This job holds the release environment
+      # plus packages:write and id-token:write, so no repository code may run
+      # before the workspace is bound to the candidate's own commit - the
+      # branch tip could otherwise have been changed after the candidate was
+      # built and would execute with those credentials. The step below
+      # therefore uses only the GitHub API and an inline branch-shape check,
+      # and the first and only checkout is at the candidate SHA.
       - name: Setup .NET 10.0
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '10.0.401'
 
       - name: Validate selected publish run
         id: source
@@ -58,14 +71,14 @@ jobs:
               throw 'release_run_id must be a numeric GitHub Actions run ID.'
           }
 
-          $runJson = gh api "repos/${{ github.repository }}/actions/runs/$env:RELEASE_RUN_ID"
+          $runJson = gh api "repos/$($env:GITHUB_REPOSITORY)/actions/runs/$env:RELEASE_RUN_ID"
           if ($LASTEXITCODE -ne 0) {
               throw "Unable to read workflow run $env:RELEASE_RUN_ID."
           }
           $run = $runJson | ConvertFrom-Json
 
           $workflowJson = gh api (
-              "repos/${{ github.repository }}/actions/workflows/$($run.workflow_id)")
+              "repos/$($env:GITHUB_REPOSITORY)/actions/workflows/$($run.workflow_id)")
           if ($LASTEXITCODE -ne 0) {
               throw "Unable to identify the workflow for run $env:RELEASE_RUN_ID."
           }
@@ -86,10 +99,29 @@ jobs:
                   "Run $env:RELEASE_RUN_ID came from '$($run.head_branch)'. " +
                   'Only release/* branches can be promoted.')
           }
-          if ($run.head_repository.full_name -cne '${{ github.repository }}') {
+          # Inlined on purpose rather than dot-sourced from
+          # .azurepipelines/package-version-policy.ps1: nothing from the
+          # repository may execute before the candidate checkout below. This
+          # is the same shape as Test-CanonicalReleaseBranchRef, and
+          # PackageVersionPolicyTests pins the two together so they cannot
+          # drift apart.
+          if ("refs/heads/$($run.head_branch)" -notmatch '(?-i)^refs/heads/release/(0|[1-9]\d*)\.(0|[1-9]\d*)$') {
+              throw (
+                  "Run $env:RELEASE_RUN_ID came from '$($run.head_branch)', which is not a " +
+                  "canonical release/<major>.<minor> branch (for example release/2.0). Only " +
+                  'that naming may be promoted; see docs/ReleaseProcess.md.')
+          }
+          if ($env:GITHUB_REF -cne "refs/heads/$($run.head_branch)") {
+              throw (
+                  "This release.yml dispatch runs from '$($env:GITHUB_REF)', but the selected " +
+                  "candidate was built from 'refs/heads/$($run.head_branch)'. Dispatch " +
+                  'release.yml from that exact canonical release branch so the validation ' +
+                  'policy and promotion code are source-bound to the candidate.')
+          }
+          if ($run.head_repository.full_name -cne $env:GITHUB_REPOSITORY) {
               throw (
                   "Run $env:RELEASE_RUN_ID came from '$($run.head_repository.full_name)', " +
-                  "not '${{ github.repository }}'.")
+                  "not '$($env:GITHUB_REPOSITORY)'.")
           }
 
           "commit=$($run.head_sha)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
@@ -99,6 +131,17 @@ jobs:
           Write-Host (
               "Selected successful nuget-publish.yml run $env:RELEASE_RUN_ID " +
               "for $($run.head_branch) at $($run.head_sha).")
+
+      - name: Check out the candidate commit
+        # First and only checkout, and deliberately after the validation step
+        # above: the dispatch ref pins a branch, not a commit, so checking out
+        # the branch tip would let a commit that landed after the candidate was
+        # built supply the promotion logic. Binding to the candidate's own SHA
+        # makes the validator, the policy scripts and the package bytes all
+        # describe the same source.
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.source.outputs.commit }}
 
       - name: Download signed promotion artifact
         uses: actions/download-artifact@v8
@@ -110,29 +153,61 @@ jobs:
 
       - name: Validate promotion manifest and package bytes
         shell: pwsh
+        env:
+          RELEASE_RUN_ID: ${{ inputs.release_run_id }}
+          RELEASE_BRANCH: ${{ steps.source.outputs.branch }}
+          RELEASE_COMMIT: ${{ steps.source.outputs.commit }}
         run: |
+          . ./.azurepipelines/package-version-policy.ps1
           $manifestPath = 'promotion/release-manifest.json'
           if (-not (Test-Path -LiteralPath $manifestPath)) {
               throw "The selected run artifact contains no release-manifest.json."
           }
           $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
-          $expectedRef = 'refs/heads/${{ steps.source.outputs.branch }}'
-          if ($manifest.schemaVersion -ne 1 -or
-              $manifest.repository -cne '${{ github.repository }}' -or
+          $expectedRef = "refs/heads/$($env:RELEASE_BRANCH)"
+          if (($manifest.schemaVersion -ne 1 -and $manifest.schemaVersion -ne 2) -or
+              $manifest.repository -cne $env:GITHUB_REPOSITORY -or
               $manifest.workflow -cne '.github/workflows/nuget-publish.yml' -or
-              $manifest.runId -cne '${{ inputs.release_run_id }}' -or
+              $manifest.runId -cne $env:RELEASE_RUN_ID -or
               $manifest.ref -cne $expectedRef -or
-              $manifest.commit -cne '${{ steps.source.outputs.commit }}') {
+              $manifest.commit -cne $env:RELEASE_COMMIT) {
               throw (
                   "The promotion manifest does not match nuget-publish.yml run " +
-                  "${{ inputs.release_run_id }} on $expectedRef.")
+                  "$($env:RELEASE_RUN_ID) on $expectedRef.")
+          }
+          $expectedBaseVersion = if ($manifest.schemaVersion -eq 2) {
+              $manifest.basePackageVersion
+          }
+          else {
+              $manifest.packageVersion
+          }
+
+          # This workflow exists solely to promote a stable release (e.g.
+          # "2.0.0", "2.0.1", "2.1.0") to nuget.org. In-development preview
+          # candidates are already published automatically by
+          # nuget-publish.yml and must never be promoted here. See
+          # docs/ReleaseProcess.md ("Approved promotion").
+          if (-not (Test-StablePackageVersion -Version $expectedBaseVersion)) {
+              throw (
+                  "Run $($env:RELEASE_RUN_ID) produced base version " +
+                  "'$expectedBaseVersion', which is not an exact stable release. Only a " +
+                  'stable candidate (no prerelease label or build metadata) may be ' +
+                  'promoted through this workflow.')
+          }
+          if (-not (Test-CanonicalReleaseBranchForPackageVersion `
+              -Ref $expectedRef `
+              -Version $expectedBaseVersion)) {
+              throw (
+                  "Candidate version '$expectedBaseVersion' does not match release branch " +
+                  "'$expectedRef'. A stable M.m.p candidate must be promoted only from " +
+                  'the matching release/M.m branch.')
           }
 
           $currentPath = 'promotion/current-package-set.json'
           ./.azurepipelines/validate-nuget-package-set.ps1 `
             -PackageDirectory promotion `
             -ManifestPath $currentPath `
-            -ExpectedVersion $manifest.packageVersion `
+            -ExpectedVersion $expectedBaseVersion `
             -RequireDebug `
             -VerifySignatures
           $current = Get-Content -LiteralPath $currentPath -Raw | ConvertFrom-Json
@@ -153,7 +228,43 @@ jobs:
 
           Write-Host (
               "Validated $($current.packageCount) exact package bytes at version " +
-              "$($current.packageVersion) from run ${{ inputs.release_run_id }}.")
+              "$($current.basePackageVersion) from run $($env:RELEASE_RUN_ID).")
+
+      - name: Verify preview package ordering
+        # Last gate before an irreversible publication: the preview-only
+        # families carry the number committed in preview-version.props, which
+        # cannot track the growing "-preview.<height>" series that ordinary
+        # development publishes. Re-prove the ordering here (including on a
+        # dry run) rather than trusting that nothing was published between
+        # candidate creation and approval. See docs/ReleaseProcess.md.
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ./.azurepipelines/validate-preview-package-ordering.ps1 `
+            -ManifestPath 'promotion/current-package-set.json'
+
+      - name: Verify already-published package identity
+        # "--skip-duplicate" below makes a failed promotion recoverable by
+        # re-running the same candidate, but on its own it accepts *any*
+        # pre-existing id/version as a successful no-op. Prove first that every
+        # version this candidate already occupies really is this candidate's,
+        # so a foreign build that claimed an immutable version can never be
+        # mistaken for a completed publication. Runs on a dry run too: it is
+        # read-only and is exactly what a rehearsal should establish.
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ./.azurepipelines/assert-published-packages-match.ps1 `
+            -PackageDirectory promotion `
+            -ManifestPath 'promotion/current-package-set.json' `
+            -Feed 'nuget.org' `
+            -ExcludeDebugPackages
+          ./.azurepipelines/assert-published-packages-match.ps1 `
+            -PackageDirectory promotion `
+            -ManifestPath 'promotion/current-package-set.json' `
+            -Feed 'GitHub Packages'
 
       - name: NuGet login
         if: ${{ !inputs.dry_run }}
@@ -165,27 +276,119 @@ jobs:
       - name: Push to nuget.org
         if: ${{ !inputs.dry_run }}
         shell: pwsh
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
         run: |
-          $packages = @(Get-ChildItem promotion -Filter '*.nupkg' -File | Sort-Object Name)
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $packages = @(Get-ChildItem promotion -Filter '*.nupkg' -File |
+              Where-Object {
+                  $archive = [IO.Compression.ZipFile]::OpenRead($_.FullName)
+                  try {
+                      $nuspec = @($archive.Entries | Where-Object {
+                          $_.FullName -notmatch '/' -and $_.FullName.EndsWith('.nuspec')
+                      })
+                      if ($nuspec.Count -ne 1) {
+                          throw "Unable to identify package '$($_.Name)'."
+                      }
+                      $reader = [IO.StreamReader]::new($nuspec[0].Open())
+                      try {
+                          [xml]$metadata = $reader.ReadToEnd()
+                      }
+                      finally {
+                          $reader.Dispose()
+                      }
+
+                      $id = [string]$metadata.package.metadata.id
+                      -not $id.EndsWith(
+                          '.Debug',
+                          [StringComparison]::OrdinalIgnoreCase)
+                  }
+                  finally {
+                      $archive.Dispose()
+                  }
+              } |
+              Sort-Object Name)
+          if ($packages.Count -eq 0) {
+              throw 'The stable candidate contains no non-Debug packages to push to nuget.org.'
+          }
+          Write-Host (
+              "Publishing $($packages.Count) non-Debug package(s) to nuget.org. " +
+              'Debug package IDs remain in the signed candidate artifact and are ' +
+              'published only to GitHub Packages.')
           foreach ($package in $packages) {
+              # --skip-duplicate keeps a partially completed promotion
+              # re-runnable. The preflight above rejects a foreign existing
+              # package; the post-push verification below closes the remaining
+              # race where another publisher claims the version between that
+              # check and this push.
               dotnet nuget push $package.FullName `
                 --source 'https://api.nuget.org/v3/index.json' `
                 --symbol-source 'https://api.nuget.org/v3/index.json' `
-                --api-key '${{ steps.login.outputs.NUGET_API_KEY }}' `
+                --api-key $env:NUGET_API_KEY `
                 --skip-duplicate
               if ($LASTEXITCODE -ne 0) {
                   throw "nuget.org push failed for '$($package.Name)'."
               }
           }
+          ./.azurepipelines/assert-published-packages-match.ps1 `
+            -PackageDirectory promotion `
+            -ManifestPath 'promotion/current-package-set.json' `
+            -Feed 'nuget.org' `
+            -ExcludeDebugPackages `
+            -RequirePresent
+
+      - name: Push to GitHub Packages
+        # nuget-publish.yml deliberately never pushes a stable candidate to
+        # any feed automatically (see its "Skip feed publication" step); this
+        # is the one place a stable release also gets mirrored to GitHub
+        # Packages, gated behind the same approval and dry-run switch as the
+        # nuget.org push above.
+        if: ${{ !inputs.dry_run }}
+        shell: pwsh
+        env:
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # GitHub Packages retains the complete signed candidate, including
+          # .Debug package IDs. Public nuget.org releases above intentionally
+          # exclude them; see docs/ReleaseProcess.md.
+          $packages = @(Get-ChildItem promotion -Filter '*.nupkg' -File | Sort-Object Name)
+          foreach ($package in $packages) {
+              # As above, the preflight and post-push checks jointly prove that
+              # a duplicate is this candidate rather than a package published
+              # in the check-then-push window.
+              dotnet nuget push $package.FullName `
+                --source 'https://nuget.pkg.github.com/OPCFoundation/index.json' `
+                --api-key $env:GITHUB_PACKAGES_TOKEN `
+                --skip-duplicate `
+                --no-symbols
+              if ($LASTEXITCODE -ne 0) {
+                  throw "GitHub Packages push failed for '$($package.Name)'."
+              }
+          }
+          ./.azurepipelines/assert-published-packages-match.ps1 `
+            -PackageDirectory promotion `
+            -ManifestPath 'promotion/current-package-set.json' `
+            -Feed 'GitHub Packages' `
+            -GitHubToken $env:GITHUB_PACKAGES_TOKEN `
+            -RequirePresent
 
       - name: Summary
         if: always()
         shell: pwsh
+        env:
+          RELEASE_RUN_ID: ${{ inputs.release_run_id }}
+          RELEASE_BRANCH: ${{ steps.source.outputs.branch }}
+          RELEASE_DRY_RUN: ${{ inputs.dry_run }}
         run: |
           $manifestPath = 'promotion/release-manifest.json'
           if (Test-Path -LiteralPath $manifestPath) {
               $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
-              $version = $manifest.packageVersion
+              $version = if ($manifest.schemaVersion -eq 2) {
+                  $manifest.basePackageVersion
+              }
+              else {
+                  $manifest.packageVersion
+              }
               $count = $manifest.packageCount
           }
           else {
@@ -195,9 +398,9 @@ jobs:
           @"
           ### nuget.org release
 
-          - Source run: ``${{ inputs.release_run_id }}``
-          - Source branch: ``${{ steps.source.outputs.branch }}``
+          - Source run: ``$($env:RELEASE_RUN_ID)``
+          - Source branch: ``$($env:RELEASE_BRANCH)``
           - Version: ``$version``
           - Packages: ``$count``
-          - Dry run: ``${{ inputs.dry_run }}``
+          - Dry run: ``$($env:RELEASE_DRY_RUN)``
           "@ | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY

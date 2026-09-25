@@ -78,6 +78,38 @@ namespace Opc.Ua.Client
     }
 
     /// <summary>
+    /// Refreshes cached peer endpoints without requiring a read from the unavailable active server.
+    /// </summary>
+    internal interface IServerRedundancyEndpointCache
+    {
+        /// <summary>
+        /// Reads the active server's redundancy metadata without waiting for discovery of its peers.
+        /// </summary>
+        /// <param name="session">The active session to read from.</param>
+        /// <param name="ct">Cancellation for the metadata read.</param>
+        /// <returns>The basic snapshot, including unresolved peer URIs and any cached endpoints.</returns>
+        ValueTask<ServerRedundancyInfo> ReadRedundancyInfoAsync(ISession session, CancellationToken ct);
+
+        /// <summary>
+        /// Resolves peer endpoints while retaining the redundancy and service-level data in the supplied snapshot.
+        /// </summary>
+        /// <param name="snapshot">The last known redundancy information.</param>
+        /// <param name="currentEndpoint">The endpoint used to match peer transport and security settings.</param>
+        /// <param name="ct">Cancellation for peer discovery.</param>
+        /// <returns>The snapshot with updated peer endpoint references.</returns>
+        ValueTask<ServerRedundancyInfo> ResolveCachedEndpointsAsync(
+            ServerRedundancyInfo snapshot,
+            ConfiguredEndpoint currentEndpoint,
+            CancellationToken ct);
+
+        /// <summary>
+        /// Removes cached entries that refer to a failed endpoint or its URL so a later attempt discovers it again.
+        /// </summary>
+        /// <param name="endpoint">The endpoint whose failover attempt failed.</param>
+        void InvalidateEndpoint(ConfiguredEndpoint endpoint);
+    }
+
+    /// <summary>
     /// Extension methods for <see cref="IServerRedundancyHandler"/>.
     /// </summary>
     public static class ServerRedundancyHandlerExtensions

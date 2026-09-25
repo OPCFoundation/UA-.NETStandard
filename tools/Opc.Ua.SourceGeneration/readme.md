@@ -42,6 +42,12 @@ a node in one input may reference a type defined in another (for example, instan
 `ModelDesign` whose `TypeDefinition` points at object types authored as a `NodeSet2`). Every input is
 supplied to the others as a resolution dependency, so such cross-model references resolve automatically.
 
+All four NodeId identifier types defined in OPC 10000-3 5.2.2 are supported: Numeric, String, Guid
+and Opaque. A `ModelDesign` carries them in the `NumericId`, `StringId`, `GuidId` and `OpaqueId`
+attributes of a node. Because `System.Guid` and `Opc.Ua.ByteString` values cannot be C# constants,
+the generated identifier fields for Guid and Opaque nodes are emitted as `static readonly` instead
+of `const`.
+
 Per-file behaviour is controlled with `AdditionalFiles` metadata:
 
 | Metadata | Description |
@@ -49,6 +55,10 @@ Per-file behaviour is controlled with `AdditionalFiles` metadata:
 | `ModelSourceGeneratorModelUri` | The model (namespace) URI of the input. Required when it cannot be inferred, and used to match the input to a namespace. |
 | `ModelSourceGeneratorName` | Overrides the generated `Namespaces` class identifier for the model. |
 | `ModelSourceGeneratorPrefix` | Overrides the C# namespace / prefix under which the model's types are generated. For a `NodeSet2` input this defaults to a value derived from the model URI — set it explicitly to choose the generated C# namespace. A `Prefix` declared inside a *referencing* `ModelDesign`'s `<opc:Namespaces>` does not rename the referenced model's generated types. |
+
+The generated namespace also exposes `ModelVersions.Target`, which is the target
+model's declared version. Use it when a host needs to publish the companion
+specification version without maintaining a second literal.
 
 ```xml
 <ItemGroup>

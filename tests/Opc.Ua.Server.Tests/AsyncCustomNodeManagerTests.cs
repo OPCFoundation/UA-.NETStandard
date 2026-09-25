@@ -108,10 +108,12 @@ namespace Opc.Ua.Server.Tests
             /// Uses the asynchronous node manager with per-node monitored-item management.
             /// </summary>
             MonitoredNodeMonitoredItemManager,
+
             /// <summary>
             /// Uses the asynchronous node manager with sampling-group monitored-item management.
             /// </summary>
             SamplingGroupMonitoredItemManager,
+
             /// <summary>
             /// Uses the legacy custom node manager through its asynchronous adapter.
             /// </summary>
@@ -1980,7 +1982,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(targetIds, Is.EqualTo(new[] { new ExpandedNodeId(children[1].NodeId) }));
+                Assert.That(targetIds, Is.EqualTo([new ExpandedNodeId(children[1].NodeId)]));
                 Assert.That(unresolved, Is.Empty);
                 Assert.That(browser, Is.Not.Null);
                 Assert.That(browser.NextCalls, Is.Zero, "the async manager must not fall back to Next()");
@@ -4132,7 +4134,7 @@ namespace Opc.Ua.Server.Tests
         /// Verifies that changing monitoring mode updates the monitored item's mode.
         /// </summary>
         [Test]
-        public async Task SetMonitoringModeAsync_ChangesModeAsync()
+        public async Task SetMonitoringModeAsyncChangesModeAsync()
         {
             // Setup manager and node
             using ITestNodeManager manager = CreateManager();
@@ -4178,7 +4180,8 @@ namespace Opc.Ua.Server.Tests
             var processedItems = new List<bool> { false };
             var modeErrors = new List<ServiceResult> { null };
             await manager.SetMonitoringModeAsync(
-                 new OperationContext(new RequestHeader(), null, RequestType.SetMonitoringMode, RequestLifetime.None),
+                 new OperationContext(
+                     new RequestHeader(), null, RequestType.SetMonitoringMode, RequestLifetime.None, m_mockSession.Object),
                  MonitoringMode.Reporting,
                  monitoredItems,
                  processedItems,
@@ -8422,7 +8425,7 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         [Test]
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5394:Do not use insecure randomness", Justification = "Not used for security purposes")]
-        public async Task ChaosTest_ConcurrentReadWriteBrowseAndMonitoredItemOperationsDoNotThrowAsync()
+        public async Task ConcurrentReadWriteBrowseAndMonitoredItemOperationsDoNotThrowAsync()
         {
             using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
@@ -8608,8 +8611,14 @@ namespace Opc.Ua.Server.Tests
                                     var modeItems = new List<IMonitoredItem> { item };
                                     var processed = new List<bool> { false };
                                     var modeErrors = new List<ServiceResult> { null };
+                                    using var modeContext = new OperationContext(
+                                        new RequestHeader(),
+                                        null,
+                                        RequestType.SetMonitoringMode,
+                                        RequestLifetime.None,
+                                        m_mockSession.Object);
                                     await manager.SetMonitoringModeAsync(
-                                        new OperationContext(new RequestHeader(), null, RequestType.SetMonitoringMode, RequestLifetime.None),
+                                        modeContext,
                                         mode, modeItems, processed, modeErrors).ConfigureAwait(false);
                                 }
                                 break;
@@ -9495,6 +9504,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Records a monitoring modification and throws when failure injection is enabled.
         /// </summary>
+        /// <exception cref="InvalidOperationException">Modification failure injection is enabled.</exception>
         public override void ModifyMonitoring(
             OperationContext context,
             ISampledDataChangeMonitoredItem monitoredItem)
@@ -9891,38 +9901,63 @@ namespace Opc.Ua.Server.Tests
         /// Gets the predefined nodes registered by the selected node-manager implementation.
         /// </summary>
         NodeIdDictionary<NodeState> PredefinedNodes { get; }
+
         /// <summary>
         /// Gets the monitored nodes maintained by the selected implementation.
         /// </summary>
         NodeIdDictionary<MonitoredNode2> MonitoredNodes { get; }
+
         /// <summary>
         /// Gets the monitored items maintained by the selected implementation.
         /// </summary>
         ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems { get; }
+
         /// <summary>
         /// Gets the server system context used by the selected node manager.
         /// </summary>
         ServerSystemContext SystemContext { get; }
+
         /// <summary>
         /// Gets the namespace indexes managed by the selected implementation.
         /// </summary>
         IReadOnlyList<ushort> NamespaceIndexes { get; }
+
         /// <summary>
         /// Gets the selected node manager's primary namespace index.
         /// </summary>
         ushort NamespaceIndex { get; }
+
         /// <summary>
         /// Finds a node by identifier in the selected node manager.
         /// </summary>
+        /// <param name="nodeId">The identifier to look up.</param>
+        /// <returns>The matching registered node.</returns>
         NodeState Find(NodeId nodeId);
+
         /// <summary>
         /// Adds an instance under the specified parent and returns its node identifier.
         /// </summary>
-        ValueTask<NodeId> AddNodeAsync(ServerSystemContext context, NodeId parentId, BaseInstanceState node, CancellationToken ct = default);
+        /// <param name="context">The operation's system context.</param>
+        /// <param name="parentId">The parent node identifier.</param>
+        /// <param name="node">The instance to register.</param>
+        /// <param name="ct">Cancellation for registration.</param>
+        /// <returns>The registered instance's identifier.</returns>
+        ValueTask<NodeId> AddNodeAsync(
+            ServerSystemContext context,
+            NodeId parentId,
+            BaseInstanceState node,
+            CancellationToken ct = default);
 
         /// <summary>
         /// Creates an instance with the requested parent, reference type, and browse name.
         /// </summary>
+        /// <param name="context">The operation's system context.</param>
+        /// <param name="parentId">The parent node identifier.</param>
+        /// <param name="referenceTypeId">The reference type linking the parent and instance.</param>
+        /// <param name="browseName">The instance's browse name.</param>
+        /// <param name="instance">The instance to create.</param>
+        /// <param name="ct">Cancellation for creation.</param>
+        /// <returns>The created instance's identifier.</returns>
         ValueTask<NodeId> CreateNodeAsync(
             ServerSystemContext context,
             NodeId parentId,
@@ -9934,19 +9969,35 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Deletes the identified node and reports whether deletion succeeded.
         /// </summary>
+        /// <param name="context">The operation's system context.</param>
+        /// <param name="nodeId">The node to delete.</param>
+        /// <param name="ct">Cancellation for deletion.</param>
+        /// <returns>Whether the node was deleted.</returns>
         ValueTask<bool> DeleteNodeAsync(ServerSystemContext context, NodeId nodeId, CancellationToken ct = default);
+
         /// <summary>
         /// Registers a predefined node through the selected implementation.
         /// </summary>
+        /// <param name="context">The context used to register the node.</param>
+        /// <param name="node">The predefined node to register.</param>
+        /// <param name="ct">Cancellation for registration.</param>
+        /// <returns>The asynchronous registration operation.</returns>
         ValueTask AddPredefinedNodeAsync(ISystemContext context, NodeState node, CancellationToken ct = default);
+
         /// <summary>
         /// Finds a predefined node whose type matches the requested node-state type.
         /// </summary>
+        /// <typeparam name="T">The required node-state type.</typeparam>
+        /// <param name="nodeId">The identifier of the predefined node.</param>
+        /// <returns>The registered node matching the requested identifier and type.</returns>
         T FindPredefinedNode<T>(NodeId nodeId) where T : NodeState;
 
         /// <summary>
         /// Marks a node as eligible to trigger ModelChangeEvents (Part 5 §9.32.2).
         /// </summary>
+        /// <param name="node">The node whose model changes should be tracked.</param>
+        /// <param name="namespaceIndex">An optional namespace for the tracking property.</param>
+        /// <returns>The node-version property used for change tracking.</returns>
         PropertyState<string> EnableModelChangeTrackingFor(NodeState node, ushort? namespaceIndex = null);
 
         /// <summary>
@@ -9973,31 +10024,52 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Tests whether a NodeId belongs to a managed namespace.
         /// </summary>
+        /// <param name="nodeId">The node identifier to inspect.</param>
+        /// <returns>Whether the selected manager owns the identifier's namespace.</returns>
         bool IsNodeIdInNamespacePublic(NodeId nodeId);
 
         /// <summary>
         /// Validates if a manager handle belongs to this node manager's namespace.
         /// </summary>
+        /// <param name="managerHandle">The handle to inspect.</param>
+        /// <returns>The owned node handle, or null when it is not recognized.</returns>
         NodeHandle? IsHandleInNamespacePublic(object? managerHandle);
 
         /// <summary>
         /// Adds a node to the component cache.
         /// </summary>
+        /// <param name="context">The context used to update the cache.</param>
+        /// <param name="handle">The handle associated with the node.</param>
+        /// <param name="node">The node to cache.</param>
+        /// <returns>The cached node instance.</returns>
         NodeState AddNodeToComponentCachePublic(ISystemContext context, NodeHandle handle, NodeState node);
 
         /// <summary>
         /// Removes a node from the component cache.
         /// </summary>
+        /// <param name="context">The context used to update the cache.</param>
+        /// <param name="handle">The handle whose cached node should be released.</param>
         void RemoveNodeFromComponentCachePublic(ISystemContext context, NodeHandle? handle);
 
         /// <summary>
         /// Looks up a node in the component cache.
         /// </summary>
+        /// <param name="context">The context used for the lookup.</param>
+        /// <param name="handle">The handle identifying the cached node.</param>
+        /// <returns>The cached node, or null when it is absent.</returns>
         NodeState? LookupNodeInComponentCachePublic(ISystemContext context, NodeHandle handle);
 
         /// <summary>
         /// Validates monitoring filter.
         /// </summary>
+        /// <param name="context">The operation's system context.</param>
+        /// <param name="handle">The monitored node's handle.</param>
+        /// <param name="attributeId">The attribute being monitored.</param>
+        /// <param name="samplingInterval">The requested sampling interval.</param>
+        /// <param name="queueSize">The requested notification queue size.</param>
+        /// <param name="filter">The filter to validate.</param>
+        /// <param name="cancellationToken">Cancellation for validation.</param>
+        /// <returns>The validation result and revised filter information.</returns>
         ValueTask<AsyncCustomNodeManager.ValidateMonitoringFilterResult> ValidateMonitoringFilterPublicAsync(
             ServerSystemContext context,
             NodeHandle handle,
@@ -10015,21 +10087,33 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Adds a root notifier.
         /// </summary>
+        /// <param name="notifier">The event source to register.</param>
+        /// <param name="cancellationToken">Cancellation for registration.</param>
+        /// <returns>The asynchronous registration operation.</returns>
         ValueTask AddRootNotifierPublicAsync(NodeState notifier, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Removes a root notifier.
         /// </summary>
+        /// <param name="notifier">The event source to unregister.</param>
+        /// <param name="cancellationToken">Cancellation for removal.</param>
+        /// <returns>The asynchronous removal operation.</returns>
         ValueTask RemoveRootNotifierPublicAsync(NodeState notifier, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Invokes the OnReportEvent handler.
         /// </summary>
+        /// <param name="context">The context associated with the event.</param>
+        /// <param name="node">The node reporting the event.</param>
+        /// <param name="filterTarget">The event data exposed to filtering.</param>
         void InvokeOnReportEvent(ISystemContext context, NodeState node, IFilterTarget filterTarget);
 
         /// <summary>
         /// Adds reverse references from predefined nodes to external targets.
         /// </summary>
+        /// <param name="externalReferences">The external reference map to update.</param>
+        /// <param name="cancellationToken">Cancellation for reference creation.</param>
+        /// <returns>The asynchronous reference-creation operation.</returns>
         ValueTask AddReverseReferencesPublicAsync(
             IDictionary<NodeId, IList<IReference>> externalReferences,
             CancellationToken cancellationToken = default);
@@ -10037,16 +10121,19 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Sets namespace URIs.
         /// </summary>
+        /// <param name="namespaceUris">The namespace URIs managed by the fixture.</param>
         void SetNamespacesPublic(params string[] namespaceUris);
 
         /// <summary>
         /// Sets namespace indexes.
         /// </summary>
+        /// <param name="namespaceIndexes">The namespace indexes managed by the fixture.</param>
         void SetNamespaceIndexesPublic(ushort[] namespaceIndexes);
 
         /// <summary>
         /// Sets namespace URIs via the property setter.
         /// </summary>
+        /// <param name="uris">The replacement namespace URI collection.</param>
         void SetNamespaceUrisPublic(IEnumerable<string>? uris);
     }
 
@@ -10097,10 +10184,12 @@ namespace Opc.Ua.Server.Tests
         /// Gets the legacy node manager's registered predefined nodes.
         /// </summary>
         public new NodeIdDictionary<NodeState> PredefinedNodes => base.PredefinedNodes;
+
         /// <summary>
         /// Gets the legacy node manager's monitored nodes.
         /// </summary>
         public new NodeIdDictionary<MonitoredNode2> MonitoredNodes => base.MonitoredNodes;
+
         /// <summary>
         /// Gets the legacy node manager's monitored items.
         /// </summary>
@@ -10323,22 +10412,27 @@ namespace Opc.Ua.Server.Tests
         /// ITestNodeManager state properties — delegate to m_cnm2
         /// </summary>
         public NodeIdDictionary<NodeState> PredefinedNodes => m_cnm2.PredefinedNodes;
+
         /// <summary>
         /// Gets the monitored nodes from the wrapped legacy node manager.
         /// </summary>
         public NodeIdDictionary<MonitoredNode2> MonitoredNodes => m_cnm2.MonitoredNodes;
+
         /// <summary>
         /// Gets the monitored items from the wrapped legacy node manager.
         /// </summary>
         public ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems => m_cnm2.MonitoredItems;
+
         /// <summary>
         /// Gets the system context from the wrapped legacy node manager.
         /// </summary>
         public ServerSystemContext SystemContext => m_cnm2.SystemContext;
+
         /// <summary>
         /// Gets the namespace indexes from the wrapped legacy node manager.
         /// </summary>
         public IReadOnlyList<ushort> NamespaceIndexes => m_cnm2.NamespaceIndexes;
+
         /// <summary>
         /// Gets the primary namespace index from the wrapped legacy node manager.
         /// </summary>
@@ -10379,6 +10473,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Finds a predefined node of the requested type through the wrapped legacy node manager.
         /// </summary>
+        /// <typeparam name="T">The required node-state type.</typeparam>
         public T FindPredefinedNode<T>(NodeId nodeId) where T : NodeState
         {
             return m_cnm2.FindPredefinedNode<T>(nodeId)!;
@@ -10543,6 +10638,7 @@ namespace Opc.Ua.Server.Tests
         /// IAsyncNodeManager — delegate to m_adapter
         /// </summary>
         public IEnumerable<string> NamespaceUris => m_adapter.NamespaceUris;
+
         /// <summary>
         /// Gets the synchronous node-manager view exposed by the asynchronous adapter.
         /// </summary>

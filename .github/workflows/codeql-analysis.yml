@@ -53,7 +53,7 @@ jobs:
     - name: Set up .NET
       uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: '10.x'
+        dotnet-version: '10.0.401'
     # https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/codeql-code-scanning-for-compiled-languages#c-compiler-flags-injected-by-codeql-for-manual-builds
     #
     # CustomTestTarget pins the build to a single target framework (see

@@ -20,6 +20,9 @@
   <Folder Name="/samples/DI/">
     <Project Path="samples/DI/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" />
   </Folder>
+  <Folder Name="/samples/FluentApi/">
+    <Project Path="samples/FluentApi/BasicFluentApiServer/BasicFluentApiServer.csproj" />
+  </Folder>
   <Folder Name="/samples/Gds/">
     <Project Path="samples/Gds/OnboardingClient/OnboardingClient.csproj" />
     <Project Path="samples/Gds/OnboardingRegistrar/OnboardingRegistrar.csproj" />
@@ -252,6 +255,7 @@
     <File Path="docs/ProvisioningMode.md" />
     <File Path="docs/PubSub.md" />
     <File Path="docs/README.md" />
+    <File Path="docs/ReleaseProcess.md" />
     <File Path="docs/ReverseConnect.md" />
     <File Path="docs/RoleBasedUserManagement.md" />
     <File Path="docs/Sessions.md" />

@@ -30,6 +30,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -101,6 +102,19 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
         }
 
         private readonly TransferType m_transferType;
+
+        [Test]
+        public void TransferredSequencesRemainAvailableForRepublish()
+        {
+            using var subscription = new Subscription(Session.DefaultSubscription) { RepublishAfterTransfer = true };
+            ArrayOf<uint> available = new uint[] { 9, 10, 11 }.ToArrayOf();
+            MethodInfo processTransfer = typeof(Subscription).GetMethod(
+                "ProcessTransferredSequenceNumbers", BindingFlags.Instance | BindingFlags.NonPublic)!;
+
+            processTransfer.Invoke(subscription, [available]);
+
+            Assert.That(subscription.AvailableSequenceNumbers.ToArray(), Is.EquivalentTo(available.ToArray()));
+        }
 
         /// <summary>
         /// Initializes a new fixture instance for the given <paramref name="transferType"/>.

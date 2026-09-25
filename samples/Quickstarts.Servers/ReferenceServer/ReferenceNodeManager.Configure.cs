@@ -145,6 +145,16 @@ namespace Quickstarts.ReferenceServer
                 AccessLevels.CurrentReadOrWrite |
                 (uint)AccessLevelExType.NonatomicRead |
                 (uint)AccessLevelExType.NonatomicWrite;
+
+            // The CTT (Address Space Atomicity 001.js) looks for a non-atomic variable in the
+            // first 10000 variables of its cache, sorted by NodeId string. The 5000 mass
+            // variables sort before Scalar_Static_*, so a second non-atomic variable lives in
+            // the AccessRights folder, which sorts first.
+            builder.CTT.AccessRights.AccessRights_AccessAll
+                .AccessRights_AccessAll_NonatomicReadWrite.Node.AccessLevelEx =
+                AccessLevels.CurrentReadOrWrite |
+                (uint)AccessLevelExType.NonatomicRead |
+                (uint)AccessLevelExType.NonatomicWrite;
         }
 
         /// <summary>

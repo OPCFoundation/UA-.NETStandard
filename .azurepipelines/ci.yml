@@ -56,7 +56,7 @@ jobs:
     displayName: 'Install .NET 10.0'
     inputs:
       packageType: 'sdk'
-      version: '10.0.x'
+      version: '10.0.401'
   - task: PowerShell@2
     displayName: Versioning
     inputs:

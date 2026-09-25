@@ -37,6 +37,120 @@ emits the HTTPS twin as a discovery-only `EndpointDescription`
 alongside each `SecurityMode.None` HTTPS-binary endpoint so discovery
 clients see the OpenAPI route without hard-coding the URL.
 
+Discovery retains binary, JSON and OpenAPI endpoints even when their URL and
+security settings are identical. `GetEndpoints` profile filters select only
+the requested profiles, including when translating an alternate hostname.
+Managed client channels likewise include the effective transport profile in
+their sharing key: equal URLs do not allow different wire encodings to share
+an underlying channel.
+
+The managed channel manager retains its own client certificate and chain.
+Open attempts borrow independent snapshots, and each installed transport has
+separate references until it is closed. Closing or rotating one channel does
+not retire keys still used by another channel or an in-flight open.
+Managed sessions prefer the active certificate registry over an older configured
+store entry; unmanaged sessions retain explicit configured-store selection.
+A session opened on a managed transport uses that transport's
+owned certificate snapshot, including during recreation after rotation; a
+later registry update cannot substitute a different key into that handshake.
+Reconnects recheck certificate generations before reactivating sessions and
+reporting readiness. Publishing identical certificate/issuer material does not
+force another transport replacement; a changed issuer chain still does.
+Rotation that supersedes successful work does not consume the failed-attempt
+retry allowance. Reconnect time budgets and shutdown cancellation still apply.
+
+UA-TCP reconnect hands the new connection to the retained channel without
+closing it when the temporary handshake channel is retired. ECC and RSA-DH
+handoffs move the owned ephemeral nonce objects, including the private key;
+public nonce bytes cannot reconstruct them. The retained token's secret is
+used when deriving the replacement keys. Continued sequence numbers are
+checked against the retained channel, not treated as a new secure channel.
+A rejected or failed handoff closes the new connection and releases its
+unadopted token rather than restarting an orphaned receive loop. The peer
+certificate remains available through failure auditing. Receive loops
+have separate cancellation lifetimes; a retiring connection cannot stop its
+replacement. Connection admission reserves capacity before invoking channel
+callbacks, retires idle channels outside the listener lock, and closes rejected
+sockets. Invalid response sequences fail pending requests promptly with
+`BadSecurityChecksFailed`; diagnostics retain `BadSequenceNumberInvalid`.
+
+Raw TCP, Kestrel TCP, and UACP WebSocket listeners honor the configured
+`ConnectionRateLimiter` before allocating a channel or accepting a WebSocket
+upgrade. Kestrel and UACP WebSocket listeners reserve their configured
+`MaxChannelCount` capacity atomically, including pending admissions. The
+reservation follows the physical transport through a reverse-connect handoff
+and is released on closure, cancellation, failed attachment, or listener stop.
+The host retains ownership of a supplied limiter. These limits are not
+per-tenant fairness policies, and HTTP/JSON requests are not counted as UASC
+channels.
+
+### Committed session bindings
+
+Managed servers expose `ISessionBindingProvider` to their listeners.
+`SessionManager` maintains distinct committed session/channel membership:
+reactivation does not add another session, transfer moves only that session's
+binding, and closure, timeout cleanup, or shutdown removes it. Resource
+eligibility no longer depends on counting activation and close responses.
+
+`TryGetSessionContext` provides an immutable `SessionBindingContext` after a
+read-only lookup of a live, activated, unexpired session and its transport
+binding. It does not refresh session activity or perform service authorization.
+Full service validation is still required; re-query after queueing and compare
+snapshot identity and activation sequence before reusing classification.
+Sequences belong to a live session instance, so a restored session's snapshot
+must not be confused with the earlier instance. Anonymous sessions do not
+establish trusted tenants, and identity keys must not become unbounded metric
+labels.
+
+`StandardServer` uses its current session manager's optional capability by
+default. A custom manager without that capability grants no managed session
+classification. Core-only standalone channels without a provider retain
+legacy response-count hints for compatibility; those hints are not authoritative
+membership and must not be used to grant trusted reservations.
+
+### Incomplete-message resource limits
+
+UA Secure Conversation channels enforce message-size and chunk-count limits
+including the incoming chunk, before retaining it. Exceeding a limit releases
+the partial message and closes the channel; no final chunk is required to
+trigger cleanup. A valid Abort chunk is not additional message payload: it
+discards the partial message without consuming its size, chunk-count, or
+reassembly-budget allowance. The channel stays open; a client reports the
+peer's abort status for that request.
+
+On server channels, `ChannelLifetime` also bounds assembly of an incomplete
+message from its first retained chunk. Further chunks or other activity do not
+restart that deadline. Channels sharing listener quotas and a clock share one
+assembly timer, checked at half-lifetime intervals. Idle channels do not take
+the partial-message lock during that check. The timer is released when the last
+channel leaves the scope. This also works in bindings without an inactivity
+sweep. For assembly deadlines, a zero or negative `ChannelLifetime` uses the
+30-second transport default rather than disabling cleanup; other quota values
+are not changed. Expiry attempts an ERR carrying `BadTimeout` before closing,
+and cleanup still completes if that error cannot be sent.
+Completed or discarded messages clear their assembly state,
+and subsequent messages receive a fresh deadline. This applies before an OPC UA
+session is created and to the UA-TCP, Kestrel TCP, and WebSocket bindings using
+the server-channel pipeline.
+
+Per-channel limits alone do not bound memory across many connections.
+`ChunkReassemblyBudget` counts the actual arrays retained for intermediate
+chunks across all listeners of a server. Its default is **64 MiB** for the
+reference server, with half reserved as headroom for channels carrying activated
+sessions. Reservations are released on completion, replacement, abort, fault, or
+closure. Final chunks and normal response allocations are not charged.
+
+A rejected chunk releases the partial message, reports
+`BadTcpNotEnoughResources` when an error response can be sent, and closes the
+channel permanently. General buffer allocation remains unrestricted by default.
+See [reassembly-budget configuration](RateLimiting.md#incomplete-messages) for
+sizing and scope. `MaxSessionCount` does not limit connections that have not
+created a session.
+
+Hello negotiation also updates TCP and WebSocket receive-buffer sizes. The
+Kestrel pipe transport rents for the actual chunk size instead of the listener
+maximum, avoiding unnecessary retained capacity for small chunks.
+
 ## Assembly layout
 
 * **`Opc.Ua.Core`** (this is what every Server / Client application
@@ -130,6 +244,17 @@ sub-protocol) only accept `SecurityMode.None` regardless of the
 configured security policies — see Part 6 §7.4.5 / §7.5.2 for the
 spec rationale.
 
+All HTTPS and WSS client bindings, including WebApi, require the TLS certificate
+to match the endpoint hostname before invoking a configured OPC UA certificate
+validator. Trusting a certificate or its issuer does not bypass hostname
+verification. This also applies to TLS-only JSON bindings.
+
+All HTTP, WebSocket and WebApi dispatch paths forward the observed remote IP
+address for authentication lockout accounting. Unsecured clients cannot reset
+that bucket by opening a new connection or changing their ApplicationUri.
+When a transport cannot supply a peer address, the fallback bucket is
+session-local, never shared by every client of a listener.
+
 ## Client-side usage
 
 The client API is the standard `Session` + `EndpointDescription` flow;
@@ -187,6 +312,20 @@ A few notes:
 * The HTTPS client (binary or JSON) reuses a single `HttpClient` per
   channel; the encoding is selected from
   `EndpointDescription.TransportProfileUri` at request time.
+
+HTTPS binary, JSON, and OpenAPI clients obtain response headers before
+buffering the body. A positive `MaxMessageSize` limits the actual body bytes, including
+chunked responses or misleading `Content-Length` values. An oversized
+response fails with `BadResponseTooLarge`; the reader consumes at most one
+byte beyond the limit to detect the overflow. HTTP error responses are
+disposed without buffering their bodies.
+
+The request deadline and caller cancellation remain active while the
+response body is being read. The binary/JSON transport reports socket
+connection failures as `BadNotConnected`, socket or request timeouts as
+`BadRequestTimeout`, and other HTTP failures as `BadUnknownResponse`, while
+preserving the original exception for diagnostics. HTTP 429/503 retain
+their `BadServerTooBusy` and `Retry-After` handling.
 
 ## Discovery
 

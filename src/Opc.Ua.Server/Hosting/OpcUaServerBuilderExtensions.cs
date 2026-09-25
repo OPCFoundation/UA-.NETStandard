@@ -570,6 +570,62 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Bounds the memory that the chunks of incomplete messages may hold
+        /// across all the transport listeners of the hosted server.
+        /// </summary>
+        /// <remarks>
+        /// A peer that never sends the final chunk of a message makes the server
+        /// keep the chunks it sent. Without this call the budget is sized by
+        /// <see cref="Opc.Ua.Bindings.ChunkReassemblyBudget.GetDefaultMaxBytes(int)"/> from the
+        /// maximum message size; raise it when many clients send large requests
+        /// at the same time, lower it on a device with little memory. Channels on
+        /// which no session has been activated may fill half of it.
+        /// </remarks>
+        /// <param name="builder">The server builder.</param>
+        /// <param name="maxBytes">
+        /// The number of bytes the chunks of incomplete messages may hold in
+        /// total.
+        /// </param>
+        /// <returns>The same <see cref="IOpcUaServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/>
+        /// is <c>null</c>.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxBytes"/>
+        /// is not positive.</exception>
+        public static IOpcUaServerBuilder WithChunkReassemblyBudget(
+            this IOpcUaServerBuilder builder,
+            long maxBytes)
+        {
+            return builder.WithChunkReassemblyBudget(maxBytes, maxBytes / 2);
+        }
+
+        /// <summary>
+        /// Bounds incomplete-message memory with an explicit share for channels without an activated session.
+        /// </summary>
+        /// <param name="builder">The server builder.</param>
+        /// <param name="maxBytes">The total retained-byte limit across the server's listeners.</param>
+        /// <param name="maxBytesWithoutSession">
+        /// The occupancy threshold for channels without an activated session.
+        /// </param>
+        /// <returns>The same builder for chaining.</returns>
+        /// <exception cref="ArgumentNullException">The builder is null.</exception>
+        /// <exception cref="ArgumentOutOfRangeException">The total or sessionless limit is invalid.</exception>
+        public static IOpcUaServerBuilder WithChunkReassemblyBudget(
+            this IOpcUaServerBuilder builder,
+            long maxBytes,
+            long maxBytesWithoutSession)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.Replace(
+                ServiceDescriptor.Singleton(
+                    new Opc.Ua.Bindings.ChunkReassemblyBudget(maxBytes, maxBytesWithoutSession)));
+            return builder;
+        }
+
+        /// <summary>
         /// Registers a role manager that is installed on the hosted server at startup.
         /// </summary>
         /// <param name="builder">The server builder.</param>
@@ -705,7 +761,9 @@ namespace Microsoft.Extensions.DependencyInjection
                     sp.GetService<ISecretStore>() ?? new InMemorySecretStore("KeyCredentialPush")));
             builder.Services.AddSingleton(sp => new KeyCredentialPushSubject(
                 sp.GetRequiredService<IKeyCredentialStore>(),
-                sp.GetRequiredService<IOptions<KeyCredentialPushOptions>>().Value));
+                sp.GetRequiredService<IOptions<KeyCredentialPushOptions>>().Value,
+                sp.GetService<ICertificateRegistry>(),
+                sp.GetService<ISecurityPolicyRegistry>()));
             return builder;
         }
 

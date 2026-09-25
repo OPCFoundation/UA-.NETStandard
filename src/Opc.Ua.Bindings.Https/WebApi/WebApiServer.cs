@@ -31,7 +31,6 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua;
 
 namespace Opc.Ua.Bindings
 {
@@ -251,7 +250,8 @@ namespace Opc.Ua.Bindings
                 context.Endpoint ?? defaultEndpoint,
                 RequestEncoding.Json,
                 context.ClientCertificate,
-                context.ServerCertificate)
+                context.ServerCertificate,
+                peerAddress: context.PeerAddress)
             {
                 // Publish the upstream-authenticated identity so the
                 // OPC UA service pipeline (SessionManager / role

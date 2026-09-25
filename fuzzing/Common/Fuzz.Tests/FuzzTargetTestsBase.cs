@@ -109,22 +109,26 @@ namespace Opc.Ua.Fuzzing
                 }
                 catch (Exception ex)
                 {
-                    string entry = $"asset={messageEncoder} -> {ex.GetType().Name}: {ex.Message}";
+                    Exception cause = ex is TargetInvocationException { InnerException: not null } ?
+                        ex.InnerException :
+                        ex;
+                    string entry = $"asset={messageEncoder} -> {cause.GetType().Name}: {cause.Message}";
                     if (IsFidelityFinding(ex) && !IsCuratedAsset(messageEncoder))
                     {
+                        // Tolerated, so only the one line summary below is reported. The
+                        // external corpus is private, so its bytes are never emitted for it.
                         fidelityFindings.Add(entry);
-                    }
-                    else
-                    {
-                        failures.Add(entry);
+                        continue;
                     }
 
+                    failures.Add(entry);
                     TestContext.Error.WriteLine($"Failed: {messageEncoder}\n{ex}");
 
                     // Crash corpora are frequently supplied by the pipeline rather than the
                     // tree, so a failure there is otherwise impossible to reproduce locally.
                     // Emit the reproducer inline, bounded so a systemic failure cannot bury
-                    // the log. A passing run emits nothing.
+                    // the log. Only failures consume the budget, so tolerated findings cannot
+                    // exhaust it ahead of a failure. A passing run emits nothing.
                     if (reproducers++ < kMaxEmittedReproducers &&
                         messageEncoder.Testcase.Length <= kMaxEmittedReproducerBytes)
                     {
@@ -204,7 +208,7 @@ namespace Opc.Ua.Fuzzing
             string path = asset.Path;
             return path != null &&
                 path.Replace('\\', '/')
-                    .IndexOf("/Assets/Repo/", StringComparison.OrdinalIgnoreCase) >= 0;
+                    .Contains("/Assets/Repo/", StringComparison.OrdinalIgnoreCase);
         }
 
         [Theory]

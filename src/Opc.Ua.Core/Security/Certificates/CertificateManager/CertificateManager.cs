@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -57,7 +56,9 @@ namespace Opc.Ua
         /// </param>
         /// <param name="maxRejectedCertificates">
         /// The maximum number of rejected certificates to keep in the
-        /// rejected store. Defaults to 5.
+        /// rejected store. Zero is unlimited; a negative value disables new
+        /// additions and applies the backend's existing pruning behavior.
+        /// Defaults to 5.
         /// </param>
         /// <param name="expiryWarningThreshold">
         /// The time before expiry at which
@@ -86,12 +87,7 @@ namespace Opc.Ua
         {
             m_telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
             m_logger = telemetry.CreateLogger<CertificateManager>();
-            // Normalised the same way the property setter does, so the two ways
-            // of configuring the limit cannot disagree about what a negative
-            // value means.
-            m_maxRejectedCertificates = maxRejectedCertificates < 0
-                ? 0
-                : maxRejectedCertificates;
+            m_maxRejectedCertificates = maxRejectedCertificates;
             m_storeProviders = storeProviders?.ToList() ??
                 [
                     new DirectoryStoreProvider(),
@@ -123,7 +119,16 @@ namespace Opc.Ua
         public ICertificateProvider CertificateProvider => m_certificateProvider;
 
         /// <inheritdoc/>
-        public IReadOnlyCollection<TrustListIdentifier> TrustLists => [.. m_trustLists.Keys];
+        public IReadOnlyCollection<TrustListIdentifier> TrustLists
+        {
+            get
+            {
+                lock (m_certificatesLock)
+                {
+                    return [.. m_trustLists.Keys];
+                }
+            }
+        }
 
         /// <inheritdoc/>
         public IObservable<CertificateChangeEvent> CertificateChanges => m_changeSubject;
@@ -146,57 +151,50 @@ namespace Opc.Ua
                     nameof(trustedStorePath));
             }
 
-            if (!m_trustLists.TryAdd(trustList, new TrustListEntry(
-                                    trustedStorePath, issuerStorePath, StoreType: null)))
-            {
-                if (m_logger.IsEnabled(LogLevel.Debug))
+            RegisterOrReplaceTrustList(
+                trustList,
+                new CertificateTrustList
                 {
-                    m_logger.CertificateManagerLogMessage0(trustList.ToString());
-                }
-
-                return;
-            }
-
-            // A validation against this list before it was registered cached a
-            // core with no trust material at all, which would then reject every
-            // certificate for as long as it stayed cached.
-            InvalidateCores();
+                    StorePath = trustedStorePath,
+                    StoreType = ResolveStoreType(trustedStorePath)
+                },
+                issuerStorePath != null
+                    ? new CertificateTrustList
+                    {
+                        StorePath = issuerStorePath,
+                        StoreType = ResolveStoreType(issuerStorePath)
+                    }
+                    : null,
+                replaceExisting: false);
         }
 
         /// <inheritdoc/>
         public ICertificateStore OpenTrustedStore(TrustListIdentifier trustList)
         {
-            if (!m_trustLists.TryGetValue(trustList, out TrustListEntry? entry))
+            TrustListEntry entry = GetTrustListEntry(trustList);
+
+            CertificateTrustList? store = entry.TrustedStore;
+            if (store == null || string.IsNullOrEmpty(store.StorePath))
             {
-                throw new KeyNotFoundException(
-                    $"Trust list '{trustList}' is not registered.");
+                throw ServiceResultException.ConfigurationError(
+                    $"Trust list '{trustList}' has no configured trusted certificate store.");
             }
 
-            if (string.IsNullOrEmpty(entry.TrustedStorePath))
-            {
-                throw new InvalidOperationException(
-                    $"Trust list '{trustList}' names its trusted certificates " +
-                    "inline and has no store to open.");
-            }
-
-            return OpenStore(entry.TrustedStorePath!, entry.StoreType);
+            return OpenStore(store.StorePath!, store.StoreType);
         }
 
         /// <inheritdoc/>
         public ICertificateStore? OpenIssuerStore(TrustListIdentifier trustList)
         {
-            if (!m_trustLists.TryGetValue(trustList, out TrustListEntry? entry))
-            {
-                throw new KeyNotFoundException(
-                    $"Trust list '{trustList}' is not registered.");
-            }
+            TrustListEntry entry = GetTrustListEntry(trustList);
 
-            if (string.IsNullOrEmpty(entry.IssuerStorePath))
+            CertificateTrustList? store = entry.IssuerStore;
+            if (store == null || string.IsNullOrEmpty(store.StorePath))
             {
                 return null;
             }
 
-            return OpenStore(entry.IssuerStorePath!, entry.StoreType);
+            return OpenStore(store.StorePath!, store.StoreType);
         }
 
         /// <inheritdoc/>
@@ -209,18 +207,14 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(trustList));
             }
 
-            if (!m_trustLists.ContainsKey(trustList))
-            {
-                throw new KeyNotFoundException(
-                    $"Trust list '{trustList}' is not registered.");
-            }
+            _ = GetTrustListEntry(trustList);
 
             ITrustListTransaction transaction = new TrustListTransaction(this, trustList, this);
             return Task.FromResult(transaction);
         }
 
         /// <summary>
-        /// Maps the stores defined in a <see cref="SecurityConfiguration"/>
+        /// Maps the stores and explicit certificates defined in a <see cref="SecurityConfiguration"/>
         /// to named trust lists (Peers, Users, Https, Rejected).
         /// </summary>
         /// <param name="config">The security configuration to map from.</param>
@@ -230,19 +224,42 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Maps the stores defined in a <see cref="SecurityConfiguration"/>
+        /// Maps the stores and explicit certificates defined in a <see cref="SecurityConfiguration"/>
         /// to named trust lists with optional replacement of existing
         /// entries.
         /// </summary>
         /// <param name="config">The security configuration to map from.</param>
         /// <param name="replaceExisting">
         /// When <see langword="true"/>, existing trust list entries are
-        /// replaced with the paths from <paramref name="config"/> (used by
+        /// replaced with snapshots from <paramref name="config"/> (used by
         /// <see cref="UpdateAsync"/> to honour runtime trust-list path
         /// changes).
         /// </param>
         /// <exception cref="ArgumentNullException"><paramref name="config"/> is <c>null</c>.</exception>
+        /// <exception cref="ObjectDisposedException"></exception>
         private void MapFromSecurityConfiguration(SecurityConfiguration config, bool replaceExisting)
+        {
+            bool changed;
+            lock (m_certificatesLock)
+            {
+                if (m_disposed)
+                {
+                    throw new ObjectDisposedException(nameof(CertificateManager));
+                }
+                changed = MapSecurityConfigurationCore(config, replaceExisting);
+            }
+            if (changed)
+            {
+                InvalidateCores();
+            }
+        }
+
+        /// <summary>
+        /// Applies global validation flags and snapshots configured trust sources, reporting whether registration
+        /// changed.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="config"/> is <c>null</c>.</exception>
+        private bool MapSecurityConfigurationCore(SecurityConfiguration config, bool replaceExisting)
         {
             if (config == null)
             {
@@ -268,9 +285,7 @@ namespace Opc.Ua
             // Propagate to any already-created cached cores so behavior
             // changes when MapFromSecurityConfiguration is called more than
             // once on the same manager.
-            ApplyValidationFlags(m_peerCore);
-            ApplyValidationFlags(m_userCore);
-            ApplyValidationFlags(m_httpsCore);
+            ApplyValidationFlagsToCachedCores();
             lock (m_certificatesLock)
             {
                 foreach (CertificateValidationCore core in m_customCores.Values)
@@ -279,113 +294,127 @@ namespace Opc.Ua
                 }
             }
 
-            RegisterOrReplaceTrustList(
+            bool changed = RegisterTrustListCore(
                 TrustListIdentifier.Peers,
                 config.TrustedPeerCertificates,
-                config.TrustedIssuerCertificates?.StorePath,
+                config.TrustedIssuerCertificates,
                 replaceExisting);
 
-            RegisterOrReplaceTrustList(
+            changed |= RegisterTrustListCore(
                 TrustListIdentifier.Users,
                 config.TrustedUserCertificates,
-                config.UserIssuerCertificates?.StorePath,
+                config.UserIssuerCertificates,
                 replaceExisting);
 
-            RegisterOrReplaceTrustList(
+            changed |= RegisterTrustListCore(
                 TrustListIdentifier.Https,
                 config.TrustedHttpsCertificates,
-                config.HttpsIssuerCertificates?.StorePath,
+                config.HttpsIssuerCertificates,
                 replaceExisting);
 
-            RegisterOrReplaceTrustList(
+            changed |= RegisterTrustListCore(
                 TrustListIdentifier.Rejected,
-                config.RejectedCertificateStore?.StorePath,
-                explicitTrustedCertificates: default,
-                issuerStorePath: null,
+                config.RejectedCertificateStore,
+                issuerStore: null,
                 replaceExisting);
+            return changed;
         }
 
+        /// <summary>
+        /// Registers trust-list snapshots and invalidates cached validation cores when the registration changes.
+        /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
         private void RegisterOrReplaceTrustList(
             TrustListIdentifier trustList,
-            CertificateTrustList? trustedList,
-            string? issuerStorePath,
+            CertificateStoreIdentifier? trustedStore,
+            CertificateTrustList? issuerStore,
             bool replaceExisting)
         {
-            RegisterOrReplaceTrustList(
-                trustList,
-                trustedList?.StorePath,
-                trustedList?.TrustedCertificates ?? default,
-                issuerStorePath,
-                replaceExisting);
-        }
-
-        private void RegisterOrReplaceTrustList(
-            TrustListIdentifier trustList,
-            string? trustedStorePath,
-            ArrayOf<CertificateIdentifier> explicitTrustedCertificates,
-            string? issuerStorePath,
-            bool replaceExisting)
-        {
-            // A trust list is worth registering as soon as it names trust
-            // material, and <TrustedCertificates> alone is enough: a
-            // configuration that lists peers inline and sets no store path had
-            // nothing registered at all, so the validator went on rejecting
-            // exactly the peers it was told to trust.
-            if (string.IsNullOrEmpty(trustedStorePath) && explicitTrustedCertificates.IsEmpty)
+            bool changed;
+            lock (m_certificatesLock)
             {
-                // When registering, there is simply nothing to add. When
-                // replacing, the new configuration no longer names this list at
-                // all, so the old registration has to go: keeping it would go on
-                // trusting the store and certificates the configuration just
-                // removed. A validation against a list that is not registered
-                // trusts nothing, which is the safe side to fail on.
-                if (replaceExisting && m_trustLists.TryRemove(trustList, out _))
+                if (m_disposed)
                 {
-                    InvalidateCores();
+                    throw new ObjectDisposedException(nameof(CertificateManager));
                 }
+                changed = RegisterTrustListCore(trustList, trustedStore, issuerStore, replaceExisting);
+            }
+            if (changed)
+            {
+                InvalidateCores();
+            }
+        }
 
-                return;
+        /// <summary>
+        /// Adds, replaces, or removes a named trust list according to its configured stores and explicit certificates.
+        /// </summary>
+        private bool RegisterTrustListCore(
+            TrustListIdentifier trustList,
+            CertificateStoreIdentifier? trustedStore,
+            CertificateTrustList? issuerStore,
+            bool replaceExisting)
+        {
+            if (!HasTrustSource(trustedStore) && !HasTrustSource(issuerStore))
+            {
+                return replaceExisting && m_trustLists.Remove(trustList);
             }
 
             var entry = new TrustListEntry(
-                trustedStorePath,
-                issuerStorePath,
-                StoreType: null,
-                explicitTrustedCertificates);
+                CreateTrustListSnapshot(trustedStore),
+                CreateTrustListSnapshot(issuerStore));
 
-            if (!replaceExisting)
+            if (replaceExisting)
             {
-                // TryAdd, not ContainsKey-then-assign: the dictionary is written
-                // at run time and read lock-free, so the compound form would let
-                // two registrations both decide the list was absent and the
-                // second silently replace the first.
-                if (m_trustLists.TryAdd(trustList, entry))
-                {
-                    // A validation before this registration cached a core with
-                    // no trust material at all, which would otherwise keep
-                    // rejecting everything this list now trusts.
-                    InvalidateCores();
-                }
-                else if (m_logger.IsEnabled(LogLevel.Debug))
-                {
-                    m_logger.CertificateManagerLogMessage0(trustList.ToString());
-                }
-
-                return;
+                m_trustLists[trustList] = entry;
+                return true;
             }
-
-            if (m_trustLists.TryGetValue(trustList, out TrustListEntry? existing) &&
-                existing == entry)
+            if (m_trustLists.TryAdd(trustList, entry))
             {
-                return;
+                return true;
             }
+            if (m_logger.IsEnabled(LogLevel.Debug))
+            {
+                m_logger.CertificateManagerLogMessage0(trustList.ToString());
+            }
+            return false;
+        }
 
-            m_trustLists[trustList] = entry;
+        /// <summary>
+        /// Copies trust-list metadata and resolves inferred store types using the manager's registered providers.
+        /// </summary>
+        private CertificateTrustList? CreateTrustListSnapshot(CertificateStoreIdentifier? store)
+        {
+            var snapshot = CertificateTrustList.CreateSnapshot(store);
+            if (snapshot != null &&
+                !string.IsNullOrEmpty(snapshot.StorePath) &&
+                (string.IsNullOrEmpty(snapshot.StoreType) || snapshot.StoreType == CertificateStoreType.Directory))
+            {
+                // StorePath infers Directory without seeing injected providers.
+                // Preserve named custom stores while resolving that fallback here.
+                snapshot.StoreType = ResolveStoreType(snapshot.StorePath!);
+            }
+            return snapshot;
+        }
 
-            // A cached core snapshots its trust list when it is built, so one
-            // that already exists would keep validating against the store path
-            // and the explicitly trusted certificates this call just replaced.
-            InvalidateCores();
+        /// <summary>
+        /// Resolves a path-specific store provider before allowing the directory-store fallback.
+        /// </summary>
+        private string ResolveStoreType(string storePath)
+        {
+            // The built-in directory provider is a catch-all, not a path-specific provider.
+            return CertificateStoreIdentifier.DetermineStoreType(
+                storePath,
+                m_storeProviders.Where(static provider => provider is not DirectoryStoreProvider));
+        }
+
+        /// <summary>
+        /// Determines whether a trust source supplies a store path or explicitly listed certificates.
+        /// </summary>
+        private static bool HasTrustSource(CertificateStoreIdentifier? store)
+        {
+            return store != null &&
+                (!string.IsNullOrEmpty(store.StorePath) ||
+                    (store is CertificateTrustList trustList && !trustList.TrustedCertificates.IsEmpty));
         }
 
         /// <inheritdoc/>
@@ -402,12 +431,10 @@ namespace Opc.Ua
             get => m_autoAcceptUntrustedCertificates;
             set
             {
-                m_autoAcceptUntrustedCertificates = value;
                 lock (m_certificatesLock)
                 {
-                    ApplyValidationFlags(m_peerCore);
-                    ApplyValidationFlags(m_userCore);
-                    ApplyValidationFlags(m_httpsCore);
+                    m_autoAcceptUntrustedCertificates = value;
+                    ApplyValidationFlagsToCachedCores();
                 }
             }
         }
@@ -421,12 +448,10 @@ namespace Opc.Ua
             get => m_rejectSHA1SignedCertificates;
             set
             {
-                m_rejectSHA1SignedCertificates = value;
                 lock (m_certificatesLock)
                 {
-                    ApplyValidationFlags(m_peerCore);
-                    ApplyValidationFlags(m_userCore);
-                    ApplyValidationFlags(m_httpsCore);
+                    m_rejectSHA1SignedCertificates = value;
+                    ApplyValidationFlagsToCachedCores();
                 }
             }
         }
@@ -440,32 +465,25 @@ namespace Opc.Ua
             get => m_rejectUnknownRevocationStatus;
             set
             {
-                m_rejectUnknownRevocationStatus = value;
                 lock (m_certificatesLock)
                 {
-                    ApplyValidationFlags(m_peerCore);
-                    ApplyValidationFlags(m_userCore);
-                    ApplyValidationFlags(m_httpsCore);
+                    m_rejectUnknownRevocationStatus = value;
+                    ApplyValidationFlagsToCachedCores();
                 }
             }
         }
 
         /// <summary>
         /// Gets or sets the maximum number of rejected certificates kept in
-        /// the rejected-certificate store. Setting zero or a negative value
-        /// keeps none and clears the rejected store; a negative value reads
-        /// back as zero.
+        /// the rejected-certificate store. Zero is unlimited; a negative value
+        /// disables new additions and applies the backend's existing pruning behavior.
         /// </summary>
         public int MaxRejectedCertificates
         {
             get => m_maxRejectedCertificates;
             set
             {
-                // A negative limit means the same as zero - keep no rejected
-                // history - so it is normalised here and the stores only ever
-                // see zero or a positive cap.
-                m_maxRejectedCertificates = value < 0 ? 0 : value;
-
+                m_maxRejectedCertificates = value;
                 if (m_rejectedProcessor != null)
                 {
                     m_rejectedProcessor.SetMaxRejectedCertificates(m_maxRejectedCertificates);
@@ -546,11 +564,8 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(issuers));
             }
 
-            // GetOrCreateCore hands back a reference on the shared core; holding
-            // it keeps a concurrent trust-list change from tearing the core down
-            // while this validation is still running.
-            using CertificateValidationCore core = GetOrCreateCore(TrustListIdentifier.Peers);
-            return await core.GetIssuersAsync(certificate, issuers, ct).ConfigureAwait(false);
+            using CertificateValidationCore.Borrow borrow = GetOrCreateCore(TrustListIdentifier.Peers);
+            return await borrow.Core.GetIssuersAsync(certificate, issuers, ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -568,6 +583,7 @@ namespace Opc.Ua
             string? applicationUri = null,
             CancellationToken ct = default)
         {
+            ThrowIfDisposed();
             // Build the new entries OUTSIDE the lock (resolution is async and
             // may be slow on file I/O), then atomically swap inside the lock.
             ArrayOf<CertificateIdentifier> appCerts = securityConfiguration.ApplicationCertificates;
@@ -611,9 +627,11 @@ namespace Opc.Ua
                 List<CertificateEntry> oldEntries;
                 lock (m_certificatesLock)
                 {
+                    ThrowIfDisposed();
                     oldEntries = [.. m_applicationCertificates];
                     m_applicationCertificates.Clear();
                     m_applicationCertificates.AddRange(newEntries);
+                    newEntries.Clear();
                 }
 
                 // Dispose the manager's own old entries OUTSIDE the lock.
@@ -624,10 +642,6 @@ namespace Opc.Ua
                 {
                     oldEntry.Dispose();
                 }
-
-                // ownership transferred into m_applicationCertificates; do not
-                // dispose newEntries on success.
-                newEntries.Clear();
             }
             finally
             {
@@ -707,17 +721,13 @@ namespace Opc.Ua
             CancellationToken ct = default)
         {
             trustList ??= TrustListIdentifier.Peers;
-
-            // GetOrCreateCore hands back a reference on the shared core; holding
-            // it keeps a concurrent trust-list change from tearing the core down
-            // while this validation is still running.
-            using CertificateValidationCore core = GetOrCreateCore(trustList);
+            using CertificateValidationCore.Borrow borrow = GetOrCreateCore(trustList);
 
             // Per-call AcceptError takes precedence over the global hook.
             Func<Certificate, ServiceResult, bool>? acceptError =
                 options?.AcceptError ?? m_acceptError;
 
-            CertificateValidationResult result = await core
+            CertificateValidationResult result = await borrow.Core
                 .ValidateAsync(chain, acceptError, options, ct)
                 .ConfigureAwait(false);
 
@@ -784,13 +794,10 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(endpoint));
             }
 
-            // GetOrCreateCore hands back a reference on the shared core; holding
-            // it keeps a concurrent trust-list change from tearing the core down
-            // while this validation is still running.
-            using CertificateValidationCore core = GetOrCreateCore(TrustListIdentifier.Peers);
+            using CertificateValidationCore.Borrow borrow = GetOrCreateCore(TrustListIdentifier.Peers);
             try
             {
-                core.ValidateApplicationUri(serverCertificate, endpoint, m_acceptError);
+                borrow.Core.ValidateApplicationUri(serverCertificate, endpoint, m_acceptError);
             }
             catch (ServiceResultException)
             {
@@ -834,13 +841,10 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(endpoint));
             }
 
-            // GetOrCreateCore hands back a reference on the shared core; holding
-            // it keeps a concurrent trust-list change from tearing the core down
-            // while this validation is still running.
-            using CertificateValidationCore core = GetOrCreateCore(TrustListIdentifier.Peers);
+            using CertificateValidationCore.Borrow borrow = GetOrCreateCore(TrustListIdentifier.Peers);
             try
             {
-                core.ValidateDomains(
+                borrow.Core.ValidateDomains(
                     serverCertificate,
                     endpoint,
                     serverValidation,
@@ -879,6 +883,7 @@ namespace Opc.Ua
             CertificateCollection? issuerChain = null,
             CancellationToken ct = default)
         {
+            ThrowIfDisposed();
             // When the caller does not supply a chain (e.g. the GDS push /
             // rotation flow), resolve it from the configured stores so the
             // replaced certificate also emits its full chain immediately
@@ -896,6 +901,7 @@ namespace Opc.Ua
 
             lock (m_certificatesLock)
             {
+                ThrowIfDisposed();
                 // Find and replace the existing entry.
                 for (int i = 0; i < m_applicationCertificates.Count; i++)
                 {
@@ -947,7 +953,7 @@ namespace Opc.Ua
                 certificateType,
                 oldEntry?.Certificate,
                 newCertificate,
-                issuerChain));
+                effectiveChain));
 
             // Dispose the old entry after notification so observers
             // can still read the old certificate during the callback.
@@ -970,17 +976,13 @@ namespace Opc.Ua
             string? applicationUri = null,
             CancellationToken ct = default)
         {
+            ThrowIfDisposed();
             // Snapshot the previous primary entry (if any) so we can fire a
             // CertificateChange notification once the reload completes.
             CertificateValidationCore? oldPeer;
             CertificateValidationCore? oldUser;
             CertificateValidationCore? oldHttps;
-            CertificateEntry? oldPrimary;
-            lock (m_certificatesLock)
-            {
-                oldPrimary = m_applicationCertificates.FirstOrDefault();
-            }
-            using Certificate? oldCertSnapshot = oldPrimary?.Certificate.AddRef();
+            using CertificateEntry? oldPrimary = AcquirePrimaryCertificate();
 
             await LoadApplicationCertificatesAsync(securityConfiguration, applicationUri, ct)
                 .ConfigureAwait(false);
@@ -1007,18 +1009,14 @@ namespace Opc.Ua
 
             m_lifecycleMonitor?.Reset();
 
-            CertificateEntry? newPrimary;
-            lock (m_certificatesLock)
-            {
-                newPrimary = m_applicationCertificates.FirstOrDefault();
-            }
+            using CertificateEntry? newPrimary = AcquirePrimaryCertificate();
             if (newPrimary != null)
             {
                 m_changeSubject.Notify(new CertificateChangeEvent(
                     CertificateChangeKind.ApplicationCertificateUpdated,
                     TrustListIdentifier.Peers,
                     newPrimary.CertificateType,
-                    oldCertSnapshot,
+                    oldPrimary?.Certificate,
                     newPrimary.Certificate,
                     newPrimary.IssuerChain));
             }
@@ -1035,9 +1033,8 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(securityConfiguration));
             }
 
-            // Re-map trust-list paths and validation flags. Existing entries
-            // are replaced so trust-list path changes (rare but possible via
-            // GDS push) propagate.
+            // Replace trust-list snapshots and validation flags, including
+            // explicit entries and the removal of previously configured sources.
             MapFromSecurityConfiguration(securityConfiguration, replaceExisting: true);
 
             // Reload the registry from the underlying stores. The reload
@@ -1304,33 +1301,64 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
-            if (!m_disposed)
+            CertificateValidationCore[] cores;
+            CertificateValidationCore? peer;
+            CertificateValidationCore? user;
+            CertificateValidationCore? https;
+            lock (m_certificatesLock)
             {
-                m_lifecycleMonitor?.Dispose();
-                m_changeSubject.Complete();
-
-                if (m_rejectedProcessor != null)
+                if (m_disposed)
                 {
-                    await m_rejectedProcessor.DisposeAsync().ConfigureAwait(false);
+                    return;
                 }
-
-                // Clears the fields under the lock before releasing, so a
-                // validation starting concurrently cannot pick up a core that has
-                // already been torn down - GetOrCreateCore only trusts what it
-                // finds cached because the field is cleared first.
-                InvalidateCores();
-
-                m_certificateProvider.Dispose();
-
-                foreach (CertificateEntry entry in m_applicationCertificates)
-                {
-                    entry.Dispose();
-                }
-
-                m_applicationCertificates.Clear();
-
-                m_trustLists.Clear();
                 m_disposed = true;
+                cores = [.. m_customCores.Values];
+                peer = m_peerCore;
+                user = m_userCore;
+                https = m_httpsCore;
+                m_peerCore = null;
+                m_userCore = null;
+                m_httpsCore = null;
+                m_customCores.Clear();
+            }
+            m_lifecycleMonitor?.Dispose();
+            m_changeSubject.Complete();
+            peer?.Dispose();
+            user?.Dispose();
+            https?.Dispose();
+            foreach (CertificateValidationCore core in cores)
+            {
+                core.Dispose();
+            }
+            await Task.WhenAll(cores.Select(core => core.Disposal)).ConfigureAwait(false);
+            if (peer != null)
+            {
+                await peer.Disposal.ConfigureAwait(false);
+            }
+            if (user != null)
+            {
+                await user.Disposal.ConfigureAwait(false);
+            }
+            if (https != null)
+            {
+                await https.Disposal.ConfigureAwait(false);
+            }
+            if (m_rejectedProcessor != null)
+            {
+                await m_rejectedProcessor.DisposeAsync().ConfigureAwait(false);
+            }
+
+            m_certificateProvider.Dispose();
+            CertificateEntry[] certificates;
+            lock (m_certificatesLock)
+            {
+                certificates = [.. m_applicationCertificates];
+                m_applicationCertificates.Clear();
+                m_trustLists.Clear();
+            }
+            foreach (CertificateEntry entry in certificates)
+            {
+                entry.Dispose();
             }
         }
 
@@ -1378,120 +1406,54 @@ namespace Opc.Ua
         /// Gets or creates a <see cref="CertificateValidationCore"/> configured
         /// for the specified trust list.
         /// </summary>
-        private CertificateValidationCore GetOrCreateCore(TrustListIdentifier trustList)
+        /// <exception cref="ObjectDisposedException"></exception>
+        private CertificateValidationCore.Borrow GetOrCreateCore(TrustListIdentifier trustList)
         {
-            while (true)
+            lock (m_certificatesLock)
             {
-                CertificateValidationCore? core = TryGetOrCreateCore(trustList);
-
-                if (core != null)
+                if (m_disposed)
                 {
-                    return core;
+                    throw new ObjectDisposedException(nameof(CertificateManager));
                 }
-
-                // The trust list was replaced while the core was being built, so
-                // the one just built is already stale. Try again with what the
-                // replacement put there.
+                CertificateValidationCore? core = GetCachedCore(trustList);
+                if (core == null)
+                {
+                    core = new CertificateValidationCore(
+                        m_telemetry,
+                        store => string.IsNullOrEmpty(store.StorePath)
+                            ? null
+                            : OpenStore(store.StorePath!, store.StoreType));
+                    try
+                    {
+                        if (m_trustLists.TryGetValue(trustList, out TrustListEntry? entry))
+                        {
+                            core.Update(entry.IssuerStore, entry.TrustedStore, rejectedCertificateStore: null);
+                        }
+                        ApplyValidationFlags(core);
+                        ReplaceCachedCore(trustList, core);
+                    }
+                    catch
+                    {
+                        core.Dispose();
+                        throw;
+                    }
+                }
+                return core.AcquireBorrow();
             }
         }
 
         /// <summary>
-        /// One attempt at <see cref="GetOrCreateCore"/>, returning <c>null</c>
-        /// when the trust list changed underneath it and the caller should retry.
+        /// Retrieves a registered trust-list snapshot or reports that the requested list is unknown.
         /// </summary>
-        private CertificateValidationCore? TryGetOrCreateCore(TrustListIdentifier trustList)
+        /// <exception cref="KeyNotFoundException"></exception>
+        private TrustListEntry GetTrustListEntry(TrustListIdentifier trustList)
         {
-            // Fast path: return a cached core without taking the lock.
-            CertificateValidationCore? cached = GetCachedCore(trustList);
-            if (cached != null && cached.TryAddRef())
-            {
-                return cached;
-            }
-
-            // Slow path: build a candidate core outside the lock,
-            // then atomically install it. If a peer thread won the race,
-            // dispose the loser.
-            var candidate = new CertificateValidationCore(m_telemetry);
-
-            m_trustLists.TryGetValue(trustList, out TrustListEntry? entry);
-
-            if (entry != null)
-            {
-                var trustedStore = new CertificateTrustList
-                {
-                    StorePath = entry.TrustedStorePath,
-                    TrustedCertificates = entry.ExplicitTrustedCertificates
-                };
-
-                CertificateTrustList? issuerStore = entry.IssuerStorePath != null
-                    ? new CertificateTrustList { StorePath = entry.IssuerStorePath }
-                    : null;
-
-                candidate.Update(issuerStore, trustedStore, rejectedCertificateStore: null);
-            }
-
-            ApplyValidationFlags(candidate);
-
-            CertificateValidationCore winner;
             lock (m_certificatesLock)
             {
-                // The entry was read outside the lock, so a replacement that
-                // invalidated the cores in the meantime would be undone by
-                // installing this candidate - the new trust material would then
-                // never be picked up. Report the miss and let the caller retry.
-                m_trustLists.TryGetValue(trustList, out TrustListEntry? current);
-
-                if (current != entry)
-                {
-                    candidate.Dispose();
-                    return null;
-                }
-
-                if (trustList == TrustListIdentifier.Peers)
-                {
-                    winner = m_peerCore ??= candidate;
-                }
-                else if (trustList == TrustListIdentifier.Users)
-                {
-                    winner = m_userCore ??= candidate;
-                }
-                else if (trustList == TrustListIdentifier.Https)
-                {
-                    winner = m_httpsCore ??= candidate;
-                }
-                else if (m_customCores.TryGetValue(trustList, out CertificateValidationCore? existingCustom))
-                {
-                    winner = existingCustom;
-                }
-                else
-                {
-                    // A custom (non-well-known) trust list registered via
-                    // CertificateManagerOptions.AddTrustList: cache it the
-                    // same way as Peers/Users/Https so this method never
-                    // creates an unreachable, un-disposable core on every
-                    // call, and so Dispose() below can release its
-                    // certificate-store handles.
-                    m_customCores.Add(trustList, candidate);
-                    winner = candidate;
-                }
-
-                // A cached core whose last reference has already gone (a teardown
-                // that released it before clearing the field) must not be handed
-                // out: replace it with the freshly built candidate instead.
-                if (!winner.TryAddRef())
-                {
-                    winner = candidate;
-                    ReplaceCachedCore(trustList, candidate);
-                    winner.TryAddRef();
-                }
+                return m_trustLists.TryGetValue(trustList, out TrustListEntry? entry)
+                    ? entry
+                    : throw new KeyNotFoundException($"Trust list '{trustList}' is not registered.");
             }
-
-            if (!ReferenceEquals(winner, candidate))
-            {
-                // Lost the race; dispose our orphaned candidate.
-                candidate.Dispose();
-            }
-            return winner;
         }
 
         /// <summary>
@@ -1542,6 +1504,17 @@ namespace Opc.Ua
             core.UseValidatedCertificates = m_useValidatedCertificates;
         }
 
+        private void ApplyValidationFlagsToCachedCores()
+        {
+            ApplyValidationFlags(m_peerCore);
+            ApplyValidationFlags(m_userCore);
+            ApplyValidationFlags(m_httpsCore);
+            foreach (CertificateValidationCore core in m_customCores.Values)
+            {
+                ApplyValidationFlags(core);
+            }
+        }
+
         /// <summary>
         /// Returns the cached core for a well-known trust list, a
         /// previously cached custom trust list, or <see langword="null"/>
@@ -1579,55 +1552,62 @@ namespace Opc.Ua
         /// </summary>
         private ICertificateStore OpenStore(string storePath, string? storeType)
         {
-            storeType ??= CertificateStoreIdentifier.DetermineStoreType(storePath, m_storeProviders);
+            storeType ??= ResolveStoreType(storePath);
 
-            foreach (ICertificateStoreProvider provider in m_storeProviders)
+            ICertificateStore store = CertificateStoreIdentifier.CreateStore(storeType, m_telemetry, m_storeProviders);
+            try
             {
-                if (string.Equals(
-                        provider.StoreTypeName,
-                        storeType,
-                        StringComparison.Ordinal))
-                {
-                    ICertificateStore store = provider.CreateStore(m_telemetry);
-                    store.Open(storePath);
-                    return store;
-                }
+                store.Open(storePath);
+                return store;
             }
-
-            // Fallback to the existing factory method for custom store types.
-            ICertificateStore fallbackStore =
-                CertificateStoreIdentifier.CreateStore(storeType, m_telemetry);
-            fallbackStore.Open(storePath);
-            return fallbackStore;
+            catch
+            {
+                store.Dispose();
+                throw;
+            }
         }
 
         /// <summary>
         /// Internal record for a registered trust list.
         /// </summary>
-        /// <param name="TrustedStorePath">
-        /// The trusted store, or <c>null</c> when the list names its trusted
-        /// certificates inline and has no store behind it.
+        /// <param name="TrustedStore">
+        /// Snapshotted trusted-store metadata and explicitly trusted certificates.
         /// </param>
-        /// <param name="IssuerStorePath">The issuer store, if any.</param>
-        /// <param name="StoreType">
-        /// The store type, or <c>null</c> to derive it from the path.
-        /// </param>
-        /// <param name="ExplicitTrustedCertificates">
-        /// The certificates named on the trust list itself.
+        /// <param name="IssuerStore">
+        /// Snapshotted issuer-store metadata and explicit chain-completion certificates.
         /// </param>
         private sealed record TrustListEntry(
-            string? TrustedStorePath,
-            string? IssuerStorePath,
-            string? StoreType,
-            ArrayOf<CertificateIdentifier> ExplicitTrustedCertificates = default);
+            CertificateTrustList? TrustedStore,
+            CertificateTrustList? IssuerStore);
 
         /// <summary>
-        /// Registered trust lists. Concurrent because the validation hot path
-        /// reads it without a lock while <c>MapFromSecurityConfiguration</c>
-        /// and <see cref="RegisterTrustList"/> can write to it at run time.
+        /// Acquires a caller-owned reference to the first application certificate while the manager remains active.
         /// </summary>
-        private readonly ConcurrentDictionary<TrustListIdentifier, TrustListEntry> m_trustLists
-            = new();
+        private CertificateEntry? AcquirePrimaryCertificate()
+        {
+            lock (m_certificatesLock)
+            {
+                ThrowIfDisposed();
+                return m_applicationCertificates.FirstOrDefault()?.AddRef();
+            }
+        }
+
+        /// <summary>
+        /// Rejects operations after the manager has released its owned resources.
+        /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
+        private void ThrowIfDisposed()
+        {
+            if (Volatile.Read(ref m_disposed))
+            {
+                throw new ObjectDisposedException(nameof(CertificateManager));
+            }
+        }
+
+        /// <summary>
+        /// Holds the trusted and issuer source snapshots registered under each trust-list identifier.
+        /// </summary>
+        private readonly Dictionary<TrustListIdentifier, TrustListEntry> m_trustLists = [];
         private readonly Dictionary<TrustListIdentifier, CertificateValidationCore> m_customCores = [];
         private readonly List<CertificateEntry> m_applicationCertificates = [];
         private readonly List<ICertificateStoreProvider> m_storeProviders;
@@ -1674,8 +1654,7 @@ namespace Opc.Ua
                 "sending leaf certificate only.")]
         public static partial void CertificateManagerLogMessage1(
             this ILogger logger,
-            global::System.Exception? exception,
-            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+            Exception? exception,
+            Certificate? certificate);
     }
-
 }

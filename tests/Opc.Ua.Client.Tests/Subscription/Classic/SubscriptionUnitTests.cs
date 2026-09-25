@@ -28,10 +28,12 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -49,6 +51,7 @@ namespace Opc.Ua.Client.Tests
             public bool SessionConnected { get; init; }
             public bool SessionReconnecting { get; init; }
             public bool SessionKeepAliveStopped { get; init; }
+
             public string ToString(string format, IFormatProvider formatProvider)
             {
                 return $"Connected={SessionConnected}, " +
@@ -386,6 +389,175 @@ namespace Opc.Ua.Client.Tests
             {
                 Assert.That(subscription.Notifications, Is.EquivalentTo(messages.Skip(1)));
             }
+        }
+
+        /// <summary>
+        /// Steady delivery and sequence rollover do not resynchronize the cursor backwards.
+        /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        [TestCase("steady", false)]
+        [TestCase("steady", true)]
+        [TestCase("wrap", false)]
+        [TestCase("wrap", true)]
+        [TestCase("pending", false)]
+        public async Task LeadingGapDoesNotRewindOrLogDuringSteadyDeliveryAsync(
+            string scenario, bool sequentialPublishing)
+        {
+            ArrayOf<uint> sequenceNumbers = scenario switch
+            {
+                "steady" => [1, 2, 3],
+                "wrap" => [uint.MaxValue, 1, 2],
+                "pending" => [1, 4, 5],
+                _ => throw new ArgumentOutOfRangeException(nameof(scenario))
+            };
+            var logger = new Mock<ILogger>();
+            logger.Setup(value => value.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
+            var loggerFactory = new Mock<ILoggerFactory>();
+            loggerFactory.Setup(value => value.CreateLogger(It.IsAny<string>())).Returns(logger.Object);
+            var telemetry = new Mock<ITelemetryContext>();
+            telemetry.SetupGet(value => value.LoggerFactory).Returns(loggerFactory.Object);
+            var received = new ConcurrentQueue<uint>();
+            var completions = new Dictionary<uint, TaskCompletionSource<bool>>();
+            foreach (uint sequenceNumber in sequenceNumbers)
+            {
+                completions.Add(sequenceNumber,
+                    new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously));
+            }
+            using var subscription = new Subscription(telemetry.Object)
+            {
+                Session = BuildSessionMock(),
+                SequentialPublishing = sequentialPublishing,
+                FastDataChangeCallback = (_, notification, _) =>
+                {
+                    received.Enqueue(notification.SequenceNumber);
+                    completions[notification.SequenceNumber].TrySetResult(true);
+                }
+            };
+            await subscription.CreateAsync(CancellationToken.None).ConfigureAwait(false);
+            for (int index = 0; index < sequenceNumbers.Count; index++)
+            {
+                uint sequenceNumber = sequenceNumbers[index];
+                subscription.SaveMessageInCache([], new NotificationMessage
+                {
+                    SequenceNumber = sequenceNumber,
+                    NotificationData = [new ExtensionObject(new DataChangeNotification())]
+                });
+                await completions[sequenceNumber].Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                if (index == 0)
+                {
+                    logger.Invocations.Clear();
+                }
+            }
+
+            Assert.That(received, Is.EqualTo(sequenceNumbers.ToArray()));
+            Assert.That(logger.Invocations.Where(invocation =>
+                invocation.Method.Name == nameof(ILogger.Log) &&
+                invocation.Arguments[1] is EventId id &&
+                id.Name == "SubscriptionIdSubscriptionIdResyncedLastSequenceNumber"), Is.Empty);
+            Mock.Get(subscription.Session).Verify(value => value.RepublishAsync(
+                It.IsAny<uint>(), 0, It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// Transferred messages are recovered without waiting for new data changes.
+        /// </summary>
+        [Test]
+        [Combinatorial]
+        [CancelAfter(5000)]
+        public async Task TransferRepublishesWithoutNewNotificationsAsync(
+            [Values] bool sendKeepAlive,
+            [Values] bool sequentialPublishing,
+            [Values(1, 3)] int messageCount,
+            CancellationToken ct)
+        {
+            var delivered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var received = new List<uint>();
+            using var subscription = new Subscription(NUnitTelemetryContext.Create())
+            {
+                RepublishAfterTransfer = true,
+                SequentialPublishing = sequentialPublishing,
+                FastDataChangeCallback = (_, message, _) =>
+                {
+                    received.Add(message.SequenceNumber);
+                    if (received.Count == messageCount)
+                    {
+                        delivered.TrySetResult(true);
+                    }
+                }
+            };
+            var available = Enumerable.Range(11, messageCount).Select(value => (uint)value).ToArrayOf();
+            ISession session = BuildSessionMock(
+                (_, sequenceNumber) =>
+                {
+                    subscription.SaveMessageInCache(available, new NotificationMessage
+                    {
+                        SequenceNumber = sequenceNumber,
+                        NotificationData = [new(new DataChangeNotification())]
+                    });
+                    return true;
+                },
+                mock =>
+                {
+                    mock.Setup(value => value.Subscriptions).Returns([]);
+                    mock.Setup(value => value.RemoveTransferredSubscription(subscription)).Returns(true);
+                    mock.Setup(value => value.AddSubscription(subscription)).Returns(true);
+                });
+            subscription.Session = session;
+            await subscription.CreateAsync(ct).ConfigureAwait(false);
+
+            Assert.That(await subscription.TransferAsync(session, subscription.Id, available, ct).ConfigureAwait(false),
+                Is.True);
+            if (sendKeepAlive)
+            {
+                subscription.SaveMessageInCache(available,
+                    new NotificationMessage { SequenceNumber = (uint)(11 + messageCount) });
+            }
+
+            await Task.WhenAny(delivered.Task, Task.Delay(Timeout.Infinite, ct)).ConfigureAwait(false);
+            Assert.That(delivered.Task.IsCompleted, Is.True, "The transferred notification was not delivered.");
+            await delivered.Task.ConfigureAwait(false);
+            Assert.That(received, Is.EquivalentTo(available.ToArray()));
+            foreach (uint sequenceNumber in available)
+            {
+                Mock.Get(session).Verify(value =>
+                    value.RepublishAsync(subscription.Id, sequenceNumber, It.IsAny<CancellationToken>()), Times.Once);
+            }
+            Mock.Get(session).Verify(value =>
+                value.RepublishAsync(subscription.Id, It.IsAny<uint>(), It.IsAny<CancellationToken>()),
+                Times.Exactly(messageCount));
+        }
+
+        /// <summary>
+        /// Keep-alives do not turn disabled transfer recovery into Republish requests.
+        /// </summary>
+        [Test]
+        [CancelAfter(5000)]
+        public async Task TransferWithoutRepublishPreservesKeepAliveAsync(CancellationToken ct)
+        {
+            var keepAlive = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var subscription = new Subscription(NUnitTelemetryContext.Create())
+            {
+                RepublishAfterTransfer = false,
+                FastKeepAliveCallback = (_, _) => keepAlive.TrySetResult(true)
+            };
+            ISession session = BuildSessionMock(setup: mock =>
+            {
+                mock.Setup(value => value.Subscriptions).Returns([]);
+                mock.Setup(value => value.RemoveTransferredSubscription(subscription)).Returns(true);
+                mock.Setup(value => value.AddSubscription(subscription)).Returns(true);
+            });
+            subscription.Session = session;
+            await subscription.CreateAsync(ct).ConfigureAwait(false);
+            ArrayOf<uint> available = new uint[] { 11 }.ToArrayOf();
+
+            Assert.That(await subscription.TransferAsync(session, subscription.Id, available, ct).ConfigureAwait(false),
+                Is.True);
+            subscription.SaveMessageInCache(available, new NotificationMessage { SequenceNumber = 12 });
+            await Task.WhenAny(keepAlive.Task, Task.Delay(Timeout.Infinite, ct)).ConfigureAwait(false);
+
+            Assert.That(keepAlive.Task.IsCompleted, Is.True);
+            Mock.Get(session).Verify(value =>
+                value.RepublishAsync(It.IsAny<uint>(), It.IsAny<uint>(), It.IsAny<CancellationToken>()), Times.Never);
         }
 
         [DatapointSource]

@@ -30,6 +30,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Historian;
@@ -78,12 +79,13 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         /// <summary>
-        /// Verifies that default retention evicts samples older than one hour.
+        /// Verifies that default retention preserves the start bound when evicting older samples.
         /// </summary>
         [Test]
-        public async Task DefaultRetentionEvictsSamplesOlderThanOneHourAsync()
+        public async Task DefaultRetentionPreservesNewestStartBoundAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            var clock = new FakeTimeProvider(BaseTime);
+            using var provider = new InMemoryHistorianProvider(new InMemoryHistorianOptions(), clock);
             var nodeId = new NodeId("retention.default", NamespaceIndex);
             provider.Register(nodeId);
             HistorianOperationContext context = CreateContext();
@@ -99,13 +101,14 @@ namespace Opc.Ua.Server.Tests.Historian
                 ],
                 CancellationToken.None).ConfigureAwait(false);
 
+            clock.Advance(TimeSpan.FromHours(1) + TimeSpan.FromTicks(1));
             HistorianPage<HistoricalDataValue> page =
                 await ReadAllAsync(provider, context, nodeId).ConfigureAwait(false);
 
-            Assert.That(page.Values, Has.Count.EqualTo(3));
+            Assert.That(page.Values, Has.Count.EqualTo(4));
             Assert.That(
                 page.Values[0].Value.SourceTimestamp.ToDateTime(),
-                Is.EqualTo(BaseTime.AddMinutes(30)));
+                Is.EqualTo(BaseTime));
         }
 
         /// <summary>
@@ -140,11 +143,12 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task RetentionPeriodAndSampleCapBothApplyAsync()
         {
+            var clock = new FakeTimeProvider(BaseTime);
             using var provider = new InMemoryHistorianProvider(new InMemoryHistorianOptions
             {
                 RawDataRetentionPeriod = TimeSpan.FromHours(1),
                 MaxSamplesPerNode = 2
-            });
+            }, clock);
             var nodeId = new NodeId("retention.combined", NamespaceIndex);
             provider.Register(nodeId);
             HistorianOperationContext context = CreateContext();
@@ -160,6 +164,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 ],
                 CancellationToken.None).ConfigureAwait(false);
 
+            clock.Advance(TimeSpan.FromMinutes(90));
             HistorianPage<HistoricalDataValue> page =
                 await ReadAllAsync(provider, context, nodeId).ConfigureAwait(false);
 
@@ -170,15 +175,16 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         /// <summary>
-        /// Verifies that bulk insertion uses the newest timestamp to establish the retention window.
+        /// Verifies that bulk-inserted samples expire as the wall clock advances.
         /// </summary>
         [Test]
-        public async Task BulkInsertUsesNewestTimestampForRetentionAsync()
+        public async Task BulkInsertUsesWallClockForRetentionAsync()
         {
+            var clock = new FakeTimeProvider(BaseTime);
             using var provider = new InMemoryHistorianProvider(new InMemoryHistorianOptions
             {
                 RawDataRetentionPeriod = TimeSpan.FromMinutes(10)
-            });
+            }, clock);
             var nodeId = new NodeId("retention.bulk", NamespaceIndex);
             provider.Register(nodeId);
             HistorianOperationContext context = CreateContext();
@@ -198,6 +204,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 batch,
                 CancellationToken.None).ConfigureAwait(false);
 
+            clock.Advance(TimeSpan.FromMinutes(20));
             HistorianPage<HistoricalDataValue> page =
                 await ReadAllAsync(provider, context, nodeId).ConfigureAwait(false);
 
@@ -208,15 +215,16 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         /// <summary>
-        /// Verifies that atomic insertion applies retention after the batch commits.
+        /// Verifies that an atomically committed batch expires according to the wall clock.
         /// </summary>
         [Test]
-        public async Task AtomicInsertEnforcesRetentionAfterCommitAsync()
+        public async Task AtomicInsertEnforcesWallClockRetentionAfterCommitAsync()
         {
+            var clock = new FakeTimeProvider(BaseTime);
             using var provider = new InMemoryHistorianProvider(new InMemoryHistorianOptions
             {
                 RawDataRetentionPeriod = TimeSpan.FromSeconds(2)
-            });
+            }, clock);
             var nodeId = new NodeId("retention.atomic", NamespaceIndex);
             provider.Register(nodeId);
             HistorianOperationContext context = CreateContext();
@@ -231,6 +239,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 ],
                 CancellationToken.None).ConfigureAwait(false);
 
+            clock.Advance(TimeSpan.FromSeconds(4));
             HistorianPage<HistoricalDataValue> page =
                 await ReadAllAsync(provider, context, nodeId).ConfigureAwait(false);
 
@@ -241,15 +250,15 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         /// <summary>
-        /// Verifies that an out-of-order sample older than the retained window is immediately evicted.
+        /// Verifies that an out-of-order sample older than the retained window is rejected before insertion.
         /// </summary>
         [Test]
-        public async Task OutOfOrderInsertOlderThanWindowIsImmediatelyEvictedAsync()
+        public async Task OutOfOrderInsertOlderThanWindowIsRejectedAsync()
         {
             using var provider = new InMemoryHistorianProvider(new InMemoryHistorianOptions
             {
                 RawDataRetentionPeriod = TimeSpan.FromMinutes(10)
-            });
+            }, new FakeTimeProvider(BaseTime.AddMinutes(20)));
             var nodeId = new NodeId("retention.outoforder", NamespaceIndex);
             provider.Register(nodeId);
             HistorianOperationContext context = CreateContext();
@@ -268,7 +277,7 @@ namespace Opc.Ua.Server.Tests.Historian
             HistorianPage<HistoricalDataValue> page =
                 await ReadAllAsync(provider, context, nodeId).ConfigureAwait(false);
 
-            Assert.That(outcome.OperationResults[0], Is.EqualTo(StatusCodes.GoodEntryInserted));
+            Assert.That(outcome.OperationResults[0], Is.EqualTo(StatusCodes.BadOutOfRange));
             Assert.That(page.Values, Has.Count.EqualTo(1));
             Assert.That(
                 page.Values[0].Value.SourceTimestamp.ToDateTime(),
@@ -276,10 +285,10 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         /// <summary>
-        /// Verifies that at-time deletion refreshes the latest timestamp used for retention.
+        /// Verifies that at-time deletion does not rewind the wall-clock retention horizon.
         /// </summary>
         [Test]
-        public async Task DeleteAtTimeRefreshesLatestTimestampForRetentionAsync()
+        public async Task DeleteAtTimeDoesNotRewindWallClockRetentionAsync()
         {
             using InMemoryHistorianProvider provider = CreateTenMinuteProvider();
             var nodeId = new NodeId("retention.deleteattime", NamespaceIndex);
@@ -298,7 +307,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 nodeId,
                 [(DateTimeUtc)latest],
                 CancellationToken.None).ConfigureAwait(false);
-            await provider.InsertAsync(
+            HistorianUpdateOutcome<DataValue> outcome = await provider.InsertAsync(
                 context,
                 nodeId,
                 [MakeValue(BaseTime.AddMinutes(5), 0)],
@@ -307,17 +316,18 @@ namespace Opc.Ua.Server.Tests.Historian
             HistorianPage<HistoricalDataValue> page =
                 await ReadAllAsync(provider, context, nodeId).ConfigureAwait(false);
 
-            Assert.That(page.Values, Has.Count.EqualTo(2));
+            Assert.That(outcome.OperationResults[0], Is.EqualTo(StatusCodes.BadOutOfRange));
+            Assert.That(page.Values, Has.Count.EqualTo(1));
             Assert.That(
                 page.Values[0].Value.SourceTimestamp.ToDateTime(),
-                Is.EqualTo(BaseTime.AddMinutes(5)));
+                Is.EqualTo(earlier));
         }
 
         /// <summary>
-        /// Verifies that raw-range deletion refreshes the latest timestamp used for retention.
+        /// Verifies that raw-range deletion does not rewind the wall-clock retention horizon.
         /// </summary>
         [Test]
-        public async Task DeleteRawRefreshesLatestTimestampForRetentionAsync()
+        public async Task DeleteRawDoesNotRewindWallClockRetentionAsync()
         {
             using InMemoryHistorianProvider provider = CreateTenMinuteProvider();
             var nodeId = new NodeId("retention.deleteraw", NamespaceIndex);
@@ -338,7 +348,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 (DateTimeUtc)latest.AddTicks(1),
                 isDeleteModified: false,
                 CancellationToken.None).ConfigureAwait(false);
-            await provider.InsertAsync(
+            HistorianUpdateOutcome<DataValue> outcome = await provider.InsertAsync(
                 context,
                 nodeId,
                 [MakeValue(BaseTime.AddMinutes(5), 0)],
@@ -347,10 +357,11 @@ namespace Opc.Ua.Server.Tests.Historian
             HistorianPage<HistoricalDataValue> page =
                 await ReadAllAsync(provider, context, nodeId).ConfigureAwait(false);
 
-            Assert.That(page.Values, Has.Count.EqualTo(2));
+            Assert.That(outcome.OperationResults[0], Is.EqualTo(StatusCodes.BadOutOfRange));
+            Assert.That(page.Values, Has.Count.EqualTo(1));
             Assert.That(
                 page.Values[0].Value.SourceTimestamp.ToDateTime(),
-                Is.EqualTo(BaseTime.AddMinutes(5)));
+                Is.EqualTo(earlier));
         }
 
         private static InMemoryHistorianProvider CreateTenMinuteProvider()
@@ -358,7 +369,7 @@ namespace Opc.Ua.Server.Tests.Historian
             return new InMemoryHistorianProvider(new InMemoryHistorianOptions
             {
                 RawDataRetentionPeriod = TimeSpan.FromMinutes(10)
-            });
+            }, new FakeTimeProvider(BaseTime.AddMinutes(20)));
         }
 
         private static async Task<HistorianPage<HistoricalDataValue>> ReadAllAsync(

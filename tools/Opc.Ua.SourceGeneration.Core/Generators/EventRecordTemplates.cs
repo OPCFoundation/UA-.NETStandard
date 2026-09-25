@@ -183,7 +183,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static readonly TemplateString StandardFieldEntry = TemplateString.Parse(
             $$"""
-            new global::Opc.Ua.QualifiedName[] { {{Tokens.ChildPath}} },
+            {{Tokens.ChildPath}},
             """);
 
         /// <summary>

@@ -825,6 +825,39 @@ A subclass that took `DataLock` in order to be mutually exclusive with
 the **channel's** state transitions was already relying on an
 implementation detail, and can no longer do so.
 
+## Transport resource limits
+
+Applications migrating from 1.5.x have a server-wide budget for retained
+intermediate-message buffers. With the reference server's 4 MiB maximum message
+size, the default budget is **64 MiB**, and channels without an activated session
+may fill only the lower **32 MiB**. A chunk that does not fit discards its partial
+message and closes the channel with `BadTcpNotEnoughResources`. Final chunks,
+single-chunk requests, response buffers, and client buffers are not charged to
+this reassembly budget.
+
+For workloads with many simultaneous large requests, set
+`WithChunkReassemblyBudget(maxBytes)` on the Dependency Injection (DI) server builder or assign
+`ServerBase.ChunkReassemblyBudget` before startup. A host opening listeners
+directly can share a budget through `TransportListenerSettings.ChunkReassemblyBudget`.
+See [incomplete messages](RateLimiting.md#incomplete-messages) for sizing and
+sessionless configuration. General buffer-manager limits remain opt-in.
+
+Server-channel `ChannelLifetime` also bounds an unfinished message from its
+first retained chunk, even if more chunks keep arriving. Size this lifetime
+for legitimate large transfers without relying on continuation chunks to
+extend it indefinitely. A zero or negative value uses the 30-second default
+for message assembly; it does not disable assembly cleanup. See
+[incomplete-message limits](Transports.md#incomplete-message-resource-limits).
+
+Kestrel TCP and UACP WebSocket listeners honor configured connection-admission
+and channel limits, including pending admissions. Size `MaxChannelCount` for
+the intended deployment rather than relying on these bindings to ignore it.
+Managed channel membership is based on committed live sessions rather than
+activation-response counts. Custom session managers can implement the optional
+`ISessionBindingProvider` capability; custom hosts can inject a provider without
+changing existing callback contracts. A lookup snapshot does not replace normal
+request authentication and authorization.
+
 ## Migrating channel subclasses that override HandleIncomingMessage
 
 `UaSCBinaryChannel.HandleIncomingMessage` and `OnChunkReceived` have been
@@ -875,6 +908,50 @@ the buffer manager for you.
 parameters, which an asynchronous method cannot have. Use
 `WriteAsymmetricMessageAsync` in place of the removed synchronous
 overload.
+
+## Migrating custom IUserDatabase implementations
+
+`IUserDatabase` gained four members. A store now persists user metadata
+alongside credentials, so disabled and `MustChangePassword` decisions survive a
+restart and an administrative password reset is a single transaction rather than
+a delete followed by a create:
+
+```csharp
+IReadOnlyList<UserManagementDataType> GetUsers();
+
+bool CreateUser(
+    string userName,
+    ReadOnlySpan<byte> password,
+    ArrayOf<Role> roles,
+    UserConfigurationMask userConfiguration,
+    string description);
+
+bool ResetPassword(
+    string userName,
+    ReadOnlySpan<byte> newPassword,
+    UserConfigurationMask userConfiguration,
+    string description);
+
+bool UpdateUserMetadata(
+    string userName,
+    UserConfigurationMask userConfiguration,
+    string description);
+```
+
+The five 1.5.378 members are unchanged. Implement the new ones on your store, or
+derive from `LinqUserDatabase` / `JsonUserDatabase`, which provide in-memory and
+atomic file-backed transactions respectively.
+
+Each mutation must commit as one transaction, and a rejected or failed write must
+leave both the live and the persisted record unchanged. `ChangePassword` must
+clear `UserConfigurationMask.MustChangePassword` in the same transaction as the
+password it commits. `ResetPassword` must preserve the user's identity and roles
+and must not delete and recreate the user.
+
+There is no optional-capability fallback: `UserManagement` requires these members
+and no longer keeps metadata only in memory, so a store that cannot persist
+metadata should reject the write by returning `false` rather than silently
+accepting it.
 
 ## Migrating from 1.05.377 to 1.05.378
 

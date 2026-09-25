@@ -1650,7 +1650,7 @@
                   </Column>
                   <Column column="1">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value type="10" typename="QString" data="ns=2;s=Scalar_Static_Boolean"/>
+                    <Value type="10" typename="QString" data="ns=2;s=Scalar_Static_NonHistorizing_Boolean"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -11732,7 +11732,7 @@
             </Column>
             <Column column="1">
              <ItemData role="0" rolename="DisplayRole">
-              <Value type="10" typename="QString" data="ns=2;s=References_HasReferenceTypeAndSubType"/>
+              <Value type="10" typename="QString" data="i=2253"/>
              </ItemData>
              <ChildRows size="0"/>
             </Column>
@@ -12086,7 +12086,7 @@
             </Column>
             <Column column="1">
              <ItemData role="0" rolename="DisplayRole">
-              <Value type="10" typename="QString" data="ns=2;s=Scalar"/>
+              <Value type="10" typename="QString" data="i=2253"/>
              </ItemData>
              <ChildRows size="0"/>
             </Column>

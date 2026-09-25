@@ -27,9 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using Microsoft.Extensions.Logging;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client.TestFramework;
 
@@ -126,6 +129,91 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             typeSystem = await nodeResolver.LoadDataTypeSystem(ObjectIds.XmlSchema_TypeSystem)
                 .ConfigureAwait(false);
             Assert.That(typeSystem, Is.Not.Null);
+        }
+
+        [Test]
+        public async Task LoadDataTypesAsyncStopsOnCyclicSubtypeGraphAsync()
+        {
+            var root = new NodeId("Root", 2);
+            var childA = new NodeId("A", 2);
+            var childB = new NodeId("B", 2);
+
+            var nodeCache = new Mock<INodeCache>(MockBehavior.Strict);
+            nodeCache.SetupGet(x => x.NamespaceUris).Returns(Session.NamespaceUris);
+            nodeCache.Setup(x => x.GetReferencesAsync(
+                    It.IsAny<ArrayOf<NodeId>>(),
+                    It.IsAny<ArrayOf<NodeId>>(),
+                    false,
+                    false,
+                    It.IsAny<CancellationToken>()))
+                .Returns((ArrayOf<NodeId> ids, ArrayOf<NodeId> _, bool _, bool _, CancellationToken _) =>
+                {
+                    var result = new System.Collections.Generic.List<INode>();
+                    foreach (NodeId nodeId in ids)
+                    {
+                        if (nodeId == root)
+                        {
+                            result.Add(new Node { NodeId = childA, BrowseName = new QualifiedName("A") });
+                        }
+                        else if (nodeId == childA)
+                        {
+                            result.Add(new Node { NodeId = childB, BrowseName = new QualifiedName("B") });
+                        }
+                        else if (nodeId == childB)
+                        {
+                            result.Add(new Node { NodeId = childA, BrowseName = new QualifiedName("A") });
+                        }
+                    }
+                    return new ValueTask<ArrayOf<INode>>(
+                        new ArrayOf<INode>(result.ToArray().AsMemory()));
+                });
+
+            var nodeResolver = new NodeCacheResolver(Session, nodeCache.Object, Telemetry);
+            ArrayOf<INode> dataTypes = await nodeResolver.LoadDataTypesAsync(
+                NodeId.ToExpandedNodeId(root, Session.NamespaceUris),
+                nestedSubTypes: true,
+                filterUATypes: false,
+                ct: CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(dataTypes.Count, Is.EqualTo(2));
+            Assert.That(dataTypes[0].BrowseName.Name, Is.EqualTo("A"));
+            Assert.That(dataTypes[1].BrowseName.Name, Is.EqualTo("B"));
+        }
+
+        [Test]
+        public async Task GetEnumTypeArrayAsyncUsesNamedPropertyAsync()
+        {
+            var typeId = new NodeId("MyEnum", 2);
+            var unrelatedPropertyId = new NodeId("NodeVersion", 2);
+            var enumValuesPropertyId = new NodeId("EnumValues", 2);
+
+            var expected = new ArrayOf<ExtensionObject>();
+            var nodeCache = new Mock<INodeCache>(MockBehavior.Strict);
+            nodeCache.SetupGet(x => x.NamespaceUris).Returns(Session.NamespaceUris);
+            nodeCache.Setup(x => x.GetReferencesAsync(
+                    typeId,
+                    ReferenceTypeIds.HasProperty,
+                    false,
+                    false,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ArrayOf<INode>>(new ArrayOf<INode>(
+                new INode[]
+                {
+                    new Node { NodeId = unrelatedPropertyId, BrowseName = new QualifiedName("NodeVersion") },
+                    new Node { NodeId = enumValuesPropertyId, BrowseName = new QualifiedName("EnumValues") }
+                }.AsMemory())));
+            nodeCache.Setup(x => x.GetValueAsync(
+                    enumValuesPropertyId,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<DataValue>(new DataValue(new Variant(expected))));
+
+            var resolver = new NodeCacheResolver(Session, nodeCache.Object, Telemetry);
+            Variant result = await resolver.GetEnumTypeArrayAsync(
+                NodeId.ToExpandedNodeId(typeId, Session.NamespaceUris),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.TryGetValue(out ArrayOf<ExtensionObject> actual), Is.True);
+            Assert.That(actual, Is.EqualTo(expected));
         }
 
         [Test]

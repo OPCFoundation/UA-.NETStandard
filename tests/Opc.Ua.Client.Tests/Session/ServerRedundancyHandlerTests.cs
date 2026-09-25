@@ -32,6 +32,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 
@@ -80,6 +81,286 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 mockSession.Object).ConfigureAwait(false);
 
             Assert.That(info.Mode, Is.EqualTo(expected));
+        }
+
+        [TestCase(RedundancySupport.Cold)]
+        [TestCase(RedundancySupport.Warm)]
+        public async Task BasicRedundancyReadRetainsUnresolvedPeersWithoutDiscoveryAsync(RedundancySupport mode)
+        {
+            Mock<ISession> session = CreateMockSession(
+                (int)mode, ServiceLevels.Maximum, serverUris: ["urn:offline"]);
+
+            ServerRedundancyInfo snapshot = await ((IServerRedundancyEndpointCache)m_handler)
+                .ReadRedundancyInfoAsync(session.Object, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(snapshot.Mode, Is.EqualTo(mode));
+            Assert.That(snapshot.ServiceLevel, Is.EqualTo(ServiceLevels.Maximum));
+            Assert.That(snapshot.RedundantServers.Count, Is.EqualTo(1));
+            Assert.That(snapshot.RedundantServers[0].ServerUri, Is.EqualTo("urn:offline"));
+            Assert.That(snapshot.RedundantServers[0].Endpoint, Is.Null);
+            m_resolver.VerifyNoOtherCalls();
+            VerifyBatchedRedundancyRead(session);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PeerTimeoutPreservesOtherEndpointsAndCoalescesPendingDiscoveryAsync(bool ignoreCancellation)
+        {
+            var time = new FakeTimeProvider();
+            var handler = new DefaultServerRedundancyHandler(m_resolver.Object, time);
+            ConfiguredEndpoint available = CreateEndpoint("urn:available", "opc.tcp://available:4840");
+            var blocked = new TaskCompletionSource<ConfiguredEndpoint?>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var secondLookup = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int lookups = 0;
+            m_resolver.Setup(resolver => resolver.ResolveAsync(
+                    "urn:offline", It.IsAny<ConfiguredEndpoint>(), It.IsAny<CancellationToken>()))
+                .Returns((string _, ConfiguredEndpoint _, CancellationToken ct) =>
+                {
+                    if (Interlocked.Increment(ref lookups) == 2)
+                    {
+                        secondLookup.TrySetResult(true);
+                    }
+                    return new ValueTask<ConfiguredEndpoint?>(ignoreCancellation
+                        ? blocked.Task
+                        : blocked.Task.WaitAsync(ct));
+                });
+            m_resolver.Setup(resolver => resolver.ResolveAsync(
+                    "urn:available", It.IsAny<ConfiguredEndpoint>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(available);
+            Mock<ISession> session = CreateMockSession(
+                (int)RedundancySupport.Cold, ServiceLevels.Maximum, serverUris: ["urn:offline", "urn:available"]);
+            var cache = (IServerRedundancyEndpointCache)handler;
+            ServerRedundancyInfo basic = await cache.ReadRedundancyInfoAsync(session.Object, CancellationToken.None)
+                .ConfigureAwait(false);
+            try
+            {
+                Task<ServerRedundancyInfo> resolving = cache.ResolveCachedEndpointsAsync(
+                    basic, session.Object.ConfiguredEndpoint, CancellationToken.None).AsTask();
+                m_resolver.Verify(resolver => resolver.ResolveAsync(
+                    "urn:available", It.IsAny<ConfiguredEndpoint>(), It.IsAny<CancellationToken>()), Times.Once);
+                Assert.That(resolving.IsCompleted, Is.False);
+                time.Advance(TimeSpan.FromSeconds(2));
+
+                ServerRedundancyInfo resolved = await resolving.WaitAsync(TimeSpan.FromSeconds(10))
+                    .ConfigureAwait(false);
+
+                Assert.That(resolved.Mode, Is.EqualTo(RedundancySupport.Cold));
+                Assert.That(resolved.RedundantServers[0].Endpoint, Is.Null);
+                Assert.That(resolved.RedundantServers[1].Endpoint, Is.SameAs(available));
+                Assert.That(handler.SelectFailoverTarget(resolved, session.Object.ConfiguredEndpoint),
+                    Is.SameAs(available));
+
+                Task<ServerRedundancyInfo> retry = cache.ResolveCachedEndpointsAsync(
+                    resolved, session.Object.ConfiguredEndpoint, CancellationToken.None).AsTask();
+                if (!ignoreCancellation)
+                {
+                    // The timed-out lookup drains on the thread pool, so the retry may first join it and only
+                    // start its own lookup once it has drained. Advancing the clock before then would expire
+                    // the retry's bound too, so wait for the fresh lookup.
+                    await secondLookup.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
+                time.Advance(TimeSpan.FromSeconds(2));
+                await retry.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                m_resolver.Verify(resolver => resolver.ResolveAsync(
+                    "urn:offline", It.IsAny<ConfiguredEndpoint>(), It.IsAny<CancellationToken>()),
+                    Times.Exactly(ignoreCancellation ? 1 : 2));
+                m_resolver.Verify(resolver => resolver.ResolveAsync(
+                    "urn:available", It.IsAny<ConfiguredEndpoint>(), It.IsAny<CancellationToken>()), Times.Once);
+            }
+            finally
+            {
+                blocked.TrySetResult(null);
+            }
+        }
+
+        [Test]
+        public async Task ConfiguredPeerDiscoveryTimeoutReplacesTheDefaultBoundAsync()
+        {
+            var time = new FakeTimeProvider();
+            var handler = new DefaultServerRedundancyHandler(
+                m_resolver.Object,
+                time,
+                new ServerRedundancyOptions { PeerDiscoveryTimeout = TimeSpan.FromSeconds(30) });
+            var blocked = new TaskCompletionSource<ConfiguredEndpoint?>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            m_resolver.Setup(resolver => resolver.ResolveAsync(
+                    "urn:offline", It.IsAny<ConfiguredEndpoint>(), It.IsAny<CancellationToken>()))
+                .Returns((string _, ConfiguredEndpoint _, CancellationToken ct) =>
+                    new ValueTask<ConfiguredEndpoint?>(blocked.Task.WaitAsync(ct)));
+            Mock<ISession> session = CreateMockSession(
+                (int)RedundancySupport.Cold, ServiceLevels.Maximum, serverUris: ["urn:offline"]);
+            var cache = (IServerRedundancyEndpointCache)handler;
+            ServerRedundancyInfo basic = await cache.ReadRedundancyInfoAsync(session.Object, CancellationToken.None)
+                .ConfigureAwait(false);
+            try
+            {
+                Task<ServerRedundancyInfo> resolving = cache.ResolveCachedEndpointsAsync(
+                    basic, session.Object.ConfiguredEndpoint, CancellationToken.None).AsTask();
+
+                time.Advance(TimeSpan.FromSeconds(2));
+                await Task.Yield();
+                Assert.That(resolving.IsCompleted, Is.False);
+
+                time.Advance(TimeSpan.FromSeconds(28));
+                ServerRedundancyInfo resolved = await resolving.WaitAsync(TimeSpan.FromSeconds(10))
+                    .ConfigureAwait(false);
+
+                Assert.That(resolved.RedundantServers[0].Endpoint, Is.Null);
+            }
+            finally
+            {
+                blocked.TrySetResult(null);
+            }
+        }
+
+        [Test]
+        public void ServerRedundancyOptionsRejectNonPositiveBounds()
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    () => new ServerRedundancyOptions { RefreshTimeout = TimeSpan.Zero }.Validate(),
+                    Throws.InstanceOf<ArgumentOutOfRangeException>());
+                Assert.That(
+                    () => new ServerRedundancyOptions
+                    {
+                        PeerDiscoveryTimeout = TimeSpan.FromSeconds(-5)
+                    }.Validate(),
+                    Throws.InstanceOf<ArgumentOutOfRangeException>());
+                Assert.That(
+                    () => new ServerRedundancyOptions
+                    {
+                        RefreshTimeout = Timeout.InfiniteTimeSpan,
+                        PeerDiscoveryTimeout = Timeout.InfiniteTimeSpan
+                    }.Validate(),
+                    Throws.Nothing);
+                Assert.That(new ServerRedundancyOptions().RefreshTimeout,
+                    Is.EqualTo(ServerRedundancyOptions.DefaultTimeout));
+            });
+        }
+
+        [Test]
+        public async Task PeerDiscoveryPropagatesCallerCancellationAsync()
+        {
+            using var cancellation = new CancellationTokenSource();
+            var resolverEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var blocked = new TaskCompletionSource<ConfiguredEndpoint?>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            CancellationToken discoveryToken = default;
+            m_resolver.Setup(resolver => resolver.ResolveAsync(
+                    "urn:offline", It.IsAny<ConfiguredEndpoint>(), It.IsAny<CancellationToken>()))
+                .Returns((string _, ConfiguredEndpoint _, CancellationToken ct) =>
+                {
+                    discoveryToken = ct;
+                    resolverEntered.TrySetResult(true);
+                    return new ValueTask<ConfiguredEndpoint?>(blocked.Task.WaitAsync(ct));
+                });
+            Mock<ISession> session = CreateMockSession(
+                (int)RedundancySupport.Cold, ServiceLevels.Maximum, serverUris: ["urn:offline"]);
+            var cache = (IServerRedundancyEndpointCache)m_handler;
+            ServerRedundancyInfo basic = await cache.ReadRedundancyInfoAsync(session.Object, cancellation.Token)
+                .ConfigureAwait(false);
+            Task<ServerRedundancyInfo> resolving = cache.ResolveCachedEndpointsAsync(
+                basic, session.Object.ConfiguredEndpoint, cancellation.Token).AsTask();
+
+            await resolverEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            cancellation.Cancel();
+
+            await Assert.ThatAsync(
+                () => resolving,
+                Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+            Assert.That(discoveryToken.IsCancellationRequested, Is.True);
+            Assert.That(basic.RedundantServers[0].Endpoint, Is.Null);
+        }
+
+        [Test]
+        public async Task CancelledMetadataReadDoesNotStartPeerDiscoveryAsync()
+        {
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+            Mock<ISession> session = CreateMockSession(
+                (int)RedundancySupport.Cold, ServiceLevels.Maximum, serverUris: ["urn:offline"]);
+
+            await Assert.ThatAsync(
+                async () => await m_handler.FetchRedundancyInfoAsync(session.Object, cancellation.Token)
+                    .ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+
+            session.VerifyNoOtherCalls();
+            m_resolver.VerifyNoOtherCalls();
+        }
+
+        [Test]
+        public async Task CachedResolutionDoesNotCrossEndpointSecurityProfilesAsync()
+        {
+            Mock<ISession> session = CreateMockSession(
+                (int)RedundancySupport.Cold, ServiceLevels.Maximum, serverUris: ["urn:peer"]);
+            ConfiguredEndpoint unsecured = CreateEndpoint("urn:peer", "opc.tcp://peer:4840");
+            ConfiguredEndpoint secured = CreateEndpoint("urn:peer", "opc.tcp://peer:4840");
+            secured.Description.SecurityMode = MessageSecurityMode.Sign;
+            secured.Description.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
+            m_resolver.Setup(resolver => resolver.ResolveAsync(
+                    "urn:peer", It.Is<ConfiguredEndpoint>(endpoint =>
+                        endpoint.Description.SecurityMode == MessageSecurityMode.None),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(unsecured);
+            m_resolver.Setup(resolver => resolver.ResolveAsync(
+                    "urn:peer", It.Is<ConfiguredEndpoint>(endpoint =>
+                        endpoint.Description.SecurityMode == MessageSecurityMode.Sign),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(secured);
+            ServerRedundancyInfo first = await m_handler.FetchRedundancyInfoAsync(session.Object)
+                .ConfigureAwait(false);
+            Assert.That(first.RedundantServers[0].Endpoint, Is.SameAs(unsecured));
+            session.Object.ConfiguredEndpoint.Description.SecurityMode = MessageSecurityMode.Sign;
+            session.Object.ConfiguredEndpoint.Description.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
+
+            ServerRedundancyInfo second = await m_handler.FetchRedundancyInfoAsync(session.Object)
+                .ConfigureAwait(false);
+
+            Assert.That(second.RedundantServers[0].Endpoint, Is.SameAs(secured));
+            m_resolver.Verify(resolver => resolver.ResolveAsync(
+                "urn:peer", It.IsAny<ConfiguredEndpoint>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+        }
+
+        [Test]
+        public async Task RetriedPeerDiscoveryRejectsLateCancelledResultAsync()
+        {
+            var time = new FakeTimeProvider();
+            var handler = new DefaultServerRedundancyHandler(m_resolver.Object, time);
+            ConfiguredEndpoint stale = CreateEndpoint("urn:peer", "opc.tcp://peer:4840");
+            ConfiguredEndpoint current = CreateEndpoint("urn:peer", "opc.tcp://peer:4841");
+            var blocked = new TaskCompletionSource<ConfiguredEndpoint?>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            m_resolver.SetupSequence(resolver => resolver.ResolveAsync(
+                    "urn:peer", It.IsAny<ConfiguredEndpoint>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ConfiguredEndpoint?>(blocked.Task))
+                .ReturnsAsync(current);
+            Mock<ISession> session = CreateMockSession(
+                (int)RedundancySupport.Cold, ServiceLevels.Maximum, serverUris: ["urn:peer"]);
+            var cache = (IServerRedundancyEndpointCache)handler;
+            ServerRedundancyInfo basic = await cache.ReadRedundancyInfoAsync(session.Object, CancellationToken.None)
+                .ConfigureAwait(false);
+            Task<ServerRedundancyInfo> first = cache.ResolveCachedEndpointsAsync(
+                basic, session.Object.ConfiguredEndpoint, CancellationToken.None).AsTask();
+            time.Advance(TimeSpan.FromSeconds(2));
+            ServerRedundancyInfo unresolved = await first.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            Assert.That(unresolved.RedundantServers[0].Endpoint, Is.Null);
+            Task<ServerRedundancyInfo> retry = cache.ResolveCachedEndpointsAsync(
+                unresolved, session.Object.ConfiguredEndpoint, CancellationToken.None).AsTask();
+            m_resolver.Verify(resolver => resolver.ResolveAsync(
+                "urn:peer", It.IsAny<ConfiguredEndpoint>(), It.IsAny<CancellationToken>()), Times.Once);
+
+            blocked.TrySetResult(stale);
+            ServerRedundancyInfo resolved = await retry.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+
+            Assert.That(resolved.RedundantServers[0].Endpoint, Is.SameAs(current));
+            ServerRedundancyInfo cached = await cache.ReadRedundancyInfoAsync(session.Object, CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(cached.RedundantServers[0].Endpoint, Is.SameAs(current));
+            m_resolver.Verify(resolver => resolver.ResolveAsync(
+                "urn:peer", It.IsAny<ConfiguredEndpoint>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
         /// <summary>

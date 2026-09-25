@@ -37,7 +37,8 @@ namespace Opc.Ua.Redundancy
     /// (<see cref="AesCbcHmacRecordProtector"/>); see
     /// <c>docs/HighAvailability.md</c>.
     /// </summary>
-    public sealed class NullRecordProtector : IOwnedRecordProtector
+    public sealed class NullRecordProtector :
+        IOwnedRecordProtector
     {
         /// <summary>
         /// The shared singleton instance.
@@ -45,20 +46,26 @@ namespace Opc.Ua.Redundancy
         public static NullRecordProtector Instance { get; } = new();
 
         /// <inheritdoc/>
-        public ByteString Protect(ByteString plaintext)
+        public ByteString Protect(ByteString context, ByteString plaintext)
         {
             return plaintext;
         }
 
         /// <inheritdoc/>
-        public bool TryUnprotect(ByteString protectedRecord, out ByteString plaintext)
+        public bool TryUnprotect(
+            ByteString context,
+            ByteString protectedRecord,
+            out ByteString plaintext)
         {
             plaintext = protectedRecord;
             return true;
         }
 
         /// <inheritdoc/>
-        public bool TryUnprotectOwned(ByteString protectedRecord, out byte[] plaintext)
+        public bool TryUnprotectOwned(
+            ByteString context,
+            ByteString protectedRecord,
+            out byte[] plaintext)
         {
             // Pass-through: hand back an independent copy so the caller can wipe
             // it without ever mutating the shared-store input buffer this

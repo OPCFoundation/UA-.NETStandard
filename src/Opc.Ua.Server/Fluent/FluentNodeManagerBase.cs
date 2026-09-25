@@ -246,14 +246,14 @@ namespace Opc.Ua.Server.Fluent
         /// The fluent builder that the manager's <c>Configure</c>
         /// partial(s) will receive.
         /// </param>
-        /// <exception cref="System.ArgumentNullException">
+        /// <exception cref="ArgumentNullException">
         /// Raised when <paramref name="builder"/> is <c>null</c>.
         /// </exception>
         public void AttachToBuilder(NodeManagerBuilder builder)
         {
             if (builder == null)
             {
-                throw new System.ArgumentNullException(nameof(builder));
+                throw new ArgumentNullException(nameof(builder));
             }
 
             lock (m_attachedBuildersLock)
@@ -279,13 +279,15 @@ namespace Opc.Ua.Server.Fluent
         /// Resolves the concrete builder attached to the manager exposed by
         /// an arbitrary <see cref="INodeManagerBuilder"/> facade.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         internal static NodeManagerBuilder ResolveAttachedBuilder(
             INodeManagerBuilder builder,
             string feature)
         {
             if (builder == null)
             {
-                throw new System.ArgumentNullException(nameof(builder));
+                throw new ArgumentNullException(nameof(builder));
             }
 
             NodeManagerBuilder? resolved = TryResolveAttachedBuilder(builder);
@@ -360,12 +362,69 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
+        /// Loads the predefined nodes and runs the fluent configure
+        /// pipeline: builds a builder for <see cref="AsyncCustomNodeManager.NamespaceIndex"/>,
+        /// hands it to <see cref="ConfigureAsync"/>, registers the nodes it
+        /// staged, mirrors their references to externally owned nodes into
+        /// <paramref name="externalReferences"/> and seals the builder.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// A hand-written manager therefore only overrides
+        /// <see cref="ConfigureAsync"/> to author its address space.
+        /// </para>
+        /// <para>
+        /// A manager that needs a different order - extra steps between
+        /// completing and sealing, a builder for another namespace, or work
+        /// after sealing - overrides this method without calling the base
+        /// implementation, loads its predefined nodes through
+        /// <see cref="AsyncCustomNodeManager.LoadPredefinedNodesAsync(ISystemContext, IDictionary{NodeId, IList{IReference}}, CancellationToken)"/>
+        /// and drives <see cref="CreateFluentBuilder"/>,
+        /// <see cref="RegisterAuthoredNodesAsync"/>,
+        /// <see cref="CompleteConfigureAsync"/> and
+        /// <see cref="SealConfigurationAsync"/> itself. Calling the base
+        /// implementation as well would run a second, empty pipeline and
+        /// seal the manager-owned registries early.
+        /// </para>
+        /// </remarks>
+        /// <param name="externalReferences">
+        /// The dictionary of references to add to external targets.
+        /// </param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        public override async ValueTask CreateAddressSpaceAsync(
+            IDictionary<NodeId, IList<IReference>> externalReferences,
+            CancellationToken cancellationToken = default)
+        {
+            if (externalReferences == null)
+            {
+                throw new ArgumentNullException(nameof(externalReferences));
+            }
+
+            await base.CreateAddressSpaceAsync(externalReferences, cancellationToken)
+                .ConfigureAwait(false);
+
+            NodeManagerBuilder builder = CreateFluentBuilder(NamespaceIndex);
+
+            await ConfigureAsync(builder, cancellationToken).ConfigureAwait(false);
+
+            await RegisterAuthoredNodesAsync(builder, cancellationToken).ConfigureAwait(false);
+            await CompleteConfigureAsync(externalReferences, cancellationToken)
+                .ConfigureAwait(false);
+            await SealConfigurationAsync(builder, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Asynchronous counterpart of the <c>Configure(INodeManagerBuilder)</c>
         /// hook, invoked once per manager activation with the same builder
         /// immediately <em>before</em> the synchronous <c>Configure</c>
         /// callbacks run.
         /// </summary>
         /// <remarks>
+        /// <para>
+        /// Hand-written managers that rely on
+        /// <see cref="CreateAddressSpaceAsync"/> author their whole address
+        /// space here; there is no separate synchronous pass for them.
+        /// </para>
         /// <para>
         /// This is the seam for wiring that has to await: materialising
         /// instances from a store or a companion-spec factory, reading a
@@ -416,8 +475,8 @@ namespace Opc.Ua.Server.Fluent
         /// source as a root notifier.
         /// </summary>
         /// <remarks>
-        /// The source-generated <c>CreateAddressSpaceAsync</c> and the
-        /// hosting <c>FluentNodeManager</c> invoke this once between the
+        /// The source-generated <c>CreateAddressSpaceAsync</c> and the base
+        /// <see cref="CreateAddressSpaceAsync"/> invoke this once between the
         /// <c>Configure</c> callbacks and <see cref="NodeManagerBuilder.SealAsync"/>;
         /// hand-written managers that drive
         /// <see cref="CreateFluentBuilder"/> themselves should do the
@@ -531,10 +590,9 @@ namespace Opc.Ua.Server.Fluent
             }
 
             var activation = new NodeBehaviorActivation(
-                new NodeBehaviorRegistry(
-                    typeRegistrations,
-                    Server.NamespaceUris,
-                    Server.TypeTree),
+                typeRegistrations.Count == 0
+                    ? new NodeBehaviorRegistry()
+                    : new NodeBehaviorRegistry(typeRegistrations, Server.NamespaceUris, Server.TypeTree),
                 new NodeBehaviorAddressSpace(Server.NamespaceUris, Find),
                 SystemContext,
                 telemetry,
@@ -642,6 +700,7 @@ namespace Opc.Ua.Server.Fluent
         /// Rewrites a type definition into the namespace-stable form the behavior
         /// registry matches on.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private ExpandedNodeId ToNamespaceStableTypeId(NodeId typeDefinitionId)
         {
             if (typeDefinitionId.NamespaceIndex == 0)
@@ -775,7 +834,7 @@ namespace Opc.Ua.Server.Fluent
         /// </remarks>
         /// <param name="builder">The builder whose staged nodes to register.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
-        /// <exception cref="System.ArgumentNullException">
+        /// <exception cref="ArgumentNullException">
         /// <paramref name="builder"/> is <c>null</c>.
         /// </exception>
         protected ValueTask RegisterAuthoredNodesAsync(
@@ -784,7 +843,7 @@ namespace Opc.Ua.Server.Fluent
         {
             if (builder == null)
             {
-                throw new System.ArgumentNullException(nameof(builder));
+                throw new ArgumentNullException(nameof(builder));
             }
 
             return builder.RegisterAuthoredNodesAsync(
@@ -810,7 +869,7 @@ namespace Opc.Ua.Server.Fluent
         /// </remarks>
         /// <param name="builder">The builder the Configure pass used.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
-        /// <exception cref="System.ArgumentNullException">
+        /// <exception cref="ArgumentNullException">
         /// <paramref name="builder"/> is <c>null</c>.
         /// </exception>
         protected ValueTask SealConfigurationAsync(
@@ -819,7 +878,7 @@ namespace Opc.Ua.Server.Fluent
         {
             if (builder == null)
             {
-                throw new System.ArgumentNullException(nameof(builder));
+                throw new ArgumentNullException(nameof(builder));
             }
 
             builder.SealGraphAuthoring();
@@ -892,10 +951,7 @@ namespace Opc.Ua.Server.Fluent
                 cancellationToken).ConfigureAwait(false);
             if (resolved == null)
             {
-                if (cache != null)
-                {
-                    cache[handle.NodeId] = null!;
-                }
+                cache?[handle.NodeId] = null!;
                 return null!;
             }
 
@@ -998,15 +1054,23 @@ namespace Opc.Ua.Server.Fluent
             bool unsubscribe,
             CancellationToken cancellationToken = default)
         {
+            if (monitoredNode is null)
+            {
+                return;
+            }
+
+            MonitoredNode2 nonNullMonitoredNode = monitoredNode;
+
             if (unsubscribe)
             {
                 EventSources.SignalReconcile();
             }
-            else
+            else if (nonNullMonitoredNode.Node != null)
             {
-                await EventSources.WaitUntilReadyAsync(monitoredNode.Node, cancellationToken).ConfigureAwait(false);
+                await EventSources.WaitUntilReadyAsync(nonNullMonitoredNode.Node, cancellationToken)
+                    .ConfigureAwait(false);
             }
-            await base.OnSubscribeToEventsAsync(context, monitoredNode, unsubscribe, cancellationToken)
+            await base.OnSubscribeToEventsAsync(context, nonNullMonitoredNode, unsubscribe, cancellationToken)
                 .ConfigureAwait(false);
         }
 
@@ -1098,7 +1162,6 @@ namespace Opc.Ua.Server.Fluent
                     break;
                 }
             }
-
         }
 
         /// <inheritdoc/>
@@ -1132,7 +1195,6 @@ namespace Opc.Ua.Server.Fluent
                     break;
                 }
             }
-
         }
 
         /// <inheritdoc/>
@@ -1172,7 +1234,6 @@ namespace Opc.Ua.Server.Fluent
                     break;
                 }
             }
-
         }
 
         /// <inheritdoc/>

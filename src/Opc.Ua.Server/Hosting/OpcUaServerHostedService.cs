@@ -41,7 +41,6 @@ using Opc.Ua.Configuration;
 using Opc.Ua.Identity;
 using Opc.Ua.Schema;
 using Opc.Ua.Security.Certificates;
-using Opc.Ua.Server.Historian;
 
 namespace Opc.Ua.Server.Hosting
 {
@@ -272,12 +271,23 @@ namespace Opc.Ua.Server.Hosting
                 m_server.RateLimitOptions = rateLimitOptions;
             }
 
+            // A registered budget bounds what incomplete messages may hold across
+            // all the listeners; without one the server sizes it from the
+            // maximum message size.
+            if (m_services.GetService<ChunkReassemblyBudget>() is { } chunkReassemblyBudget)
+            {
+                m_server.ChunkReassemblyBudget = chunkReassemblyBudget;
+            }
+            if (m_services.GetService<ISessionBindingProvider>() is { } sessionBindingProvider)
+            {
+                m_server.SessionBindingProvider = sessionBindingProvider;
+            }
+
             foreach (OpcUaServerNodeManagerRegistration reg in
                 m_services.GetServices<OpcUaServerNodeManagerRegistration>())
             {
                 stoppingToken.ThrowIfCancellationRequested();
-                ArrayOf<IAsyncNodeManagerFactory> factories = reg.ResolveAsyncFactories(m_services, configuration);
-                foreach (IAsyncNodeManagerFactory factory in factories)
+                foreach (IAsyncNodeManagerFactory factory in reg.ResolveAsyncFactories(m_services, configuration))
                 {
                     m_server.AddNodeManager(factory ??
                         throw new InvalidOperationException(
@@ -289,10 +299,10 @@ namespace Opc.Ua.Server.Hosting
                 }
             }
 
-            await application.StartAsync(m_server, stoppingToken).ConfigureAwait(false);
-            await BindKeyCredentialPushAsync(stoppingToken).ConfigureAwait(false);
             RegisterIdentityAuthenticators();
             RegisterIdentityAugmenters();
+            await application.StartAsync(m_server, stoppingToken).ConfigureAwait(false);
+            await BindKeyCredentialPushAsync(stoppingToken).ConfigureAwait(false);
 
             // Run post-start tasks (e.g. distributed address-space wiring)
             // now that the server is fully initialized and CurrentInstance is
@@ -502,7 +512,7 @@ namespace Opc.Ua.Server.Hosting
             {
                 // JWT issuer registrations expand to one authenticator per issuer because JwtAuthenticator
                 // validates one fixed IssuerUri through its resolver.
-                m_server.CurrentInstance.IdentityRegistry.Register(authenticator);
+                m_server.RegisterIdentityAuthenticator(authenticator);
             }
         }
 
@@ -515,7 +525,7 @@ namespace Opc.Ua.Server.Hosting
 
             foreach (OpcUaServerIdentityAugmenterRegistration registration in m_augmenterRegistrations)
             {
-                m_server.CurrentInstance.IdentityRegistry.RegisterAugmenter(
+                m_server.RegisterIdentityAugmenter(
                     registration.CreateAugmenter(m_services));
             }
         }

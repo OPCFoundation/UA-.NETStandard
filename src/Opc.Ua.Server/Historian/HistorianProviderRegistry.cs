@@ -63,8 +63,13 @@ namespace Opc.Ua.Server.Historian
 
             lock (m_lock)
             {
+                m_nodes.TryGetValue(nodeId, out IHistorianProvider? previous);
                 m_nodes[nodeId] = provider;
                 AddProvider(provider, ownsProvider: true);
+                if (previous != null)
+                {
+                    RebuildProviderSet(previous);
+                }
             }
         }
 
@@ -82,8 +87,13 @@ namespace Opc.Ua.Server.Historian
 
             lock (m_lock)
             {
+                m_namespaces.TryGetValue(namespaceUri, out IHistorianProvider? previous);
                 m_namespaces[namespaceUri] = provider;
                 AddProvider(provider, ownsProvider: true);
+                if (previous != null)
+                {
+                    RebuildProviderSet(previous);
+                }
             }
         }
 
@@ -96,6 +106,7 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Registers the fallback historian provider with an explicit lifetime ownership setting.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="provider"/> is <c>null</c>.</exception>
         internal void RegisterDefault(
             IHistorianProvider provider,
             bool ownsProvider)
@@ -107,8 +118,13 @@ namespace Opc.Ua.Server.Historian
 
             lock (m_lock)
             {
+                IHistorianProvider? previous = m_default;
                 m_default = provider;
                 AddProvider(provider, ownsProvider);
+                if (previous != null)
+                {
+                    RebuildProviderSet(previous);
+                }
             }
         }
 
@@ -246,7 +262,6 @@ namespace Opc.Ua.Server.Historian
             if (!ContainsProvider(candidate))
             {
                 m_providers.Remove(candidate);
-                m_ownedProviders.Remove(candidate);
             }
         }
 

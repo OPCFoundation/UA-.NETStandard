@@ -50,7 +50,8 @@ namespace Quickstarts.Servers
 
         private const string kFilename = "subscriptionsStore.bin";
         private const uint kStoreMagic = 0x44535541;
-        private const uint kStoreVersion = 1;
+        private const uint kStoreVersion = 3;
+        private const uint kLegacyStoreVersion = 1;
         private readonly DurableMonitoredItemQueueFactory? m_durableMonitoredItemQueueFactory;
         private readonly ILogger m_logger;
         private readonly IServiceMessageContext m_messageContext;
@@ -292,6 +293,8 @@ namespace Quickstarts.Servers
             encoder.WriteByte(null, subscription.Priority);
             encoder.WriteInt32(null, subscription.LastSentMessage);
             encoder.WriteUInt32(null, subscription.SequenceNumber);
+            encoder.WriteBoolean(null, subscription.PublishingEnabled);
+            encoder.WriteString(null, subscription.OwnerClientApplicationUri);
 
             UserIdentityToken? sanitizedIdentityToken =
                 SanitizeUserIdentityToken(subscription.UserIdentityToken);
@@ -377,6 +380,15 @@ namespace Quickstarts.Servers
                 LastSentMessage = decoder.ReadInt32(null),
                 SequenceNumber = decoder.ReadUInt32(null)
             };
+            if (version == kStoreVersion)
+            {
+                subscription.PublishingEnabled = decoder.ReadBoolean(null);
+                subscription.OwnerClientApplicationUri = decoder.ReadString(null);
+            }
+            else
+            {
+                subscription.PublishingEnabled = true;
+            }
 
             ExtensionObject tokenEo = decoder.ReadExtensionObject(null);
             if (!tokenEo.IsNull && tokenEo.TryGetValue(out IEncodeable? tokenBody))
@@ -507,7 +519,7 @@ namespace Quickstarts.Servers
         /// <exception cref="InvalidDataException">The supplied store version is not supported.</exception>
         private static void ValidateStoreVersion(uint version)
         {
-            if (version != kStoreVersion)
+            if (version is not kLegacyStoreVersion and not kStoreVersion)
             {
                 throw new InvalidDataException(
                     $"Unsupported durable subscription store version {version}.");

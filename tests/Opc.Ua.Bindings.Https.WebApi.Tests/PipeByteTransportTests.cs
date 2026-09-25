@@ -252,6 +252,96 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         }
 
         /// <summary>
+        /// A chunk is received into a buffer rented for its own size, not for
+        /// the largest chunk the listener accepts: a chunk kept for an
+        /// incomplete message keeps its whole buffer alive.
+        /// </summary>
+        [Test]
+        public async Task ReceiveChunkAsyncRentsForTheChunkSizeAsync()
+        {
+            using var ctx = new TestConnectionContext();
+            using var transport = new PipeByteTransport(ctx, m_bufferManager, kBufferSize, m_telemetry);
+
+            byte[] chunk = BuildValidChunk(size: 32);
+            await WriteToServerInputAsync(ctx, chunk).ConfigureAwait(false);
+
+            ArraySegment<byte> received = await transport
+                .ReceiveChunkAsync(CancellationToken.None)
+                .ConfigureAwait(false);
+            try
+            {
+                Assert.That(received, Has.Count.EqualTo(chunk.Length));
+                Assert.That(received.Array!, Has.Length.LessThan(kBufferSize));
+            }
+            finally
+            {
+                m_bufferManager.ReturnBuffer(received.Array, nameof(ReceiveChunkAsyncRentsForTheChunkSizeAsync));
+            }
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task NegotiatedReceiveLimitRejectsOversizedChunksBeforeRentingAsync(bool headerOnly)
+        {
+            const int negotiatedSize = 64;
+            using var limiter = new BufferManagerMemoryLimiter(1);
+            var buffers = new BufferManager(new LimitingBufferManager(
+                new FastBufferManager("negotiated-limit", kBufferSize, m_telemetry),
+                limiter));
+            using var ctx = new TestConnectionContext();
+            using var transport = new PipeByteTransport(ctx, buffers, kBufferSize, m_telemetry);
+            IUaSCByteTransportLimits limits = transport;
+            limits.SetReceiveBufferSize(negotiatedSize);
+            byte[] chunk = BuildValidChunk(negotiatedSize + 1);
+            await WriteToServerInputAsync(
+                ctx,
+                headerOnly ? chunk.AsSpan(0, TcpMessageLimits.MessageTypeAndSize).ToArray() : chunk)
+                .ConfigureAwait(false);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await transport.ReceiveChunkAsync(timeout.Token).ConfigureAwait(false))!;
+
+            Assert.That(error.StatusCode, Is.EqualTo((uint)StatusCodes.BadTcpMessageTooLarge));
+        }
+
+        [TestCase(63)]
+        [TestCase(64)]
+        public async Task NegotiatedReceiveLimitAcceptsChunksThroughTheExactBoundaryAsync(int size)
+        {
+            using var ctx = new TestConnectionContext();
+            using var transport = new PipeByteTransport(ctx, m_bufferManager, kBufferSize, m_telemetry);
+            IUaSCByteTransportLimits limits = transport;
+            limits.SetReceiveBufferSize(64);
+            byte[] chunk = BuildValidChunk(size);
+            await WriteToServerInputAsync(ctx, chunk).ConfigureAwait(false);
+            ArraySegment<byte> received = await transport.ReceiveChunkAsync(CancellationToken.None)
+                .ConfigureAwait(false);
+            try
+            {
+                Assert.That(received, Has.Count.EqualTo(size));
+                Assert.That(received.AsSpan().ToArray(), Is.EqualTo(chunk));
+            }
+            finally
+            {
+                m_bufferManager.ReturnBuffer(
+                    received.Array,
+                    nameof(NegotiatedReceiveLimitAcceptsChunksThroughTheExactBoundaryAsync));
+            }
+        }
+
+        [TestCase(0)]
+        [TestCase(TcpMessageLimits.MessageTypeAndSize)]
+        public void NegotiatedReceiveLimitRejectsInvalidSizes(int size)
+        {
+            using var ctx = new TestConnectionContext();
+            using var transport = new PipeByteTransport(ctx, m_bufferManager, kBufferSize, m_telemetry);
+            IUaSCByteTransportLimits limits = transport;
+
+            Assert.That(() => limits.SetReceiveBufferSize(size), Throws.TypeOf<ArgumentOutOfRangeException>());
+        }
+
+        /// <summary>
         /// When the declared size in the UASC header exceeds
         /// <c>receiveBufferSize</c> the transport must throw with
         /// <see cref="StatusCodes.BadTcpMessageTooLarge"/>.

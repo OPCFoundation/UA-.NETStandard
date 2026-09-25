@@ -263,4 +263,3 @@ the secret bytes from the registry and decodes UTF-8 on every call.
 - Related: [certificates.md](certificates.md), [configuration.md](configuration.md), [sessions-subscriptions.md](sessions-subscriptions.md).
 - [2.0 migration index](README.md) — analyzer quick-start + symptom → sub-doc table.
 - [Migration Guide](../../MigrationGuide.md) — landing page across versions.
-

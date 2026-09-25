@@ -164,5 +164,48 @@ namespace Opc.Ua.Types.Tests.Utils
             // The abandoned wait must not fault the underlying task.
             pending.TrySetResult(1);
         }
+
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task TimedWaitPreservesUnderlyingCancellationAsync(bool generic, bool alreadyCompleted)
+        {
+            var source = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+            if (alreadyCompleted)
+            {
+                source.SetCanceled();
+            }
+
+            Task wait = generic
+                ? source.Task.WaitAsync(TimeSpan.FromSeconds(5))
+                : ((Task)source.Task).WaitAsync(TimeSpan.FromSeconds(5));
+            if (!alreadyCompleted)
+            {
+                source.SetCanceled();
+            }
+
+            await Assert.ThatAsync(
+                () => wait,
+                Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+            Assert.That(wait.IsCanceled, Is.True);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task TimedWaitReportsTimeoutWithoutCompletingUnderlyingTaskAsync(bool generic)
+        {
+            var source = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task wait = generic
+                ? source.Task.WaitAsync(TimeSpan.Zero)
+                : ((Task)source.Task).WaitAsync(TimeSpan.Zero);
+
+            await Assert.ThatAsync(
+                () => wait,
+                Throws.TypeOf<TimeoutException>()).ConfigureAwait(false);
+            Assert.That(source.Task.IsCompleted, Is.False);
+            source.SetResult(42);
+            Assert.That(await source.Task.ConfigureAwait(false), Is.EqualTo(42));
+        }
     }
 }

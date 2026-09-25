@@ -58,8 +58,10 @@ namespace Opc.Ua.Server.Tests
     {
         private static readonly ITelemetryContext s_telemetry = NUnitTelemetryContext.Create();
 
-        // A §7.10.10-compliant (>= 32 byte) additional-entropy nonce for
-        // CreateSigningRequest regeneratePrivateKey requests.
+        /// <summary>
+        /// A §7.10.10-compliant (>= 32 byte) additional-entropy nonce for
+        /// CreateSigningRequest regeneratePrivateKey requests.
+        /// </summary>
         private static readonly ByteString s_regenerateNonce = ByteString.From(
         [
             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
@@ -107,7 +109,7 @@ namespace Opc.Ua.Server.Tests
             // no-op returning BadNothingToDo when nothing is staged).
             if (m_configNode?.CancelChanges != null)
             {
-                var inputArguments = ArrayOf<Variant>.Empty;
+                ArrayOf<Variant> inputArguments = [];
                 var outputArguments = new System.Collections.Generic.List<Variant>();
                 ServiceResult result = await m_configNode.CancelChanges.OnCallMethod2Async(
                     CreateAdminContext(),
@@ -310,8 +312,8 @@ namespace Opc.Ua.Server.Tests
                         string.Empty,
                         ["localhost", string.Empty],
                         ["127.0.0.1", string.Empty],
-                        (ushort)0,
-                        (ushort)2048,
+                        0,
+                        2048,
                         CancellationToken.None)
                     .ConfigureAwait(false));
 
@@ -336,8 +338,8 @@ namespace Opc.Ua.Server.Tests
                         "CN=Unsupported Key Size Probe",
                         ["localhost"],
                         ["127.0.0.1"],
-                        (ushort)0,
-                        (ushort)1024,
+                        0,
+                        1024,
                         CancellationToken.None)
                     .ConfigureAwait(false));
 
@@ -391,7 +393,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task CreateSelfSignedCertificateWithDefaultLifetimeReturnsCertificateAsync()
+        public Task CreateSelfSignedCertificateWithDefaultLifetimeReturnsCertificateAsync()
         {
             ISystemContext context = CreateAdminContext();
 
@@ -409,13 +411,14 @@ namespace Opc.Ua.Server.Tests
                         "CN=ConfigurationNodeManager Self Signed Occupied Probe",
                         ["localhost", string.Empty],
                         ["127.0.0.1", string.Empty],
-                        (ushort)0,
-                        (ushort)2048,
+                        0,
+                        2048,
                         CancellationToken.None)
                     .ConfigureAwait(false));
 
             Assert.That(exception, Is.Not.Null, "expected BadInvalidState but call succeeded");
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            return Task.CompletedTask;
         }
 
         [Test]
@@ -460,7 +463,7 @@ namespace Opc.Ua.Server.Tests
                 int rsaBefore = typesBefore.ToList()
                     .FindIndex(t => t == ObjectTypeIds.RsaSha256ApplicationCertificateType);
                 Assert.That(rsaBefore, Is.GreaterThanOrEqualTo(0));
-                using Certificate referencedCertificate = Certificate.FromRawData(certsBefore[rsaBefore]);
+                using var referencedCertificate = Certificate.FromRawData(certsBefore[rsaBefore]);
 
                 DeleteCertificateMethodStateResult deleteResult = await configNode
                     .DeleteCertificate.OnCallAsync(
@@ -476,7 +479,7 @@ namespace Opc.Ua.Server.Tests
                     Is.True,
                     "staging DeleteCertificate must succeed; §7.10.7 is enforced at ApplyChanges");
 
-                var inputArguments = ArrayOf<Variant>.Empty;
+                ArrayOf<Variant> inputArguments = [];
                 var outputArguments = new System.Collections.Generic.List<Variant>();
                 ServiceResult applyResult = await configNode.ApplyChanges.OnCallMethod2Async(
                     context,
@@ -487,7 +490,7 @@ namespace Opc.Ua.Server.Tests
                     CancellationToken.None).ConfigureAwait(false);
                 Assert.That(
                     applyResult.StatusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.BadInvalidState),
+                    Is.EqualTo(StatusCodes.BadInvalidState),
                     "deleting an endpoint-referenced certificate must be rejected at ApplyChanges (§7.10.7)");
                 await configManager.DrainPendingApplyChangesAsync(CancellationToken.None).ConfigureAwait(false);
 
@@ -509,7 +512,7 @@ namespace Opc.Ua.Server.Tests
                     rsaAfter,
                     Is.GreaterThanOrEqualTo(0),
                     "the referenced certificate must survive the rejected delete");
-                using Certificate afterCertificate = Certificate.FromRawData(certsAfter[rsaAfter]);
+                using var afterCertificate = Certificate.FromRawData(certsAfter[rsaAfter]);
                 Assert.That(afterCertificate.Thumbprint, Is.EqualTo(referencedCertificate.Thumbprint));
             }
             finally
@@ -552,7 +555,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(configManager, Is.Not.Null);
 
                 ISystemContext context = CreateAdminContext();
-                var inputArguments = ArrayOf<Variant>.Empty;
+                ArrayOf<Variant> inputArguments = [];
                 var outputArguments = new System.Collections.Generic.List<Variant>();
 
                 // Capture the certificate the RSA slot holds at startup (A).
@@ -570,7 +573,7 @@ namespace Opc.Ua.Server.Tests
                 int rsaBefore = typesBefore.ToList()
                     .FindIndex(t => t == ObjectTypeIds.RsaSha256ApplicationCertificateType);
                 Assert.That(rsaBefore, Is.GreaterThanOrEqualTo(0));
-                using Certificate certificateA = Certificate.FromRawData(certsBefore[rsaBefore]);
+                using var certificateA = Certificate.FromRawData(certsBefore[rsaBefore]);
                 string[] domainNames = X509Utils.GetDomainsFromCertificate(certificateA).ToArray();
 
                 // Rotate A -> B via UpdateCertificate + ApplyChanges. B keeps the
@@ -595,7 +598,7 @@ namespace Opc.Ua.Server.Tests
                         ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
                         ObjectTypeIds.RsaSha256ApplicationCertificateType,
                         certificateB.RawData.ToByteString(),
-                        ArrayOf<ByteString>.Empty,
+                        [],
                         "pfx",
                         privateKeyB,
                         CancellationToken.None)
@@ -630,7 +633,7 @@ namespace Opc.Ua.Server.Tests
                 int rsaRotated = typesRotated.ToList()
                     .FindIndex(t => t == ObjectTypeIds.RsaSha256ApplicationCertificateType);
                 Assert.That(rsaRotated, Is.GreaterThanOrEqualTo(0));
-                using (Certificate rotatedCert = Certificate.FromRawData(certsRotated[rsaRotated]))
+                using (var rotatedCert = Certificate.FromRawData(certsRotated[rsaRotated]))
                 {
                     Assert.That(
                         rotatedCert.Thumbprint,
@@ -665,7 +668,7 @@ namespace Opc.Ua.Server.Tests
                     CancellationToken.None).ConfigureAwait(false);
                 Assert.That(
                     deleteApplyResult.StatusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.BadInvalidState),
+                    Is.EqualTo(StatusCodes.BadInvalidState),
                     "deleting the rotated (currently presented) certificate must be rejected at " +
                     "ApplyChanges (§7.10.7)");
                 await configManager.DrainPendingApplyChangesAsync(CancellationToken.None).ConfigureAwait(false);
@@ -688,7 +691,7 @@ namespace Opc.Ua.Server.Tests
                     rsaAfter,
                     Is.GreaterThanOrEqualTo(0),
                     "the referenced rotated certificate must survive the rejected delete");
-                using Certificate afterCertificate = Certificate.FromRawData(certsAfter[rsaAfter]);
+                using var afterCertificate = Certificate.FromRawData(certsAfter[rsaAfter]);
                 Assert.That(afterCertificate.Thumbprint, Is.EqualTo(certificateB.Thumbprint));
             }
             finally
@@ -749,7 +752,7 @@ namespace Opc.Ua.Server.Tests
                 int rsaIndexBefore = certificateTypeIdsBefore.ToList()
                     .FindIndex(t => t == ObjectTypeIds.RsaSha256ApplicationCertificateType);
                 Assert.That(rsaIndexBefore, Is.GreaterThanOrEqualTo(0));
-                using Certificate originalCertificate = Certificate.FromRawData(certificatesBefore[rsaIndexBefore]);
+                using var originalCertificate = Certificate.FromRawData(certificatesBefore[rsaIndexBefore]);
 
                 DeleteCertificateMethodStateResult deleteResult = await configNode
                     .DeleteCertificate.OnCallAsync(
@@ -775,17 +778,17 @@ namespace Opc.Ua.Server.Tests
                         "CN=DeleteThenCreateSelfSigned " + Guid.NewGuid().ToString("N")[..8],
                         ["localhost", string.Empty],
                         ["127.0.0.1", string.Empty],
-                        (ushort)0,
-                        (ushort)2048,
+                        0,
+                        2048,
                         CancellationToken.None)
                     .ConfigureAwait(false);
                 Assert.That(
                     ServiceResult.IsGood(createResult.ServiceResult),
                     Is.True,
                     "DeleteCertificate staged earlier in the same transaction must permit CreateSelfSignedCertificate");
-                using Certificate newCertificate = Certificate.FromRawData(createResult.Certificate);
+                using var newCertificate = Certificate.FromRawData(createResult.Certificate);
 
-                var inputArguments = ArrayOf<Variant>.Empty;
+                ArrayOf<Variant> inputArguments = [];
                 var outputArguments = new System.Collections.Generic.List<Variant>();
                 ServiceResult applyResult = await configNode.ApplyChanges.OnCallMethod2Async(
                     context,
@@ -810,7 +813,7 @@ namespace Opc.Ua.Server.Tests
                 int rsaIndexAfter = certificateTypeIdsAfter.ToList()
                     .FindIndex(t => t == ObjectTypeIds.RsaSha256ApplicationCertificateType);
                 Assert.That(rsaIndexAfter, Is.GreaterThanOrEqualTo(0));
-                using Certificate finalCertificate = Certificate.FromRawData(certificatesAfter[rsaIndexAfter]);
+                using var finalCertificate = Certificate.FromRawData(certificatesAfter[rsaIndexAfter]);
                 Assert.That(
                     finalCertificate.Thumbprint,
                     Is.EqualTo(newCertificate.Thumbprint),
@@ -883,7 +886,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(configManager, Is.Not.Null);
 
                 ISystemContext context = CreateAdminContext();
-                var inputArguments = ArrayOf<Variant>.Empty;
+                ArrayOf<Variant> inputArguments = [];
                 var outputArguments = new System.Collections.Generic.List<Variant>();
 
                 // The RSA application certificate is referenced by the
@@ -917,8 +920,8 @@ namespace Opc.Ua.Server.Tests
                         "CN=CreateThenDelete " + Guid.NewGuid().ToString("N")[..8],
                         ["localhost", string.Empty],
                         ["127.0.0.1", string.Empty],
-                        (ushort)0,
-                        (ushort)2048,
+                        0,
+                        2048,
                         CancellationToken.None)
                     .ConfigureAwait(false);
                 Assert.That(ServiceResult.IsGood(createResult.ServiceResult), Is.True);
@@ -1262,7 +1265,7 @@ namespace Opc.Ua.Server.Tests
                 int rsaIndex = certificateTypeIds.ToList()
                     .FindIndex(t => t == ObjectTypeIds.RsaSha256ApplicationCertificateType);
                 Assert.That(rsaIndex, Is.GreaterThanOrEqualTo(0));
-                using Certificate current = Certificate.FromRawData(currentCertificates[rsaIndex]);
+                using var current = Certificate.FromRawData(currentCertificates[rsaIndex]);
                 string[] domainNames = X509Utils.GetDomainsFromCertificate(current).ToArray();
 
                 using Certificate newCertificate = DefaultCertificateFactory.Instance
@@ -1305,7 +1308,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(ServiceResult.IsGood(updateResult.ServiceResult), Is.True);
                 Assert.That(updateResult.ApplyChangesRequired, Is.True);
 
-                var inputArguments = ArrayOf<Variant>.Empty;
+                ArrayOf<Variant> inputArguments = [];
                 var outputArguments = new System.Collections.Generic.List<Variant>();
                 ServiceResult applyResult = await configNode.ApplyChanges.OnCallMethod2Async(
                     context,
@@ -1344,7 +1347,7 @@ namespace Opc.Ua.Server.Tests
                 int rsaIndexAfter = certificateTypeIdsAfter.ToList()
                     .FindIndex(t => t == ObjectTypeIds.RsaSha256ApplicationCertificateType);
                 Assert.That(rsaIndexAfter, Is.GreaterThanOrEqualTo(0));
-                using Certificate committed = Certificate.FromRawData(certificatesAfter[rsaIndexAfter]);
+                using var committed = Certificate.FromRawData(certificatesAfter[rsaIndexAfter]);
                 Assert.That(
                     committed.Thumbprint,
                     Is.EqualTo(newCertificate.Thumbprint),
@@ -1358,7 +1361,6 @@ namespace Opc.Ua.Server.Tests
                 }
             }
         }
-
 
         public void UpdateCertificateWithInvalidPrivateKeyThrowsBadSecurityChecksFailed(string privateKeyFormat)
         {
@@ -1593,8 +1595,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.ApplyChangesRequired, Is.True);
         }
 
-        [Test]
-        public async Task UpdateCertificateWithRegeneratedPrivateKeyStagesCertificateAsync()
+        private async Task<ByteString> StageCertificateWithRegeneratedPrivateKeyAsync()
         {
             ISystemContext context = CreateAdminContext();
             ByteString currentCertificate = GetCurrentRsaCertificate(context);
@@ -1643,6 +1644,44 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
             Assert.That(result.ApplyChangesRequired, Is.True);
+            return signedCertificate.RawData.ToByteString();
+        }
+
+        [Test]
+        public async Task UpdateCertificateWithRegeneratedPrivateKeyStagesCertificateAsync()
+        {
+            _ = await StageCertificateWithRegeneratedPrivateKeyAsync().ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task UpdateCertificateWithRegeneratedPrivateKeyCanBeRetriedAfterCancelAsync()
+        {
+            ISystemContext context = CreateAdminContext();
+            ByteString certificate = await StageCertificateWithRegeneratedPrivateKeyAsync()
+                .ConfigureAwait(false);
+
+            ServiceResult cancelResult = await m_configNode.CancelChanges.OnCallMethod2Async(
+                context,
+                m_configNode.CancelChanges,
+                m_configNode.NodeId,
+                [],
+                [],
+                CancellationToken.None).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(cancelResult), Is.True);
+
+            UpdateCertificateMethodStateResult retry = await m_configNode.UpdateCertificate.OnCallAsync(
+                    context,
+                    m_configNode.UpdateCertificate,
+                    m_configNode.NodeId,
+                    ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
+                    ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                    certificate,
+                    [],
+                    null,
+                    ByteString.Empty,
+                    CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(retry.ServiceResult), Is.True);
         }
 
         [Test]
@@ -1832,7 +1871,7 @@ namespace Opc.Ua.Server.Tests
             Assert.DoesNotThrow(() => m_configManager.StartAlarmMonitoring(TimeSpan.FromMilliseconds(50)));
             // Second call must hit the early-return branch (timer already running).
             Assert.DoesNotThrow(() => m_configManager.StartAlarmMonitoring(TimeSpan.FromMilliseconds(50)));
-            Assert.DoesNotThrow(() => m_configManager.StopAlarmMonitoring());
+            Assert.DoesNotThrow(m_configManager.StopAlarmMonitoring);
             // Stopping again must be a no-op.
             Assert.DoesNotThrow(m_configManager.StopAlarmMonitoring);
         }
@@ -2040,17 +2079,17 @@ namespace Opc.Ua.Server.Tests
                 Assert.Multiple(() =>
                 {
                     Assert.That(m_configNode.TransactionDiagnostics.StartTime.StatusCode,
-                        Is.EqualTo((StatusCode)StatusCodes.BadOutOfService));
+                        Is.EqualTo(StatusCodes.BadOutOfService));
                     Assert.That(m_configNode.TransactionDiagnostics.EndTime.StatusCode,
-                        Is.EqualTo((StatusCode)StatusCodes.BadOutOfService));
+                        Is.EqualTo(StatusCodes.BadOutOfService));
                     Assert.That(m_configNode.TransactionDiagnostics.Result.StatusCode,
-                        Is.EqualTo((StatusCode)StatusCodes.BadOutOfService));
+                        Is.EqualTo(StatusCodes.BadOutOfService));
                     Assert.That(m_configNode.TransactionDiagnostics.AffectedTrustLists.StatusCode,
-                        Is.EqualTo((StatusCode)StatusCodes.BadOutOfService));
+                        Is.EqualTo(StatusCodes.BadOutOfService));
                     Assert.That(m_configNode.TransactionDiagnostics.AffectedCertificateGroups.StatusCode,
-                        Is.EqualTo((StatusCode)StatusCodes.BadOutOfService));
+                        Is.EqualTo(StatusCodes.BadOutOfService));
                     Assert.That(m_configNode.TransactionDiagnostics.Errors.StatusCode,
-                        Is.EqualTo((StatusCode)StatusCodes.BadOutOfService));
+                        Is.EqualTo(StatusCodes.BadOutOfService));
                 });
             }
             finally
@@ -2071,9 +2110,9 @@ namespace Opc.Ua.Server.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(m_configNode.TransactionDiagnostics.Result.StatusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                    Is.EqualTo(StatusCodes.BadInvalidState));
                 Assert.That(m_configNode.TransactionDiagnostics.StartTime.StatusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.Good));
+                    Is.EqualTo(StatusCodes.Good));
                 // §7.10.17: EndTime is DateTime.MinValue until the transaction
                 // completes. The UA DateTime encoding clamps MinValue to the
                 // 1601 epoch, so compare against the same round-tripped value.
@@ -2109,13 +2148,13 @@ namespace Opc.Ua.Server.Tests
                 Assert.Multiple(() =>
                 {
                     Assert.That(m_configNode.TransactionDiagnostics.Result.StatusCode,
-                        Is.EqualTo((StatusCode)StatusCodes.Good));
+                        Is.EqualTo(StatusCodes.Good));
                     Assert.That(m_configNode.TransactionDiagnostics.Result.Value,
-                        Is.EqualTo((StatusCode)StatusCodes.Good));
+                        Is.EqualTo(StatusCodes.Good));
                     Assert.That((DateTime)m_configNode.TransactionDiagnostics.EndTime.Value,
                         Is.GreaterThan(DateTime.MinValue));
                     Assert.That(m_configNode.TransactionDiagnostics.EndTime.StatusCode,
-                        Is.EqualTo((StatusCode)StatusCodes.Good));
+                        Is.EqualTo(StatusCodes.Good));
                     Assert.That(m_configNode.TransactionDiagnostics.AffectedCertificateGroups.Value.Contains(group),
                         Is.True);
                 });
@@ -2132,8 +2171,8 @@ namespace Opc.Ua.Server.Tests
                 CreateAdminContext(),
                 m_configNode.CancelChanges,
                 m_configNode.NodeId,
-                ArrayOf<Variant>.Empty,
-                new System.Collections.Generic.List<Variant>(),
+                [],
+                [],
                 CancellationToken.None).ConfigureAwait(false);
         }
 
@@ -2312,7 +2351,7 @@ namespace Opc.Ua.Server.Tests
 
                 Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
 
-                var inputArguments = ArrayOf<Variant>.Empty;
+                ArrayOf<Variant> inputArguments = [];
                 var outputArguments = new System.Collections.Generic.List<Variant>();
                 await configNode.CancelChanges.OnCallMethod2Async(
                     context,
@@ -2383,7 +2422,7 @@ namespace Opc.Ua.Server.Tests
                         $"Deleting type #{i} should succeed while another type remains occupied.");
                 }
 
-                NodeId lastType = types[types.Count - 1];
+                NodeId lastType = types[^1];
                 ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await m_configNode.DeleteCertificate.OnCallAsync(
                             context,
@@ -2401,7 +2440,7 @@ namespace Opc.Ua.Server.Tests
                 // Discard every staged delete without applying it so the
                 // shared fixture's real certificate stores remain
                 // untouched for the other tests in this file.
-                var inputArguments = ArrayOf<Variant>.Empty;
+                ArrayOf<Variant> inputArguments = [];
                 var outputArguments = new System.Collections.Generic.List<Variant>();
                 await m_configNode.CancelChanges.OnCallMethod2Async(
                     context,
@@ -2509,6 +2548,7 @@ namespace Opc.Ua.Server.Tests
         /// method for this test (no issuer chain is supplied), so reusing
         /// the shared fixture's own first configured group is sufficient.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private static async Task InvokeApplyCertificateSlotChangeAsync(
             ConfigurationNodeManager manager,
             CertificateIdentifier existingCertIdentifier,
@@ -2551,6 +2591,7 @@ namespace Opc.Ua.Server.Tests
         /// be verified without reproducing an entire
         /// <c>UpdateCertificate</c> request end-to-end.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private static Task<ArrayOf<string>> InvokeApplyCertificateSlotChangeForIssuersAsync(
             ConfigurationNodeManager manager,
             object certificateGroup,
@@ -2581,6 +2622,7 @@ namespace Opc.Ua.Server.Tests
         /// <c>RollbackAsync</c> would when compensating a completed
         /// issuer import.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private static async Task InvokeRemoveIssuerCertificatesAsync(
             ConfigurationNodeManager manager,
             object certificateGroup,
@@ -2660,7 +2702,7 @@ namespace Opc.Ua.Server.Tests
 
                 Assert.That(
                     newlyAdded.ToList(),
-                    Is.EquivalentTo(new[] { newIssuer.Thumbprint }),
+                    Is.EquivalentTo([newIssuer.Thumbprint]),
                     "only the issuer that was not already present must be reported as newly added");
 
                 using (ICertificateStore verifyStore = issuerStoreIdentifier.OpenStore(s_telemetry))
@@ -2713,6 +2755,7 @@ namespace Opc.Ua.Server.Tests
         /// swap can be verified without reproducing an entire failing
         /// <c>UpdateCertificate</c> request end-to-end.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private static Task<ArrayOf<string>> InvokeApplyCertificateSlotChangeFullAsync(
             ConfigurationNodeManager manager,
             object certificateGroup,
@@ -2827,7 +2870,7 @@ namespace Opc.Ua.Server.Tests
                     "GetFileName",
                     BindingFlags.NonPublic | BindingFlags.Static)
                     ?? throw new InvalidOperationException("Method GetFileName not found.");
-                var poisonedFileName = (string)getFileNameMethod.Invoke(null, [poisonedIssuer])!;
+                string poisonedFileName = (string)getFileNameMethod.Invoke(null, [poisonedIssuer])!;
                 string poisonedFilePath = Path.Combine(tempIssuerPki, "certs", poisonedFileName + ".der");
                 Directory.CreateDirectory(poisonedFilePath);
 
@@ -2950,7 +2993,7 @@ namespace Opc.Ua.Server.Tests
             // restored.
             ISystemContext context = CreateAdminContext();
             ByteString originalCertificateBytes = GetCurrentRsaCertificate(context);
-            using Certificate original = Certificate.FromRawData(originalCertificateBytes);
+            using var original = Certificate.FromRawData(originalCertificateBytes);
             string[] domainNames = X509Utils.GetDomainsFromCertificate(original).ToArray();
 
             using Certificate issuerCa = CertificateBuilder
@@ -2959,7 +3002,7 @@ namespace Opc.Ua.Server.Tests
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
             using Certificate newCertificate = CertificateBuilder.Create(original.Subject)
-                .AddExtension(new global::Opc.Ua.Security.Certificates.X509SubjectAltNameExtension(
+                .AddExtension(new X509SubjectAltNameExtension(
                     m_fixture.Config.ApplicationUri,
                     domainNames))
                 .SetIssuer(issuerCa)
@@ -3013,7 +3056,7 @@ namespace Opc.Ua.Server.Tests
                     CommitAsync = _ => throw new InvalidOperationException("Induced failure for test.")
                 });
 
-                var inputArguments = ArrayOf<Variant>.Empty;
+                ArrayOf<Variant> inputArguments = [];
                 var outputArguments = new System.Collections.Generic.List<Variant>();
                 ServiceResult applyResult = await m_configNode.ApplyChanges.OnCallMethod2Async(
                     context,
@@ -3028,7 +3071,7 @@ namespace Opc.Ua.Server.Tests
                     "the induced later-operation failure must fail ApplyChanges");
 
                 ByteString restoredCertificateBytes = GetCurrentRsaCertificate(context);
-                using Certificate restored = Certificate.FromRawData(restoredCertificateBytes);
+                using var restored = Certificate.FromRawData(restoredCertificateBytes);
                 Assert.That(
                     restored.Thumbprint,
                     Is.EqualTo(original.Thumbprint),
@@ -3049,7 +3092,7 @@ namespace Opc.Ua.Server.Tests
                 // on the expected path; it only guards against the
                 // transaction somehow being left active if an assertion
                 // above fails first.
-                var inputArguments = ArrayOf<Variant>.Empty;
+                ArrayOf<Variant> inputArguments = [];
                 var outputArguments = new System.Collections.Generic.List<Variant>();
                 await m_configNode.CancelChanges.OnCallMethod2Async(
                     context,
@@ -3172,6 +3215,7 @@ namespace Opc.Ua.Server.Tests
         /// deterministically without needing two concurrent OPC UA Method
         /// Call requests.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private static async Task<ServiceResult> InvokeApplyChangesAsync(
             ConfigurationNodeManager manager,
             ISystemContext context)
@@ -3200,6 +3244,7 @@ namespace Opc.Ua.Server.Tests
         /// staged commit would, without needing a full certificate-store
         /// round trip.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private static void InvokeRegisterPendingRotation(
             ConfigurationNodeManager manager,
             NodeId certificateType,
@@ -3216,7 +3261,7 @@ namespace Opc.Ua.Server.Tests
         public async Task CancelChangesWithNoActiveTransactionReturnsBadNothingToDoAsync()
         {
             ISystemContext context = CreateAdminContext();
-            var inputArguments = ArrayOf<Variant>.Empty;
+            ArrayOf<Variant> inputArguments = [];
             var outputArguments = new System.Collections.Generic.List<Variant>();
 
             ServiceResult result = await m_configNode.CancelChanges.OnCallMethod2Async(
@@ -3234,7 +3279,7 @@ namespace Opc.Ua.Server.Tests
         public void CancelChangesNonAdminThrowsBadUserAccessDenied()
         {
             ISystemContext context = CreateAnonymousContext();
-            var inputArguments = ArrayOf<Variant>.Empty;
+            ArrayOf<Variant> inputArguments = [];
             var outputArguments = new System.Collections.Generic.List<Variant>();
 
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
@@ -3257,7 +3302,7 @@ namespace Opc.Ua.Server.Tests
 
             await UpdateCertificateWithPfxPrivateKeyStagesCertificateAsync().ConfigureAwait(false);
 
-            var inputArguments = ArrayOf<Variant>.Empty;
+            ArrayOf<Variant> inputArguments = [];
             var outputArguments = new System.Collections.Generic.List<Variant>();
             ServiceResult cancelResult = await m_configNode.CancelChanges.OnCallMethod2Async(
                 context,
@@ -3293,7 +3338,7 @@ namespace Opc.Ua.Server.Tests
 
             await UpdateCertificateWithPfxPrivateKeyStagesCertificateAsync().ConfigureAwait(false);
 
-            var inputArguments = ArrayOf<Variant>.Empty;
+            ArrayOf<Variant> inputArguments = [];
             var outputArguments = new System.Collections.Generic.List<Variant>();
             ServiceResult cancelResult = await m_configNode.CancelChanges.OnCallMethod2Async(
                 context,
@@ -3312,7 +3357,7 @@ namespace Opc.Ua.Server.Tests
             // transaction reads Bad_InvalidState).
             Assert.That(
                 m_configNode.TransactionDiagnostics.Result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.Good));
+                Is.EqualTo(StatusCodes.Good));
         }
 
         [Test]
@@ -3321,7 +3366,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext ownerContext = CreateAdminContextForSession(new NodeId(Guid.NewGuid(), 1));
             ISystemContext otherContext = CreateAdminContextForSession(new NodeId(Guid.NewGuid(), 1));
             ByteString currentCertificate = GetCurrentRsaCertificate(ownerContext);
-            using Certificate current = Certificate.FromRawData(currentCertificate);
+            using var current = Certificate.FromRawData(currentCertificate);
             string[] domainNames = X509Utils.GetDomainsFromCertificate(current).ToArray();
             using Certificate newCertificate = DefaultCertificateFactory.Instance
                 .CreateApplicationCertificate(
@@ -3366,7 +3411,7 @@ namespace Opc.Ua.Server.Tests
                 // ApplyChanges/CancelChanges from the non-owning Session
                 // must also be rejected without disturbing the owner's
                 // staged transaction.
-                var inputArguments = ArrayOf<Variant>.Empty;
+                ArrayOf<Variant> inputArguments = [];
                 var outputArguments = new System.Collections.Generic.List<Variant>();
                 ServiceResult applyFromOtherResult = await m_configNode.ApplyChanges.OnCallMethod2Async(
                     otherContext,
@@ -3393,7 +3438,7 @@ namespace Opc.Ua.Server.Tests
                 // [TearDown] uses CreateAdminContext(), whose NodeId.Null
                 // Session does not own this transaction and would
                 // otherwise get BadSessionIdInvalid).
-                var inputArguments = ArrayOf<Variant>.Empty;
+                ArrayOf<Variant> inputArguments = [];
                 var outputArguments = new System.Collections.Generic.List<Variant>();
                 await m_configNode.CancelChanges.OnCallMethod2Async(
                     ownerContext,
@@ -3404,8 +3449,6 @@ namespace Opc.Ua.Server.Tests
                     CancellationToken.None).ConfigureAwait(false);
             }
         }
-
-
 
         private ByteString GetCurrentRsaCertificate(ISystemContext context)
         {
@@ -3511,8 +3554,8 @@ namespace Opc.Ua.Server.Tests
                         "CN=Test",
                         ["localhost"],
                         [],
-                        (ushort)0,
-                        (ushort)2048,
+                        0,
+                        2048,
                         CancellationToken.None)
                     .ConfigureAwait(false));
 
@@ -3537,8 +3580,8 @@ namespace Opc.Ua.Server.Tests
                         "CN=Test",
                         ["localhost"],
                         [],
-                        (ushort)0,
-                        (ushort)2048,
+                        0,
+                        2048,
                         CancellationToken.None)
                     .ConfigureAwait(false));
 
@@ -3628,6 +3671,7 @@ namespace Opc.Ua.Server.Tests
                 ServerUris = new StringTable()
             };
         }
+
         /// <summary>
         /// Creates an admin context bound to a specific, deterministic
         /// Session NodeId (unlike <see cref="CreateAdminContext"/>, which

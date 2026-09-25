@@ -4,6 +4,8 @@ Here is a list of available documentation for different topics:
 
 > **New contributor?** Start with the **[Developer Guide](DeveloperGuide.md)** — prerequisites, building, testing, coding standards, and how-to recipes (including how to add logging).
 
+> **Cutting, backporting, or promoting a release?** See the **[Release process](ReleaseProcess.md)** — the authoritative, step-by-step procedures for every release operation, including the branch/version model, backports, and recovering from a failed release.
+
 * [Sample applications](samples.md) - Platform-independent reference, PubSub, minimal API, companion-model, robotics, Vision, AI, ISA-95, and OpenUSD demos included in this repository.
 
 ## UA Core stack related
@@ -24,7 +26,7 @@ Here is a list of available documentation for different topics:
 * [Diagnostics](Diagnostics.md) — logging, telemetry, server audit events, server diagnostics nodes, and packet capture.
 * [Performance Benchmarks](Benchmarks.md) — BenchmarkDotNet methodology, the 2.0 (`master`) vs 1.5.378 (`master378`) comparison, root-cause analysis of the encoder/decoder/session regressions and their real-world impact, the subscription-notification (pooled encodeable) micro-benchmarks, server session scalability (the 500-session capability, sizing and bottlenecks), and planned future work.
 * [Server Session Scalability](ServerScalability.md) — why a single node tops out at ~2000 concurrent sessions, the establishment vs steady-state boundaries (socket backlog, the `BadTcpInternalError` retry-storm amplifier, the O(N²) diagnostics rescan, CreateSession crypto-under-lock, the RSA CPU wall, and the held-Publish worker-accounting coupling) with code references, and a prioritized admission-control / rate-limiting roadmap for moving beyond it.
-* [Rate Limiting and Admission Control](RateLimiting.md) — the server's deterministic, configurable connection- and session-establishment limiters (on by default, `System.Threading.RateLimiting`-based, DI-pluggable), the `BadServerTooBusy` signalling, the diagnostics-independent server retry-after carriers (`ResponseHeader.additionalHeader`, HTTP `Retry-After`, UA-TCP ERR, and load-based `Server.ServiceLevel`), and the client's server-signal-aware adaptive reconnect backoff (`IReconnectPolicy.TryGetNextDelay`).
+* [Rate Limiting and Admission Control](RateLimiting.md) — the server's deterministic, configurable connection- and session-establishment limiters (on by default, `System.Threading.RateLimiting`-based, DI-pluggable), shared incomplete-message capacity and sessionless headroom, the `BadServerTooBusy` signalling, the diagnostics-independent server retry-after carriers (`ResponseHeader.additionalHeader`, HTTP `Retry-After`, UA-TCP ERR, and load-based `Server.ServiceLevel`), and the client's server-signal-aware adaptive reconnect backoff (`IReconnectPolicy.TryGetNextDelay`).
 * Support for [WellKnownRoles & RoleBasedUserManagement](RoleBasedUserManagement.md).
 * Pluggable [Identity Providers](IdentityProviders.md) — interfaces (`IClientIdentityProvider`, `IUserTokenAuthenticator`, `IAccessTokenProvider`, `ITokenIssuer`, `IIdentityClaims`) plus the OPC 10000-6 §6.5.2.2 `IssuerEndpointUrl` JSON parser for OAuth2 / OIDC / Entra / JWT flows.
 * Support for [ECC Certificates](EccProfiles.md).

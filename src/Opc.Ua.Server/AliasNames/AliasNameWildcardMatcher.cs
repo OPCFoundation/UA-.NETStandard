@@ -27,14 +27,14 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Text;
-using System.Text.RegularExpressions;
+using System;
+using System.Diagnostics;
 
 namespace Opc.Ua.Server.AliasNames
 {
     /// <summary>
     /// Implements the OPC UA <c>Like</c>-operator wildcard pattern match
-    /// described in OPC UA Part 4 §7.40 (FilterOperator Like) — used by
+    /// described in OPC UA Part 4 §7.7.3 (FilterOperator Like) — used by
     /// Part 17 <c>FindAlias</c>/<c>FindAliasVerbose</c> methods to match
     /// the <c>AliasNameSearchPattern</c> input argument against alias
     /// names.
@@ -45,14 +45,17 @@ namespace Opc.Ua.Server.AliasNames
     ///   <item><description><c>%</c> — matches zero or more characters.</description></item>
     ///   <item><description><c>_</c> — matches exactly one character.</description></item>
     ///   <item><description><c>[abc]</c> — matches any single character from the set.</description></item>
-    ///   <item><description><c>[!abc]</c> — matches any single character not in the set.</description></item>
+    ///   <item><description><c>[^abc]</c> — matches any single character not in the set.
+    ///   The legacy <c>[!abc]</c> spelling is also accepted.</description></item>
     ///   <item><description><c>\</c> — escapes the next wildcard character.</description></item>
     /// </list>
-    /// Algorithm ported from the original implementation in the Quickstart
-    /// reference server (which itself ported the private <c>Match</c> from
-    /// <c>src/Opc.Ua.Core/Stack/Types/FilterEvaluator.cs</c>). Matching is
+    /// The pattern is evaluated by <see cref="LikePattern"/>. Matching is
     /// case-sensitive and anchored: the entire target must match the entire
-    /// pattern.
+    /// pattern. Evaluation has a finite timeout on all target frameworks.
+    /// A malformed pattern (trailing escape character, unterminated
+    /// or empty <c>[..]</c> list, descending range, <c>^</c> that is not the
+    /// first list character) is not a valid search string and matches
+    /// nothing; see <see cref="IsValidPattern"/>.
     /// </remarks>
     public static class AliasNameWildcardMatcher
     {
@@ -63,96 +66,95 @@ namespace Opc.Ua.Server.AliasNames
         /// <param name="target">String to test; must not be <c>null</c>.</param>
         /// <param name="pattern">OPC UA Like pattern; must not be <c>null</c>.</param>
         /// <returns><c>true</c> if the target matches; otherwise <c>false</c>.
-        /// Both <c>null</c> inputs and an empty <paramref name="pattern"/>
-        /// return <c>false</c>.</returns>
+        /// Both <c>null</c> inputs, an empty <paramref name="pattern"/> and an
+        /// invalid pattern return <c>false</c>.</returns>
         public static bool IsMatch(string? target, string? pattern)
         {
-            if (target == null || pattern == null)
+            if (target == null ||
+                string.IsNullOrEmpty(pattern) ||
+                !LikePattern.TryParse(pattern, out LikePattern? parsed))
             {
                 return false;
             }
-            if (pattern.Length == 0)
-            {
-                return false;
-            }
-
-            // Translate the OPC UA Like pattern to an anchored .NET regex
-            // by walking the input char-by-char. We need to:
-            //   - escape regex metacharacters that aren't wildcards;
-            //   - turn '%' / '_' / '[..]' / '[!..]' into the matching
-            //     regex constructs;
-            //   - honour the OPC UA escape character '\' which makes the
-            //     next character match literally.
-            StringBuilder sb = new StringBuilder(pattern.Length + 8)
-                .Append('^');
-            int i = 0;
-            while (i < pattern.Length)
-            {
-                char c = pattern[i];
-                switch (c)
-                {
-                    case '\\':
-                        // OPC UA escape: next character is matched
-                        // literally (including '\' '%' '_' '[' ']').
-                        if (i + 1 < pattern.Length)
-                        {
-                            sb.Append(Regex.Escape(pattern[i + 1].ToString()));
-                            i += 2;
-                        }
-                        else
-                        {
-                            // Trailing backslash with nothing to escape —
-                            // match a literal backslash.
-                            sb.Append("\\\\");
-                            i++;
-                        }
-                        break;
-                    case '%':
-                        sb.Append(".*");
-                        i++;
-                        break;
-                    case '_':
-                        sb.Append('.');
-                        i++;
-                        break;
-                    case '[':
-                        int end = pattern.IndexOf(']', i + 1);
-                        if (end < 0)
-                        {
-                            // No matching close-bracket — treat as a
-                            // literal '['.
-                            sb.Append("\\[");
-                            i++;
-                        }
-                        else
-                        {
-                            // [abc] or [!abc] — copy the contents
-                            // verbatim, swapping leading '!' for '^' per
-                            // Part 4 §7.40. The contents are taken as-is
-                            // (regex char-class semantics are a superset
-                            // of OPC UA — for simple character lists this
-                            // works correctly).
-                            string body = pattern.Substring(i + 1, end - i - 1);
-                            if (body.Length > 0 && body[0] == '!')
-                            {
-                                sb.Append("[^").Append(body, 1, body.Length - 1)
-                                    .Append(']');
-                            }
-                            else
-                            {
-                                sb.Append('[').Append(body).Append(']');
-                            }
-                            i = end + 1;
-                        }
-                        break;
-                    default:
-                        sb.Append(Regex.Escape(c.ToString()));
-                        i++;
-                        break;
-                }
-            }
-            sb.Append('$');
-            return Regex.IsMatch(target, sb.ToString());
+            return Matches(target, parsed);
         }
+
+        /// <summary>
+        /// Returns <c>true</c> when <paramref name="pattern"/> is a valid OPC UA
+        /// Like search string (Part 4 §7.7.3). A <c>null</c> or empty pattern is
+        /// valid and simply matches nothing. Part 17 §6.3.2 requires
+        /// <c>Bad_InvalidArgument</c> from <c>FindAlias</c> for an invalid one.
+        /// </summary>
+        /// <param name="pattern">The search string to validate.</param>
+        /// <returns><c>false</c> for a trailing escape character, an
+        /// unterminated or empty <c>[..]</c> list, a descending range or a
+        /// misplaced <c>^</c>; otherwise <c>true</c>.</returns>
+        public static bool IsValidPattern(string? pattern)
+        {
+            return string.IsNullOrEmpty(pattern) || LikePattern.IsValid(pattern);
+        }
+
+        /// <summary>
+        /// Parses a reusable OPC UA Like pattern or reports invalid syntax as a service error.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        internal static LikePattern CreatePattern(string pattern)
+        {
+            if (!LikePattern.TryParse(pattern, out LikePattern? parsed))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidArgument, "Invalid alias-name search pattern.");
+            }
+            return parsed;
+        }
+
+        /// <summary>
+        /// Tests an alias name and reports matching timeouts as BadTimeout service errors.
+        /// </summary>
+        internal static bool Matches(string target, LikePattern pattern)
+        {
+            return Matches(target, pattern, CreateDeadline());
+        }
+
+        /// <summary>
+        /// Creates the deadline shared by all alias matches in one request.
+        /// </summary>
+        internal static long CreateDeadline()
+        {
+            return Stopwatch.GetTimestamp() + (long)(Stopwatch.Frequency * s_matchTimeout.TotalSeconds);
+        }
+
+        /// <summary>
+        /// Tests an alias name before the shared search deadline expires.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="TimeoutException"></exception>
+        internal static bool Matches(string target, LikePattern pattern, long deadline)
+        {
+            try
+            {
+                long remaining = deadline - Stopwatch.GetTimestamp();
+                if (remaining <= 0)
+                {
+                    throw new TimeoutException();
+                }
+
+                // FromSeconds rounds a sub-millisecond remainder to zero on .NET Framework.
+                return pattern.IsMatch(
+                    target,
+                    TimeSpan.FromTicks(Math.Max(
+                        1, remaining * TimeSpan.TicksPerSecond / Stopwatch.Frequency)));
+            }
+            catch (TimeoutException ex)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTimeout, ex, "Alias-name pattern evaluation exceeded its time limit.");
+            }
+        }
+
+        /// <summary>
+        /// Limits the total pattern-matching time of one alias search.
+        /// </summary>
+        private static readonly TimeSpan s_matchTimeout = TimeSpan.FromMilliseconds(100);
     }
 }
