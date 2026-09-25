@@ -74,6 +74,14 @@ namespace Opc.Ua.Server.Hosting
         public bool IsFallback { get; }
 
         /// <summary>
+        /// Whether the registration materializes the default authenticator set
+        /// (<see cref="DefaultAuthenticatorOptions"/>). When such a registration
+        /// produces no anonymous authenticator, anonymous access was disabled
+        /// by configuration and anonymous tokens are rejected explicitly.
+        /// </summary>
+        internal bool ConfiguresDefaultAuthenticators { get; init; }
+
+        /// <summary>
         /// Creates the configured identity authenticators.
         /// </summary>
         /// <param name="services">Service provider used to resolve dependencies.</param>

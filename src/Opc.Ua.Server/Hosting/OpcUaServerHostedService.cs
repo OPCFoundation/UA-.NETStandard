@@ -555,27 +555,22 @@ namespace Opc.Ua.Server.Hosting
             ICertificateValidatorEx? certificateValidator =
                 m_application?.ApplicationConfiguration?.CertificateManager;
 
-            var authenticators = new List<IUserTokenAuthenticator>();
-            bool hasIdentityConfiguration = false;
-            foreach (OpcUaServerIdentityAuthenticatorRegistration registration in m_identityRegistrations)
+            List<IUserTokenAuthenticator> authenticators = CreateIdentityAuthenticators(
+                m_identityRegistrations,
+                m_services,
+                certificateValidator);
+            if (authenticators.Exists(a => a is AnonymousRejectingAuthenticator))
             {
-                hasIdentityConfiguration = true;
-                authenticators.AddRange(registration.CreateAuthenticators(
-                    m_services,
-                    certificateValidator));
-            }
-
-            if (!hasIdentityConfiguration)
-            {
-                // no identity configuration at all: keep the anonymous default.
-                authenticators.Add(new AnonymousAuthenticator());
-            }
-            else if (!authenticators.Exists(a => a.TokenType == UserTokenType.Anonymous))
-            {
-                // The identity configuration disabled anonymous access. Reject anonymous
-                // tokens explicitly, otherwise an unhandled anonymous token falls through to
-                // the session manager which accepts it whenever the endpoint advertises it.
-                authenticators.Add(new AnonymousRejectingAuthenticator());
+                foreach (UserTokenType tokenType in
+                    GetAdvertisedUserTokenTypes(m_application?.ApplicationConfiguration))
+                {
+                    if (tokenType == UserTokenType.Anonymous)
+                    {
+                        // advertised but always rejected: clients will fail to connect.
+                        m_logger.UserTokenPolicyTokenTypeIsConfiguredWithout(tokenType);
+                        break;
+                    }
+                }
             }
 
             WarnForUnmatchedUserTokenPolicies(
@@ -588,6 +583,42 @@ namespace Opc.Ua.Server.Hosting
                 // validates one fixed IssuerUri through its resolver.
                 m_server.RegisterIdentityAuthenticator(authenticator);
             }
+        }
+
+        /// <summary>
+        /// Materializes the registered identity authenticators. Anonymous tokens are
+        /// rejected explicitly only when the default authenticator options disabled
+        /// anonymous access; otherwise an unhandled anonymous token falls through to
+        /// the session manager, which accepts it whenever the endpoint advertises it.
+        /// Custom authenticators alone do not disable anonymous access.
+        /// </summary>
+        internal static List<IUserTokenAuthenticator> CreateIdentityAuthenticators(
+            IEnumerable<OpcUaServerIdentityAuthenticatorRegistration> registrations,
+            IServiceProvider services,
+            ICertificateValidatorEx? certificateValidator)
+        {
+            var authenticators = new List<IUserTokenAuthenticator>();
+            bool configuresDefaultAuthenticators = false;
+            foreach (OpcUaServerIdentityAuthenticatorRegistration registration in registrations)
+            {
+                configuresDefaultAuthenticators |= registration.ConfiguresDefaultAuthenticators;
+                authenticators.AddRange(registration.CreateAuthenticators(
+                    services,
+                    certificateValidator));
+            }
+
+            if (configuresDefaultAuthenticators &&
+                !authenticators.Exists(a => a.TokenType == UserTokenType.Anonymous))
+            {
+                authenticators.Add(new AnonymousRejectingAuthenticator());
+            }
+            else if (authenticators.Count == 0)
+            {
+                // no identity configuration at all: keep the anonymous default.
+                authenticators.Add(new AnonymousAuthenticator());
+            }
+
+            return authenticators;
         }
 
         private void RegisterIdentityAugmenters()
