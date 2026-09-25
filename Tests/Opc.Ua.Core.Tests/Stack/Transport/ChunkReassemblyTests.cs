@@ -327,6 +327,22 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(budget.ReservedBytes, Is.Zero);
         }
 
+        [TestCase(TcpMessageType.Intermediate)]
+        [TestCase(TcpMessageType.Final)]
+        public void MalformedFirstDiscoveryChunkReleasesItsBuffer(uint chunkType)
+        {
+            var budget = new ChunkReassemblyBudget(256);
+            using var channel = new TestChannel(budget);
+            channel.SetDiscoveryOnly();
+            channel.Receive(TcpMessageType.Message | chunkType, [], 1);
+            Assert.That(channel.Requests, Is.Empty);
+            Assert.That(channel.Pool.Outstanding, Is.Zero);
+            Assert.That(budget.ReservedBytes, Is.Zero);
+            Assert.That(channel.SentMessages, Is.EqualTo(1), "The discovery fault response must still be sent.");
+            Assert.That(channel.DecodeLastResponse(), Is.TypeOf<ServiceFault>());
+            Assert.That(channel.Closed, Is.False);
+        }
+
         [Test]
         public void SavingWhileDisposingReturnsEveryBufferOnce()
         {
@@ -636,7 +652,28 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     args.SetupGet(a => a.BytesTransferred).Returns(() => args.Object.BufferList?.TotalSize ?? count);
                     return args.Object;
                 });
+                socket.Setup(s => s.Send(It.IsAny<IMessageSocketAsyncEventArgs>()))
+                    .Callback<IMessageSocketAsyncEventArgs>(args =>
+                    {
+                        SentMessages++;
+                        // Copy before synchronous write completion returns and clears the buffers.
+                        if (args.BufferList != null)
+                        {
+                            m_lastResponse = args.BufferList.SelectMany(buffer => buffer).ToArray();
+                        }
+                    })
+                    .Returns(false);
                 Socket = socket.Object;
+            }
+
+            public int SentMessages { get; private set; }
+            public IEncodeable DecodeLastResponse()
+            {
+                // TestChannel uses unsecured symmetric messages.
+                int headerSize = TcpMessageLimits.SymmetricHeaderSize + TcpMessageLimits.SequenceHeaderSize;
+                using var stream = new ArraySegmentStream(new BufferCollection(
+                    new ArraySegment<byte>(m_lastResponse, headerSize, m_lastResponse.Length - headerSize)));
+                return BinaryDecoder.DecodeMessage(stream, null, Quotas.MessageContext);
             }
 
             public TrackingPool Pool { get; }
@@ -675,6 +712,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 OnMessageReceived(Socket, new ArraySegment<byte>(bytes, 0, length));
             }
 
+            private byte[] m_lastResponse;
             private uint m_sequence;
         }
     }

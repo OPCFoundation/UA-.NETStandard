@@ -1360,9 +1360,20 @@ namespace Opc.Ua.Bindings
             out BufferCollection chunksToProcess)
         {
             chunksToProcess = null;
-            using var decoder = new BinaryDecoder(messageBody, Quotas.MessageContext);
-            // read the type of the message before more chunks are processed.
-            NodeId typeId = decoder.ReadNodeId(null);
+            NodeId typeId;
+            try
+            {
+                using var decoder = new BinaryDecoder(messageBody, Quotas.MessageContext);
+                // read the type of the message before more chunks are processed.
+                typeId = decoder.ReadNodeId(null);
+            }
+            catch
+            {
+                // Validation runs before SaveIntermediateChunk takes ownership.
+                // Let ProcessRequestMessage release this buffer after reporting the fault.
+                chunksToProcess = new BufferCollection(messageBody);
+                throw;
+            }
 
             if (typeId != ObjectIds.GetEndpointsRequest_Encoding_DefaultBinary &&
                 typeId != ObjectIds.FindServersRequest_Encoding_DefaultBinary &&
