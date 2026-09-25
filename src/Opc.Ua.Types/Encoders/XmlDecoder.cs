@@ -2224,13 +2224,22 @@ namespace Opc.Ua
         /// <summary>
         /// Whether a decoded inline matrix matches the matrix type info of a
         /// structure field. The rank of the decoded value follows its
-        /// dimensions, which for an empty matrix can be a single zero.
+        /// dimensions, which for an empty matrix can be a single zero (or the
+        /// 0 x 0 shape an empty matrix of any declared rank is written with)
+        /// and which a null matrix does not have. A populated matrix must
+        /// have the declared rank.
         /// </summary>
         internal static bool IsInlineMatrixOf(in Variant value, TypeInfo typeInfo)
         {
-            return typeInfo.IsMatrix &&
-                value.TypeInfo.BuiltInType == typeInfo.BuiltInType &&
-                value.IsInlineMatrix(out _);
+            if (!typeInfo.IsMatrix ||
+                value.TypeInfo.BuiltInType != typeInfo.BuiltInType ||
+                !value.IsInlineMatrix(out bool isNull))
+            {
+                return false;
+            }
+            return isNull ||
+                value.TypeInfo.ValueRank == typeInfo.ValueRank ||
+                value.Raw is IMatrixOf { Count: 0 };
         }
 
         /// <inheritdoc/>
