@@ -327,6 +327,7 @@ namespace Opc.Ua.Wot
                     document,
                     nodeResolver ?? NullWotNodeResolver.Instance,
                     diagnostics,
+                    thingCatalog,
                     cancellationToken: cancellationToken).ConfigureAwait(false);
                 affordanceBindings = [];
                 foreach (KeyValuePair<string, JsonElement> property in document.Properties)
@@ -335,6 +336,7 @@ namespace Opc.Ua.Wot
                         document,
                         nodeResolver ?? NullWotNodeResolver.Instance,
                         diagnostics,
+                        thingCatalog,
                         property.Value,
                         WotExpectedNodeClass.VariableType,
                         "/properties/" + EscapeJsonPointerToken(property.Key),
@@ -3453,25 +3455,53 @@ namespace Opc.Ua.Wot
             }
 
             var discoveryDiagnostics = new List<WotDiagnostic>();
-            foreach ((string reference, _, _, _) in EnumerateResolvableThingReferences(
+            foreach (ResolvableThingReference thingReference in EnumerateResolvableThingReferences(
                 document,
                 referenceTypeCatalog,
                 discoveryDiagnostics))
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                string reference = thingReference.Reference;
                 if (IsNodeId(reference))
                 {
                     continue;
                 }
 
+                string lookup = IsTypeBindingLink(document, thingReference.SourceLink)
+                    ? ExpandTypeDocumentReference(document, thingReference.SourceLink, reference)
+                    : reference;
                 WotResolvedNode? target = await ResolveTargetAsync(
-                    reference,
+                    lookup,
                     resolver,
                     context,
                     options,
                     diagnostics,
                     cancellationToken).ConfigureAwait(false);
                 thingCatalog.AddTarget(reference, target);
+                if (lookup != reference)
+                {
+                    thingCatalog.AddTarget(lookup, target);
+                }
+            }
+            foreach (KeyValuePair<string, JsonElement> property in document.Properties)
+            {
+                foreach (JsonElement link in WotDocument.ReadArray(property.Value, "links"))
+                {
+                    if (!IsTypeBindingLink(document, link) ||
+                        GetElementString(link, "href") is not { } reference ||
+                        IsNodeId(reference))
+                    {
+                        continue;
+                    }
+                    string lookup = ExpandTypeDocumentReference(document, link, reference);
+                    if (thingCatalog.TryPeekTarget(lookup, out _))
+                    {
+                        continue;
+                    }
+                    WotResolvedNode? target = await ResolveTargetAsync(
+                        lookup, resolver, context, options, diagnostics, cancellationToken).ConfigureAwait(false);
+                    thingCatalog.AddTarget(lookup, target);
+                }
             }
         }
 
@@ -3993,18 +4023,17 @@ namespace Opc.Ua.Wot
         /// Section 5.2.1 names a type in either or both of two forms. This
         /// reads the definitive one: a link whose <c>rel</c> is the
         /// <c>ua:HasTypeDefinition</c> ReferenceType compact model name and
-        /// whose <c>href</c> is the ExpandedNodeId of the type. An
-        /// ExpandedNodeId matches exactly one Node or none, so it needs no
-        /// lookup here; the readable <c>@type</c> form is a hint that has to be
-        /// resolved against the local context of Section 5.1.5 and is handled
-        /// separately.
+        /// whose <c>href</c> is the ExpandedNodeId of the type or the IRI of a
+        /// document that projects it. Document IRIs resolve through the captured
+        /// Thing catalog, not the loaded AddressSpace. The readable <c>@type</c>
+        /// form is a hint resolved against the local context of Section 5.1.5.
         /// <para>
         /// A Node has exactly one <c>HasTypeDefinition</c>, so more than one
         /// such link makes the document invalid rather than picking a winner.
         /// </para>
         /// </remarks>
         /// <returns>
-        /// The authored ExpandedNodeId, or <c>null</c> when the document
+        /// The authored document IRI or normalized ExpandedNodeId, or <c>null</c> when the document
         /// declares no definitive binding or the binding is invalid.
         /// </returns>
         private static string? ReadDefinitiveTypeBinding(
@@ -4066,13 +4095,26 @@ namespace Opc.Ua.Wot
                     WotDiagnosticSeverity.Error,
                     WotDiagnosticCode.InvalidTypeBinding,
                     $"A '{TypeBindingRel}' link (WoT Binding Section 5.2.1) must carry the " +
-                    "ExpandedNodeId of the type in its 'href'.",
+                    "identity of the type or a document projecting it in its 'href'.",
                     new WotLocation(jsonPointer: pointer + "/links")));
                 return null;
             }
 
-            CheckPortableValue(TypeBindingRel + " href", href, diagnostics);
-            return NormalizeExpandedNodeId(href);
+            if (IsNodeId(href))
+            {
+                CheckPortableValue(TypeBindingRel + " href", href, diagnostics);
+                return NormalizeExpandedNodeId(href);
+            }
+            return ExpandTypeDocumentReference(document, candidate, href);
+        }
+
+        private static string ExpandTypeDocumentReference(
+            WotDocument document, JsonElement owner, string reference)
+        {
+            return WotProjectionResolver.TryExpandSemanticIdentity(
+                reference, document, owner, document.Id ?? string.Empty, false, out string identity)
+                    ? identity
+                    : reference;
         }
 
         private static bool IsTypeBindingLink(WotDocument document, JsonElement link)
@@ -4264,6 +4306,7 @@ namespace Opc.Ua.Wot
             WotDocument document,
             IWotNodeResolver resolver,
             List<WotDiagnostic> diagnostics,
+            WotThingCatalog? thingCatalog,
             JsonElement carryingNode = default,
             WotExpectedNodeClass? expectedClass = null,
             string pointer = "",
@@ -4294,13 +4337,20 @@ namespace Opc.Ua.Wot
             WotResolvedNode? byLink = null;
             if (link is not null)
             {
-                byLink = await resolver.ResolveByNodeIdAsync(link, cancellationToken)
-                    .ConfigureAwait(false);
-                if (byLink is null &&
-                    expected == WotExpectedNodeClass.VariableType &&
-                    TryGetStandardVariableTypeNodeId(link, out string standard))
+                if (IsNodeId(link))
                 {
-                    byLink = new WotResolvedNode(standard, WotExpectedNodeClass.VariableType);
+                    byLink = await resolver.ResolveByNodeIdAsync(link, cancellationToken)
+                        .ConfigureAwait(false);
+                    if (byLink is null &&
+                        expected == WotExpectedNodeClass.VariableType &&
+                        TryGetStandardVariableTypeNodeId(link, out string standard))
+                    {
+                        byLink = new WotResolvedNode(standard, WotExpectedNodeClass.VariableType);
+                    }
+                }
+                else
+                {
+                    thingCatalog?.TryPeekTarget(link, out byLink);
                 }
             }
 

@@ -1915,6 +1915,14 @@ projects to.
 converter is handed. A compact model name is a hint and may match none, one or
 several nodes; an `ExpandedNodeId` is definitive and matches one or none.
 
+A `ua:HasTypeDefinition` link can also name a document IRI. The converter
+resolves that link through `IWotThingResolver` before synthesis and binds to
+the target document's projected type. Registry conversion supplies the captured
+closure, not an arbitrary Web fetch. Compact and relative references use the
+link's effective context, including property-level overrides. A missing document
+does not fall back to the loaded AddressSpace, and a document projecting the
+wrong NodeClass cannot provide a type binding.
+
 | Implementation | Part of the context | Assembly |
 | --- | --- | --- |
 | `SnapshotWotNodeResolver` | the sibling documents of the conversion | `Opc.Ua.WotCon.Server` |
