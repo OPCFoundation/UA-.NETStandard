@@ -270,6 +270,13 @@ numbers and unknown enum values when options are loaded.
 | Valid profile entries | Duplicate stages/owner keys, invalid stages, arithmetic overflow, incompatible reservations, or trusted owners outside TrustedReservations are rejected. |
 | Startup deadline | `HandshakeTimeout` must be positive and at most two minutes; two minutes is also the default. |
 
+The server validates `HandshakeTimeout` even in SharedOnly mode and when a
+custom isolation provider is supplied, before replacing an existing policy.
+Listener-settings creation rechecks the value in case configuration changed
+after initialization. Failures name `HandshakeTimeout`. Protected rate-limit
+failures identify `ConnectionsPerSecond` or `ConnectionBurst` and the minimum
+required by the configured reservations.
+
 Slot totals come from `MaxChannelCount` for Connection/Handshake,
 `ServerRateLimitOptions.MaxConcurrentSessionEstablishment` for SessionEstablishment
 (its default applies to nonpositive values), and the existing request-dispatch
@@ -649,6 +656,14 @@ evict another channel just to make room for that inadmissible caller.
 WebSocket close code 1009 means excessive message size, not arbitrary resource
 pressure. See [Rate limiting](RateLimiting.md) for retry behavior and additional
 overload signals.
+
+OpenAPI WebSockets can process concurrent messages so a waiting Publish does
+not stop other requests. Each pending frame acquires count and retained-byte
+capacity before it is copied or scheduled, and holds that capacity through
+response sending. A per-connection bound also applies without an isolation
+provider. Capacity refusal after upgrade closes with 1013 (Try Again Later),
+not the message-size code 1009. Shutdown cancels pending work; a handler that
+outlives the shutdown wait keeps its accounting until it actually exits.
 
 The default provider exposes `GetUsage(stage)` and `TrackedOwnerCount`, plus
 `opcua.server.isolation.usage`, `opcua.server.isolation.owners`, and
