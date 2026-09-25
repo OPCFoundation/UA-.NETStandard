@@ -377,6 +377,9 @@ namespace Opc.Ua.Bindings
 
             m_quotas.CertificateValidator = settings.CertificateValidator;
 
+            m_quotas.ChunkReassemblyBudget = settings.ChunkReassemblyBudget ??
+                ChunkReassemblyBudget.CreateDefault(m_quotas.MaxMessageSize);
+
             // save the server certificate.
             m_serverCertificateTypesProvider = settings.ServerCertificateTypesProvider;
 

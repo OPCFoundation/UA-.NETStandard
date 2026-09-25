@@ -257,6 +257,7 @@ namespace Opc.Ua.Bindings
         {
             lock (DataLock)
             {
+                TakeSavedChunks().Release(BufferManager, nameof(ForceChannelFault));
                 CompleteReverseHello(new ServiceResultException(reason));
 
                 // nothing to do if channel already in a faulted state.
@@ -362,6 +363,7 @@ namespace Opc.Ua.Bindings
             finally
             {
                 State = TcpChannelState.Closed;
+                ClosePartialMessage();
                 Listener.ChannelClosed(ChannelId);
 
                 // notify any monitors.
@@ -382,6 +384,7 @@ namespace Opc.Ua.Bindings
             finally
             {
                 State = TcpChannelState.Faulted;
+                ClosePartialMessage();
                 Listener.ChannelClosed(ChannelId);
             }
         }

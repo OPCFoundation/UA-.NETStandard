@@ -34,6 +34,8 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class ChannelQuotas
     {
+        internal ChunkReassemblyBudget ChunkReassemblyBudget { get; set; }
+
         /// <summary>
         /// Creates an object with default values.
         /// </summary>

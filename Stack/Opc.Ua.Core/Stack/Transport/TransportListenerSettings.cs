@@ -36,6 +36,8 @@ namespace Opc.Ua
     /// </summary>
     public class TransportListenerSettings
     {
+        internal Bindings.ChunkReassemblyBudget ChunkReassemblyBudget { get; set; }
+
         /// <summary>
         /// Gets or sets the descriptions for the endpoints supported by the listener.
         /// </summary>

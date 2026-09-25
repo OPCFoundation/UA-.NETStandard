@@ -85,6 +85,7 @@ namespace Opc.Ua
 
                     TransportListeners.Clear();
                 }
+                m_chunkReassemblyBudget = null;
 
                 // dispose any hosts.
                 if (ServiceHosts != null)
@@ -579,6 +580,7 @@ namespace Opc.Ua
 
                 listeners.Clear();
             }
+            m_chunkReassemblyBudget = null;
 
             // close the hosts.
             lock (ServiceHosts)
@@ -847,8 +849,12 @@ namespace Opc.Ua
             // create the stack listener.
             try
             {
+                // All TCP endpoints of this server share the retained-message limit.
+                m_chunkReassemblyBudget ??= Bindings.ChunkReassemblyBudget.CreateDefault(
+                    endpointConfiguration?.MaxMessageSize ?? TcpMessageLimits.DefaultMaxMessageSize);
                 var settings = new TransportListenerSettings
                 {
+                    ChunkReassemblyBudget = m_chunkReassemblyBudget,
                     Descriptions = endpoints,
                     Configuration = endpointConfiguration,
                     ServerCertificateTypesProvider = InstanceCertificateTypesProvider,
@@ -1795,6 +1801,7 @@ namespace Opc.Ua
         private RequestQueue m_requestQueue;
         private ITelemetryContext m_telemetry;
 
+        private Bindings.ChunkReassemblyBudget m_chunkReassemblyBudget;
         private bool m_disposed;
     }
 }
