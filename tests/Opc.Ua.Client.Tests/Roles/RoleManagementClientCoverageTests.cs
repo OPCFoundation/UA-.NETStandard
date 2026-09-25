@@ -386,6 +386,97 @@ namespace Opc.Ua.Client.Tests.Roles
             Assert.That(roles[1].RoleId, Is.EqualTo(secondRole));
         }
 
+        /// <summary>
+        /// Review G16: a server that answers every BrowseNext with an empty
+        /// page and a continuation point must not keep ListRolesAsync looping
+        /// forever; the point is released when the client gives up.
+        /// </summary>
+        [Test]
+        public void ListRolesAsyncStopsOnEndlessEmptyBrowseNextPages()
+        {
+            var continuationPoint = ByteString.From(new byte[] { 1, 2, 3 });
+            m_session.SetupGet(s => s.MessageContext)
+                .Returns(ServiceMessageContext.Create(Opc.Ua.Tests.NUnitTelemetryContext.Create()));
+            m_session.Setup(s => s.BrowseAsync(
+                    null, null, 0, It.IsAny<ArrayOf<BrowseDescription>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new BrowseResponse
+                {
+                    Results = [new BrowseResult { ContinuationPoint = continuationPoint }]
+                });
+            int browseNextCalls = 0;
+            m_session.Setup(s => s.BrowseNextAsync(
+                    null, false,
+                    It.Is<ArrayOf<ByteString>>(cps => cps.Count == 1),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(() =>
+                {
+                    browseNextCalls++;
+                    return new BrowseNextResponse
+                    {
+                        Results = [new BrowseResult { ContinuationPoint = continuationPoint }]
+                    };
+                });
+            m_session.Setup(s => s.BrowseNextAsync(
+                    null, true,
+                    It.Is<ArrayOf<ByteString>>(cps => cps.Count == 1),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new BrowseNextResponse { Results = [new BrowseResult()] });
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await m_client.ListRolesAsync().ConfigureAwait(false));
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNoData));
+            Assert.That(browseNextCalls, Is.LessThan(20));
+            m_session.Verify(s => s.BrowseNextAsync(
+                null, true,
+                It.Is<ArrayOf<ByteString>>(cps => cps.Count == 1),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
+        /// Review G16: the continuation point is released on any BrowseNext
+        /// failure, not only on cancellation, and the original error surfaces.
+        /// </summary>
+        [Test]
+        public void ListRolesAsyncReleasesContinuationPointWhenBrowseNextFails()
+        {
+            var continuationPoint = ByteString.From(new byte[] { 1, 2, 3 });
+            m_session.SetupGet(s => s.MessageContext)
+                .Returns(ServiceMessageContext.Create(Opc.Ua.Tests.NUnitTelemetryContext.Create()));
+            m_session.Setup(s => s.BrowseAsync(
+                    null, null, 0, It.IsAny<ArrayOf<BrowseDescription>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new BrowseResponse
+                {
+                    Results =
+                    [
+                        new BrowseResult
+                        {
+                            ContinuationPoint = continuationPoint,
+                            References = [new ReferenceDescription { NodeId = new NodeId(6101u) }]
+                        }
+                    ]
+                });
+            m_session.Setup(s => s.BrowseNextAsync(
+                    null, false,
+                    It.Is<ArrayOf<ByteString>>(cps => cps.Count == 1),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new ServiceResultException(StatusCodes.BadTimeout));
+            m_session.Setup(s => s.BrowseNextAsync(
+                    null, true,
+                    It.Is<ArrayOf<ByteString>>(cps => cps.Count == 1),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new BrowseNextResponse { Results = [new BrowseResult()] });
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await m_client.ListRolesAsync().ConfigureAwait(false));
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
+            m_session.Verify(s => s.BrowseNextAsync(
+                null, true,
+                It.Is<ArrayOf<ByteString>>(cps => cps.Count == 1),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+
         [Test]
         public void ListRolesAsyncThrowsWhenRoleSetBrowseFails()
         {

@@ -1042,6 +1042,33 @@ namespace Opc.Ua.Client
         private const int kMaxEmptyBrowseNextRounds = 10;
 
         /// <summary>
+        /// Guards a hand-written Browse/BrowseNext loop against a server that
+        /// never makes progress: counts consecutive pages without references
+        /// that still carry a continuation point and throws BadNoData after
+        /// <see cref="kMaxEmptyBrowseNextRounds"/> of them. An empty page with
+        /// a continuation point is legal (Part 4 §5.9.2.1) and is followed
+        /// until then. The caller must release the continuation point.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        internal static void ThrowIfNoBrowseProgress(
+            ArrayOf<ReferenceDescription> references,
+            ByteString continuationPoint,
+            ref int emptyRounds)
+        {
+            if (!references.IsEmpty)
+            {
+                emptyRounds = 0;
+            }
+            else if (!continuationPoint.IsEmpty &&
+                ++emptyRounds >= kMaxEmptyBrowseNextRounds)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNoData,
+                    "The server kept returning a continuation point without references.");
+            }
+        }
+
+        /// <summary>
         /// Delay before the first retry of a managed browse pass that
         /// completed nothing.
         /// </summary>

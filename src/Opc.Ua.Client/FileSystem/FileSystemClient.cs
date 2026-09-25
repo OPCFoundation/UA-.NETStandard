@@ -605,10 +605,12 @@ namespace Opc.Ua.Client.FileSystem
                 (uint)NodeClass.Object,
                 ct).ConfigureAwait(false);
 
+            int emptyRounds = 0;
             try
             {
                 while (true)
                 {
+                    Browser.ThrowIfNoBrowseProgress(references, continuation, ref emptyRounds);
                     // Materialise to an array first — ReadOnlySpan<T>.Enumerator
                     // (returned by ArrayOf<T>.GetEnumerator) cannot cross an
                     // async iterator's `yield return` boundary.
@@ -675,10 +677,12 @@ namespace Opc.Ua.Client.FileSystem
                 includeSubtypes: true,
                 (uint)NodeClass.Object,
                 ct).ConfigureAwait(false);
+            int emptyRounds = 0;
             try
             {
                 while (true)
                 {
+                    Browser.ThrowIfNoBrowseProgress(references, continuation, ref emptyRounds);
                     for (int i = 0; i < references.Count; i++)
                     {
                         var typeDef = ExpandedNodeId.ToNodeId(

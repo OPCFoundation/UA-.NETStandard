@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Client.Roles
 {
@@ -99,22 +100,50 @@ namespace Opc.Ua.Client.Roles
             // limit, so follow the continuation point to the end.
             var materializedRefs = new List<ReferenceDescription>();
             BrowseResult result = browseResponse.Results[0];
-            while (true)
+            if (StatusCode.IsBad(result.StatusCode))
             {
-                if (StatusCode.IsBad(result.StatusCode))
+                throw new ServiceResultException(result.StatusCode);
+            }
+            ByteString continuationPoint = result.ContinuationPoint;
+            int emptyRounds = 0;
+            try
+            {
+                while (true)
                 {
-                    throw new ServiceResultException(result.StatusCode);
+                    foreach (ReferenceDescription reference in result.References)
+                    {
+                        materializedRefs.Add(reference);
+                    }
+                    Browser.ThrowIfNoBrowseProgress(
+                        result.References,
+                        continuationPoint,
+                        ref emptyRounds);
+                    if (continuationPoint.IsEmpty)
+                    {
+                        break;
+                    }
+                    result = await BrowseNextAsync(continuationPoint, cancellationToken)
+                        .ConfigureAwait(false);
+                    if (StatusCode.IsBad(result.StatusCode))
+                    {
+                        // The server has already dropped the point; there is
+                        // nothing left to release.
+                        continuationPoint = default;
+                        throw new ServiceResultException(result.StatusCode);
+                    }
+                    continuationPoint = result.ContinuationPoint;
                 }
-                foreach (ReferenceDescription reference in result.References)
-                {
-                    materializedRefs.Add(reference);
-                }
-                if (result.ContinuationPoint.IsEmpty)
-                {
-                    break;
-                }
-                result = await BrowseNextAsync(result.ContinuationPoint, cancellationToken)
+            }
+            catch (Exception) when (!continuationPoint.IsEmpty)
+            {
+                // Part 4 §5.9.3.2: release the point we stop following on any
+                // failure (cancellation, transport fault, no progress), best
+                // effort so the original exception is the one propagated.
+                await Session.ReleaseContinuationPointAsync(
+                    continuationPoint,
+                    Session.MessageContext.Telemetry.CreateLogger<RoleManagementClient>())
                     .ConfigureAwait(false);
+                throw;
             }
 
             var roles = new List<RoleInfo>(materializedRefs.Count);
@@ -146,33 +175,13 @@ namespace Opc.Ua.Client.Roles
             CancellationToken cancellationToken)
         {
             ArrayOf<ByteString> continuationPoints = [continuationPoint];
-            try
-            {
-                BrowseNextResponse response = await Session.BrowseNextAsync(
-                    null,
-                    false,
-                    continuationPoints,
-                    cancellationToken).ConfigureAwait(false);
-                ClientBase.ValidateResponse(response.Results, continuationPoints);
-                return response.Results[0];
-            }
-            catch (OperationCanceledException)
-            {
-                // Free the server-side continuation point (Part 4 §5.9.3.2).
-                try
-                {
-                    await Session.BrowseNextAsync(
-                        null,
-                        true,
-                        continuationPoints,
-                        CancellationToken.None).ConfigureAwait(false);
-                }
-                catch (ServiceResultException)
-                {
-                    // Best effort: the point is released when the session closes.
-                }
-                throw;
-            }
+            BrowseNextResponse response = await Session.BrowseNextAsync(
+                null,
+                false,
+                continuationPoints,
+                cancellationToken).ConfigureAwait(false);
+            ClientBase.ValidateResponse(response.Results, continuationPoints);
+            return response.Results[0];
         }
 
         /// <inheritdoc/>

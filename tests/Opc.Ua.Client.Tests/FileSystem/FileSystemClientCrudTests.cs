@@ -30,6 +30,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
@@ -252,6 +253,78 @@ namespace Opc.Ua.Client.Tests.FileSystem
                 r.MethodId.TryGetValue(out uint mid) &&
                 mid == Methods.FileDirectoryType_DeleteFileSystemObject), Is.False);
             return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// Review G16: the non-recursive empty check must not loop forever on
+        /// a server that answers every BrowseNext with an empty page and a
+        /// continuation point; the point is released and nothing is deleted.
+        /// </summary>
+        [Test]
+        public void DeleteAsyncWithoutRecursiveStopsOnEndlessEmptyBrowseNextPages()
+        {
+            var harness = FileSystemSessionHarness.Create();
+            NodeId subdir = harness.RegisterDirectory(harness.Root, new QualifiedName("subdir"));
+            var continuationPoint = ByteString.From(new byte[] { 7, 7 });
+            harness.SessionMock
+                .Setup(s => s.BrowseAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ViewDescription>(),
+                    It.IsAny<uint>(),
+                    It.Is<ArrayOf<BrowseDescription>>(d =>
+                        d.Count == 1 &&
+                        d[0].NodeId == subdir &&
+                        d[0].ReferenceTypeId == ReferenceTypeIds.HierarchicalReferences),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new BrowseResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results = [new BrowseResult { ContinuationPoint = continuationPoint }]
+                });
+            int browseNextCalls = 0;
+            harness.SessionMock
+                .Setup(s => s.BrowseNextAsync(
+                    It.IsAny<RequestHeader>(),
+                    false,
+                    It.IsAny<ArrayOf<ByteString>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(() =>
+                {
+                    browseNextCalls++;
+                    return new BrowseNextResponse
+                    {
+                        ResponseHeader = new ResponseHeader(),
+                        Results = [new BrowseResult { ContinuationPoint = continuationPoint }]
+                    };
+                });
+            harness.SessionMock
+                .Setup(s => s.BrowseNextAsync(
+                    It.IsAny<RequestHeader>(),
+                    true,
+                    It.IsAny<ArrayOf<ByteString>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new BrowseNextResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results = [new BrowseResult()]
+                });
+            var client = new FileSystemClient(harness.Session, harness.Root);
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client
+                    .DeleteAsync("/subdir", recursive: false)
+                    .ConfigureAwait(false));
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNoData));
+            Assert.That(browseNextCalls, Is.LessThan(20));
+            harness.SessionMock.Verify(s => s.BrowseNextAsync(
+                It.IsAny<RequestHeader>(),
+                true,
+                It.IsAny<ArrayOf<ByteString>>(),
+                It.IsAny<CancellationToken>()), Times.Once);
+            Assert.That(harness.CallRequests.Any(r =>
+                r.MethodId.TryGetValue(out uint mid) &&
+                mid == Methods.FileDirectoryType_DeleteFileSystemObject), Is.False);
         }
 
         [Test]
