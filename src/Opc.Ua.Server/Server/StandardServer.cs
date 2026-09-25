@@ -725,8 +725,14 @@ namespace Opc.Ua.Server
                         throw new ServiceResultException(StatusCodes.BadNonceInvalid);
                     }
                 }
-                else
+                else if (clientNonce.Length > 128)
                 {
+                    // A nonce sent on a None channel is kept: the None channel
+                    // variant of an enhanced user token signature
+                    // (ServerNonce | Hash(ServerCertificate) | ClientNonce)
+                    // covers the nonce the client sent. Nothing else on a None
+                    // channel requires it, so an oversized one is dropped
+                    // rather than rejected.
                     clientNonce = default;
                 }
 

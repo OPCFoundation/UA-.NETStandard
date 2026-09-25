@@ -282,8 +282,11 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(StatusCodes.BadTooManySessions);
                 }
 
-                // check for same Nonce in another session
-                if (!clientNonce.IsEmpty)
+                // check for same Nonce in another session. A None channel does
+                // not require a random nonce, so a client reusing one there is
+                // not rejected.
+                if (!clientNonce.IsEmpty &&
+                    context.ChannelContext?.EndpointDescription?.SecurityMode != MessageSecurityMode.None)
                 {
                     // iterate over key/value pairs in the dictionary with a thread safe iterator
                     foreach (KeyValuePair<NodeId, ISession> sessionKeyValueIterator in m_sessions)
