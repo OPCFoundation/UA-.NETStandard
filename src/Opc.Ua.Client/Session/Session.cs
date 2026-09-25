@@ -2617,6 +2617,7 @@ namespace Opc.Ua.Client
                                     this,
                                     subscriptionIds[ii],
                                     results[ii].AvailableSequenceNumbers,
+                                    true,
                                     operationCt)
                                 .ConfigureAwait(false);
                             if (transferredSubscription)

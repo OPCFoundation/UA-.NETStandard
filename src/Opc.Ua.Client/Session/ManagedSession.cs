@@ -1557,15 +1557,34 @@ namespace Opc.Ua.Client
         /// Takes the service writer lock for reconnect / failover. Service
         /// calls hold the reader lock for their whole round trip, so on a
         /// silently dead channel they would keep recovery waiting until each
-        /// hits its OperationTimeout. Wait at most one keep-alive interval
-        /// for them; the recovery then replaces the channel, which fails the
-        /// stale calls, while new calls stay excluded.
+        /// hits its OperationTimeout. Every keep-alive interval, check the
+        /// channel: once it is unhealthy, stop waiting for them; the recovery
+        /// then replaces the channel, which fails the stale calls, while new
+        /// calls stay excluded. On a healthy channel (e.g. a reconnect after
+        /// a certificate change) the calls complete normally, so the writer
+        /// stays exclusive and does not fail requests the server may have
+        /// already executed.
         /// </summary>
         private ValueTask<AsyncReaderWriterLock.Releaser> RecoveryWriterLockAsync(CancellationToken ct)
         {
             TimeSpan drainTimeout = TimeSpan.FromMilliseconds(
                 Math.Max(m_session?.KeepAliveInterval ?? 0, MinRecoveryDrainTimeoutMs));
-            return m_serviceLock.WriterLockAsync(drainTimeout, m_timeProvider, ct);
+            return m_serviceLock.WriterLockAsync(drainTimeout, m_timeProvider, IsChannelUnhealthy, ct);
+        }
+
+        /// <summary>
+        /// Whether service calls in flight can no longer complete normally:
+        /// the keep-alive stopped or the managed channel is not ready.
+        /// </summary>
+        private bool IsChannelUnhealthy()
+        {
+            Session? session = m_session;
+            if (session == null || session.KeepAliveStopped)
+            {
+                return true;
+            }
+            IManagedTransportChannel? channel = session.ManagedChannel;
+            return channel != null && channel.State != ChannelState.Ready;
         }
 
         private async Task<ServiceResult> HandleManualReconnectAsync(

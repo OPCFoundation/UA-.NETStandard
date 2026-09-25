@@ -86,7 +86,7 @@ namespace Opc.Ua.Client.Tests.AsyncPrimitives
                 await rwLock.ReaderLockAsync().ConfigureAwait(false);
 
             Task<AsyncReaderWriterLock.Releaser> writerTask = rwLock
-                .WriterLockAsync(TimeSpan.FromMilliseconds(100), TimeProvider.System)
+                .WriterLockAsync(TimeSpan.FromMilliseconds(100), TimeProvider.System, () => true)
                 .AsTask();
             AsyncReaderWriterLock.Releaser writer =
                 await writerTask.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
@@ -103,6 +103,67 @@ namespace Opc.Ua.Client.Tests.AsyncPrimitives
 
             // The lock is consistent afterwards: a plain writer drains normally.
             reader.Dispose();
+            using AsyncReaderWriterLock.Releaser next = await rwLock.WriterLockAsync()
+                .AsTask().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Review G8a: while the readers can still complete normally (healthy
+        /// channel), the recovery writer stays exclusive past the drain
+        /// timeout and proceeds only once the readers leave.
+        /// </summary>
+        [Test]
+        public async Task WriterWithDrainTimeoutStaysExclusiveWhileReadersMayCompleteAsync()
+        {
+            using var rwLock = new AsyncReaderWriterLock();
+            AsyncReaderWriterLock.Releaser reader =
+                await rwLock.ReaderLockAsync().ConfigureAwait(false);
+            int checks = 0;
+
+            Task<AsyncReaderWriterLock.Releaser> writerTask = rwLock
+                .WriterLockAsync(TimeSpan.FromMilliseconds(50), TimeProvider.System, () =>
+                {
+                    Interlocked.Increment(ref checks);
+                    return false;
+                })
+                .AsTask();
+
+            await Task.Delay(400).ConfigureAwait(false);
+            Assert.That(writerTask.IsCompleted, Is.False,
+                "The writer must keep waiting for readers on a healthy channel.");
+            Assert.That(Volatile.Read(ref checks), Is.GreaterThan(1),
+                "The channel health must be re-checked at every drain timeout.");
+
+            reader.Dispose();
+            using AsyncReaderWriterLock.Releaser writer =
+                await writerTask.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Review G8a: the channel may die while the writer waits for the
+        /// readers; the next check then lets the writer proceed.
+        /// </summary>
+        [Test]
+        public async Task WriterWithDrainTimeoutProceedsOnceChannelBecomesUnhealthyAsync()
+        {
+            using var rwLock = new AsyncReaderWriterLock();
+            AsyncReaderWriterLock.Releaser stuckReader =
+                await rwLock.ReaderLockAsync().ConfigureAwait(false);
+            bool unhealthy = false;
+
+            Task<AsyncReaderWriterLock.Releaser> writerTask = rwLock
+                .WriterLockAsync(TimeSpan.FromMilliseconds(50), TimeProvider.System, () => Volatile.Read(ref unhealthy))
+                .AsTask();
+
+            await Task.Delay(200).ConfigureAwait(false);
+            Assert.That(writerTask.IsCompleted, Is.False);
+
+            Volatile.Write(ref unhealthy, true);
+            using (await writerTask.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false))
+            {
+                stuckReader.Dispose();
+            }
+
             using AsyncReaderWriterLock.Releaser next = await rwLock.WriterLockAsync()
                 .AsTask().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
         }
