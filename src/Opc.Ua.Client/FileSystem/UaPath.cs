@@ -52,7 +52,8 @@ namespace Opc.Ua.Client.FileSystem
     /// <para>
     /// A <c>'/'</c> or <c>':'</c> that is part of a name is escaped with
     /// <c>'&amp;'</c> (<c>"&amp;/"</c>, <c>"&amp;:"</c>, and <c>"&amp;&amp;"</c>
-    /// for a literal <c>'&amp;'</c> in front of one of these), in the manner
+    /// for a literal <c>'&amp;'</c> in front of one of these or at the end of
+    /// a name), in the manner
     /// of the Part 4 Annex A.2 RelativePath text format, so
     /// <see cref="Format"/> output always parses back to the same segments.
     /// An <c>'&amp;'</c> followed by any other character is literal.
@@ -105,7 +106,9 @@ namespace Opc.Ua.Client.FileSystem
             {
                 remaining = remaining[1..];
             }
-            if (remaining.Length > 0 && remaining[^1] == Separator)
+            // An escaped final '/' ("a&/") belongs to the last name.
+            if (remaining.Length > 0 && remaining[^1] == Separator &&
+                !IsEscaped(remaining, remaining.Length - 1))
             {
                 remaining = remaining[..^1];
             }
@@ -204,10 +207,12 @@ namespace Opc.Ua.Client.FileSystem
             {
                 char c = name[i];
                 // A '&' is only ambiguous in front of a reserved character
-                // (or another '&'); elsewhere it stays literal so existing
-                // paths keep their form.
+                // (or another '&') and at the end of the name, where the
+                // separator that follows in a path would otherwise read as
+                // escaped; elsewhere it stays literal so existing paths keep
+                // their form.
                 if (c is Separator or NamespaceDelimiter ||
-                    (c == Escape && i + 1 < name.Length && IsReserved(name[i + 1])))
+                    (c == Escape && (i + 1 == name.Length || IsReserved(name[i + 1]))))
                 {
                     sb.Append(Escape);
                 }
@@ -234,6 +239,21 @@ namespace Opc.Ua.Client.FileSystem
                 sb.Append(c);
             }
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// Whether the character at <paramref name="index"/> is escaped, i.e.
+        /// preceded by an odd-length run of <c>'&amp;'</c> (each pair is an
+        /// escaped <c>'&amp;'</c>, a remaining one escapes the character).
+        /// </summary>
+        private static bool IsEscaped(ReadOnlySpan<char> text, int index)
+        {
+            int run = 0;
+            for (int i = index - 1; i >= 0 && text[i] == Escape; i--)
+            {
+                run++;
+            }
+            return (run & 1) == 1;
         }
 
         private static bool IsReserved(char c)
