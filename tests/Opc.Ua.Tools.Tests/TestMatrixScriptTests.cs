@@ -613,6 +613,42 @@ namespace Opc.Ua.Tools.Tests
                 Does.Contain("UaLens desktop tests require xvfb-run on the Linux agent."));
         }
 
+        [TestCase(1)]
+        [TestCase(2)]
+        public async Task GitHubBatchSelectsFirstVirtualDisplayExecutableAsync(int matches)
+        {
+            string discovery = $$"""
+                function Get-Command
+                {
+                    param([string] $Name, [string] $CommandType, [string] $ErrorAction)
+                    if ($Name -ne 'xvfb-run' -or $CommandType -ne 'Application')
+                    {
+                        throw 'Unexpected command discovery.'
+                    }
+                    for ($index = 0; $index -lt {{matches}}; $index++)
+                    {
+                        [pscustomobject]@{ Source = "fixture-$index-xvfb-run" }
+                    }
+                }
+                """;
+            string invocation = $$"""
+                $startInfo = New-DotnetStartInfo -arguments @('test', {{QuotePowerShell(LensProjectFile)}}) -linux $true
+                @{
+                    fileName = $startInfo.FileName
+                    arguments = @($startInfo.ArgumentList)
+                } | ConvertTo-Json -Compress
+                """;
+
+            ScriptResult result = await RunGitHubStartInfoAsync(discovery, invocation).ConfigureAwait(false);
+
+            Assert.That(result.ExitCode, Is.Zero, result.Output);
+            using JsonDocument document = JsonDocument.Parse(result.Output);
+            Assert.That(document.RootElement.GetProperty("fileName").GetString(), Is.EqualTo("fixture-0-xvfb-run"));
+            string[] expectedArguments = ["-a", "dotnet", "test", LensProjectFile];
+            Assert.That(document.RootElement.GetProperty("arguments").EnumerateArray()
+                .Select(static argument => argument.GetString()), Is.EqualTo(expectedArguments));
+        }
+
         private static Task<ScriptResult> RunGitHubStartInfoAsync(string discovery, string invocation)
         {
             string root = FindRepositoryRoot();

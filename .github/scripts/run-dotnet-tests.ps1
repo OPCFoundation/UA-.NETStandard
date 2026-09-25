@@ -121,7 +121,8 @@ function New-DotnetStartInfo([string[]] $arguments, [bool] $linux)
     $startInfo.FileName = 'dotnet'
     if ($linux -and $arguments.Count -ge 2 -and $arguments[0] -eq 'test' -and
         [System.IO.Path]::GetFileName($arguments[1]) -eq 'Opc.Ua.Lens.Tests.csproj') {
-        $xvfb = Get-Command xvfb-run -CommandType Application -ErrorAction SilentlyContinue
+        $xvfb = Get-Command xvfb-run -CommandType Application -ErrorAction SilentlyContinue |
+            Select-Object -First 1
         if ($null -eq $xvfb) {
             throw 'UaLens desktop tests require xvfb-run on the Linux agent.'
         }

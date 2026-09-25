@@ -11,6 +11,10 @@ dotnet tool install --global OPCFoundation.NetStandard.Opc.Ua.Lens --prerelease
 ualens
 ```
 
+Debug builds use the package ID `OPCFoundation.NetStandard.Opc.Ua.Lens.Debug`
+so their artifacts remain distinct from Release packages. Both expose `ualens`;
+install only one configuration in a given tool scope.
+
 The File / View / Tools / Help menu, persistent connection bar and searchable
 tool catalog provide access to common actions. Document actions and document or
 connection settings let you perform advanced operations and control their

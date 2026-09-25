@@ -24,6 +24,10 @@
     <NoWarn>$(NoWarn);CS0618;EXTOBS0001;CA1812</NoWarn>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+
   <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0'">
     <PublishAot Condition="'$(PublishAotEnabled)' != 'false'">true</PublishAot>
     <TrimMode>full</TrimMode>
