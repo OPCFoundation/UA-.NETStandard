@@ -1887,6 +1887,7 @@ namespace Opc.Ua.Client
                 Nonce? previousEphemeralKey = null;
                 bool overrideCommitted = false;
                 bool keyBoundToOverride = false;
+                bool fetchEphemeralKey = false;
                 if (!string.IsNullOrEmpty(overrideUserTokenPolicyUri))
                 {
                     string? originalPolicyUri;
@@ -1906,14 +1907,36 @@ namespace Opc.Ua.Client
                     // response that asked for it (ECDHPolicyUri). Obtain the
                     // key first by reactivating the current identity, then
                     // activate the new identity with it below.
-                    bool fetchEphemeralKey = !keyBoundToOverride &&
+                    fetchEphemeralKey = !keyBoundToOverride &&
                         RequiresEphemeralKey(overrideUserTokenPolicyUri!, identity);
                     if (fetchEphemeralKey)
                     {
-                        await RequestEphemeralKeyAsync(
-                            overrideUserTokenPolicyUri!,
-                            originalPolicyUri,
-                            operationCt).ConfigureAwait(false);
+                        // The fetch replaces (and disposes) the key of the
+                        // current identity: park a copy so a failed activation
+                        // of the new identity can fall back to it below.
+#pragma warning disable CA2000 // disposed on success, restored into the session on failure
+                        previousEphemeralKey = CopyEphemeralKey(originalPolicyUri);
+#pragma warning restore CA2000
+                        try
+                        {
+                            await RequestEphemeralKeyAsync(
+                                overrideUserTokenPolicyUri!,
+                                originalPolicyUri,
+                                operationCt).ConfigureAwait(false);
+                        }
+                        catch
+                        {
+                            lock (m_lock)
+                            {
+                                if (m_eccServerEphemeralKey == null)
+                                {
+                                    m_eccServerEphemeralKey = previousEphemeralKey;
+                                    previousEphemeralKey = null;
+                                }
+                            }
+                            previousEphemeralKey?.Dispose();
+                            throw;
+                        }
                     }
 
                     // Commit override state ONLY after the new identity
@@ -1927,7 +1950,8 @@ namespace Opc.Ua.Client
                     // identity without the key its next encryption needs.
                     // A key that was just fetched for (or already belongs
                     // to) the override policy stays in place: the new
-                    // identity is encrypted with it.
+                    // identity is encrypted with it. The previous key was
+                    // parked as a copy before the fetch replaced it.
                     lock (m_lock)
                     {
                         previousPolicyUri = fetchEphemeralKey
@@ -1963,13 +1987,31 @@ namespace Opc.Ua.Client
                     // key back so reconnects keep encrypting it with the policy
                     // and key it was issued for. A key that already belonged to
                     // the override policy is still the server's current one.
+                    // So is a key fetched for the override: the server only
+                    // accepts the key of its latest activation response, so it
+                    // is kept (with its policy) when the old identity can be
+                    // encrypted under that policy. Otherwise the parked key is
+                    // the best that is left.
                     lock (m_lock)
                     {
-                        m_userTokenSecurityPolicyUri = previousPolicyUri;
-                        if (!keyBoundToOverride)
+                        if (fetchEphemeralKey &&
+                            m_eccServerEphemeralKey != null &&
+                            m_identity != null &&
+                            m_endpoint.Description.FindUserTokenPolicy(
+                                m_identity.TokenType,
+                                m_identity.IssuedTokenType,
+                                overrideUserTokenPolicyUri!) != null)
                         {
-                            m_eccServerEphemeralKey?.Dispose();
-                            m_eccServerEphemeralKey = previousEphemeralKey;
+                            previousEphemeralKey?.Dispose();
+                        }
+                        else
+                        {
+                            m_userTokenSecurityPolicyUri = previousPolicyUri;
+                            if (!keyBoundToOverride)
+                            {
+                                m_eccServerEphemeralKey?.Dispose();
+                                m_eccServerEphemeralKey = previousEphemeralKey;
+                            }
                         }
                     }
                     throw;
@@ -2100,6 +2142,26 @@ namespace Opc.Ua.Client
             }
             SecurityPolicyInfo? policy = m_securityPolicies.GetInfo(policyUri);
             return policy != null && policy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None;
+        }
+
+        /// <summary>
+        /// Copies the current server ephemeral key, which belongs to the
+        /// user-token policy <paramref name="policyUri"/>, or returns
+        /// <c>null</c> when there is none.
+        /// </summary>
+        private Nonce? CopyEphemeralKey(string? policyUri)
+        {
+            byte[]? data;
+            lock (m_lock)
+            {
+                data = m_eccServerEphemeralKey?.Data;
+            }
+            if (data == null || string.IsNullOrEmpty(policyUri))
+            {
+                return null;
+            }
+            SecurityPolicyInfo? policy = m_securityPolicies.GetInfo(policyUri!);
+            return policy == null ? null : Nonce.CreateNonce(policy, [.. data]);
         }
 
         /// <summary>
