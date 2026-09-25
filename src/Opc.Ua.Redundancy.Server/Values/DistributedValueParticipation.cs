@@ -84,7 +84,9 @@ namespace Opc.Ua.Redundancy.Server
         /// Wires a variable's asynchronous read/write callbacks to the
         /// distributed value cache: reads serve the last value while fresh
         /// (falling back to <paramref name="liveRead"/> and caching), and
-        /// writes are cached (write-through).
+        /// writes are cached (write-through). Index-range reads return the
+        /// addressed elements; index-range writes are merged into the current
+        /// value before it is cached.
         /// </summary>
         /// <param name="variable">The variable to wire.</param>
         /// <param name="cache">The distributed value cache.</param>
@@ -122,16 +124,46 @@ namespace Opc.Ua.Redundancy.Server
             variable.OnReadValueAsync = async (context, node, indexRange, dataEncoding, ct) =>
             {
                 DataValue value = await ReadThroughAsync(cache, nodeId, maxAge, liveRead, ct).ConfigureAwait(false);
+
+                // a full async read handler owns the index range and data encoding.
+                Variant valueToRead = value.WrappedValue;
+                ServiceResult rangeResult = BaseVariableState.ApplyIndexRangeAndDataEncoding(
+                    context, indexRange, dataEncoding, ref valueToRead);
+                if (ServiceResult.IsBad(rangeResult))
+                {
+                    return new AttributeReadResult(
+                        rangeResult,
+                        Variant.Null,
+                        StatusCodes.Good,
+                        DateTimeUtc.MinValue);
+                }
+
                 return new AttributeReadResult(
                     ServiceResult.Good,
-                    value.WrappedValue,
+                    valueToRead,
                     value.StatusCode,
                     value.SourceTimestamp);
             };
 
             variable.OnWriteValueAsync = async (context, node, indexRange, value, ct) =>
             {
-                var dataValue = new DataValue(value, StatusCodes.Good, DateTimeUtc.Now);
+                Variant valueToCache = value;
+
+                // an index-range write carries only the slice: merge it into the
+                // current value instead of caching the slice as the whole value.
+                if (!indexRange.IsNull)
+                {
+                    DataValue current = await ReadThroughAsync(cache, nodeId, maxAge, liveRead, ct)
+                        .ConfigureAwait(false);
+                    valueToCache = current.WrappedValue;
+                    StatusCode updateResult = indexRange.UpdateRange(ref valueToCache, value);
+                    if (StatusCode.IsBad(updateResult))
+                    {
+                        return new AttributeWriteResult(updateResult);
+                    }
+                }
+
+                var dataValue = new DataValue(valueToCache, StatusCodes.Good, DateTimeUtc.Now);
                 await cache.CacheAsync(nodeId, dataValue, ct).ConfigureAwait(false);
                 return new AttributeWriteResult(ServiceResult.Good);
             };

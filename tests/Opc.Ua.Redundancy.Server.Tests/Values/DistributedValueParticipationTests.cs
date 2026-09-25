@@ -57,6 +57,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
     public class DistributedValueParticipationTests
     {
         private const ushort NamespaceIndex = 1;
+        private static readonly int[] s_initial = [1, 2, 3, 4];
+        private static readonly int[] s_slice = [20, 30];
+        private static readonly int[] s_merged = [1, 20, 30, 4];
+        private static readonly int[] s_rangeRead = [30];
         private IServiceMessageContext m_messageContext = null!;
         private SystemContext m_systemContext = null!;
 
@@ -157,6 +161,51 @@ namespace Opc.Ua.Server.Tests.Redundancy
             {
                 liveCalls++;
                 return new ValueTask<DataValue>(new DataValue(new Variant(123.0), StatusCodes.Good, DateTimeUtc.Now));
+            }
+        }
+
+        [Test]
+        public async Task EnableParticipationMergesIndexRangeWriteAndAppliesIndexRangeOnReadAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            var cache = new DistributedValueCache(new InMemoryNodeStateStore(kv, m_messageContext));
+            var nodeId = new NodeId("array", NamespaceIndex);
+            var variable = new BaseDataVariableState(null)
+            {
+                NodeId = nodeId,
+                BrowseName = new QualifiedName("Array", NamespaceIndex),
+                DisplayName = new LocalizedText("Array"),
+                DataType = DataTypeIds.Int32,
+                ValueRank = ValueRanks.OneDimension
+            };
+
+            variable.EnableDistributedValueParticipation(cache, TimeSpan.FromMinutes(1), LiveRead);
+
+            AttributeWriteResult writeResult = await variable.OnWriteValueAsync!(
+                m_systemContext, variable, NumericRange.Parse("1:2"), Variant.From(s_slice), default)
+                .ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(writeResult.Result), Is.True);
+
+            AttributeReadResult fullRead = await variable.OnReadValueAsync!(
+                m_systemContext, variable, default, new QualifiedName(), default).ConfigureAwait(false);
+            Assert.That(fullRead.Value.GetInt32Array(), Is.EqualTo(s_merged.ToArrayOf()),
+                "only the addressed elements may change; the slice must not become the whole value");
+
+            AttributeReadResult rangeRead = await variable.OnReadValueAsync!(
+                m_systemContext, variable, NumericRange.Parse("2"), new QualifiedName(), default)
+                .ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(rangeRead.Result), Is.True);
+            Assert.That(rangeRead.Value.GetInt32Array(), Is.EqualTo(s_rangeRead.ToArrayOf()));
+
+            AttributeWriteResult outOfRange = await variable.OnWriteValueAsync!(
+                m_systemContext, variable, NumericRange.Parse("10:11"), Variant.From(s_slice), default)
+                .ConfigureAwait(false);
+            Assert.That(ServiceResult.IsBad(outOfRange.Result), Is.True);
+
+            static ValueTask<DataValue> LiveRead(CancellationToken ct)
+            {
+                return new ValueTask<DataValue>(
+                    new DataValue(Variant.From(s_initial), StatusCodes.Good, DateTimeUtc.Now));
             }
         }
 
