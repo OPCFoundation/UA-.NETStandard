@@ -5005,12 +5005,14 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    if (propertyState != null)
+                    if (propertyState != null && nodeToWrite.AttributeId == Attributes.Value)
                     {
+                        // compare the stored value after the write: the written DataValue
+                        // (possibly an IndexRange slice) is not comparable with the old value.
                         CheckIfSemanticsHaveChanged(
                             systemContext,
                             propertyState,
-                            nodeToWrite.Value,
+                            propertyState.Value,
                             previousPropertyValue);
                     }
 
@@ -5223,7 +5225,7 @@ namespace Opc.Ua.Server
                                 new SemanticChangeStructureDataType
                                 {
                                     Affected = node.NodeId,
-                                    AffectedType = property.TypeDefinitionId
+                                    AffectedType = (node as BaseInstanceState)?.TypeDefinitionId ?? NodeId.Null
                                 }
                             }.ToArrayOf();
 

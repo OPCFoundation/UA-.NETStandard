@@ -2676,6 +2676,7 @@ namespace Opc.Ua.Server.Tests
             variable.CreateAsPredefinedNode(context);
             variable.NodeId = new NodeId("SemanticVar", nsIdx);
             variable.BrowseName = new QualifiedName("SemanticVar", nsIdx);
+            variable.TypeDefinitionId = VariableTypeIds.AnalogItemType;
             variable.Value = 0;
             variable.DataType = DataTypeIds.Int32;
             variable.ValueRank = ValueRanks.Scalar;
@@ -2735,6 +2736,33 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(ServiceResult.IsGood(writeErrors[0]), Is.True);
             Assert.That(euProperty.Value, Is.EqualTo(123));
+            m_mockServer.Verify(
+                s => s.ReportEvent(It.Is<IFilterTarget>(e => e is SemanticChangeEventState)),
+                Times.Once);
+
+            // the event names the owning node and its type, not the property's PropertyType.
+            m_mockServer.Verify(
+                s => s.ReportEvent(It.Is<IFilterTarget>(e =>
+                    e is SemanticChangeEventState &&
+                    ((SemanticChangeEventState)e).Changes.Value[0].Affected == variable.NodeId &&
+                    ((SemanticChangeEventState)e).Changes.Value[0].AffectedType == variable.TypeDefinitionId)),
+                Times.Once);
+
+            // rewriting the unchanged value does not change the semantics.
+            await manager.WriteAsync(
+                new OperationContext(new RequestHeader(), null, RequestType.Write, RequestLifetime.None),
+                new List<WriteValue>
+                {
+                    new()
+                    {
+                        NodeId = euProperty.NodeId,
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue(new Variant(123))
+                    }
+                },
+                writeErrors).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(writeErrors[0]), Is.True);
             m_mockServer.Verify(
                 s => s.ReportEvent(It.Is<IFilterTarget>(e => e is SemanticChangeEventState)),
                 Times.Once);
