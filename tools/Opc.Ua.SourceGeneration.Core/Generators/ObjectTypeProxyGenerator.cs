@@ -216,13 +216,50 @@ namespace Opc.Ua.SourceGeneration
             TypeDesign current = objectType.BaseTypeNode;
             while (current is ObjectTypeDesign parent)
             {
-                if (!m_context.ModelDesign.IsExcluded(parent))
+                if (HasProxy(parent))
                 {
                     return parent;
                 }
                 current = parent.BaseTypeNode;
             }
             return null;
+        }
+
+        /// <summary>
+        /// Returns true when a proxy class exists (or is emitted here) for
+        /// <paramref name="type"/>. This model's exclusions only decide that
+        /// for types of models generated with them: the target model, and
+        /// other inputs of this run. A type supplied by a referenced assembly
+        /// was emitted under that assembly's own exclusions, which its
+        /// dependency payload records by omitting the excluded types.
+        /// </summary>
+        private bool HasProxy(ObjectTypeDesign type)
+        {
+            string typeUri = type.SymbolicId?.Namespace ?? type.SymbolicName?.Namespace;
+            if (!string.IsNullOrEmpty(typeUri) &&
+                !string.Equals(typeUri, m_context.ModelDesign.TargetNamespace?.Value, StringComparison.Ordinal) &&
+                m_context.ReferencedModels != null &&
+                m_context.ReferencedModels.TryGetValue(typeUri, out ModelDependencyReference reference))
+            {
+                Dependency.ModelDependencyV1 payload = reference.GetDependency();
+                if (payload == null)
+                {
+                    // No record of what the reference excluded: take the
+                    // type as emitted.
+                    return true;
+                }
+                string name = type.SymbolicId?.Name ?? type.SymbolicName?.Name;
+                foreach (Dependency.DependencyNode node in payload.Nodes)
+                {
+                    if (node.Kind == Dependency.DependencyNodeKind.ObjectType &&
+                        string.Equals(node.SymbolicName, name, StringComparison.Ordinal))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            return !m_context.ModelDesign.IsExcluded(type);
         }
 
         /// <summary>
@@ -418,7 +455,7 @@ namespace Opc.Ua.SourceGeneration
                 }
                 // No proxy is emitted for an excluded type, so an accessor
                 // returning one would not compile (CS0246).
-                if (m_context.ModelDesign.IsExcluded(childType))
+                if (!HasProxy(childType))
                 {
                     continue;
                 }

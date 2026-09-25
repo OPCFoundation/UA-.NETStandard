@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Xml;
@@ -49,6 +50,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
     {
         private const string kTestNamespaceUri = "http://test.org/UA/";
         private const string kTestNamespacePrefix = "Test";
+        private const string kForeignNamespaceUri = "http://foreign.org/UA/";
+        private const string kForeignNamespacePrefix = "Foreign";
 
         private Mock<IFileSystem> m_mockFileSystem;
         private Mock<IModelDesign> m_mockModelDesign;
@@ -636,6 +639,107 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         /// <summary>
+        /// Regression: this model's exclusions were applied to a supertype and a child
+        /// type from a referenced model. The referenced assembly emitted their proxies
+        /// under its own exclusions (its payload lists them), so the proxy must keep
+        /// deriving from, and returning, the referenced proxies.
+        /// </summary>
+        [Test]
+        public void Emit_ForeignTypeEmittedByReference_IgnoresLocalExclusions()
+        {
+            ObjectTypeDesign foreignRoot = CreateObjectType("DeviceBaseType", kForeignNamespaceUri);
+            ObjectTypeDesign foreignType = CreateObjectType("DeprecatedDeviceType", kForeignNamespaceUri);
+            foreignType.BaseTypeNode = foreignRoot;
+            ObjectTypeDesign machineType = CreateObjectType("MachineType");
+            machineType.BaseTypeNode = foreignType;
+            machineType.Children = new ListOfChildren
+            {
+                Items = [CreateObjectChild("Legacy", null, foreignType)]
+            };
+            m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([machineType]);
+            m_mockModelDesign.Setup(m => m.IsExcluded(foreignType)).Returns(true);
+
+            string content = EmitToString(ReferenceForeignModel("DeviceBaseType", "DeprecatedDeviceType"));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(content, Does.Contain(
+                    "public partial class MachineTypeClient : global::" + kForeignNamespacePrefix +
+                    ".DeprecatedDeviceTypeClient"));
+                Assert.That(content, Does.Contain("GetLegacyAsync("));
+            });
+        }
+
+        /// <summary>
+        /// Regression (inverse case): a referenced model that excluded a type emitted
+        /// no proxy for it although this model does not exclude it. The payload of
+        /// the reference omits the type, so the proxy derives from the nearest ancestor
+        /// the reference did emit and no accessor returns the missing proxy.
+        /// </summary>
+        [Test]
+        public void Emit_ForeignTypeExcludedByReference_SkipsItsProxy()
+        {
+            ObjectTypeDesign foreignRoot = CreateObjectType("DeviceBaseType", kForeignNamespaceUri);
+            ObjectTypeDesign foreignType = CreateObjectType("DraftDeviceType", kForeignNamespaceUri);
+            foreignType.BaseTypeNode = foreignRoot;
+            ObjectTypeDesign machineType = CreateObjectType("MachineType");
+            machineType.BaseTypeNode = foreignType;
+            machineType.Children = new ListOfChildren
+            {
+                Items = [CreateObjectChild("Draft", null, foreignType)]
+            };
+            m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([machineType]);
+
+            string content = EmitToString(ReferenceForeignModel("DeviceBaseType"));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(content, Does.Contain(
+                    "public partial class MachineTypeClient : global::" + kForeignNamespacePrefix +
+                    ".DeviceBaseTypeClient"));
+                Assert.That(content, Does.Not.Contain("DraftDeviceTypeClient"));
+                Assert.That(content, Does.Not.Contain("GetDraftAsync("));
+            });
+        }
+
+        private Dictionary<string, ModelDependencyReference> ReferenceForeignModel(
+            params string[] emittedObjectTypes)
+        {
+            m_mockModelDesign.Setup(m => m.Namespaces).Returns(
+            [
+                m_targetNamespace,
+                new Namespace
+                {
+                    Value = kForeignNamespaceUri,
+                    Prefix = kForeignNamespacePrefix,
+                    Name = "Foreign"
+                }
+            ]);
+            var payload = new Dependency.ModelDependencyV1 { ModelUri = kForeignNamespaceUri };
+            foreach (string name in emittedObjectTypes)
+            {
+                payload.Nodes.Add(new Dependency.DependencyNode
+                {
+                    SymbolicName = name,
+                    SymbolicNamespace = kForeignNamespaceUri,
+                    ClassName = name,
+                    Kind = Dependency.DependencyNodeKind.ObjectType
+                });
+            }
+            return new Dictionary<string, ModelDependencyReference>
+            {
+                [kForeignNamespaceUri] = new ModelDependencyReference(
+                    "Foreign.Assembly",
+                    kForeignNamespaceUri,
+                    kForeignNamespacePrefix,
+                    "1.0.0",
+                    "2024-01-01",
+                    "Foreign",
+                    payload.ToBase64Payload())
+            };
+        }
+
+        /// <summary>
         /// Optional value-type method arguments stay non-nullable (only string and
         /// structure references get a nullable annotation), so the emitted
         /// <c>Variant.From(x)</c> / <c>TryGetValue(out x)</c> calls bind to the
@@ -671,13 +775,27 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             });
         }
 
-        private string EmitToString()
+        private string EmitToString(
+            IReadOnlyDictionary<string, ModelDependencyReference> referencedModels = null)
         {
             using var stream = new MemoryStream();
             m_mockFileSystem
                 .Setup(fs => fs.OpenWrite(It.IsAny<string>()))
                 .Returns(stream);
-            new ObjectTypeProxyGenerator(CreateContext()).Emit();
+            GeneratorContext context = CreateContext();
+            if (referencedModels != null)
+            {
+                context = new GeneratorContext
+                {
+                    FileSystem = context.FileSystem,
+                    OutputFolder = context.OutputFolder,
+                    ModelDesign = context.ModelDesign,
+                    Telemetry = context.Telemetry,
+                    Options = context.Options,
+                    ReferencedModels = referencedModels
+                };
+            }
+            new ObjectTypeProxyGenerator(context).Emit();
             return Encoding.UTF8.GetString(stream.ToArray());
         }
 
@@ -708,6 +826,16 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 Options = options ?? new GeneratorOptions()
             };
             return m_context;
+        }
+
+        private static ObjectTypeDesign CreateObjectType(string name, string namespaceUri)
+        {
+            var qname = new XmlQualifiedName(name, namespaceUri);
+            return new ObjectTypeDesign
+            {
+                SymbolicName = qname,
+                SymbolicId = qname
+            };
         }
 
         private static ObjectTypeDesign CreateObjectType(
