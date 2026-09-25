@@ -34,6 +34,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
@@ -55,6 +56,7 @@ namespace Opc.Ua.WotCon.Server
             m_manager = manager ?? throw new ArgumentNullException(nameof(manager));
             m_registry = registry ?? throw new ArgumentNullException(nameof(registry));
             m_options = options ?? throw new ArgumentNullException(nameof(options));
+            m_logger = manager.Server.Telemetry.CreateLogger<WotRegistryProjection>();
             m_modelNs = (ushort)manager.Server.NamespaceUris.GetIndex(Namespaces.WotCon);
             var context = new XRegistryProjectionContext(
                 manager.SystemContext,
@@ -205,6 +207,7 @@ namespace Opc.Ua.WotCon.Server
             {
                 return;
             }
+            concreteVersion &= document.Versions is null;
 
             if (document.Versions is { } versions)
             {
@@ -262,7 +265,7 @@ namespace Opc.Ua.WotCon.Server
                 (context, _, ct) => ReadDependencyObservationAsync(context, groupId, resourceId, versionId, false, ct);
             document.LastDependencyAttempt!.OnSimpleReadValueAsync =
                 (context, _, ct) => ReadDependencyObservationAsync(context, groupId, resourceId, versionId, true, ct);
-            BindPublishedResourceProperties(document, resource);
+            BindPublishedResourceProperties(document, resource, versionId);
 
             // The versioned strategy supplies a Version adapter for the logical Resource too.
             if (!concreteVersion || document.Versions is not null)
@@ -272,7 +275,7 @@ namespace Opc.Ua.WotCon.Server
                     (context, _, ct) => ReadProjectionMembershipDigestAsync(context, document.NodeId, resource.Xid, ct);
             }
 
-            ApplyWotResourceProperties(document, resource);
+            ApplyWotResourceProperties(document, resource, version, concreteVersion);
         }
 
         private ValueTask<AttributeSimpleReadResult> ReadProjectionMembershipDigestAsync(
@@ -370,19 +373,17 @@ namespace Opc.Ua.WotCon.Server
             return new ValueTask<AttributeSimpleReadResult>(new AttributeSimpleReadResult(status, value));
         }
 
-        private void ApplyWotResourceProperties(WoTDocumentState node, WotResource resource)
-        {
-            ApplyWotResourceProperties(node, resource, resource.DefaultVersion);
-        }
-
         private void ApplyWotResourceProperties(
             WoTDocumentState node,
             WotResource resource,
-            WotResourceVersion? version)
+            WotResourceVersion? version,
+            bool concreteVersion)
         {
             XRegistryProjectionEngine.SetValue(node.DocumentKind, resource.Kind);
             XRegistryProjectionEngine.SetValue(node.Enabled, resource.Enabled);
-            XRegistryProjectionEngine.SetValue(node.LoadState, resource.LoadState);
+            XRegistryProjectionEngine.SetValue(node.LoadState,
+                concreteVersion && node.Versions is null && version?.HasValidationFailure == true
+                    ? WoTLoadStateEnum.Failed : resource.LoadState);
             XRegistryProjectionEngine.SetValue(node.DesiredVersionId, resource.DesiredVersionId ?? string.Empty);
             XRegistryProjectionEngine.SetValue(node.ActiveVersionId, resource.ActiveVersionId ?? string.Empty);
             XRegistryProjectionEngine.SetValue(node.IsDefault, version is not null &&
@@ -489,6 +490,9 @@ namespace Opc.Ua.WotCon.Server
                 return access;
             }
             WoTValidationOutcomeDataType outcome;
+            ServiceResult status = ServiceResult.Good;
+            string selectedVersionId = string.IsNullOrEmpty(versionId)
+                ? m_registry.Current.FindResource(groupId, resourceId)?.DefaultVersionId ?? string.Empty : versionId;
             try
             {
                 if (m_registry is IWotVersionedRegistryService versioned &&
@@ -522,10 +526,19 @@ namespace Opc.Ua.WotCon.Server
             {
                 return ex.Result;
             }
-            await ReconcileProjectionAsync(ct).ConfigureAwait(false);
+            catch (WotRegistryCommitDurabilityUncertainException ex)
+            {
+                m_logger.ValidationCommittedWithWarning(ex);
+                outcome = ex.CommittedSnapshot.FindResource(groupId, resourceId)?
+                    .FindVersion(selectedVersionId)?.Validation ??
+                    throw new InvalidOperationException("Committed validation has no outcome for the addressed Version.", ex);
+                status = ServiceResult.Create(StatusCodes.GoodResultsMayBeIncomplete,
+                    "The validation outcome was committed, but completion reported a warning.");
+            }
+            await ReconcileProjectionAsync(CancellationToken.None).ConfigureAwait(false);
             output.Clear();
             output.Add(Variant.FromStructure(outcome));
-            return ServiceResult.Good;
+            return status;
         }
 
         private async ValueTask<ServiceResult> OnSetEnabledAsync(
@@ -848,7 +861,8 @@ namespace Opc.Ua.WotCon.Server
                     m_projection.ApplyWotResourceProperties(
                         document,
                         adapter.Resource,
-                        adapter.Version);
+                        adapter.Version,
+                        adapter.IsConcreteVersion);
                 }
             }
 
@@ -1570,10 +1584,18 @@ namespace Opc.Ua.WotCon.Server
         private readonly WotRegistryNodeManager m_manager;
         private readonly IWotRegistryService m_registry;
         private readonly WotRegistryServerOptions m_options;
+        private readonly ILogger m_logger;
         private readonly ushort m_modelNs;
         private readonly Strategy m_strategy;
         private readonly XRegistryProjectionEngine m_engine;
         private readonly ConditionalWeakTable<WotRegistrySnapshot, Lazy<ImmutableDictionary<string, ByteString>>>
             m_membershipDigests = new();
+    }
+
+    internal static partial class WotRegistryProjectionLog
+    {
+        [LoggerMessage(EventId = WotConServerEventIds.WotRegistryProjection, Level = LogLevel.Warning,
+            Message = "The exact-Version validation outcome committed with a completion warning")]
+        public static partial void ValidationCommittedWithWarning(this ILogger logger, Exception exception);
     }
 }

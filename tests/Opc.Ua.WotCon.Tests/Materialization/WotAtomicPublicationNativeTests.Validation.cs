@@ -28,15 +28,18 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Client;
 using Opc.Ua.Tests;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
+using Opc.Ua.XRegistry.Server;
 
 namespace Opc.Ua.WotCon.Tests.Materialization
 {
@@ -75,12 +78,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(m_coordinator.Generation, Is.EqualTo(project ? 1u : 0u));
         }
 
-        [TestCase(false, false)]
-        [TestCase(true, false)]
-        [TestCase(false, true)]
-        [TestCase(true, true)]
+        [TestCase(false, false, false)]
+        [TestCase(true, false, false)]
+        [TestCase(false, true, false)]
+        [TestCase(true, true, false)]
+        [TestCase(false, false, true)]
+        [TestCase(false, true, true)]
         public async Task DirectNonDefaultValidationReportsFailureWithoutImplicitProjection(
-            bool autoRefresh, bool nativeMethod)
+            bool autoRefresh, bool nativeMethod, bool defaultVersion)
         {
             var options = new WotRegistryServerOptions
             {
@@ -99,7 +104,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             WotRegistryMutationResult bad = await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
                 GroupId = source.GroupId, ResourceId = source.ResourceId, Kind = source.Kind,
-                VersionId = "invalid-v2", SetAsDefault = false,
+                VersionId = "invalid-v2", SetAsDefault = defaultVersion,
                 Content = ByteString.From(Encoding.UTF8.GetBytes("""
                     {
                       "id":"urn:validate-selected-version","title":"Selected Version",
@@ -146,7 +151,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Assert.That(m_registry.Current.RefreshGeneration, Is.EqualTo(1u));
                 WotResource after = m_registry.Current.FindResourceByXid(source.Xid)!;
                 Assert.That(after.ActiveVersionId, Is.EqualTo("v1"));
-                Assert.That(after.DefaultVersionId, Is.EqualTo("v1"));
+                Assert.That(after.DefaultVersionId, Is.EqualTo(defaultVersion ? "invalid-v2" : "v1"));
                 Assert.That(after.RootNodeId, Is.EqualTo(before.FindResourceByXid(source.Xid)!.RootNodeId));
                 Assert.That(after.FindVersion("v1")!.Validation!.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Skipped));
                 Assert.That(after.FindVersion("invalid-v2")!.Validation!.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Failed));
@@ -188,6 +193,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Assert.That(reported, Is.Not.Null);
                 Assert.That(reported!.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Failed));
                 Assert.That(reported.FormatReason, Is.EqualTo(reason));
+                Assert.That(await ReadValidationVersionStateAsync(source, "invalid-v2").ConfigureAwait(false),
+                    Is.EqualTo(WoTLoadStateEnum.Failed));
+                Assert.That(await ReadValidationVersionStateAsync(source, "v1").ConfigureAwait(false),
+                    Is.EqualTo(WoTLoadStateEnum.Active));
+                Assert.That(await ReadValidationVersionStateAsync(source, string.Empty).ConfigureAwait(false),
+                    Is.EqualTo(WoTLoadStateEnum.Active),
+                    "The serving logical Resource remains active even when its desired Version fails validation.");
             }
             finally
             {
@@ -276,5 +288,210 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 await m_session.DeleteSubscriptionsAsync(null, [subscription], CancellationToken.None).ConfigureAwait(false);
             }
         }
+
+        [Test]
+        public async Task NativeCommittedValidationWarningReturnsTheCommittedOutcome()
+        {
+            await m_server.NodeManagerLifecycle.AddAsync(new WotRegistryNodeManagerFactory(
+                new WotRegistryServerOptions
+                {
+                    AutoRefresh = false,
+                    ManagementAccess = new WotManagementAccessPolicy
+                    {
+                        MinimumSecurityMode = MessageSecurityMode.None,
+                        AllowAnonymous = true,
+                        RequiredRoleId = Ua.ObjectIds.WellKnownRole_Anonymous
+                    }
+                }, m_registry, m_coordinator), callerContext: null).ConfigureAwait(false);
+            WotRegistryMutationResult added = await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
+            {
+                GroupId = WotRegistryGroups.ThingDescriptions, ResourceId = "validation-warning", VersionId = "v1",
+                Content = ByteString.From(Encoding.UTF8.GetBytes("""
+                    {"id":"urn:validation-warning","title":"Warning","uav:metadata":{"nested":{"depth":3}}}
+                    """))
+            }).ConfigureAwait(false);
+            Assert.That(added.Changed, Is.True, added.Message);
+            WotResource resource = added.Resource!;
+            await AwaitStockRegistryProjectionAsync().ConfigureAwait(false);
+            await m_session.FetchNamespaceTablesAsync().ConfigureAwait(false);
+            m_session.MessageContext.Factory.Builder.AddOpcUaWotCon().Commit();
+            long generation = m_registry.Current.Generation;
+            int depth = m_registry.Bounds.MaxJsonDepth;
+            CallResponse response;
+            try
+            {
+                m_committedWarning = true;
+                m_registry.Bounds.MaxJsonDepth = 2;
+                response = await m_session.CallAsync(null,
+                    [
+                        new CallMethodRequest
+                        {
+                            ObjectId = new NodeId(
+                                $"WoTRegistry/groups/{resource.GroupId}/resources/{resource.ResourceId}/versions/v1",
+                                ResourceId(resource).NamespaceIndex),
+                            MethodId = ExpandedNodeId.ToNodeId(MethodIds.WoTDocumentType_Validate, m_session.NamespaceUris),
+                            InputArguments = []
+                        }
+                    ], CancellationToken.None).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_registry.Bounds.MaxJsonDepth = depth;
+                m_committedWarning = false;
+            }
+
+            Assert.That(m_registry.Current.Generation, Is.EqualTo(generation + 1));
+            Assert.That(m_coordinator.Generation, Is.Zero);
+            Assert.That(response.Results.Count, Is.EqualTo(1));
+            Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.GoodResultsMayBeIncomplete));
+            Assert.That(response.Results[0].OutputArguments.Count, Is.EqualTo(1));
+            Assert.That(response.Results[0].OutputArguments[0].TryGetStructure<WoTValidationOutcomeDataType>(
+                out WoTValidationOutcomeDataType? outcome), Is.True);
+            Assert.That(outcome, Is.Not.Null);
+            Assert.That(outcome!.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Failed));
+        }
+
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        public async Task ValidationRecoveryReleasesOnlyTheConfirmedFailureIntent(int recovery)
+        {
+            m_coordinator.Dispose();
+            m_registry.Dispose();
+            var faulting = new ValidationCaptureStore(m_store);
+            m_registry = new WotRegistryService(faulting);
+            await m_registry.InitializeAsync().ConfigureAwait(false);
+            m_coordinator = new WotMaterializationCoordinator(
+                m_registry, new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle),
+                documentConverter: m_converter)
+            {
+                ServerNamespaceUris = m_server.CurrentInstance.NamespaceUris
+            };
+            m_coordinator.Event += (_, change) => m_events.Add(change);
+            await m_server.NodeManagerLifecycle.AddAsync(new WotRegistryNodeManagerFactory(
+                new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator),
+                callerContext: null).ConfigureAwait(false);
+            WotRegistryMutationResult added = await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
+            {
+                GroupId = WotRegistryGroups.ThingDescriptions, ResourceId = "validation-recovery", VersionId = "v1",
+                Content = ByteString.From(Encoding.UTF8.GetBytes("""
+                    {"id":"urn:validation-recovery","title":"Recovery","uav:metadata":{"nested":{"depth":3}}}
+                    """))
+            }).ConfigureAwait(false);
+            Assert.That(added.Changed, Is.True, added.Message);
+            WotResource source = added.Resource!;
+            await AwaitStockRegistryProjectionAsync().ConfigureAwait(false);
+            uint subscription = await CreateFailureContextSubscriptionAsync().ConfigureAwait(false);
+            WotRegistrySnapshot before = m_registry.Current;
+            int depth = m_registry.Bounds.MaxJsonDepth;
+            try
+            {
+                faulting.FailNextCapture = recovery == 0;
+                m_indeterminateDecision = recovery != 0;
+                m_registry.Bounds.MaxJsonDepth = 2;
+                try
+                {
+                    await Assert.ThatAsync(async () => await m_registry.ValidateVersionAsync(
+                        source.GroupId, source.ResourceId, "v1").ConfigureAwait(false),
+                        recovery == 0 ? Throws.TypeOf<WotRegistryCommitDurabilityUncertainException>() :
+                            Throws.TypeOf<WotRegistryCommitIndeterminateException>()).ConfigureAwait(false);
+                }
+                finally
+                {
+                    m_registry.Bounds.MaxJsonDepth = depth;
+                    m_indeterminateDecision = false;
+                }
+                if (recovery != 0)
+                {
+                    string directory = Path.Combine(m_root, "registry");
+                    File.Move(Directory.GetFiles(directory,
+                        recovery == 1 ? "manifest.json.tmp-*" : "manifest.json.replace-backup-*").Single(),
+                        Path.Combine(directory, "manifest.json"));
+                }
+
+                await m_registry.InitializeAsync().ConfigureAwait(false);
+                await m_registry.InitializeAsync().ConfigureAwait(false);
+
+                Assert.That(m_registry.Current.Generation, Is.EqualTo(before.Generation + (recovery == 2 ? 0 : 1)));
+                Assert.That(m_registry.Current.RefreshGeneration, Is.Zero);
+                const string requestId = "validation-recovery-barrier";
+                await m_coordinator.RefreshAsync(new WotRefreshRequest
+                {
+                    RequestId = requestId,
+                    Selection =
+                    [
+                        new WoTResourceSelectorDataType
+                        {
+                            Kind = WoTDocumentKindEnum.All, Xid = "/groups/unselected/resources/unselected"
+                        }
+                    ]
+                }).ConfigureAwait(false);
+                await CollectFailureContextAsync(
+                    subscription, source.ResourceId, WotMaterializationEventKind.ValidationFailure, requestId,
+                    expectedFailureCount: recovery == 2 ? 0 : 1).ConfigureAwait(false);
+                Assert.That(m_coordinator.Generation, Is.Zero);
+            }
+            finally
+            {
+                await m_session.DeleteSubscriptionsAsync(null, [subscription], CancellationToken.None).ConfigureAwait(false);
+            }
+        }
+
+        private async Task<WoTLoadStateEnum> ReadValidationVersionStateAsync(WotResource resource, string versionId)
+        {
+            NodeId version = string.IsNullOrEmpty(versionId) ? ResourceId(resource) : new NodeId(
+                $"WoTRegistry/groups/{resource.GroupId}/resources/{resource.ResourceId}/versions/{versionId}",
+                ResourceId(resource).NamespaceIndex);
+            ReferenceDescription property = (await BrowseStockAsync(version, Ua.ReferenceTypeIds.HasProperty)
+                .ConfigureAwait(false)).Single(reference => reference.BrowseName.Name == BrowseNames.LoadState);
+            DataValue value = await m_session.ReadValueAsync(
+                ExpandedNodeId.ToNodeId(property.NodeId, m_session.NamespaceUris)).ConfigureAwait(false);
+            Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(value.WrappedValue.TryGetValue(out WoTLoadStateEnum state), Is.True);
+            return state;
+        }
+
+        private sealed class ValidationCaptureStore(FileWotRegistryStore inner)
+            : IWotRegistryRecoveryStore, IWotRegistryResourceStoreProvider
+        {
+            public bool FailNextCapture { get; set; }
+            public bool SupportsPreparedCommits => inner.SupportsPreparedCommits;
+            public IXRegistryResourceStore ResourceStore => ((IWotRegistryResourceStoreProvider)inner).ResourceStore;
+
+            public ValueTask<WotRegistrySnapshot> LoadAsync(CancellationToken cancellationToken = default)
+            {
+                return inner.LoadAsync(cancellationToken);
+            }
+
+            public ValueTask CommitAsync(WotRegistrySnapshot snapshot, CancellationToken cancellationToken = default)
+            {
+                return inner.CommitAsync(snapshot, cancellationToken);
+            }
+
+            public ValueTask<IWotRegistryValidatedGeneration> CaptureValidatedGenerationAsync(
+                CancellationToken cancellationToken = default)
+            {
+                if (FailNextCapture)
+                {
+                    FailNextCapture = false;
+                    throw new IOException("The post-commit validated generation cannot be captured yet.");
+                }
+                return inner.CaptureValidatedGenerationAsync(cancellationToken);
+            }
+
+            public ValueTask<IWotRegistryPreparedCommit> PrepareCommitAsync(
+                WotRegistrySnapshot intendedSnapshot, IWotRegistryValidatedGeneration expectedGeneration,
+                WotRegistryCommitScope scope, CancellationToken cancellationToken = default)
+            {
+                return inner.PrepareCommitAsync(intendedSnapshot, expectedGeneration, scope, cancellationToken);
+            }
+
+            public ValueTask<IWotRegistryPublicationValidation> ValidatePublicationAsync(
+                IWotRegistryValidatedGeneration expectedGeneration, CancellationToken cancellationToken = default)
+            {
+                return inner.ValidatePublicationAsync(expectedGeneration, cancellationToken);
+            }
+        }
+
     }
 }

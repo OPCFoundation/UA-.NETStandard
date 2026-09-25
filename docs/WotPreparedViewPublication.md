@@ -271,6 +271,10 @@ the addressed exact Version. A non-default Version does not replace the
 default's diagnostic view, active pointer, native root or refresh generation.
 Publication rechecks the Version incarnation, kind, format, content type and
 digest. Validation-only metadata changes do not schedule automatic projection.
+An exact Version with a committed validation failure exposes `LoadState = Failed`.
+This diagnostic is independent of the serving Resource's captured runtime state:
+the previously active Version, logical Resource, native root and refresh
+generation remain unchanged, including when the failed Version is the default.
 
 A committed explicit validation failure emits `WoTValidationFailureEventType`
 from that Version, with its real phase and serving refresh generation, whether
@@ -280,6 +284,15 @@ decision. Confirmed noncommit and pre-decision cancellation emit no failure
 intent. A committed durability warning retains the committed observation rather
 than implying rollback. Returned outcomes and queued event payloads are detached
 from caller mutation.
+The native Method returns the committed outcome with
+`GoodResultsMayBeIncomplete` when completion reports a committed warning.
+Post-decision metadata reconciliation does not use caller cancellation to
+turn that committed result into rollback.
+If post-commit generation capture fails or a commit is indeterminate, the same
+registry owner retains the pending validation notification. A reload validates
+the recovered generation against the intended or previous image before releasing
+the intent. A confirmed committed image releases it once; a confirmed noncommit
+does not. Repeated reloads do not repeat an already released notification.
 
 Full JSON Schema and compatibility-policy implementations are not supplied by
 these observation and lifecycle contracts.

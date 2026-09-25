@@ -244,6 +244,10 @@ namespace Opc.Ua.WotCon.Server.Registry
             init => m_validation = (WoTValidationOutcomeDataType?)value?.Clone();
         }
 
+        internal bool HasValidationFailure =>
+            m_validation?.FormatOutcome is WoTOutcomeEnum.Failed or WoTOutcomeEnum.Rejected ||
+            m_validation?.CompatibilityOutcome is WoTOutcomeEnum.Failed or WoTOutcomeEnum.Rejected;
+
         /// <summary>
         /// Gets the document identity parsed from this Version's bytes.
         /// </summary>

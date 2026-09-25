@@ -90,7 +90,8 @@ namespace Opc.Ua.WotCon.Server
             };
         }
 
-        private void BindPublishedResourceProperties(WoTDocumentState document, WotResource resource)
+        private void BindPublishedResourceProperties(
+            WoTDocumentState document, WotResource resource, string versionId)
         {
             (string, string) identity = (resource.GroupId, resource.ResourceId);
             ResourceReadImage initial = ResourceReadImage.Capture(resource);
@@ -112,8 +113,18 @@ namespace Opc.Ua.WotCon.Server
             if (document.LoadState is { } loadState)
             {
                 loadState.OnSimpleReadValueAsync = (context, _, ct) =>
-                    ReadPublishedResourcePropertyAsync(context, identity, initial,
+                {
+                    ct.ThrowIfCancellationRequested();
+                    if (!string.IsNullOrEmpty(versionId) &&
+                        m_registry.Current.FindResource(resource.GroupId, resource.ResourceId)?
+                            .FindVersion(versionId)?.HasValidationFailure == true)
+                    {
+                        return new ValueTask<AttributeSimpleReadResult>(new AttributeSimpleReadResult(
+                            StatusCodes.Good, Variant.From((int)WoTLoadStateEnum.Failed)));
+                    }
+                    return ReadPublishedResourcePropertyAsync(context, identity, initial,
                         static image => Variant.From((int)image.LoadState), ct);
+                };
             }
         }
 

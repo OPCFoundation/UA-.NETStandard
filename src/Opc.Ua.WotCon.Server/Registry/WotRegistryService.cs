@@ -2619,11 +2619,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                 {
                     exception.CommittedSnapshot = RestoreVersionIncarnations(exception.CommittedSnapshot, intended);
                     Volatile.Write(ref m_snapshot, exception.CommittedSnapshot);
-                    await RefreshValidatedStoreGenerationAfterCommitAsync(
-                        exception.CommittedSnapshot, exception.PersistenceFailure).ConfigureAwait(false);
-                    RaiseChanged(
-                        previous, exception.CommittedSnapshot, changed, projectionOnly,
-                        exception.PersistenceFailure, validation: validation);
+                    await CompleteCommittedChangeAsync(previous, exception.CommittedSnapshot, changed,
+                        projectionOnly, validation, exception.PersistenceFailure).ConfigureAwait(false);
                     throw;
                 }
                 catch (WotRegistryCommitNotCommittedException)
@@ -2634,12 +2631,16 @@ namespace Opc.Ua.WotCon.Server.Registry
                 {
                     m_recoverySnapshot = intended;
                     m_reloadRequired = true;
+                    if (validation is not null)
+                    {
+                        m_pendingValidation = new PendingValidationNotification(previous, intended, validation);
+                    }
                     throw;
                 }
 
                 Volatile.Write(ref m_snapshot, intended);
-                await RefreshValidatedStoreGenerationAfterCommitAsync(intended).ConfigureAwait(false);
-                RaiseChanged(previous, intended, changed, projectionOnly, validation: validation);
+                await CompleteCommittedChangeAsync(previous, intended, changed, projectionOnly, validation)
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -2648,6 +2649,26 @@ namespace Opc.Ua.WotCon.Server.Registry
                     await prepared.DisposeAsync().ConfigureAwait(false);
                 }
             }
+        }
+
+        private async ValueTask CompleteCommittedChangeAsync(
+            WotRegistrySnapshot previous,
+            WotRegistrySnapshot committed,
+            IReadOnlyList<string> changed,
+            bool projectionOnly,
+            WotValidationChange? validation,
+            Exception? priorFailure = null)
+        {
+            if (validation is not null)
+            {
+                m_pendingValidation = new PendingValidationNotification(previous, committed, validation);
+            }
+            await RefreshValidatedStoreGenerationAfterCommitAsync(committed, priorFailure).ConfigureAwait(false);
+            if (validation is not null)
+            {
+                m_pendingValidation = null;
+            }
+            RaiseChanged(previous, committed, changed, projectionOnly, priorFailure, validation: validation);
         }
 
         private async ValueTask RefreshValidatedStoreGenerationAsync(CancellationToken cancellationToken)
@@ -2692,6 +2713,27 @@ namespace Opc.Ua.WotCon.Server.Registry
             loaded = RestoreVersionIncarnations(
                 loaded,
                 m_recoverySnapshot?.Generation == loaded.Generation ? m_recoverySnapshot : m_snapshot);
+            PendingValidationNotification? pendingValidation = m_pendingValidation;
+            bool validationCommitted = false;
+            if (pendingValidation is not null)
+            {
+                WotRegistrySnapshot expected;
+                if (loaded.Generation == pendingValidation.Intended.Generation)
+                {
+                    validationCommitted = true;
+                    expected = pendingValidation.Intended;
+                }
+                else if (loaded.Generation == pendingValidation.Previous.Generation)
+                {
+                    expected = pendingValidation.Previous;
+                }
+                else
+                {
+                    throw new InvalidOperationException(
+                        "The pending validation decision does not match the authoritative registry generation.");
+                }
+                FileWotRegistryStore.ValidateRecoveryMetadata(expected, loaded);
+            }
             WotRegistrySnapshot hydrated = await HydrateDependencyMetadataAsync(loaded, cancellationToken)
                 .ConfigureAwait(false);
             await RefreshValidatedStoreGenerationAsync(cancellationToken).ConfigureAwait(false);
@@ -2718,6 +2760,15 @@ namespace Opc.Ua.WotCon.Server.Registry
                 {
                     m_reloadRequired = true;
                     throw;
+                }
+            }
+            if (pendingValidation is not null)
+            {
+                m_pendingValidation = null;
+                if (validationCommitted)
+                {
+                    RaiseChanged(pendingValidation.Previous, m_snapshot, [pendingValidation.Change.ResourceXid],
+                        projectionOnly: true, validation: pendingValidation.Change);
                 }
             }
         }
@@ -3099,6 +3150,10 @@ namespace Opc.Ua.WotCon.Server.Registry
         private WotRegistrySnapshot? m_recoverySnapshot;
         private IWotRegistryValidatedGeneration? m_validatedStoreGeneration;
         private bool m_reloadRequired;
+        private PendingValidationNotification? m_pendingValidation;
         private bool m_runtimeRecoveryRequired;
+
+        private sealed record PendingValidationNotification(
+            WotRegistrySnapshot Previous, WotRegistrySnapshot Intended, WotValidationChange Change);
     }
 }

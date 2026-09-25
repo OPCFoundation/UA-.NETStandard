@@ -51,5 +51,6 @@ namespace Opc.Ua
         public const int WotObservedPropertySource = 80;
         public const int WotStructuredPropertyObservation = 90;
         public const int WotProjectionBindingRuntime = 100;
+        public const int WotRegistryProjection = 110;
     }
 }
