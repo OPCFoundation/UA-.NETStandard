@@ -84,7 +84,7 @@ namespace Opc.Ua.SourceGeneration
                     m_context.ModelDesign.TargetNamespace.Value));
             template.AddReplacement(
                 Tokens.ModelVersion,
-                EscapeForString(
+                SourceGenerationUtils.Escape(
                     m_context.ModelDesign.TargetVersion ??
                     m_context.ModelDesign.TargetNamespace.Version ??
                     string.Empty));
@@ -104,11 +104,6 @@ namespace Opc.Ua.SourceGeneration
 
             template.Render();
             return [fileName.AsTextFileResource()];
-        }
-
-        private static string EscapeForString(string value)
-        {
-            return Templating.StringLiteralEscaper.AsCSharpStringLiteralContent(value);
         }
 
         private TemplateString LoadTemplate_BrowseNames(ILoadContext context)
@@ -147,7 +142,7 @@ namespace Opc.Ua.SourceGeneration
                 return false;
             }
 
-            context.Template.AddReplacement(Tokens.NamespaceUri, EscapeForString(constant.Uri));
+            context.Template.AddReplacement(Tokens.NamespaceUri, SourceGenerationUtils.Escape(constant.Uri));
             context.Template.AddReplacement(Tokens.CodeName, constant.Prefix);
             context.Template.AddReplacement(Tokens.Name, constant.Name);
 

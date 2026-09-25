@@ -440,8 +440,8 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-            context.Template.AddReplacement(Tokens.ModelUri, EscapeForString(entry.ModelUri));
-            context.Template.AddReplacement(Tokens.Prefix, EscapeForString(entry.Prefix));
+            context.Template.AddReplacement(Tokens.ModelUri, SourceGenerationUtils.Escape(entry.ModelUri));
+            context.Template.AddReplacement(Tokens.Prefix, SourceGenerationUtils.Escape(entry.Prefix));
             context.Template.AddReplacement(Tokens.ModelVersion, FormatNullableLiteral(entry.Version));
             context.Template.AddReplacement(
                 Tokens.ModelPublicationDate,
@@ -452,16 +452,11 @@ namespace Opc.Ua.SourceGeneration
             return context.Template.Render();
         }
 
-        private static string EscapeForString(string value)
-        {
-            return Templating.StringLiteralEscaper.AsCSharpStringLiteralContent(value);
-        }
-
         private static string FormatNullableLiteral(string value)
         {
             return string.IsNullOrEmpty(value)
                 ? "null"
-                : CoreUtils.Format("\"{0}\"", EscapeForString(value));
+                : CoreUtils.Format("\"{0}\"", SourceGenerationUtils.Escape(value));
         }
 
         private static string FormatDate(DateTime? d)

@@ -96,7 +96,7 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(Tokens.SymbolicId, ToSymbol(capability.Id));
             context.Template.AddReplacement(
                 Tokens.Identifier,
-                CoreUtils.Format("\"{0}\"", EscapeString(capability.Id)));
+                CoreUtils.Format("\"{0}\"", SourceGenerationUtils.Escape(capability.Id)));
             context.Template.AddReplacement(Tokens.Description, ToSummary(capability.Description));
 
             return context.Template.Render();
@@ -130,8 +130,8 @@ namespace Opc.Ua.SourceGeneration
             {
                 context.Out.WriteLine(
                     "{{ \"{0}\", \"{1}\" }},",
-                    EscapeString(capability.Id),
-                    EscapeString(capability.Description));
+                    SourceGenerationUtils.Escape(capability.Id),
+                    SourceGenerationUtils.Escape(capability.Description));
             }
             return null;
         }
@@ -223,11 +223,6 @@ namespace Opc.Ua.SourceGeneration
             }
 
             return EscapeXml(text);
-        }
-
-        private static string EscapeString(string value)
-        {
-            return Templating.StringLiteralEscaper.AsCSharpStringLiteralContent(value);
         }
 
         private static string EscapeXml(string value)

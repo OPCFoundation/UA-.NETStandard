@@ -190,8 +190,8 @@ namespace Opc.Ua.SourceGeneration
                 EmitFluentAccessors
                     ? CoreUtils.Format(
                         "[assembly: global::Opc.Ua.ModelFluentAccessorProviderAttribute(\"{0}\", \"{1}\")]",
-                        EscapeStringLiteral(m_context.ModelDesign.TargetNamespace.Value),
-                        EscapeStringLiteral(nsPrefix))
+                        SourceGenerationUtils.Escape(m_context.ModelDesign.TargetNamespace.Value),
+                        SourceGenerationUtils.Escape(nsPrefix))
                     : null);
             template.AddReplacement(Tokens.NamespacePrefix, outputNamespace);
 
@@ -910,7 +910,7 @@ namespace Opc.Ua.SourceGeneration
                 writer.WriteLine("        get");
                 writer.WriteLine("        {");
                 writer.WriteLine("            ushort __ns = __inner.Context.NamespaceUris.GetIndexOrAppend(\"{0}\");",
-                    EscapeStringLiteral(nsUri));
+                    SourceGenerationUtils.Escape(nsUri));
                 writer.WriteLine("            return new {0}(__inner.Node<{1}>(new global::Opc.Ua.NodeId({2}, __ns)));",
                     wrapper.ClassName,
                     wrapper.NodeStateType,
@@ -1246,7 +1246,7 @@ namespace Opc.Ua.SourceGeneration
                     indent, parentClr, valueType);
                 writer.WriteLine(
                     "{0}        new global::Opc.Ua.QualifiedName(\"{1}\"));",
-                    indent, EscapeStringLiteral(browseName));
+                    indent, SourceGenerationUtils.Escape(browseName));
                 return;
             }
             if (child is VariableDesign variable)
@@ -1267,7 +1267,7 @@ namespace Opc.Ua.SourceGeneration
                     indent, parentClr, valueType);
                 writer.WriteLine(
                     "{0}        new global::Opc.Ua.QualifiedName(\"{1}\"));",
-                    indent, EscapeStringLiteral(browseName));
+                    indent, SourceGenerationUtils.Escape(browseName));
                 return;
             }
             // ObjectDesign / MethodDesign — both are HasComponent.
@@ -1287,7 +1287,7 @@ namespace Opc.Ua.SourceGeneration
                 indent, parentClr, childStateClr);
             writer.WriteLine(
                 "{0}        new global::Opc.Ua.QualifiedName(\"{1}\"));",
-                indent, EscapeStringLiteral(browseName));
+                indent, SourceGenerationUtils.Escape(browseName));
         }
 
         /// <summary>
@@ -1427,11 +1427,11 @@ namespace Opc.Ua.SourceGeneration
                     writer.WriteLine("{0}get", bodyIndent);
                     writer.WriteLine("{0}{{", bodyIndent);
                     writer.WriteLine("{0}ushort __ns = __node.Builder.Context.NamespaceUris.GetIndexOrAppend(\"{1}\");",
-                        innerIndent, EscapeStringLiteral(child.BrowseNamespaceUri));
+                        innerIndent, SourceGenerationUtils.Escape(child.BrowseNamespaceUri));
                     writer.WriteLine("{0}return __node.Variable<{1}>(new global::Opc.Ua.QualifiedName(\"{2}\", __ns));",
                         innerIndent,
                         child.ValueClrType,
-                        EscapeStringLiteral(child.BrowseName));
+                        SourceGenerationUtils.Escape(child.BrowseName));
                     writer.WriteLine("{0}}}", bodyIndent);
                     writer.WriteLine("{0}}}", indent);
                     break;
@@ -1443,11 +1443,11 @@ namespace Opc.Ua.SourceGeneration
                     writer.WriteLine("{0}get", bodyIndent);
                     writer.WriteLine("{0}{{", bodyIndent);
                     writer.WriteLine("{0}ushort __ns = __node.Builder.Context.NamespaceUris.GetIndexOrAppend(\"{1}\");",
-                        innerIndent, EscapeStringLiteral(child.BrowseNamespaceUri));
+                        innerIndent, SourceGenerationUtils.Escape(child.BrowseNamespaceUri));
                     writer.WriteLine("{0}return new {1}(__node.Child<global::Opc.Ua.MethodState>(new global::Opc.Ua.QualifiedName(\"{2}\", __ns)));",
                         innerIndent,
                         child.WrapperClassName,
-                        EscapeStringLiteral(child.BrowseName));
+                        SourceGenerationUtils.Escape(child.BrowseName));
                     writer.WriteLine("{0}}}", bodyIndent);
                     writer.WriteLine("{0}}}", indent);
                     break;
@@ -1459,12 +1459,12 @@ namespace Opc.Ua.SourceGeneration
                     writer.WriteLine("{0}get", bodyIndent);
                     writer.WriteLine("{0}{{", bodyIndent);
                     writer.WriteLine("{0}ushort __ns = __node.Builder.Context.NamespaceUris.GetIndexOrAppend(\"{1}\");",
-                        innerIndent, EscapeStringLiteral(child.BrowseNamespaceUri));
+                        innerIndent, SourceGenerationUtils.Escape(child.BrowseNamespaceUri));
                     writer.WriteLine("{0}return new {1}(__node.Child<{2}>(new global::Opc.Ua.QualifiedName(\"{3}\", __ns)));",
                         innerIndent,
                         child.WrapperClassName,
                         child.ChildStateType,
-                        EscapeStringLiteral(child.BrowseName));
+                        SourceGenerationUtils.Escape(child.BrowseName));
                     writer.WriteLine("{0}}}", bodyIndent);
                     writer.WriteLine("{0}}}", indent);
                     break;
@@ -2151,7 +2151,7 @@ namespace Opc.Ua.SourceGeneration
             }
             if (!string.IsNullOrEmpty(node.StringId))
             {
-                return CoreUtils.Format("\"{0}\"", EscapeStringLiteral(node.StringId));
+                return CoreUtils.Format("\"{0}\"", SourceGenerationUtils.Escape(node.StringId));
             }
             if (node.HasNonConstantIdentifier())
             {
@@ -2159,12 +2159,7 @@ namespace Opc.Ua.SourceGeneration
             }
             // No id assigned — fall back to the SymbolicId.Name as a string id.
             return CoreUtils.Format("\"{0}\"",
-                EscapeStringLiteral(node.SymbolicId?.Name ?? string.Empty));
-        }
-
-        private static string EscapeStringLiteral(string value)
-        {
-            return Templating.StringLiteralEscaper.AsCSharpStringLiteralContent(value);
+                SourceGenerationUtils.Escape(node.SymbolicId?.Name ?? string.Empty));
         }
 
         /// <summary>
