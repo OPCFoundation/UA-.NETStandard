@@ -522,10 +522,11 @@ namespace Opc.Ua.Client
 
                 // Before the keep-alive timer and the channel go away: a publish
                 // notification already dispatched still reads session state.
-                if (ReferenceEquals(s_backgroundWorkOwner.Value, this))
+                if (IsDisposeBlockingBackgroundWork)
                 {
                     // Disposed from a handler running on this background work
-                    // (e.g. Notification): the drain would wait for the caller
+                    // (e.g. Notification), directly or through a wrapper the
+                    // handler waits for: the drain would wait for the caller
                     // itself until it times out. Stop and cancel without waiting.
                     BackgroundWork.Dispose();
                 }
@@ -1886,6 +1887,7 @@ namespace Opc.Ua.Client
                 Nonce? previousEphemeralKey = null;
                 bool overrideCommitted = false;
                 bool keyBoundToOverride = false;
+                bool fetchEphemeralKey = false;
                 if (!string.IsNullOrEmpty(overrideUserTokenPolicyUri))
                 {
                     string? originalPolicyUri;
@@ -1905,14 +1907,36 @@ namespace Opc.Ua.Client
                     // response that asked for it (ECDHPolicyUri). Obtain the
                     // key first by reactivating the current identity, then
                     // activate the new identity with it below.
-                    bool fetchEphemeralKey = !keyBoundToOverride &&
+                    fetchEphemeralKey = !keyBoundToOverride &&
                         RequiresEphemeralKey(overrideUserTokenPolicyUri!, identity);
                     if (fetchEphemeralKey)
                     {
-                        await RequestEphemeralKeyAsync(
-                            overrideUserTokenPolicyUri!,
-                            originalPolicyUri,
-                            operationCt).ConfigureAwait(false);
+                        // The fetch replaces (and disposes) the key of the
+                        // current identity: park a copy so a failed activation
+                        // of the new identity can fall back to it below.
+#pragma warning disable CA2000 // disposed on success, restored into the session on failure
+                        previousEphemeralKey = CopyEphemeralKey(originalPolicyUri);
+#pragma warning restore CA2000
+                        try
+                        {
+                            await RequestEphemeralKeyAsync(
+                                overrideUserTokenPolicyUri!,
+                                originalPolicyUri,
+                                operationCt).ConfigureAwait(false);
+                        }
+                        catch
+                        {
+                            lock (m_lock)
+                            {
+                                if (m_eccServerEphemeralKey == null)
+                                {
+                                    m_eccServerEphemeralKey = previousEphemeralKey;
+                                    previousEphemeralKey = null;
+                                }
+                            }
+                            previousEphemeralKey?.Dispose();
+                            throw;
+                        }
                     }
 
                     // Commit override state ONLY after the new identity
@@ -1926,7 +1950,8 @@ namespace Opc.Ua.Client
                     // identity without the key its next encryption needs.
                     // A key that was just fetched for (or already belongs
                     // to) the override policy stays in place: the new
-                    // identity is encrypted with it.
+                    // identity is encrypted with it. The previous key was
+                    // parked as a copy before the fetch replaced it.
                     lock (m_lock)
                     {
                         previousPolicyUri = fetchEphemeralKey
@@ -1962,13 +1987,31 @@ namespace Opc.Ua.Client
                     // key back so reconnects keep encrypting it with the policy
                     // and key it was issued for. A key that already belonged to
                     // the override policy is still the server's current one.
+                    // So is a key fetched for the override: the server only
+                    // accepts the key of its latest activation response, so it
+                    // is kept (with its policy) when the old identity can be
+                    // encrypted under that policy. Otherwise the parked key is
+                    // the best that is left.
                     lock (m_lock)
                     {
-                        m_userTokenSecurityPolicyUri = previousPolicyUri;
-                        if (!keyBoundToOverride)
+                        if (fetchEphemeralKey &&
+                            m_eccServerEphemeralKey != null &&
+                            m_identity != null &&
+                            m_endpoint.Description.FindUserTokenPolicy(
+                                m_identity.TokenType,
+                                m_identity.IssuedTokenType,
+                                overrideUserTokenPolicyUri!) != null)
                         {
-                            m_eccServerEphemeralKey?.Dispose();
-                            m_eccServerEphemeralKey = previousEphemeralKey;
+                            previousEphemeralKey?.Dispose();
+                        }
+                        else
+                        {
+                            m_userTokenSecurityPolicyUri = previousPolicyUri;
+                            if (!keyBoundToOverride)
+                            {
+                                m_eccServerEphemeralKey?.Dispose();
+                                m_eccServerEphemeralKey = previousEphemeralKey;
+                            }
                         }
                     }
                     throw;
@@ -2000,12 +2043,20 @@ namespace Opc.Ua.Client
         /// reconnect of this session waits for that lock, and the managed
         /// channel only becomes Ready again once the reconnect returned, so a
         /// holder waiting for Ready would deadlock with it. The reconnect
-        /// therefore cancels the holder (see <see cref="CancelReconnectLockHolder"/>).
+        /// therefore cancels the holder (see <see cref="BeginReconnectLockInterruption"/>).
         /// </summary>
         private CancellationTokenSource EnterReconnectLockHolder(CancellationToken ct)
         {
             var holder = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            Volatile.Write(ref m_reconnectLockHolder, holder);
+            Interlocked.Exchange(ref m_reconnectLockHolder, holder);
+
+            // An operation that was queued on the lock behind the interrupted
+            // holder takes it while the channel recovery still waits for it:
+            // interrupt it right away instead of deadlocking again.
+            if (Volatile.Read(ref m_reconnectLockInterrupts) != 0)
+            {
+                holder.Cancel();
+            }
             return holder;
         }
 
@@ -2017,10 +2068,13 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// Interrupts the operation currently holding <see cref="m_reconnectLock"/>
-        /// across network I/O so a channel-manager reconnect can take the lock.
+        /// across network I/O, and every operation that takes the lock until
+        /// <see cref="EndReconnectLockInterruption"/>, so a channel-manager
+        /// reconnect can take the lock.
         /// </summary>
-        private void CancelReconnectLockHolder()
+        private void BeginReconnectLockInterruption()
         {
+            Interlocked.Increment(ref m_reconnectLockInterrupts);
             CancellationTokenSource? holder = Volatile.Read(ref m_reconnectLockHolder);
             if (holder == null)
             {
@@ -2034,6 +2088,15 @@ namespace Opc.Ua.Client
             {
                 // The holder finished in the meantime.
             }
+        }
+
+        /// <summary>
+        /// Ends an interruption started by <see cref="BeginReconnectLockInterruption"/>
+        /// once the channel-manager reconnect no longer needs the lock.
+        /// </summary>
+        private void EndReconnectLockInterruption()
+        {
+            Interlocked.Decrement(ref m_reconnectLockInterrupts);
         }
 
         private static bool IsInterruptedByChannelRecovery(
@@ -2079,6 +2142,26 @@ namespace Opc.Ua.Client
             }
             SecurityPolicyInfo? policy = m_securityPolicies.GetInfo(policyUri);
             return policy != null && policy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None;
+        }
+
+        /// <summary>
+        /// Copies the current server ephemeral key, which belongs to the
+        /// user-token policy <paramref name="policyUri"/>, or returns
+        /// <c>null</c> when there is none.
+        /// </summary>
+        private Nonce? CopyEphemeralKey(string? policyUri)
+        {
+            byte[]? data;
+            lock (m_lock)
+            {
+                data = m_eccServerEphemeralKey?.Data;
+            }
+            if (data == null || string.IsNullOrEmpty(policyUri))
+            {
+                return null;
+            }
+            SecurityPolicyInfo? policy = m_securityPolicies.GetInfo(policyUri!);
+            return policy == null ? null : Nonce.CreateNonce(policy, [.. data]);
         }
 
         /// <summary>
@@ -6505,13 +6588,18 @@ namespace Opc.Ua.Client
         {
             return BackgroundWork.Run(operation, _ =>
             {
-                s_backgroundWorkOwner.Value = this;
+                var scope = new BackgroundWorkScope(this);
+                s_backgroundWorkOwner.Value = scope;
                 try
                 {
                     work();
                 }
                 finally
                 {
+                    // Tasks and continuations the work spawned captured the
+                    // scope with the execution context: deactivate it so they
+                    // do not pass as this work item once it has returned.
+                    scope.Active = false;
                     s_backgroundWorkOwner.Value = null;
                 }
                 return default;
@@ -6519,9 +6607,65 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// The session whose <see cref="BackgroundWork"/> runs the current flow.
+        /// Called by a wrapper (the managed session) that is asked to close or
+        /// dispose from a flow that may be one of this session's background
+        /// work items, before it hands the close to another flow. A dispose
+        /// running on that other flow then does not wait for the drain of the
+        /// work item, which is blocked on the wrapper until the close is done.
         /// </summary>
-        private static readonly AsyncLocal<Session?> s_backgroundWorkOwner = new();
+        internal void NoteCloseFromBackgroundWork()
+        {
+            BackgroundWorkScope? scope = CurrentBackgroundWorkScope;
+            if (scope != null)
+            {
+                Volatile.Write(ref m_closingBackgroundWork, scope);
+            }
+        }
+
+        /// <summary>
+        /// The background work item of this session the current flow runs in,
+        /// or <c>null</c>.
+        /// </summary>
+        private BackgroundWorkScope? CurrentBackgroundWorkScope =>
+            s_backgroundWorkOwner.Value is { Active: true } scope &&
+            ReferenceEquals(scope.Owner, this)
+                ? scope
+                : null;
+
+        /// <summary>
+        /// Whether the dispose must not wait for the background work drain,
+        /// because the caller is (or waits for) a work item that is still
+        /// running and the drain would wait for it until it times out.
+        /// </summary>
+        private bool IsDisposeBlockingBackgroundWork =>
+            CurrentBackgroundWorkScope != null ||
+            Volatile.Read(ref m_closingBackgroundWork) is { Active: true };
+
+        /// <summary>
+        /// Marks one work item run by <see cref="RunBackgroundWork"/>.
+        /// </summary>
+        private sealed class BackgroundWorkScope
+        {
+            public BackgroundWorkScope(Session owner)
+            {
+                Owner = owner;
+            }
+
+            public Session Owner { get; }
+
+            public volatile bool Active = true;
+        }
+
+        /// <summary>
+        /// The background work item that runs the current flow.
+        /// </summary>
+        private static readonly AsyncLocal<BackgroundWorkScope?> s_backgroundWorkOwner = new();
+
+        /// <summary>
+        /// A background work item that asked a wrapper to close this session
+        /// and waits for it, see <see cref="NoteCloseFromBackgroundWork"/>.
+        /// </summary>
+        private BackgroundWorkScope? m_closingBackgroundWork;
 
         /// <summary>
         /// If set to<c>true</c> then the domain in the certificate must match the endpoint used.

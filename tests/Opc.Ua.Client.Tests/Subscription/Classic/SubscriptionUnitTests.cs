@@ -906,6 +906,47 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
+        /// G6 (review of L7-3): a PublishStatusChanged handler raised by the
+        /// keep-alive timer that disposes the subscription on another flow and
+        /// waits for it (managed session Dispose: its state machine worker
+        /// disposes the inner session and its subscriptions) deadlocked,
+        /// because the dispose waited for the running timer callback.
+        /// </summary>
+        [Test]
+        [CancelAfter(Subscription.MinKeepAliveTimerInterval * 10)]
+        public async Task DisposeOnOtherFlowFromKeepAliveStoppedHandlerDoesNotDeadlockAsync(
+            CancellationToken ct)
+        {
+            var disposed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var subscription = new Subscription(
+                NUnitTelemetryContext.Create(),
+                new() { PublishingEnabled = true })
+            {
+                Session = BuildSessionMock(setup: mock => mock.Setup(x => x.Connected).Returns(false))
+            };
+            subscription.PublishStatusChanged += (s, e) =>
+            {
+                if ((e.Status & PublishStateChangedMask.Stopped) != 0 && !disposed.Task.IsCompleted)
+                {
+                    // The dispose runs without the handler's execution context.
+                    Task disposal;
+                    using (ExecutionContext.SuppressFlow())
+                    {
+                        disposal = Task.Run(s.Dispose, CancellationToken.None);
+                    }
+                    disposed.TrySetResult(disposal.Wait(TimeSpan.FromSeconds(5), CancellationToken.None));
+                }
+            };
+            await subscription.CreateAsync(ct).ConfigureAwait(false);
+
+            await Task.WhenAny(disposed.Task, Task.Delay(Timeout.Infinite, ct)).ConfigureAwait(false);
+
+            Assert.That(disposed.Task.IsCompleted, Is.True, "The keep-alive handler was not raised.");
+            Assert.That(disposed.Task.Result, Is.True,
+                "Dispose on another flow did not complete while the keep-alive handler waited for it.");
+        }
+
+        /// <summary>
         /// A negative MaxMessageCount must not make every worker pass throw
         /// (L7-10): the notification is still delivered and cached.
         /// </summary>

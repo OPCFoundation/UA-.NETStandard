@@ -1047,6 +1047,8 @@ namespace Opc.Ua.Client
             m_closeTimeout = timeout;
             m_closeChannel = closeChannel;
 
+            // A Notification handler may be the caller and wait for the close.
+            m_session?.NoteCloseFromBackgroundWork();
             StateMachine.RequestClose();
 
             if (timeout > 0)
@@ -2696,6 +2698,11 @@ namespace Opc.Ua.Client
             {
                 return;
             }
+
+            // Disposed from a Notification handler of the inner session: the
+            // state machine worker disposes the inner session and must not wait
+            // for the drain of the handler that waits for this dispose.
+            m_session?.NoteCloseFromBackgroundWork();
 
             try
             {

@@ -198,8 +198,10 @@ namespace Opc.Ua.Client
             // reconnect lock while its request waits for this channel to
             // become Ready, which needs this callback to return first.
             // Interrupt it (it fails with BadSecureChannelClosed and can be
-            // retried) instead of deadlocking on the lock.
-            CancelReconnectLockHolder();
+            // retried) instead of deadlocking on the lock. Operations queued
+            // on the lock behind it are interrupted as they take it, until the
+            // reconnect below has finished with the lock.
+            BeginReconnectLockInterruption();
             try
             {
                 await ReconnectCoreAsync(
@@ -244,6 +246,10 @@ namespace Opc.Ua.Client
                     ex,
                     SessionId);
                 return ParticipantReconnectResult.TransientFailure;
+            }
+            finally
+            {
+                EndReconnectLockInterruption();
             }
         }
 
@@ -437,6 +443,13 @@ namespace Opc.Ua.Client
         /// lock across service calls; see <see cref="EnterReconnectLockHolder"/>.
         /// </summary>
         private CancellationTokenSource? m_reconnectLockHolder;
+
+        /// <summary>
+        /// Number of channel-manager reconnects of this session that wait for
+        /// the reconnect lock; while non-zero, every operation that takes the
+        /// lock is interrupted; see <see cref="BeginReconnectLockInterruption"/>.
+        /// </summary>
+        private int m_reconnectLockInterrupts;
         private int m_subscriptionRecoveryDeferrals;
         private int m_channelRecoveryInProgress;
         private bool m_boundChannelReconnect;

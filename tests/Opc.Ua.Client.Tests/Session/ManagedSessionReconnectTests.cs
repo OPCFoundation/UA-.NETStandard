@@ -518,6 +518,53 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         /// <summary>
+        /// G9 (review of L1-2): only the operation holding the reconnect lock was interrupted. A second identity
+        /// update queued on the lock took it next, ahead of the waiting reconnect callback, and re-created the
+        /// deadlock (broken only by the participant timeout, infinite here).
+        /// </summary>
+        [Test]
+        public async Task ChannelRecoveryInterruptsIdentityUpdateQueuedOnReconnectLockAsync()
+        {
+            await using var harness = new ManagedSessionReconnectHarness(TimeSpan.Zero)
+            {
+                RecoveryActivationStatus = StatusCodes.Good
+            };
+            await harness.ConnectAsync(false).ConfigureAwait(false);
+            Task recovery = harness.StartRecoveryAsync();
+            await WaitForPhaseAsync(harness.TransportReconnect.Entered, "held transport reconnect")
+                .ConfigureAwait(false);
+
+            Task holding = harness.Session.InnerSession
+                .UpdateIdentityAsync(new Opc.Ua.Identity.AnonymousIdentityProvider(), ct: harness.CancellationToken)
+                .AsTask();
+            await Task.Delay(200).ConfigureAwait(false);
+            Task queued = harness.Session.InnerSession
+                .UpdateIdentityAsync(new Opc.Ua.Identity.AnonymousIdentityProvider(), ct: harness.CancellationToken)
+                .AsTask();
+            await Task.Delay(200).ConfigureAwait(false);
+            Assert.That(holding.IsCompleted, Is.False, "the first update must wait for the recovering channel");
+            Assert.That(queued.IsCompleted, Is.False, "the second update must wait for the reconnect lock");
+
+            harness.TransportReconnect.Release();
+            harness.RecoveryActivation.Release();
+            await WaitForPhaseAsync(recovery, "channel recovery while identity updates hold and queue on the lock")
+                .ConfigureAwait(false);
+            Assert.That(harness.Lease.State, Is.EqualTo(ChannelState.Ready));
+            foreach (Task update in new[] { holding, queued })
+            {
+                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await update.WaitAsync(PhaseTimeout).ConfigureAwait(false));
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
+            }
+            Assert.That(harness.Session.InnerSession.Reconnecting, Is.False);
+
+            // The interruption ends with the recovery: a later update goes through.
+            await harness.Session.InnerSession
+                .UpdateIdentityAsync(new Opc.Ua.Identity.AnonymousIdentityProvider(), ct: harness.CancellationToken)
+                .AsTask().WaitAsync(PhaseTimeout).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// L2-4: a channel reconnect tracked on a lease that is then swapped out (in-place recreate) was never
         /// cleared, because the old lease's Ready/Faulted is no longer observed; every later bad keep-alive was
         /// suppressed. Rebinding must re-derive the tracking from the new lease.
