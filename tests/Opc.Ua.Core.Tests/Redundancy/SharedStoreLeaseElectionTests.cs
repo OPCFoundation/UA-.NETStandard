@@ -268,6 +268,232 @@ namespace Opc.Ua.Core.Tests.Redundancy
             }
         }
 
+        /// <summary>
+        /// A foreign-owner verdict sampled before a newer acquisition cannot revoke that acquisition.
+        /// </summary>
+        [Test]
+        public async Task StaleForeignLeaseReadDoesNotRevokeNewerAcquisitionAsync()
+        {
+            var clock = new FakeTimeProvider();
+            using var backend = new InMemorySharedKeyValueStore();
+            await using SharedStoreLeaseElection other = CreateElection(backend, "B", clock);
+            Assert.That(await other.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
+            var time = new Mock<TimeProvider>();
+            time.Setup(value => value.GetUtcNow()).Returns(clock.GetUtcNow);
+            time.Setup(value => value.GetTimestamp()).Returns(clock.GetTimestamp);
+            time.SetupGet(value => value.TimestampFrequency).Returns(clock.TimestampFrequency);
+            time.Setup(value => value.CreateTimer(
+                    It.IsAny<TimerCallback>(), It.IsAny<object?>(), It.IsAny<TimeSpan>(), It.IsAny<TimeSpan>()))
+                .Returns((TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period) =>
+                    clock.CreateTimer(callback, state, dueTime, period));
+            await using SharedStoreLeaseElection election = CreateElection(backend, "A", time.Object);
+            var transitions = new List<bool>();
+            election.LeadershipChanged += transitions.Add;
+            Task<bool>? newerAttempt = null;
+            bool interleave = true;
+            time.Setup(value => value.GetUtcNow()).Returns(() =>
+            {
+                DateTimeOffset observed = clock.GetUtcNow();
+                if (interleave)
+                {
+                    interleave = false;
+                    clock.Advance(s_leaseDuration);
+                    newerAttempt = election.TryAcquireOrRenewAsync().AsTask();
+                    Assert.That(newerAttempt.IsCompleted, Is.True,
+                        "The in-memory store must complete the newer acquisition before the old verdict.");
+                }
+                return observed;
+            });
+
+            bool result = await election.TryAcquireOrRenewAsync().AsTask().WaitAsync(s_timeout).ConfigureAwait(false);
+
+            Assert.That(newerAttempt, Is.Not.Null);
+            Assert.That(await newerAttempt!.WaitAsync(s_timeout).ConfigureAwait(false), Is.True);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(election.IsLeader, Is.True, "The stale failed read must not revoke the newer lease.");
+                Assert.That(result, Is.True);
+                Assert.That(transitions, Is.EqualTo(s_acquired));
+                Assert.That(other.IsLeader, Is.False);
+            }
+            clock.Advance(s_leaseDuration - TimeSpan.FromTicks(1));
+            Assert.That(election.IsLeader, Is.True);
+            clock.Advance(TimeSpan.FromTicks(1));
+            Assert.That(election.IsLeader, Is.False);
+            Assert.That(transitions, Is.EqualTo(s_acquireThenLoss));
+        }
+
+        /// <summary>
+        /// A held failed-CAS revalidation cannot revoke an acquisition completed after the foreign lease expires.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task StaleFailedRevalidationDoesNotRevokeNewerAcquisitionAsync(bool failedAttemptStartsLast)
+        {
+            var time = new FakeTimeProvider();
+            using var backend = new InMemorySharedKeyValueStore();
+            await using SharedStoreLeaseElection other = CreateElection(backend, "B", time);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var acquisitionEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseAcquisition = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int reads = 0;
+            int swaps = 0;
+            var store = new Mock<ISharedKeyValueStore>();
+            store.Setup(value => value.TryGetAsync(LeaseKey, It.IsAny<CancellationToken>()))
+                .Returns(async (string key, CancellationToken ct) =>
+                {
+                    int read = Interlocked.Increment(ref reads);
+                    if (failedAttemptStartsLast && read == 1)
+                    {
+                        acquisitionEntered.TrySetResult(true);
+                        await releaseAcquisition.Task.WaitAsync(s_timeout, ct).ConfigureAwait(false);
+                    }
+                    (bool found, ByteString value) = await backend.TryGetAsync(key, ct).ConfigureAwait(false);
+                    if (read == (failedAttemptStartsLast ? 3 : 2))
+                    {
+                        entered.TrySetResult(true);
+                        await release.Task.WaitAsync(s_timeout, ct).ConfigureAwait(false);
+                    }
+                    return (found, value);
+                });
+            store.Setup(value => value.CompareAndSwapAsync(
+                    LeaseKey, It.IsAny<ByteString>(), It.IsAny<ByteString>(), It.IsAny<CancellationToken>()))
+                .Returns(async (string key, ByteString expected, ByteString value, CancellationToken ct) =>
+                {
+                    if (Interlocked.Increment(ref swaps) == 1)
+                    {
+                        Assert.That(await other.TryAcquireOrRenewAsync(ct).ConfigureAwait(false), Is.True);
+                    }
+                    return await backend.CompareAndSwapAsync(key, expected, value, ct).ConfigureAwait(false);
+                });
+            await using SharedStoreLeaseElection election = CreateElection(store.Object, "A", time);
+            var transitions = new List<bool>();
+            election.LeadershipChanged += transitions.Add;
+            Task<bool>? stale = null;
+            Task<bool>? acquisition = null;
+            try
+            {
+                if (failedAttemptStartsLast)
+                {
+                    acquisition = election.TryAcquireOrRenewAsync().AsTask();
+                    await acquisitionEntered.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+                }
+                stale = election.TryAcquireOrRenewAsync().AsTask();
+                await entered.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+                Assert.That(other.IsLeader, Is.True);
+                time.Advance(s_leaseDuration);
+                if (failedAttemptStartsLast)
+                {
+                    releaseAcquisition.TrySetResult(true);
+                }
+                else
+                {
+                    acquisition = election.TryAcquireOrRenewAsync().AsTask();
+                }
+                Assert.That(await acquisition!.WaitAsync(s_timeout).ConfigureAwait(false), Is.True);
+                Assert.That(stale.IsCompleted, Is.False);
+
+                release.TrySetResult(true);
+                bool result = await stale.WaitAsync(s_timeout).ConfigureAwait(false);
+
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(election.IsLeader, Is.True, "The old revalidation must not revoke the newer lease.");
+                    Assert.That(result, Is.True);
+                    Assert.That(transitions, Is.EqualTo(s_acquired));
+                    Assert.That(other.IsLeader, Is.False);
+                    Assert.That(swaps, Is.EqualTo(2));
+                }
+                time.Advance(s_leaseDuration - TimeSpan.FromTicks(1));
+                Assert.That(election.IsLeader, Is.True);
+                time.Advance(TimeSpan.FromTicks(1));
+                Assert.That(election.IsLeader, Is.False);
+                Assert.That(transitions, Is.EqualTo(s_acquireThenLoss));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                releaseAcquisition.TrySetResult(true);
+                if (stale != null)
+                {
+                    await stale.WaitAsync(s_timeout).ConfigureAwait(false);
+                }
+                if (acquisition != null)
+                {
+                    await acquisition.WaitAsync(s_timeout).ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// A current foreign-owner observation must revoke leadership when no later confirmation supersedes it.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task FreshForeignLeaseObservationRevokesLeadershipAsync(
+            bool loseCompareAndSwap,
+            bool confirmBeforeRevalidation)
+        {
+            var time = new FakeTimeProvider();
+            using var backend = new InMemorySharedKeyValueStore();
+            await using SharedStoreLeaseElection other = CreateElection(backend, "B", time);
+            var store = new Mock<ISharedKeyValueStore>();
+            store.Setup(value => value.TryGetAsync(LeaseKey, It.IsAny<CancellationToken>()))
+                .Returns((string key, CancellationToken ct) => backend.TryGetAsync(key, ct));
+            store.Setup(value => value.CompareAndSwapAsync(
+                    LeaseKey, It.IsAny<ByteString>(), It.IsAny<ByteString>(), It.IsAny<CancellationToken>()))
+                .Returns((string key, ByteString expected, ByteString value, CancellationToken ct) =>
+                    backend.CompareAndSwapAsync(key, expected, value, ct));
+            await using SharedStoreLeaseElection election = CreateElection(store.Object, "A", time);
+            var transitions = new List<bool>();
+            election.LeadershipChanged += transitions.Add;
+            Assert.That(await election.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
+            time.Advance(s_renewInterval);
+            int replacements = 0;
+            if (loseCompareAndSwap)
+            {
+                store.Setup(value => value.CompareAndSwapAsync(
+                        LeaseKey, It.IsAny<ByteString>(), It.IsAny<ByteString>(), It.IsAny<CancellationToken>()))
+                    .Returns(async (string key, ByteString expected, ByteString value, CancellationToken ct) =>
+                    {
+                        if (Interlocked.Increment(ref replacements) == 1)
+                        {
+                            if (confirmBeforeRevalidation)
+                            {
+                                Assert.That(await election.TryAcquireOrRenewAsync(ct).ConfigureAwait(false), Is.True);
+                            }
+                            (bool found, ByteString current) = await backend.TryGetAsync(key, ct)
+                                .ConfigureAwait(false);
+                            Assert.That(found, Is.True);
+                            Assert.That(await backend.CompareAndSwapAsync(
+                                key, current, default, ct).ConfigureAwait(false), Is.True);
+                            Assert.That(await other.TryAcquireOrRenewAsync(ct).ConfigureAwait(false), Is.True);
+                        }
+                        return await backend.CompareAndSwapAsync(key, expected, value, ct).ConfigureAwait(false);
+                    });
+            }
+            else
+            {
+                (bool found, ByteString current) = await backend.TryGetAsync(LeaseKey).ConfigureAwait(false);
+                Assert.That(found, Is.True);
+                Assert.That(await backend.CompareAndSwapAsync(
+                    LeaseKey, current, default).ConfigureAwait(false), Is.True);
+                Assert.That(await other.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
+            }
+
+            bool result = await election.TryAcquireOrRenewAsync().AsTask().WaitAsync(s_timeout).ConfigureAwait(false);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(result, Is.False);
+                Assert.That(election.IsLeader, Is.False);
+                Assert.That(other.IsLeader, Is.True);
+                Assert.That(transitions, Is.EqualTo(s_acquireThenLoss));
+            }
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public async Task FailedCompareAndSwapPreservesUnexpiredLocalLeaseAsync(bool renewedInStore)

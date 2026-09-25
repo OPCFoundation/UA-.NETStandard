@@ -118,7 +118,7 @@ namespace Opc.Ua.Redundancy
                     throw new ObjectDisposedException(nameof(SharedStoreLeaseElection));
                 }
                 ExpireLeaseIfNeeded();
-                // Concurrent callers share authority; only revocation invalidates their replies.
+                // Concurrent callers share revocation authority; store reads track confirmations separately.
                 attempt = m_attempt;
                 lifetime = m_cts.Token;
             }
@@ -129,10 +129,14 @@ namespace Opc.Ua.Redundancy
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                if (!IsCurrentAttempt(attempt, out long confirmation))
+                {
+                    return false;
+                }
                 (bool found, ByteString current) = await m_store
                     .TryGetAsync(m_leaseKey, cancellationToken)
                     .AsTask().WaitAsync(cancellationToken).ConfigureAwait(false);
-                if (!IsCurrentAttempt(attempt))
+                if (!IsCurrentAttempt(attempt, out _))
                 {
                     return false;
                 }
@@ -149,7 +153,7 @@ namespace Opc.Ua.Redundancy
 
                 if (!canTake)
                 {
-                    return CompleteAttempt(attempt, false, 0, 0);
+                    return CompleteAttempt(attempt, confirmation, false, 0, 0);
                 }
 
                 long newExpiryTicks = nowTicks + m_leaseDuration.Ticks;
@@ -160,9 +164,9 @@ namespace Opc.Ua.Redundancy
                     .AsTask().WaitAsync(cancellationToken).ConfigureAwait(false);
                 if (acquired)
                 {
-                    return CompleteAttempt(attempt, true, timestamp, newExpiryTicks);
+                    return CompleteAttempt(attempt, confirmation, true, timestamp, newExpiryTicks);
                 }
-                if (!IsCurrentAttempt(attempt))
+                if (!IsCurrentAttempt(attempt, out confirmation))
                 {
                     return false;
                 }
@@ -175,7 +179,7 @@ namespace Opc.Ua.Redundancy
                     TryParseLease(current, out string confirmedOwner, out confirmedExpiry) &&
                     string.Equals(confirmedOwner, m_nodeId, StringComparison.Ordinal) &&
                     m_timeProvider.GetUtcNow().UtcTicks < confirmedExpiry;
-                return CompleteAttempt(attempt, stillOwned, timestamp, confirmedExpiry);
+                return CompleteAttempt(attempt, confirmation, stillOwned, timestamp, confirmedExpiry);
             }
             finally
             {
@@ -300,15 +304,16 @@ namespace Opc.Ua.Redundancy
         }
 
         /// <summary>
-        /// Checks that an acquisition reply still belongs to the current, undisposed election attempt.
+        /// Checks revocation authority and snapshots the confirmation generation for a store observation.
         /// </summary>
-        private bool IsCurrentAttempt(long attempt)
+        private bool IsCurrentAttempt(long attempt, out long confirmation)
         {
             bool current;
             lock (m_lock)
             {
                 ExpireLeaseIfNeeded();
                 current = !m_disposed && attempt == m_attempt;
+                confirmation = m_confirmation;
             }
             return current;
         }
@@ -316,7 +321,7 @@ namespace Opc.Ua.Redundancy
         /// <summary>
         /// Confirms a current acquisition result only while its lease remains valid and schedules its expiry.
         /// </summary>
-        private bool CompleteAttempt(long attempt, bool acquired, long timestamp, long expiryTicks)
+        private bool CompleteAttempt(long attempt, long confirmation, bool acquired, long timestamp, long expiryTicks)
         {
             bool confirmed = false;
             lock (m_lock)
@@ -324,6 +329,11 @@ namespace Opc.Ua.Redundancy
                 ExpireLeaseIfNeeded();
                 if (!m_disposed && attempt == m_attempt)
                 {
+                    if (!acquired && confirmation != m_confirmation)
+                    {
+                        // A newer confirmation supersedes this failed observation without restarting its lease.
+                        return m_isLeader;
+                    }
                     if (acquired &&
                         m_isLeader &&
                         timestamp < m_confirmedTimestamp &&
@@ -347,6 +357,7 @@ namespace Opc.Ua.Redundancy
                     m_isLeader = confirmed;
                     if (confirmed)
                     {
+                        ++m_confirmation;
                         m_confirmedTimestamp = confirmedTimestamp;
                         m_confirmedExpiryTicks = expiryTicks;
                         m_expiryTimer.Change(remaining, Timeout.InfiniteTimeSpan);
@@ -529,6 +540,11 @@ namespace Opc.Ua.Redundancy
         /// Identifies the acquisition attempt whose replies may still change local leadership.
         /// </summary>
         private long m_attempt;
+
+        /// <summary>
+        /// Fences failed observations made before a newer successful lease confirmation.
+        /// </summary>
+        private long m_confirmation;
 
         /// <summary>
         /// Stores the monotonic timestamp captured before the confirmed lease was written.
