@@ -156,6 +156,19 @@ namespace UaLens.Tests.Samples
                         await File.WriteAllTextAsync(Path.Combine(build, name), "Not executable: test fixture only.")
                             .ConfigureAwait(false);
                     }
+                    if (sample.Id == RepositorySampleId.VisualInspectionCell)
+                    {
+                        string fixtures = Path.Combine(build, "Fixtures");
+                        Directory.CreateDirectory(fixtures);
+                        ArrayOf<string> fixtureNames =
+                            ["bracket-ok.png", "bracket-not-ok.png", "bracket-ambiguous.png"];
+                        for (int fixture = 0; fixture < fixtureNames.Count; fixture++)
+                        {
+                            await File.WriteAllTextAsync(
+                                Path.Combine(fixtures, fixtureNames[fixture]), "Not an image: fixture only.")
+                                .ConfigureAwait(false);
+                        }
+                    }
                 }
                 await File.WriteAllTextAsync(context.ReferenceTemplatePath(), ReferenceTemplate).ConfigureAwait(false);
                 created = true;

@@ -52,7 +52,8 @@ namespace UaLens.Samples
         public static ArrayOf<RepositorySampleDescriptor> Entries =>
         [
             Get(RepositorySampleId.ConsoleReferenceServer),
-            Get(RepositorySampleId.PumpSoftwareUpdateSimulator)
+            Get(RepositorySampleId.PumpSoftwareUpdateSimulator),
+            Get(RepositorySampleId.VisualInspectionCell)
         ];
 
         public static RepositorySampleDescriptor Get(RepositorySampleId sample)
@@ -75,6 +76,14 @@ namespace UaLens.Samples
                     "PumpDeviceIntegrationServer",
                     "uri:opcfoundation.org:PumpDeviceIntegrationServer",
                     "/PumpDeviceIntegrationServer"),
+                RepositorySampleId.VisualInspectionCell => new(
+                    sample,
+                    "Vision fixture inspection cell (managed .NET 10)",
+                    Path.Combine("samples", "Vision", "VisualInspectionCell"),
+                    "VisualInspectionCell",
+                    "VisualInspectionCell",
+                    "uri:opcfoundation.org:VisualInspectionCell",
+                    "/VisualInspectionCell"),
                 _ => throw new ArgumentOutOfRangeException(nameof(sample), "The repository sample is not allowlisted.")
             };
         }

@@ -164,6 +164,7 @@ namespace UaLens.Tests.Samples
 
         [TestCase(0)]
         [TestCase(1)]
+        [TestCase(2)]
         public async Task ReadinessUsesOnlyTheSelectedSamplesApplicationCertificateStore(int sampleId)
         {
             RepositorySampleTestContext context = await RepositorySampleTestContext.CreateAsync().ConfigureAwait(false);

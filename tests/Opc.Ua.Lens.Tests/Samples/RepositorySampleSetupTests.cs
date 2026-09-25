@@ -79,14 +79,15 @@ namespace UaLens.Tests.Samples
             }
         }
 
-        [Test]
-        public async Task DirectConstructionAndRestoreHaveNoTelemetryOrLaunchSideEffects()
+        [TestCase(1)]
+        [TestCase(2)]
+        public async Task DirectConstructionAndRestoreHaveNoTelemetryOrLaunchSideEffects(int sampleId)
         {
             var telemetry = new Mock<ITelemetryContext>(MockBehavior.Strict);
             var service = new RepositorySampleService(telemetry.Object);
             await using (service.ConfigureAwait(false))
             {
-                await service.RestoreSelectionAsync(RepositorySampleId.PumpSoftwareUpdateSimulator)
+                await service.RestoreSelectionAsync((RepositorySampleId)sampleId)
                     .ConfigureAwait(false);
 
                 Assert.That(service.Snapshot.Phase, Is.EqualTo(RepositorySamplePhase.RequiresConfiguration));
@@ -243,7 +244,7 @@ namespace UaLens.Tests.Samples
             RepositorySampleTestContext context = await RepositorySampleTestContext.CreateAsync().ConfigureAwait(false);
             await using (context.ConfigureAwait(false))
             {
-                Assert.That(RepositorySampleCatalog.Entries.Count, Is.EqualTo(2));
+                Assert.That(RepositorySampleCatalog.Entries.Count, Is.EqualTo(3));
                 Assert.That(() => RepositorySampleCatalog.Get((RepositorySampleId)99),
                     Throws.TypeOf<ArgumentOutOfRangeException>());
                 Assert.That(() => RepositorySampleCatalog.GetBuildDirectory(
@@ -357,6 +358,79 @@ namespace UaLens.Tests.Samples
                 Assert.That(File.Exists(Path.Combine(launch.Files.Root, "Quickstarts.ReferenceServer.Config.xml")),
                     Is.False);
                 Assert.That(launch.Executable, Does.Not.Contain(Path.DirectorySeparatorChar + "publish"));
+                context.Runtime.VerifyNoOtherCalls();
+            }
+        }
+
+        [Test]
+        public async Task VisionLaunchUsesOnlyPrivatePkiAndTheInProcessFixtureBackend()
+        {
+            RepositorySampleTestContext context = await RepositorySampleTestContext.CreateAsync().ConfigureAwait(false);
+            await using (context.ConfigureAwait(false))
+            {
+                RepositorySampleLaunch launch = await context.PrepareAsync(RepositorySampleId.VisualInspectionCell)
+                    .ConfigureAwait(false);
+                ArrayOf<string> expected =
+                [
+                    "--host", "127.0.0.1", "--port", "58123",
+                    "--pki-root", Path.Combine(launch.Files.Root, "pki"), "--insecure=false",
+                    "--inferenceLocation", "OnServer", "--run-seconds", "10"
+                ];
+
+                Assert.That(launch.Arguments.ToArray(), Is.EqualTo(expected.ToArray()));
+                Assert.That(launch.Endpoint.AbsoluteUri,
+                    Is.EqualTo("opc.tcp://127.0.0.1:58123/VisualInspectionCell"));
+                Assert.That(launch.Descriptor.ProductUri, Is.EqualTo("uri:opcfoundation.org:VisualInspectionCell"));
+                Assert.That(launch.ApplicationUris[0], Is.EqualTo("urn:localhost:OPCFoundation:VisualInspectionCell"));
+                Assert.That(launch.Descriptor.ProjectDirectory,
+                    Is.EqualTo(Path.Combine("samples", "Vision", "VisualInspectionCell")));
+                Assert.That(RepositorySampleRuntime.CreateStartInfo(launch).WorkingDirectory,
+                    Is.EqualTo(launch.Files.Root));
+                context.Runtime.VerifyNoOtherCalls();
+            }
+        }
+
+        [TestCase(8)]
+        [TestCase(9)]
+        public async Task VisionRejectsUnsupportedManagedFrameworksBeforeAllocatingResources(int major)
+        {
+            RepositorySampleTestContext context = await RepositorySampleTestContext.CreateAsync().ConfigureAwait(false);
+            await using (context.ConfigureAwait(false))
+            {
+                RepositorySampleSnapshot result = await context.Service.ConfigureAsync(
+                    RepositorySampleId.VisualInspectionCell, context.Source with
+                    {
+                        Framework = major == 8 ? RepositorySampleFramework.Net8 : RepositorySampleFramework.Net9
+                    }).ConfigureAwait(false);
+
+                Assert.That(result.Phase, Is.EqualTo(RepositorySamplePhase.RequiresConfiguration));
+                Assert.That(result.Message, Does.Contain(".NET 10"));
+                Assert.That(Directory.Exists(context.RunParent), Is.False);
+                context.Ports.VerifyNoOtherCalls();
+                context.Runtime.VerifyNoOtherCalls();
+            }
+        }
+
+        [TestCase("bracket-ok.png")]
+        [TestCase("bracket-not-ok.png")]
+        [TestCase("bracket-ambiguous.png")]
+        public async Task VisionRequiresEveryPublishedFixtureBeforeLaunch(string fixture)
+        {
+            RepositorySampleTestContext context = await RepositorySampleTestContext.CreateAsync().ConfigureAwait(false);
+            await using (context.ConfigureAwait(false))
+            {
+                string build = RepositorySampleCatalog.GetBuildDirectory(
+                    context.Source, RepositorySampleId.VisualInspectionCell);
+                File.Delete(Path.Combine(build, "Fixtures", fixture));
+                RepositorySampleSnapshot result = await context.Service.ConfigureAsync(
+                    RepositorySampleId.VisualInspectionCell, context.Source).ConfigureAwait(false);
+
+                Assert.That(result.Phase, Is.EqualTo(RepositorySamplePhase.RequiresConfiguration));
+                Assert.That(result.Message, Does.Contain("Vision fixture"));
+                Assert.That(Directory.Exists(context.RunParent), Is.False);
+                await Assert.ThatAsync(() => context.Service.StartAsync(RepositorySampleTestContext.Options),
+                    Throws.TypeOf<RepositorySampleException>()).ConfigureAwait(false);
+                context.Ports.VerifyNoOtherCalls();
                 context.Runtime.VerifyNoOtherCalls();
             }
         }

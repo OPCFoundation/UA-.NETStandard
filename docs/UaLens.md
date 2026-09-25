@@ -121,6 +121,76 @@ or accept a workspace as authority to create a token broker. Reconnect and user
 changes reacquire identity material through its owner, never reuse a disposed
 session identity or downgrade to Anonymous.
 
+For a fresh connection, **Authorize configured token provider...** is available
+only when that named provider registers `IIdentityTokenInteraction`. Interaction
+and progress belong to the provider; UaLens neither discovers another authority
+nor implements its own OAuth exchange. Server-advertised token, authorization and
+JWKS endpoint overrides are removed before interaction and normal acquisition.
+Authorization returns no token to the dialog. **Use identity** still checks the
+exact policy, and Connect acquires fresh credentials. A restored exact reference
+cannot launch setup or silently select a different source.
+The wait is limited to five minutes and cancels with the dialog even if the
+provider does not finish promptly. The registered provider remains responsible
+for stopping its own interaction; cancel does not roll back authority-side effects.
+
+A configured `IIdentityEnrollment` factory enables **Enroll / renew configured
+user certificate...**. Each dialog owns a fresh adapter and separates local
+**Prepare signing request**, remote **Request certificate**, and local
+**Add reviewed certificate**. Request and addition each consume a separate
+confirmation. Closing cancels and drains the adapter without returning a late
+identity selection; an already submitted request or completed store addition is
+not rolled back by cancel.
+
+`GdsIdentityEnrollment` supports software-backed user keys through an already
+authorized GDS and an explicitly configured application, certificate group and
+certificate type. The review shows those identifiers and the GDS endpoint.
+The existing certificate must contain the ApplicationUri of that registered
+application, as required by
+[StartSigningRequest](https://reference.opcfoundation.org/specs/OPC-10000-12/v1.05.07/7.9.3).
+Ordinary subject-only user certificates need their identity authority's adapter;
+they are not sent to a GDS as if they satisfied that contract. GDS policy may also
+assign the application to the requested group.
+
+Preparation creates a CSR for the selected key without changing the store or
+submitting a request. The adapter pins the GDS session/user/endpoint/security,
+registered application, source store and password provider. Approval polls the
+same request on
+[BadNothingToDo](https://reference.opcfoundation.org/specs/OPC-10000-12/v1.05.07/7.9.5);
+it does not resubmit a lost or rejected request. Each operation has a 30-second
+deadline and the review expires after five minutes.
+
+Issued certificates must match the requested key, distinguished name, application
+binding, current validity, signature usage and selected token algorithm. Validation
+uses the Users trust list with no SHA-1, automatic trust, certificate downloads or
+unknown-revocation fallback. Adoption revalidates and adds only to the exact
+configured store opened for private keys, clears temporary password characters,
+and retains the old certificate. Hardware and application-instance key enrollment
+are not performed by this user-key adapter.
+
+For example, trusted host configuration can register the adapter without opening
+a store, sending a CSR or connecting during registration:
+
+```csharp
+var userSource = new ConfiguredCertificateSource(
+    "approved-user", "Approved user identity", approvedStore,
+    certificateProvider, approvedPasswordSources,
+    createEnrollment: source => new GdsIdentityEnrollment(
+        source, configuredGds, approvedApplicationId, approvedGroupId, approvedTypeId,
+        userCertificateValidator,
+        () =>
+        {
+            var store = new DirectoryCertificateStore(telemetry);
+            store.Open(approvedStore.StorePath, noPrivateKeys: false);
+            return store;
+        }));
+services.AddSingleton(new ConnectionIdentityConfiguration([userSource]));
+services.AddUaLens();
+```
+
+The example assumes a Directory store and an eligible existing user certificate.
+The GDS, validator and certificate/password providers remain owned by the host;
+each enrollment owns only its transient certificate handles and returned store.
+
 Hardware-backed selection references host-registered certificate/crypto providers.
 Keys stay inside their provider; PINs and bearer tokens never go into workspace
 JSON. Provider modules, device enrollment, token authorities, and HSM provisioning
@@ -154,15 +224,20 @@ See [Identity Providers](IdentityProviders.md), [Crypto Provider](CryptoProvider
 ## Owned repository samples
 
 Open **Connection settings > Repository samples...** for a modeless setup window.
-It provides the Console Reference Server and the opt-in DI pump software-update
-simulator from an explicitly selected local checkout. These are bounded sample
-processes, not a general command launcher or a new document kind.
+It provides the Console Reference Server, the opt-in DI pump software-update
+simulator and the [Vision fixture inspection cell](../samples/Vision/VisualInspectionCell/README.md)
+from an explicitly selected local checkout. These are bounded sample processes,
+not a general command launcher or a new document kind.
 
 Choose the trusted checkout, its existing Debug/Release build, managed framework
 and build layout. Confirm that you trust the source and build, then select
 **Check setup**. UaLens does not build, download or install missing prerequisites.
 File existence is not binary attestation; only select a checkout and artifacts
 you trust. An installed tool still needs a separately supplied built checkout.
+The Vision cell requires .NET 10 and its three checked-in PNG fixtures; select
+the current-runtime layout when its build is under `net10.0/<rid>`. It uses the
+in-process OnServer backend with automatic certificate acceptance disabled,
+without a camera or renderer.
 
 Set the runtime from 1 to 300 seconds, confirm the particular run, and select
 **Start sample**. The process receives a private run directory, configuration and
@@ -546,10 +621,26 @@ without displaying raw input or endpoint query strings in the summary.
 Review it and explicitly **Run selected task**.
 
 Typed task forms expose named inputs instead of accepting an arbitrary method
-payload. Boolean and numeric fields retain their types, and file inputs use an
-explicit local-file picker. Changing any field discards the corresponding
-preparation and confirmation. Domain-specific review evidence is shown without
-serializing the input into a saved workspace.
+payload. Scalar fields retain their wire types, including signed/unsigned 64-bit
+values and ByteStrings; file inputs use an explicit local-file picker. Arrays,
+matrices, structures and enumerations use the shared structured editor when the
+provider supplies a portable DataType and rank/dimension contract. Unsupported or
+unresolved types are not replaced with untyped JSON.
+
+Accepted values have independent backing storage. The form validates exact field
+names, ordering, types, ranks and dimensions before domain preparation. Server
+definitions and their dependencies are hashed at editing/preparation and checked
+again for Run; a stale nested definition also requires new preparation. Each task is bounded to 32
+fields, 65,536 String-field characters and 1 MiB of encoded inputs, with the shared
+editor's lower array/session limits still applying. Changing a field, canceling
+an editor or changing the session invalidates the corresponding preparation and
+confirmation. Domain-specific review evidence is shown without serializing
+the input into a saved workspace.
+
+A custom input's definition graph is limited to 128 types and 1 MiB of encoded
+metadata. Nested value validation is limited to 64 levels; cyclic type references
+are visited once. Concrete structures embedded in Variant fields are included in
+the fingerprint rather than treated as untyped payloads.
 
 Preparation is single-use and expires after five minutes. Run rechecks the current
 session, identity, namespace mapping, endpoint/security profile and offered operation.
@@ -612,17 +703,183 @@ changes or is attempted. File exports require an explicit destination.
 | Family | Guided scope | Intentional limit |
 |---|---|---|
 | DI | Identity, bounded update observation, SHA-256-verified package preparation/upload, separate sample install/confirm and advertised abort/resume methods | Repository samples only; device-specific installation, trust and power-cycle behavior are not inferred |
-| ISA-95 | Typed V1/V2 resources and job inspection; explicit sample job storage | Jobs are not automatically started |
-| WoT / xRegistry | Asset/document/version/model inspection; explicit compatible sample registration/refresh | No overwrite of existing versions; server AutoRefresh policy applies |
+| ISA-95 | Typed V1/V2 job authoring, offered lifecycle operations and job/state/response snapshots | Deployment policy is required; execution transitions remain server-owned |
+| WoT / xRegistry | Asset, group and immutable-version lifecycle; scoped deletion, enabled/default selection and single-Version refresh | Exact scope/epoch and deployment authorization; no forced or whole-registry refresh |
 | Robotics | Published device-system/controller/axis topology and telemetry | No physical actuation or Robot Intent commanding |
-| Vision | Sensor/frame/pipeline/result inspection through typed clients | No camera provisioning, rendering or automatic inference |
-| AI | Model, dataset, deployment and learning-job inspection; fixed synthetic local request where eligible | No backend/vendor SDK hosting or arbitrary prompt egress |
-| OpenUSD | Representation/binding inspection, bound-value snapshot, advertised asset verification/export | No renderer, remote federation or arbitrary USD dependency fetching |
+| Vision | Typed media/calibration inspection, reviewed simulated acquisition/inference/feedback and managed 2D overlays | Signed/encrypted session and deployment policy; no physical sensors, media downloads or GPU rendering |
+| AI | Typed authorized inference, asynchronous jobs, bounded request/response transfer and supported learning/evaluation operations | External egress needs its own exact-request policy; sample accounting is not real training |
+| OpenUSD | Representation/asset inspection, bounded live/history capture and configured peer telemetry export | No renderer, remote asset fetching or complete federated-stage composition |
 
 The AI sample request is offered only for a loopback backend with egress disabled;
 both the UA server and backend restrictions are rechecked before invocation.
 Responses and displays are bounded. A response that requires a separate transfer
 workflow is not silently downloaded.
+
+AI deployment tasks require the normal deployment rule in addition to the
+provider's egress check. The default permits only local, egress-disabled
+destinations; an injected `IAITaskEgressPolicy` must approve the exact reviewed
+external destination and request. Inline responses are limited to 16 KiB and
+transfers to 1 MiB. Reading a transfer requires its independently supplied
+SHA-256. Upload failure closes the owned file handle and attempts to abort only
+the transfer created by that request; an ambiguous Execute reply is not resubmitted.
+The advertised `MaxInlinePayloadSize` is a UInt32. Zero disables inline requests;
+it is not an unlimited quota, and a transfer must be chosen explicitly.
+Job observation is bounded to eight snapshots. Program Halt is a request, not
+proof of backend cancellation. Learning tasks preserve explicit model/dataset/
+deployment selections; evaluation reads existing metrics rather than inventing
+a start-evaluation contract.
+
+ISA-95 Store, Start, Update, Cancel and Clear use the selected V1/V2 typed client;
+V2 additionally offers Pause, Resume and Abort where executable. A unique complete
+order-receiver/response-provider/response-receiver set is required. Store does not
+overwrite an existing job. Preparation pins the observed job and, for V2, its state.
+Only the `ReturnStatus` success bitmap (bit 0, value 1) is accepted; zero or
+additional error/unknown bits do not prove success. The subsequent job/state read remains
+authoritative and does not imply execution or completion. V1's catalog does not
+provide live execution state, and returned responses may be historical.
+BeginExecution, Complete and Close are not desktop commands. Generated clients
+may resolve an instance MethodId when a server rejects the type-declaration ID
+with BadMethodInvalid; accepted or ambiguous requests are never replayed.
+
+Vision inspection remains read-only. Sensor tasks list exact media endpoint
+NodeIds, state and confidentiality without exposing endpoint URIs or credentials.
+Calibration inspection reads published intrinsics/extrinsics; it neither solves
+nor writes a calibration. Bad or Uncertain read quality is an error, not a
+successful default value.
+
+The simulated Vision workflow uses the same **Prepare / Review / Run** and
+deployment authorization as other mutations:
+
+| Selected target | Reviewed operations |
+|---|---|
+| Sensor | Get one clip, acquire/release one stream lease, configure a selected stream, select preferred media endpoints |
+| Pipeline | Run one inference, start/stop a 1-15 second continuous window, submit detections, inspection, correction or frame-reference feedback |
+| Detection result | Export a new local SVG containing managed pixel-space overlay geometry |
+
+Only executable methods are offered, and a lease/window task also requires its
+Release/Stop method. Mutations require a SignAndEncrypt session and a sensor
+declared **Simulated**; Physical and Hybrid sensors are rejected. This declaration
+is server-provided evidence, not hardware attestation, and does not replace the
+host's exact deployment rule. Preparation pins the sensor/frame, component,
+endpoint identity/address/authentication, pipeline state and disclosed AI
+deployment. A changed session, identity, peer certificate, namespace table or
+binding invalidates the request. A request expires within five minutes and cannot
+be dispatched twice.
+
+Pipeline execution is not assumed local merely because the camera is simulated.
+A verified loopback, no-egress AI deployment on a loopback server can satisfy the
+default destination check. An unknown or external destination requires a
+host-injected `IVisionExecutionPolicy` accepting that exact task, in addition to
+normal deployment confirmation. Implicit fallback routing and unsafe destination
+URIs are not authorized. Feedback may affect overlays, reconciliation, acquisition
+or learning according to its purpose; a successful method reply does not prove
+training or a visible overlay.
+An `OnServer` deployment need not advertise a separate `EndpointUri`; its reviewed
+destination is the selected OPC UA server itself. That is accepted by the local
+default only with egress disabled and a loopback UA server. Missing destinations
+in other inference locations do not receive that exception.
+
+Inputs retain their typed structures and independent storage. Arrays are limited
+to 32 entries and a complete encoded request to 1 MiB. Image metadata is limited
+to 8192 pixels per dimension, 16 megapixels and 1 MiB of encoded media. Inline
+bytes must match the descriptor's byte count and SHA-256; feedback also respects
+the server's advertised inline limit. Empty detections require an explicit
+empty-scene observation. A correction supplies exactly one corrected result kind,
+or explicitly retracts all; its existing result identity and geometry kind are
+checked before submission.
+Use **Omit optional structure** to leave an optional frame reference absent.
+Omission is explicit, revokes preparation, and is not available for required
+structures or arrays; accepting a new typed value clears the omission.
+Result correlation IDs are limited to 256 characters. Frame-reference feedback
+may establish provenance for an upcoming inspection ID; only corrections require
+an already-published result. Opaque `opcua-inline` references must match an
+advertised clip origin of the selected simulated sensor, with no credentials,
+query or fragment. That origin is pinned until execution; the URI is never fetched.
+
+UaLens never opens a returned media URI. GetClip checks the exact returned
+endpoint, format and inline evidence. A returned stream token is released with a
+fresh five-second cleanup budget, including when returned metadata is invalid or
+the acquisition was cancelled. Neither token nor full URI is displayed or saved.
+A continuous window does not take over an existing run: only an acknowledged
+Start is followed by the owned Stop, and completion requires observing
+Continuous=false. Stop rechecks the pipeline/sensor identities, frame, deployment
+and simulated reality; changed bindings are not stopped as though still owned.
+An unacknowledged Start is an unknown outcome requiring
+inspection, not an excuse to replay Start or stop somebody else's run. Cleanup
+failure remains visible alongside the original failure; review expiry does not
+prevent cleanup on the unchanged owning session.
+
+RunInference resolves the exact returned **ResultId property** within the selected
+pipeline, considering at most 32 result candidates. A matching BrowseName suffix,
+the latest result or a different sensor/pipeline is not accepted as correlation.
+Typed detection, inspection and segmentation results are bounded and snapshotted;
+failure to verify a returned result never causes another inference request.
+
+The SVG export contains existing 2D boxes and labels, image dimensions, source
+identifiers and frame SHA-256. It contains no image pixels, media URI, script,
+external asset, GPU rendering or 3D reprojection. Geometry and number formatting
+are checked, labels are XML-escaped, and an existing file is never overwritten.
+Partial output uses a private staging file that is removed on failure.
+
+Registry tasks retain exact identifiers, versions and independently copied
+document bytes; identifiers are not derived from the uploaded content. JSON is
+limited to 64 KiB of strict UTF-8 and depth 32, and duplicate members are rejected.
+WoT documents must also match the selected Thing Model/Thing Description group.
+Strict creation does not overwrite or silently reuse an existing version.
+
+Inspect the scope before deletion: a logical Resource uses **MetaEpoch** and
+includes all its versions, whereas a Version uses its own **Epoch** and the
+server's default/last-Version rules. Group deletion includes its children.
+Zero is not accepted as an expected epoch because it disables the server's
+concurrency check. A changed Xid/scope or epoch invalidates preparation.
+WoT enabled/default-version operations use logical-resource MetaEpoch, including
+when selected through a Version node. Server dependency policy remains authoritative.
+
+WoT registration separately acknowledges server AutoRefresh. **Refresh one
+existing WoT Version** selects one exact group/resource/version, pins its content
+digest and refresh generation, and checks returned request correlation, identity,
+generation, counts and outcome. It never selects all resources or dependents,
+uses no Force, and requests a five-second server budget with one worker.
+Returned materialization evidence is not an external endpoint reachability test.
+
+Asset creation compensates only its newly created asset if opening or uploading
+fails; cleanup failures remain visible alongside the original error. Asset deletion
+requires membership under the selected manager and rechecks the selected WoT file
+and content digest. It does not delete another asset or a physical device.
+Lifecycle operations have a 30-second client budget; registry upload-handle cleanup
+uses a separate five-second budget and preserves both Write and Close failures.
+Service acceptance is distinguished from a subsequently observed tree state.
+
+OpenUSD capture uses the shared connector's conversion rules, retaining source
+quality and timestamps rather than substituting a numeric default. Live capture
+owns one V2 subscription and snapshots values inside its notification callback.
+Its queue is limited to 128 entries and 1 MiB; a queue/encoding limit or subscription
+failure rejects the capture rather than exporting incomplete success. Live values
+retain the server's Publish sequence and time. Ordinary reads and history do not
+invent that Publish evidence.
+
+Observation windows are 1-15 seconds. History uses an increasing UTC range of at
+most 24 hours and requires strictly increasing source timestamps inside the
+reviewed half-open range. Both captures retain at most 128 converted samples,
+further limited by the document's result-field budget. Each encoded sample is
+limited to 16 KiB and their aggregate to 1 MiB. Empty observations, bad values,
+metadata changes and unsupported conversions are explicit failures. Stopping
+releases only the owned subscription or history continuation.
+
+Configured OpenUSD peers require separate host-owned session factories, exact
+endpoint/application/security-policy rules and identity predicates. Primary
+credentials are never forwarded. At most sixteen distinct peers and four levels
+are visited; unknown, ambiguous and cyclic origins are rejected. Namespace,
+binding and peer-certificate evidence is pinned and rechecked after acquisition.
+A faulty factory cannot transfer ownership of the primary or an ancestor session.
+
+History and peer exports create a new local directory containing `values.usda`
+and `evidence.json`. The evidence includes portable source IDs, binding and origin
+identifiers, source/converted binary values and SHA-256 digests; it contains actual
+sampled data and should be handled accordingly. Peer values are namespaced below
+`/Peers/<configured-id>/...`. These are managed override/provenance exports, not
+downloads of remote USD assets, composition of a complete federated stage, or a
+hard real-time/lossless delivery guarantee. Existing paths are not overwritten.
 
 DI package preparation snapshots at most 64 MiB from an explicitly selected local
 file and checks the independently supplied SHA-256. Run uploads those verified

@@ -41,7 +41,7 @@ using Opc.Ua;
 namespace UaLens.Samples
 {
     /// <summary>
-    /// Prepares only the two managed repository samples. The parent directory is
+    /// Prepares only allowlisted managed repository samples. The parent directory is
     /// injectable for task-owned storage; construction performs no filesystem I/O.
     /// </summary>
     internal sealed class RepositorySampleFiles
@@ -63,6 +63,11 @@ namespace UaLens.Samples
             if (source is null)
             {
                 return new(false, "Requires configuration: select a trusted local source root and a managed build.");
+            }
+            if (sample == RepositorySampleId.VisualInspectionCell &&
+                source.Framework != RepositorySampleFramework.Net10)
+            {
+                return new(false, "Requires configuration: the Vision fixture cell targets managed .NET 10.");
             }
             string root = RepositorySamplePaths.ValidateRoot(source.Root);
             string build = RepositorySampleCatalog.GetBuildDirectory(source, sample);
@@ -92,6 +97,19 @@ namespace UaLens.Samples
                 if (!m_fileSystem.Exists(artifact))
                 {
                     return new(false, "Requires configuration: the selected managed build is missing " + name + ".");
+                }
+            }
+            if (sample == RepositorySampleId.VisualInspectionCell)
+            {
+                foreach (string name in (ArrayOf<string>)
+                    ["bracket-ok.png", "bracket-not-ok.png", "bracket-ambiguous.png"])
+                {
+                    string fixture = RepositorySamplePaths.ResolveChild(build, Path.Combine("Fixtures", name));
+                    RepositorySamplePaths.EnsureNoLinks(root, fixture);
+                    if (!m_fileSystem.Exists(fixture))
+                    {
+                        return new(false, "Requires configuration: a checked-in Vision fixture is missing.");
+                    }
                 }
             }
             if (sample == RepositorySampleId.ConsoleReferenceServer)
@@ -153,7 +171,7 @@ namespace UaLens.Samples
                 arguments = ["--timeout", runSeconds, "--console", "--log"];
                 applicationUris = [applicationUri];
             }
-            else
+            else if (sample == RepositorySampleId.PumpSoftwareUpdateSimulator)
             {
                 arguments =
                 [
@@ -169,6 +187,23 @@ namespace UaLens.Samples
                 [
                     "urn:localhost:OPCFoundation:PumpDeviceIntegrationServer",
                     "urn:" + Utils.GetHostName() + ":OPCFoundation:PumpDeviceIntegrationServer"
+                ];
+            }
+            else
+            {
+                arguments =
+                [
+                    "--host", "127.0.0.1",
+                    "--port", port.ToString(CultureInfo.InvariantCulture),
+                    "--pki-root", files.PkiRoot,
+                    "--insecure=false",
+                    "--inferenceLocation", "OnServer",
+                    "--run-seconds", runSeconds
+                ];
+                applicationUris =
+                [
+                    "urn:localhost:OPCFoundation:VisualInspectionCell",
+                    "urn:" + Utils.GetHostName() + ":OPCFoundation:VisualInspectionCell"
                 ];
             }
             cancellationToken.ThrowIfCancellationRequested();
@@ -404,7 +439,8 @@ namespace UaLens.Samples
             string directory = sample switch
             {
                 RepositorySampleId.ConsoleReferenceServer => Path.Combine(PkiRoot, "own", "certs"),
-                RepositorySampleId.PumpSoftwareUpdateSimulator => Path.Combine(PkiRoot, "certs"),
+                RepositorySampleId.PumpSoftwareUpdateSimulator or RepositorySampleId.VisualInspectionCell =>
+                    Path.Combine(PkiRoot, "certs"),
                 _ => throw new ArgumentOutOfRangeException(nameof(sample))
             };
             RepositorySamplePaths.EnsureNoLinks(m_parent, directory);

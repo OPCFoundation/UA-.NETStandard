@@ -52,6 +52,7 @@ namespace UaLens.Tests.Desktop
     {
         [TestCase(0)]
         [TestCase(1)]
+        [TestCase(2)]
         public Task StartRequiresTrustedSetupAndFreshConsentWithoutConnecting(int sampleId)
         {
             return AvaloniaDesktopTestHost.RunAsync(async () =>
@@ -437,7 +438,8 @@ namespace UaLens.Tests.Desktop
             public int Stops { get; private set; }
 
             public Func<RepositorySampleRunOptions, CancellationToken,
-                Task<RepositorySampleSnapshot>> Start { get; set; }
+                Task<RepositorySampleSnapshot>> Start
+            { get; set; }
 
             public Func<Task<RepositorySampleSnapshot>> Stop { get; set; }
 

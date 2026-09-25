@@ -37,7 +37,8 @@ namespace UaLens.Samples
     internal enum RepositorySampleId
     {
         ConsoleReferenceServer,
-        PumpSoftwareUpdateSimulator
+        PumpSoftwareUpdateSimulator,
+        VisualInspectionCell
     }
 
     internal enum RepositorySampleBuildConfiguration

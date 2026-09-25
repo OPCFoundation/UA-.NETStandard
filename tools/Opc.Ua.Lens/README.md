@@ -39,7 +39,19 @@ Models and the Write/Call dialogs share named-bit OptionSet and dimension-aware
 array/matrix editors. Performance compares a chosen baseline with real retained
 latency distributions and configuration evidence. Companion Tasks use an explicit,
 single-use **Prepare / Review / Run** flow; preparations and confirmation are never
-part of saved workspaces.
+part of saved workspaces. Array/custom task inputs use the same structured editor,
+with isolated values and metadata revalidation. ISA-95 and AI workflows keep
+authorization, service acceptance and observed completion separate. Non-rendering
+OpenUSD tasks provide bounded live/history capture and explicitly configured
+peer telemetry export; they do not fetch remote assets or render a stage.
+WoT/xRegistry tasks distinguish logical Resource metadata from individual
+Versions, require nonzero scope epochs and explicit deployment policy, and offer
+bounded single-Version materialization rather than a blanket refresh command.
+Vision tasks add reviewed simulated media, inference and feedback, with exact
+result correlation and fresh-budget cleanup of returned leases and acknowledged
+continuous runs. Managed SVG exports contain pixel-space boxes and labels, not
+downloaded images or GPU-rendered scenes. Physical/hybrid sensors and implicit
+external execution are rejected.
 
 PubSub commissioning includes registered offline presets, ordered scalar fields,
 identity/content-mask editing and atomic configuration import/export. Transport
@@ -52,6 +64,13 @@ offline. Workspaces preserve safe configuration, not credentials or running jobs
 
 See the [UaLens guide](../../docs/UaLens.md) for navigation, settings, trust,
 workspace behavior, guided workflows, external prerequisites and intentional limits.
+
+Identity setup remains provider-driven. Named token providers can expose explicit
+authorization interaction; configured user-certificate adapters offer separate
+CSR preparation, enrollment and adoption. The GDS adapter requires a matching
+registered ApplicationUri and certificate group, strict Users trust validation,
+and a private-key-capable destination. It neither provisions an authority nor
+replaces application-instance or hardware key management.
 
 ## Publish and package
 
@@ -111,7 +130,7 @@ typed companion form. These are explicitly selected desktop probes, not ordinary
 headless-suite prerequisites.
 
 `RepositorySampleLiveTests` is a separate opt-in process/endpoint qualification.
-Build the Console Reference Server and DI pump simulator in Release/net10.0,
+Build the Console Reference Server, DI pump simulator and Vision fixture cell in Release/net10.0,
 then explicitly select their trusted local checkout:
 
 ```powershell
@@ -121,9 +140,30 @@ dotnet test tests\Opc.Ua.Lens.Tests\Opc.Ua.Lens.Tests.csproj -c Release -f net10
   --filter FullyQualifiedName~RepositorySampleLiveTests.BuiltManagedSampleAdvertisesOwnedIdentityAndCleansUp
 ```
 
-This runs two bounded managed processes with private configuration/PKI, verifies
+This runs bounded managed processes with private configuration/PKI, verifies
 their advertised identities and own-store certificates, and checks normal exit
-and cleanup. It does not grant peer trust or connect a user session. Sample build
+and cleanup. The Vision cell uses the current-runtime build subdirectory and
+checked-in PNG fixtures, without camera or rendering dependencies.
+It does not grant peer trust or connect a user session. Sample build
 paths containing symlinks/junctions are rejected; use a trusted materialized
 build layout rather than weakening the no-link check. Ordinary CI tests use
 controlled sample process/probe interfaces and do not start these processes.
+
+The separate secure fixture workflow uses the same trusted build root:
+
+```powershell
+dotnet test tests\Opc.Ua.Lens.Tests\Opc.Ua.Lens.Tests.csproj -c Release -f net10.0 `
+  --filter FullyQualifiedName~RepositorySampleLiveTests.PrivateFixtureAcquisitionInferenceAndFeedbackUsePinnedPeerTrust
+```
+
+It creates private client/server peer trust and exercises typed AI inference,
+ISA-95 pause/resume and Vision acquisition, inference and feedback. Results are
+correlated to the selected model, job, sensor and pipeline; the owned server must
+exit normally. It does not use the host's PKI or qualify an external deployment.
+
+`PrivateRegistryPreservesImmutableVersionsEpochsAndDeletionScope` and
+`PrivateGeneratorBindingsRetainSourceAndPublishEvidence` host the repository's
+registry and generator components in private in-process servers. They require
+explicit selection and use signed/encrypted sessions with private peer trust.
+The generator check verifies rejection of unsupported string conversion before
+configuring its supported numeric/color/visibility capture profile.
