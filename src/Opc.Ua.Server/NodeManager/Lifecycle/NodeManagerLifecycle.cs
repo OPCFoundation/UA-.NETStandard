@@ -2779,6 +2779,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
+            IReadOnlyDictionary<NodeId, DataTypeDefinition>? completedDefinitions = null;
             foreach (KeyValuePair<NodeId, DataTypeDefinition> entry in
                 runtimeNodeManager.GetDataTypeDefinitions())
             {
@@ -2800,14 +2801,17 @@ namespace Opc.Ua.Server
                     definitionSource = enumeratedType as IDataTypeDefinitionSource;
                 }
 
-                if (definitionSource is not null &&
-                    !definitionSource
-                        .GetDataTypeDefinition(server.NamespaceUris)
-                        .IsEqual(entry.Value))
+                if (definitionSource is not null)
                 {
-                    throw new InvalidOperationException(
-                        $"DataType '{entry.Key}' has an incompatible definition. " +
-                        "Runtime DataType definitions are immutable for the server lifetime.");
+                    completedDefinitions ??= runtimeNodeManager.GetDataTypeDefinitions(completeMetadata: true);
+                    if (!definitionSource
+                        .GetDataTypeDefinition(server.NamespaceUris)
+                        .IsEqual(completedDefinitions[entry.Key]))
+                    {
+                        throw new InvalidOperationException(
+                            $"DataType '{entry.Key}' has an incompatible definition. " +
+                            "Runtime DataType definitions are immutable for the server lifetime.");
+                    }
                 }
 
                 if (definitionSource is null &&

@@ -388,7 +388,7 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             return result;
         }
 
-        internal IReadOnlyDictionary<NodeId, DataTypeDefinition> GetDataTypeDefinitions()
+        internal IReadOnlyDictionary<NodeId, DataTypeDefinition> GetDataTypeDefinitions(bool completeMetadata = false)
         {
             var definitions = new Dictionary<NodeId, DataTypeDefinition>();
             foreach (NodeState node in PredefinedNodes.Values)
@@ -397,6 +397,33 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                     dataType.DataTypeDefinition.TryGetValue(
                         out DataTypeDefinition? definition))
                 {
+                    if (completeMetadata && definition is StructureDefinition structure &&
+                        (structure.BaseDataType.IsNull || structure.DefaultEncodingId.IsNull))
+                    {
+                        var completed = (StructureDefinition)structure.Clone();
+                        if (completed.BaseDataType.IsNull)
+                        {
+                            completed.BaseDataType = dataType.SuperTypeId;
+                        }
+                        if (completed.DefaultEncodingId.IsNull)
+                        {
+                            var references = new List<IReference>();
+                            dataType.GetReferences(
+                                SystemContext, references, ReferenceTypeIds.HasEncoding, isInverse: false);
+                            foreach (IReference reference in references)
+                            {
+                                NodeId encodingId = ExpandedNodeId.ToNodeId(reference.TargetId, Server.NamespaceUris);
+                                if (!encodingId.IsNull &&
+                                    PredefinedNodes.TryGetValue(encodingId, out NodeState? encoding) &&
+                                    encoding.BrowseName.Name == BrowseNames.DefaultBinary)
+                                {
+                                    completed.DefaultEncodingId = encodingId;
+                                    break;
+                                }
+                            }
+                        }
+                        definition = completed;
+                    }
                     definitions[dataType.NodeId] = definition;
                 }
             }
