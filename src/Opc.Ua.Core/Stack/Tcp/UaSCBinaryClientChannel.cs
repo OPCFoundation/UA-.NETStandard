@@ -32,6 +32,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -278,10 +279,10 @@ namespace Opc.Ua.Bindings
 
                 SendQueuedOperations();
             }
-            catch (Exception e)
+            catch (Exception exception)
             {
                 m_logger.UaSCClientLog3(
-                    e,
+                    exception,
                     url,
                     transport?.RemoteEndpoint,
                     ChannelId);
@@ -289,9 +290,16 @@ namespace Opc.Ua.Bindings
                 operation.Fault(StatusCodes.BadNotConnected);
 
                 Shutdown(ServiceResult.Create(
-                    e,
+                    exception,
                     StatusCodes.BadTcpInternalError,
                     "Fatal error during connect."));
+                if (exception is SocketException or IOException)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNotConnected,
+                        "Could not connect to the remote endpoint.",
+                        exception);
+                }
                 throw;
             }
             finally

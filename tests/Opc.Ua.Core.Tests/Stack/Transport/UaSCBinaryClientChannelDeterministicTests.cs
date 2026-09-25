@@ -35,6 +35,7 @@ using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -329,6 +330,77 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 () => TestClientChannel.CallVerifyMessageTypeAndSize(
                     decoder, TcpMessageType.Acknowledge, 8))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTcpMessageTooLarge));
+        }
+
+        [TestCase(SocketError.HostNotFound)]
+        [TestCase(SocketError.ConnectionRefused)]
+        [TestCase(SocketError.TimedOut)]
+        [TestCase(SocketError.SocketError)]
+        public async Task ConnectAsyncWrapsTransportFailuresAsync(SocketError socketError)
+        {
+            Exception cause = socketError == SocketError.SocketError
+                ? new IOException("Transport connection failed.")
+                : new SocketException((int)socketError);
+            var transport = new RecordingByteTransport { ConnectException = cause };
+            using var channel = new TestClientChannel(
+                m_buffers, new RecordingByteTransportFactory(transport), m_quotas, null,
+                BuildEndpoint(MessageSecurityMode.None, SecurityPolicies.None), m_telemetry,
+                new FakeTimeProvider());
+
+            await Assert.ThatAsync(
+                async () => await channel.ConnectAsync(new Uri("opc.tcp://localhost:4840"),
+                    60000, CancellationToken.None).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo((uint)StatusCodes.BadNotConnected)
+                    .And.Property(nameof(Exception.InnerException)).SameAs(cause)).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+                Assert.That(transport.IsClosed, Is.True);
+            });
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ConnectAsyncPreservesNonTransportFailuresAsync(bool serviceFailure)
+        {
+            Exception cause = serviceFailure
+                ? new ServiceResultException(StatusCodes.BadSecurityChecksFailed)
+                : new InvalidOperationException("Invalid transport state.");
+            var transport = new RecordingByteTransport { ConnectException = cause };
+            using var channel = new TestClientChannel(
+                m_buffers, new RecordingByteTransportFactory(transport), m_quotas, null,
+                BuildEndpoint(MessageSecurityMode.None, SecurityPolicies.None), m_telemetry,
+                new FakeTimeProvider());
+
+            await Assert.ThatAsync(
+                async () => await channel.ConnectAsync(new Uri("opc.tcp://localhost:4840"),
+                    60000, CancellationToken.None).ConfigureAwait(false),
+                Throws.Exception.With.SameAs(cause)).ConfigureAwait(false);
+
+            Assert.That(transport.IsClosed, Is.True);
+        }
+
+        [Test]
+        public async Task ConnectAsyncPreservesCallerCancellationAsync()
+        {
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+            var transport = new RecordingByteTransport();
+            using var channel = new TestClientChannel(
+                m_buffers, new RecordingByteTransportFactory(transport), m_quotas, null,
+                BuildEndpoint(MessageSecurityMode.None, SecurityPolicies.None), m_telemetry,
+                new FakeTimeProvider());
+
+            await Assert.ThatAsync(
+                async () => await channel.ConnectAsync(new Uri("opc.tcp://localhost:4840"),
+                    60000, cancellation.Token).ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>()
+                    .With.Property(nameof(OperationCanceledException.CancellationToken))
+                    .EqualTo(cancellation.Token)).ConfigureAwait(false);
+
+            Assert.That(transport.IsClosed, Is.True);
         }
 
         [TestCase(200000u, 8192u, TestName = "SendBufferSizeTooLarge")]
@@ -1098,6 +1170,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             public Task FirstSendTask => m_firstSend.Task;
 
+            public Exception? ConnectException { get; set; }
+
+            public bool IsClosed => m_closed.Task.IsCompleted;
+
             public byte[] LastSent
             {
                 get
@@ -1111,7 +1187,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             public ValueTask ConnectAsync(Uri url, CancellationToken ct)
             {
-                return default;
+                ct.ThrowIfCancellationRequested();
+                return ConnectException == null ? default : new ValueTask(Task.FromException(ConnectException));
             }
 
             public ValueTask SendChunkAsync(ReadOnlyMemory<byte> chunk, CancellationToken ct)
