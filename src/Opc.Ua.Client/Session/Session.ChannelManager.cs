@@ -90,6 +90,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Enables the managed-session recovery bound and its requested-timeout fallback.
         /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         internal void ConfigureChannelReconnectTimeout(TimeSpan? timeout, uint requestedSessionTimeout)
         {
             if (!ManagedSessionOptions.IsValidChannelReconnectTimeout(timeout))
@@ -106,21 +107,30 @@ namespace Opc.Ua.Client
         /// <c>null</c> if the session was constructed against a raw
         /// <see cref="ITransportChannel"/> without a channel manager.
         /// </summary>
-        public IManagedTransportChannel? ManagedChannel => m_managedChannel;
+        public IManagedTransportChannel? ManagedChannel => Volatile.Read(ref m_managedChannel);
 
         /// <summary>
         /// The channel manager that owns this session's managed
         /// channel, or <c>null</c> if the session was constructed
         /// against a raw channel.
         /// </summary>
-        public IClientChannelManager? ChannelManager => m_channelManager;
+        public IClientChannelManager? ChannelManager => ManagedChannel?.Manager ?? Volatile.Read(ref m_channelManager);
 
         /// <summary>
         /// Whether scoped channel recovery or its subscription restoration is still active.
         /// </summary>
-        internal bool ChannelRecoveryInProgress =>
-            Volatile.Read(ref m_channelRecoveryInProgress) != 0 ||
-            (m_managedChannel is ManagedTransportChannelLease lease && lease.Entry.RecoveryInProgress);
+        internal bool ChannelRecoveryInProgress
+        {
+            get
+            {
+                IManagedTransportChannel? channel = ManagedChannel;
+                ChannelRecoveryOwner? recovery = Volatile.Read(ref m_channelRecoveryOwner);
+                return (recovery != null &&
+                    ReferenceEquals(recovery.Channel, channel) &&
+                    channel?.State is not (ChannelState.Closed or ChannelState.Faulted)) ||
+                    (channel is ManagedTransportChannelLease lease && lease.Entry.RecoveryInProgress);
+            }
+        }
 
         /// <summary>
         /// Internal hook used by <see cref="CreateAsync(IClientChannelManager,
@@ -135,8 +145,34 @@ namespace Opc.Ua.Client
             IClientChannelManager manager,
             IManagedTransportChannel channel)
         {
-            m_channelManager = manager ?? throw new ArgumentNullException(nameof(manager));
-            m_managedChannel = channel ?? throw new ArgumentNullException(nameof(channel));
+            if (manager == null)
+            {
+                throw new ArgumentNullException(nameof(manager));
+            }
+            if (channel == null)
+            {
+                throw new ArgumentNullException(nameof(channel));
+            }
+            Volatile.Write(ref m_channelManager, manager);
+            Volatile.Write(ref m_managedChannel, channel);
+        }
+
+        private void BindReconnectedChannel(ITransportChannel channel)
+        {
+            if (channel is IManagedTransportChannel managed)
+            {
+                BindManagedChannel(managed.Manager, managed);
+            }
+            else
+            {
+                Volatile.Write(ref m_channelManager, null);
+                Volatile.Write(ref m_managedChannel, null);
+            }
+            ChannelRecoveryOwner? recovery = Volatile.Read(ref m_channelRecoveryOwner);
+            if (recovery != null && !ReferenceEquals(recovery.Channel, ManagedChannel))
+            {
+                Interlocked.CompareExchange(ref m_channelRecoveryOwner, null, recovery);
+            }
         }
 
         /// <inheritdoc/>
@@ -155,13 +191,14 @@ namespace Opc.Ua.Client
             int reconnectAttempt,
             CancellationToken ct)
         {
-            Volatile.Write(ref m_channelRecoveryInProgress, 1);
+            var recovery = new ChannelRecoveryOwner(channel);
+            Volatile.Write(ref m_channelRecoveryOwner, recovery);
             using var client = new RecoverySessionClient(this, recoveryChannel);
             ParticipantReconnectResult result = await ReconnectParticipantAsync(
                 channel, reconnectAttempt, client, ct).ConfigureAwait(false);
             if (result == ParticipantReconnectResult.FatalForParticipant)
             {
-                Volatile.Write(ref m_channelRecoveryInProgress, 0);
+                Interlocked.CompareExchange(ref m_channelRecoveryOwner, null, recovery);
             }
             return result;
         }
@@ -174,7 +211,16 @@ namespace Opc.Ua.Client
         {
             if (reconnectAttempt < 0)
             {
-                Volatile.Write(ref m_channelRecoveryInProgress, 0);
+                ChannelRecoveryOwner? recovery = Volatile.Read(ref m_channelRecoveryOwner);
+                ct.ThrowIfCancellationRequested();
+                if (!ReferenceEquals(ManagedChannel, channel))
+                {
+                    return ParticipantReconnectResult.FatalForParticipant;
+                }
+                if (recovery != null && ReferenceEquals(recovery.Channel, channel))
+                {
+                    Interlocked.CompareExchange(ref m_channelRecoveryOwner, null, recovery);
+                }
                 // Final shutdown notification from the manager — the
                 // channel is going away. Stop the keep-alive timer so
                 // the session doesn't keep probing a dead transport.
@@ -284,14 +330,8 @@ namespace Opc.Ua.Client
 
         async ValueTask IRecreateAwareReconnectParticipant.RecreateAsync(CancellationToken ct)
         {
-            IManagedTransportChannel? channel = m_managedChannel;
-            if (channel != null)
-            {
-                await RecreateInPlaceAsync(channel: channel, ct: ct).ConfigureAwait(false);
-                return;
-            }
-
-            await RecreateInPlaceAsync(ct: ct).ConfigureAwait(false);
+            await RecreateInPlaceCoreAsync(
+                endpoint: null, connection: null, ManagedChannel, budget: null, ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -309,6 +349,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         async ValueTask IChannelRecoveryParticipant.CompleteRecoveryAsync(CancellationToken ct)
         {
+            ChannelRecoveryOwner? recovery = Volatile.Read(ref m_channelRecoveryOwner);
             if (Volatile.Read(ref m_subscriptionRecoveryDeferrals) != 0 &&
                 m_pendingSubscriptionRecovery != null &&
                 m_managedChannel is ManagedTransportChannelLease lease)
@@ -316,7 +357,7 @@ namespace Opc.Ua.Client
                 m_deferredRecoveryDeadline = lease.Entry.RecoveryDeadline;
             }
             await CompleteSessionRecoveryAsync(ct).ConfigureAwait(false);
-            Volatile.Write(ref m_channelRecoveryInProgress, 0);
+            Interlocked.CompareExchange(ref m_channelRecoveryOwner, null, recovery);
         }
 
         private sealed class RecoverySessionClient : SessionClientBatched
@@ -343,6 +384,12 @@ namespace Opc.Ua.Client
         }
 
         private sealed record PendingSubscriptionRecovery(NodeId PreviousSessionId, bool ReusedSession);
+
+        /// <summary>
+        /// Identity fences completion from an earlier recovery on the same lease.
+        /// </summary>
+        /// <param name="Channel"></param>
+        private sealed record ChannelRecoveryOwner(IManagedTransportChannel Channel);
 
         /// <summary>
         /// Defers callback-dependent restoration to the outer session owner's completion phase.
@@ -415,7 +462,7 @@ namespace Opc.Ua.Client
         private PendingSubscriptionRecovery? m_pendingSubscriptionRecovery;
         private ReconnectDeadline? m_deferredRecoveryDeadline;
         private int m_subscriptionRecoveryDeferrals;
-        private int m_channelRecoveryInProgress;
+        private ChannelRecoveryOwner? m_channelRecoveryOwner;
         private bool m_boundChannelReconnect;
         private TimeSpan? m_channelReconnectTimeout;
         private uint m_requestedChannelSessionTimeout;

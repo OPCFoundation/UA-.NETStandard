@@ -2502,6 +2502,152 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         }
 
         /// <summary>
+        /// A participant budget failure faults the shared channel and notifies every participant
+        /// without starting transport recovery or replacing the failed budget with an unlimited one.
+        /// </summary>
+        [Test]
+        [Combinatorial]
+        public async Task ParticipantBudgetFailuresFaultSharedRecoveryAndNotifyAllParticipantsAsync(
+            [Values] bool boundedCaller,
+            [Values("factory", "consume", "exhaustion", "expiry")] string failureStage,
+            [Values] bool cancellationException)
+        {
+            var time = new FakeTimeProvider();
+            var policy = new ExponentialBackoffChannelReconnectPolicy
+            {
+                MinDelay = TimeSpan.Zero,
+                MaxDelay = TimeSpan.Zero
+            };
+            (ClientChannelManager manager, Certificate certificate, Mock<IChannel> transport) =
+                CreateMockedSut(reconnectPolicy: policy, timeProvider: time);
+            try
+            {
+                Exception budgetError = cancellationException
+                    ? new OperationCanceledException("Participant budget failed without cancellation.")
+                    : new InvalidOperationException("Participant budget failed.");
+                var notifications = new ConcurrentQueue<(string Participant, int Attempt, bool Cancelled)>();
+                Mock<IReconnectParticipant> faulty = CreateParticipant("faulty");
+                Mock<IReconnectParticipant> healthy = CreateParticipant("healthy");
+                healthy.Setup(value => value.CreateReconnectBudget(time))
+                    .Returns(() => new RetryBudget(TimeSpan.FromMinutes(1), time));
+                if (failureStage == "factory")
+                {
+                    faulty.Setup(value => value.CreateReconnectBudget(time)).Throws(budgetError);
+                }
+                else
+                {
+                    var budget = new Mock<IRetryBudget>();
+                    var remaining = TimeSpan.FromSeconds(1);
+                    if (failureStage == "consume")
+                    {
+                        budget.Setup(value => value.TryConsume(out remaining)).Throws(budgetError);
+                    }
+                    else
+                    {
+                        budget.Setup(value => value.TryConsume(out remaining)).Returns(true);
+                        budget.SetupGet(value => value.IsExhausted)
+                            .Callback(() =>
+                            {
+                                if (failureStage == "expiry")
+                                {
+                                    time.Advance(remaining);
+                                }
+                            })
+                            .Throws(budgetError);
+                    }
+                    faulty.Setup(value => value.CreateReconnectBudget(time)).Returns(budget.Object);
+                }
+                transport.SetupGet(value => value.SupportedFeatures).Returns(TransportChannelFeatures.Reconnect);
+                transport.Setup(value => value.ReconnectAsync(
+                        It.IsAny<ITransportWaitingConnection?>(), It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask());
+                using IManagedTransportChannel first = await manager.GetAsync(faulty.Object).ConfigureAwait(false);
+                using IManagedTransportChannel second = await manager.GetAsync(healthy.Object).ConfigureAwait(false);
+                var faults = new ConcurrentQueue<int>();
+                first.StateChanged += (_, change) =>
+                {
+                    if (change.NewState == ChannelState.Faulted)
+                    {
+                        faults.Enqueue(notifications.Count);
+                    }
+                };
+                Task reconnect = boundedCaller
+                    ? manager.ReconnectAsync(second, new RetryBudget(TimeSpan.FromMinutes(1), time)).AsTask()
+                    : manager.ReconnectAsync(second).AsTask();
+                Exception? reconnectError = null;
+                try
+                {
+                    await reconnect.WaitAsync(s_completionTimeout).ConfigureAwait(false);
+                }
+                catch (Exception error) when (
+                    error is ServiceResultException or InvalidOperationException or OperationCanceledException)
+                {
+                    reconnectError = error;
+                }
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(first.State, Is.EqualTo(ChannelState.Faulted));
+                    Assert.That(second.State, Is.EqualTo(ChannelState.Faulted));
+                    Assert.That(notifications, Is.EquivalentTo(
+                    [
+                        ("faulty", -1, false),
+                        ("healthy", -1, false)
+                    ]));
+                    Assert.That(faults, Has.Count.EqualTo(1).And.All.EqualTo(2),
+                        "The Faulted event must follow both final notifications.");
+                    Assert.That(GetInternalIntProperty(first, "SwapCount"), Is.Zero);
+                    Assert.That(GetInternalIntProperty(second, "SwapCount"), Is.Zero);
+                    Assert.That(manager.GetChannelDiagnostics(), Has.Count.EqualTo(1));
+                });
+                ServiceResult? lastError = manager.GetChannelDiagnostics().Single().LastError;
+                Assert.That(lastError, Is.Not.Null);
+                Assert.That(lastError!.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
+                string expectedError = failureStage == "expiry" && cancellationException
+                    ? "Channel recovery deadline expired"
+                    : budgetError.Message;
+                Assert.That(lastError.ToLongString(), Does.Contain(expectedError));
+                if (boundedCaller)
+                {
+                    Assert.That(reconnectError, Is.TypeOf<ServiceResultException>());
+                    Assert.That(((ServiceResultException)reconnectError!).StatusCode,
+                        Is.EqualTo(StatusCodes.BadSecureChannelClosed));
+                }
+                else
+                {
+                    Assert.That(reconnectError, Is.Null);
+                }
+                faulty.Verify(value => value.CreateReconnectBudget(time), Times.Once);
+                transport.Verify(value => value.ReconnectAsync(
+                    It.IsAny<ITransportWaitingConnection?>(), It.IsAny<CancellationToken>()), Times.Never);
+
+                time.Advance(TimeSpan.FromHours(1));
+                Assert.That(notifications, Has.Count.EqualTo(2));
+                Assert.That(faults, Has.Count.EqualTo(1));
+
+                Mock<IReconnectParticipant> CreateParticipant(string id)
+                {
+                    var participant = new Mock<IReconnectParticipant>();
+                    participant.SetupGet(value => value.Id).Returns(id);
+                    participant.SetupGet(value => value.Endpoint).Returns(GetTestEndpoint(certificate));
+                    participant.Setup(value => value.OnReconnectAsync(
+                            It.IsAny<IManagedTransportChannel>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                        .Returns((IManagedTransportChannel _, int attempt, CancellationToken ct) =>
+                        {
+                            notifications.Enqueue((id, attempt, ct.IsCancellationRequested));
+                            return new ValueTask<ParticipantReconnectResult>(ParticipantReconnectResult.Reactivated);
+                        });
+                    return participant;
+                }
+            }
+            finally
+            {
+                await manager.DisposeAsync().ConfigureAwait(false);
+                certificate.Dispose();
+            }
+        }
+
+        /// <summary>
         /// A throwing custom budget releases recovery ownership so a later valid request can proceed.
         /// </summary>
         [Test]
@@ -2588,7 +2734,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         [Test]
         [Combinatorial]
         public async Task TerminalNotificationsCannotHoldTheRecoveryOwnerAsync(
-            [Values("policy", "expired", "elapsed")] string outcome,
+            [Values("policy", "expired", "elapsed", "budget-failure")] string outcome,
             [Values] bool cooperative)
         {
             var time = new ObservableFakeTimeProvider();
@@ -2625,6 +2771,11 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 var participant = new Mock<IReconnectParticipant>();
                 participant.SetupGet(value => value.Id).Returns("stalled-final-notification");
                 participant.SetupGet(value => value.Endpoint).Returns(GetTestEndpoint(certificate));
+                if (outcome == "budget-failure")
+                {
+                    participant.Setup(value => value.CreateReconnectBudget(time))
+                        .Throws<InvalidOperationException>();
+                }
                 participant.Setup(value => value.OnReconnectAsync(
                         It.IsAny<IManagedTransportChannel>(), -1, It.IsAny<CancellationToken>()))
                     .Returns(async (IManagedTransportChannel _, int _, CancellationToken ct) =>

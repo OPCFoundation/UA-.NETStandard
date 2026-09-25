@@ -73,6 +73,9 @@ namespace Opc.Ua
         /// The manager samples active participants outside its entry lock and
         /// keeps the earliest participant or caller deadline. This method must
         /// return promptly and must not start recovery itself.
+        /// A failure creating or evaluating a participant budget terminates the shared
+        /// recovery with final participant notifications and a Faulted channel state;
+        /// it is not treated as an unlimited budget.
         /// </remarks>
         /// <param name="timeProvider">The channel manager's monotonic clock.</param>
         /// <returns>The cycle budget, or null to leave the limit to other participants and callers.</returns>

@@ -406,6 +406,113 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         /// <summary>
+        /// Cancelling recovery by releasing its lease must not suppress later keepalive recovery
+        /// after the same session is recreated through the public managed-session API.
+        /// </summary>
+        /// <param name="supplyReplacement">
+        /// Whether the caller supplies a newly acquired channel instead of asking the manager to replace it.
+        /// </param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CancelledRecoveryCanBeReplacedWithoutSuppressingLaterKeepAliveAsync(bool supplyReplacement)
+        {
+            await using var harness = new ManagedSessionReconnectHarness(TimeSpan.Zero);
+            await harness.ConnectAsync(false).ConfigureAwait(false);
+            harness.Clock.Advance(TimeSpan.Zero);
+            await WaitForPhaseAsync(harness.InitialKeepAliveRead, "initial keepalive before cancellation")
+                .ConfigureAwait(false);
+            Session originalSession = harness.Session.InnerSession;
+            IManagedTransportChannel originalLease = harness.Lease;
+            harness.TransportReconnect.Release();
+            Task recovery = harness.StartRecoveryAsync();
+            await WaitForPhaseAsync(harness.RecoveryActivation.Entered, "activation before releasing its lease")
+                .ConfigureAwait(false);
+            Assert.That(originalSession.ChannelRecoveryInProgress, Is.True);
+
+            await originalLease.CloseAsync(harness.CancellationToken).ConfigureAwait(false);
+            await WaitForPhaseAsync(harness.RecoveryActivation.Cancelled, "released lease cancels activation")
+                .ConfigureAwait(false);
+            await WaitForPhaseAsync(harness.RecoveryActivation.Exited, "cancelled activation unwinds")
+                .ConfigureAwait(false);
+            Assert.That(async () => await recovery.WaitAsync(PhaseTimeout).ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>());
+            Assert.That(originalLease.State, Is.EqualTo(ChannelState.Closed));
+            Assert.That(originalSession.Reconnecting, Is.False);
+
+            using IManagedTransportChannel? suppliedChannel = supplyReplacement
+                ? await harness.Channels.Manager.GetAsync(originalSession, harness.CancellationToken)
+                    .ConfigureAwait(false)
+                : null;
+            if (supplyReplacement)
+            {
+                harness.RecoveryActivationStatus = StatusCodes.Good;
+                harness.ReleaseAllGates();
+                using var timeout = new CancellationTokenSource(PhaseTimeout);
+                await harness.Session.ReconnectAsync(null, suppliedChannel, timeout.Token).ConfigureAwait(false);
+            }
+            else
+            {
+                Task replacement = harness.StartOuterRecoveryAsync();
+                await WaitForPhaseAsync(harness.ReplacementSession.Entered, "replacement of the cancelled channel")
+                    .ConfigureAwait(false);
+                harness.ReleaseAllGates();
+                await replacement.WaitAsync(PhaseTimeout).ConfigureAwait(false);
+            }
+            await WaitForPhaseAsync(harness.OuterRecoveryCompleted, "replacement Connected event")
+                .ConfigureAwait(false);
+            Assert.That(harness.Session.InnerSession, Is.SameAs(originalSession));
+            Assert.That(harness.Lease, Is.SameAs(suppliedChannel ?? originalLease));
+            Assert.That(originalSession.ManagedChannel, Is.SameAs(harness.Lease));
+            Assert.That(originalSession.ChannelManager, Is.SameAs(harness.Channels.Manager));
+            Assert.That(harness.Channels.CreatedChannels, Has.Count.EqualTo(2));
+            Assert.That(harness.Lease.State, Is.EqualTo(ChannelState.Ready));
+            Assert.That(harness.Session.SessionId,
+                Is.EqualTo(new NodeId(supplyReplacement ? "session-1" : "session-2", 1)));
+            DataValue value = await harness.Session.ReadValueAsync(
+                VariableIds.Server_ServerStatus_State, harness.CancellationToken).ConfigureAwait(false);
+            Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(value.WrappedValue.TryGetValue(out int state), Is.True);
+            Assert.That(state, Is.EqualTo((int)ServerState.Running));
+            bool recoveryStillMarked = originalSession.ChannelRecoveryInProgress;
+
+            var nextReconnect = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            harness.Session.ConnectionStateChanged += (_, change) =>
+            {
+                if (change.PreviousState == ConnectionState.Connected &&
+                    change.NewState == ConnectionState.Reconnecting)
+                {
+                    nextReconnect.TrySetResult(true);
+                }
+            };
+            var keepAliveInterval = TimeSpan.FromMilliseconds(100);
+            Task keepAliveTimer = harness.Clock.WaitForTimerChangedAsync(keepAliveInterval, keepAliveInterval);
+            harness.KeepAliveStatus = StatusCodes.BadNoCommunication;
+            harness.Session.KeepAliveInterval = (int)keepAliveInterval.TotalMilliseconds;
+            await WaitForPhaseAsync(keepAliveTimer, "replacement keepalive timer").ConfigureAwait(false);
+            harness.Clock.Advance(keepAliveInterval);
+            Assert.That(
+                await WaitForPhaseAsync(harness.FailedKeepAlive, "failed keepalive on the usable replacement")
+                    .ConfigureAwait(false),
+                Is.EqualTo(StatusCodes.BadNoCommunication));
+            harness.KeepAliveStatus = StatusCodes.Good;
+            await Task.WhenAny(nextReconnect.Task, Task.Delay(PhaseTimeout, harness.CancellationToken))
+                .ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(recoveryStillMarked, Is.False, "The cancelled cycle must not mark the surviving session.");
+                Assert.That(nextReconnect.Task.IsCompleted, Is.True,
+                    "A real failed keepalive must start another outer recovery after the replacement is usable.");
+                Assert.That(harness.Logs.Records.Any(
+                    record => record.EventId.Name == "ManagedSessionKeepAliveFailureSuppressedWhile"), Is.False);
+            });
+            await WaitForPhaseAsync(
+                harness.Session.StateMachine.WaitForConnectedAsync(harness.CancellationToken).AsTask(),
+                "recovery after the replacement keepalive fails").ConfigureAwait(false);
+            Assert.That(harness.Session.InnerSession, Is.SameAs(originalSession));
+            Assert.That(originalSession.ChannelRecoveryInProgress, Is.False);
+        }
+
+        /// <summary>
         /// The public reconnect path retains its deadline while the outer owner restores subscriptions.
         /// </summary>
         [Test]

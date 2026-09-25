@@ -931,6 +931,9 @@ namespace Opc.Ua
         /// Reconnects the transport and its participants within the retry policy while rejecting superseded
         /// certificates.
         /// </summary>
+        /// <exception cref="OperationCanceledException">
+        /// The manager shuts down or the last lease is released during recovery.
+        /// </exception>
         private async Task<bool> ReconnectCycleAsync(ReconnectDeadline deadline)
         {
             using Activity? activity = OwnerManager.StartReconnectActivity(this);
@@ -949,20 +952,21 @@ namespace Opc.Ua
 
             async Task StopWithFaultAsync(
                 ServiceResult error,
-                int failedAttempt)
+                int failedAttempt,
+                string outcome)
             {
                 finalError = error;
                 terminal = true;
                 terminalAttempt = failedAttempt;
 
                 // Record before completing the waiters: this is a deliberate stop
-                // (the retry policy or the caller's budget said so), not a lost race
+                // (the retry policy, a budget, or recovery itself failed), not a lost race
                 // against a concurrent close, and callers inspect the flag as soon
                 // as the reconnect result completes.
                 Volatile.Write(ref m_reconnectStoppedIntentionally, 1);
 
                 await NotifyParticipantsFinalAsync().ConfigureAwait(false);
-                finalOutcome = kReconnectOutcomePolicyExhausted;
+                finalOutcome = outcome;
                 OwnerManager.RecordReconnectAttempt(this, finalOutcome);
             }
 
@@ -992,7 +996,9 @@ namespace Opc.Ua
                     {
                         await StopWithFaultAsync(
                             ServiceResult.Create(StatusCodes.BadSecureChannelClosed,
-                                "A fresh reverse connection is required for channel recovery."), attempt)
+                                "A fresh reverse connection is required for channel recovery."),
+                            attempt,
+                            kReconnectOutcomePolicyExhausted)
                             .ConfigureAwait(false);
                         return false;
                     }
@@ -1007,7 +1013,8 @@ namespace Opc.Ua
                             attempt);
                         await StopWithFaultAsync(
                                 error,
-                                attempt)
+                                attempt,
+                                kReconnectOutcomePolicyExhausted)
                             .ConfigureAwait(false);
                         return false;
                     }
@@ -1035,7 +1042,8 @@ namespace Opc.Ua
                             attempt);
                         await StopWithFaultAsync(
                                 error,
-                                attempt)
+                                attempt,
+                                kReconnectOutcomePolicyExhausted)
                             .ConfigureAwait(false);
                         return false;
                     }
@@ -1072,7 +1080,8 @@ namespace Opc.Ua
                             attempt);
                         await StopWithFaultAsync(
                                 error,
-                                attempt)
+                                attempt,
+                                kReconnectOutcomePolicyExhausted)
                             .ConfigureAwait(false);
                         return false;
                     }
@@ -1123,15 +1132,12 @@ namespace Opc.Ua
 
                     if (outcome.FatalForChannel)
                     {
-                        Volatile.Write(ref m_reconnectStoppedIntentionally, 1);
-                        finalError = ServiceResult.Create(
-                            StatusCodes.BadSecureChannelClosed,
-                            "Participant signaled fatal channel error.");
-                        terminal = true;
-                        terminalAttempt = attempt;
-                        await NotifyParticipantsFinalAsync().ConfigureAwait(false);
-                        finalOutcome = kReconnectOutcomeFatalChannel;
-                        OwnerManager.RecordReconnectAttempt(this, finalOutcome);
+                        await StopWithFaultAsync(
+                            ServiceResult.Create(
+                                StatusCodes.BadSecureChannelClosed,
+                                "Participant signaled fatal channel error."),
+                            attempt,
+                            kReconnectOutcomeFatalChannel).ConfigureAwait(false);
                         return false;
                     }
 
@@ -1190,7 +1196,7 @@ namespace Opc.Ua
                     return true;
                 }
             }
-            catch (OperationCanceledException) when (
+            catch (Exception ex) when (
                 deadline.Expired && !OwnerManager.ShutdownToken.IsCancellationRequested)
             {
                 terminal = true;
@@ -1200,6 +1206,10 @@ namespace Opc.Ua
                     StatusCodes.BadSecureChannelClosed,
                     "Channel recovery deadline expired after {0}.",
                     deadline.Elapsed);
+                if (ex is not OperationCanceledException)
+                {
+                    finalError = new ServiceResult(finalError.StatusCode, finalError.LocalizedText, ex);
+                }
                 finalOutcome = kReconnectOutcomeDeadlineExpired;
                 OwnerManager.Logger?.ChannelReconnectDeadlineExpired(deadline.Duration, deadline.Elapsed, State);
                 await NotifyParticipantsFinalAsync().ConfigureAwait(false);
@@ -1208,8 +1218,16 @@ namespace Opc.Ua
             }
             catch (Exception ex)
             {
-                finalError = new ServiceResult(ex);
-                throw;
+                if (cycleToken.IsCancellationRequested)
+                {
+                    finalError = new ServiceResult(ex);
+                    throw;
+                }
+                await StopWithFaultAsync(
+                    new ServiceResult(StatusCodes.BadSecureChannelClosed, ex),
+                    attemptsStarted,
+                    kReconnectOutcomeFatalChannel).ConfigureAwait(false);
+                return false;
             }
             finally
             {

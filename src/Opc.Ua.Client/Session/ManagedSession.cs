@@ -861,6 +861,11 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             ct.ThrowIfCancellationRequested();
+            if (channel != null && m_session?.ChannelRecoveryInProgress == true)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidState, "Session is already attempting to reconnect.");
+            }
             ConnectionStateBudgetOperation? operation = connection == null && channel == null
                 ? null
                 : (_, token) => HandleManualReconnectAsync(connection, channel, ct, token);
@@ -1543,7 +1548,16 @@ namespace Opc.Ua.Client
                         connection = await WaitForRecoveryConnectionAsync(
                             InnerSession.ConfiguredEndpoint, linked.Token).ConfigureAwait(false);
                     }
-                    await InnerSession.ReconnectAsync(connection, channel, linked.Token).ConfigureAwait(false);
+                    Session session = InnerSession;
+                    IManagedTransportChannel? previousChannel = session.ManagedChannel;
+                    try
+                    {
+                        await session.ReconnectAsync(connection, channel, linked.Token).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        RebindManagedChannelEvents(session, previousChannel);
+                    }
                 }
                 await RefreshRedundancyInfoBestEffortAsync(linked.Token).ConfigureAwait(false);
                 return ServiceResult.Good;
@@ -2168,6 +2182,10 @@ namespace Opc.Ua.Client
 
             previousChannel?.StateChanged -= OnManagedChannelStateChanged;
             currentChannel?.StateChanged += OnManagedChannelStateChanged;
+            bool reconnecting = currentChannel?.State is
+                ChannelState.TransportReconnecting or ChannelState.TransportConnectedSessionReactivating;
+            Interlocked.Exchange(ref m_channelReconnectInProgress, reconnecting ? 1 : 0);
+            Volatile.Write(ref m_channelReconnectStartedAt, reconnecting ? m_timeProvider.GetTimestamp() : 0);
         }
 
         private void WireSessionEvents(Session session)
@@ -2220,8 +2238,12 @@ namespace Opc.Ua.Client
                 // OnReconnectAsync. The outer state machine only takes
                 // over when the channel manager terminally faults the
                 // channel.
-                if (Volatile.Read(ref m_channelReconnectInProgress) > 0 ||
-                    (session is Session inner && inner.ChannelRecoveryInProgress))
+                bool recovering = session is Session inner
+                    ? inner.ChannelRecoveryInProgress ||
+                        inner.ManagedChannel?.State is
+                            ChannelState.TransportReconnecting or ChannelState.TransportConnectedSessionReactivating
+                    : Volatile.Read(ref m_channelReconnectInProgress) > 0;
+                if (recovering)
                 {
                     long since = Volatile.Read(ref m_channelReconnectStartedAt);
                     m_logger.ManagedSessionKeepAliveFailureSuppressedWhile(
@@ -2242,6 +2264,10 @@ namespace Opc.Ua.Client
             IManagedTransportChannel channel,
             ChannelStateChange change)
         {
+            if (!ReferenceEquals(m_session?.ManagedChannel, channel))
+            {
+                return;
+            }
             RaiseChannelStateChanged(change);
 
             // Track whether the manager is in the middle of a

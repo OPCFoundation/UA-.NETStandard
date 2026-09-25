@@ -579,6 +579,15 @@ Recreation retains that ownership through cancellation cleanup and the final
 Publish drain. Only the owning recovery can release its publishing pause, and
 the session admits another recovery after that cleanup finishes.
 
+An explicit `ReconnectAsync` with a supplied channel is rejected while an
+existing channel recovery still owns the session. A supplied managed channel
+becomes the session's managed binding when it is installed, including when
+activation subsequently fails. `ManagedSession`
+rebinds its channel events on both success and failure. Recovery markers belong
+to their owning channel, and completion from an older recovery cannot clear a
+new owner's marker. A retired channel's state cannot suppress keepalive recovery
+or trigger recovery of its replacement.
+
 Automatic V2 subscription updates remain paused while subscription restoration
 is pending, including a handoff after deadline expiry. Recovery cancels active
 update passes and restores subscriptions explicitly before admitting their
@@ -597,7 +606,14 @@ configured by its `ManagedSession` owner. Raw sessions and discovery clients
 impose no automatic limit, although a managed session sharing their channel can
 constrain the shared cycle.
 
-The budget callback must return promptly without starting recovery.
+The budget callback must return promptly without starting recovery. An exception
+while creating or evaluating a participant budget terminates the shared recovery
+with `BadSecureChannelClosed`, preserving the original error in diagnostics. The
+manager sends final participant notifications, releases recovery ownership, and
+publishes `Faulted`; it does not ignore the failed budget or start an unbounded
+replacement cycle. Cancellation of the recovery itself retains its cancellation
+semantics rather than being reported as a budget failure.
+
 `IChannelRecoveryParticipant` implementations, including `Session`, must finish
 their local recovery cleanup when cancelled. The manager waits for these
 callbacks to finish before allowing the outer policy to recover the session.
