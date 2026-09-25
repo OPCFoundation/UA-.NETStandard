@@ -421,18 +421,42 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(
                 Tokens.FieldName,
                 field.Name.AsStringLiteral());
-            context.Template.AddReplacement(
-                Tokens.DataType,
-                GetNodeIdConstantForDataType(field, m_context.ModelDesign.Namespaces));
-            // Never ValueRank 0 (OneOrMoreDimensions) for a StructureField
-            // (OPC 10000-3 8.51).
-            string arrayDimensions = field.GetStructureFieldArrayDimensions();
-            context.Template.AddReplacement(
-                Tokens.ValueRank,
-                field.ValueRank.GetValueRankAsCode(arrayDimensions));
-            context.Template.AddReplacement(
-                Tokens.ArrayDimensions,
-                field.ValueRank.GetArrayDimensionsAsCode(arrayDimensions) ?? "default");
+            if (IsEncodedAsVariant(field))
+            {
+                // Encode writes the field as a Variant (and the dictionary
+                // declares ua:Variant). A StructureField ValueRank is -1 or
+                // >= 1 (OPC 10000-3 8.51), so -2/-3 cannot be published:
+                // describe the field as it is written, a scalar Variant.
+                context.Template.AddReplacement(
+                    Tokens.DataType,
+                    m_context.ModelDesign.FindNode<DataTypeDesign>(
+                        new XmlQualifiedName("BaseDataType", Namespaces.OpcUa),
+                        field.Name,
+                        "DataType").GetNodeIdAsCode(
+                            m_context.ModelDesign.Namespaces,
+                            kNamespaceTableContextVariable));
+                context.Template.AddReplacement(
+                    Tokens.ValueRank,
+                    "global::Opc.Ua.ValueRanks.Scalar");
+                context.Template.AddReplacement(
+                    Tokens.ArrayDimensions,
+                    "default");
+            }
+            else
+            {
+                context.Template.AddReplacement(
+                    Tokens.DataType,
+                    GetNodeIdConstantForDataType(field, m_context.ModelDesign.Namespaces));
+                // Never ValueRank 0 (OneOrMoreDimensions) for a StructureField
+                // (OPC 10000-3 8.51).
+                string arrayDimensions = field.GetStructureFieldArrayDimensions();
+                context.Template.AddReplacement(
+                    Tokens.ValueRank,
+                    field.ValueRank.GetValueRankAsCode(arrayDimensions));
+                context.Template.AddReplacement(
+                    Tokens.ArrayDimensions,
+                    field.ValueRank.GetArrayDimensionsAsCode(arrayDimensions) ?? "default");
+            }
             if (structureType == StructureType.StructureWithOptionalFields)
             {
                 context.Template.AddReplacement(Tokens.IsOptional, field.IsOptional);
@@ -451,6 +475,22 @@ namespace Opc.Ua.SourceGeneration
                 Tokens.Description,
                 field.Description.GetLocalizedTextAsCode(true));
             return context.Template.Render();
+        }
+
+        /// <summary>
+        /// True if the generated Encode writes the field as a Variant because
+        /// its ValueRank is neither scalar, array nor an inline matrix
+        /// (ScalarOrArray, ScalarOrOneDimension, Any, or a multi-dimensional
+        /// field whose data type has no matrix form).
+        /// </summary>
+        private static bool IsEncodedAsVariant(Parameter field)
+        {
+            return field.ValueRank switch
+            {
+                ValueRank.Scalar or ValueRank.Array => false,
+                ValueRank.OneOrMoreDimensions => !field.DataTypeNode.SupportsMatrixOf(),
+                _ => true
+            };
         }
 
         private TemplateString LoadTemplate_ListOfTypes(ILoadContext context)
