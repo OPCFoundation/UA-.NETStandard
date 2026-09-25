@@ -565,6 +565,46 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <summary>
+        /// A CA trusted only inline on a trust list without a store path is
+        /// accepted without a CRL, but a CRL of that CA held by the issuer store
+        /// still revokes the leaf it lists. Before the fix such an issuer got no
+        /// revocation check at all and the revoked leaf validated.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ValidateAsyncInlineTrustedIssuerCrlInIssuerStoreRevokesLeafAsync(bool strict)
+        {
+            var crl = new X509CRL(CrlBuilder
+                .Create(m_rootCa.SubjectName)
+                .AddRevokedCertificate(m_leaf)
+                .CreateForRSA(m_rootCa));
+            string issuerDir = await WriteStoreAsync([]).ConfigureAwait(false);
+            // The directory store only accepts a CRL whose issuer it holds, so
+            // drop the root's CRL into the crl folder directly.
+            Directory.CreateDirectory(Path.Combine(issuerDir, "crl"));
+            await File.WriteAllBytesAsync(
+                Path.Combine(issuerDir, "crl", "root.crl"),
+                crl.RawData).ConfigureAwait(false);
+            CertificateValidationCore core = NewCore();
+            core.Update(
+                TrustList(issuerDir),
+                new CertificateTrustList
+                {
+                    TrustedCertificates = [new CertificateIdentifier { RawData = m_rootCa.RawData }]
+                },
+                null);
+            core.RejectUnknownRevocationStatus = strict;
+            using CertificateCollection chain = Chain(m_leaf);
+
+            CertificateValidationResult result = await core.ValidateAsync(
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(ContainsStatusCode(result, StatusCodes.BadCertificateRevoked), Is.True);
+            Assert.That(result.IsSuppressible, Is.False);
+        }
+
+        /// <summary>
         /// A store that cannot hold CRLs (InMemory) gives no answer on the
         /// revocation of a chain-supplied intermediate, so the "no valid CRL"
         /// answer of the other store stands in either order. Before the fix the

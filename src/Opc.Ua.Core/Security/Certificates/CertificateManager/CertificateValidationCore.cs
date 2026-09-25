@@ -1605,8 +1605,8 @@ namespace Opc.Ua
         /// <param name="checkRecovationStatus">Whether to check the revocation status.</param>
         /// <param name="peerSupplied">
         /// The <paramref name="explicitList"/> is the chain supplied by the peer;
-        /// the revocation status is then checked against the CRLs of the trusted
-        /// and issuer stores.
+        /// an unknown revocation status is then reported, while an issuer named
+        /// on a trust list is accepted without a CRL.
         /// </param>
         /// <param name="ct">The cancellation token.</param>
         private async Task<(CertificateIssuerReference?, ServiceResultException?)> GetIssuerNoExceptionAsync(
@@ -1719,12 +1719,20 @@ namespace Opc.Ua
                                 serviceResult = await CheckIssuerRevocationAsync(
                                     store, issuer, certificate, options, ct).ConfigureAwait(false);
                             }
-                            else if (checkRecovationStatus && peerSupplied)
+                            else if (checkRecovationStatus)
                             {
-                                // An issuer supplied only in the peer's chain still
-                                // needs its CRL checked (OPC 10000-4 6.1.3).
+                                // An issuer with no store behind its list still
+                                // needs its CRL checked (OPC 10000-4 6.1.3) against
+                                // the CRLs of the trusted and issuer stores. An
+                                // issuer named on a trust list is trusted without
+                                // a CRL, but a CRL found there still applies.
                                 serviceResult = await CheckIssuerRevocationInTrustStoresAsync(
-                                    issuer, certificate, options, ct).ConfigureAwait(false);
+                                    issuer,
+                                    certificate,
+                                    peerSupplied
+                                        ? options
+                                        : options | CertificateValidationOptions.SuppressRevocationStatusUnknown,
+                                    ct).ConfigureAwait(false);
                             }
                             return (
                                 new CertificateIssuerReference(
