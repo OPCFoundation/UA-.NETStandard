@@ -114,6 +114,68 @@ namespace Opc.Ua.Gds.Tests
         }
 
         /// <summary>
+        /// Servers that bound every Read by MaxTrustListSize reject the end-of-file
+        /// Read after the last short chunk of a list close to that size; the reader
+        /// treats that rejection as end of file.
+        /// </summary>
+        [Test]
+        public async Task TrustListReadToleratesSizeLimitRejectionOfEndOfFileReadAsync()
+        {
+            ServiceMessageContext messageContext = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
+            var expected = new TrustListDataType
+            {
+                SpecifiedLists = (uint)TrustListMasks.TrustedCertificates,
+                TrustedCertificates = [new byte[300].ToByteString()],
+                TrustedCrls = [],
+                IssuerCertificates = [],
+                IssuerCrls = []
+            };
+            byte[] payload;
+            using (var strm = new MemoryStream())
+            {
+                using (var encoder = new BinaryEncoder(strm, messageContext, true))
+                {
+                    encoder.WriteEncodeable(null, expected);
+                }
+                payload = strm.ToArray();
+            }
+
+            int position = 0;
+            var session = new Mock<ISessionClient>();
+            session.SetupGet(s => s.MessageContext).Returns(messageContext);
+            session
+                .Setup(s => s.CallAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<CallMethodRequest>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns<RequestHeader, ArrayOf<CallMethodRequest>, CancellationToken>((_, requests, _) =>
+                {
+                    if (position == payload.Length)
+                    {
+                        // position + requested length exceeds the server's MaxTrustListSize.
+                        return new ValueTask<CallResponse>(new CallResponse
+                        {
+                            ResponseHeader = new ResponseHeader(),
+                            Results = [new CallMethodResult { StatusCode = StatusCodes.BadEncodingLimitsExceeded }],
+                            DiagnosticInfos = default
+                        });
+                    }
+                    int take = Math.Min(256, payload.Length - position);
+                    byte[] chunk = new byte[take];
+                    Array.Copy(payload, position, chunk, 0, take);
+                    position += take;
+                    return new ValueTask<CallResponse>(CreateCallResponse(new Variant(chunk.ToByteString())));
+                });
+            var file = new FileTypeClient(session.Object, new NodeId(7u), messageContext.Telemetry);
+
+            TrustListDataType actual = await TrustListFileTransferHelper.ReadAsync(
+                file, 1, messageContext, 1024 * 1024, 256, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(actual.TrustedCertificates.Count, Is.EqualTo(1));
+            Assert.That(actual.TrustedCertificates[0].Length, Is.EqualTo(300));
+        }
+
+        /// <summary>
         /// A client factory that fails synchronously must not leave the failed
         /// task cached; the next acquisition has to call the factory again.
         /// </summary>
