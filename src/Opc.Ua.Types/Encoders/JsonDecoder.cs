@@ -3774,6 +3774,18 @@ namespace Opc.Ua
                         // a dimension < 0 means no values, like in binary
                         dims = MatrixOf.NormalizeInlineMatrixDimensions(dims.ToArray()!)
                             .ToArrayOf();
+
+                        // A populated matrix read for a structure field must
+                        // have the rank the field declares.
+                        MatrixOf.TryGetInlineMatrixElementCount(dims.Span, out int count, out _);
+                        if (!MatrixOf.HasInlineMatrixRank(dims.Span, count, typeInfo))
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadDecodingError,
+                                "Inline matrix dimensions [{0}] do not have the rank of the field ({1}).",
+                                string.Join(",", dims.ToArray()!),
+                                typeInfo);
+                        }
                     }
 
                     switch (typeInfo.BuiltInType)

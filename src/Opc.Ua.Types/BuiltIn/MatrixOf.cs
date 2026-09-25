@@ -825,6 +825,26 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Whether a decoded inline matrix has the rank of the structure
+        /// field it is read for. A populated matrix must have the declared
+        /// rank; an empty matrix (no encoded values) is accepted with any
+        /// rank since it is written as 0 x 0 for every declared rank. A field
+        /// without a fixed matrix rank accepts any rank.
+        /// </summary>
+        /// <param name="dimensions">The decoded dimensions.</param>
+        /// <param name="count">The number of encoded values.</param>
+        /// <param name="typeInfo">The type info of the field.</param>
+        internal static bool HasInlineMatrixRank(
+            ReadOnlySpan<int> dimensions,
+            int count,
+            TypeInfo typeInfo)
+        {
+            return count == 0 ||
+                !typeInfo.IsMatrix ||
+                dimensions.Length == typeInfo.ValueRank;
+        }
+
+        /// <summary>
         /// Normalizes the dimensions of a decoded inline matrix in place: a
         /// dimension &lt; 0 means no values are encoded (OPC 10000-6 5.2.5
         /// Table 28) exactly like a dimension of 0, and becomes 0.

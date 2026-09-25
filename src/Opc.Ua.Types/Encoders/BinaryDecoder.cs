@@ -2207,6 +2207,18 @@ namespace Opc.Ua
                     description);
             }
 
+            // A populated matrix read for a structure field must have the
+            // rank the field declares (like the XML and JSON decoders).
+            if (description is TypeInfo typeInfo &&
+                !MatrixOf.HasInlineMatrixRank(dimensions, count, typeInfo))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Inline matrix dimensions [{0}] do not have the rank of the field ({1}).",
+                    string.Join(",", dimensions),
+                    typeInfo);
+            }
+
             if (count == 0)
             {
                 return 0;

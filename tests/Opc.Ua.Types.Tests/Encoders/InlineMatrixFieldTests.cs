@@ -112,22 +112,27 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         /// <summary>
-        /// The XML decoders reject a populated inline matrix whose rank is
-        /// not the declared rank of the field; a null or empty matrix, whose
-        /// rank follows its (lost or 0 x 0) dimensions, is still accepted.
+        /// Every decoder rejects a populated inline matrix whose rank is not
+        /// the declared rank of the field (BadDecodingError); a null or empty
+        /// matrix, whose rank follows its (lost or 0 x 0) dimensions, is
+        /// still accepted.
         /// </summary>
         [Test]
         [Combinatorial]
-        public void XmlInlineMatrixWithOtherRankIsRejected(
-            [Values(Codec.XmlDecoder, Codec.XmlParser)] Codec codec,
+        public void InlineMatrixWithOtherRankIsRejected(
+            [Values] Codec codec,
             [ValueSource(nameof(s_elementTypes))] BuiltInType builtInType)
         {
             Assert.That(
                 () => RoundTrip(codec, Create(builtInType, Shape.Full), TypeInfo.Create(builtInType, 3)),
-                Throws.TypeOf<ServiceResultException>());
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo((StatusCode)StatusCodes.BadDecodingError));
             Assert.That(
                 () => RoundTrip(codec, Create(builtInType, Shape.Cube), TypeInfo.Create(builtInType, ValueRanks.TwoDimensions)),
-                Throws.TypeOf<ServiceResultException>());
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo((StatusCode)StatusCodes.BadDecodingError));
             foreach (Shape shape in new[] { Shape.Null, Shape.TypedNull, Shape.Empty, Shape.EmptyRows })
             {
                 Variant value = Create(builtInType, shape);
