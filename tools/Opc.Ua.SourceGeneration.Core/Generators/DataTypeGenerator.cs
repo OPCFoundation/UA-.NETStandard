@@ -483,7 +483,7 @@ namespace Opc.Ua.SourceGeneration
         /// (ScalarOrArray, ScalarOrOneDimension, Any, or a multi-dimensional
         /// field whose data type has no matrix form).
         /// </summary>
-        private static bool IsEncodedAsVariant(Parameter field)
+        internal static bool IsEncodedAsVariant(Parameter field)
         {
             return field.ValueRank switch
             {

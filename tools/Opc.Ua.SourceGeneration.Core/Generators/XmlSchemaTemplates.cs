@@ -355,7 +355,7 @@ namespace Opc.Ua.SourceGeneration
               <xs:complexType name="Matrix">
                 <xs:sequence>
                   <xs:element name="Dimensions" type="tns:ListOfInt32" minOccurs="0" nillable="true" />
-                  <xs:element name="Value" minOccurs="0" nillable="true">
+                  <xs:element name="Elements" minOccurs="0" nillable="true">
                     <xs:complexType mixed="false">
                       <xs:choice maxOccurs="unbounded">
                         <xs:element name="Boolean" type="xs:boolean" minOccurs="0" />

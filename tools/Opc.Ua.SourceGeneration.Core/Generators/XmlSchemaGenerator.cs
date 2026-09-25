@@ -453,6 +453,40 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
+            if (DataTypeGenerator.IsEncodedAsVariant(field))
+            {
+                // ScalarOrArray, Any, ... are written as a Variant.
+                context.Out.WriteLine(
+                    "<xs:element name=\"{0}\" type=\"ua:Variant\" minOccurs=\"0\" nillable=\"true\" />",
+                    fieldName);
+                return null;
+            }
+
+            if (field.ValueRank == ValueRank.OneOrMoreDimensions)
+            {
+                // An inline matrix (OPC 10000-6 5.3.4). XmlEncoder writes a
+                // matrix of a concrete structure as the Dimensions and
+                // Elements (ua namespace) directly inside the field element,
+                // any other matrix as the Matrix element of a Variant.
+                context.Out.WriteLine("<xs:element name=\"{0}\" minOccurs=\"0\" nillable=\"true\">", fieldName);
+                context.Out.WriteLine("  <xs:complexType>");
+                context.Out.WriteLine("    <xs:sequence>");
+                if (DataTypeGenerator.IsConcreteEncodeableMatrix(field))
+                {
+                    context.Out.WriteLine(
+                        "      <xs:any namespace=\"{0}\" minOccurs=\"0\" maxOccurs=\"2\" processContents=\"lax\" />",
+                        Namespaces.OpcUaXsd);
+                }
+                else
+                {
+                    context.Out.WriteLine("      <xs:element ref=\"ua:Matrix\" minOccurs=\"0\" />");
+                }
+                context.Out.WriteLine("    </xs:sequence>");
+                context.Out.WriteLine("  </xs:complexType>");
+                context.Out.WriteLine("</xs:element>");
+                return null;
+            }
+
             if (field.ValueRank != ValueRank.Scalar)
             {
                 string fieldDataType = field.DataTypeNode.GetXmlDataType(
