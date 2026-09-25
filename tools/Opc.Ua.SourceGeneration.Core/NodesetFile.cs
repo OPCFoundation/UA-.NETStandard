@@ -551,7 +551,22 @@ namespace Opc.Ua.SourceGeneration
         internal static string GetDefaultNameFromUri(string uri)
         {
             string name = GetNameFromUri(uri);
-            return string.IsNullOrEmpty(name) ? name : name.ToCSharpIdentifierPreserveCase();
+            return string.IsNullOrEmpty(name) ? name : ToKeywordSafeIdentifier(name);
+        }
+
+        /// <summary>
+        /// A C# identifier that needs no '@' escape. The Name and Prefix are
+        /// also used in generated member names ("Add{Prefix}"), Roslyn hint
+        /// names and as XML namespace prefix, where the '@' that escapes a
+        /// keyword ("@class") is not allowed - a keyword gets a trailing '_'
+        /// ("class_") instead. Every other identifier is returned unchanged.
+        /// </summary>
+        private static string ToKeywordSafeIdentifier(string name)
+        {
+            string identifier = name.ToCSharpIdentifierPreserveCase();
+            return identifier.StartsWith("@", StringComparison.Ordinal)
+                ? identifier.Substring(1) + "_"
+                : identifier;
         }
 
         /// <summary>
@@ -569,7 +584,7 @@ namespace Opc.Ua.SourceGeneration
             return string.Join(
                 ".",
                 name.Split(['.'], StringSplitOptions.RemoveEmptyEntries)
-                    .Select(segment => segment.ToCSharpIdentifierPreserveCase()));
+                    .Select(ToKeywordSafeIdentifier));
         }
 
         private readonly ILogger m_logger;

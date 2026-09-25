@@ -197,6 +197,10 @@ namespace Opc.Ua.Schema.Model.Tests
 
         private static readonly string[] s_counter = ["Counter"];
         private static readonly string[] s_shared = ["Shared"];
+        private static readonly string[] s_optionB = ["B"];
+        private static readonly decimal[] s_bigOptionMasks = [1m, 18446744073709551616m, 39614081257132168796771975168m];
+        private static readonly decimal[] s_flagMasks = [1m, 9223372036854775808m];
+        private static readonly string[] s_flagBitMasks = ["00000001", "8000000000000000"];
 
         /// <summary>
         /// N-2: a node whose only link to its ParentNodeId is a
@@ -351,15 +355,18 @@ namespace Opc.Ua.Schema.Model.Tests
         }
 
         /// <summary>
-        /// N-14: an OptionSet field without a Value (default -1) produced the
-        /// sign-bit mask instead of an error.
+        /// N-14 / A2-6: an OptionSet field without a Value (default -1) or
+        /// with a bit position a numeric OptionSet cannot hold produced the
+        /// sign-bit (or a wrapped) mask. It is reported and left out; the
+        /// rest of the type (and of the NodeSet) is still imported instead of
+        /// the whole import being aborted.
         /// </summary>
         [TestCase("")]
         [TestCase(" Value=\"64\"")]
         [TestCase(" Value=\"-2\"")]
-        public void ImportOptionSetFieldWithInvalidBitThrows(string value)
+        public void ImportOptionSetFieldWithInvalidBitIsSkipped(string value)
         {
-            InvalidDataException ex = Assert.Throws<InvalidDataException>(() => Import(
+            Import(
                 $"""
                 <UADataType NodeId="ns=1;i=3001" BrowseName="1:MyFlags">
                     <DisplayName>MyFlags</DisplayName>
@@ -368,16 +375,67 @@ namespace Opc.Ua.Schema.Model.Tests
                     </References>
                     <Definition Name="1:MyFlags" IsOptionSet="true">
                         <Field Name="A"{value} />
+                        <Field Name="B" Value="1" />
                     </Definition>
                 </UADataType>
                 """,
-                out _));
+                out NodeSetReaderSettings settings);
 
-            Assert.That(ex.Message, Does.Contain("MyFlags"));
+            var dataType = (DataTypeDesign)settings.NodesById[new NodeId(3001u, 1)];
+
+            Assert.That(dataType.Fields.Select(x => x.Name), Is.EqualTo(s_optionB));
+            Assert.That(dataType.Fields[0].Identifier, Is.EqualTo(2m));
         }
 
         /// <summary>
-        /// N-14: valid bit positions still map onto their masks.
+        /// A2-6: a subtype of the OptionSet structure (i=12755) keeps its bits
+        /// in a ByteString, so bit positions of 64 and above are valid. The
+        /// 0..63 check aborted the import of the whole NodeSet.
+        /// </summary>
+        [Test]
+        public void ImportStructureOptionSetAcceptsBitsBeyond63()
+        {
+            Import(
+                """
+                <UADataType NodeId="i=22" BrowseName="Structure" IsAbstract="true">
+                    <DisplayName>Structure</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
+                    </References>
+                </UADataType>
+                <UADataType NodeId="i=12755" BrowseName="OptionSet">
+                    <DisplayName>OptionSet</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+                    </References>
+                </UADataType>
+                <UADataType NodeId="ns=1;i=3002" BrowseName="1:BigOptions">
+                    <DisplayName>BigOptions</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasSubtype" IsForward="false">i=12755</Reference>
+                    </References>
+                    <Definition Name="1:BigOptions">
+                        <Field Name="B0" Value="0" />
+                        <Field Name="B64" Value="64" />
+                        <Field Name="B95" Value="95" />
+                    </Definition>
+                </UADataType>
+                """,
+                out NodeSetReaderSettings settings);
+
+            var dataType = (DataTypeDesign)settings.NodesById[new NodeId(3002u, 1)];
+
+            Assert.That(dataType.IsOptionSet, Is.True);
+            Assert.That(
+                dataType.Fields.Select(x => x.Identifier),
+                Is.EqualTo(s_bigOptionMasks));
+        }
+
+        /// <summary>
+        /// N-14 / A2-2: valid bit positions still map onto their masks. Bit 63
+        /// was computed with a signed shift and imported as a negative mask,
+        /// which the generator emitted as a negative UInt64 enum constant
+        /// (CS0031) and published as EnumField value 0.
         /// </summary>
         [Test]
         public void ImportOptionSetFieldBitMask()
@@ -401,7 +459,78 @@ namespace Opc.Ua.Schema.Model.Tests
 
             Assert.That(
                 dataType.Fields.Select(x => x.Identifier),
-                Is.EqualTo(new[] { 1L, long.MinValue }));
+                Is.EqualTo(s_flagMasks));
+            Assert.That(
+                dataType.Fields.Select(x => x.BitMask),
+                Is.EqualTo(s_flagBitMasks));
+        }
+
+        /// <summary>
+        /// ALT-4: a type whose own name ends in "_&lt;identifier&gt;" was taken
+        /// for a de-duplicated one and got the suffix a second time
+        /// ("Point_7" with i=7 became "Point_7_7").
+        /// </summary>
+        [Test]
+        public void ImportTypeNameEndingInItsIdentifierIsNotSuffixed()
+        {
+            Import(
+                """
+                <UADataType NodeId="ns=1;i=7" BrowseName="1:Point_7">
+                    <DisplayName>Point_7</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
+                    </References>
+                </UADataType>
+                <UAObjectType NodeId="ns=1;s=Kind" BrowseName="1:Motor_Kind">
+                    <DisplayName>Motor_Kind</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+                    </References>
+                </UAObjectType>
+                """,
+                out NodeSetReaderSettings settings);
+
+            Assert.Multiple(() =>
+            {
+                NodeDesign point = settings.NodesById[new NodeId(7u, 1)];
+                Assert.That(point.SymbolicId.Name, Is.EqualTo("Point_7"));
+                Assert.That(point.SymbolicName.Name, Is.EqualTo("Point_7"));
+                NodeDesign motor = settings.NodesById[new NodeId("Kind", 1)];
+                Assert.That(motor.SymbolicId.Name, Is.EqualTo("Motor_Kind"));
+                Assert.That(motor.SymbolicName.Name, Is.EqualTo("Motor_Kind"));
+            });
+        }
+
+        /// <summary>
+        /// B-7: a NodeSet2 file that is not well formed (here: whitespace
+        /// before the XML declaration) is still recognised as a NodeSet, so it
+        /// fails in isolation instead of falling into the ModelDesign pass.
+        /// </summary>
+        [TestCase(
+            "\r\n<?xml version=\"1.0\"?><UANodeSet " +
+            "xmlns=\"http://opcfoundation.org/UA/2011/03/UANodeSet.xsd\"></UANodeSet>")]
+        [TestCase(
+            "<?xml version=\"1.0\"?>\r\n<!-- <ModelDesign> -->\r\n<ua:UANodeSet><Broken></ua:UANodeSet>")]
+        public void IsNodeSetDetectsMalformedNodeSet(string content)
+        {
+            const string path = "memory://Malformed.NodeSet2.xml";
+            m_fileSystem.Add(path, Encoding.UTF8.GetBytes(content));
+
+            Assert.That(NodeSetToModelDesign.IsNodeSet(m_fileSystem, path), Is.True);
+        }
+
+        /// <summary>
+        /// B-7: a malformed document with another root is still rejected.
+        /// </summary>
+        [Test]
+        public void IsNodeSetRejectsMalformedModelDesign()
+        {
+            const string path = "memory://Malformed.xml";
+            m_fileSystem.Add(
+                path,
+                Encoding.UTF8.GetBytes(" <?xml version=\"1.0\"?><opc:ModelDesign><UANodeSet>"));
+
+            Assert.That(NodeSetToModelDesign.IsNodeSet(m_fileSystem, path), Is.False);
         }
 
         /// <summary>
@@ -415,6 +544,7 @@ namespace Opc.Ua.Schema.Model.Tests
             "ns=1;g=6f1c2b3a-0000-0000-0000-000000000003",
             "ns=1;g=6f1c2b3a-0000-0000-0000-000000000004")]
         [TestCase("ns=1;s=Line1.Status", "ns=1;s=Line2.Status", "ns=1;s=Line1.Type", "ns=1;s=Line2.Type")]
+        [TestCase("ns=1;s=Moteuré1", "ns=1;s=Moteuré2", "ns=1;s=Typä1", "ns=1;s=Typä2")]
         [TestCase(
             "ns=1;b=M/RbKBsRVkePCePcx24oRA==",
             "ns=1;b=M+RbKBsRVkePCePcx24oRA==",

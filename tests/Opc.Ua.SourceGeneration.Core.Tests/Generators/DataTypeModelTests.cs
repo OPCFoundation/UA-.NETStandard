@@ -176,6 +176,50 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 Is.EqualTo(new[] { ("Low", 0L), ("Top", 63L) }));
         }
 
+        /// <summary>
+        /// A2-6: a subtype of the OptionSet structure may use bits beyond 63;
+        /// the bit position was derived through a ulong conversion of the
+        /// mask, which overflows for those.
+        /// </summary>
+        [Test]
+        public void StructureOptionSetUsingBitsBeyond63Generates()
+        {
+            // Generation only: the test stack stub has no OptionSet class, so
+            // the output is inspected rather than compiled.
+            string model = Model.Replace(
+                "</opc:ModelDesign>",
+                """
+                  <opc:DataType SymbolicName="BigOptions" BaseType="ua:OptionSet" IsOptionSet="true">
+                    <opc:Fields>
+                      <opc:Field Name="B0" Identifier="1" />
+                      <opc:Field Name="B64" Identifier="18446744073709551616" />
+                      <opc:Field Name="B95" Identifier="39614081257132168796771975168" />
+                    </opc:Fields>
+                  </opc:DataType>
+                </opc:ModelDesign>
+                """,
+                StringComparison.Ordinal);
+            string dataTypes = Generate(model)
+                .Single(f => f.Key.EndsWith("DataTypes.g.cs", StringComparison.Ordinal))
+                .Value;
+
+            string[] values =
+            [
+                .. s_bigOptionsNames.Select(name =>
+                {
+                    int field = dataTypes.IndexOf($"Name = \"{name}\"", StringComparison.Ordinal);
+                    Assert.That(field, Is.GreaterThanOrEqualTo(0), name);
+                    int value = dataTypes.IndexOf("Value = ", field, StringComparison.Ordinal) + 8;
+                    int end = dataTypes.IndexOf(',', value);
+                    return name + "=" + dataTypes[value..end];
+                })
+            ];
+            Assert.That(values, Is.EqualTo(s_bigOptionsValues));
+        }
+
+        private static readonly string[] s_bigOptionsNames = ["B0", "B64", "B95"];
+        private static readonly string[] s_bigOptionsValues = ["B0=0", "B64=64", "B95=95"];
+
         private T CreateDefinition<T>(string typeName) where T : DataTypeDefinition
         {
             MethodInfo create = m_assembly.GetTypes()

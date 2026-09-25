@@ -376,13 +376,14 @@ namespace Opc.Ua.SourceGeneration
             {
                 // The EnumField value of an OptionSet is the bit position
                 // (OPC 10000-3 8.40). The identifier is the bit mask which,
-                // for a UInt64 based OptionSet, can use bit 63 - convert
-                // through ulong, a checked conversion to long would throw.
-                ulong mask = field.Identifier > 0 ? (ulong)field.Identifier : 0;
+                // for a UInt64 based OptionSet, can use bit 63 and, for a
+                // subtype of the OptionSet structure, bits beyond 63 - so
+                // the position is derived in decimal, not through a long.
+                decimal mask = field.Identifier > 0 ? decimal.Truncate(field.Identifier) : 0;
                 int value = 0;
-                while (mask != 0 && (mask & 1) == 0)
+                while (mask != 0 && decimal.Remainder(mask, 2) == 0)
                 {
-                    mask >>= 1;
+                    mask /= 2;
                     value++;
                 }
                 context.Template.AddReplacement(

@@ -35,6 +35,7 @@ using System.Linq;
 using System.Text;
 using System.Xml;
 using System.Xml.Serialization;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Export;
 using Opc.Ua.SourceGeneration;
 using Opc.Ua.Types;
@@ -111,6 +112,7 @@ namespace Opc.Ua.Schema.Model
             m_settings = settings ?? throw new ArgumentNullException(nameof(settings));
             m_fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
             m_telemetry = telemetry;
+            m_logger = telemetry.CreateLogger<NodeSetToModelDesign>();
             m_index = [];
             m_symbolicIds = [];
 
@@ -200,8 +202,58 @@ namespace Opc.Ua.Schema.Model
             }
             catch (XmlException)
             {
-                return false;
+                // A NodeSet that is not well formed is still a NodeSet: it
+                // has to fail as one, in isolation, rather than fall through
+                // to the ModelDesign pass and abort every model with it.
+                return HasNodeSetRootName(fileSystem, filePath);
             }
+        }
+
+        /// <summary>
+        /// Scans the raw text of a document that is not well formed for the
+        /// name of its first element (skipping the declaration, processing
+        /// instructions, comments and a DOCTYPE) and checks whether that name
+        /// is UANodeSet, with or without a namespace prefix.
+        /// </summary>
+        private static bool HasNodeSetRootName(IFileSystem fileSystem, string filePath)
+        {
+            string text;
+            using (TextReader reader = fileSystem.CreateTextReader(filePath))
+            {
+                text = reader.ReadToEnd();
+            }
+
+            int index = 0;
+            while ((index = text.IndexOf('<', index)) >= 0)
+            {
+                if (string.CompareOrdinal(text, index, "<!--", 0, 4) == 0)
+                {
+                    int end = text.IndexOf("-->", index + 4, StringComparison.Ordinal);
+                    index = end < 0 ? text.Length : end + 3;
+                    continue;
+                }
+                if (index + 1 < text.Length && text[index + 1] is '?' or '!')
+                {
+                    int end = text.IndexOf('>', index + 1);
+                    index = end < 0 ? text.Length : end + 1;
+                    continue;
+                }
+
+                int start = index + 1;
+                int stop = start;
+                while (stop < text.Length &&
+                    !char.IsWhiteSpace(text[stop]) &&
+                    text[stop] is not '>' and not '/')
+                {
+                    stop++;
+                }
+
+                string name = text[start..stop];
+                int colon = name.IndexOf(':');
+                return (colon < 0 ? name : name[(colon + 1)..]) == "UANodeSet";
+            }
+
+            return false;
         }
 
         private static T Load<T>(IFileSystem fileSystem, string path)
@@ -835,6 +887,20 @@ namespace Opc.Ua.Schema.Model
             return false;
         }
 
+        /// <summary>
+        /// The mask of an OptionSet bit. Computed in decimal (exact up to
+        /// bit 95), since a signed shift turns bit 63 into a negative mask.
+        /// </summary>
+        private static decimal GetBitMask(int bit)
+        {
+            decimal mask = 1m;
+            for (int ii = 0; ii < bit; ii++)
+            {
+                mask *= 2;
+            }
+            return mask;
+        }
+
         private void UpdateDataTypeDesign(UADataType input, DataTypeDesign output)
         {
             if (input == null || output == null)
@@ -860,7 +926,8 @@ namespace Opc.Ua.Schema.Model
 
             if (input.Definition != null)
             {
-                if (IsTypeOf(input, DataTypeIds.OptionSet))
+                bool isStructureOptionSet = IsTypeOf(input, DataTypeIds.OptionSet);
+                if (isStructureOptionSet)
                 {
                     output.IsEnumeration = true;
                     output.IsStructure = false;
@@ -923,18 +990,31 @@ namespace Opc.Ua.Schema.Model
                         if (output.IsOptionSet)
                         {
                             // The Value of an OptionSet field is its bit
-                            // position. It defaults to -1 when absent, and
-                            // a shift by -1 or >= 64 silently wraps to an
-                            // unrelated (sign) bit.
-                            if (ii.Value is < 0 or >= 64)
+                            // position. It defaults to -1 when absent. A
+                            // numeric OptionSet is at most a UInt64, while a
+                            // subtype of the OptionSet structure carries its
+                            // bits in a ByteString and may use any position
+                            // (up to the 96 bits a decimal mask can hold). A
+                            // field without a usable position is reported and
+                            // left out, so one bad field does not abort the
+                            // import of every model.
+                            int maxBits = isStructureOptionSet ? kMaxDecimalMaskBits : 64;
+                            if (ii.Value < 0 || ii.Value >= maxBits)
                             {
-                                throw new InvalidDataException(
-                                    $"OptionSet field '{input.BrowseName}/{ii.Name}' has an invalid " +
-                                    $"bit position ({ii.Value}); expected a Value between 0 and 63.");
+                                m_logger.LogError(
+                                    "OptionSet field '{DataType}/{Field}' has an invalid bit position ({Value}); " +
+                                    "expected a Value between 0 and {MaxBit}. The field is ignored.",
+                                    input.BrowseName,
+                                    ii.Name,
+                                    ii.Value,
+                                    maxBits - 1);
+                                continue;
                             }
 
-                            long mask = 1L << ii.Value;
-                            field.BitMask = $"{mask:X8}";
+                            decimal mask = GetBitMask(ii.Value);
+                            field.BitMask = mask <= ulong.MaxValue
+                                ? ((ulong)mask).ToString("X8", CultureInfo.InvariantCulture)
+                                : null;
                             field.Identifier = mask;
                             field.IdentifierSpecified = true;
                         }
@@ -1532,7 +1612,7 @@ namespace Opc.Ua.Schema.Model
                 output.SymbolicId,
                 output.SymbolicName);
 
-            if (HasCollisionSuffix(input, output.SymbolicId))
+            if (HasCollisionSuffix(input))
             {
                 output.SymbolicName = new XmlQualifiedName(
                     $"{output.SymbolicName.Name}_{GetCollisionSuffix(input.NodeId)}",
@@ -1584,17 +1664,15 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <summary>
-        /// Whether the SymbolicId of a type carries the collision suffix the
-        /// symbolic id pass appends on a clash. Such a type also gets the
-        /// suffix on its SymbolicName (and hence its class name).
+        /// Whether the symbolic id pass had to de-duplicate the SymbolicId of
+        /// a type. Such a type also gets the suffix on its SymbolicName (and
+        /// hence its class name). The clash is recorded when it happens: a
+        /// name that merely ends in "_&lt;identifier&gt;" ("Point_7" with i=7)
+        /// was not de-duplicated.
         /// </summary>
-        private static bool HasCollisionSuffix(UANode node, XmlQualifiedName symbolicId)
+        private bool HasCollisionSuffix(UANode node)
         {
-            return node is UAType &&
-                symbolicId != null &&
-                symbolicId.Name.EndsWith(
-                    "_" + GetCollisionSuffix(node.NodeId),
-                    StringComparison.Ordinal);
+            return node is UAType && m_collisionSuffixed.Contains(node.NodeId);
         }
 
         /// <summary>
@@ -1612,7 +1690,7 @@ namespace Opc.Ua.Schema.Model
 
             foreach (char ch in identifier)
             {
-                builder.Append(char.IsLetterOrDigit(ch) || ch == '_' ? ch : '_');
+                builder.Append(IsLetterOrDigit(ch) || ch == '_' ? ch : '_');
             }
 
             return builder.ToString();
@@ -1759,8 +1837,7 @@ namespace Opc.Ua.Schema.Model
         {
             string name = ImportSymbolicName(dataType).Name;
 
-            if (m_symbolicIds.TryGetValue(dataType.NodeId, out XmlQualifiedName symbolicId) &&
-                HasCollisionSuffix(dataType, symbolicId))
+            if (HasCollisionSuffix(dataType))
             {
                 name += "_" + GetCollisionSuffix(dataType.NodeId);
             }
@@ -2357,6 +2434,7 @@ namespace Opc.Ua.Schema.Model
         private void AssignSymbolicIds()
         {
             m_symbolicIds.Clear();
+            m_collisionSuffixed.Clear();
 
             foreach (UANode node in m_nodeset.Items)
             {
@@ -2424,6 +2502,7 @@ namespace Opc.Ua.Schema.Model
                 symbolicId = new XmlQualifiedName(
                     $"{symbolicId.Name}_{GetCollisionSuffix(node.NodeId)}",
                     symbolicId.Namespace);
+                m_collisionSuffixed.Add(node.NodeId);
             }
 
             m_symbolicIds[node.NodeId] = symbolicId;
@@ -3318,6 +3397,11 @@ namespace Opc.Ua.Schema.Model
         /// Placeholder for the (unknown) local server at index 0 of the server
         /// table. The converter has no running server.
         /// </summary>
+        /// <summary>
+        /// The bits a decimal OptionSet mask can represent exactly.
+        /// </summary>
+        private const int kMaxDecimalMaskBits = 96;
+
         private const string kLocalServerUri = "urn:opcfoundation.org:SourceGeneration:LocalServer";
 
         private static readonly string[] s_keywords =
@@ -3353,6 +3437,7 @@ namespace Opc.Ua.Schema.Model
 
         private readonly NodeSetReaderSettings m_settings;
         private readonly ITelemetryContext m_telemetry;
+        private readonly ILogger m_logger;
         private readonly IFileSystem m_fileSystem;
         private readonly StringTable m_serverUris = CreateServerUris();
         private readonly UANodeSet m_nodeset;
@@ -3360,6 +3445,7 @@ namespace Opc.Ua.Schema.Model
         private readonly Dictionary<NodeId, UANode> m_index;
         private readonly Dictionary<string, XmlQualifiedName> m_symbolicIds;
         private readonly HashSet<string> m_digitPreservingNames = [];
+        private readonly HashSet<string> m_collisionSuffixed = new(StringComparer.Ordinal);
         private Dictionary<NodeId, List<UAVariable>> m_variablesByParent;
         private Dictionary<NodeId, UANode> m_dataTypesByEncoding;
     }

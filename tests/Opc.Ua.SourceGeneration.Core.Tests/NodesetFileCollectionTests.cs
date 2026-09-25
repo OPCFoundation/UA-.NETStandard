@@ -129,6 +129,26 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
+        /// B-7: a NodeSet2 input that is not well formed is skipped but still
+        /// recorded as a NodeSet input, so it is not handed to the ModelDesign
+        /// pass (whose load failure aborted every model).
+        /// </summary>
+        [Test]
+        public void AllFilePathsIncludesMalformedNodeSet()
+        {
+            const string valid = "memory://valid.NodeSet2.xml";
+            const string malformed = "memory://malformed.NodeSet2.xml";
+
+            m_fileSystem.Add(valid, Encoding.UTF8.GetBytes(NodeSet("1.0.0")));
+            m_fileSystem.Add(malformed, Encoding.UTF8.GetBytes("\r\n" + NodeSet("2.0.0")));
+
+            NodesetFileCollection collection = Create((valid, null), (malformed, null));
+
+            Assert.That(collection.Files.Values, Is.EquivalentTo(new[] { valid }));
+            Assert.That(collection.AllFilePaths, Is.EquivalentTo(new[] { valid, malformed }));
+        }
+
+        /// <summary>
         /// Regression: the NodeSet's own &lt;Model Version="..."&gt; was never read -
         /// Info.Version came from the item metadata or fell straight through to
         /// the publication date. Two ordinary AdditionalFiles declaring 1.05.9
@@ -331,7 +351,9 @@ namespace Opc.Ua.SourceGeneration
         [TestCase("http://example.com/Models/v1.2/", "Modelsv1_2", "Modelsv1._2")]
         [TestCase("http://example.com/", "example_com", "example.com")]
         [TestCase("http://test.org/UA/a*b%3Fc/", "a_b_c", "a_b_c")]
-        [TestCase("http://test.org/UA/class/", "@class", "@class")]
+        [TestCase("http://test.org/UA/class/", "class_", "class_")]
+        [TestCase("http://test.org/UA/My.class/", "My_class", "My.class_")]
+        [TestCase("http://test.org/UA/Class/", "Class", "Class")]
         public void DefaultNameAndPrefixAreValidIdentifiers(
             string modelUri,
             string expectedName,
