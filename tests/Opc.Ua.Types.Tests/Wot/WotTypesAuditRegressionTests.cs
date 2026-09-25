@@ -48,6 +48,8 @@ namespace Opc.Ua.Types.Tests.Wot
     [Parallelizable]
     public class WotTypesAuditRegressionTests
     {
+        private static readonly string[] s_cyclicMembers = ["demo:B", "demo:C"];
+
         [TestCase("{\"@type\":\"uav:object\",\"title\":\"\\ud800\",\"properties\":{}}")]
         [TestCase("{\"@type\":\"uav:object\",\"title\":\"x\",\"properties\":{\"\\udc00\":1}}")]
         public void LoneSurrogateEscapeIsRejectedAsJson(string json)
@@ -199,7 +201,7 @@ namespace Opc.Ua.Types.Tests.Wot
             // than the 64 the clone used to re-parse with.
             string deep = new string('[', 70) + new string(']', 70);
             string source = Source("urn:plant", "sc", "{\"scheme\":\"nosec\"}", "p1")
-                .Replace("{\"type\":\"number\",", "{\"type\":\"array\",\"const\":" + deep + ",");
+                .Replace("{\"type\":\"number\",", "{\"type\":\"array\",\"const\":" + deep + ",", StringComparison.Ordinal);
             string projection = Projection(
                 "\"nosec_sc\":{\"scheme\":\"nosec\"}",
                 "nosec_sc",
@@ -345,7 +347,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 .OrderBy(n => n, StringComparer.Ordinal)
                 .ToArray();
 
-            Assert.That(cyclic, Is.EqualTo(new[] { "demo:B", "demo:C" }));
+            Assert.That(cyclic, Is.EqualTo(s_cyclicMembers));
 
             static string Definition(string name, string baseName)
             {
