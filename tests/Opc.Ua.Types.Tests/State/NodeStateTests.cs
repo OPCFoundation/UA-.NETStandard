@@ -2104,6 +2104,37 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
+        public void WriteDisplayNameAttributeWithThrowingOnReadUserWriteMaskIsBadUnexpectedError()
+        {
+            BaseObjectState node = CreateObjectNode();
+            node.WriteMask = AttributeWriteMask.DisplayName;
+            node.UserWriteMask = AttributeWriteMask.DisplayName;
+            node.OnReadUserWriteMask = (ISystemContext context, NodeState n, ref AttributeWriteMask mask) =>
+                throw new InvalidOperationException("handler failure");
+            var dv = new DataValue(new Variant(LocalizedText.From("NewDisplay")));
+            ServiceResult result = null;
+            Assert.DoesNotThrow(() => result = node.WriteAttribute(
+                m_context, Attributes.DisplayName, default, dv));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+            Assert.That(node.DisplayName, Is.Not.EqualTo(LocalizedText.From("NewDisplay")));
+        }
+
+        [Test]
+        public void WriteDisplayNameAttributeReturnsBadOnReadUserWriteMaskResult()
+        {
+            BaseObjectState node = CreateObjectNode();
+            node.WriteMask = AttributeWriteMask.DisplayName;
+            node.UserWriteMask = AttributeWriteMask.DisplayName;
+            node.OnReadUserWriteMask = (ISystemContext context, NodeState n, ref AttributeWriteMask mask) =>
+                StatusCodes.BadUserAccessDenied;
+            var dv = new DataValue(new Variant(LocalizedText.From("NewDisplay")));
+            ServiceResult result = node.WriteAttribute(
+                m_context, Attributes.DisplayName, default, dv);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(node.DisplayName, Is.Not.EqualTo(LocalizedText.From("NewDisplay")));
+        }
+
+        [Test]
         public void WriteDescriptionAttributeSucceeds()
         {
             BaseObjectState node = CreateObjectNode();

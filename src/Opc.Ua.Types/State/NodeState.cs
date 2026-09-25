@@ -4856,7 +4856,27 @@ namespace Opc.Ua
                 bool userWriteMaskConfigured = onReadUserWriteMask != null ||
                     userWriteMask != AttributeWriteMask.None;
 
-                onReadUserWriteMask?.Invoke(context, this, ref userWriteMask);
+                if (onReadUserWriteMask != null)
+                {
+                    // a failing handler fails only this attribute, like the read path.
+                    ServiceResult maskResult;
+
+                    try
+                    {
+                        maskResult = onReadUserWriteMask(context, this, ref userWriteMask);
+                    }
+                    catch (Exception e)
+                    {
+                        return ServiceResult.Create(e,
+                            StatusCodes.BadUnexpectedError,
+                            "Failed to read UserWriteMask.");
+                    }
+
+                    if (ServiceResult.IsBad(maskResult))
+                    {
+                        return maskResult;
+                    }
+                }
 
                 if (userWriteMaskConfigured && (userWriteMask & attributeMask) == 0)
                 {
