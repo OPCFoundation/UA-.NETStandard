@@ -4,7 +4,7 @@ This repository implements the OPC UA **WoT Connectivity** companion specificati
 
 | Project                          | Purpose                                                       |
 |----------------------------------|---------------------------------------------------------------|
-| `Opc.Ua.WotCon`                  | Source-generated information model (NodeStates, NodeIds, generated ObjectType client proxies) generated once from the combined **WoT Connectivity 1.2 draft** NodeSet2 (incorporating the OPC 10100-1 v1.02 model plus additive registry nodes in one namespace) and the **xRegistry 0.7.0 draft** base NodeSet2 (see §11) |
+| `Opc.Ua.WotCon`                  | Source-generated information model (NodeStates, NodeIds, generated ObjectType client proxies) generated once from the combined **WoT Connectivity 1.1 draft** NodeSet2 (incorporating the OPC 10100-1 v1.02 model plus additive registry nodes in one namespace) and the **xRegistry 0.7.0 draft** base NodeSet2 (see §11) |
 | `Opc.Ua.WotCon.Server`           | Server-side node manager (`WotConnectivityNodeManager` → `AsyncCustomNodeManager`) and the extensible provider model |
 | `Opc.Ua.WotCon.Client`           | Client wrappers + extension methods that compose the generated proxies without inheritance, covering both the OPC 10100-1 v1.02 asset-connection surface (`WotConnectivityClient`) and the registry surface (`WotRegistryClient`, see §11.8) |
 | `Opc.Ua.WotCon.Bindings`         | Protocol-binding abstractions, planners, codecs, credential references, HTTP/Modbus/OPC UA executors on net8+, and the generic target-mapping channel factory |
@@ -12,7 +12,8 @@ This repository implements the OPC UA **WoT Connectivity** companion specificati
 | `Opc.Ua.WotCon.Tests`            | NUnit tests covering the TD parser, mappers, simulated provider, discovery facade |
 
 The model namespace URI is `http://opcfoundation.org/UA/WoT-Con/`.
-The combined input is draft version `1.2`, dated 2026-09-12; the incorporated
+The combined input targets release `1.1`, dated 2026-09-21, and corresponds to
+specification document `1.1-draft8`; the incorporated
 published `1.02.0` ModelDesign remains unchanged.
 
 For current protocol-runtime architecture and the contributor guide for adding a protocol see [WoT protocol bindings](WotBindings.md), and the runnable end-to-end topology is documented in the [WoT aggregation sample](../samples/WotCon/README.md).
@@ -583,12 +584,12 @@ may be exposed over `MessageSecurityMode.None` by deployment policy.
 
 ## 11. WoT Connectivity registry and materialization (preview)
 
-The `Opc.Ua.WotCon` assembly is source-generated once from the combined **WoT Connectivity 1.2 draft** NodeSet2, which incorporates the published OPC 10100-1 v1.02 model (NodeIds `1..172`, superseded in capability but **not** deprecated) plus the additive registry nodes (`64000+`) in one namespace, and from the abstract **xRegistry 0.7.0 draft** base model the registry types build on:
+The `Opc.Ua.WotCon` assembly is source-generated once from the combined **WoT Connectivity 1.1 draft** NodeSet2, which incorporates the published OPC 10100-1 v1.02 model (NodeIds `1..172`, superseded in capability but **not** deprecated) plus the additive registry nodes (`64000+`) in one namespace, and from the abstract **xRegistry 0.7.0 draft** base model the registry types build on:
 
 | Model | Namespace | Emitted C# namespace |
 |-------|-----------|----------------------|
 | xRegistry 0.7.0 draft (abstract registry base) | `http://opcfoundation.org/UA/xRegistry/` | `Opc.Ua.XRegistry` |
-| WoT Connectivity 1.2 draft (combined) | `http://opcfoundation.org/UA/WoT-Con/` | `Opc.Ua.WotCon` |
+| WoT Connectivity 1.1 draft (combined) | `http://opcfoundation.org/UA/WoT-Con/` | `Opc.Ua.WotCon` |
 
 The NodeSet2 models are *pinned* from the OPC UA drafts authoring repository and added as `AdditionalFiles`. xRegistry has one authoritative copy in `src/Opc.Ua.XRegistry`; Connectivity's NodeSet and NodeId CSV are in `src/Opc.Ua.WotCon/Design`. The legacy 1.02 `WotConnection.xml` / `WotConnection.csv` sources are retained under `Design/` for reference only — they are incorporated into the combined NodeSet and are **not** source-generated a second time, so the preserved 1.02 constants and the additive registry constants coexist in one `Opc.Ua.WotCon` namespace under their exact NodeIds. The tooling that refreshes the pinned copies from the draft repository lives in that authoring repository, not here.
 
@@ -1205,7 +1206,7 @@ declarations, not a claim that every declared capability is implemented.
 
 | Model | Draft version | PublicationDate metadata |
 |---|---|---|
-| WoT Connectivity | `1.2` | 2026-09-12 |
+| WoT Connectivity | `1.1` (`1.1-draft8` document) | 2026-09-21 |
 | xRegistry (`RequiredModel`) | `0.7.0` | 2026-09-12 |
 
 xRegistry contributes 131 nodes and Connectivity 349. Both retain the Core

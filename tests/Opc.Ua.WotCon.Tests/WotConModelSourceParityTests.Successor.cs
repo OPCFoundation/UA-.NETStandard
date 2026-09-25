@@ -30,6 +30,7 @@
 using System;
 using System.Globalization;
 using System.Linq;
+using System.Reflection;
 using System.Xml.Linq;
 using NUnit.Framework;
 using Opc.Ua.WotCon.Server.Registry;
@@ -40,7 +41,7 @@ namespace Opc.Ua.WotCon.Tests
     public sealed partial class WotConModelSourceParityTests
     {
         [TestCase(RegistryNodeSet, "f27ee860a6cb7847a808541997afb3f0f79ca259a6c7986fd359c659c9879629")]
-        [TestCase(ConnectivityNodeSet, "6d68ce861f2e98e2e4e968e23cadca5f8b3f596beeda65559c11cd4a3b2f1fa5")]
+        [TestCase(ConnectivityNodeSet, "5013519a6cb0b047459f23aaf95fbf4ca3ac2d2d8e9351ba50c853b94b5ed2cc")]
         [TestCase(ConnectivityCsv, "66603011dbb48b0be6b160ed423a98a6eeb5aa57ed690a9f6529a34f52cbd2b1")]
         public void TheSuccessorInputsMatchTheReviewedGeneratedArtifacts(string fileName, string digest)
         {
@@ -48,6 +49,19 @@ namespace Opc.Ua.WotCon.Tests
                 .Replace("\r\n", "\n", StringComparison.Ordinal);
             ByteString hash = WotContentDigest.Compute(System.Text.Encoding.UTF8.GetBytes(text));
             Assert.That(WotContentDigest.ToHex(hash), Is.EqualTo(digest));
+        }
+
+        [Test]
+        public void GeneratedConnectivityMetadataUsesTheAcceptedReleaseAndPublicationDate()
+        {
+            ModelDependencyAttribute model = typeof(WoTRegistryState).Assembly
+                .GetCustomAttributes<ModelDependencyAttribute>()
+                .Single(attribute => attribute.ModelUri == ConnectivityNamespace);
+
+            Assert.That(model.Version, Is.EqualTo("1.1"));
+            Assert.That(DateTimeOffset.Parse(
+                model.PublicationDate!, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal),
+                Is.EqualTo(new DateTimeOffset(2026, 9, 21, 0, 0, 0, TimeSpan.Zero)));
         }
 
         [TestCase(RegistryNodeSet, RegistryNamespace)]

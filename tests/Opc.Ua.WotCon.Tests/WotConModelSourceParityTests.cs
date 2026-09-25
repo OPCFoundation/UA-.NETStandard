@@ -70,17 +70,17 @@ namespace Opc.Ua.WotCon.Tests
             {
                 Assert.That(
                     model.Attribute("Version")?.Value,
-                    Is.EqualTo("1.2"));
+                    Is.EqualTo("1.1"));
                 Assert.That(
                     model.Attribute("PublicationDate")?.Value,
-                    Is.EqualTo("2026-09-12T00:00:00Z"));
+                    Is.EqualTo("2026-09-21T00:00:00Z"));
             });
         }
 
-        [TestCase("ns=2;i=39", "ModelVersion", "i=24263", "1.2.0")]
+        [TestCase("ns=2;i=39", "ModelVersion", "i=24263", "1.1.0")]
         [TestCase("ns=2;i=68", "NamespaceUri", "String", ConnectivityNamespace)]
-        [TestCase("ns=2;i=69", "NamespaceVersion", "String", "1.2")]
-        [TestCase("ns=2;i=70", "NamespacePublicationDate", "DateTime", "2026-09-12T00:00:00Z")]
+        [TestCase("ns=2;i=69", "NamespaceVersion", "String", "1.1")]
+        [TestCase("ns=2;i=70", "NamespacePublicationDate", "DateTime", "2026-09-21T00:00:00Z")]
         public void TheConnectivityNamespaceMetadataMatchesItsPropertyContract(
             string nodeId,
             string browseName,
@@ -314,8 +314,21 @@ namespace Opc.Ua.WotCon.Tests
 
         private static string FindModel(string fileName)
         {
-            string? directory = Path.GetDirectoryName(
-                typeof(WotConModelSourceParityTests).Assembly.Location);
+            string? configured = Environment.GetEnvironmentVariable("OPCUA_TEST_REPOSITORY_ROOT");
+            string? directory;
+            if (!string.IsNullOrEmpty(configured))
+            {
+                directory = Path.GetFullPath(configured);
+                if (!File.Exists(Path.Combine(directory, "UA.slnx")))
+                {
+                    throw new DirectoryNotFoundException(
+                        "OPCUA_TEST_REPOSITORY_ROOT does not identify a repository containing UA.slnx.");
+                }
+            }
+            else
+            {
+                directory = Path.GetDirectoryName(typeof(WotConModelSourceParityTests).Assembly.Location);
+            }
             while (!string.IsNullOrEmpty(directory))
             {
                 if (File.Exists(Path.Combine(directory, "UA.slnx")))

@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- OPC UA WoT Connectivity 1.2 working draft combined namespace (incorporated 1.02 legacy + additive registry). PROVISIONAL registry NodeIds (final IDs assigned by the OPC Foundation); 1.02 NodeIds 1..172 preserved. -->
+<!-- OPC UA WoT Connectivity 1.1 working draft combined namespace (incorporated 1.02 legacy + additive registry). PROVISIONAL registry NodeIds (final IDs assigned by the OPC Foundation); 1.02 NodeIds 1..172 preserved. -->
 <UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <NamespaceUris>
     <Uri>http://opcfoundation.org/UA/xRegistry/</Uri>
     <Uri>http://opcfoundation.org/UA/WoT-Con/</Uri>
   </NamespaceUris>
   <Models>
-    <Model ModelUri="http://opcfoundation.org/UA/WoT-Con/" Version="1.2" PublicationDate="2026-09-12T00:00:00Z">
+    <Model ModelUri="http://opcfoundation.org/UA/WoT-Con/" Version="1.1" PublicationDate="2026-09-21T00:00:00Z">
       <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.05.04" PublicationDate="2025-01-08T00:00:00Z" />
       <RequiredModel ModelUri="http://opcfoundation.org/UA/xRegistry/" Version="0.7.0" PublicationDate="2026-09-12T00:00:00Z" />
     </Model>
@@ -282,7 +282,7 @@
       <Reference ReferenceType="HasEncoding">ns=2;i=64514</Reference>
       <Reference ReferenceType="HasEncoding">ns=2;i=64515</Reference>
     </References>
-    <Definition Name="2:WoTResourceSelectorDataType"><Field Name="Kind" DataType="ns=2;i=64020"><Description>Required Int32 enumeration: ThingDescription=0, ThingModel=1, All=2. Zero is ThingDescription, never an omitted field. All requires compatible model revision 1.2 or later and discovered selector support.</Description></Field><Field Name="GroupId" DataType="i=12"><Description>Restrict to a group by groupid; empty selects all groups.</Description></Field><Field Name="ResourceId" DataType="i=12"><Description>Restrict to a resource by resourceid; empty selects all resources.</Description></Field><Field Name="VersionId" DataType="i=12"><Description>Restrict to a version by versionid; empty selects the resource's default version.</Description></Field><Field Name="Xid" DataType="i=12"><Description>Select a single entity by its xRegistry xid within the Kind scope; overrides the other identity fields when set.</Description></Field></Definition>
+    <Definition Name="2:WoTResourceSelectorDataType"><Field Name="Kind" DataType="ns=2;i=64020"><Description>Required Int32 enumeration: ThingDescription=0, ThingModel=1, All=2. Zero is ThingDescription, never an omitted field. All requires compatible model revision 1.1 or later and discovered selector support.</Description></Field><Field Name="GroupId" DataType="i=12"><Description>Restrict to a group by groupid; empty selects all groups.</Description></Field><Field Name="ResourceId" DataType="i=12"><Description>Restrict to a resource by resourceid; empty selects all resources.</Description></Field><Field Name="VersionId" DataType="i=12"><Description>Restrict to a version by versionid; empty selects the resource's default version.</Description></Field><Field Name="Xid" DataType="i=12"><Description>Select a single entity by its xRegistry xid within the Kind scope; overrides the other identity fields when set.</Description></Field></Definition>
   </UADataType>
   <UAObject NodeId="ns=2;i=64514" BrowseName="Default Binary" ParentNodeId="ns=2;i=64043">
     <DisplayName>Default Binary</DisplayName>
@@ -375,7 +375,7 @@
   </UAObject>
   <UAObjectType NodeId="ns=2;i=64000" BrowseName="2:WoTRegistryType">
     <DisplayName>WoTRegistryType</DisplayName>
-    <Description>The WoT Connectivity 1.2 registry root - an xRegistry RegistryType (a FolderType) that holds ThingDescriptionGroupType and ThingModelGroupType groups. The stored Thing Description / Thing Model files and their versions are canonical; the projected AddressSpace (types from Thing Models, instances from Thing Descriptions) is derived code-behind. Exposed as a well-known WoTRegistry object under the Server object (i=2253). Adds registry-wide refresh, generation and validation-policy state and the Refresh Method.</Description>
+    <Description>The WoT Connectivity 1.1 registry root - an xRegistry RegistryType (a FolderType) that holds ThingDescriptionGroupType and ThingModelGroupType groups. The stored Thing Description / Thing Model files and their versions are canonical; the projected AddressSpace (types from Thing Models, instances from Thing Descriptions) is derived code-behind. Exposed as a well-known WoTRegistry object under the Server object (i=2253). Adds registry-wide refresh, generation and validation-policy state and the Refresh Method.</Description>
     <Category>WOTC-RegistryDiscovery</Category>
     <Category>WOTC-Refresh</Category>
     <References>
@@ -1306,7 +1306,7 @@
   </UAVariable>
   <UAObject NodeId="ns=2;i=64100" BrowseName="2:WoTRegistry" ParentNodeId="i=2253" EventNotifier="1">
     <DisplayName>WoTRegistry</DisplayName>
-    <Description>The server-wide WoT Connectivity 1.2 registry, a well-known component of the Server object. Its stored Thing Description / Thing Model files are canonical; the projected AddressSpace is derived. It is the notifier for the WoT resource lifecycle events raised by its groups and resources.</Description>
+    <Description>The server-wide WoT Connectivity 1.1 registry, a well-known component of the Server object. Its stored Thing Description / Thing Model files are canonical; the projected AddressSpace is derived. It is the notifier for the WoT resource lifecycle events raised by its groups and resources.</Description>
     <Category>WOTC-RegistryDiscovery</Category>
     <References>
       <Reference ReferenceType="HasTypeDefinition">ns=2;i=64000</Reference>
@@ -1762,7 +1762,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=67</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
-    <Value><uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">1.2.0</uax:String></Value>
+    <Value><uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">1.1.0</uax:String></Value>
   </UAVariable>
   <UAVariable NodeId="ns=2;i=40" BrowseName="2:SupportedWoTBindings" ParentNodeId="ns=2;i=1" DataType="UriString" ValueRank="1" ArrayDimensions="0">
     <DisplayName>SupportedWoTBindings</DisplayName>
@@ -2073,7 +2073,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=67</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
-    <Value><uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">1.2</uax:String></Value>
+    <Value><uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">1.1</uax:String></Value>
   </UAVariable>
   <UAVariable NodeId="ns=2;i=70" BrowseName="NamespacePublicationDate" ParentNodeId="ns=2;i=67" DataType="DateTime" ValueRank="-1">
     <DisplayName>NamespacePublicationDate</DisplayName>
@@ -2082,7 +2082,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=67</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
-    <Value><uax:DateTime xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">2026-09-12T00:00:00Z</uax:DateTime></Value>
+    <Value><uax:DateTime xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">2026-09-21T00:00:00Z</uax:DateTime></Value>
   </UAVariable>
   <UAVariable NodeId="ns=2;i=71" BrowseName="IsNamespaceSubset" ParentNodeId="ns=2;i=67" DataType="Boolean" ValueRank="-1">
     <DisplayName>IsNamespaceSubset</DisplayName>
