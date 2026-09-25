@@ -295,6 +295,7 @@ namespace Opc.Ua.Bindings
                     "Fatal error during connect."));
                 if (exception is SocketException or IOException)
                 {
+                    ct.ThrowIfCancellationRequested();
                     throw new ServiceResultException(
                         StatusCodes.BadNotConnected,
                         "Could not connect to the remote endpoint.",

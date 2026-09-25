@@ -403,6 +403,37 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(transport.IsClosed, Is.True);
         }
 
+        [TestCase(SocketError.Interrupted)]
+        [TestCase(SocketError.OperationAborted)]
+        [TestCase(SocketError.InvalidArgument)]
+        public async Task ConnectAsyncPreservesCancellationDuringTransportConnectAsync(SocketError socketError)
+        {
+            using var cancellation = new CancellationTokenSource();
+            var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var transport = new RecordingByteTransport { ConnectTask = completion.Task };
+            using var channel = new TestClientChannel(
+                m_buffers, new RecordingByteTransportFactory(transport), m_quotas, null,
+                BuildEndpoint(MessageSecurityMode.None, SecurityPolicies.None), m_telemetry,
+                new FakeTimeProvider());
+
+            Task connecting = channel.ConnectAsync(new Uri("opc.tcp://localhost:4840"),
+                60000, cancellation.Token).AsTask();
+            Assert.That(connecting.IsCompleted, Is.False);
+            cancellation.Cancel();
+            completion.SetException(new SocketException((int)socketError));
+
+            await Assert.ThatAsync(async () => await connecting.ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>()
+                    .With.Property(nameof(OperationCanceledException.CancellationToken))
+                    .EqualTo(cancellation.Token)).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+                Assert.That(transport.IsClosed, Is.True);
+            });
+        }
+
         [TestCase(200000u, 8192u, TestName = "SendBufferSizeTooLarge")]
         [TestCase(8192u, 200000u, TestName = "ReceiveBufferSizeTooLarge")]
         [TestCase(8192u, 1024u, TestName = "ReceiveBufferSizeTooSmall")]
@@ -1172,6 +1203,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             public Exception? ConnectException { get; set; }
 
+            public Task? ConnectTask { get; set; }
+
             public bool IsClosed => m_closed.Task.IsCompleted;
 
             public byte[] LastSent
@@ -1188,6 +1221,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             public ValueTask ConnectAsync(Uri url, CancellationToken ct)
             {
                 ct.ThrowIfCancellationRequested();
+                if (ConnectTask != null)
+                {
+                    return new ValueTask(ConnectTask);
+                }
                 return ConnectException == null ? default : new ValueTask(Task.FromException(ConnectException));
             }
 
