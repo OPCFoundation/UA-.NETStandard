@@ -156,7 +156,9 @@ agree:
 aggregate calculation *"unless the Aggregate definition says otherwise"*, and its note (*"still treated as
 Uncertain when the StatusCode for the result is calculated"*) contradicts §5.4.3.2.1. Whether TreatUncertainAsBad
 applies to the raw values that form a bound (server), to the resulting bound (oracle) or not at all is open. A
-spec clarification request is filed as [11462](https://mantis.opcfoundation.org/view.php?id=11462); neither side changes before the answer.
+spec clarification request is filed as [11462](https://mantis.opcfoundation.org/view.php?id=11462); neither side changes
+before the answer.
+
 ## CTT project configuration notes
 
 Tests skipped because of reference server sample-data gaps or missing CTT project settings are
