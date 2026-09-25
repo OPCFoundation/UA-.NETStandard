@@ -485,6 +485,9 @@ namespace Opc.Ua.Schema.Tests
         [CancelAfter(30000)]
         public async Task SuperTypeWalksTerminateOnCyclicHierarchy()
         {
+            // [CancelAfter] only cancels the test's token: the walks observe
+            // it, so a regression that spins fails the test instead of hanging.
+            CancellationToken ct = TestContext.CurrentContext.CancellationToken;
             var resolver = new TestComplexTypeResolver();
             var first = new NodeId(7811, SchemaTestData.TestNamespaceIndex);
             var second = new NodeId(7812, SchemaTestData.TestNamespaceIndex);
@@ -507,7 +510,7 @@ namespace Opc.Ua.Schema.Tests
                 system,
                 "IsOptionSetSubtypeAsync",
                 new ExpandedNodeId(first),
-                CancellationToken.None);
+                ct);
 
             Assert.That(isOptionSet, Is.False);
             Assert.That(
@@ -517,7 +520,7 @@ namespace Opc.Ua.Schema.Tests
                     firstNode,
                     new List<INode>(),
                     new List<INode>(),
-                    CancellationToken.None),
+                    ct),
                 Throws.InstanceOf<ServiceResultException>());
         }
 
