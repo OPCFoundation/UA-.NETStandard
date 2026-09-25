@@ -1315,6 +1315,72 @@ namespace Opc.Ua.Client.Subscriptions
             Assert.That(subscription.Disposed, Is.True);
         }
 
+        /// <summary>
+        /// A reset that gives up waiting for a running callback (its token
+        /// is cancelled) must withdraw its release request. Otherwise every
+        /// later SetTriggeringAsync from a callback is abandoned at once,
+        /// although no reset waits for the dispatch gate any more.
+        /// </summary>
+        [Test]
+        [CancelAfter(15_000)]
+        public async Task CancelledResetDoesNotAbandonLaterSetTriggeringFromCallbackAsync(
+            CancellationToken testCt)
+        {
+            m_completion.OnRunWithSessionAvailableAsync = (_, ct) =>
+                new ValueTask(Task.Delay(Timeout.Infinite, ct));
+            await using var subscription = new TestSubscription(
+                m_session, m_mockNotificationDataHandler.Object, m_completion, m_options, m_telemetry,
+                subscriptionIdForAlreadyCreatedState: 22);
+            Assert.That(subscription.MonitoredItems.TryAdd(
+                "Trigger", OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>(),
+                out IMonitoredItem trigger), Is.True);
+            Assert.That(subscription.MonitoredItems.TryAdd(
+                "Triggered", OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>(),
+                out IMonitoredItem triggered), Is.True);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var hold = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var calling = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var result = new TaskCompletionSource<SetTriggeringResult>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            using var setTriggeringCts = new CancellationTokenSource();
+            subscription.OnDataChangeAsync = async _ =>
+            {
+                entered.TrySetResult(true);
+                await hold.Task.ConfigureAwait(false);
+                calling.TrySetResult(true);
+                try
+                {
+                    result.TrySetResult(await subscription.SetTriggeringAsync(
+                        trigger, [triggered], ct: setTriggeringCts.Token).ConfigureAwait(false));
+                }
+                catch (Exception ex)
+                {
+                    result.TrySetException(ex);
+                }
+            };
+
+            await subscription.OnPublishReceivedAsync(BuildDataMessage(1), null, []).ConfigureAwait(false);
+            await entered.Task.WaitAsync(testCt).ConfigureAwait(false);
+
+            // The reset contends for the gate the callback holds, then gives up.
+            using (var resetCts = new CancellationTokenSource())
+            {
+                resetCts.CancelAfter(200);
+                Assert.That(async () => await subscription.ResetToRecreateAsync(resetCts.Token)
+                    .ConfigureAwait(false), Throws.InstanceOf<OperationCanceledException>());
+            }
+
+            hold.TrySetResult(true);
+            await calling.Task.WaitAsync(testCt).ConfigureAwait(false);
+            await Task.Delay(200, testCt).ConfigureAwait(false);
+            Assert.That(result.Task.IsCompleted, Is.False,
+                "No reset waits for the gate, so the operation must stay pending.");
+
+            setTriggeringCts.Cancel();
+            Assert.That(() => result.Task.WaitAsync(testCt),
+                Throws.InstanceOf<OperationCanceledException>());
+        }
+
         [Test]
         public async Task DisposalDrainsCallbackPastCleanupBudgetAndDisposesOwnedItemsAsync()
         {

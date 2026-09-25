@@ -399,6 +399,21 @@ namespace Opc.Ua.Client.Subscriptions
         {
             // No callback runs while the gate is held, so a fresh signal can
             // be installed without a callback observing the old one late.
+            RearmDispatchReleaseRequest();
+        }
+
+        /// <inheritdoc/>
+        protected override void OnDispatchGateWaitAbandoned()
+        {
+            // The reset no longer waits for the running callback. Callbacks
+            // that already observed the signal were released for a reset
+            // that was requested; later ones must see a fresh signal, or
+            // every SetTriggeringAsync from a callback would be abandoned.
+            RearmDispatchReleaseRequest();
+        }
+
+        private void RearmDispatchReleaseRequest()
+        {
             if (Volatile.Read(ref m_dispatchReleaseRequested).Task.IsCompleted)
             {
                 Volatile.Write(ref m_dispatchReleaseRequested,
