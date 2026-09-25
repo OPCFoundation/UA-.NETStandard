@@ -67,6 +67,29 @@ namespace Opc.Ua.SourceGeneration
         public string SymbolName { get; set; }
 
         /// <summary>
+        /// The nesting-qualified name the default DataTypeId, XML name and
+        /// browse name are derived from, or <c>null</c> to use
+        /// <see cref="ClassName"/>. Set for a nested type so two nested types
+        /// of the same name in one namespace URI get distinct identities
+        /// (for example <c>Models.Foo</c>).
+        /// </summary>
+        public string QualifiedName { get; set; }
+
+        /// <summary>
+        /// The fully qualified name of the encodeable base type, or
+        /// <c>null</c>. Used to follow a rename of the base type's activator
+        /// (see <see cref="SymbolName"/>).
+        /// </summary>
+        public string BaseTypeReference { get; set; }
+
+        /// <summary>
+        /// The size in bits of the underlying type of an enum (8, 16, 32
+        /// or 64), which the bits of a negative [Flags] member value are
+        /// taken from.
+        /// </summary>
+        public int EnumUnderlyingBits { get; set; } = 32;
+
+        /// <summary>
         /// The accessibility modifier of the generated partial declaration,
         /// or <c>null</c> to derive it from <see cref="IsInternal"/>. Set for
         /// a nested type, whose accessibility can be
@@ -317,9 +340,13 @@ namespace Opc.Ua.SourceGeneration
         public string DefaultValueLiteral { get; set; }
 
         /// <summary>
-        /// True if the property has an initializer whose value cannot be
-        /// compared against in generated code. The field is then always
-        /// encoded, since omitting it would decode to the initializer.
+        /// True if the value a missing field decodes to is not known to be
+        /// <see cref="DefaultValueLiteral"/> or the CLR default: the property
+        /// has an initializer that cannot be compared against in generated
+        /// code, the parameterless constructor assigns it (or may, by chaining
+        /// or calling an instance method), or its accessors do not simply
+        /// return a backing field. The field is then always encoded, since
+        /// omitting it would decode to that unknown value.
         /// </summary>
         public bool HasNonConstantInitializer { get; set; }
 

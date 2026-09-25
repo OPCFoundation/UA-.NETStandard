@@ -176,13 +176,18 @@ namespace Opc.Ua.SourceGeneration
                     return;
                 }
 
-                bool hasCtor = symbol.Constructors
-                    .Any(c => c.Parameters.Length == 0);
+                // The namespace-level activator calls the parameterless
+                // constructor, so it must be reachable from there.
+                bool hasCtor = symbol.InstanceConstructors
+                    .Any(c => c.Parameters.Length == 0 &&
+                        c.DeclaredAccessibility is Accessibility.Public or
+                            Accessibility.Internal or
+                            Accessibility.ProtectedOrInternal);
                 if (!hasCtor)
                 {
                     HasErrors = true;
                     ErrorMessage =
-                        "[DataType] class must have a parameterless ctor.";
+                        "[DataType] class must have a public or internal parameterless ctor.";
                     return;
                 }
 
@@ -246,8 +251,28 @@ namespace Opc.Ua.SourceGeneration
                 return "[DataType] is not supported on a generic type or a type nested in a " +
                     "generic type";
             }
+            // The generated code is emitted into the type's namespace, which
+            // the global namespace cannot be written as.
+            if (symbol.ContainingNamespace?.IsGlobalNamespace != false)
+            {
+                return "[DataType] is not supported on a type in the global namespace; " +
+                    "declare the type in a namespace";
+            }
+            // An abstract class cannot be created by the generated activator.
+            if (symbol.TypeKind == TypeKind.Class && symbol.IsAbstract && !symbol.IsStatic)
+            {
+                return "[DataType] is not supported on an abstract class, which the " +
+                    "generated activator cannot create";
+            }
             for (INamedTypeSymbol type = symbol; type != null; type = type.ContainingType)
             {
+                // A file-local type is not visible outside its file, so the
+                // generated partial declaration would declare a different type.
+                if (type.IsFileLocal)
+                {
+                    return "'" + type.ToDisplayString() + "' is file-local, which generated " +
+                        "code in another file cannot complete or reach";
+                }
                 if (type.DeclaredAccessibility is Accessibility.Private or
                     Accessibility.Protected or
                     Accessibility.ProtectedAndInternal)
@@ -312,6 +337,9 @@ namespace Opc.Ua.SourceGeneration
                 ContainingTypeDeclarations = new EquatableArray<string>([.. declarations]),
                 TypeReference = symbol.GetFullyQualifiedTypeName(),
                 SymbolName = string.Join("_", names),
+                // Two nested types of the same name in one namespace URI
+                // must not share the default DataTypeId and XML name.
+                QualifiedName = string.Join(".", names),
                 AccessModifier = symbol.DeclaredAccessibility switch
                 {
                     Accessibility.Internal => "internal",
@@ -441,10 +469,12 @@ namespace Opc.Ua.SourceGeneration
             // claim the same hint name and the second AddSource would throw.
             var hintNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+            List<DataTypeCompilation> valid = [.. compilations
+                .Where(c => !c.HasErrors && c.Model != null)];
+            Dictionary<string, (string Namespace, string SymbolName)> renamed =
+                GetUniqueSymbolNames(valid);
             IEnumerable<IGrouping<string, DataTypeCompilation>> validByNamespace =
-                compilations
-                    .Where(c => !c.HasErrors && c.Model != null)
-                    .GroupBy(c => c.Model.Namespace);
+                valid.GroupBy(c => c.Model.Namespace);
             foreach (IGrouping<string, DataTypeCompilation> group in validByNamespace)
             {
                 List<DataTypeCompilation> entries = [.. group];
@@ -455,10 +485,12 @@ namespace Opc.Ua.SourceGeneration
 
                 foreach (DataTypeCompilation comp in entries)
                 {
-                    TypeSourceModel model = comp.Model with
-                    {
-                        PublicExtensions = publicExtensions
-                    };
+                    TypeSourceModel model = WithUniqueSymbolNames(
+                        comp.Model with
+                        {
+                            PublicExtensions = publicExtensions
+                        },
+                        renamed);
                     if (model.IsEnum)
                     {
                         allActivators.Add(model);
@@ -492,6 +524,75 @@ namespace Opc.Ua.SourceGeneration
                 }
                 sourceContext.AddSource(hintName, source);
             }
+        }
+
+        /// <summary>
+        /// Makes the activator names unique within each namespace. A nested
+        /// type is named after its nesting chain joined with '_', which can
+        /// equal the name of a top-level type (<c>Models.Foo</c> and
+        /// <c>Models_Foo</c>) or of another nested type (<c>A.B_C</c> and
+        /// <c>A_B.C</c>). Top-level types keep their names; a colliding nested
+        /// type gets a numeric suffix, assigned in the order of the fully
+        /// qualified type names so it does not depend on the input order.
+        /// </summary>
+        /// <returns>The new symbol names by fully qualified type name.</returns>
+        private static Dictionary<string, (string Namespace, string SymbolName)> GetUniqueSymbolNames(
+            List<DataTypeCompilation> compilations)
+        {
+            var renamed = new Dictionary<string, (string, string)>(StringComparer.Ordinal);
+            foreach (IGrouping<string, TypeSourceModel> group in compilations
+                .Select(c => c.Model)
+                .GroupBy(m => m.Namespace, StringComparer.Ordinal))
+            {
+                var taken = new HashSet<string>(
+                    group.Where(m => m.SymbolName == null).Select(m => m.ClassName),
+                    StringComparer.Ordinal);
+                foreach (TypeSourceModel nested in group
+                    .Where(m => m.SymbolName != null)
+                    .OrderBy(m => m.TypeReference, StringComparer.Ordinal))
+                {
+                    string name = nested.SymbolName;
+                    for (int ii = 2; !taken.Add(name); ii++)
+                    {
+                        name = nested.SymbolName + "_" + ii.ToString(CultureInfo.InvariantCulture);
+                    }
+                    if (name != nested.SymbolName)
+                    {
+                        renamed[nested.TypeReference] = (nested.Namespace, name);
+                    }
+                }
+            }
+            return renamed;
+        }
+
+        /// <summary>
+        /// Applies the renames of <see cref="GetUniqueSymbolNames"/> to a
+        /// model and to the activator of its base type.
+        /// </summary>
+        private static TypeSourceModel WithUniqueSymbolNames(
+            TypeSourceModel model,
+            Dictionary<string, (string Namespace, string SymbolName)> renamed)
+        {
+            if (renamed.Count == 0)
+            {
+                return model;
+            }
+            if (model.TypeReference != null &&
+                renamed.TryGetValue(model.TypeReference, out (string _, string SymbolName) self))
+            {
+                model = model with { SymbolName = self.SymbolName };
+            }
+            if (model.BaseDefinitionActivator != null &&
+                model.BaseTypeReference != null &&
+                renamed.TryGetValue(model.BaseTypeReference, out (string Namespace, string SymbolName) baseName))
+            {
+                model = model with
+                {
+                    BaseDefinitionActivator =
+                        "global::" + baseName.Namespace + "." + baseName.SymbolName + "Activator"
+                };
+            }
+            return model;
         }
 
         private static TypeSourceModel BuildClassModel(
@@ -537,6 +638,9 @@ namespace Opc.Ua.SourceGeneration
                     ? null : symbol.BaseType?.Name,
                 BaseDefinitionActivator = baseTypeIsEncodeable
                     ? ResolveBaseDefinitionActivator(symbol.BaseType)
+                    : null,
+                BaseTypeReference = baseTypeIsEncodeable
+                    ? symbol.BaseType.GetFullyQualifiedTypeName()
                     : null
             };
         }
@@ -618,6 +722,13 @@ namespace Opc.Ua.SourceGeneration
                 IsEnum = true,
                 IsFlags = symbol.GetAttributes().Any(a =>
                     a.AttributeClass?.Name == "FlagsAttribute"),
+                EnumUnderlyingBits = symbol.EnumUnderlyingType?.SpecialType switch
+                {
+                    SpecialType.System_SByte or SpecialType.System_Byte => 8,
+                    SpecialType.System_Int16 or SpecialType.System_UInt16 => 16,
+                    SpecialType.System_Int64 or SpecialType.System_UInt64 => 64,
+                    _ => 32
+                },
                 EnumMembers = EquatableArray<TypeEnumMember>.From(members)
             }, symbol);
         }
@@ -645,6 +756,8 @@ namespace Opc.Ua.SourceGeneration
                     .Where(p => p.Item2 != null)
             ];
             var fields = new List<TypeFieldModel>();
+            // null if the constructor can assign any member.
+            HashSet<string> ctorAssigned = GetConstructorAssignedMembers(symbol, ct);
             int orderIndex = 0;
             if (selectedPropsWithAttribute.Length == 0)
             {
@@ -656,7 +769,7 @@ namespace Opc.Ua.SourceGeneration
                         continue;
                     }
                     ct.ThrowIfCancellationRequested();
-                    fields.Add(CreateField(prop, prop.Name, orderIndex++, false));
+                    fields.Add(CreateField(prop, prop.Name, orderIndex++, false, ctorAssigned));
                 }
             }
             else
@@ -674,7 +787,7 @@ namespace Opc.Ua.SourceGeneration
                     string fieldName = dtfAttr.GetValue(
                         nameof(DataTypeFieldAttribute.Name))
                         ?? prop.Name;
-                    fields.Add(CreateField(prop, fieldName, orderIndex, true, dtfAttr));
+                    fields.Add(CreateField(prop, fieldName, orderIndex, true, ctorAssigned, dtfAttr));
                 }
             }
             fields.Sort((a, b) => a.Order.CompareTo(b.Order));
@@ -684,6 +797,7 @@ namespace Opc.Ua.SourceGeneration
         private static TypeFieldModel CreateField(
             IPropertySymbol prop, string fieldName,
             int order, bool hasDataTypeFieldAttr,
+            HashSet<string> ctorAssigned,
             AttributeData dtfAttr = null)
         {
             ITypeSymbol type = prop.Type;
@@ -764,11 +878,27 @@ namespace Opc.Ua.SourceGeneration
             // A field whose value equals the default is omitted on encode
             // (DefaultValueHandling.Exclude) and a missing field keeps the
             // value the constructor assigned on decode. Both only agree when
-            // "default" is the value the property is initialized with.
+            // "default" is the value the property is initialized with. That is
+            // only known for a literal initializer (or none) that no
+            // constructor overrides; otherwise the field is always encoded.
             string defaultValueLiteral = null;
             bool hasNonConstantInitializer = false;
             ExpressionSyntax initializer = GetPropertyInitializerSyntax(prop);
-            if (initializer != null && !IsDefaultLiteral(initializer))
+            bool defaultKnown = ctorAssigned != null && !ctorAssigned.Contains(prop.Name);
+            if (defaultKnown && !IsAutoProperty(prop))
+            {
+                // A property with accessor bodies is initialized through its
+                // backing field: the field's initializer is the default.
+                IFieldSymbol backingField = GetBackingField(prop);
+                defaultKnown = backingField != null &&
+                    !ctorAssigned.Contains(backingField.Name);
+                initializer = defaultKnown ? GetFieldInitializerSyntax(backingField) : null;
+            }
+            if (!defaultKnown)
+            {
+                hasNonConstantInitializer = true;
+            }
+            else if (initializer != null && !IsDefaultLiteral(initializer))
             {
                 if (!isArray && !isMatrix && !isEnum && !isEncodeable &&
                     s_literalComparableTypes.Contains(shortName) &&
@@ -933,6 +1063,165 @@ namespace Opc.Ua.SourceGeneration
                 }
             }
 
+            return null;
+        }
+
+        /// <summary>
+        /// The names of the members the constructor the activator runs (the
+        /// parameterless one) assigns, or <c>null</c> if it can assign any
+        /// member: it chains to another constructor or calls a method of the
+        /// instance. The analysis is syntactic and over-approximates, which
+        /// only keeps more fields on the wire.
+        /// </summary>
+        private static HashSet<string> GetConstructorAssignedMembers(
+            INamedTypeSymbol symbol,
+            CancellationToken ct)
+        {
+            var assigned = new HashSet<string>(StringComparer.Ordinal);
+            IMethodSymbol ctor = symbol.InstanceConstructors
+                .FirstOrDefault(c => c.Parameters.Length == 0 && !c.IsImplicitlyDeclared);
+            if (ctor == null)
+            {
+                return assigned;
+            }
+            foreach (SyntaxReference reference in ctor.DeclaringSyntaxReferences)
+            {
+                if (reference.GetSyntax(ct) is not ConstructorDeclarationSyntax declaration)
+                {
+                    continue;
+                }
+                if (declaration.Initializer != null &&
+                    declaration.Initializer.IsKind(SyntaxKind.ThisConstructorInitializer))
+                {
+                    return null;
+                }
+                SyntaxNode body = (SyntaxNode)declaration.Body ?? declaration.ExpressionBody;
+                if (body == null)
+                {
+                    continue;
+                }
+                foreach (SyntaxNode node in body.DescendantNodesAndSelf())
+                {
+                    ExpressionSyntax target = node switch
+                    {
+                        AssignmentExpressionSyntax assignment => assignment.Left,
+                        PrefixUnaryExpressionSyntax prefix when
+                            prefix.IsKind(SyntaxKind.PreIncrementExpression) ||
+                            prefix.IsKind(SyntaxKind.PreDecrementExpression) => prefix.Operand,
+                        PostfixUnaryExpressionSyntax postfix when
+                            postfix.IsKind(SyntaxKind.PostIncrementExpression) ||
+                            postfix.IsKind(SyntaxKind.PostDecrementExpression) => postfix.Operand,
+                        ArgumentSyntax argument when
+                            !argument.RefKindKeyword.IsKind(SyntaxKind.None) => argument.Expression,
+                        _ => null
+                    };
+                    if (target != null)
+                    {
+                        foreach (IdentifierNameSyntax name in target
+                            .DescendantNodesAndSelf()
+                            .OfType<IdentifierNameSyntax>())
+                        {
+                            assigned.Add(name.Identifier.ValueText);
+                        }
+                    }
+                    else if (node is InvocationExpressionSyntax invocation &&
+                        IsInstanceCall(invocation.Expression))
+                    {
+                        return null;
+                    }
+                }
+            }
+            return assigned;
+
+            // A call of an unqualified or this-qualified method (other than
+            // nameof) can assign any member, e.g. an Initialize() helper.
+            static bool IsInstanceCall(ExpressionSyntax expression)
+            {
+                return expression switch
+                {
+                    IdentifierNameSyntax name => name.Identifier.ValueText != "nameof",
+                    GenericNameSyntax => true,
+                    MemberAccessExpressionSyntax memberAccess =>
+                        memberAccess.Expression is ThisExpressionSyntax,
+                    _ => false
+                };
+            }
+        }
+
+        /// <summary>
+        /// True if no declaration of the property has accessor bodies, so
+        /// the property initializer is its default value.
+        /// </summary>
+        private static bool IsAutoProperty(IPropertySymbol prop)
+        {
+            foreach (SyntaxReference syntaxRef in prop.DeclaringSyntaxReferences)
+            {
+                if (syntaxRef.GetSyntax() is not PropertyDeclarationSyntax propSyntax ||
+                    propSyntax.ExpressionBody != null ||
+                    propSyntax.AccessorList == null ||
+                    propSyntax.AccessorList.Accessors.Any(a =>
+                        a.Body != null || a.ExpressionBody != null))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// The instance field a property getter returns unchanged
+        /// (<c>get => m_x;</c>, <c>get { return m_x; }</c> or
+        /// <c>=> this.m_x</c>), or <c>null</c>.
+        /// </summary>
+        private static IFieldSymbol GetBackingField(IPropertySymbol prop)
+        {
+            foreach (SyntaxReference syntaxRef in prop.DeclaringSyntaxReferences)
+            {
+                if (syntaxRef.GetSyntax() is not PropertyDeclarationSyntax propSyntax)
+                {
+                    continue;
+                }
+                ExpressionSyntax returned = propSyntax.ExpressionBody?.Expression;
+                AccessorDeclarationSyntax getter = propSyntax.AccessorList?.Accessors
+                    .FirstOrDefault(a => a.IsKind(SyntaxKind.GetAccessorDeclaration));
+                if (returned == null && getter != null)
+                {
+                    returned = getter.ExpressionBody?.Expression ??
+                        (getter.Body?.Statements is { Count: 1 } statements &&
+                            statements[0] is ReturnStatementSyntax ret
+                                ? ret.Expression
+                                : null);
+                }
+                string name = returned switch
+                {
+                    IdentifierNameSyntax identifier => identifier.Identifier.ValueText,
+                    MemberAccessExpressionSyntax
+                    {
+                        Expression: ThisExpressionSyntax,
+                        Name: IdentifierNameSyntax identifier
+                    } => identifier.Identifier.ValueText,
+                    _ => null
+                };
+                if (name != null)
+                {
+                    return prop.ContainingType.GetMembers(name)
+                        .OfType<IFieldSymbol>()
+                        .FirstOrDefault(f => !f.IsStatic && !f.IsConst);
+                }
+            }
+            return null;
+        }
+
+        private static ExpressionSyntax GetFieldInitializerSyntax(IFieldSymbol field)
+        {
+            foreach (SyntaxReference syntaxRef in field.DeclaringSyntaxReferences)
+            {
+                if (syntaxRef.GetSyntax() is VariableDeclaratorSyntax declarator &&
+                    declarator.Initializer != null)
+                {
+                    return declarator.Initializer.Value;
+                }
+            }
             return null;
         }
 

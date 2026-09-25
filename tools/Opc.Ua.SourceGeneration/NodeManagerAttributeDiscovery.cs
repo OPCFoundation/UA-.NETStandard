@@ -68,7 +68,8 @@ namespace Opc.Ua.SourceGeneration
 
         /// <summary>
         /// Why the annotated class cannot host a generated node manager
-        /// (nested or generic), or <c>null</c> when it can.
+        /// (nested, generic, file-local or in the global namespace), or
+        /// <c>null</c> when it can.
         /// </summary>
         public string UnsupportedReason { get; init; }
 
@@ -108,12 +109,7 @@ namespace Opc.Ua.SourceGeneration
                 }
                 if (discovery.InvalidExpressions.Count > 0)
                 {
-                    string targetType = string.IsNullOrEmpty(
-                        discovery.Binding.TargetNamespace)
-                            ? discovery.Binding.TargetClassName
-                            : discovery.Binding.TargetNamespace +
-                                "." +
-                                discovery.Binding.TargetClassName;
+                    string targetType = GetTargetTypeName(discovery.Binding);
                     foreach (NodeManagerAttributeExpressionError error in
                         discovery.InvalidExpressions)
                     {
@@ -133,9 +129,7 @@ namespace Opc.Ua.SourceGeneration
                         Diagnostic.Create(
                             SourceGenerator.NodeManagerUnsupportedTarget,
                             discovery.Location.ToLocation(compilation),
-                            discovery.Binding.TargetNamespace +
-                            "." +
-                            discovery.Binding.TargetClassName,
+                            GetTargetTypeName(discovery.Binding),
                             discovery.UnsupportedReason));
                     continue;
                 }
@@ -145,11 +139,16 @@ namespace Opc.Ua.SourceGeneration
                         Diagnostic.Create(
                             SourceGenerator.NodeManagerNotPartial,
                             discovery.Location.ToLocation(compilation),
-                            discovery.Binding.TargetNamespace +
-                            "." +
-                            discovery.Binding.TargetClassName));
+                            GetTargetTypeName(discovery.Binding)));
                 }
             }
+        }
+
+        private static string GetTargetTypeName(NodeManagerAttributeBinding binding)
+        {
+            return string.IsNullOrEmpty(binding.TargetNamespace)
+                ? binding.TargetClassName
+                : binding.TargetNamespace + "." + binding.TargetClassName;
         }
 
         /// <summary>
@@ -197,11 +196,18 @@ namespace Opc.Ua.SourceGeneration
             // The generated manager and factory are emitted as top-level
             // types of the class's namespace, so a nested or generic class
             // would get an unrelated companion type instead of its members.
+            // An empty namespace means "the model's namespace" to the
+            // generators, and a file-local class cannot be completed from
+            // another file, so those would get a companion type as well.
             string unsupportedReason = symbol.ContainingType != null
                 ? "it is nested in '" + symbol.ContainingType.ToDisplayString() + "'"
                 : symbol.IsGenericType
                     ? "it is generic"
-                    : null;
+                    : symbol.ContainingNamespace?.IsGlobalNamespace != false
+                        ? "it is declared in the global namespace"
+                        : symbol.IsFileLocal
+                            ? "it is file-local"
+                            : null;
 
             return new NodeManagerAttributeDiscovery
             {

@@ -268,7 +268,7 @@ namespace Opc.Ua.SourceGeneration
             }
 
             string typeIdExpr = FormatExpandedNodeIdExpression(
-                model.DataTypeId, model.ClassName, model.NamespaceUri);
+                model.DataTypeId, GetDataTypeName(model), model.NamespaceUri);
             string binaryIdExpr = FormatOptionalExpandedNodeIdExpression(
                 model.BinaryEncodingId, model.NamespaceUri);
             string xmlIdExpr = FormatOptionalExpandedNodeIdExpression(
@@ -278,7 +278,7 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddBrowseNameReplacement(
                 Tokens.BrowseName,
                 Tokens.BrowseNameLiteral,
-                model.ClassName);
+                GetDataTypeName(model));
             context.Template.AddReplacement(Tokens.DataTypeIdConstant, typeIdExpr);
             context.Template.AddReplacement(Tokens.BinaryEncodingId, binaryIdExpr);
             context.Template.AddReplacement(Tokens.XmlEncodingId, xmlIdExpr);
@@ -369,7 +369,19 @@ namespace Opc.Ua.SourceGeneration
                 // to an inline matrix by WriteInlineMatrixValue - the calls
                 // the model driven generator and the DataTypeDefinition
                 // driven codec (Structure.EncodeProperty) make.
-                encodeLine = field.IsEncodeable
+                // A matrix of a structure that allows subtypes is a matrix of
+                // extension objects, like the scalar and array forms: the
+                // inline form decodes every element as the declared type.
+                // FromStructure turns a null matrix into a null Variant, which
+                // carries no shape; keep a null matrix.
+                encodeLine = field.IsEncodeable && ShouldUseExtensionObject(field)
+                    ? CoreUtils.Format(
+                        "global::Opc.Ua.EncoderExtensions.WriteInlineMatrixValue(encoder, \"{0}\", {1}.IsNull ? " +
+                        "global::Opc.Ua.Variant.From(default(global::Opc.Ua.MatrixOf<global::Opc.Ua.ExtensionObject>)) : " +
+                        "global::Opc.Ua.Variant.FromStructure({1}));",
+                        field.FieldName.Escape(),
+                        field.PropertyName)
+                    : field.IsEncodeable
                     ? CoreUtils.Format(
                         "encoder.WriteEncodeableMatrix(\"{0}\", {1});",
                         field.FieldName.Escape(),
@@ -471,7 +483,17 @@ namespace Opc.Ua.SourceGeneration
             string decodeLine;
             if (field.IsMatrix)
             {
-                if (field.IsEncodeable)
+                if (field.IsEncodeable && ShouldUseExtensionObject(field))
+                {
+                    decodeLine = CoreUtils.Format(
+                        "{0} = decoder.ReadVariantValue(\"{1}\", global::Opc.Ua.TypeInfo.Create(" +
+                        "global::Opc.Ua.BuiltInType.ExtensionObject, global::Opc.Ua.ValueRanks.TwoDimensions))" +
+                        ".GetStructureMatrix<{2}>();",
+                        target,
+                        field.FieldName.Escape(),
+                        field.ElementTypeName);
+                }
+                else if (field.IsEncodeable)
                 {
                     decodeLine = CoreUtils.Format(
                         "{0} = decoder.ReadEncodeableMatrix<{1}>(\"{2}\");",
@@ -755,7 +777,7 @@ namespace Opc.Ua.SourceGeneration
 
             string typeIdExpr = FormatExpandedNodeIdExpression(
                 model.DataTypeId,
-                model.ClassName,
+                GetDataTypeName(model),
                 model.NamespaceUri);
             string binaryIdExpr = FormatOptionalExpandedNodeIdExpression(
                 model.BinaryEncodingId,
@@ -775,7 +797,7 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddBrowseNameReplacement(
                 Tokens.BrowseName,
                 Tokens.BrowseNameLiteral,
-                model.ClassName);
+                GetDataTypeName(model));
             context.Template.AddReplacement(Tokens.DataTypeIdConstant, typeIdExpr);
             context.Template.AddReplacement(Tokens.BinaryEncodingId, binaryIdExpr);
             context.Template.AddReplacement(Tokens.XmlEncodingId, xmlIdExpr);
@@ -815,7 +837,7 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddBrowseNameReplacement(
                 Tokens.BrowseName,
                 Tokens.BrowseNameLiteral,
-                model.ClassName);
+                GetDataTypeName(model));
 
             if (model.IsEnum)
             {
@@ -827,7 +849,7 @@ namespace Opc.Ua.SourceGeneration
                     Tokens.ListOfFields,
                     DataTypeTemplates.EnumField,
                     model.IsFlags
-                        ? GetOptionSetFields(model.EnumMembers)
+                        ? GetOptionSetFields(model.EnumMembers, model.EnumUnderlyingBits)
                         : model.EnumMembers,
                     WriteTemplate_ListOfEnumDefinitionFields);
                 return context.Template.Render();
@@ -903,7 +925,7 @@ namespace Opc.Ua.SourceGeneration
                 Tokens.FieldName,
                 $"\"{field.FieldName.Escape()}\"");
             string dataType = field.DataTypeNodeId ?? "global::Opc.Ua.DataTypeIds.BaseDataType";
-            if (field.IsEncodeable && (field.IsMatrix || !ShouldUseExtensionObject(field)))
+            if (field.IsEncodeable && !ShouldUseExtensionObject(field))
             {
                 // Written inline with WriteEncodeable(Matrix): the field's DataType
                 // must be the concrete structure. The abstract Structure
@@ -972,8 +994,15 @@ namespace Opc.Ua.SourceGeneration
         /// names a bit.
         /// </summary>
         private static List<TypeEnumMember> GetOptionSetFields(
-            IReadOnlyList<TypeEnumMember> members)
+            IReadOnlyList<TypeEnumMember> members,
+            int underlyingBits)
         {
+            // The bits of a negative value of a signed backing type are the
+            // two's complement in the width of that type, not of the long it
+            // was parsed as (-32768 of a short is bit 15 only).
+            ulong widthMask = underlyingBits is > 0 and < 64
+                ? (1UL << underlyingBits) - 1
+                : ulong.MaxValue;
             var fields = new List<TypeEnumMember>();
             foreach (TypeEnumMember member in members)
             {
@@ -984,10 +1013,7 @@ namespace Opc.Ua.SourceGeneration
                     System.Globalization.CultureInfo.InvariantCulture,
                     out long signedMask))
                 {
-                    // The high bit of a signed backing type is negative.
-                    mask = signedMask is < 0 and >= int.MinValue
-                        ? unchecked((uint)signedMask)
-                        : unchecked((ulong)signedMask);
+                    mask = unchecked((ulong)signedMask) & widthMask;
                 }
                 else if (!ulong.TryParse(
                     member.Value,
@@ -1220,6 +1246,17 @@ namespace Opc.Ua.SourceGeneration
                 ["DiagnosticInfo"] = "!({0} is null)",
                 ["XmlElement"] = "!{0}.IsNull"
             };
+
+        /// <summary>
+        /// The name the default DataTypeId, the XML name and the browse name
+        /// of the data type are derived from: the nesting-qualified name of a
+        /// nested type (so same-named nested types do not share an identity),
+        /// the class name otherwise.
+        /// </summary>
+        private static string GetDataTypeName(TypeSourceModel model)
+        {
+            return model.QualifiedName ?? model.ClassName;
+        }
 
         /// <summary>
         /// True for DefaultValueHandling.SetIfMissing (2): the field is always

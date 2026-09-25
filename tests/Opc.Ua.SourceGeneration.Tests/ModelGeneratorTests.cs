@@ -532,13 +532,15 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
-        /// Regression: the collision map compared virtual paths ordinally, so
-        /// inputs whose NodeSet2 paths differ only in case were both accepted
-        /// and the duplicate generated sources failed the whole run with
-        /// MODELGEN003 instead of reporting MODELGEN034.
+        /// A4-6: the collision map compares the virtual paths ordinally, like
+        /// the virtual file system that holds them. Generated hint names come
+        /// from the model prefix, not from the input path, so inputs whose
+        /// NodeSet2 paths differ only in case do not collide: no MODELGEN034
+        /// (which dropped a valid model), no MODELGEN003, and the model is
+        /// generated once.
         /// </summary>
         [Test]
-        public void WotInputsCollidingOnlyInCaseProduceDiagnosticTest()
+        public void WotInputsDifferingOnlyInCaseAreNotReportedAsCollisionTest()
         {
             string nodeSetXml = EmbeddedText.From("DemoModel.NodeSet2.xml").GetText()!.ToString();
             string wotJson = BuildDemoModelWotEnvelopeJson(nodeSetXml);
@@ -554,7 +556,7 @@ namespace Opc.Ua.SourceGeneration
 
             Assert.That(runResult.Results[0].Exception, Is.Null);
             Assert.That(diagnostics.Where(d => d.Id == "MODELGEN003"), Is.Empty);
-            Assert.That(diagnostics.Any(d => d.Id == "MODELGEN034"), Is.True);
+            Assert.That(diagnostics.Where(d => d.Id == "MODELGEN034"), Is.Empty);
             Assert.That(
                 runResult.Results[0].GeneratedSources
                     .Count(s => s.HintName == "DemoModel.Constants.g.cs"),

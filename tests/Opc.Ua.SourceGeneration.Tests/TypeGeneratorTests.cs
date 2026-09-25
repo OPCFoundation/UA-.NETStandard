@@ -391,6 +391,18 @@ namespace TestApp.Nested
             "public partial class Outer { [DataType] private partial class Foo { public int Value { get; set; } } }",
             "public or internal",
             TestName = "PrivateNestedDataTypeReportsUnsupportedTarget")]
+        [TestCase(
+            "file partial class Foo { public int Value { get; set; } }",
+            "file-local",
+            TestName = "FileLocalDataTypeReportsUnsupportedTarget")]
+        [TestCase(
+            "file partial class Outer { [DataType] public partial class Foo { public int Value { get; set; } } }",
+            "file-local",
+            TestName = "DataTypeInFileLocalContainingTypeReportsUnsupportedTarget")]
+        [TestCase(
+            "public abstract partial class Foo { public int Value { get; set; } }",
+            "abstract",
+            TestName = "AbstractDataTypeReportsUnsupportedTarget")]
         public void UnsupportedDataTypeTargetReportsDiagnostic(string declaration, string reason)
         {
             // A top-level declaration carries its own [DataType]; the nested
@@ -960,6 +972,112 @@ namespace AB.C
             Diagnostic notPartial = reported.Single(d => d.Id == "MODELGEN011");
             Assert.That(notPartial.Location.IsInSource, Is.True, "reported in the syntax tree");
             Assert.That(notPartial.Location.SourceTree.FilePath, Is.EqualTo("TestSource.cs"));
+        }
+
+        /// <summary>
+        /// A4-4: a [DataType] in the global namespace was emitted into
+        /// "namespace " (CS1001 in generated code). It is reported instead.
+        /// </summary>
+        [Test]
+        public void GlobalNamespaceDataTypeReportsUnsupportedTarget()
+        {
+            const string source = @"
+using Opc.Ua;
+
+[DataType]
+public partial class GlobalFoo
+{
+    public int Value { get; set; }
+}";
+            GeneratorRunResult result = RunGenerator(
+                source, out Compilation output, expectErrors: true);
+
+            Assert.That(result.GeneratedSources, Is.Empty);
+            Diagnostic unsupported = result.Diagnostics.Single(d => d.Id == "MODELGEN037");
+            Assert.That(
+                unsupported.GetMessage(CultureInfo.InvariantCulture),
+                Does.Contain("global namespace"));
+            Assert.That(
+                output.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error),
+                Is.Empty,
+                "no broken code may be generated");
+        }
+
+        /// <summary>
+        /// A4-5: a private parameterless constructor passed the constructor
+        /// check, and the generated activator's <c>new T()</c> failed with
+        /// CS0122.
+        /// </summary>
+        [TestCase("private")]
+        [TestCase("protected")]
+        public void InaccessibleParameterlessConstructorReportsError(string accessibility)
+        {
+            string source = $@"
+using Opc.Ua;
+
+namespace TestApp.Ctor
+{{
+    [DataType]
+    public partial class Hidden
+    {{
+        {accessibility} Hidden() {{ }}
+        public int Value {{ get; set; }}
+    }}
+}}";
+            GeneratorRunResult result = RunGenerator(
+                source, out Compilation output, expectErrors: true);
+
+            Assert.That(result.GeneratedSources, Is.Empty);
+            Diagnostic error = result.Diagnostics.Single(d => d.Id == "MODELGEN003");
+            Assert.That(
+                error.GetMessage(CultureInfo.InvariantCulture),
+                Does.Contain("public or internal parameterless"));
+            Assert.That(
+                output.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error),
+                Is.Empty);
+        }
+
+        /// <summary>
+        /// A4-8/A4-4: a [NodeManager] in the global namespace (whose empty
+        /// namespace means "the model's namespace" to the generators) or a
+        /// file-local one got its members generated into a different type.
+        /// </summary>
+        [TestCase(
+            "[global::Opc.Ua.Server.Fluent.NodeManager(NamespaceUri = \"http://test.org/UA/Any\")]\n" +
+            "public partial class GlobalManager { }",
+            "global namespace",
+            TestName = "GlobalNamespaceNodeManagerReportsUnsupportedTarget")]
+        [TestCase(
+            "namespace TestApp.Managers { [global::Opc.Ua.Server.Fluent.NodeManager(NamespaceUri = \"http://test.org/UA/Any\")]\n" +
+            "file partial class FileManager { } }",
+            "file-local",
+            TestName = "FileLocalNodeManagerReportsUnsupportedTarget")]
+        public void UnsupportedNodeManagerTargetReportsDiagnostic(string declaration, string reason)
+        {
+            string source =
+                """
+                namespace Opc.Ua.Server.Fluent
+                {
+                    public sealed class NodeManagerAttribute : global::System.Attribute
+                    {
+                        public string NamespaceUri { get; set; }
+                    }
+                }
+                """ + "\n" + declaration;
+            var options = new AnalyzerOptionsProvider(
+                new Dictionary<string, string>
+                {
+                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true"
+                });
+            ImmutableArray<Diagnostic> reported = RunGeneratorForDiagnostics(
+                source,
+                options,
+                [EmbeddedText.From("DemoModel.xml")]);
+
+            Diagnostic unsupported = reported.Single(d => d.Id == "MODELGEN036");
+            Assert.That(
+                unsupported.GetMessage(CultureInfo.InvariantCulture),
+                Does.Contain(reason));
         }
 
         private static ImmutableArray<Diagnostic> RunGeneratorForDiagnostics(

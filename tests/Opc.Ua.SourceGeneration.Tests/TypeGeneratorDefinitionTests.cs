@@ -637,6 +637,342 @@ namespace Opc.Ua.SourceGeneration
             Assert.That(Get(decodedZero, "Text"), Is.Null);
         }
 
+        /// <summary>
+        /// ALT-8: a default the parameterless constructor assigns (or a
+        /// backing field initializer) was not seen by the D-8 omit check, so
+        /// a value equal to the CLR default was omitted and decoded as the
+        /// constructor's value. A field is now only omitted at a default that
+        /// is known: a literal initializer (of the property or of the field
+        /// its getter returns) or none, that no constructor overrides.
+        /// </summary>
+        [Test]
+        public void ConstructorAssignedDefaultsRoundTrip()
+        {
+            const string source =
+                """
+                #nullable enable
+                using Opc.Ua;
+
+                namespace TestApp.CtorDefaults
+                {
+                    [DataType(Namespace = "urn:defs", DataTypeId = "i=1")]
+                    public partial class Cfg
+                    {
+                        public Cfg()
+                        {
+                            Retries = 3;
+                            this.Name = "n";
+                            m_timeout = 100;
+                        }
+
+                        public int Retries { get; set; }
+                        public string? Name { get; set; }
+                        public int Timeout { get => m_timeout; set => m_timeout = value; }
+                        public int Port { get => m_port; set => m_port = value; }
+                        public int Plain { get { return m_plain; } set { m_plain = value; } }
+                        public int Untouched { get; set; }
+
+                        private int m_timeout;
+                        private int m_port = 4840;
+                        private int m_plain;
+                    }
+
+                    [DataType(Namespace = "urn:defs", DataTypeId = "i=2")]
+                    public partial class Initialized
+                    {
+                        public Initialized()
+                        {
+                            Initialize();
+                        }
+
+                        private void Initialize()
+                        {
+                            Count = 7;
+                        }
+
+                        public int Count { get; set; }
+                    }
+                }
+                """;
+            Assembly assembly = CompileAndLoad(source, out _);
+            Type cfgType = assembly.GetType("TestApp.CtorDefaults.Cfg", throwOnError: true);
+
+            var cleared = (IEncodeable)Activator.CreateInstance(cfgType);
+            Set(cleared, "Retries", 0);
+            Set(cleared, "Name", null);
+            Set(cleared, "Timeout", 0);
+            Set(cleared, "Port", 0);
+            object decoded = JsonRoundTrip(cleared);
+            Assert.That(Get(decoded, "Retries"), Is.Zero, "constructor assigned property");
+            Assert.That(Get(decoded, "Name"), Is.Null, "this-qualified constructor assignment");
+            Assert.That(Get(decoded, "Timeout"), Is.Zero, "constructor assigned backing field");
+            Assert.That(Get(decoded, "Port"), Is.Zero, "backing field initializer");
+
+            // Known defaults are still omitted: the backing field literal and
+            // the CLR default of properties nothing assigns.
+            var defaults = (IEncodeable)Activator.CreateInstance(cfgType);
+            string json = EncodeJson(defaults);
+            Assert.That(json, Does.Not.Contain("Port"));
+            Assert.That(json, Does.Not.Contain("Plain"));
+            Assert.That(json, Does.Not.Contain("Untouched"));
+            Assert.That(json, Does.Contain("Retries"));
+            object decodedDefaults = JsonRoundTrip(defaults);
+            Assert.That(Get(decodedDefaults, "Port"), Is.EqualTo(4840));
+            Assert.That(Get(decodedDefaults, "Retries"), Is.EqualTo(3));
+
+            Type initializedType = assembly.GetType("TestApp.CtorDefaults.Initialized", throwOnError: true);
+            var zero = (IEncodeable)Activator.CreateInstance(initializedType);
+            Set(zero, "Count", 0);
+            Assert.That(Get(JsonRoundTrip(zero), "Count"), Is.Zero, "set by a helper the constructor calls");
+        }
+
+        /// <summary>
+        /// D-6: a MatrixOf field of a structure that allows subtypes was
+        /// written inline, which encodes a subtype element with its own
+        /// fields while decode creates the declared type, desynchronizing
+        /// the stream. It is now a matrix of extension objects, like the
+        /// scalar and array forms, and published with the abstract DataType.
+        /// </summary>
+        [Test]
+        public void SubtypedStructureMatrixRoundTrips()
+        {
+            const string source =
+                """
+                using Opc.Ua;
+
+                namespace TestApp.Shapes
+                {
+                    [DataType(Namespace = "urn:defs", DataTypeId = "i=1", BinaryEncodingId = "i=11")]
+                    public partial class Shape
+                    {
+                        public int Id { get; set; }
+                    }
+
+                    [DataType(Namespace = "urn:defs", DataTypeId = "i=2", BinaryEncodingId = "i=12")]
+                    public partial class Circle : Shape
+                    {
+                        public double R { get; set; }
+                    }
+
+                    [DataType(Namespace = "urn:defs", DataTypeId = "i=3")]
+                    public partial class Drawing
+                    {
+                        [DataTypeField(Order = 0)]
+                        public MatrixOf<Shape> Shapes { get; set; }
+
+                        [DataTypeField(Order = 1, StructureHandling = StructureHandling.ExtensionObject)]
+                        public MatrixOf<Circle> Circles { get; set; }
+
+                        [DataTypeField(Order = 2)]
+                        public int Tail { get; set; }
+                    }
+                }
+                """;
+            Assembly assembly = CompileAndLoad(source, out string generated);
+            Assert.That(generated, Does.Not.Contain("WriteEncodeableMatrix(\"Shapes\""));
+            Assert.That(generated, Does.Not.Contain("WriteEncodeableMatrix(\"Circles\""),
+                "StructureHandling = AsExtensionObject is honoured");
+
+            ServiceMessageContext context = CreateContext();
+            context.Factory.Builder.AddEncodeableTypes(assembly).Commit();
+            Type shapeType = assembly.GetType("TestApp.Shapes.Shape", throwOnError: true);
+            Type circleType = assembly.GetType("TestApp.Shapes.Circle", throwOnError: true);
+            object circle = Activator.CreateInstance(circleType);
+            Set(circle, "Id", 1);
+            Set(circle, "R", 2.5);
+            object shape = Activator.CreateInstance(shapeType);
+            Set(shape, "Id", 2);
+            Array shapes = Array.CreateInstance(shapeType, 1, 2);
+            shapes.SetValue(circle, 0, 0);
+            shapes.SetValue(shape, 0, 1);
+            object drawing = Activator.CreateInstance(
+                assembly.GetType("TestApp.Shapes.Drawing", throwOnError: true));
+            Set(drawing, "Shapes", typeof(MatrixOf<>).MakeGenericType(shapeType)
+                .GetMethod("CreateFromArray", BindingFlags.Public | BindingFlags.Static)
+                .Invoke(null, [shapes]));
+            Set(drawing, "Tail", 9);
+
+            byte[] bytes;
+            using (var encoder = new BinaryEncoder(context))
+            {
+                ((IEncodeable)drawing).Encode(encoder);
+                bytes = encoder.CloseAndReturnBuffer();
+            }
+            var decoded = (IEncodeable)Activator.CreateInstance(drawing.GetType());
+            using (var decoder = new BinaryDecoder(bytes, context))
+            {
+                decoded.Decode(decoder);
+                Assert.That(decoder.Position, Is.EqualTo(bytes.Length));
+            }
+            Assert.That(Get(decoded, "Tail"), Is.EqualTo(9));
+            object decodedShapes = Get(decoded, "Shapes");
+            object flattened = decodedShapes.GetType()
+                .GetMethod("ToArrayOf", Type.EmptyTypes)
+                .Invoke(decodedShapes, null);
+            var elements = (Array)flattened.GetType()
+                .GetMethod("ToArray", Type.EmptyTypes)
+                .Invoke(flattened, null);
+            Assert.That(elements.GetValue(0), Is.InstanceOf(circleType), "the subtype survives");
+            Assert.That(Get(elements.GetValue(0), "R"), Is.EqualTo(2.5));
+            Assert.That(Get(elements.GetValue(1), "Id"), Is.EqualTo(2));
+
+            var namespaceUris = new NamespaceTable();
+            namespaceUris.Append(NamespaceUri);
+            var definitionSource = (IDataTypeDefinitionSource)assembly
+                .GetType("TestApp.Shapes.DrawingActivator", throwOnError: true)
+                .GetField("Instance", BindingFlags.Public | BindingFlags.Static)
+                .GetValue(null);
+            var definition = (StructureDefinition)definitionSource.GetDataTypeDefinition(namespaceUris);
+            Assert.That(
+                definition.Fields.ToArray().Single(f => f.Name == "Shapes").DataType,
+                Is.EqualTo(new NodeId(22u)),
+                "a matrix of extension objects publishes the abstract Structure");
+        }
+
+        /// <summary>
+        /// D-5: the bit of a negative [Flags] member was computed from the
+        /// value sign-extended to 32 bits, dropping the high bit of an sbyte
+        /// or short backed enum as "multi-bit" and truncating a long one.
+        /// </summary>
+        [Test]
+        public void FlagsEnumHighBitUsesUnderlyingWidth()
+        {
+            const string source =
+                """
+                using System;
+                using Opc.Ua;
+
+                namespace TestApp.Widths
+                {
+                    [Flags]
+                    [DataType(Namespace = "urn:defs", DataTypeId = "i=1")]
+                    public enum Small : sbyte
+                    {
+                        None = 0,
+                        Low = 1,
+                        High = unchecked((sbyte)0x80)
+                    }
+
+                    [Flags]
+                    [DataType(Namespace = "urn:defs", DataTypeId = "i=2")]
+                    public enum Medium : short
+                    {
+                        None = 0,
+                        Low = 1,
+                        High = unchecked((short)0x8000)
+                    }
+
+                    [Flags]
+                    [DataType(Namespace = "urn:defs", DataTypeId = "i=3")]
+                    public enum Large : long
+                    {
+                        None = 0,
+                        Low = 1,
+                        High = unchecked((long)0x8000000000000000),
+                        Wide = unchecked((long)0xFFFFFFFF80000000)
+                    }
+                }
+                """;
+            Assembly assembly = CompileAndLoad(source, out _);
+
+            Assert.That(
+                GetEnumDefinition(assembly, "TestApp.Widths.SmallActivator")
+                    .Fields.ToArray().Select(f => (f.Name, f.Value)),
+                Is.EqualTo(new[] { ("Low", 0L), ("High", 7L) }));
+            Assert.That(
+                GetEnumDefinition(assembly, "TestApp.Widths.MediumActivator")
+                    .Fields.ToArray().Select(f => (f.Name, f.Value)),
+                Is.EqualTo(new[] { ("Low", 0L), ("High", 15L) }));
+            Assert.That(
+                GetEnumDefinition(assembly, "TestApp.Widths.LargeActivator")
+                    .Fields.ToArray().Select(f => (f.Name, f.Value)),
+                Is.EqualTo(new[] { ("Low", 0L), ("High", 63L) }),
+                "a multi-bit long member names no bit");
+        }
+
+        /// <summary>
+        /// A3-3/A4-1: nested types of the same name shared the default
+        /// DataTypeId (s=Foo) and XML name, so the second registration
+        /// replaced the first. A4-7: the '_'-joined activator name of a
+        /// nested type could equal a top-level type's (Models.Foo and
+        /// Models_Foo), failing the build in generated code.
+        /// </summary>
+        [Test]
+        public void NestedTypesGetDistinctIdentitiesAndActivators()
+        {
+            const string source =
+                """
+                using Opc.Ua;
+
+                namespace TestApp.Nesting
+                {
+                    public static partial class Models
+                    {
+                        [DataType(Namespace = "urn:defs")]
+                        public partial class Foo
+                        {
+                            public int Count { get; set; }
+                        }
+
+                        [DataType(Namespace = "urn:defs")]
+                        public partial class Bar : Foo
+                        {
+                            public string Name { get; set; }
+                        }
+                    }
+
+                    public partial class Other
+                    {
+                        [DataType(Namespace = "urn:defs")]
+                        public partial class Foo
+                        {
+                            public double Value { get; set; }
+                        }
+                    }
+
+                    [DataType(Namespace = "urn:defs")]
+                    public partial class Models_Foo
+                    {
+                        public bool Flag { get; set; }
+                    }
+                }
+                """;
+            Assembly assembly = CompileAndLoad(source, out string generated, expectNoWarnings: true);
+
+            IEncodeable modelsFoo = CreateEncodeable(assembly, "TestApp.Nesting.Models+Foo");
+            IEncodeable otherFoo = CreateEncodeable(assembly, "TestApp.Nesting.Other+Foo");
+            IEncodeable topLevel = CreateEncodeable(assembly, "TestApp.Nesting.Models_Foo");
+            Assert.That(modelsFoo.TypeId, Is.EqualTo(new ExpandedNodeId("Models.Foo", NamespaceUri)));
+            Assert.That(otherFoo.TypeId, Is.EqualTo(new ExpandedNodeId("Other.Foo", NamespaceUri)));
+            Assert.That(topLevel.TypeId, Is.EqualTo(new ExpandedNodeId("Models_Foo", NamespaceUri)));
+
+            // The top-level type keeps its activator name; the nested type
+            // that collides with it gets a suffix.
+            Assert.That(generated, Does.Contain("sealed class Models_FooActivator"));
+            Assert.That(generated, Does.Contain("sealed class Models_Foo_2Activator"));
+            var modelsFooActivator = (IEncodeableType)assembly
+                .GetType("TestApp.Nesting.Models_Foo_2Activator", throwOnError: true)
+                .GetField("Instance", BindingFlags.Public | BindingFlags.Static)
+                .GetValue(null);
+            Assert.That(modelsFooActivator.Type, Is.EqualTo(modelsFoo.GetType()));
+            Assert.That(modelsFooActivator.XmlName.Name, Is.EqualTo("Models.Foo"));
+
+            // A derived nested type follows the rename of its base activator.
+            var namespaceUris = new NamespaceTable();
+            namespaceUris.Append(NamespaceUri);
+            var barSource = (IDataTypeDefinitionSource)assembly
+                .GetType("TestApp.Nesting.Models_BarActivator", throwOnError: true)
+                .GetField("Instance", BindingFlags.Public | BindingFlags.Static)
+                .GetValue(null);
+            var bar = (StructureDefinition)barSource.GetDataTypeDefinition(namespaceUris);
+            Assert.That(bar.Fields.ToArray().Select(f => f.Name), Is.EqualTo(s_barFields));
+        }
+
+        private static IEncodeable CreateEncodeable(Assembly assembly, string typeName)
+        {
+            return (IEncodeable)Activator.CreateInstance(assembly.GetType(typeName, throwOnError: true));
+        }
+
         private static EnumDefinition GetEnumDefinition(Assembly assembly, string activatorName)
         {
             var namespaceUris = new NamespaceTable();
@@ -830,6 +1166,7 @@ namespace Opc.Ua.SourceGeneration
             """;
 
         private static readonly string[] s_pt3DFields = ["Name", "X", "Child", "Items", "Z"];
+        private static readonly string[] s_barFields = ["Count", "Name"];
         private static readonly int[] s_pixelDimensions = [2, 3];
         private static readonly int[] s_cellDimensions = [1, 2];
         private static readonly int[] s_emptyDimensions = [0, 0];

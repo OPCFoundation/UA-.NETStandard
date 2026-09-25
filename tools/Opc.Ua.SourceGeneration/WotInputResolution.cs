@@ -67,11 +67,11 @@ namespace Opc.Ua.SourceGeneration
             var accepted = ImmutableArray.CreateBuilder<(AdditionalText, NodesetFileOptions)>();
             // Explicit inputs are never displaced by a WoT-synthesized path;
             // claim their own virtual path (== their real path) first.
-            // Case-insensitive: paths differing only in case name the same file
-            // on Windows and macOS, and the generated sources' hint names are
-            // compared case-insensitively on every host, so such a pair would
-            // fail the second AddSource instead of reporting the collision.
-            var claimedBy = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            // Ordinal, like the virtual file system the paths are stored in.
+            // The generated sources' hint names come from the model prefix,
+            // not from these paths, so paths differing only in case do not
+            // collide and must not drop a valid model.
+            var claimedBy = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach ((AdditionalText text, NodesetFileOptions _) in xmlInputFiles)
             {
                 claimedBy[text.Path] = text.Path;
