@@ -301,7 +301,7 @@ namespace Opc.Ua.Bindings
         {
             lock (DataLock)
             {
-                if (State == TcpChannelState.Closed)
+                if (State is TcpChannelState.Closed or TcpChannelState.Faulted)
                 {
                     return false;
                 }
