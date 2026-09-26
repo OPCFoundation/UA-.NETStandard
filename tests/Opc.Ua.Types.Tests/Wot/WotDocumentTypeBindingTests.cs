@@ -120,6 +120,40 @@ namespace Opc.Ua.Types.Tests.Wot
                 item.Severity == WotDiagnosticSeverity.Error), Is.True);
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DocumentBindingUsesTheTargetModelsGeneratedIdentity(bool property)
+        {
+            using WotDocument explicitType = CreateTypeDocument(property ? "uav:variableType" : "uav:objectType");
+            JsonObject authored = JsonNode.Parse(explicitType.Utf8Json.Span)!.AsObject();
+            authored.Remove("uav:id");
+            using WotDocument type = WotDocument.Parse(WotTestData.Utf8(authored.ToJsonString()));
+            WotConversionResult<UANodeSet> projectedType = WotNodeSetConverter.ToNodeSetResult(type);
+            Assert.That(projectedType.Success, Is.True,
+                string.Join("; ", projectedType.Diagnostics.Select(item => item.Message)));
+            UANode target = property
+                ? projectedType.Value!.Items!.OfType<UAVariableType>().Single()
+                : projectedType.Value!.Items!.OfType<UAObjectType>().Single();
+            var namespaces = new NamespaceTable();
+            foreach (string uri in projectedType.Value!.NamespaceUris!)
+            {
+                namespaces.GetIndexOrAppend(uri);
+            }
+            string expected = NodeId.ToExpandedNodeId(NodeId.Parse(target.NodeId!), namespaces).ToString();
+            using WotDocument document = CreateDocumentBinding(property, kTypeDocument);
+            Mock<IWotThingResolver> things = CreateThingResolver(type);
+
+            WotConversionResult<UANodeSet> result = await WotNodeSetConverter.ToNodeSetResultAsync(
+                document, null, things.Object, null, new WotDocumentNodeResolver([type])).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(item => item.Message)));
+            UANode instance = property
+                ? result.Value!.Items!.OfType<UAVariable>().Single()
+                : result.Value!.Items!.OfType<UAObject>().Single();
+            Assert.That(instance.References!.Single(item => item.ReferenceType == "HasTypeDefinition").Value,
+                Is.EqualTo(WotTestData.LocalNodeId(result.Value!, expected)));
+        }
+
         private static WotDocument CreateDocumentBinding(bool property, string href)
         {
             JsonObject root = JsonNode.Parse("""

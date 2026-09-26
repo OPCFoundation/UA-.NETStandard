@@ -275,9 +275,14 @@ namespace Opc.Ua.Wot
                 return;
             }
             m_declarations.Add(document);
+            WotExpectedNodeClass rootClass = ClassOfTokens(document.TypeTokens);
+            if (rootClass == WotExpectedNodeClass.Any && document.Kind == WotDocumentKind.ThingModel)
+            {
+                rootClass = WotExpectedNodeClass.ObjectType;
+            }
             IndexNode(
                 document.RootElement,
-                ClassOfTokens(document.TypeTokens),
+                rootClass,
                 document);
             foreach (KeyValuePair<string, JsonElement> entry in document.Properties)
             {
@@ -390,6 +395,12 @@ namespace Opc.Ua.Wot
                 return;
             }
             string? nodeId = ReadString(element, "uav:id");
+            if (nodeId is null &&
+                element.Equals(document.RootElement) &&
+                WotNodeSetConverter.TryDescribeProjectedType(document, out _, out _, out string generatedId))
+            {
+                nodeId = generatedId;
+            }
             if (nodeId is not null)
             {
                 nodeId = WotNodeSetConverter.NormalizeExpandedNodeId(nodeId);

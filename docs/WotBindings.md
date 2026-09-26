@@ -1922,6 +1922,9 @@ closure, not an arbitrary Web fetch. Compact and relative references use the
 link's effective context, including property-level overrides. A missing document
 does not fall back to the loaded AddressSpace, and a document projecting the
 wrong NodeClass cannot provide a type binding.
+Thing Models without an explicit `uav:id` use the same generated root identity
+as their own NodeSet projection; the document reference does not require a
+second, manually assigned identity.
 
 | Implementation | Part of the context | Assembly |
 | --- | --- | --- |

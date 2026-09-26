@@ -41,9 +41,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 {
     public sealed partial class WotAtomicPublicationNativeTests
     {
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task NativeTypeBindingResolvesTheCapturedThingModel(bool documentIri)
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task NativeTypeBindingResolvesTheCapturedThingModel(bool documentIri, bool generatedIdentity)
         {
             m_coordinator.Dispose();
             m_coordinator = new WotMaterializationCoordinator(
@@ -55,7 +56,30 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             await m_server.NodeManagerLifecycle.AddAsync(new WotRegistryNodeManagerFactory(
                 new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator),
                 callerContext: null).ConfigureAwait(false);
-            await AddNativePredecessorAsync().ConfigureAwait(false);
+            WotResource model;
+            if (generatedIdentity)
+            {
+                WotRegistryMutationResult authored = await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
+                {
+                    GroupId = WotRegistryGroups.ThingModels,
+                    ResourceId = "a-native-predecessor",
+                    VersionId = "v1",
+                    Kind = WoTDocumentKindEnum.ThingModel,
+                    Content = ByteString.From(Encoding.UTF8.GetBytes("""
+                        {
+                          "@type":"tm:ThingModel",
+                          "id":"urn:r30:native-predecessor",
+                          "title":"GeneratedType"
+                        }
+                        """))
+                }).ConfigureAwait(false);
+                Assert.That(authored.Changed, Is.True, authored.Message);
+                model = authored.Resource!;
+            }
+            else
+            {
+                model = await AddNativePredecessorAsync().ConfigureAwait(false);
+            }
             string href = documentIri
                 ? "urn:r30:native-predecessor" : "nsu=urn:r30:native-predecessor-model;i=6000";
             WotRegistryMutationResult added = await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
@@ -98,8 +122,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 null, null, active.RootNodeId, 0, BrowseDirection.Forward, Ua.ReferenceTypeIds.HasTypeDefinition,
                 false, (uint)NodeClass.ObjectType, CancellationToken.None).ConfigureAwait(false);
             Assert.That(references.Count, Is.EqualTo(1));
+            NodeId expectedType = generatedIdentity
+                ? m_registry.Current.FindResourceByXid(model.Xid)!.RootNodeId
+                : new NodeId(6000u, (ushort)m_session.NamespaceUris.GetIndex("urn:r30:native-predecessor-model"));
+            Assert.That(expectedType.IsNull, Is.False);
             Assert.That(ExpandedNodeId.ToNodeId(references[0].NodeId, m_session.NamespaceUris), Is.EqualTo(
-                new NodeId(6000u, (ushort)m_session.NamespaceUris.GetIndex("urn:r30:native-predecessor-model"))));
+                expectedType));
         }
     }
 }

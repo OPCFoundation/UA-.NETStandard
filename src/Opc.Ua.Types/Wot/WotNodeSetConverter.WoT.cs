@@ -3659,6 +3659,10 @@ namespace Opc.Ua.Wot
                 }
                 using var resolved = WotDocument.Parse(result.Content, options);
                 string? resolvedId = GetUavString(resolved, "id");
+                if (resolvedId is null && TryDescribeProjectedType(resolved, out _, out _, out string generatedId))
+                {
+                    resolvedId = generatedId;
+                }
                 if (resolvedId is not null)
                 {
                     var nodes = new WotDocumentNodeResolver([resolved]);
