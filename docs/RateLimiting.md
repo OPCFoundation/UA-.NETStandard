@@ -139,17 +139,23 @@ reserves 16.25 MiB each for startup and reconnect from a 64 MiB budget, leaving
 
 **A reserve does not make an unknown caller eligible to use it.** A deployment
 needs trusted ingress classification for protected access before OPC UA
-authentication; an IP address or previous successful connection is not proof
-of identity. Unknown callers can be refused while reserved capacity is idle.
-SharedOnly is a supported mode retaining the shared occupancy rule, not a
-deprecated mode. It installs no default isolation provider, so existing
-zero/unlimited settings do not undergo that provider's finite-plan validation.
-Neither policy guarantees progress for all unknown callers or caps the whole
-process heap.
+authentication. Implement `IResourceIsolationClassifier` using a network
+entry path whose access is controlled by your deployment, as shown in the
+[dedicated trusted-ingress example](ResourceIsolation.md#example-dedicated-trusted-ingress).
+An IP address or previous successful connection is not proof of identity.
+Unknown callers can be refused while a reserve is unused because that memory
+is available only to its eligible callers, not to every caller.
+SharedOnly retains the shared occupancy rule without separate startup reserves.
+
+These policies prevent a busy caller population from taking resources set
+aside for eligible recovery or control traffic. They cannot guarantee access
+to every unknown client during a distributed flood. They also do not limit
+unrelated application allocations. See the
+[limits of this protection](ResourceIsolation.md#limitations) when sizing a deployment.
 
 Balanced startup rejects insufficient capacities rather than silently removing
 reserves or increasing totals. See the
-[migration choices](MigrationGuide.md#transport-resource-limits) and
+[startup configuration choices](ResourceIsolation.md#startup-validation-and-sizing) and
 [plan inspection example](ResourceIsolation.md#inspect-the-plan-in-application-code)
 for the actual fields and checks. Isolation remains independent of
 `ServerRateLimitOptions.Enabled`.
@@ -158,11 +164,13 @@ When the default connection rate limiter is enabled alongside Balanced or
 TrustedReservations, it also reserves one burst token and one token per second
 for startup, reconnect, and each provisioned trusted owner, inside the existing
 `ConnectionBurst` and `ConnectionsPerSecond` totals. At least one shared token
-must remain in each total; startup rejects totals that cannot fit. Protected
+must remain in each total. Startup rejects totals that cannot fit. Protected
 traffic can also use available shared tokens, but ordinary traffic cannot use
 the reserved tokens. Closing a connection does not refund a token. FairShare
-and SharedOnly use the ordinary shared token bucket; an explicitly supplied
-rate-limiter provider is not replaced or wrapped.
+and SharedOnly use the ordinary shared token bucket. If you supply your own
+rate-limiter provider, the server calls that provider instead. It may reject
+a connection even when the isolation policy has reserved space for it, so
+configure both policies consistently.
 
 Configure the hosted server through its fluent builder:
 

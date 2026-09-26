@@ -813,24 +813,24 @@ accepts a connection, retains message data, or queues/executes a request when
 resources are limited. These capacity checks are additional to connection
 rate limits and service authentication. Configure them with
 `ConfigureResourceIsolation(...)` or the `OpcUa:Server:ResourceIsolation`
-configuration section; see [server resource isolation](ResourceIsolation.md)
+configuration section. See [server resource isolation](ResourceIsolation.md)
 for direct, DI, and JSON examples.
 
 **Balanced is the default.** Startup validates that finite configured totals
-can hold its shared and reserved capacity; it neither removes reserves nor
-raises totals to make an invalid configuration fit. This also applies when
-loading an existing XML configuration. See the
-[migration exception and fixes](MigrationGuide.md#transport-resource-limits).
-SharedOnly is a supported shared-limit policy: without an explicitly supplied
-provider, it skips the default isolation provider and its plan validation,
-preserving existing rate, message, and shared reassembly limits, including
-existing unlimited settings.
+can hold its shared and reserved capacity. It does not remove reserves or
+raise totals to make an invalid configuration fit, including when you load an
+XML configuration. The [startup validation guide](ResourceIsolation.md#startup-validation-and-sizing)
+explains how to correct insufficient limits. Choose SharedOnly when you want
+shared rate, message, and reassembly limits without per-caller isolation.
+Without an explicitly supplied provider, this mode also accepts unlimited
+settings that do not satisfy the other profiles' finite-capacity requirements.
 
-`AddResourceIsolationClassifier<T>()` registers a host-written
-`IResourceIsolationClassifier` for protected ingress or verified owner mapping.
+`AddResourceIsolationClassifier<T>()` registers your application's implementation
+of `IResourceIsolationClassifier`. This code identifies callers that may use
+protected startup capacity or maps authenticated callers to configured groups.
 Reserves alone do not give unknown connections protected access, and an
 observed IP address is not proof of identity. TrustedReservations requires
-both a classifier and provisioned `TrustedOwners`; see the
+both a classifier and provisioned `TrustedOwners`. See the
 [dedicated-ingress example](ResourceIsolation.md#example-dedicated-trusted-ingress)
 and its deployment requirements.
 

@@ -87,6 +87,17 @@ namespace Opc.Ua.Server
             m_meter.CreateObservableGauge("opcua.server.isolation.owners", () => TrackedOwnerCount);
             m_logger = telemetry.CreateLogger<DefaultServerResourceIsolationProvider>();
             m_logger.IsolationPolicyStarted();
+            if (m_logger.IsEnabled(LogLevel.Information))
+            {
+                for (int ii = 0; ii < m_stages.Length; ii++)
+                {
+                    ResourceIsolationStagePlan stage = m_stages[ii].Plan;
+                    m_logger.IsolationStageLimits(
+                        stage.Stage, stage.Capacity, stage.SharedCapacity,
+                        stage.BootstrapReserved, stage.ReconnectReserved, stage.ControlReserved,
+                        stage.TrustedReserved, stage.OwnerHardLimit);
+                }
+            }
         }
 
         /// <summary>
@@ -953,5 +964,24 @@ namespace Opc.Ua.Server
         [LoggerMessage(EventId = ServerEventIds.ResourceIsolation, Level = LogLevel.Information,
             Message = "Server resource isolation initialized.")]
         public static partial void IsolationPolicyStarted(this ILogger logger);
+
+        /// <summary>
+        /// Records one effective resource envelope without exposing owner keys or credentials.
+        /// </summary>
+        [LoggerMessage(EventId = ServerEventIds.ResourceIsolation + 1, Level = LogLevel.Information,
+            Message = "Resource isolation {Stage}: capacity={Capacity}, shared={SharedCapacity}, " +
+                "bootstrapReserved={BootstrapReserved}, reconnectReserved={ReconnectReserved}, " +
+                "controlReserved={ControlReserved}, trustedReserved={TrustedReserved}, " +
+                "ownerHardLimit={OwnerHardLimit}.")]
+        public static partial void IsolationStageLimits(
+            this ILogger logger,
+            ResourceIsolationStage stage,
+            long capacity,
+            long sharedCapacity,
+            long bootstrapReserved,
+            long reconnectReserved,
+            long controlReserved,
+            long trustedReserved,
+            long ownerHardLimit);
     }
 }

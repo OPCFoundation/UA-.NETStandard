@@ -33,12 +33,14 @@ using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Net;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 using Moq;
@@ -53,6 +55,39 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable(ParallelScope.All)]
     public sealed class RuntimeResourceIsolationTests
     {
+        [TestCase(false)]
+        [TestCase(true)]
+        public void StartupLogsEffectiveStageLimitsWithoutOwnerIdentities(bool informationEnabled)
+        {
+            using var logs = new RecordingLoggerProvider();
+            ITelemetryContext telemetry = DefaultTelemetry.Create(
+                builder => builder.SetMinimumLevel(
+                    informationEnabled ? LogLevel.Information : LogLevel.Warning).AddProvider(logs));
+            ServerResourceIsolationPlan plan = Options().CreateRuntimePlan(
+                Configuration(), new ServerRateLimitOptions(), new ChunkReassemblyBudget(100, 50));
+            using var provider = new DefaultServerResourceIsolationProvider(plan, telemetry);
+            RecordedLogRecord[] stages = logs.Records
+                .Where(record => record.EventId.Id == ServerEventIds.ResourceIsolation + 1).ToArray();
+
+            Assert.That(stages, Has.Length.EqualTo(
+                informationEnabled ? (int)ResourceIsolationStage.ParkedRequest + 1 : 0));
+            for (int ii = 0; ii < stages.Length; ii++)
+            {
+                ResourceIsolationStagePlan limits = plan.GetStage((ResourceIsolationStage)ii);
+                RecordedLogRecord record = stages.Single(
+                    entry => entry.Properties["Stage"]?.ToString() == limits.Stage.ToString());
+                Assert.That(record.LogLevel, Is.EqualTo(LogLevel.Information));
+                Assert.That(record.Properties["Capacity"], Is.EqualTo(limits.Capacity));
+                Assert.That(record.Properties["SharedCapacity"], Is.EqualTo(limits.SharedCapacity));
+                Assert.That(record.Properties["BootstrapReserved"], Is.EqualTo(limits.BootstrapReserved));
+                Assert.That(record.Properties["ReconnectReserved"], Is.EqualTo(limits.ReconnectReserved));
+                Assert.That(record.Properties["ControlReserved"], Is.EqualTo(limits.ControlReserved));
+                Assert.That(record.Properties["TrustedReserved"], Is.EqualTo(limits.TrustedReserved));
+                Assert.That(record.Properties["OwnerHardLimit"], Is.EqualTo(limits.OwnerHardLimit));
+                Assert.That(record.Properties.Keys, Does.Not.Contain("OwnerKey"));
+            }
+        }
+
         [TestCase(1, false)]
         [TestCase(2, false)]
         [TestCase(1, true)]
