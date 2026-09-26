@@ -122,7 +122,7 @@ namespace Opc.Ua.Server
         public long ReconnectReservedBytes { get; }
 
         /// <summary>
-        /// The sum of the two separate proposed floors.
+        /// The sum of all protected reassembly floors.
         /// </summary>
         public long ReservedReassemblyBytes => BootstrapReservedBytes + ReconnectReservedBytes + TrustedReservedBytes;
 
