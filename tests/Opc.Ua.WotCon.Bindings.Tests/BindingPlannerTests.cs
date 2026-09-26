@@ -118,6 +118,23 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        [Test]
+        public void EncodedNodeIdQueryNamesResolveFromAbsoluteAndRelativeHrefs()
+        {
+            foreach (bool relative in new[] { false, true })
+            {
+                string href = relative ? "?%69d=i%3D2258" : "opc.tcp://host:4840/UA?%69d=i%3D2258";
+                WotBindingCompilation result = new OpcUaBindingPlanner().Compile(
+                    MakePropertyForm("{\"href\":" + JsonSerializer.Serialize(href) + ",\"op\":\"readproperty\"}",
+                        ops: ["readproperty"]),
+                    new WotBindingPlanContext(baseUri: relative ? "opc.tcp://host:4840/UA" : null));
+
+                Assert.That(result.IsSupported, Is.True, string.Join("; ", result.Diagnostics));
+                Assert.That(result.Entries[0].Addressing.Metadata["nodeId"], Is.EqualTo("i=2258"));
+                Assert.That(result.Entries[0].Endpoint.BaseUri, Is.EqualTo("opc.tcp://host:4840/UA"));
+            }
+        }
+
         private static WotAffordanceForm MakePropertyForm(
             string formJson,
             string affordanceName = "p",

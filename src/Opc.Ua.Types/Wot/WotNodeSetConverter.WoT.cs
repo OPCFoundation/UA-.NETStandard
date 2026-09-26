@@ -4521,13 +4521,15 @@ namespace Opc.Ua.Wot
             List<WotDiagnostic> diagnostics)
         {
             ValidatePortableIdentity(
-                document.RootElement, WotAnchorScope.None, false, diagnostics);
+                document.RootElement, WotAnchorScope.None, false,
+                GetElementString(document.RootElement, "base"), diagnostics);
         }
 
         private static void ValidatePortableIdentity(
             JsonElement element,
             WotAnchorScope outer,
             bool inSelectClauses,
+            string? baseUri,
             List<WotDiagnostic> diagnostics)
         {
             switch (element.ValueKind)
@@ -4546,7 +4548,7 @@ namespace Opc.Ua.Wot
                         {
                             continue;
                         }
-                        CheckPortableMember(member.Name, member.Value, diagnostics);
+                        CheckPortableMember(member.Name, member.Value, baseUri, diagnostics);
 
                         // A select clause's uav:browsePath is a path within an
                         // EventType's notification, not a path to a Node: it is
@@ -4561,13 +4563,14 @@ namespace Opc.Ua.Wot
                                 member.Name,
                                 WotEventSelectClauses.Term,
                                 StringComparison.Ordinal),
+                            baseUri,
                             diagnostics);
                     }
                     break;
                 case JsonValueKind.Array:
                     foreach (JsonElement item in element.EnumerateArray())
                     {
-                        ValidatePortableIdentity(item, outer, inSelectClauses, diagnostics);
+                        ValidatePortableIdentity(item, outer, inSelectClauses, baseUri, diagnostics);
                     }
                     break;
             }
@@ -4614,6 +4617,7 @@ namespace Opc.Ua.Wot
         private static void CheckPortableMember(
             string name,
             JsonElement value,
+            string? baseUri,
             List<WotDiagnostic> diagnostics)
         {
             switch (name)
@@ -4648,7 +4652,8 @@ namespace Opc.Ua.Wot
                     break;
                 case "href":
                     if (value.ValueKind == JsonValueKind.String &&
-                        value.GetString() is { } href)
+                        value.GetString() is { } href &&
+                        IsOpcUaAddress(href, baseUri))
                     {
                         try
                         {
@@ -4667,6 +4672,16 @@ namespace Opc.Ua.Wot
                     }
                     break;
             }
+        }
+
+        private static bool IsOpcUaAddress(string href, string? baseUri)
+        {
+            if (!Uri.TryCreate(href, UriKind.Absolute, out Uri? address) &&
+                !Uri.TryCreate(baseUri, UriKind.Absolute, out address))
+            {
+                return false;
+            }
+            return address.Scheme is "opc.tcp" or "opc.https" or "opc.wss";
         }
 
         private static void CheckPortableValue(

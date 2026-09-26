@@ -898,7 +898,7 @@ namespace Opc.Ua.WotCon.Bindings.Planners
             nodeIdInPath = false;
             if (!string.IsNullOrEmpty(href) && TryParseUri(href!, out Uri uri))
             {
-                string? target = WotPortableIdentity.ReadUriTargetNodeId(href!, out _);
+                string? target = WotPortableIdentity.ReadUriTargetNodeId(ToTransmittedUri(uri), out _);
                 if (target is not null)
                 {
                     return target;

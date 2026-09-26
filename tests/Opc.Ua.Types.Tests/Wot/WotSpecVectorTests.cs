@@ -534,6 +534,36 @@ namespace Opc.Ua.Types.Tests.Wot
                 Throws.TypeOf<FormatException>());
             Assert.That(() => WotPortableIdentity.ReadUriTargetNodeId("?id=&id=i%3D2", out _),
                 Throws.TypeOf<FormatException>());
+            Assert.That(WotPortableIdentity.ReadUriTargetNodeId("?%69d=i%3D2258", out string emptyEndpoint),
+                Is.EqualTo("i=2258"));
+            Assert.That(emptyEndpoint, Is.Empty);
+            Assert.That(() => WotPortableIdentity.ReadUriTargetNodeId("?%69d=i%3D1&id=i%3D2", out _),
+                Throws.TypeOf<FormatException>());
+        }
+
+        [Test]
+        public void HttpIdentifierQueriesAreNotOpcUaNodeIds()
+        {
+            foreach (string href in new[] { "https://example.org/read?page=1&id=42", "?page=1&id=42" })
+            {
+                var root = new JsonObject
+                {
+                    ["@type"] = "Thing",
+                    ["base"] = "https://example.org/read",
+                    ["title"] = "Http",
+                    ["properties"] = new JsonObject
+                    {
+                        ["value"] = new JsonObject
+                        {
+                            ["type"] = "number",
+                            ["forms"] = new JsonArray(new JsonObject { ["href"] = href, ["op"] = "readproperty" })
+                        }
+                    }
+                };
+                using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(root.ToJsonString()));
+                WotConversionResult<Opc.Ua.Export.UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+                Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+            }
         }
 
         /// <summary>

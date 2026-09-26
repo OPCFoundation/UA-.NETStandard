@@ -417,7 +417,8 @@ namespace Opc.Ua.Wot
             foreach (string component in endpoint[(query + 1)..].Split('&'))
             {
                 int equals = component.IndexOf('=', StringComparison.Ordinal);
-                if (equals >= 0 && string.Equals(component[..equals], "id", StringComparison.OrdinalIgnoreCase))
+                if (equals >= 0 && string.Equals(
+                    Uri.UnescapeDataString(component[..equals]), "id", StringComparison.OrdinalIgnoreCase))
                 {
                     if (nodeId is not null)
                     {
