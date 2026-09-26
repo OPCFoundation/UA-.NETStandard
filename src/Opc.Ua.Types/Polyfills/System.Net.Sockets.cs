@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -56,7 +57,7 @@ namespace System.Net.Sockets
         /// <exception cref="ArgumentNullException">
         /// <paramref name="socket"/> or <paramref name="remoteEP"/> is <see langword="null"/>.
         /// </exception>
-        public static Task ConnectAsync(
+        public static async Task ConnectAsync(
             this Socket socket,
             EndPoint remoteEP,
             CancellationToken cancellationToken)
@@ -72,7 +73,27 @@ namespace System.Net.Sockets
             }
 
             cancellationToken.ThrowIfCancellationRequested();
-            return socket.ConnectAsync(remoteEP).WaitAsync(cancellationToken);
+            using CancellationTokenRegistration registration = cancellationToken.Register(
+                static state => ((Socket)state).Dispose(),
+                socket,
+                useSynchronizationContext: false);
+            try
+            {
+                await socket.ConnectAsync(remoteEP).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+            catch (SocketException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw new OperationCanceledException(
+                    "Connection attempt was cancelled.",
+                    cancellationToken);
+            }
+            catch (ObjectDisposedException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw new OperationCanceledException(
+                    "Connection attempt was cancelled.",
+                    cancellationToken);
+            }
         }
 #endif
     }
