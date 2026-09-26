@@ -124,12 +124,15 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public bool IsBlocked(IPAddress ipAddress)
         {
-            if (m_activeClients.TryGetValue(ipAddress, out ActiveClient? client))
+            lock (m_lock)
             {
-                int currentTicks = m_timeProvider.GetTickCount();
-                return IsBlockedTicks(client.BlockedUntilTicks, currentTicks);
+                if (m_activeClients.TryGetValue(ipAddress, out ActiveClient? client))
+                {
+                    int currentTicks = m_timeProvider.GetTickCount();
+                    return IsBlockedTicks(client.BlockedUntilTicks, currentTicks);
+                }
+                return m_activeClients.Count >= MaximumTrackedClients;
             }
-            return false;
         }
 
         /// <summary>
@@ -139,55 +142,45 @@ namespace Opc.Ua.Bindings
         {
             int currentTicks = m_timeProvider.GetTickCount();
 
-            m_activeClients.AddOrUpdate(
-                ipAddress,
-                // If client is new , create a new entry
-                key => new ActiveClient
+            lock (m_lock)
+            {
+                if (!m_activeClients.TryGetValue(ipAddress, out ActiveClient? client))
                 {
-                    LastActionTicks = currentTicks,
-                    ActiveActionCount = 1,
-                    BlockedUntilTicks = 0
-                },
-                // If the client exists, update its entry
-                (key, existingEntry) =>
+                    if (m_activeClients.Count >= MaximumTrackedClients)
+                    {
+                        return;
+                    }
+                    m_activeClients.TryAdd(ipAddress, new ActiveClient
+                    {
+                        LastActionTicks = currentTicks,
+                        ActiveActionCount = 1
+                    });
+                    if (m_activeClients.Count == MaximumTrackedClients)
+                    {
+                        m_logger.TcpActiveClientCapacityReached(MaximumTrackedClients);
+                    }
+                    return;
+                }
+                if (IsBlockedTicks(client.BlockedUntilTicks, currentTicks))
                 {
-                    // If IP currently blocked simply do nothing
-                    if (IsBlockedTicks(existingEntry.BlockedUntilTicks, currentTicks))
+                    return;
+                }
+                if (currentTicks - client.LastActionTicks <= kActionsIntervalMs)
+                {
+                    client.ActiveActionCount++;
+                    if (client.ActiveActionCount > kNrActionsTillBlock)
                     {
-                        return existingEntry;
+                        client.BlockedUntilTicks = currentTicks + kBlockDurationMs;
+                        m_logger.TcpTransportLog0(
+                            ipAddress, kBlockDurationMs, kNrActionsTillBlock, kActionsIntervalMs);
                     }
-
-                    // Elapsed time since last recorded action
-                    int elapsedSinceLastRecAction = currentTicks - existingEntry.LastActionTicks;
-
-                    if (elapsedSinceLastRecAction <= kActionsIntervalMs)
-                    {
-                        existingEntry.ActiveActionCount++;
-
-                        if (existingEntry.ActiveActionCount > kNrActionsTillBlock)
-                        {
-                            // Block the IP
-                            existingEntry.BlockedUntilTicks = currentTicks + kBlockDurationMs;
-                            if (m_logger.IsEnabled(LogLevel.Error))
-                            {
-                                m_logger.TcpTransportLog0(
-                                    ipAddress,
-                                    kBlockDurationMs,
-                                    kNrActionsTillBlock,
-                                    kActionsIntervalMs);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        // Reset the count as the last action was outside the interval
-                        existingEntry.ActiveActionCount = 1;
-                    }
-
-                    existingEntry.LastActionTicks = currentTicks;
-
-                    return existingEntry;
-                });
+                }
+                else
+                {
+                    client.ActiveActionCount = 1;
+                }
+                client.LastActionTicks = currentTicks;
+            }
         }
 
         /// <summary>
@@ -199,9 +192,25 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Number of retained client histories, including entries whose block has already expired.
+        /// </summary>
+        internal int TrackedClientCount => m_activeClients.Count;
+
+        /// <summary>
         /// Periodically cleans up expired active client entries to avoid memory leak and unblock clients whose duration has expired.
         /// </summary>
         private void CleanupExpiredEntries(object? state)
+        {
+            lock (m_lock)
+            {
+                CleanupExpiredEntriesCore();
+            }
+        }
+
+        /// <summary>
+        /// Expires blocks and stale histories while the caller holds the client-tracking gate.
+        /// </summary>
+        private void CleanupExpiredEntriesCore()
         {
             int currentTicks = m_timeProvider.GetTickCount();
 
@@ -253,7 +262,17 @@ namespace Opc.Ua.Bindings
             return diff > 0;
         }
 
+        /// <summary>
+        /// Caps retained client histories; unknown clients are blocked while this table is full.
+        /// </summary>
+        internal const int MaximumTrackedClients = 1024;
+
         private readonly ConcurrentDictionary<IPAddress, ActiveClient> m_activeClients = new();
+
+        /// <summary>
+        /// Serializes bounded history admission with block updates and expiry.
+        /// </summary>
+        private readonly Lock m_lock = new();
 
         private const int kActionsIntervalMs = 10_000;
         private const int kNrActionsTillBlock = 3;
@@ -367,9 +386,16 @@ namespace Opc.Ua.Bindings
                         m_channels = null;
                     }
                 }
-                foreach (TcpListenerChannel channel in channels)
+                try
                 {
-                    channel.Dispose();
+                    foreach (TcpListenerChannel channel in channels)
+                    {
+                        channel.Dispose();
+                    }
+                }
+                finally
+                {
+                    StopAdmission();
                 }
             }
         }
@@ -417,7 +443,9 @@ namespace Opc.Ua.Bindings
             m_quotas = new ChannelQuotas(messageContext)
             {
                 SecurityPolicyRegistry = settings.SecurityPolicyRegistry,
-                SessionBindingProvider = settings.SessionBindingProvider
+                SessionBindingProvider = settings.SessionBindingProvider,
+                ResourceIsolationProvider = settings.ResourceIsolationProvider,
+                HandshakeTimeout = settings.HandshakeTimeout
             };
 
             if (configuration != null)
@@ -458,7 +486,13 @@ namespace Opc.Ua.Bindings
             m_reverseConnectListener = settings.ReverseConnectListener;
             MaxChannelCount = settings.MaxChannelCount;
             m_listenBacklog = settings.ListenBacklog > 0 ? settings.ListenBacklog : kDefaultSocketBacklog;
-            m_connectionRateLimiter = settings.ConnectionRateLimiter;
+            m_admission = new UaScConnectionAdmission(
+                0,
+                settings.ConnectionRateLimiter,
+                settings.ResourceIsolationProvider,
+                m_quotas.HandshakeTimeout,
+                m_timeProvider,
+                m_telemetry);
             m_acceptedTransportDecorator = settings.AcceptedTransportDecorator;
             m_onAcceptedChannel = settings.OnAcceptedChannel;
 
@@ -691,12 +725,14 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException"></exception>
         public void Start()
         {
+            m_admission?.Start();
             lock (m_lock)
             {
                 // Track potential problematic client behavior only if Basic128Rsa15 security policy is offered
                 if (m_descriptions != null &&
                     m_descriptions.Any(d => d.SecurityPolicyUri == SecurityPolicies.Basic128Rsa15))
                 {
+                    m_activeClientTracker?.Dispose();
                     m_activeClientTracker = new ActiveClientTracker(m_telemetry, m_timeProvider);
                 }
 
@@ -836,6 +872,19 @@ namespace Opc.Ua.Bindings
                 m_listeningSocketIPv6?.Dispose();
                 m_listeningSocketIPv6 = null;
             }
+            StopAdmission();
+        }
+
+        private void StopAdmission()
+        {
+            try
+            {
+                m_admission?.Stop();
+            }
+            catch (AggregateException ex)
+            {
+                m_logger.TcpAdmissionStopFailed(ex);
+            }
         }
 
         /// <summary>
@@ -868,6 +917,7 @@ namespace Opc.Ua.Bindings
                     "Could not find secure channel request.");
             }
 
+            IUaSCByteTransport? detachedTransport = null;
             try
             {
                 // notify the application.
@@ -879,6 +929,7 @@ namespace Opc.Ua.Bindings
                     // same socket.
                     IUaSCByteTransport? transport = await channel!.DetachTransportAsync()
                         .ConfigureAwait(false);
+                    detachedTransport = transport;
                     if (transport != null)
                     {
                         var args = new TcpConnectionWaitingEventArgs(
@@ -887,13 +938,21 @@ namespace Opc.Ua.Bindings
                             transport);
                         await ConnectionWaiting(this, args).ConfigureAwait(false);
                         accepted = args.Accepted;
-                        if (!accepted)
+                        if (accepted)
+                        {
+                            if (transport is IUaSCHandshakeCompletionSource completion)
+                            {
+                                completion.CompleteHandshake();
+                            }
+                        }
+                        else
                         {
                             // Caller rejected the handoff: re-attach the transport so
                             // the existing channel keeps working on retry.
                             channel!.Transport = transport;
                             channel!.StartReceiveLoop();
                         }
+                        detachedTransport = null;
                     }
                 }
 
@@ -901,11 +960,12 @@ namespace Opc.Ua.Bindings
                 {
                     // add back in for other connection attempt.
                     m_channels?.TryAdd(channelId, channel!);
+                    channel = null;
                 }
-                channel = null; // ownership transferred
             }
             finally
             {
+                detachedTransport?.Close();
                 channel?.Dispose();
             }
 
@@ -1202,6 +1262,7 @@ namespace Opc.Ua.Bindings
             TcpListenerChannel? channel = null;
             ConcurrentDictionary<uint, TcpListenerChannel>? channels = null;
             bool reserved = false;
+            UaScConnectionAdmission.Lease? lease = null;
             uint channelId = 0;
             try
             {
@@ -1212,13 +1273,13 @@ namespace Opc.Ua.Bindings
                     m_logger.TcpTransportLog11(remote.Address);
                     return;
                 }
-                if (m_connectionRateLimiter != null &&
-                    !m_connectionRateLimiter.TryAdmitConnection(remoteEndPoint, out TimeSpan? retryAfter))
+                if (m_admission == null ||
+                    !m_admission.TryAcquire(remoteEndPoint, out lease, TryReclaimUnusedChannel))
                 {
-                    m_logger.TcpTransportLog13(remoteEndPoint, retryAfter);
+                    m_logger.TcpAdmissionRejected();
                     return;
                 }
-
+                lease.SetAbortAction(socket.Dispose);
                 channels = ReserveAcceptedChannel();
                 if (channels == null)
                 {
@@ -1255,8 +1316,9 @@ namespace Opc.Ua.Bindings
                         m_pendingAccepts--;
                         reserved = false;
                     }
-                    channel.AttachCore(channelId, socket);
+                    channel.AttachCore(channelId, socket, lease);
                     ownedSocket = null;
+                    lease = null;
                 }
                 channel = null;
             }
@@ -1278,6 +1340,7 @@ namespace Opc.Ua.Bindings
                     channel.Dispose();
                 }
                 ownedSocket?.Dispose();
+                lease?.Dispose();
             }
         }
 
@@ -1289,8 +1352,6 @@ namespace Opc.Ua.Bindings
             var attempted = new HashSet<TcpListenerChannel>();
             while (true)
             {
-                TcpListenerChannel? oldest = null;
-                int oldestElapsed = -1;
                 int channelCount;
                 lock (m_lock)
                 {
@@ -1305,47 +1366,70 @@ namespace Opc.Ua.Bindings
                         m_pendingAccepts++;
                         return channels;
                     }
-                    foreach (TcpListenerChannel candidate in channels.Values)
-                    {
-                        if (candidate.UsedBySession ||
-                            attempted.Contains(candidate) ||
-                            m_idleCleanupClaims.Contains(candidate))
-                        {
-                            continue;
-                        }
-                        int elapsed = candidate.ElapsedSinceLastActiveTime;
-                        if (elapsed > oldestElapsed)
-                        {
-                            oldest = candidate;
-                            oldestElapsed = elapsed;
-                        }
-                    }
-                    if (oldest != null)
-                    {
-                        m_idleCleanupClaims.Add(oldest);
-                    }
                 }
-
-                if (oldest == null)
+                if (!TryReclaimUnusedChannel(attempted))
                 {
                     m_logger.TcpTransportLog16(channelCount, MaxChannelCount);
                     return null;
                 }
-                attempted.Add(oldest);
+            }
+        }
+
+        private bool TryReclaimUnusedChannel()
+        {
+            return TryReclaimUnusedChannel([]);
+        }
+
+        private bool TryReclaimUnusedChannel(HashSet<TcpListenerChannel> attempted)
+        {
+            ConcurrentDictionary<uint, TcpListenerChannel>? channels;
+            TcpListenerChannel[] candidates;
+            lock (m_lock)
+            {
+                channels = m_channels;
+                if (channels == null)
+                {
+                    return false;
+                }
+                candidates = channels.Values.ToArray();
+            }
+            foreach (TcpListenerChannel candidate in candidates.OrderByDescending(
+                channel => channel.ElapsedSinceLastActiveTime))
+            {
+                if (attempted.Contains(candidate) || candidate.UsedBySession)
+                {
+                    continue;
+                }
+                lock (m_lock)
+                {
+                    if (!ReferenceEquals(channels, m_channels) ||
+                        !channels.TryGetValue(candidate.Id, out TcpListenerChannel? registered) ||
+                        !ReferenceEquals(candidate, registered) ||
+                        !m_idleCleanupClaims.Add(candidate))
+                    {
+                        continue;
+                    }
+                }
+                attempted.Add(candidate);
                 try
                 {
-                    m_logger.TcpTransportLog14(oldest.Id);
-                    oldest.TryIdleCleanupForAdmission();
-                    m_logger.TcpTransportLog15(oldest.Id);
+                    m_logger.TcpTransportLog14(candidate.Id);
+                    bool reclaimed = candidate.TryIdleCleanupForAdmission();
+                    m_logger.TcpTransportLog15(candidate.Id);
+                    if (reclaimed)
+                    {
+                        return true;
+                    }
                 }
                 finally
                 {
                     lock (m_lock)
                     {
-                        m_idleCleanupClaims.Remove(oldest);
+                        m_idleCleanupClaims.Remove(candidate);
                     }
                 }
             }
+            return false;
         }
 
         /// <summary>
@@ -1407,6 +1491,7 @@ namespace Opc.Ua.Bindings
             uint requestId,
             IServiceRequest request)
         {
+            using IDisposable usage = channel.TrackPendingRequest();
             IServiceResponse? response = null;
             bool responseRetained = false;
             try
@@ -1612,7 +1697,7 @@ namespace Opc.Ua.Bindings
         private ITimer? m_inactivityDetectionTimer;
         private ActiveClientTracker? m_activeClientTracker;
         private int m_listenBacklog;
-        private IConnectionRateLimiter? m_connectionRateLimiter;
+        private UaScConnectionAdmission? m_admission;
     }
 
     /// <summary>
@@ -1823,5 +1908,27 @@ namespace Opc.Ua.Bindings
         public static partial void TcpTransportLog30(
             this ILogger logger,
             int count);
+
+        /// <summary>
+        /// Reports a rejected physical connection without exposing owner identifiers.
+        /// </summary>
+        [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 31, Level = LogLevel.Debug,
+            Message = "TCP connection rejected by listener admission settings.")]
+        public static partial void TcpAdmissionRejected(this ILogger logger);
+
+        /// <summary>
+        /// Reports admission cleanup failure during listener shutdown.
+        /// </summary>
+        [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 32, Level = LogLevel.Warning,
+            Message = "Failed to close admitted TCP connections while stopping the listener.")]
+        public static partial void TcpAdmissionStopFailed(this ILogger logger, Exception exception);
+
+        /// <summary>
+        /// Reports when the bounded abuse history starts rejecting untracked addresses.
+        /// </summary>
+        [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 33, Level = LogLevel.Warning,
+            Message = "Basic128Rsa15 abuse tracking reached its fixed {Capacity}-address limit; " +
+                "untracked addresses are rejected until expired entries are removed.")]
+        public static partial void TcpActiveClientCapacityReached(this ILogger logger, int capacity);
     }
 }

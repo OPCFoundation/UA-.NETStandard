@@ -109,5 +109,10 @@ namespace Opc.Ua
         public const int X509CrlHelper = 580;
         public const int CryptoProvider = 590;
         public const int FilterEvaluator = 600;
+
+        /// <summary>
+        /// Event identifier offset for physical connection admission and startup deadline diagnostics.
+        /// </summary>
+        public const int UaScConnectionAdmission = 610;
     }
 }

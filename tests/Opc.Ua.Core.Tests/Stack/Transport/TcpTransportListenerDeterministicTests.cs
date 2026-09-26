@@ -74,6 +74,32 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
+        public void AbuseTrackerBoundsKeysAndFailsClosedUntilExpiredEntriesAreCleaned()
+        {
+            var time = new FakeTimeProvider();
+            using var tracker = new ActiveClientTracker(m_telemetry, time);
+            for (int i = 0; i < ActiveClientTracker.MaximumTrackedClients; i++)
+            {
+                tracker.AddClientAction(new IPAddress([10, 0, (byte)(i >> 8), (byte)i]));
+            }
+            var unknown = IPAddress.Parse("192.0.2.1");
+            Assert.That(tracker.IsBlocked(unknown), Is.True);
+            Assert.That(tracker.IsBlocked(IPAddress.Parse("10.0.0.1")), Is.False);
+            tracker.AddClientAction(unknown);
+            Assert.That(tracker.TrackedClientCount, Is.EqualTo(ActiveClientTracker.MaximumTrackedClients));
+            time.Advance(TimeSpan.FromMinutes(10));
+            Assert.That(tracker.TrackedClientCount, Is.EqualTo(ActiveClientTracker.MaximumTrackedClients));
+            time.Advance(TimeSpan.FromSeconds(15));
+            Assert.That(tracker.TrackedClientCount, Is.Zero);
+            Assert.That(tracker.IsBlocked(unknown), Is.False);
+            for (int i = 0; i < 4; i++)
+            {
+                tracker.AddClientAction(unknown);
+            }
+            Assert.That(tracker.IsBlocked(unknown), Is.True);
+        }
+
+        [Test]
         public void AddClientActionBlocksIpWhenActionCountExceedsThresholdWithinWindow()
         {
             var time = new FakeTimeProvider();

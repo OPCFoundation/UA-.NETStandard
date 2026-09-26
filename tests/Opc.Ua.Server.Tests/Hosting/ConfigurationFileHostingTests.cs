@@ -184,7 +184,10 @@ namespace Opc.Ua.Server.Tests.Hosting
                     services.AddOpcUa().AddServer<ConfigurationCaptureServer>(
                         configurationFile,
                         configuration =>
-                            configuration.ServerConfiguration!.MaxSessionCount = 4242);
+                        {
+                            configuration.ServerConfiguration!.MaxSessionCount = 4242;
+                            configuration.ServerConfiguration.MaxChannelCount = 4245;
+                        });
                 }).ConfigureAwait(false);
 
             Assert.That(
@@ -200,6 +203,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             // The callback override wins over the file value while every
             // untouched setting keeps its file value.
             Assert.That(configuration.ServerConfiguration!.MaxSessionCount, Is.EqualTo(4242));
+            Assert.That(configuration.ServerConfiguration.MaxChannelCount, Is.EqualTo(4245));
             Assert.That(configuration.TransportQuotas!.MaxStringLength, Is.EqualTo(654321));
             Assert.That(configuration.SourceFilePath, Is.EqualTo(configurationFile));
         }

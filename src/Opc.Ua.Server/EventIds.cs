@@ -44,6 +44,11 @@ namespace Opc.Ua
     internal static class ServerEventIds
     {
         /// <summary>
+        /// Event identifier offset for runtime resource isolation.
+        /// </summary>
+        public const int ResourceIsolation = 700;
+
+        /// <summary>
         /// Event identifier offset for aggregate calculation messages.
         /// </summary>
         public const int AggregateCalculator = 0;

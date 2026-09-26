@@ -230,7 +230,7 @@ namespace Opc.Ua.Sessions.Tests
         private void ConfigureFixture(int maxBufferSize)
         {
             m_transportMaxBufferSize = maxBufferSize;
-            MaxChannelCount = 320;
+            MaxChannelCount = 323;
             MaxSessionCount = 320;
             MaxSubscriptionCount = 320;
             MaxFailedAuthenticationAttempts = 0;

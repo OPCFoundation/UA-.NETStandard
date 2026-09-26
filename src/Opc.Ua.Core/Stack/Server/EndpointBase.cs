@@ -40,7 +40,8 @@ namespace Opc.Ua
     /// <summary>
     /// A base class for UA endpoints.
     /// </summary>
-    public abstract partial class EndpointBase : IEndpointBase, ITransportListenerCallback
+    public abstract partial class EndpointBase :
+        IEndpointBase, ITransportListenerCallback, IResourceIsolationProviderSource
     {
         /// <summary>
         /// Initializes the object when it is created by the WCF framework.
@@ -91,6 +92,10 @@ namespace Opc.Ua
 
             SupportedServices = [];
         }
+
+        /// <inheritdoc/>
+        public IServerResourceIsolationProvider? ResourceIsolationProvider =>
+            (m_server as IResourceIsolationProviderSource)?.ResourceIsolationProvider;
 
         /// <inheritdoc/>
         public ValueTask<IServiceResponse> ProcessRequestAsync(

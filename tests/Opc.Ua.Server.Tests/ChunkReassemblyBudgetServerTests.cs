@@ -66,7 +66,8 @@ namespace Opc.Ua.Server.Tests
                     budget.MaxBytes,
                     Is.EqualTo(ChunkReassemblyBudget.GetDefaultMaxBytes(
                         fixture.Config.TransportQuotas.MaxMessageSize)));
-                Assert.That(server.ChunkReassemblyBudget, Is.Null, "the server must not claim a budget it sized.");
+                Assert.That(server.ChunkReassemblyBudget, Is.SameAs(budget));
+                Assert.That(server.ResourceIsolationProvider!.UseFairScheduling, Is.True);
             }
             finally
             {
@@ -77,7 +78,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task ServerHandsItsListenersTheConfiguredBudgetAsync()
         {
-            var configured = new ChunkReassemblyBudget(32L * 1024 * 1024);
+            var configured = new ChunkReassemblyBudget(256L * 1024 * 1024);
             var fixture = new ServerFixture<BudgetCaptureServer>(
                 t => new BudgetCaptureServer(t) { ChunkReassemblyBudget = configured });
             BudgetCaptureServer server = await fixture.StartAsync().ConfigureAwait(false);

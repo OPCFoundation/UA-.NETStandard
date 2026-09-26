@@ -47,7 +47,7 @@ namespace Opc.Ua
     /// <summary>
     /// A base class for a UA server implementation.
     /// </summary>
-    public partial class ServerBase : IServerBase
+    public partial class ServerBase : IServerBase, IResourceIsolationProviderSource
     {
         /// <summary>
         /// Initializes object with default values.
@@ -227,7 +227,7 @@ namespace Opc.Ua
             IEndpointIncomingRequest request,
             CancellationToken cancellationToken = default)
         {
-            m_requestQueue.ScheduleIncomingRequest(request);
+            m_requestQueue.ScheduleIncomingRequest(request, cancellationToken);
         }
 
         /// <summary>
@@ -646,7 +646,9 @@ namespace Opc.Ua
                 minRequestThreadCount,
                 maxRequestThreadCount,
                 maxQueuedRequestCount,
-                decoupleHeldPublishRequests);
+                decoupleHeldPublishRequests,
+                ResourceIsolationProvider,
+                configuration.TransportQuotas?.MaxMessageSize ?? TcpMessageLimits.DefaultMaxMessageSize);
 
             // a fresh request queue re-arms the shutdown sequence for the (re)started server.
             lock (m_stopLock)
@@ -666,6 +668,14 @@ namespace Opc.Ua
         protected void StopRequestQueue()
         {
             m_requestQueue?.Dispose();
+        }
+
+        /// <summary>
+        /// Cancels admissions and drains executing and parked requests before server state is torn down.
+        /// </summary>
+        protected ValueTask StopRequestQueueAsync(CancellationToken cancellationToken = default)
+        {
+            return m_requestQueue?.StopAsync(cancellationToken) ?? default;
         }
 
         /// <summary>
@@ -988,6 +998,12 @@ namespace Opc.Ua
         public ISessionBindingProvider? SessionBindingProvider { get; set; }
 
         /// <summary>
+        /// Gets or sets the shared resource-isolation policy used by listeners and decoded request dispatch.
+        /// Configure before startup; the host owns explicitly supplied providers.
+        /// </summary>
+        public IServerResourceIsolationProvider? ResourceIsolationProvider { get; set; }
+
+        /// <summary>
         /// Gets or sets the encodeable factory to use for this server instance.
         /// </summary>
         /// <remarks>
@@ -1141,7 +1157,8 @@ namespace Opc.Ua
                     Factory = messageContext.Factory,
                     MaxChannelCount = 0,
                     ChunkReassemblyBudget = chunkReassemblyBudget,
-                    SessionBindingProvider = SessionBindingProvider ?? this as ISessionBindingProvider
+                    SessionBindingProvider = SessionBindingProvider ?? this as ISessionBindingProvider,
+                    ResourceIsolationProvider = ResourceIsolationProvider
                 };
 
                 settings.MaxChannelCount = Configuration!.ServerConfiguration!.MaxChannelCount;
@@ -2183,14 +2200,16 @@ namespace Opc.Ua
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 9, Level = LogLevel.Debug,
             Message = "Too many operations. Active threads: {Count}")]
-        public static partial void ServerBaseLogMessage9(this ILogger logger, int count);
+        public static partial void RequestQueueFull(this ILogger logger, int count);
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 10, Level = LogLevel.Error,
             Message = "Unexpected error processing incoming request.")]
-        public static partial void ServerBaseLogMessage10(this ILogger logger, Exception? exception);
+        public static partial void RequestQueueProcessingFailed(
+            this ILogger logger, Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 11, Level = LogLevel.Error,
             Message = "Failed to fault an incoming request after an error.")]
-        public static partial void ServerBaseLogMessage11(this ILogger logger, Exception? exception);
+        public static partial void RequestFaultDeliveryFailed(
+            this ILogger logger, Exception? exception);
     }
 }

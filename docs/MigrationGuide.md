@@ -845,11 +845,20 @@ implementation detail, and can no longer do so.
 
 Applications migrating from 1.5.x have a server-wide budget for retained
 intermediate-message buffers. With the reference server's 4 MiB maximum message
-size, the default budget is **64 MiB**, and channels without an activated session
-may fill only the lower **32 MiB**. A chunk that does not fit discards its partial
+size, the default budget is **64 MiB**. Under SharedOnly, channels without an
+activated Session may retain chunks only while total usage remains within the
+lower **32 MiB**. Balanced instead divides the same total between shared memory
+and memory reserved for specific kinds of work. With a 65,536-byte buffer limit,
+16.25 MiB is reserved for verified startup traffic and 16.25 MiB for continuity
+or reconnect traffic, leaving 31.5 MiB shared. Other traffic cannot borrow these
+reserves. Channels already carrying an activated Session can use the continuity
+reserve for incomplete messages. A chunk that does not fit discards its partial
 message and closes the channel with `BadTcpNotEnoughResources`. Final chunks,
 single-chunk requests, response buffers, and client buffers are not charged to
-this reassembly budget.
+this reassembly budget. Once a complete request has been decoded, separate
+limits control how many requests may wait, execute, or remain parked, and how
+much request data they may retain. A request refused at that stage receives
+`BadServerTooBusy`, even if it fitted in a single transport chunk.
 
 For workloads with many simultaneous large requests, set
 `WithChunkReassemblyBudget(maxBytes)` on the Dependency Injection (DI) server builder or assign
@@ -862,17 +871,8 @@ Server-channel `ChannelLifetime` also bounds an unfinished message from its
 first retained chunk, even if more chunks keep arriving. Size this lifetime
 for legitimate large transfers without relying on continuation chunks to
 extend it indefinitely. A zero or negative value uses the 30-second default
-for message assembly; it does not disable assembly cleanup. See
+for message assembly. It does not disable assembly cleanup. See
 [incomplete-message limits](Transports.md#incomplete-message-resource-limits).
-
-Kestrel TCP and UACP WebSocket listeners honor configured connection-admission
-and channel limits, including pending admissions. Size `MaxChannelCount` for
-the intended deployment rather than relying on these bindings to ignore it.
-Managed channel membership is based on committed live sessions rather than
-activation-response counts. Custom session managers can implement the optional
-`ISessionBindingProvider` capability; custom hosts can inject a provider without
-changing existing callback contracts. A lookup snapshot does not replace normal
-request authentication and authorization.
 
 ## Migrating channel subclasses that override HandleIncomingMessage
 

@@ -797,6 +797,7 @@ properties (bindable from `IConfiguration` or set via the
 | `ConfigureLoadedConfiguration` | Code-only callback | Override individual settings of the configuration loaded from `ConfigurationFile` / `ConfigurationStream`. |
 | `ConfigureBuilder` | Code-only callback | Pre-security server-policy and server-option escape hatch, including max failed authentication attempts, sessions, channels, auditing, and HTTPS mutual TLS. |
 | `ConfigureRateLimits` | Code-only callback | Tunes the default connection and session-establishment admission controls. |
+| `ResourceIsolation` | `ConfigureResourceIsolation(...)` | Limits concurrent connections, retained data, and queued/running requests by caller; defaults to Balanced. Applied even when loading XML configuration. |
 
 Configure incomplete-message capacity with
 `builder.AddServer(...).WithChunkReassemblyBudget(maxBytes)`. This registers one
@@ -804,6 +805,42 @@ Configure incomplete-message capacity with
 explicit budget, the server sizes one from `MaxMessageSize`; see
 [incomplete messages](RateLimiting.md#incomplete-messages) for the defaults,
 sessionless headroom, and direct-construction equivalent.
+
+### Server resource isolation
+
+`OpcUaServerOptions.ResourceIsolation` controls whether the running server
+accepts a connection, retains message data, or queues/executes a request when
+resources are limited. These capacity checks are additional to connection
+rate limits and service authentication. Configure them with
+`ConfigureResourceIsolation(...)` or the `OpcUa:Server:ResourceIsolation`
+configuration section. See [server resource isolation](ResourceIsolation.md)
+for direct, DI, and JSON examples.
+
+**Balanced is the default.** Startup validates that finite configured totals
+can hold its shared and reserved capacity. It does not remove reserves or
+raise totals to make an invalid configuration fit, including when you load an
+XML configuration. The [startup validation guide](ResourceIsolation.md#startup-validation-and-sizing)
+explains how to correct insufficient limits. Choose SharedOnly when you want
+shared rate, message, and reassembly limits without per-caller isolation.
+Without an explicitly supplied provider, this mode also accepts unlimited
+settings that do not satisfy the other profiles' finite-capacity requirements.
+
+`AddResourceIsolationClassifier<T>()` registers your application's implementation
+of `IResourceIsolationClassifier`. This code identifies callers that may use
+protected startup capacity or maps authenticated callers to configured groups.
+Reserves alone do not give unknown connections protected access, and an
+observed IP address is not proof of identity. TrustedReservations requires
+both a classifier and provisioned `TrustedOwners`. See the
+[dedicated-ingress example](ResourceIsolation.md#example-dedicated-trusted-ingress)
+and its deployment requirements.
+
+Direct servers expose `ResourceIsolationOptions`,
+`ResourceIsolationClassifier`, and `ResourceIsolationProvider`. An explicitly
+registered `IServerResourceIsolationProvider` takes precedence over the options,
+including SharedOnly. The server does not validate it by constructing a default
+plan or take ownership of its disposal; its creator or DI container owns it.
+The provider author is responsible for matching the actual listener and queue
+capacities. The server owns and disposes only the default provider it creates.
 
 ### Committed session bindings
 
