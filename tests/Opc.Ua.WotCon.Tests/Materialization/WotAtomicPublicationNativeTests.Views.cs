@@ -41,6 +41,7 @@ using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Export;
 using Opc.Ua.Server;
+using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Bindings;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
@@ -628,9 +629,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 GroupId = thingModel ? WotRegistryGroups.ThingModels : WotRegistryGroups.ThingDescriptions,
                 Kind = thingModel ? WoTDocumentKindEnum.ThingModel : WoTDocumentKindEnum.ThingDescription,
                 ResourceId = id, VersionId = "v1",
-                Format = "WoT-Projection/1.2",
-                ContentType =
-                    "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.2/projection\"",
+                Format = WotProjection.Format,
+                ContentType = WotProjection.ContentType,
                 Content = ByteString.From(Encoding.UTF8.GetBytes(content))
             }).ConfigureAwait(false);
             Assert.That(result.Changed, Is.True, result.Message);

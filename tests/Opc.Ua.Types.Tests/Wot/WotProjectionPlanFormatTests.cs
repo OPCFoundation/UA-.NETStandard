@@ -215,7 +215,7 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             JsonObject root = Plan("ThingDescription");
             root["uav:projects"]![0]!["type"] =
-                "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.2/projection\"";
+                "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.1/projection\"";
             JsonObject nested = Plan("ThingDescription");
             nested["id"] = "urn:plan:source";
             nested["uav:projects"]![0]!["href"] = "urn:plan:leaf";
@@ -346,9 +346,9 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public void CurrentPlanMetadataAndResultKindTermAreDiscoverable()
         {
-            Assert.That(WotProjection.Format, Is.EqualTo("WoT-Projection/1.2"));
+            Assert.That(WotProjection.Format, Is.EqualTo("WoT-Projection/1.1"));
             Assert.That(WotProjection.ContentType, Is.EqualTo(
-                "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.2/projection\""));
+                "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.1/projection\""));
             Assert.That(WotBindingConformance.IsKnownTerm("uav:projectionKind"), Is.True);
         }
 

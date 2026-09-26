@@ -821,13 +821,13 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// The registry Format identifier for a current projection plan.
         /// </summary>
-        public const string Format = "WoT-Projection/1.2";
+        public const string Format = "WoT-Projection/1.1";
 
         /// <summary>
         /// The registry ContentType and source-manifest media type for a current projection plan.
         /// </summary>
         public const string ContentType =
-            "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.2/projection\"";
+            "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.1/projection\"";
 
         private const string ThingDescriptionMediaType = "application/td+json";
         private const string ThingModelMediaType = "application/tm+json";

@@ -1256,7 +1256,7 @@ a ReferenceType — the two constructs the model already has.
 
 ### 12.4 Projection documents and the View NodeClass
 
-A **projection document** is a `WoT-Projection/1.2` plan, not an already
+A **projection document** is a `WoT-Projection/1.1` plan, not an already
 resolved Thing Description or Thing Model. It names source documents and
 states which of their affordances a view is assembled from. Its selectors
 are references and annotations, not executable InteractionAffordances.
@@ -1287,8 +1287,8 @@ than classifying the unresolved root as an ordinary TD/TM. Resolution removes
 `Thing` or `tm:ThingModel` marker.
 
 Use `WotProjection.Format` and `WotProjection.ContentType` for its registry
-metadata: `WoT-Projection/1.2` and
-`application/ld+json; profile="http://opcfoundation.org/UA/WoT-Binding/v1.2/projection"`.
+metadata: `WoT-Projection/1.1` and
+`application/ld+json; profile="http://opcfoundation.org/UA/WoT-Binding/v1.1/projection"`.
 A source manifest accepts `application/td+json`, `application/tm+json`, or
 that projection media type for a nested plan. Its media type must describe
 the fetched source role; enabling compatibility does not disguise a modern

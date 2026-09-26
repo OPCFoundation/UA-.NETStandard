@@ -16,25 +16,25 @@
     {
       "href": "pump1-processdata",
       "rel": "ua:Organizes",
-      "type": "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.2/projection\"",
+      "type": "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.1/projection\"",
       "uav:refName": "ProcessData"
     },
     {
       "href": "pump1-conditiondata",
       "rel": "ua:Organizes",
-      "type": "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.2/projection\"",
+      "type": "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.1/projection\"",
       "uav:refName": "ConditionData"
     },
     {
       "href": "pump1-supervision",
       "rel": "ua:Organizes",
-      "type": "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.2/projection\"",
+      "type": "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.1/projection\"",
       "uav:refName": "Supervision"
     },
     {
       "href": "pump1-management",
       "rel": "ua:Organizes",
-      "type": "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.2/projection\"",
+      "type": "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.1/projection\"",
       "uav:refName": "Management"
     }
   ],
@@ -60,7 +60,7 @@
   "uav:projects": [
     {
       "href": "pump1-members",
-      "type": "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.2/projection\"",
+      "type": "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.1/projection\"",
       "uav:routing": "source",
       "uav:sourceName": "pump1-members"
     }

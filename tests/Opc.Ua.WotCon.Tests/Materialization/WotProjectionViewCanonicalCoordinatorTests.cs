@@ -32,6 +32,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
@@ -71,9 +72,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             {
                 GroupId = WotRegistryGroups.ThingDescriptions,
                 ResourceId = "canonical-view",
-                Format = "WoT-Projection/1.2",
-                ContentType =
-                    "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.2/projection\"",
+                Format = WotProjection.Format,
+                ContentType = WotProjection.ContentType,
                 Content = ByteString.From(Encoding.UTF8.GetBytes(kProjectionDocument))
             }).ConfigureAwait(false);
             Assert.That(projection.Outcome, Is.EqualTo(WoTOutcomeEnum.Success), projection.Message);
@@ -118,9 +118,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             {
                 GroupId = WotRegistryGroups.ThingDescriptions,
                 ResourceId = "canonical-view",
-                Format = "WoT-Projection/1.2",
-                ContentType =
-                    "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.2/projection\"",
+                Format = WotProjection.Format,
+                ContentType = WotProjection.ContentType,
                 Content = ByteString.From(Encoding.UTF8.GetBytes(kProjectionDocument))
             }).ConfigureAwait(false);
             Assert.That(projection.Outcome, Is.EqualTo(WoTOutcomeEnum.Success), projection.Message);

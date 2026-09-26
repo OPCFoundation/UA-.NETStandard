@@ -36,6 +36,7 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server;
+using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 
@@ -274,8 +275,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 GroupId = source.GroupId,
                 ResourceId = "view",
                 VersionId = "v1",
-                Format = "WoT-Projection/1.2",
-                ContentType = "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.2/projection\"",
+                Format = WotProjection.Format,
+                ContentType = WotProjection.ContentType,
                 Content = ByteString.From(Encoding.UTF8.GetBytes("""
                     {
                       "@context":["https://www.w3.org/2022/wot/td/v1.1",
@@ -346,8 +347,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             WotRegistryMutationResult created = await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
                 GroupId = source.GroupId, ResourceId = "view", VersionId = "v1",
-                Format = "WoT-Projection/1.2",
-                ContentType = "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.2/projection\"",
+                Format = WotProjection.Format,
+                ContentType = WotProjection.ContentType,
                 Content = ByteString.From(Encoding.UTF8.GetBytes("""
                     {
                       "@context":["https://www.w3.org/2022/wot/td/v1.1",
