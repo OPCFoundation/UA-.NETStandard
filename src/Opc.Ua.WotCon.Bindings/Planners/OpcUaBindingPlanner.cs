@@ -116,6 +116,10 @@ namespace Opc.Ua.WotCon.Bindings.Planners
             try
             {
                 nodeId = ResolveNodeId(form, out nodeIdInPath);
+                if (string.IsNullOrEmpty(form.Href) && !string.IsNullOrEmpty(context.BaseUri))
+                {
+                    WotPortableIdentity.ReadUriTargetNodeId(context.BaseUri!, out _);
+                }
             }
             catch (FormatException exception)
             {

@@ -92,6 +92,26 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        [Test]
+        public void DuplicateNodeIdQueriesReturnDiagnosticsForHrefAndBaseUri()
+        {
+            const string uri = "opc.tcp://host:4840/UA?id=i%3D1&id=i%3D2";
+            foreach (bool inBase in new[] { false, true })
+            {
+                WotAffordanceForm form = MakePropertyForm(
+                    inBase ? """{"uav:id":"i=2258","op":"readproperty"}""" :
+                        """{"href":"opc.tcp://host:4840/UA?id=i%3D1&id=i%3D2","op":"readproperty"}""",
+                    ops: ["readproperty"]);
+                WotBindingCompilation result = new OpcUaBindingPlanner().Compile(
+                    form, new WotBindingPlanContext(baseUri: inBase ? uri : null));
+
+                Assert.That(result.IsSupported, Is.False);
+                Assert.That(result.Entries, Is.Empty);
+                Assert.That(result.Diagnostics.Any(diagnostic =>
+                    diagnostic.Code == WotBindingDiagnosticCode.InvalidFieldValue), Is.True);
+            }
+        }
+
         private static WotAffordanceForm MakePropertyForm(
             string formJson,
             string affordanceName = "p",
