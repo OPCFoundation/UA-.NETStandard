@@ -34,6 +34,10 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class ChannelQuotas
     {
+        internal ChunkReassemblyBudget ChunkReassemblyBudget { get; set; }
+
+        internal System.Func<string, bool> HasActivatedSession { get; set; }
+
         /// <summary>
         /// Creates an object with default values.
         /// </summary>

@@ -225,6 +225,7 @@ namespace Opc.Ua.Bindings
         {
             if (disposing)
             {
+                ClosePartialMessage();
                 Socket?.Close();
                 DiscardTokens();
                 Utils.SilentDispose(Socket);
@@ -382,42 +383,86 @@ namespace Opc.Ua.Bindings
             ArraySegment<byte> chunk,
             bool isServerContext)
         {
-            bool firstChunk = false;
-            if (m_partialMessageChunks == null)
-            {
-                firstChunk = true;
-                m_partialMessageChunks = [];
-            }
+            return SaveChunk(requestId, chunk, isServerContext, false, out _);
+        }
 
-            bool chunkOrSizeLimitsExceeded = MessageLimitsExceeded(
-                isServerContext,
-                m_partialMessageChunks.TotalSize,
-                m_partialMessageChunks.Count);
-
-            if ((m_partialRequestId != requestId) || chunkOrSizeLimitsExceeded)
+        // Takes ownership of chunk, including when it cannot be retained.
+        // Channel callbacks run after leaving the partial-message lock.
+        private bool SaveChunk(
+            uint requestId,
+            ArraySegment<byte> chunk,
+            bool isServerContext,
+            bool final,
+            out BufferCollection completed)
+        {
+            completed = null;
+            bool firstChunk;
+            bool limitsExceeded;
+            bool budgetExceeded = false;
+            lock (m_partialMessageLock)
             {
-                if (m_partialMessageChunks.Count > 0)
+                if (m_partialMessageClosed)
                 {
-                    m_logger.LogWarning(
-                        "WARNING - Discarding unprocessed message chunks for Request #{PartialRequestId}",
-                        m_partialRequestId);
+                    BufferManager.ReturnBuffer(chunk.Array, nameof(SaveChunk));
+                    completed = [];
+                    return false;
                 }
 
-                m_partialMessageChunks.Release(BufferManager, "SaveIntermediateChunk");
+                firstChunk = m_partialMessageChunks == null;
+                // Keep the existing negotiated message-limit policy.
+                limitsExceeded = MessageLimitsExceeded(
+                    isServerContext,
+                    m_partialMessageChunks?.TotalSize ?? 0,
+                    m_partialMessageChunks?.Count ?? 0);
+                if (m_partialRequestId != requestId || limitsExceeded)
+                {
+                    if (m_partialMessageChunks?.Count > 0)
+                    {
+                        m_logger.LogWarning(
+                            "WARNING - Discarding unprocessed message chunks for Request #{PartialRequestId}",
+                            m_partialRequestId);
+                    }
+                    ReleaseSavedChunks();
+                }
+
+                if (!limitsExceeded && requestId != 0 && chunk.Array != null)
+                {
+                    ChunkReassemblyBudget budget = isServerContext && !final
+                        ? Quotas.ChunkReassemblyBudget : null;
+                    if (budget == null || budget.TryReserve(
+                        chunk.Array.Length, this is TcpListenerChannel listener && listener.UsedBySession))
+                    {
+                        m_partialMessageReservedBytes += budget == null ? 0 : chunk.Array.Length;
+                        m_partialRequestId = requestId;
+                        m_partialMessageChunks ??= [];
+                        m_partialMessageChunks.Add(chunk);
+                    }
+                    else
+                    {
+                        ReleaseSavedChunks();
+                        BufferManager.ReturnBuffer(chunk.Array, nameof(SaveChunk));
+                        budgetExceeded = true;
+                    }
+                }
+                else
+                {
+                    BufferManager.ReturnBuffer(chunk.Array, nameof(SaveChunk));
+                }
+
+                if (final)
+                {
+                    completed = TakeSavedChunks();
+                }
             }
 
-            if (chunkOrSizeLimitsExceeded)
+            if (budgetExceeded)
+            {
+                OnReassemblyBudgetExceeded();
+            }
+            else if (limitsExceeded)
             {
                 DoMessageLimitsExceeded();
-                return firstChunk;
             }
-
-            if (requestId != 0)
-            {
-                m_partialRequestId = requestId;
-                m_partialMessageChunks.Add(chunk);
-            }
-
             return firstChunk;
         }
 
@@ -429,10 +474,60 @@ namespace Opc.Ua.Bindings
             ArraySegment<byte> chunk,
             bool isServerContext)
         {
-            SaveIntermediateChunk(requestId, chunk, isServerContext);
-            BufferCollection savedChunks = m_partialMessageChunks;
+            SaveChunk(requestId, chunk, isServerContext, true, out BufferCollection completed);
+            return completed;
+        }
+
+        internal bool HasPartialMessage
+        {
+            get
+            {
+                lock (m_partialMessageLock)
+                {
+                    return m_partialMessageChunks != null;
+                }
+            }
+        }
+
+        internal BufferCollection TakeSavedChunks()
+        {
+            lock (m_partialMessageLock)
+            {
+                BufferCollection chunks = m_partialMessageChunks ?? [];
+                m_partialMessageChunks = null;
+                ReleasePartialMessageReservation();
+                return chunks;
+            }
+        }
+
+        internal void ClosePartialMessage()
+        {
+            lock (m_partialMessageLock)
+            {
+                m_partialMessageClosed = true;
+                ReleaseSavedChunks();
+            }
+        }
+
+        private void ReleaseSavedChunks()
+        {
+            m_partialMessageChunks?.Release(BufferManager, nameof(ReleaseSavedChunks));
             m_partialMessageChunks = null;
-            return savedChunks;
+            ReleasePartialMessageReservation();
+        }
+
+        private void ReleasePartialMessageReservation()
+        {
+            if (m_partialMessageReservedBytes != 0)
+            {
+                Quotas.ChunkReassemblyBudget.Release(m_partialMessageReservedBytes);
+                m_partialMessageReservedBytes = 0;
+            }
+        }
+
+        internal virtual void OnReassemblyBudgetExceeded()
+        {
+            DoMessageLimitsExceeded();
         }
 
         /// <summary>
@@ -440,7 +535,10 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected int GetSavedChunksTotalSize()
         {
-            return m_partialMessageChunks?.TotalSize ?? 0;
+            lock (m_partialMessageLock)
+            {
+                return m_partialMessageChunks?.TotalSize ?? 0;
+            }
         }
 
         /// <summary>
@@ -973,6 +1071,9 @@ namespace Opc.Ua.Bindings
         private bool m_firstReceivedSequenceNumber = true;
         private uint m_partialRequestId;
         private BufferCollection m_partialMessageChunks;
+        private readonly object m_partialMessageLock = new();
+        private long m_partialMessageReservedBytes;
+        private bool m_partialMessageClosed;
 
         private TcpChannelStateEventHandler m_stateChanged;
         private const uint kMaxValueLegacyTrue = TcpMessageLimits.MinSequenceNumber;
