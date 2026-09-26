@@ -113,12 +113,65 @@ namespace Opc.Ua.WotCon.Bindings.Planners
 
             string? nodeId;
             bool nodeIdInPath;
+            WotBrowsePathTarget? pathTarget;
+            WotEndpointDescriptor endpoint;
+            string? authority;
             try
             {
                 nodeId = ResolveNodeId(form, out nodeIdInPath);
-                if (string.IsNullOrEmpty(form.Href) && !string.IsNullOrEmpty(context.BaseUri))
+                if (!form.TryGetBrowsePath(context, out pathTarget, out string? pathError))
                 {
-                    WotPortableIdentity.ReadUriTargetNodeId(context.BaseUri!, out _);
+                    diagnostics.Add(WotBindingDiagnostic.Error(
+                        WotBindingDiagnosticCode.InvalidFieldValue, pathError!,
+                        form.Pointer(WotBrowsePathTarget.PathTerm), WotBrowsePathTarget.PathTerm));
+                    return WotBindingCompilation.Unsupported([.. diagnostics]);
+                }
+                if (pathTarget is not null &&
+                    (pathTarget.Path.Length > context.Bounds.MaxUriLength ||
+                        pathTarget.Elements.Count > context.Bounds.MaxBrowsePathElements))
+                {
+                    diagnostics.Add(WotBindingDiagnostic.Error(
+                        WotBindingDiagnosticCode.InvalidFieldValue,
+                        "The browse path exceeds the configured addressing bounds.",
+                        pathTarget.JsonPointer, WotBrowsePathTarget.PathTerm));
+                    return WotBindingCompilation.Unsupported([.. diagnostics]);
+                }
+                if (pathTarget is not null &&
+                    form.FormElement.TryGetProperty("uav:id", out System.Text.Json.JsonElement declaredId) &&
+                    (declaredId.ValueKind != System.Text.Json.JsonValueKind.String ||
+                        string.IsNullOrWhiteSpace(declaredId.GetString())))
+                {
+                    diagnostics.Add(WotBindingDiagnostic.Error(
+                        WotBindingDiagnosticCode.InvalidFieldValue, "A declared target NodeId must be a non-empty string.",
+                        form.Pointer("uav:id"), "uav:id"));
+                    return WotBindingCompilation.Unsupported([.. diagnostics]);
+                }
+                if (!string.IsNullOrEmpty(form.Href) && TryParseUri(form.Href!, out Uri uri))
+                {
+                    if (!IsOpcScheme(uri.Scheme))
+                    {
+                        diagnostics.Add(WotBindingDiagnostic.Error(
+                            WotBindingDiagnosticCode.UnsupportedScheme,
+                            $"'{uri.Scheme}' is not an OPC UA transport scheme.", form.Pointer("href")));
+                        return WotBindingCompilation.Unsupported([.. diagnostics]);
+                    }
+                    endpoint = MakeOpcUaEndpoint(uri, nodeIdInPath);
+                    authority = ToTransmittedAuthority(uri);
+                }
+                else if (!string.IsNullOrEmpty(context.BaseUri) &&
+                    TryParseUri(context.BaseUri!, out Uri baseUri) &&
+                    IsOpcScheme(baseUri.Scheme))
+                {
+                    endpoint = MakeOpcUaEndpoint(baseUri, nodeIdInPath: false);
+                    authority = ToTransmittedAuthority(baseUri);
+                }
+                else
+                {
+                    diagnostics.Add(WotBindingDiagnostic.Error(
+                        WotBindingDiagnosticCode.MissingRequiredField,
+                        "An OPC UA form requires an opc.tcp href or a Thing base opc.tcp endpoint.",
+                        form.Pointer("href")));
+                    return WotBindingCompilation.Unsupported([.. diagnostics]);
                 }
             }
             catch (FormatException exception)
@@ -126,62 +179,6 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                 return WotBindingCompilation.Unsupported(
                     [WotBindingDiagnostic.Error(WotBindingDiagnosticCode.InvalidFieldValue,
                         exception.Message, form.Pointer("href"))]);
-            }
-            if (!form.TryGetBrowsePath(context, out WotBrowsePathTarget? pathTarget, out string? pathError))
-            {
-                diagnostics.Add(WotBindingDiagnostic.Error(
-                    WotBindingDiagnosticCode.InvalidFieldValue, pathError!,
-                    form.Pointer(WotBrowsePathTarget.PathTerm), WotBrowsePathTarget.PathTerm));
-                return WotBindingCompilation.Unsupported([.. diagnostics]);
-            }
-            if (pathTarget is not null &&
-                (pathTarget.Path.Length > context.Bounds.MaxUriLength ||
-                    pathTarget.Elements.Count > context.Bounds.MaxBrowsePathElements))
-            {
-                diagnostics.Add(WotBindingDiagnostic.Error(
-                    WotBindingDiagnosticCode.InvalidFieldValue,
-                    "The browse path exceeds the configured addressing bounds.",
-                    pathTarget.JsonPointer, WotBrowsePathTarget.PathTerm));
-                return WotBindingCompilation.Unsupported([.. diagnostics]);
-            }
-            if (pathTarget is not null &&
-                form.FormElement.TryGetProperty("uav:id", out System.Text.Json.JsonElement declaredId) &&
-                (declaredId.ValueKind != System.Text.Json.JsonValueKind.String ||
-                    string.IsNullOrWhiteSpace(declaredId.GetString())))
-            {
-                diagnostics.Add(WotBindingDiagnostic.Error(
-                    WotBindingDiagnosticCode.InvalidFieldValue, "A declared target NodeId must be a non-empty string.",
-                    form.Pointer("uav:id"), "uav:id"));
-                return WotBindingCompilation.Unsupported([.. diagnostics]);
-            }
-            WotEndpointDescriptor endpoint;
-            string? authority;
-            if (!string.IsNullOrEmpty(form.Href) && TryParseUri(form.Href!, out Uri uri))
-            {
-                if (!IsOpcScheme(uri.Scheme))
-                {
-                    diagnostics.Add(WotBindingDiagnostic.Error(
-                        WotBindingDiagnosticCode.UnsupportedScheme,
-                        $"'{uri.Scheme}' is not an OPC UA transport scheme.", form.Pointer("href")));
-                    return WotBindingCompilation.Unsupported([.. diagnostics]);
-                }
-                endpoint = MakeOpcUaEndpoint(uri, nodeIdInPath);
-                authority = ToTransmittedAuthority(uri);
-            }
-            else if (!string.IsNullOrEmpty(context.BaseUri) &&
-                TryParseUri(context.BaseUri!, out Uri baseUri) &&
-                IsOpcScheme(baseUri.Scheme))
-            {
-                endpoint = MakeOpcUaEndpoint(baseUri, nodeIdInPath: false);
-                authority = ToTransmittedAuthority(baseUri);
-            }
-            else
-            {
-                diagnostics.Add(WotBindingDiagnostic.Error(
-                    WotBindingDiagnosticCode.MissingRequiredField,
-                    "An OPC UA form requires an opc.tcp href or a Thing base opc.tcp endpoint.",
-                    form.Pointer("href")));
-                return WotBindingCompilation.Unsupported([.. diagnostics]);
             }
 
             if (string.IsNullOrEmpty(nodeId) && pathTarget is null)
