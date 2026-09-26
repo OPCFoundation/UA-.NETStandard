@@ -3,9 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "uav": "http://opcfoundation.org/UA/WoT-Binding/",
-      "tm": "https://www.w3.org/2019/wot/tm#",
-      "pump": "http://example.com/demo/pump",
-      "di": "http://opcfoundation.org/UA/DI/"
+      "tm": "https://www.w3.org/2019/wot/tm#"
     },
     "../opc-ua-wot-binding.context.jsonld"
   ],
@@ -15,29 +13,37 @@
   "description": "A projection document. It defines no affordance of its own: it names two source Thing Descriptions and states which of their affordances the predictive-maintenance view is assembled from, annotating the selection with maintenance semantics. The sources stay pristine and no definition is copied.",
   "uav:scenario": "http://example.com/scenario/PredictiveMaintenance",
   "securityDefinitions": {
-    "nosec_sc": { "scheme": "nosec" },
-    "pump_opcua_sc": {
+    "q:p:bm9zZWNfc2M": { "scheme": "nosec" },
+    "q:s:cHVtcA:b3BjdWFfc2M": {
+      "@context": [{"@base": "./01-opcua-td-pump.jsonld", "pump": {"@id": "http://example.com/demo/pump"}}],
       "scheme": "combo",
-      "allOf": ["pump_opcua_channel_sc", "pump_opcua_authentication_sc"]
+      "allOf": ["q:s:cHVtcA:b3BjdWFfY2hhbm5lbF9zYw", "q:s:cHVtcA:b3BjdWFfYXV0aGVudGljYXRpb25fc2M"]
     },
-    "pump_opcua_channel_sc": {
+    "q:s:cHVtcA:b3BjdWFfY2hhbm5lbF9zYw": {
+      "@context": [{"@base": "./01-opcua-td-pump.jsonld", "pump": {"@id": "http://example.com/demo/pump"}}],
       "scheme": "uav:channelsec",
       "uav:securityMode": "SignAndEncrypt",
       "uav:securityPolicy": "Aes256_Sha256_RsaPss"
     },
-    "pump_opcua_authentication_sc": {
+    "q:s:cHVtcA:b3BjdWFfYXV0aGVudGljYXRpb25fc2M": {
+      "@context": [{"@base": "./01-opcua-td-pump.jsonld", "pump": {"@id": "http://example.com/demo/pump"}}],
       "scheme": "uav:authentication",
       "uav:userIdentityToken": "UserName"
     },
-    "identity_opcua_channel_sc": {
+    "q:s:aWRlbnRpdHk:b3BjdWFfY2hhbm5lbF9zYw": {
+      "@context": [{"@base": "./06-anchored-paths-and-device-identity.jsonld", "pump": {"@id": "http://example.com/demo/pump"}}],
       "scheme": "uav:channelsec",
       "uav:securityMode": "SignAndEncrypt",
       "uav:securityPolicy": "Aes256_Sha256_RsaPss"
     }
   },
-  "security": "nosec_sc",
+  "security": ["q:p:bm9zZWNfc2M"],
   "properties": {
     "pumpSpeed": {
+      "@context": [{
+        "@base": "./01-opcua-td-pump.jsonld",
+        "pump": { "@id": "http://example.com/demo/pump" }
+      }],
       "@type": "uav:variable",
       "title": "Pump speed (condition signal)",
       "description": "The speed reading interpreted as a condition signal for the predictive-maintenance model.",
@@ -50,15 +56,19 @@
       "observable": true,
       "forms": [
         {
-          "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=PumpSpeed",
+          "href": "opc.tcp://opcuademo.com:4840/?id=nsu%3Dhttp%3A%2F%2Fexample.com%2Fdemo%2Fpump%3Bs%3DPumpSpeed",
           "contentType": "application/octet-stream",
           "op": ["readproperty", "observeproperty"],
-          "security": ["pump_opcua_sc"]
+          "security": ["q:s:cHVtcA:b3BjdWFfc2M"]
         }
       ],
       "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/properties/pumpSpeed"
     },
     "speedSetpoint": {
+      "@context": [{
+        "@base": "./01-opcua-td-pump.jsonld",
+        "pump": { "@id": "http://example.com/demo/pump" }
+      }],
       "@type": "uav:variable",
       "title": "Speed Setpoint",
       "uav:browseName": "pump:SpeedSetpoint",
@@ -69,15 +79,19 @@
       "observable": true,
       "forms": [
         {
-          "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=SpeedSetpoint",
+          "href": "opc.tcp://opcuademo.com:4840/?id=nsu%3Dhttp%3A%2F%2Fexample.com%2Fdemo%2Fpump%3Bs%3DSpeedSetpoint",
           "contentType": "application/octet-stream",
           "op": ["readproperty", "writeproperty", "observeproperty"],
-          "security": ["pump_opcua_sc"]
+          "security": ["q:s:cHVtcA:b3BjdWFfc2M"]
         }
       ],
       "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/properties/speedSetpoint"
     },
     "dischargePressure": {
+      "@context": [{
+        "@base": "./01-opcua-td-pump.jsonld",
+        "pump": { "@id": "http://example.com/demo/pump" }
+      }],
       "@type": "uav:variable",
       "title": "Discharge Pressure",
       "uav:browseName": "pump:DischargePressure",
@@ -88,15 +102,19 @@
       "observable": true,
       "forms": [
         {
-          "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=DischargePressure",
+          "href": "opc.tcp://opcuademo.com:4840/?id=nsu%3Dhttp%3A%2F%2Fexample.com%2Fdemo%2Fpump%3Bs%3DDischargePressure",
           "contentType": "application/octet-stream",
           "op": ["readproperty", "observeproperty"],
-          "security": ["pump_opcua_sc"]
+          "security": ["q:s:cHVtcA:b3BjdWFfc2M"]
         }
       ],
       "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/properties/dischargePressure"
     },
     "motorTemperature": {
+      "@context": [{
+        "@base": "./01-opcua-td-pump.jsonld",
+        "pump": { "@id": "http://example.com/demo/pump" }
+      }],
       "@type": "uav:variable",
       "title": "Motor Temperature",
       "uav:browseName": "pump:MotorTemperature",
@@ -107,15 +125,20 @@
       "observable": true,
       "forms": [
         {
-          "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=MotorTemperature",
+          "href": "opc.tcp://opcuademo.com:4840/?id=nsu%3Dhttp%3A%2F%2Fexample.com%2Fdemo%2Fpump%3Bs%3DMotorTemperature",
           "contentType": "application/octet-stream",
           "op": ["readproperty", "observeproperty"],
-          "security": ["pump_opcua_sc"]
+          "security": ["q:s:cHVtcA:b3BjdWFfc2M"]
         }
       ],
       "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/properties/motorTemperature"
     },
     "deviceSerialNumber": {
+      "@context": [{
+        "@base": "./06-anchored-paths-and-device-identity.jsonld",
+        "di": { "@id": "http://opcfoundation.org/UA/DI/", "@prefix": true },
+        "pump": { "@id": "http://example.com/demo/pump" }
+      }],
       "@type": "uav:variable",
       "title": "Serial Number",
       "uav:browseName": "di:SerialNumber",
@@ -125,15 +148,20 @@
       "readOnly": true,
       "forms": [
         {
-          "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=Pump07.SerialNumber",
+          "href": "opc.tcp://opcuademo.com:4840/UA/Factory?id=nsu%3Dhttp%3A%2F%2Fexample.com%2Fdemo%2Fpump%3Bs%3DPump07.SerialNumber",
           "contentType": "application/octet-stream",
           "op": ["readproperty"],
-          "security": ["identity_opcua_channel_sc"]
+          "security": ["q:s:aWRlbnRpdHk:b3BjdWFfY2hhbm5lbF9zYw"]
         }
       ],
       "uav:resolvedFrom": "./06-anchored-paths-and-device-identity.jsonld#/properties/serialNumber"
     },
     "deviceManufacturer": {
+      "@context": [{
+        "@base": "./06-anchored-paths-and-device-identity.jsonld",
+        "di": { "@id": "http://opcfoundation.org/UA/DI/", "@prefix": true },
+        "pump": { "@id": "http://example.com/demo/pump" }
+      }],
       "@type": "uav:variable",
       "title": "Manufacturer",
       "uav:browseName": "di:Manufacturer",
@@ -143,15 +171,20 @@
       "readOnly": true,
       "forms": [
         {
-          "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=Pump07.Manufacturer",
+          "href": "opc.tcp://opcuademo.com:4840/UA/Factory",
           "contentType": "application/octet-stream",
           "op": ["readproperty"],
-          "security": ["identity_opcua_channel_sc"]
+          "security": ["q:s:aWRlbnRpdHk:b3BjdWFfY2hhbm5lbF9zYw"]
         }
       ],
       "uav:resolvedFrom": "./06-anchored-paths-and-device-identity.jsonld#/properties/manufacturer"
     },
     "deviceManual": {
+      "@context": [{
+        "@base": "./06-anchored-paths-and-device-identity.jsonld",
+        "di": { "@id": "http://opcfoundation.org/UA/DI/", "@prefix": true },
+        "pump": { "@id": "http://example.com/demo/pump" }
+      }],
       "@type": "uav:variable",
       "title": "Device Manual",
       "uav:browseName": "di:DeviceManual",
@@ -161,10 +194,10 @@
       "readOnly": true,
       "forms": [
         {
-          "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=Pump07.DeviceManual",
+          "href": "opc.tcp://opcuademo.com:4840/UA/Factory?id=nsu%3Dhttp%3A%2F%2Fexample.com%2Fdemo%2Fpump%3Bs%3DPump07.DeviceManual",
           "contentType": "application/octet-stream",
           "op": ["readproperty"],
-          "security": ["identity_opcua_channel_sc"]
+          "security": ["q:s:aWRlbnRpdHk:b3BjdWFfY2hhbm5lbF9zYw"]
         }
       ],
       "uav:resolvedFrom": "./06-anchored-paths-and-device-identity.jsonld#/properties/manual"

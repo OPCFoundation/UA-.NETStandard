@@ -1273,6 +1273,12 @@ Add only the scheme your binding needs, and leave the address-range restrictions
 
 A `href` may name an internationalized host (`http://ü.example/x`). Percent-encoding is defined for a path, a query and a fragment and is **not** a spelling of a host, so the transmitted URI is rebuilt from its components rather than encoded as one string: the host becomes its IDNA A-label (`http://xn--tda.example/x`), and userinfo, an explicit port and an IPv6 literal are carried through unchanged. `WotProtocolBinderBase.ToTransmittedUri` produces the URI on the wire and `ToTransmittedAuthority` the authority the plan is scoped to, so `WotCompiledForm.Endpoint.Host`, `Endpoint.BaseUri`, `Addressing.Target` and every `WotCredentialReference.Endpoint` name one host.
 
+For OPC UA forms, `id` is one query component, not the entire query string.
+Its percent-encoded NodeId is decoded exactly once; other query components
+remain part of the endpoint. `WotPortableIdentity.ReadUriTargetNodeId` shares
+this rule between conversion validation and binding compilation. Duplicate
+`id` components are rejected rather than selecting one target silently.
+
 `WotEndpointPolicy` is evaluated against the same A-label — `WotEndpointValidator.ToAsciiHost` exposes it. An allow list accepts either spelling of one name; a block list refuses either, because a policy that blocks `xn--tda.example` while the plan carries `ü.example` would block nothing.
 
 ### Registration

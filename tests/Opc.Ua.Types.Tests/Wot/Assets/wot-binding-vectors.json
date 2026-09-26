@@ -1,5 +1,5 @@
 {
-  "$comment": "Shared cross-language golden vectors for the OPC UA WoT Binding. Every algorithm here is implemented at least twice - once by this specification's Python validators and once by an OPC UA stack - and the two only agree if they are measured against the same values. A vector file is data, not a test: the Python side proves it in tools/test_vectors.py, and an implementation pins this file's SHA-256 and proves it in its own suite. Adding a case here is how a disagreement becomes a failing test on both sides at once.",
+  "$comment": "Shared cross-language expected results for the OPC UA WoT Binding. The specification's Python suites execute these cases; each consumer independently pins the file's SHA-256 and executes the cases it implements. The vectors do not certify an implementation that has not run them.",
   "schemaVersion": 1,
   "specification": "OPC 99009-1",
   "revision": "1.1",
@@ -358,7 +358,7 @@
     },
     "viewVersion": {
       "clause": "sec-materialization-to-an-opc-ua-view",
-      "description": "Section 12.6. ViewVersion is a function of the resolved membership alone: take the portable ExpandedNodeId of each member, remove duplicates, sort ascending by Unicode code point, encode the sorted sequence as Annex G.3 defines, and take the first four octets of its SHA-256 digest as a big-endian UInt32, reporting 1 where that value is 0. Two servers that resolved the same membership therefore compute the same value, which a per-server counter cannot promise.",
+      "description": "Section 12.6. Persisted positive UInt32 publication token: a fresh View starts at 1; only a committed change of semantic membership advances the token, skipping zero on wrap. Force does not advance unchanged membership. Uncommitted work retains the prior publication. Membership fingerprints are separate full SHA-256 values.",
       "cases": [
         {
           "id": "three-members",
@@ -367,7 +367,7 @@
             "nsu=http://example.com/demo/pump;s=Pump.PumpSpeed",
             "i=85"
           ],
-          "viewVersion": 3865095075
+          "viewVersion": 1
         },
         {
           "id": "duplicates-are-removed",
@@ -377,7 +377,9 @@
             "i=85",
             "nsu=http://example.com/demo/pump;s=Pump"
           ],
-          "viewVersion": 3865095075
+          "previousMembers": ["nsu=http://example.com/demo/pump;s=Pump", "nsu=http://example.com/demo/pump;s=Pump.PumpSpeed", "i=85"],
+          "previousVersion": 7,
+          "viewVersion": 7
         },
         {
           "id": "input-order-does-not-matter",
@@ -386,15 +388,103 @@
             "nsu=http://example.com/demo/pump;s=Pump.PumpSpeed",
             "nsu=http://example.com/demo/pump;s=Pump"
           ],
-          "viewVersion": 3865095075
+          "previousMembers": ["nsu=http://example.com/demo/pump;s=Pump", "nsu=http://example.com/demo/pump;s=Pump.PumpSpeed", "i=85"],
+          "previousVersion": 7,
+          "viewVersion": 7
         },
         {
           "id": "single-member",
           "members": [
             "nsu=http://example.com/demo/pump;s=Pump"
           ],
-          "viewVersion": 2719683397
+          "viewVersion": 1
+        },
+        {
+          "id": "old-hash-collision-still-changes-token",
+          "previousMembers": ["nsu=urn:example;s=Member1727"],
+          "previousVersion": 1,
+          "members": ["nsu=urn:example;s=Member33300"],
+          "viewVersion": 2
+        },
+        {
+          "id": "force-identical-membership",
+          "previousMembers": ["nsu=urn:example;i=1"],
+          "previousVersion": 9,
+          "members": ["nsu=urn%3Aexample;i=01", "nsu=urn:example;i=1"],
+          "force": true,
+          "viewVersion": 9
+        },
+        {
+          "id": "uncommitted-membership-change",
+          "previousMembers": ["nsu=urn:example;s=Member1727"],
+          "previousVersion": 4,
+          "members": ["nsu=urn:example;s=Member33300"],
+          "committed": false,
+          "viewVersion": 4
+        },
+        {
+          "id": "wrap-skips-zero",
+          "previousMembers": ["nsu=urn:example;s=Member1727"],
+          "previousVersion": 4294967295,
+          "members": ["nsu=urn:example;s=Member33300"],
+          "viewVersion": 1
+        },
+        {
+          "id": "fresh-empty-view",
+          "members": [],
+          "viewVersion": 1
+        },
+        {
+          "id": "uncommitted-first-view",
+          "members": ["i=85"],
+          "committed": false,
+          "viewVersion": null
         }
+      ]
+    },
+    "projectionMembershipDigest": {
+      "clause": "sec-materialization-to-an-opc-ua-view",
+      "description": "Full SHA-256 ByteString over the Annex G.3 encoding of canonical, distinct, code-point-sorted member IDs. Hex is the vector representation of the 32 bytes, not a UA String value.",
+      "cases": [
+        {"id": "empty-membership", "members": [], "canonicalMembers": [],
+         "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"},
+        {"id": "collision-before", "members": ["nsu=urn:example;s=Member1727"],
+         "canonicalMembers": ["nsu=urn:example;s=Member1727"],
+         "sha256": "a8330dd151b927d77b71608d9732bbc99beba1891938b2e0d7f011d3420f431b"},
+        {"id": "collision-after", "members": ["nsu=urn:example;s=Member33300"],
+         "canonicalMembers": ["nsu=urn:example;s=Member33300"],
+         "sha256": "a8330dd16a3a18ce99b3529e473355a451e6db9c64ff6c9258f04afa5e8742ba"},
+        {"id": "semantic-identity-deduplication", "members": ["nsu=urn%3Aexample;i=01", "nsu=urn:example;i=1"],
+         "canonicalMembers": ["nsu=urn:example;i=1"],
+         "sha256": "e5507ea4497e25773c466662cdbffdbaf21b49c8a0b1e05f28309a6ed434459e"}
+      ]
+    },
+    "projectionGroups": {
+      "clause": "sec-organizing-projections",
+      "description": "Role-separated organizational NodeIds encode canonical child, canonical parent and link key as unpadded UTF-8 base64url components separated by dots. They never replace authored canonical View IDs.",
+      "cases": [
+        {"id": "first-parent", "namespaceUri": "urn:views", "projectionId": "nsu=urn:views;s=Shared",
+         "parentId": "nsu=urn:views;s=A", "linkKey": "SharedGroup", "role": "group",
+         "nodeId": "nsu=urn:views;s=WoT/group/bnN1PXVybjp2aWV3cztzPVNoYXJlZA.bnN1PXVybjp2aWV3cztzPUE.U2hhcmVkR3JvdXA"},
+        {"id": "second-parent", "namespaceUri": "urn:views", "projectionId": "nsu=urn:views;s=Shared",
+         "parentId": "nsu=urn:views;s=B", "linkKey": "SharedGroup", "role": "group",
+         "nodeId": "nsu=urn:views;s=WoT/group/bnN1PXVybjp2aWV3cztzPVNoYXJlZA.bnN1PXVybjp2aWV3cztzPUI.U2hhcmVkR3JvdXA"},
+        {"id": "projection-root-property-role", "namespaceUri": "urn:views", "projectionId": "nsu=urn:views;s=Shared",
+         "parentId": "nsu=urn:views;s=A", "linkKey": "SharedGroup", "role": "projection-root",
+         "nodeId": "nsu=urn:views;s=WoT/projection-root/bnN1PXVybjp2aWV3cztzPVNoYXJlZA.bnN1PXVybjp2aWV3cztzPUE.U2hhcmVkR3JvdXA"},
+        {"id": "link-key-is-not-a-path", "namespaceUri": "urn:views", "projectionId": "nsu=urn:views;s=Shared",
+         "parentId": "nsu=urn:views;s=A", "linkKey": "A/B", "role": "group",
+         "nodeId": "nsu=urn:views;s=WoT/group/bnN1PXVybjp2aWV3cztzPVNoYXJlZA.bnN1PXVybjp2aWV3cztzPUE.QS9C"}
+      ]
+    },
+    "projectionSecurityNames": {
+      "clause": "sec-resolution",
+      "description": "Injective UTF-8 base64url security names in separate source and projection-owner domains.",
+      "cases": [
+        {"id": "source-underscore-left", "sourceName": "a_b", "schemeName": "c", "name": "q:s:YV9i:Yw"},
+        {"id": "source-underscore-right", "sourceName": "a", "schemeName": "b_c", "name": "q:s:YQ:Yl9j"},
+        {"id": "projection-owner-domain", "sourceName": null, "schemeName": "a_b_c", "name": "q:p:YV9iX2M"},
+        {"id": "utf8-scheme-name", "sourceName": "pump", "schemeName": "\u6cf5", "name": "q:s:cHVtcA:5rO1"}
       ]
     },
     "identifierExpansion": {
@@ -554,6 +644,57 @@
           "anchored": false,
           "resolvable": false
         }
+      ]
+    },
+    "uriTargets": {
+      "clause": "sec-uri-base-and-href-rules",
+      "cases": [
+        { "id": "literal-ampersand", "base": "opc.tcp://host:4840/UA/Factory",
+          "href": "?id=s%3DA%26B", "nodeId": "s=A&B",
+          "endpoint": "opc.tcp://host:4840/UA/Factory" },
+        { "id": "literal-percent", "base": "opc.tcp://host:4840/UA/Factory",
+          "href": "?id=s%3DA%2526B", "nodeId": "s=A%26B",
+          "endpoint": "opc.tcp://host:4840/UA/Factory" },
+        { "id": "portable-special-characters", "base": "opc.tcp://host:4840/UA/Factory",
+          "href": "?id=nsu%3Durn%3Aexample%3Bs%3DA%2BB%23C%3DD", "nodeId": "nsu=urn:example;s=A+B#C=D",
+          "endpoint": "opc.tcp://host:4840/UA/Factory" },
+        { "id": "path-only", "base": "opc.tcp://host:4840/UA/Factory", "href": "",
+          "browsePath": "Pressure", "anchor": "nsu=urn:example;s=Pump", "nodeId": null,
+          "endpoint": "opc.tcp://host:4840/UA/Factory" },
+        { "id": "id-is-one-query-component", "base": "opc.tcp://host:4840/UA/Factory",
+          "href": "?route=primary&id=i%3D2258", "nodeId": "i=2258",
+          "endpoint": "opc.tcp://host:4840/UA/Factory?route=primary" }
+      ]
+    },
+    "callArguments": {
+      "clause": "sec-static-call-layout",
+      "description": "Semantic argument values use JSON here; ByteString values are base64. Missing Comment inserts one typed null rather than shortening the native signature.",
+      "cases": [
+        { "id": "zero-arguments", "schema": null, "value": null, "arguments": [] },
+        { "id": "named-order-not-object-order",
+          "schema": { "type": "object", "uav:argumentLayout": "named",
+            "uav:fieldOrder": ["Minimum", "Maximum"], "required": ["Minimum", "Maximum"],
+            "properties": { "Maximum": { "type": "number", "uav:dataTypeId": "i=11" },
+                            "Minimum": { "type": "number", "uav:dataTypeId": "i=11" } } },
+          "value": { "Maximum": 20, "Minimum": 5 },
+          "arguments": [{ "dataTypeId": "i=11", "value": 5 }, { "dataTypeId": "i=11", "value": 20 }] },
+        { "id": "single-structure",
+          "schema": { "type": "object", "uav:argumentLayout": "single",
+            "uav:dataTypeId": "nsu=urn:example;i=3000",
+            "properties": { "Minimum": { "type": "number" }, "Maximum": { "type": "number" } } },
+          "value": { "Minimum": 5, "Maximum": 20 },
+          "arguments": [{ "dataTypeId": "nsu=urn:example;i=3000", "value": { "Minimum": 5, "Maximum": 20 } }] },
+        { "id": "omitted-comment-is-typed-null", "conditionAction": "Acknowledge",
+          "schema": { "type": "object", "uav:argumentLayout": "named",
+            "uav:fieldOrder": ["EventId", "Comment"], "required": ["EventId"],
+            "properties": { "EventId": { "type": "string", "contentEncoding": "base64", "uav:dataTypeId": "i=15" },
+                            "Comment": { "type": "string", "uav:dataTypeId": "i=21" } } },
+          "value": { "EventId": "AQID" },
+          "arguments": [{ "dataTypeId": "i=15", "value": "AQID" }, { "dataTypeId": "i=21", "value": null }] },
+        { "id": "missing-required-argument",
+          "schema": { "type": "object", "uav:argumentLayout": "named", "uav:fieldOrder": ["Value"],
+            "required": ["Value"], "properties": { "Value": { "type": "number", "uav:dataTypeId": "i=11" } } },
+          "value": {}, "error": true }
       ]
     },
     "sequenceDigest": {

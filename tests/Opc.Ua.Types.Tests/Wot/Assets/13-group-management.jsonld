@@ -7,7 +7,8 @@
     },
     "../opc-ua-wot-binding.context.jsonld"
   ],
-  "@type": ["Thing", "uav:projection"],
+  "@type": "uav:projection",
+  "uav:projectionKind": "ThingDescription",
   "id": "urn:dev:opcua:asset:pump-01:management",
   "title": "Management",
   "description": "An action group: the three methods that operate the pump. Each projects to an OPC UA Method, and the group materializes to the Object that Organizes them.",

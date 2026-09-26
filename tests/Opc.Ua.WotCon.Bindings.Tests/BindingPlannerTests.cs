@@ -31,6 +31,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Text.Json;
 using NUnit.Framework;
+using Opc.Ua.SpecTraceability;
 using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Bindings.Planners;
 
@@ -55,6 +56,40 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         private static WotBindingPlanContext DefaultContext()
         {
             return new WotBindingPlanContext();
+        }
+
+        [Test]
+        public void PublishedUriTargetVectorsMatchOpcUaPlanning()
+        {
+            foreach (JsonElement test in WotSpecVectors.Cases("uriTargets"))
+            {
+                var form = new System.Text.Json.Nodes.JsonObject
+                {
+                    ["href"] = test.GetProperty("href").GetString(),
+                    ["op"] = "readproperty"
+                };
+                var affordance = new System.Text.Json.Nodes.JsonObject();
+                if (test.TryGetProperty("browsePath", out JsonElement path))
+                {
+                    affordance["uav:browsePath"] = path.GetString();
+                    affordance["uav:browsePathAnchor"] = test.GetProperty("anchor").GetString();
+                }
+                WotBindingCompilation result = new OpcUaBindingPlanner().Compile(
+                    MakePropertyForm(form.ToJsonString(), affordanceJson: affordance.ToJsonString(),
+                        ops: ["readproperty"]),
+                    new WotBindingPlanContext(baseUri: test.GetProperty("base").GetString()));
+
+                Assert.That(result.IsSupported, Is.True,
+                    test.GetProperty("id").GetString() + ": " + string.Join("; ", result.Diagnostics));
+                Assert.That(result.Entries, Has.Length.EqualTo(1));
+                WotCompiledForm compiled = result.Entries[0];
+                Assert.That(compiled.Endpoint.BaseUri, Is.EqualTo(test.GetProperty("endpoint").GetString()),
+                    test.GetProperty("id").GetString());
+                string? expected = test.GetProperty("nodeId").GetString();
+                Assert.That(compiled.Addressing.Metadata.TryGetValue("nodeId", out string? actual),
+                    Is.EqualTo(expected is not null));
+                Assert.That(actual, Is.EqualTo(expected));
+            }
         }
 
         private static WotAffordanceForm MakePropertyForm(

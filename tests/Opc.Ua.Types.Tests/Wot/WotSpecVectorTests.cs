@@ -36,6 +36,10 @@ using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Threading;
+using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Wot;
 
@@ -80,7 +84,7 @@ namespace Opc.Ua.Types.Tests.Wot
         /// commit.
         /// </summary>
         private const string VectorDigest =
-            "67508781f2ba03c127f22528ed87bf604c8f897dd7cb65fdd50fc11452f2e4a2";
+            "6406b6ab5307ad0719c73bc22ee305a8415e9661504c9ea7777ec8155ac82c7d";
 
         [Test]
         public void TheVendoredVectorsAreThePublishedBytes()
@@ -137,6 +141,7 @@ namespace Opc.Ua.Types.Tests.Wot
             List<string> published = GroupNames();
             var accounted = new HashSet<string>(StringComparer.Ordinal);
             accounted.UnionWith(s_provenGroups);
+            accounted.UnionWith(s_otherAssemblyGroups);
             accounted.UnionWith(s_unprovenGroups.Select(g => g.Group));
 
             Assert.Multiple(() =>
@@ -427,24 +432,108 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
-        /// Section 12.6. ViewVersion is a function of the resolved membership
-        /// alone, taken as a set, so duplicates and input order cannot change
-        /// it.
+        /// Section 12.6 separates the semantic membership digest from its
+        /// persisted publication token.
         /// </summary>
         [Test]
-        public void ViewVersionMatchesTheVectors()
+        public void ProjectionMembershipDigestMatchesTheVectors()
         {
             Assert.Multiple(() =>
             {
-                foreach (JsonElement test in Cases("viewVersion"))
+                foreach (JsonElement test in Cases("projectionMembershipDigest"))
                 {
                     Assert.That(
-                        WotPortableIdentity.ComputeViewVersion(
-                            Strings(test.GetProperty("members")).ToArrayOf()),
-                        Is.EqualTo(test.GetProperty("viewVersion").GetUInt32()),
+                        Hex(WotPortableIdentity.ProjectionMembershipDigest(
+                            Strings(test.GetProperty("members")).ToArrayOf())),
+                        Is.EqualTo(test.GetProperty("sha256").GetString()),
                         test.GetProperty("id").GetString());
                 }
             });
+        }
+
+        [Test]
+        public async Task ProjectionSecurityDomainsMatchTheVectors()
+        {
+            foreach (JsonElement test in Cases("projectionSecurityNames"))
+            {
+                string? sourceName = test.GetProperty("sourceName").GetString();
+                string scheme = test.GetProperty("schemeName").GetString()!;
+                var source = new JsonObject
+                {
+                    ["@type"] = new JsonArray("Thing"),
+                    ["title"] = "Source",
+                    ["securityDefinitions"] = new JsonObject
+                    {
+                        [sourceName is null ? "source-auth" : scheme] = new JsonObject { ["scheme"] = "nosec" }
+                    },
+                    ["security"] = sourceName is null ? "source-auth" : scheme,
+                    ["properties"] = new JsonObject
+                    {
+                        ["value"] = new JsonObject
+                        {
+                            ["type"] = "number",
+                            ["forms"] = new JsonArray(new JsonObject
+                            {
+                                ["href"] = "https://example.test/value", ["op"] = "readproperty"
+                            })
+                        }
+                    }
+                };
+                var plan = new JsonObject
+                {
+                    ["@type"] = new JsonArray("uav:projection"),
+                    ["uav:projectionKind"] = "ThingDescription",
+                    ["uav:scenario"] = "urn:vectors:security",
+                    ["uav:projects"] = new JsonArray(new JsonObject
+                    {
+                        ["uav:sourceName"] = sourceName ?? "source",
+                        ["href"] = "urn:vectors:source",
+                        ["type"] = "application/td+json",
+                        ["uav:selectAll"] = true
+                    })
+                };
+                if (sourceName is null)
+                {
+                    plan["security"] = scheme;
+                    plan["securityDefinitions"] = new JsonObject
+                    {
+                        [scheme] = new JsonObject { ["scheme"] = "nosec" }
+                    };
+                }
+                var resolver = new Mock<IWotThingResolver>(MockBehavior.Strict);
+                resolver.Setup(value => value.ResolveThingAsync(
+                        "urn:vectors:source", It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(WotResolverResult.FromBytes(Encoding.UTF8.GetBytes(source.ToJsonString())));
+                using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(plan.ToJsonString()));
+                WotConversionResult<WotDocument> result = await new WotProjectionResolver(resolver.Object)
+                    .ResolveAsync(document).ConfigureAwait(false);
+                using WotDocument? resolved = result.Value;
+                Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+                Assert.That(resolved, Is.Not.Null);
+                string expected = test.GetProperty("name").GetString()!;
+                Assert.That(resolved!.SecurityDefinitions.ContainsKey(expected),
+                    Is.True, test.GetProperty("id").GetString());
+                Assert.That(resolved.SecurityDefinitions[expected].GetProperty("scheme").GetString(),
+                    Is.EqualTo("nosec"));
+            }
+        }
+
+        [Test]
+        public void TransmittedNodeIdQueryComponentsDecodeExactlyOnce()
+        {
+            foreach (JsonElement test in Cases("uriTargets"))
+            {
+                string href = test.GetProperty("href").GetString()!;
+                string baseUri = test.GetProperty("base").GetString()!;
+                string? nodeId = WotPortableIdentity.ReadUriTargetNodeId(baseUri + href, out string endpoint);
+                Assert.That(nodeId, Is.EqualTo(test.GetProperty("nodeId").GetString()),
+                    test.GetProperty("id").GetString());
+                Assert.That(endpoint, Is.EqualTo(test.GetProperty("endpoint").GetString()));
+            }
+            Assert.That(() => WotPortableIdentity.ReadUriTargetNodeId("?id=i%3D1&id=i%3D2", out _),
+                Throws.TypeOf<FormatException>());
+            Assert.That(() => WotPortableIdentity.ReadUriTargetNodeId("?id=&id=i%3D2", out _),
+                Throws.TypeOf<FormatException>());
         }
 
         /// <summary>
@@ -549,8 +638,17 @@ namespace Opc.Ua.Types.Tests.Wot
             "identifierExpansion",
             "materializedMembers",
             "opaquePointers",
+            "projectionMembershipDigest",
+            "projectionSecurityNames",
             "qualifiedNames",
             "sequenceDigest",
+            "uriTargets"
+        ];
+
+        private static readonly string[] s_otherAssemblyGroups =
+        [
+            "callArguments",
+            "projectionGroups",
             "viewVersion"
         ];
 
@@ -562,9 +660,8 @@ namespace Opc.Ua.Types.Tests.Wot
         /// than the one the stack uses.
         /// </summary>
         /// <remarks>
-        /// The list is empty, and asserting an empty list is the point: every
-        /// group the specification publishes is now run against the code a
-        /// conversion actually calls.
+        /// Native View publication and protocol argument/address vectors run
+        /// in the WoTCon and Bindings test assemblies that own those APIs.
         /// </remarks>
         private static readonly (string Group, string Reason)[] s_unprovenGroups = [];
 

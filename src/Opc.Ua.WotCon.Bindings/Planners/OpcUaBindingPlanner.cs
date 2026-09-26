@@ -111,7 +111,18 @@ namespace Opc.Ua.WotCon.Bindings.Planners
             }
             form = resolved;
 
-            string? nodeId = ResolveNodeId(form, out bool nodeIdInPath);
+            string? nodeId;
+            bool nodeIdInPath;
+            try
+            {
+                nodeId = ResolveNodeId(form, out nodeIdInPath);
+            }
+            catch (FormatException exception)
+            {
+                return WotBindingCompilation.Unsupported(
+                    [WotBindingDiagnostic.Error(WotBindingDiagnosticCode.InvalidFieldValue,
+                        exception.Message, form.Pointer("href"))]);
+            }
             if (!form.TryGetBrowsePath(context, out WotBrowsePathTarget? pathTarget, out string? pathError))
             {
                 diagnostics.Add(WotBindingDiagnostic.Error(
@@ -862,17 +873,14 @@ namespace Opc.Ua.WotCon.Bindings.Planners
         private static WotEndpointDescriptor MakeOpcUaEndpoint(Uri uri, bool nodeIdInPath)
         {
             WotEndpointDescriptor endpoint = MakeEndpoint(uri);
-            if (nodeIdInPath || uri.AbsolutePath is "" or "/")
+            if (nodeIdInPath)
             {
                 return endpoint;
             }
-            string address = ToTransmittedUri(uri);
-            int query = address.IndexOf('?', StringComparison.Ordinal);
-            int fragment = address.IndexOf('#', StringComparison.Ordinal);
-            int end = query < 0 ? fragment : fragment < 0 ? query : Math.Min(query, fragment);
-            if (end >= 0)
+            WotPortableIdentity.ReadUriTargetNodeId(ToTransmittedUri(uri), out string address);
+            if (uri.AbsolutePath is "" or "/" && !address.Contains('?', StringComparison.Ordinal))
             {
-                address = address[..end];
+                return endpoint;
             }
             return new WotEndpointDescriptor(
                 endpoint.Scheme, endpoint.Host, endpoint.Port, address, endpoint.Metadata);
@@ -889,10 +897,10 @@ namespace Opc.Ua.WotCon.Bindings.Planners
             nodeIdInPath = false;
             if (!string.IsNullOrEmpty(href) && TryParseUri(href!, out Uri uri))
             {
-                string query = uri.Query.TrimStart('?');
-                if (query.StartsWith("id=", StringComparison.OrdinalIgnoreCase))
+                string? target = WotPortableIdentity.ReadUriTargetNodeId(href!, out _);
+                if (target is not null)
                 {
-                    return Uri.UnescapeDataString(query[3..]);
+                    return target;
                 }
                 string path = Uri.UnescapeDataString(uri.AbsolutePath.Trim('/'));
                 if (!string.IsNullOrEmpty(path) && ExpandedNodeId.TryParse(path, out _))

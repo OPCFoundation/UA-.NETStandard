@@ -23,7 +23,7 @@
   ],
   "pinnedTo": {
     "repository": "https://github.com/OPCF-Members/spec-drafts.git",
-    "commit": "82620d9e313f35386dfc7477f7875cd47d2fd268",
+    "commit": "db08f850e8801863006208b40f4bd3614febea8b",
     "bindingRevision": "1.1"
   },
   "clauses": [

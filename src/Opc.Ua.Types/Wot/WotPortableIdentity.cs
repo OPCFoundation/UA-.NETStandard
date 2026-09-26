@@ -394,6 +394,47 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
+        /// Reads the single URI query component naming a target NodeId, decoding its value once.
+        /// The remaining endpoint retains other query components and excludes the fragment.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="FormatException">More than one target identifier is present.</exception>
+        public static string? ReadUriTargetNodeId(string href, out string endpoint)
+        {
+            if (href is null)
+            {
+                throw new ArgumentNullException(nameof(href));
+            }
+            int fragment = href.IndexOf('#', StringComparison.Ordinal);
+            endpoint = fragment < 0 ? href : href[..fragment];
+            int query = endpoint.IndexOf('?', StringComparison.Ordinal);
+            if (query < 0)
+            {
+                return null;
+            }
+            string? nodeId = null;
+            var remaining = new List<string>();
+            foreach (string component in endpoint[(query + 1)..].Split('&'))
+            {
+                int equals = component.IndexOf('=', StringComparison.Ordinal);
+                if (equals >= 0 && string.Equals(component[..equals], "id", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (nodeId is not null)
+                    {
+                        throw new FormatException("A URI cannot identify more than one target NodeId.");
+                    }
+                    nodeId = Uri.UnescapeDataString(component[(equals + 1)..]);
+                }
+                else
+                {
+                    remaining.Add(component);
+                }
+            }
+            endpoint = endpoint[..query] + (remaining.Count == 0 ? string.Empty : "?" + string.Join("&", remaining));
+            return nodeId;
+        }
+
+        /// <summary>
         /// Computes the full SHA-256 of canonical, unique, code-point-ordered semantic membership.
         /// </summary>
         public static ByteString ProjectionMembershipDigest(ArrayOf<string> members)

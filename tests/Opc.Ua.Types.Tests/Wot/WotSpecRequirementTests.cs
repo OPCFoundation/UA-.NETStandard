@@ -45,7 +45,7 @@ namespace Opc.Ua.Types.Tests.Wot
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The specification's own ledgers mark 97 requirements
+    /// The specification's own ledgers mark requirements
     /// <c>pendingStackTests</c> - it cannot name a test in a repository it does
     /// not build. The checked-in ledger names them, and this fixture is what
     /// makes the naming worth anything: every mapping that names this assembly
@@ -120,6 +120,19 @@ namespace Opc.Ua.Types.Tests.Wot
                         $"{requirement.SpecId} names no test and states no reason.");
                 }
             });
+        }
+
+        [Test]
+        public void TargetSpecificEvidenceNamesOnlyDeclaredRunnableFrameworks()
+        {
+            Assembly assembly = typeof(WotSpecRequirementTests).Assembly;
+            string[] scoped = WotSpecRequirementLedger.Load(assembly)
+                .SelectMany(requirement => requirement.Tests).Distinct()
+                .Where(test => WotSpecRequirementLedger.ReadTargetFrameworks(assembly, test).Count != 0)
+                .ToArray();
+            Assert.That(scoped, Is.EqualTo(s_targetSpecificTests));
+            Assert.That(WotSpecRequirementLedger.ReadTargetFrameworks(assembly, scoped[0]),
+                Is.EqualTo(s_modernFrameworks));
         }
 
         /// <summary>
@@ -477,19 +490,42 @@ namespace Opc.Ua.Types.Tests.Wot
         [
             "Opc.Ua.Types.Tests",
             "Opc.Ua.WotCon.Tests",
-            "Opc.Ua.WotCon.Bindings.Tests"
+            "Opc.Ua.WotCon.Bindings.Tests",
+            "Opc.Ua.Server.Tests"
         ];
+        private static readonly string[] s_targetSpecificTests =
+        [
+            "Opc.Ua.WotCon.Tests.Materialization.WotEventModesLiveTests"
+        ];
+        private static readonly string[] s_modernFrameworks = ["net8.0", "net9.0", "net10.0"];
 
         /// <summary>
         /// The requirements this stack does not yet prove, in ascending order.
         /// Each carries its reason in the ledger.
         /// </summary>
         /// <remarks>
-        /// The list is empty, and asserting an empty list is the point: every
-        /// requirement the specification left to this stack now names evidence,
-        /// so re-opening a gap has to be written down here before it is
-        /// accepted.
+        /// Deferred validation, excluded policy evidence and unproved optional
+        /// or deployment behavior stay explicit rather than becoming evidence
+        /// merely because a test class exists.
         /// </remarks>
-        private static readonly string[] s_unprovedRequirements = [];
+        private static readonly string[] s_unprovedRequirements =
+        [
+            "sec-automatic-and-explicit-refresh-idempotence#002",
+            "sec-dependency-snapshots-and-target-pins#011",
+            "sec-events-and-change-notifications-normative#007",
+            "sec-events-and-change-notifications-normative#008",
+            "sec-projection-documents#006",
+            "sec-projection-documents#009",
+            "sec-projection-documents#020",
+            "sec-security-normative#002",
+            "sec-security-normative#003",
+            "sec-security-normative#004",
+            "sec-security-normative#005",
+            "sec-security-normative#006",
+            "sec-security-normative#007",
+            "sec-semantic-change-events-optional#001",
+            "sec-semantic-change-events-optional#002",
+            "sec-validation-planning-and-apply-algorithm#001"
+        ];
     }
 }

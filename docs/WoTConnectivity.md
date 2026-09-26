@@ -1238,11 +1238,31 @@ Minimal and Registry Server are each a subset of Full, and neither is a subset o
 the other: they share no conformance unit. A server may implement either surface
 or both.
 
-`Wot-Con 1.02` is implementable on its own, so it covers serving the data points of
-an uploaded Thing Description — and with it, format-validating that document
-before any Node is materialized from it. Client-supplied input never reaches the
-AddressSpace unchecked; a document that fails validation materializes nothing and
-returns `Bad_DecodingError`.
+These are specification profiles, not blanket implementation claims.
+`Wot-Con 1.02` requires full format validation before materializing an uploaded
+Thing Description. The current stack performs syntax, bounds, identity and
+Binding admission checks, but full TD/TM JSON Schema and compatibility-policy
+validation remain deferred. An unperformed policy reports `Skipped`, not success.
+Neither the legacy surface nor generated declarations establish Full conformance.
+
+The stock registry advertises EventDriven automatic refresh. Periodic and
+deployment-specific Scheduled refresh are not claimed by the current evidence.
+Prepared source/View publication, exact-Version observations and local restart
+recovery are exercised through native clients. Cross-replica HA publication,
+optional SemanticChange conformance and deployment access/disclosure policies
+require their own evidence; loopback test-host policy overrides do not certify them.
+
+The embedded statement inventory covers all 259 implementation obligations in
+the pinned Binding and Connectivity ledgers. It records 16 explicit evidence
+gaps rather than equating a named test fixture with full implementation.
+`tools\wot-spec\Get-WotStatementDigests.ps1 -SpecRoot <checkout> -Verify`
+checks the exact specification commit and statement hashes. Four test assemblies
+verify their own mappings. Published examples retain byte-identical provenance;
+their conversion harness resolves only the pinned local context shipped with
+those examples, without fetching a context from the network.
+The native multi-source event-mode fixture is explicitly scoped to
+`net8.0`, `net9.0` and `net10.0`, where the concrete protocol executors are
+compiled; a legacy build is not counted as executing that fixture.
 
 `WOTC-ProjectionMaterialization` is carried by `ThingDescriptionFileType`,
 `ThingModelFileType` and `HasWoTProjection`.

@@ -30,12 +30,16 @@
 using System;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
+using Opc.Ua.SpecTraceability;
+using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Bindings.OpcUa;
 using Opc.Ua.WotCon.Bindings.Planners;
 
@@ -44,6 +48,65 @@ namespace Opc.Ua.WotCon.Bindings.Tests
     [TestFixture]
     public sealed class OpcUaWotCallContractTests
     {
+        [Test]
+        public async Task PublishedCallArgumentVectorsKeepNativeLayoutsAndConditionNulls()
+        {
+            foreach (JsonElement test in WotSpecVectors.Cases("callArguments"))
+            {
+                string? schema = test.GetProperty("schema").ValueKind == JsonValueKind.Null
+                    ? null : test.GetProperty("schema").GetRawText();
+                string? condition = test.TryGetProperty("conditionAction", out JsonElement action)
+                    ? action.GetString() : null;
+                using var harness = new CallHarness(schema, null, conditionAction: condition);
+                WotMethodArgumentLayout layout = harness.Form.Payload.InputLayout!;
+                if (test.TryGetProperty("error", out JsonElement error) && error.GetBoolean())
+                {
+                    Assert.That(() => harness.Form.Payload.ValidateInputs([], harness.Caller),
+                        Throws.TypeOf<ServiceResultException>().With.Property("StatusCode")
+                            .EqualTo(StatusCodes.BadArgumentsMissing));
+                    Assert.That(harness.ConnectCount, Is.Zero);
+                    continue;
+                }
+                JsonElement arguments = test.GetProperty("arguments");
+                Assert.That(layout.ArgumentCount, Is.EqualTo(arguments.GetArrayLength()),
+                    test.GetProperty("id").GetString());
+                for (int index = 0; index < layout.ArgumentCount; index++)
+                {
+                    JsonElement declared = layout.GetArgumentSchema(index);
+                    Assert.That(declared.GetProperty("uav:dataTypeId").GetString(),
+                        Is.EqualTo(arguments[index].GetProperty("dataTypeId").GetString()));
+                    JsonElement supplied = layout.Kind == WotMethodArgumentLayoutKind.Named
+                        ? test.GetProperty("value").TryGetProperty(layout.GetArgumentName(index), out JsonElement item)
+                            ? item : default
+                        : test.GetProperty("value");
+                    JsonElement expected = arguments[index].GetProperty("value");
+                    if (supplied.ValueKind != JsonValueKind.Undefined)
+                    {
+                        Assert.That(JsonNode.DeepEquals(
+                            JsonNode.Parse(supplied.GetRawText()), JsonNode.Parse(expected.GetRawText())), Is.True);
+                    }
+                    else
+                    {
+                        Assert.That(condition, Is.Not.Null);
+                        Assert.That(expected.ValueKind, Is.EqualTo(JsonValueKind.Null));
+                    }
+                }
+                if (condition is not null)
+                {
+                    ByteString eventId = ByteString.From(Convert.FromBase64String(
+                        test.GetProperty("value").GetProperty("EventId").GetString()!));
+                    await using IWotBindingChannel channel = await harness.OpenAsync().ConfigureAwait(false);
+                    WotInvokeResult result = await channel.InvokeAsync([new Variant(eventId)]).ConfigureAwait(false);
+                    Assert.That(result.Status, Is.EqualTo(StatusCodes.Good), result.Error);
+                    Assert.That(harness.Inputs.Count, Is.EqualTo(2));
+                    Assert.That(harness.Inputs[0], Is.EqualTo(new Variant(eventId)));
+                    Assert.That(harness.Inputs[1].TryGetValue(out LocalizedText comment), Is.True);
+                    Assert.That(comment.IsNull, Is.True);
+                    Assert.That(harness.Inputs[1].TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.LocalizedText));
+                }
+            }
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public async Task DirectAndDiCallsHonorTheConfiguredInputContext(bool dependencyInjection)

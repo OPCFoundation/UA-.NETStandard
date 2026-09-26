@@ -27,6 +27,10 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Common\Main.cs" />
+    <Compile Include="..\Common\WotSpecVectors.cs" />
+    <EmbeddedResource Include="..\Opc.Ua.Types.Tests\Wot\Assets\wot-binding-vectors.json">
+      <LogicalName>wot-binding-vectors.json</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Opc.Ua.Core\Opc.Ua.Core.csproj" />

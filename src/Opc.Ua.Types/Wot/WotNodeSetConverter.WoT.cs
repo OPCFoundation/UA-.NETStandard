@@ -4650,11 +4650,19 @@ namespace Opc.Ua.Wot
                     if (value.ValueKind == JsonValueKind.String &&
                         value.GetString() is { } href)
                     {
-                        int marker = href.IndexOf("?id=", StringComparison.Ordinal);
-                        if (marker >= 0)
+                        try
                         {
-                            CheckPortableValue(
-                                "href ?id=", href[(marker + 4)..], diagnostics);
+                            string? target = WotPortableIdentity.ReadUriTargetNodeId(href, out _);
+                            if (target is not null)
+                            {
+                                CheckPortableValue("href id query component", target, diagnostics);
+                            }
+                        }
+                        catch (FormatException exception)
+                        {
+                            diagnostics.Add(new WotDiagnostic(
+                                WotDiagnosticSeverity.Error, WotDiagnosticCode.ValidationError,
+                                exception.Message, new WotLocation(reference: href)));
                         }
                     }
                     break;

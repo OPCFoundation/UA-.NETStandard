@@ -7,7 +7,8 @@
     },
     "../opc-ua-wot-binding.context.jsonld"
   ],
-  "@type": ["Thing", "uav:projection"],
+  "@type": "uav:projection",
+  "uav:projectionKind": "ThingDescription",
   "id": "urn:dev:opcua:asset:pump-01:process-data",
   "title": "Process data",
   "description": "A data set: the process signals of Pump 01. Organized by the asset, it materializes to an organizational Object that Organizes the two Variables rather than to a View of its own.",

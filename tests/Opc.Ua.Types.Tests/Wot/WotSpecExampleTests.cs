@@ -32,9 +32,12 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using NUnit.Framework;
 using Opc.Ua.Export;
 using Opc.Ua.Wot;
@@ -51,6 +54,9 @@ namespace Opc.Ua.Types.Tests.Wot
     /// against 08 checks the selection order, the bulk naming rule, the security
     /// closure naming and the provenance term against the specification's own
     /// expectation rather than against our reading of it.
+    /// The conversion harness expands only the pinned local context reference
+    /// published beside these examples; embedded source bytes are checked
+    /// separately and no network context loading is performed.
     /// </remarks>
     [TestFixture]
     [Category("WotSpecExamples")]
@@ -93,6 +99,8 @@ namespace Opc.Ua.Types.Tests.Wot
 
             var converted = new List<string>();
             var modelled = new List<string>();
+            var plans = new List<string>();
+            var needsContext = new List<string>();
             Assert.Multiple(() =>
             {
                 foreach (string resource in names)
@@ -123,10 +131,30 @@ namespace Opc.Ua.Types.Tests.Wot
                             DescribeErrors(result.Diagnostics));
                     }
 
-                    if (result.Value is not null && !result.HasErrors)
+                    if (WotProjection.IsProjection(document))
                     {
-                        WotNodeSetImportTests.AssertImportable(result.Value, name);
-                        converted.Add(name);
+                        Assert.That(result.Value, Is.Null, name);
+                        Assert.That(result.Diagnostics.Any(diagnostic =>
+                            diagnostic.Code == WotDiagnosticCode.ProjectionManifestInvalid), Is.True, name);
+                        plans.Add(name);
+                    }
+                    else if (name is "01-opcua-td-pump.jsonld" or "02-thing-model-pump.jsonld" or
+                        ConditionExample or TypeBindingExample)
+                    {
+                        WotDiagnosticCode expected = name == TypeBindingExample
+                            ? WotDiagnosticCode.UnresolvedTypeBinding : WotDiagnosticCode.EventSelectionUnresolved;
+                        Assert.That(result.Diagnostics.Any(diagnostic => diagnostic.Code == expected &&
+                            diagnostic.Severity == WotDiagnosticSeverity.Error), Is.True, name);
+                        needsContext.Add(name);
+                    }
+                    else
+                    {
+                        Assert.That(result.Success, Is.True, name + ": " + DescribeErrors(result.Diagnostics));
+                        if (result.Success)
+                        {
+                            WotNodeSetImportTests.AssertImportable(result.Value!, name);
+                            converted.Add(name);
+                        }
                     }
                 }
             });
@@ -135,9 +163,14 @@ namespace Opc.Ua.Types.Tests.Wot
             {
                 Assert.That(
                     converted,
-                    Has.Count.GreaterThan(names.Count / 2),
-                    "Most published examples are ordinary documents that convert; if only a " +
-                    "handful still do, the pipeline regressed rather than the examples.");
+                    Is.EqualTo(s_standaloneExamples),
+                    "Every standalone example must convert and import; projection plans and context-dependent " +
+                    "examples have separate explicit contracts.");
+                Assert.That(plans, Has.Count.EqualTo(11));
+                Assert.That(needsContext, Is.EqualTo(new[]
+                {
+                    "01-opcua-td-pump.jsonld", "02-thing-model-pump.jsonld", ConditionExample, TypeBindingExample
+                }));
                 Assert.That(
                     modelled,
                     Is.Not.Empty,
@@ -361,7 +394,8 @@ namespace Opc.Ua.Types.Tests.Wot
             return [.. typeof(WotSpecExampleTests).Assembly
                 .GetManifestResourceNames()
                 .Where(n => n.Contains(ResourcePrefix, StringComparison.Ordinal) &&
-                    n.EndsWith(".jsonld", StringComparison.Ordinal))
+                    n.EndsWith(".jsonld", StringComparison.Ordinal) &&
+                    char.IsDigit(n[n.IndexOf(ResourcePrefix, StringComparison.Ordinal) + ResourcePrefix.Length]))
                 .OrderBy(n => n, StringComparer.Ordinal)];
         }
 
@@ -374,7 +408,32 @@ namespace Opc.Ua.Types.Tests.Wot
                 ?? throw new InvalidOperationException($"Missing fixture '{name}'.");
             using var buffer = new MemoryStream();
             stream.CopyTo(buffer);
-            return buffer.ToArray();
+            JsonObject root = JsonNode.Parse(buffer.ToArray())!.AsObject();
+            if (root["@context"] is JsonArray contexts)
+            {
+                for (int index = 0; index < contexts.Count; index++)
+                {
+                    if (contexts[index] is JsonValue value &&
+                        value.TryGetValue(out string uri) &&
+                        uri == "../opc-ua-wot-binding.context.jsonld")
+                    {
+                        contexts[index] = ReadPublishedContext();
+                    }
+                }
+            }
+            return Encoding.UTF8.GetBytes(root.ToJsonString());
+        }
+
+        private static JsonNode ReadPublishedContext()
+        {
+            var assembly = typeof(WotSpecExampleTests).Assembly;
+            string resource = assembly.GetManifestResourceNames().Single(name =>
+                name.EndsWith(".opc-ua-wot-binding.context.jsonld", StringComparison.Ordinal));
+            using Stream stream = assembly.GetManifestResourceStream(resource)
+                ?? throw new InvalidOperationException("The published example context is not embedded.");
+            using JsonDocument document = JsonDocument.Parse(stream);
+            Assert.That(document.RootElement.GetProperty("@id").GetString(), Is.EqualTo(WotVocabulary.BindingContext));
+            return JsonNode.Parse(document.RootElement.GetProperty("@context").GetRawText())!;
         }
 
         /// <summary>
@@ -653,10 +712,14 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
-            string extensions = result.Value!.Extensions is null
-                ? string.Empty
-                : string.Concat(result.Value.Extensions.Select(e => e.OuterXml ?? string.Empty));
-            Assert.That(extensions, Does.Not.Contain("dataTypeDefinitions"));
+            string[] pointers = result.Value!.Extensions is null
+                ? []
+                : result.Value.Extensions.SelectMany(extension =>
+                    XElement.Parse(extension.OuterXml).DescendantsAndSelf()
+                        .Attributes("Pointer").Select(attribute => attribute.Value)).ToArray();
+            Assert.That(pointers.Where(pointer => pointer == "/uav:dataTypeDefinitions" ||
+                pointer.StartsWith("/uav:dataTypeDefinitions/", StringComparison.Ordinal)), Is.Empty,
+                "Retained context definitions are not a second copy of the materialized DataType declarations.");
         }
 
         /// <summary>
@@ -810,5 +873,20 @@ namespace Opc.Ua.Types.Tests.Wot
         private const string ConditionExample = "21-condition-limit-alarm.jsonld";
         private const string TypeBindingExample = "22-type-binding-and-instance-reference.jsonld";
         private const string DataTypeExample = "23-datatype-definitions.jsonld";
+        private static readonly string[] s_standaloneExamples =
+        [
+            "03-nodeset-preservation-envelope.jsonld",
+            "04-type-reference-modelling-rule.jsonld",
+            "05-native-node-model.jsonld",
+            "06-anchored-paths-and-device-identity.jsonld",
+            "08-projection-resolved.jsonld",
+            "14-asset-instance-resolved.jsonld",
+            "20-asset-model-resolved.jsonld",
+            "23-datatype-definitions.jsonld",
+            "24-localized-text-fallback.jsonld",
+            "25-reference-type-node.jsonld",
+            "26-data-type-node.jsonld",
+            "27-event-type-models.jsonld"
+        ];
     }
 }

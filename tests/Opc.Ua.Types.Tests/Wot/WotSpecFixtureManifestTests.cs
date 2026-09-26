@@ -118,6 +118,22 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
+        public void PublishedLocalContextIsPinnedAndItsTermsAreRecognized()
+        {
+            byte[] bytes = ReadEmbeddedExample("opc-ua-wot-binding.context.jsonld");
+            Assert.That(Sha256Hex(bytes),
+                Is.EqualTo("f13847e805a2015e43e1c409c55d807236cfae7c1f285ba3ce4ff327d1180685"));
+            using JsonDocument context = JsonDocument.Parse(bytes);
+            Assert.That(context.RootElement.GetProperty("@id").GetString(), Is.EqualTo(WotVocabulary.BindingContext));
+            string[] missing = context.RootElement.GetProperty("@context").EnumerateObject()
+                .Select(property => property.Name)
+                .Where(name => name.StartsWith("uav:", StringComparison.Ordinal) &&
+                    !WotBindingConformance.IsKnownTerm(name))
+                .ToArray();
+            Assert.That(missing, Is.Empty, "The pinned vocabulary context declares these terms.");
+        }
+
+        [Test]
         public void ManifestRecordsTheSourceItWasTakenFrom()
         {
             WotSpecFixtureManifest manifest = WotSpecFixtureManifest.Load();
@@ -536,6 +552,15 @@ namespace Opc.Ua.Types.Tests.Wot
 
         private static string? TryFindRepositoryRoot()
         {
+            string? configured = Environment.GetEnvironmentVariable("OPCUA_TEST_REPOSITORY_ROOT");
+            if (!string.IsNullOrEmpty(configured))
+            {
+                string root = Path.GetFullPath(configured);
+                return File.Exists(Path.Combine(root, "UA.slnx"))
+                    ? root
+                    : throw new DirectoryNotFoundException(
+                        "OPCUA_TEST_REPOSITORY_ROOT does not identify a repository containing UA.slnx.");
+            }
             string? directory = Path.GetDirectoryName(
                 typeof(WotSpecFixtureManifestTests).Assembly.Location);
             while (!string.IsNullOrEmpty(directory))
@@ -570,7 +595,8 @@ namespace Opc.Ua.Types.Tests.Wot
             return [.. typeof(WotSpecFixtureManifestTests).Assembly
                 .GetManifestResourceNames()
                 .Where(n => n.Contains(ResourcePrefix, StringComparison.Ordinal) &&
-                    n.EndsWith(".jsonld", StringComparison.Ordinal))
+                    n.EndsWith(".jsonld", StringComparison.Ordinal) &&
+                    char.IsDigit(n[n.IndexOf(ResourcePrefix, StringComparison.Ordinal) + ResourcePrefix.Length]))
                 .Select(n => n.Substring(
                     n.IndexOf(ResourcePrefix, StringComparison.Ordinal) + ResourcePrefix.Length))
                 .OrderBy(n => n, StringComparer.Ordinal)];

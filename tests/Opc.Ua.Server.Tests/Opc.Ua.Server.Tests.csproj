@@ -37,6 +37,13 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Common\Main.cs" />
+    <Compile Include="..\Opc.Ua.Types.Tests\Wot\WotSpecRequirementLedger.cs">
+      <Link>Wot\WotSpecRequirementLedger.cs</Link>
+    </Compile>
+    <EmbeddedResource Include="..\Opc.Ua.Types.Tests\Wot\Assets\wot-spec-requirements.json">
+      <Link>Wot\Assets\wot-spec-requirements.json</Link>
+      <LogicalName>wot-spec-requirements.json</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="ComplexTypes\ServerComplexTypesTestModel.NodeSet2.xml">
@@ -101,4 +108,3 @@
     <ProjectReference Include="..\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
   </ItemGroup>
 </Project>
-

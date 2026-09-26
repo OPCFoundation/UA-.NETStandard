@@ -762,6 +762,7 @@ namespace Opc.Ua.Wot
                 // Section 6.2 - links and references.
                 "uav:refName",
                 "uav:refId",
+                "uav:declaration",
                 WotNodeSetConverter.InverseNameTerm,
                 WotNodeSetConverter.SymmetricTerm,
                 // Section 5.2 - the two NodeClass annotations that complete the
@@ -783,6 +784,7 @@ namespace Opc.Ua.Wot
                 "uav:propertyConfiguration",
                 "uav:actionConfiguration",
                 "uav:eventConfiguration",
+                "uav:eventIdentityMode",
                 "uav:includeInherited",
                 "uav:additionalProperties",
                 "uav:externalSchema",
@@ -817,6 +819,7 @@ namespace Opc.Ua.Wot
                 "uav:enumValue",
                 "uav:isOptionSet",
                 "uav:hasDefaultEncoding",
+                "uav:defaultEncodings",
                 "uav:defaultEncodingId",
                 "uav:binaryEncodingId",
                 "uav:xmlEncodingId",
