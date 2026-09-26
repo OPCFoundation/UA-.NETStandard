@@ -196,6 +196,71 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void ContinuityReassemblyOwnerDoesNotLendTheReconnectTableSlot()
+        {
+            ServerResourceIsolationOptions options = Options();
+            options.MaxTrackedOwners = 4;
+            var bindings = new Mock<ISessionBindingProvider>();
+            bindings.Setup(value => value.HasSession("active")).Returns(true);
+            using DefaultServerResourceIsolationProvider provider =
+                CreateProvider(options, new TestClassifier(), bindings.Object);
+            using IDisposable continuity = Acquire(provider, ResourceIsolationStage.ReassemblyBytes,
+                provider.ClassifyReassembly(Channel("active", [1])), 1);
+            using IDisposable ordinary = Acquire(provider, ResourceIsolationStage.Connection,
+                provider.ClassifyConnection(Peer(10)), 1);
+            AssertRejected(provider, ResourceIsolationStage.Connection,
+                provider.ClassifyConnection(Peer(11)), 1, ResourceIsolationFailureReason.OwnerTableFull);
+            using IDisposable reconnect = Acquire(provider, ResourceIsolationStage.SessionEstablishment,
+                provider.ClassifyConnection(Peer(2)), 1);
+            Assert.That(provider.TrackedOwnerCount, Is.EqualTo(3));
+        }
+
+        [Test]
+        public void ExplicitSharedClassificationIsNotPromotedBySessionMembership()
+        {
+            var classifier = new Mock<IResourceIsolationClassifier>();
+            ResourceIsolationIdentity identity = new("shared-tenant", ResourceIsolationClass.Established);
+            classifier.Setup(value => value.TryClassify(
+                    It.IsAny<SecureChannelContext>(), It.IsAny<SessionBindingContext>(), out identity)).Returns(true);
+            var bindings = new Mock<ISessionBindingProvider>();
+            bindings.Setup(value => value.HasSession(It.IsAny<string>())).Returns(true);
+            using DefaultServerResourceIsolationProvider provider = CreateProvider(Options(), classifier.Object,
+                bindings.Object);
+            SecureChannelContext context = Channel("active", [1]);
+            ResourceIsolationOwner mapped = provider.Classify(context);
+
+            Assert.That(provider.ClassifyReassembly(context), Is.SameAs(mapped));
+            Assert.That(mapped.Class, Is.EqualTo(ResourceIsolationClass.Established));
+        }
+
+        [Test]
+        public void SharedLogicalChannelCachesSeveralPeersWithoutCrossPeerOwnerReuse()
+        {
+            using DefaultServerResourceIsolationProvider provider = CreateProvider(Options());
+            string channelId = new string("shared-https-listener".ToCharArray());
+            var contexts = new SecureChannelContext[4];
+            var owners = new ResourceIsolationOwner[4];
+            for (int ii = 0; ii < contexts.Length; ii++)
+            {
+                contexts[ii] = new SecureChannelContext(channelId,
+                    new EndpointDescription
+                    {
+                        SecurityMode = MessageSecurityMode.None,
+                        SecurityPolicyUri = SecurityPolicies.None
+                    }, RequestEncoding.Json, peerAddress: Peer(ii + 1).Address);
+                owners[ii] = provider.Classify(contexts[ii]);
+            }
+            for (int iteration = 0; iteration < 10; iteration++)
+            {
+                for (int ii = 0; ii < contexts.Length; ii++)
+                {
+                    Assert.That(provider.Classify(contexts[ii]), Is.SameAs(owners[ii]));
+                }
+            }
+            Assert.That(owners[0].Key, Is.Not.EqualTo(owners[1].Key));
+        }
+
+        [Test]
         public void ReassemblyMembershipPromotionCannotGrantOtherResourceOrRatePrivileges()
         {
             var bindings = new Mock<ISessionBindingProvider>();

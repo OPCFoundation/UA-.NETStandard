@@ -452,6 +452,10 @@ execution capacity. It has a separate accounting key from the sessionless
 traffic sharing the same peer address or application identity. Classification
 is retained for that one partial message; the next message checks membership
 again after closure or transfer.
+It uses ordinary owner-table space, so byte continuity traffic cannot consume
+the identity slot reserved for a genuine reconnect caller. An explicit
+classifier mapping to the shared class is honored and is not automatically
+promoted.
 
 The reserve still has a finite size. Several session messages may share it if
 they fit, but one maximum-sized message can occupy the reserve sized for one
@@ -495,8 +499,10 @@ represent multiple clients; the classifier cannot treat one logical channel as
 proof of a permanent client identity.
 
 Repeated requests can reuse immutable owner classifications and certificate
-snapshots. The cache has a fixed number of slots per live channel-id object
-and weak lifetime keys, not a permanent dictionary of every observed caller.
+snapshots. The cache holds at most eight immutable entries per live channel-id
+object and uses weak lifetime keys, not a permanent dictionary of every observed
+caller. Read-side lookup does not lock; a small set avoids one HTTP peer
+immediately evicting another when they share a logical listener channel.
 Each lookup still checks the current Session snapshot, channel evidence and
 any configured classifier. Mutated certificates, changed mappings, another
 Session, or reactivation invalidate the cached result. Reassembly-only

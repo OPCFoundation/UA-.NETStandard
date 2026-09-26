@@ -198,6 +198,7 @@ namespace Opc.Ua.Server
         {
             ResourceIsolationOwner owner = Classify(channelContext);
             if (!UseFairScheduling || owner.Class != ResourceIsolationClass.Established ||
+                owner.Key.StartsWith("mapped:", StringComparison.Ordinal) ||
                 m_sessionBindings?.HasSession(channelContext.SecureChannelId) != true)
             {
                 return owner;
@@ -432,8 +433,10 @@ namespace Opc.Ua.Server
             {
                 return ResourceIsolationFailureReason.Capacity;
             }
+            ResourceIsolationClass accountingClass = identity.OnlyStage.HasValue
+                ? ResourceIsolationClass.Established : owner.Class;
             ResourceIsolationClass? nextExclusiveClass =
-                accounting == null || accounting.ExclusiveClass == owner.Class ? owner.Class : null;
+                accounting == null || accounting.ExclusiveClass == accountingClass ? accountingClass : null;
             // A mixed-class key cannot fill a protected table slot: its ordinary leases
             // may outlive every protected lease without releasing the entry.
             int protectedSlots = GetReservedOwnerSlots(accounting?.ExclusiveClass, nextExclusiveClass);
@@ -447,10 +450,10 @@ namespace Opc.Ua.Server
                 accounting = new OwnerState(owner.Key);
                 m_owners.Add(owner.Key, accounting);
             }
-            var acquired = new Lease(this, accounting, stage, owner.Class, amount, fromReserved);
+            var acquired = new Lease(this, accounting, stage, owner.Class, accountingClass, amount, fromReserved);
             accounting.Usage[index] += amount;
             accounting.ActiveLeases++;
-            UpdateOwnerClasses(accounting, owner.Class, 1);
+            UpdateOwnerClasses(accounting, accountingClass, 1);
             state.Used += amount;
             state.SharedUsed += fromShared;
             switch (owner.Class)
@@ -497,7 +500,7 @@ namespace Opc.Ua.Server
                         state.ControlUsed -= lease.Reserved;
                         break;
                 }
-                UpdateOwnerClasses(owner, lease.Class, -1);
+                UpdateOwnerClasses(owner, lease.AccountingClass, -1);
                 if (--owner.ActiveLeases == 0)
                 {
                     m_owners.Remove(owner.Key);
@@ -735,7 +738,7 @@ namespace Opc.Ua.Server
         private sealed record DerivedKey(string Value);
 
         /// <summary>
-        /// Keeps a fixed number of classifications per live channel-id object, without a permanent identity dictionary.
+        /// Keeps a bounded set of classifications per live channel-id object, without a permanent identity dictionary.
         /// Snapshot comparisons retain mutation detection; changing session instances invalidates cached ownership.
         /// </summary>
         private sealed class ClassificationCache
@@ -752,10 +755,10 @@ namespace Opc.Ua.Server
                 ResourceIsolationStage? onlyStage = null,
                 bool mapped = false)
             {
-                lock (m_lock)
+                Entry[] entries = Volatile.Read(ref m_entries);
+                foreach (Entry entry in entries)
                 {
-                    Entry? entry = m_entries[onlyStage.HasValue ? kClassCount : (int)ownerClass];
-                    if (entry != null && entry.Owner.Class == ownerClass &&
+                    if (entry.Owner.Class == ownerClass &&
                         entry.Mapped == mapped && entry.Stage == onlyStage &&
                         ReferenceEquals(entry.Binding, binding) && (key == null || key == entry.Owner.Key) &&
                         entry.Snapshot.Matches(context))
@@ -773,18 +776,18 @@ namespace Opc.Ua.Server
             /// </summary>
             public ChannelSnapshot GetSnapshot(SecureChannelContext context)
             {
-                lock (m_lock)
+                foreach (Entry entry in Volatile.Read(ref m_entries))
                 {
-                    if (m_snapshot == null || !m_snapshot.Matches(context))
+                    if (entry.Snapshot.Matches(context))
                     {
-                        m_snapshot = new ChannelSnapshot(context);
+                        return entry.Snapshot;
                     }
-                    return m_snapshot;
                 }
+                return new ChannelSnapshot(context);
             }
 
             /// <summary>
-            /// Replaces one fixed slot; older classifications remain valid only while their leases retain them.
+            /// Publishes a bounded immutable snapshot; older classifications remain valid while leases retain them.
             /// </summary>
             public void Set(
                 ResourceIsolationOwner owner, SessionBindingContext? binding, ChannelSnapshot snapshot,
@@ -792,8 +795,12 @@ namespace Opc.Ua.Server
             {
                 lock (m_lock)
                 {
-                    m_entries[stage.HasValue ? kClassCount : (int)owner.Class] =
-                        new Entry(owner, binding, snapshot, stage, mapped);
+                    Entry[] current = m_entries;
+                    int retained = Math.Min(current.Length, kMaximumEntries - 1);
+                    var updated = new Entry[retained + 1];
+                    updated[0] = new Entry(owner, binding, snapshot, stage, mapped);
+                    Array.Copy(current, 0, updated, 1, retained);
+                    Volatile.Write(ref m_entries, updated);
                 }
             }
 
@@ -805,8 +812,8 @@ namespace Opc.Ua.Server
                 ResourceIsolationStage? Stage, bool Mapped);
 
             private readonly Lock m_lock = new();
-            private readonly Entry?[] m_entries = new Entry?[kClassCount + 1];
-            private ChannelSnapshot? m_snapshot;
+            private const int kMaximumEntries = 8;
+            private Entry[] m_entries = [];
         }
 
         /// <summary>
@@ -867,6 +874,7 @@ namespace Opc.Ua.Server
             OwnerState owner,
             ResourceIsolationStage stage,
             ResourceIsolationClass ownerClass,
+            ResourceIsolationClass accountingClass,
             long amount,
             long reserved) : IDisposable
         {
@@ -884,6 +892,11 @@ namespace Opc.Ua.Server
             /// The classification used when the capacity was reserved.
             /// </summary>
             public ResourceIsolationClass Class { get; } = ownerClass;
+
+            /// <summary>
+            /// The owner-table class; byte-only continuity must not consume a reconnect identity reservation.
+            /// </summary>
+            public ResourceIsolationClass AccountingClass { get; } = accountingClass;
 
             /// <summary>
             /// Total capacity held by the lease.
