@@ -80,6 +80,7 @@ namespace System.Net.Sockets
             try
             {
                 await socket.ConnectAsync(remoteEP).ConfigureAwait(false);
+                registration.Dispose();
                 cancellationToken.ThrowIfCancellationRequested();
             }
             catch (SocketException) when (cancellationToken.IsCancellationRequested)
