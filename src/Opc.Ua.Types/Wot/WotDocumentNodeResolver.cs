@@ -275,6 +275,12 @@ namespace Opc.Ua.Wot
                 return;
             }
             m_declarations.Add(document);
+            IndexReferenceType(document);
+            if (WotNodeSetConverter.TakesRestorePath(document))
+            {
+                IndexNativeProjection(document);
+                return;
+            }
             WotExpectedNodeClass rootClass = ClassOfTokens(document.TypeTokens);
             if (rootClass == WotExpectedNodeClass.Any && document.Kind == WotDocumentKind.ThingModel)
             {
@@ -296,7 +302,6 @@ namespace Opc.Ua.Wot
             {
                 IndexNode(entry.Value, WotExpectedNodeClass.ObjectType, document);
             }
-            IndexReferenceType(document);
             IndexDataTypeDefinitions(document);
             IndexNativeProjection(document);
         }

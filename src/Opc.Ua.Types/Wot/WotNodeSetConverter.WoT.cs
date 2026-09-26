@@ -1008,6 +1008,31 @@ namespace Opc.Ua.Wot
             {
                 return false;
             }
+            if (TakesRestorePath(document))
+            {
+                WotConversionResult<UANodeSet> restored = ReadAuthoritativeTypeContext(document);
+                if (!restored.Success || restored.Value is not { Items: { } items } native)
+                {
+                    return false;
+                }
+                ExpandedNodeId root = TrySelectProjectionRoot(native);
+                if (root.IsNull)
+                {
+                    return false;
+                }
+                string identity = NormalizeExpandedNodeId(root.ToString());
+                UANode? type = Array.Find(items, node =>
+                    ToPortableNodeId(node.NodeId, native.NamespaceUris) is { } portable &&
+                    NormalizeExpandedNodeId(portable) == identity);
+                if (type is not (UAObjectType or UAVariableType or UAReferenceType or UADataType))
+                {
+                    return false;
+                }
+                nodeId = identity;
+                namespaceUri = root.NamespaceUri ?? WotVocabulary.OpcUaNamespace;
+                browseName = LocalName(type.BrowseName) ?? string.Empty;
+                return browseName.Length != 0;
+            }
 
             namespaceUri = DeriveModelUri(document);
             browseName = LocalName(GetUavString(document, "browseName")) ??

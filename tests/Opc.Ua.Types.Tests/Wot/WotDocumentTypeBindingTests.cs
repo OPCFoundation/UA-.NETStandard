@@ -154,6 +154,37 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo(WotTestData.LocalNodeId(result.Value!, expected)));
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task NativeTypeDocumentWithoutReadableIdBindsItsActualRoot(bool envelope)
+        {
+            UANodeSet native = WotTestData.CreateReconstructableNodeSet();
+            using WotDocument exported = WotNodeSetConverter.FromNodeSet(native,
+                options: new WotNodeSetConverterOptions
+                {
+                    PreservationMode = envelope ? WotNodeSetPreservationMode.Always : WotNodeSetPreservationMode.Never
+                });
+            JsonObject authored = JsonNode.Parse(exported.Utf8Json.Span)!.AsObject();
+            authored.Remove("uav:id");
+            authored["id"] = kTypeDocument;
+            using WotDocument type = WotDocument.Parse(WotTestData.Utf8(authored.ToJsonString()));
+            Assert.That(WotNodeSetConverter.TakesRestorePath(type), Is.True);
+            WotConversionResult<UANodeSet> restored = WotNodeSetConverter.ToNodeSetResult(type);
+            Assert.That(restored.Success, Is.True, string.Join("; ", restored.Diagnostics));
+            ExpandedNodeId expected = WotNodeSetConverter.TrySelectProjectionRoot(restored.Value!);
+            Assert.That(expected.IsNull, Is.False);
+            using WotDocument document = CreateDocumentBinding(false, kTypeDocument);
+
+            WotConversionResult<UANodeSet> result = await WotNodeSetConverter.ToNodeSetResultAsync(
+                document, null, CreateThingResolver(type).Object, null, new WotDocumentNodeResolver([type]))
+                .ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+            UAObject instance = result.Value!.Items!.OfType<UAObject>().Single();
+            Assert.That(instance.References!.Single(item => item.ReferenceType == "HasTypeDefinition").Value,
+                Is.EqualTo(WotTestData.LocalNodeId(result.Value!, expected.ToString())));
+        }
+
         private static WotDocument CreateDocumentBinding(bool property, string href)
         {
             JsonObject root = JsonNode.Parse("""
