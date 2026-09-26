@@ -87,6 +87,96 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
+        public async Task ConnectAsyncHonorsCancellationBeforeConnection()
+        {
+            using var cancellationSource = new CancellationTokenSource();
+            cancellationSource.Cancel();
+            using var transport = new TcpByteTransport(m_bufferManager, kBufferSize, m_telemetry);
+
+            OperationCanceledException exception = Assert.CatchAsync<OperationCanceledException>(
+                async () => await transport.ConnectAsync(
+                    new Uri("opc.tcp://192.0.2.1:4840"),
+                    cancellationSource.Token).ConfigureAwait(false))!;
+
+            Assert.That(exception.CancellationToken, Is.EqualTo(cancellationSource.Token));
+            Assert.That(transport.LocalEndpoint, Is.Null);
+            Assert.That(transport.RemoteEndpoint, Is.Null);
+        }
+
+        [Test]
+        public async Task ConnectAsyncHonorsCancellationDuringConnection()
+        {
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start(1);
+            using var _l = new ListenerScope(listener);
+            var endpoint = (IPEndPoint)listener.LocalEndpoint;
+            var connections = new List<(Socket Socket, Task ConnectTask)>();
+
+            try
+            {
+                Task? pendingConnect = null;
+                for (int ii = 0; ii < 16 && pendingConnect == null; ii++)
+                {
+                    var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
+                    Task connectTask = socket.ConnectAsync(endpoint);
+                    connections.Add((socket, connectTask));
+                    Task completed = await Task
+                        .WhenAny(connectTask, Task.Delay(TimeSpan.FromMilliseconds(100)))
+                        .ConfigureAwait(false);
+                    if (completed == connectTask)
+                    {
+                        await connectTask.ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        pendingConnect = connectTask;
+                    }
+                }
+
+                Assert.That(pendingConnect, Is.Not.Null, "Could not saturate the listener backlog.");
+
+                using var cancellationSource = new CancellationTokenSource();
+                using var transport = new TcpByteTransport(m_bufferManager, kBufferSize, m_telemetry);
+                Task connect = transport
+                    .ConnectAsync(
+                        new Uri($"opc.tcp://127.0.0.1:{endpoint.Port}"),
+                        cancellationSource.Token)
+                    .AsTask();
+
+                await Task.Delay(TimeSpan.FromMilliseconds(100)).ConfigureAwait(false);
+                Assert.That(connect.IsCompleted, Is.False);
+                cancellationSource.Cancel();
+
+                OperationCanceledException exception =
+                    Assert.CatchAsync<OperationCanceledException>(async () => await connect.ConfigureAwait(false))!;
+                Assert.That(exception.CancellationToken, Is.EqualTo(cancellationSource.Token));
+                Assert.That(transport.LocalEndpoint, Is.Null);
+                Assert.That(transport.RemoteEndpoint, Is.Null);
+            }
+            finally
+            {
+                foreach ((Socket socket, _) in connections)
+                {
+                    socket.Dispose();
+                }
+
+                foreach ((_, Task connectTask) in connections)
+                {
+                    try
+                    {
+                        await connectTask.ConfigureAwait(false);
+                    }
+                    catch (SocketException)
+                    {
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                    }
+                }
+            }
+        }
+
+        [Test]
         public async Task SendChunkAsyncRoundTripsBytesOverTheSocket()
         {
             (TcpByteTransport client, Socket serverSocket, TcpListener listener) =
