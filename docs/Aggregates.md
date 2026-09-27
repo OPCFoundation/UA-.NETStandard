@@ -64,7 +64,7 @@ AsyncCustomNodeManager / CustomNodeManager2  → HistorianDispatcher.DispatchPro
   of raw `DataValue`s.
 - A historian provider may compute aggregates itself by implementing `IHistorianProcessedProvider`
   (native push-down). When it does not, the framework streams raw values through the calculator,
-  using the node's `Stepped` capability. After each raw sample, the framework drains completed intervals.
+  using the node's `Stepped` capability. After each raw sample, the framework collects results for completed intervals.
   The fallback returns `Bad_TooManyOperations` if it exceeds the 100,000-output buffer limit.
 
 ### AnnotationCount

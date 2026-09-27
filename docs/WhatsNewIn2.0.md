@@ -1,596 +1,185 @@
 # What's New in OPC UA .NET Standard 2.0
 
-This document is a developer-facing tour of the changes between **1.5.378** and
-**2.0**. It is organised by theme and layer; each section describes the
-broad-stroke change with a paragraph and links to the deeper feature
-documentation in this folder.
+Version 2.0 expands the SDK beyond the 1.5.378 client/server APIs with managed
+connections, model-driven application development, injectable services, and
+distributed deployment options. This overview highlights what those changes
+enable; the linked guides contain API contracts, examples, and limitations.
 
 ## Contents
 
 - [At a glance](#at-a-glance)
-- [Breaking changes at a glance](#breaking-changes-at-a-glance)
-- [Cross-cutting themes](#cross-cutting-themes)
+- [Feature details](#feature-details)
+  - [Dependency injection and hosting](#dependency-injection-and-hosting)
+  - [Client](#client)
+  - [Source generators and modeling](#source-generators-and-modeling)
   - [Type system and immutability](#type-system-and-immutability)
   - [Async, cancellation, and `TimeProvider`](#async-cancellation-and-timeprovider)
-  - [Dependency injection and hosting](#dependency-injection-and-hosting)
   - [Native AOT](#native-aot)
-  - [Source generators and modeling](#source-generators-and-modeling)
+  - [OPC UA services](#opc-ua-services)
   - [OPC UA companion-spec coverage](#opc-ua-companion-spec-coverage)
-  - [Performance, memory, and pooling](#performance-memory-and-pooling)
   - [Security and certificates](#security-and-certificates)
-- [By layer](#by-layer)
-  - [Server](#server)
-  - [Client](#client)
-  - [High availability and redundancy](#high-availability-and-redundancy)
   - [Global Discovery Server](#global-discovery-server)
   - [Part 14 PubSub modernization](#part-14-pubsub-modernization)
-  - [Tooling](#tooling)
-  - [Build, CI, and observability](#build-ci-and-observability)
+  - [High availability and redundancy](#high-availability-and-redundancy)
+  - [Performance, memory, and pooling](#performance-memory-and-pooling)
+  - [Tooling and diagnostics](#tooling-and-diagnostics)
 - [Further reading](#further-reading)
-
-If you are migrating an existing application, the companion
-[Migration Guide](MigrationGuide.md) is the prescriptive, API-level reference.
 
 ## At a glance
 
-- **The OPC UA built-in types are now allocation-friendly value types**, with
-  a `Variant`-first public API, a new `ByteString` type, and `ArrayOf<T>` /
-  `MatrixOf<T>` replacing untyped array shapes.
-- **Server- and client-side stacks are now fully `async`/`await`** with
-  cancellation flowing through the request lifetime, `TimeProvider` everywhere,
-  and the new `AsyncCustomNodeManager` powering all built-in NodeManagers.
-- **A first-class hosting story**: `services.AddOpcUa()` and `IOpcUaBuilder`
-  plug servers and clients into `Microsoft.Extensions.DependencyInjection` and
-  the .NET Generic Host, complemented by a fluent server and `ManagedSession`
-  fluent client builder.
-- **Native AOT support across the stack**, including AOT-clean source
-  generators, NodeSet export/import, and reference servers/clients.
-- **New companion-spec coverage**: Part 9 (Alarms & Conditions), Part 11
-  (Historical Access) + Part 13 (Aggregates), Part 16 (State Machines),
-  Part 17 (Alias Names), Part 18 (Role Management), Part 20 (File Transfer),
-  Part 100 (Device Integration), OPC 10100-1 WoT Connectivity, and a Local
-  Discovery Server.
-- **Source generators emit NodeManagers, typed `ObjectType` proxies, and
-  `IEncodeable` data types from model design XML**, removing hand-written
-  boilerplate while staying AOT-clean.
-- **GDS is now Part 12 full-compliance**, with arbitrary certificate groups,
-  custom group support, modernised Push/Pull APIs, and OPC 10000-21
-  registrar ticket administration backed by the generated Onboarding model.
-- **OPC UA Part 4 §6.6 redundancy plus opt-in distributed high availability.**
-  Server and client redundancy (`Server.ServerRedundancy` / `ServiceLevel`,
-  `ManagedSession.WithServerRedundancy()`) ship in the box, and new
-  `Opc.Ua.Redundancy(.Server/.Client/.Kubernetes)` packages add distributed
-  address-space / session / subscription mirroring over an in-package CRDT
-  (eventual) or Raft (strong) shared store, with a Kubernetes deployment guide.
-- **An MCP server** ships in the box so an LLM/Copilot can drive an OPC UA
-  client; and a **2.0 Migration Analyzer + code fixer** automates the
-  mechanical parts of upgrading to v2.
+| Area | What 2.0 enables |
+| --- | --- |
+| Application development | Host clients and servers through one dependency-injection builder; generate model types and typed client proxies instead of writing service plumbing. |
+| Client connections | Use `ManagedSession` for reconnection and failover, with callback-based or asynchronous streaming subscriptions. |
+| Data and deployment | Use strongly typed values, arrays, and matrices; publish supported applications with Native AOT. |
+| Server capabilities | Add historian providers, alarms, state machines, file access, and companion models through reusable services. |
+| Security and discovery | Manage certificate lifecycles and identities through providers, and integrate GDS pull/push management and token services. |
+| PubSub and availability | Compose publishers/subscribers with transport packages, or opt into redundancy and distributed state for client/server deployments. |
 
-## Breaking changes at a glance
-
-2.0 is the first major break of the public API since the project moved to
-.NET Standard. The biggest sources of breakage are:
-
-- The readonly-struct built-ins (`NodeId`, `ExtensionObject`, `Variant`,
-  `DataValue`, `QualifiedName`, `LocalizedText`, and `ArrayOf<T>`).
-- The `Variant`-for-`object` pivot in code and API.
-- The new `IEncodeableFactoryBuilder` and `IType` hierarchy.
-- The removal of Newtonsoft.Json from `Opc.Ua.Core`.
-- The `ManagedSession` family alongside the classic `Session`.
-- The move to `AsyncCustomNodeManager` for server extensibility.
-
-The [Migration Guide](MigrationGuide.md) walks every break in detail, with the
-companion [2.0 Migration Analyzer](#tooling) handling most of the mechanical
-edits automatically.
-
-**ECC security policies now require .NET 8 or later stack assets.**
-The .NET Framework and .NET Standard 2.1 builds no longer advertise or accept
-ECC SecureChannel or user-token policies: their ECDH API hashes the shared
-secret instead of exposing the raw secret required by OPC UA Part 6 HKDF.
-Upgrade to the .NET 8+ build, or configure a supported RSA policy on both peers.
-Running the .NET Standard build on a newer runtime does not enable ECC policies.
-See [ECC platform requirements](EccProfiles.md#known-limitations).
-
-## Cross-cutting themes
-
-### Type system and immutability
-
-The built-in OPC UA types have been redesigned around immutability and
-allocation-light value semantics. `NodeId`, `ExpandedNodeId`,
-`QualifiedName`, `LocalizedText`, `Variant`, `ExtensionObject`,
-`DataValue`, and `ArrayOf<T>` are now `readonly struct`s; `null` checks are
-replaced with `IsNull` / `.Null` to align with `INullable`. A new
-`ByteString` is preferred over `byte[]` in public API, and `ArrayOf<T>` /
-`MatrixOf<T>` provide first-class array and matrix abstractions. The
-`object`-typed public surface has been replaced with `Variant` across the
-stack and in source-generated code, eliminating boxing in encoders, decoders,
-and node-state read/write paths. Equality on `ExtensionObject`,
-`StatusCode`, and numeric ranges has been tightened, and `DateTimeUtc`
-makes timestamp intent explicit. See the
-[2.0 migration guide — Improved Type Safety](migrate/2.0.x/types.md)
-section for the per-type deltas.
-
-### Async, cancellation, and `TimeProvider`
-
-The server now runs fully on the Task-based asynchronous pattern. The new
-[`AsyncCustomNodeManager`](AsyncServerSupport.md) is the canonical base
-class for NodeManagers and threads `CancellationToken` through every
-service call; built-in managers (`CoreNodeManager`, `DiagnosticsNodeManager`,
-`ReferenceNodeManager`) have all migrated to it, and `MonitoredNode` is
-`IAsyncNodeManager`-aware. A new server-side `RequestLifetime` propagates
-the request-scoped cancellation token through the call stack, so a
-client-cancelled request short-circuits cleanly. Synchronous-over-async
-patterns have been removed from non-obsolete public APIs. The stack also
-adopts `System.TimeProvider` for all timing primitives, replacing direct
-`DateTime.UtcNow` and `Timer` use; this is what makes server logic
-deterministic under test and tolerant of system-clock changes.
+## Feature details
 
 ### Dependency injection and hosting
 
-The stack now offers a unified
-[`Microsoft.Extensions.DependencyInjection`](DependencyInjection.md) surface:
-a single `services.AddOpcUa()` returns an `IOpcUaBuilder`, and every feature
-library hangs its own `.AddXxx(...)` extension off it. Servers run as
-`IHostedService`s under the .NET Generic Host; options bind from
-`Action<T>` or `IConfiguration`; identity providers, certificate manager,
-secret store, file system, historian, alarms, and the GDS extensions all
-register through the same builder. Alongside DI, a
-[source-generated fluent server API](NodeManagers.md#source-generated-node-managers) lets
-applications stand up a server from a model design XML with a few
-`.AddXxx().WithYyy()` calls; the
-[`ManagedSession`](Sessions.md#3-managedsession--the-connection-state-machine-facade)
-fluent builder is the equivalent on the client.
-
-### Native AOT
-
-The full stack — Core, Types, Client, Server, ComplexTypes, GDS, PubSub,
-and the source generators — is now [Native AOT](NativeAoT.md) friendly.
-Public API avoids reflection paths that require trimming suppression, the
-source generators emit AOT-clean code, and the reference servers/clients
-can be published as self-contained single-file native binaries. UANodeSet
-import/export and the encodeable factory have been reworked to function
-under AOT, and the test matrix includes AOT smoke tests for each shipped
-library.
-
-### Source generators and modeling
-
-The new source-generation pipeline emits the typical OPC UA boilerplate
-from model design XML rather than hand-written code. The
-[NodeManager generator](NodeManagers.md#source-generated-node-managers) produces a fully
-async, fluent NodeManager skeleton plus typed `*State` properties for every
-node; the [DataType generator](SourceGeneratedDataTypes.md) emits
-`IEncodeable` implementations from POCO classes; and a new generator emits
-**typed method proxies on `ObjectType`**s so callers invoke methods with a
-strongly-typed signature rather than a generic `Call` plus variant arrays.
-The encodeable factory build path uses an `IEncodeableFactoryBuilder` so
-factories can be assembled deterministically and AOT-cleanly; OPC UA
-`OptionSet` data types are now backed by generated structures, and
-cross-assembly model references are tracked via the
-[`ModelDependencyAttribute`](ModelDependencies.md). The generator can also
-default a model's instance modelling rules to its type-definition rules,
-which the stack now opts into. For Optional `Variable`/`Method` children
-the generator emits **five chainable `Add{Child}` overloads** per typed
-state class (idempotent ensure-child, `Action<TChild>` configure,
-conditional configure, `Func<TChild, TChild>` replace, conditional
-replace) so opt-in extensions of singleton instances collapse into a
-single fluent chain.
-
-### OPC UA companion-spec coverage
-
-This release substantially extends companion-spec coverage with full
-server- and client-side implementations:
-
-- **Part 9 — Alarms and Conditions**: full server + client implementation
-  with latched / silenced / out-of-service variants, alarm groups and a
-  suppression engine, rate metrics, a typed `AlarmClient`, the
-  `AlarmEventFilterBuilder`, and `IAsyncEnumerable` alarm streaming. See
-  [Alarms and Conditions](AlarmsAndConditions.md).
-- **Part 11 — Historical Access** + **Part 13 — Aggregates**:
-  provider-based [historical access](HistoricalAccess.md) with standard
-  [aggregates](Aggregates.md).
-- **Part 16 — State Machines**: a unified fluent
-  [`StateMachineBuilder`](StateMachines.md) with both *definition*
-  (`FluentFiniteStateMachineState`) and *lifecycle* (attach behaviour to
-  stack-shipped or generator-emitted FSMs) modes, plus client-side
-  streaming / read helpers on the generated `*TypeClient` proxies.
-  Definition-mode machines materialize a `StateType` node per declared
-  state and a `TransitionType` node per declared transition (with
-  `StateNumber` / `TransitionNumber`, `FromState` / `ToState` /
-  `HasEffect` / `HasCause`, and the `AvailableStates` /
-  `AvailableTransitions` / `LastTransition` children), so
-  `CurrentState/Id` and `LastTransition/Id` resolve to real nodes and
-  `HasSubStateMachine` hangs off the parent **state** node per Part 16
-  §4.4.16 rather than off the machine root. Callers that passed a state
-  machine's `ObjectId` to `GetSubStateMachineAsync` must pass a state
-  NodeId instead — from `GetAvailableStatesAsync` or a snapshot's
-  `CurrentStateId` — and code that read a numeric id out of
-  `CurrentState/Id` should call `FiniteStateMachineState.GetStateId`
-  instead of parsing the identifier. Generated state-machine classes
-  now also override `ElementNamespaceUri` with the namespace of the
-  model that declares their states, so `CurrentState/Id` and
-  `LastTransition/Id` are qualified with the companion-spec namespace
-  rather than the OPC UA one.
-- **Part 17 — Alias Names**: full server + client support for
-  `AliasNameType`, `AliasNameCategoryType`, `FindAlias`, `FindAliasVerbose`,
-  `AddAliasesToCategory`, `DeleteAliasesFromCategory`, and `LastChange`.
-  See [Alias Names](AliasNames.md).
-- **Part 18 — Role Management**: full server-side role administration
-  surface, with the server automatically assigning the OPC UA Part 3 §4.9
-  `TrustedApplication` role, and a pluggable
-  [identity-provider model](IdentityProviders.md) that supports anonymous,
-  username, X.509, and token-issuer flows (OAuth2 / OIDC / Entra / JWT).
-- **Part 20 — File Transfer**: a server-side FileSystem library, with a
-  matching System.IO-style [`FileSystemClient`](FileSystemClient.md) on
-  the client.
-- **Part 100 — Device Integration**: the `Opc.Ua.Di` / `Opc.Ua.Di.Server` /
-  `Opc.Ua.Di.Client` library trio with a fluent `IDeviceBuilder`, device
-  sub-type extensions, lock service, software-update package store, and
-  client helpers. See [Device Integration](DeviceIntegration.md) and
-  [Software Update](SoftwareUpdate.md).
-- **Parts 210 and 211 — Relative Spatial Location and Global Positioning**:
-  source-generated released RSL/GPOS models, standalone and composed server
-  hosting, technology-neutral position providers, typed clients and streams,
-  frame-chain resolution, WGS84/ENU conversion, and rigid/similarity/affine
-  Zone fitting. The robot/OpenUSD sample publishes independently configurable
-  mobile robot poses. See [Positioning](Positioning.md).
-- **OPC 40010-1 — Robotics** (over **OPC 40001-1 — Industrial Automation**):
-  the `Opc.Ua.Robotics` / `Opc.Ua.Robotics.Server` / `Opc.Ua.Robotics.Client`
-  library trio over Device Integration, with source-generated Robotics 1.02
-  and IA models, `AddRobotics` / `ConfigureRobotics` hosting, ordered model
-  providers, and validated fluent topology builders that assemble motion
-  device systems, controllers, motion devices, axes, power trains, motors,
-  gears, drives, safety states, and task controls with the correct
-  companion-spec references. See [Robotics](Robotics.md), including the draft
-  Robot Intent task-level command model.
-- **OPC UA — Vision** (draft): the `Opc.Ua.Vision` /
-  `Opc.Ua.Vision.Server` / `Opc.Ua.Vision.Client` /
-  `Opc.Ua.Vision.OpenUsd` package family, with a source-generated Vision model,
-  `AddVision` / `ConfigureVision` hosting, media/inference/feedback providers,
-  fluent frame/sensor/calibration/pipeline builders, typed `VisionClient`
-  discovery, result streaming, off-server feedback, facet derivation, and
-  OpenUSD camera capture. See [Vision](Vision.md), including the Robotics +
-  Vision bin-picking example.
-- **OPC UA — AI Model Management and Inference** (draft): the `Opc.Ua.AI` /
-  `Opc.Ua.AI.Inference` / `Opc.Ua.AI.Server` / `Opc.Ua.AI.Client` package
-  family over xRegistry, with a source-generated catalogue/deployment/inference
-  model, the `IInferenceBackend` contract, `Microsoft.Extensions.AI`
-  `IChatClient` and OpenAI-compatible REST backends, `AINodeManagerFactory`
-  hosting through `AddNodeManager<AINodeManagerFactory>`, `Invoke` routing,
-  learning jobs, and standard file-transfer artefact streaming. See
-  [AI Model Management](AI.md).
-- **OPC 10100-1 — WoT Connectivity**: model, server, and client libraries
-  for surfacing OPC UA servers as Web of Things Thing Descriptions, with
-  the `WoTAssetConnectionManagement` server methods gated by a
-  configurable `WotManagementAccessPolicy` (defaults: `SignAndEncrypt`
-  channel + `SecurityAdmin` role + no anonymous). See
-  [WoT Connectivity](WoTConnectivity.md).
-- **Local Discovery Server**: a built-in LDS implementation usable
-  standalone or as part of a hosted server.
-
-Other server-side feature work:
-[NodeManagement service set](NodeManagement.md) (`AddNodes`,
-`DeleteNodes`, `AddReferences`, `DeleteReferences` with an
-`INodeManagementAsyncNodeManager` opt-in and a per-manager
-`AllowNodeManagement` gate),
-[Model Change Tracking](ModelChangeTracking.md) (server-side
-`ModelChangeAggregator` and auto-emitted `GeneralModelChangeEvent`s, with
-client-side per-node `INodeCache.InvalidateNode`), and the
-[Subscriptions and Monitored Items](Subscriptions.md) service set
-(V2 subscription engine, declarative + imperative `SetTriggering` with
-N:M support, and `IAsyncEnumerable`-based streaming subscriptions for
-state-machine waits and short-lived monitoring).
-
-### Performance, memory, and pooling
-
-The type-system rework eliminates a large class of allocations: every
-encode/decode of `NodeId`, `Variant`, `DataValue`, `ExtensionObject`, and
-their collections now stays on the stack or in pooled buffers. A new
-`IPooledEncodeable` activator pool further reduces GC pressure on hot
-encode paths. Server-side, `MonitoredNode2` caches role-permission
-validation event-driven (no more per-publish recomputation), publishing
-queues use channel-based consumers, and `NodeState.ReadAttributes` has
-been optimised. Lifetime bugs that surfaced under load were fixed in
-several places: socket and event-handler leaks during server restart,
-timer leaks in `ChannelAsyncOperation.EndAsync`, `TcpTransportListener`
-resource leakage in `ServerBase.StopAsync`, undeleted subscription
-diagnostic nodes, and the abandoned-subscription map migrated from a
-locked `List` to a `ConcurrentDictionary`.
-
-### Security and certificates
-
-A new ref-counted [`Certificate`](Certificates.md) wrapper and the
-`CertificateManager` segregated-interface design replace the older
-`X509Certificate2` exposure: certificates are tracked deterministically,
-shared safely, and disposed predictably across stores, channels, and
-identity flows. Secure-channel negotiation has been hardened; the client
-now auto-detects and force-renegotiates on server certificate rotation,
-and application-certificate lookup can fall back from a concrete
-`ApplicationCertificateType` to the abstract type when no concrete entry
-matches. The `EncryptedSecret` machinery now supports both RSA and ECC and
-is bridge-compatible with legacy .NET / OPC UA implementations. The server
-ships with [client lockout](RoleBasedUserManagement.md) for failed
-authentication attempts, and `SubCA` revocation no longer auto-creates an
-empty CRL on the issuing CA.
-
-Cryptography is now pluggable. A [`CryptoProvider`](CryptoProvider.md) model
-lets an application route cryptographic operations to another library, an
-offboard service or hardware, chosen per purpose and per security policy and
-injected through `AddCryptoProvider(…)`. The default is unchanged and costs
-nothing: everything resolves to platform cryptography until something is bound.
-Private keys no longer have to be owned by the certificate — a key can be held
-detached, in a TPM, a smart card or an HSM, and never enter process memory.
-`Certificate.CopyWithDetachedPrivateKey` is the seam that makes this work on
-every platform, which `X509Certificate2.CopyWithPrivateKey` does not.
-The optional `OPCFoundation.NetStandard.Opc.Ua.Security.Pkcs11` package adds a
-PKCS#11 certificate store addressed by RFC 7512 `pkcs11:` URIs. Which
-cryptographic module performed an operation, and whether it carries any
-validation, is auditable through logs, metrics and the address space, and can
-be constrained with a compliance policy.
-The symmetric primitives are pluggable too. `ISymmetricCryptoProvider`,
-`IKeyDerivationProvider` and `ISecureRandomSource` let a validated cryptographic
-module perform *every* operation rather than only the asymmetric ones, which is
-what a FIPS deployment needs. They are optional facets a provider opts into, so
-existing providers are unaffected, and they sit behind a null fast path: a
-deployment that registers nothing keeps the inline platform code, with no
-interface dispatch on the per-message path. A provider bound to a symmetric
-purpose it cannot actually perform is reported rather than silently replaced by
-the platform, and under `FipsOnly` it refuses to start.
-PubSub uses the same seam: the per-message AES-CTR and HMAC a publisher applies
-route through a registered provider, so a validated module performs those too.
-Full device custody is not achievable for PubSub, and the reason is worth stating
-— a standard Security Key Service returns raw key bytes over the wire, so the key
-is in process memory by construction. What is bounded instead is its lifetime.
-A key served over a network no longer has to occupy a thread. `RSA` and `ECDsa`
-are synchronous contracts belonging to .NET, so an implementation opts in by
-also implementing `IAsyncRsaKey` or `IAsyncEcdsaKey`, which the stack finds by
-type test and uses where it can — user identity token signing and decryption,
-session activation, and the secure channel open and renew path. A software key
-implements neither, so those paths complete synchronously and nothing about
-their ordering changes. The secure channel no longer serialises its state on a
-monitor, and `UaSCBinaryChannel.DataLock` is `[Obsolete]`. The gate that replaced
-it is not re-entrant, so the channel calls a lock-free `Core` variant on every
-path that used to take the lock recursively.
-
-## By layer
-
-### Server
-
-`AsyncCustomNodeManager` is now the recommended base for all custom
-NodeManagers, and every NodeManager shipped with the stack has migrated to
-it. `MonitoredNode` is `IAsyncNodeManager`-aware and uses channel-based
-queuing under load; events from the server node are dispatched through
-multiple channel consumers; role-permission validation is cached
-event-driven in `MonitoredNode2`; and the request queue, event handling,
-and publishing path have all been hardened with new test coverage. Server
-identity is now pluggable end-to-end (anonymous / username / X.509 / token
-issuer) and persistent users are loaded through
-`IUserDatabase.GetUsers`. Per OPC UA Part 3 §4.9 the server assigns the
-`TrustedApplication` role automatically. The
-[NodeManagement service set](NodeManagement.md), per-NodeManager `Allow…`
-gates, and `ModelChangeAggregator` round out the server extensibility
-surface. The server, the audit/redaction APIs, and the publishing path
-have been audited for sync-over-async and converted to TAP. See
-[Sessions](Sessions.md) for the matching session-/subscription-engine
-story.
+`services.AddOpcUa()` provides a common entry point for clients, servers, and
+feature libraries. The .NET Generic Host manages server lifetime; options,
+telemetry, identities, certificates, and application providers use the same
+container. Direct construction remains available.
+See [Dependency Injection](DependencyInjection.md).
 
 ### Client
 
-The client now offers two coexisting paths. The
-[classic `Session`](Sessions.md#1-session--the-opc-ua-session-primitive)
-remains for callers that own session lifecycle. The
-new [`ManagedSession`](Sessions.md#3-managedsession--the-connection-state-machine-facade)
-encapsulates the connection state machine, reconnect policy, and pluggable
-subscription engine behind a fluent builder; it is the recommended path for
-new code. The **V2 subscription engine** runs alongside the classic engine
-and has feature and test parity with it; an opt-in
-`SubscriptionRecoveryPolicy` lets servers signal `Good_SubscriptionTransferred`
-without surprising the client; and the user
-token policy used on `Connect` is now re-used during `Reconnect` /
-`ReactivateSession`. Under the hood, a new
-**`IClientChannelManager`** owns client-side transport channels with
-reference counting, sharing, and coalesced reconnect: sessions, discovery
-clients, and registration clients targeting the same
-`ConfiguredEndpoint` (with the same reverse-connect identity) share a
-single underlying `ITransportChannel`, reconnect is transparent to
-callers, and the previous `AttachChannel` / `DetachChannel` +
-`SessionReconnectHandler` patterns are obsoleted. A shared `IRetryBudget`
-collapses the two-level retry deadline so reconnect no longer compounds
-multiplicatively. The new
-[**unbounded monitored items**](Subscriptions.md) feature
-transparently shards a V2 `ManagedSession` subscription across multiple
-real server-side `Subscription` partitions when the server's
-`MaxMonitoredItemsPerSubscription` cap is hit — callers that exceed the
-cap continue to succeed instead of failing with
-`BadTooManyMonitoredItems`, and the public `ISubscription` /
-`MonitoredItemCollection` shape is unchanged. New client-side features
-include [`FileSystemClient`](FileSystemClient.md) (a `System.IO`-style
-async client over OPC UA File methods),
-[`HistoryClient`](HistoricalAccess.md),
-[`AlarmClient`](AlarmsAndConditions.md), and source-generated typed
-ObjectType proxies. Client-side [NodeSet export](NodeSetExport.md)
-extracts a server's address space to NodeSet2 XML, and
-[`ModelChangeTracking`](ModelChangeTracking.md) keeps the local
-`INodeCache` consistent with server-side model changes.
+`ManagedSession` manages connection recovery behind a fluent builder while the
+classic `Session` remains available for applications that own that lifecycle.
+The V2 subscription API adds options-based callbacks, triggering relationships,
+automatic partitioning, and `IAsyncEnumerable` streams for short-lived monitoring.
+Typed helpers cover history, alarms, files, and model-change tracking.
+See [Sessions](Sessions.md), [Subscriptions](Subscriptions.md),
+[File System Client](FileSystemClient.md), and [Model Change Tracking](ModelChangeTracking.md).
 
-### High availability and redundancy
+### Source generators and modeling
 
-2.0 maps OPC UA Part 4 §6.6 redundancy across the server, client, and network,
-and layers an opt-in distributed high-availability story on top. On the server,
-`AddServerRedundancy(...)` publishes the `Server.ServerRedundancy` nodes, drives
-`Server.ServiceLevel`, advertises the `NTRS` non-transparent discovery
-capability, and exposes `RequestServerStateChange` for administrator-driven
-Maintenance/NoData failover — for every `RedundancySupport` mode
-(None/Cold/Warm/Hot/HotAndMirrored/Transparent). On the client, a single
-[`ManagedSession`](Sessions.md) with `WithServerRedundancy()` reads that
-metadata and fails over transparently, so the same code works whether or not the
-server is configured for redundancy.
+ModelDesign and NodeSet2 inputs generate node-manager scaffolding, state types,
+and typed ObjectType client proxies. POCO annotations generate `IEncodeable`
+implementations, and model dependencies can be registered across assemblies.
+Models that change independently of the binary can instead be loaded at runtime.
+See [Node Managers](NodeManagers.md), [Source-Generated Data Types](SourceGeneratedDataTypes.md),
+[Model Dependencies](ModelDependencies.md), and [Runtime NodeSets](RuntimeNodeSets.md).
 
-The new `Opc.Ua.Redundancy`, `Opc.Ua.Redundancy.Server`,
-`Opc.Ua.Redundancy.Client`, and `Opc.Ua.Redundancy.Kubernetes` packages add the
-distributed building blocks behind DI/fluent seams. `UseDistributedAddressSpace`
-/ `UseReplicatedAddressSpace`, `UseDistributedSessions` /
-`UseReplicatedSessions`, and `UseDistributedSubscriptionMirroring` mirror
-address-space topology and values, session state (fast reconnect that still runs
-a full `ActivateSession` signature re-check against a single-use nonce), and
-subscription / retransmission state across replicas. `UseRedundancyConsistency`
-selects the shared store's consistency model — a leaderless **CRDT** gossip
-layer (eventual, active/active) or a linearizable **Raft** layer
-(`DefaultRaftConsensus`, strong, for single-use nonces and leader election) —
-both over the in-package NanoMsg transport, with every record
-authenticated-encrypted through `IRecordProtector`. Address-space hydration uses
-a snapshot + delta-log fast path for quick time-to-ready on failover, and an
-optional `GetEndpoints` load-direction seam (`UseServerLoadDirection`) can steer
-clients to the best replica. The default path (no store configured) is unchanged
-and zero-overhead. See [High Availability](HighAvailability.md) for the full
-design and [Kubernetes](Kubernetes.md) for the deployment guide.
+### Type system and immutability
+
+Readonly value types and the `Variant`-based API reduce boxing and make OPC UA
+values explicit. `ByteString`, `ArrayOf<T>`, and `MatrixOf<T>` represent binary,
+array, and matrix data. Runtime complex-type loading supports server-defined
+structures and enumerations without requiring a generated CLR class for each type.
+See [Complex Types](ComplexTypes.md) and [Schema Generation](SchemaGeneration.md).
+
+### Async, cancellation, and `TimeProvider`
+
+`AsyncCustomNodeManager` supports asynchronous service and data-source operations.
+Request cancellation follows the request lifetime, while `TimeProvider` enables
+controlled clocks and timers for testing. Existing synchronous compatibility APIs
+do not make blocking waits appropriate in new asynchronous handlers.
+See [Async Server Support](AsyncServerSupport.md) and [Node Managers](NodeManagers.md).
+
+### Native AOT
+
+Source-generated models, runtime type representations, and revised serialization
+paths support applications published without a JIT compiler. Choose AOT-compatible
+providers and the default complex-type builder; the optional Reflection.Emit
+builder still requires runtime code generation.
+See [Native AOT](NativeAoT.md) and [Complex Types](ComplexTypes.md#type-builders).
+
+### OPC UA services
+
+Reusable client and server components cover these application tasks:
+
+| Task | Guide |
+| --- | --- |
+| Raise, acknowledge, and stream alarms | [Alarms and Conditions](AlarmsAndConditions.md) |
+| Store and query history, including processed values | [Historical Access](HistoricalAccess.md) and [Aggregates](Aggregates.md) |
+| Define and observe state transitions | [State Machines](StateMachines.md) |
+| Discover aliases and manage address-space nodes | [Alias Names](AliasNames.md) and [Node Management](NodeManagement.md) |
+| Transfer files and administer roles | [File System Client](FileSystemClient.md) and [Role-Based User Management](RoleBasedUserManagement.md) |
+
+The guides describe provider requirements and supported operations; this overview
+is not a claim of complete implementation or certification for every specification.
+
+### OPC UA companion-spec coverage
+
+The SDK adds model libraries, hosting support, and client helpers for industrial
+domains and asset connectivity:
+
+| Domain | Guide |
+| --- | --- |
+| Device composition and software updates | [Device Integration](DeviceIntegration.md) and [Software Update](SoftwareUpdate.md) |
+| Motion-device systems and controllers | [Robotics](Robotics.md) |
+| Relative and geographic positioning | [Positioning](Positioning.md) |
+| Perception, media, and feedback | [Vision](Vision.md) |
+| Model catalogues, deployments, and inference | [AI Model Management](AI.md) |
+| Web of Things connectivity and conversion | [WoT Connectivity](WoTConnectivity.md), [WoT / NodeSet Conversion](WoTNodeSetConversion.md), and [WoT Bindings](WotBindings.md) |
+
+Vision, AI Model Management, and Robot Intent use draft models. Their guides
+identify provisional contracts and distinguish model coverage from runtime behavior.
+
+### Security and certificates
+
+Reference-counted certificates and `CertificateManager` provide explicit ownership,
+trust-list management, rotation, and lifecycle notifications. Identity and crypto
+providers support application-specific authentication and hardware-held keys.
+ECC SecureChannel and user-token policies require .NET 8-or-later stack assets;
+curve and cipher availability also depends on the platform.
+See [Certificate Manager](CertificateManager.md), [Identity Providers](IdentityProviders.md),
+[Crypto Providers](CryptoProvider.md), and [ECC Profiles](EccProfiles.md#known-limitations).
 
 ### Global Discovery Server
 
-The GDS implementation expands its OPC UA Part 12 support, including
-modern `StartRequestToken` / `FinishRequestToken` flows
-([AuthorizationService](AuthorizationService.md)) and the pull/push
-[KeyCredentialService](KeyCredentialService.md). The client supports
-pushing to arbitrary certificate groups; the server supports custom
-certificate groups; SubCAs can be revoked without auto-creating an empty
-CRL; and method-call validation is strict. The full developer guide
-is in [GDS](GDS.md), including provider requirements, partial functionality,
-and the distinction between automated test evidence and certification.
+GDS support extends application registration, pull/push certificate management,
+custom certificate groups, token issuance, and credential services. A Local
+Discovery Server is also available as a hosted component or standalone sample.
+See [GDS](GDS.md) for capability boundaries and conformance evidence,
+[Authorization Service](AuthorizationService.md), and [Key Credential Service](KeyCredentialService.md).
 
 ### Part 14 PubSub modernization
 
-The PubSub stack (`Opc.Ua.PubSub`, `Opc.Ua.PubSub.Udp`,
-`Opc.Ua.PubSub.Mqtt`, `Opc.Ua.PubSub.Server`) is rewritten end-to-end
-to track [Part 14 v1.05.06](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06).
+A fluent builder and dependency-injection extensions compose PubSub applications
+from separate runtime, transport, and server-integration packages. UADP and JSON
+encoding, discovery, retained metadata, runtime configuration, diagnostics, and
+Security Key Service integration support publisher/subscriber workflows.
+Transport and cryptographic capabilities remain platform-dependent; in particular,
+the DTLS Curve25519 / Curve448 profiles are not registered.
+See [PubSub](PubSub.md) for supported profiles, transports, and examples.
 
-- **Native AOT clean.** The combined reference sample
-  (`ConsoleReferencePubSubClient`, with `publisher` / `subscriber` / `external` modes)
-  publishes AOT with zero `IL2026` / `IL3050`; `PubSubAotTests` exercises every
-  runtime path under AOT.
-- **DI-integrated.** `services.AddOpcUa().AddPubSub(o => …)` registers
-  the runtime, scheduler, security subsystem, transports, and SKS into
-  the standard `IServiceCollection`. See
-  [`DependencyInjection.md`](DependencyInjection.md). The previous
-  "PubSub is not part of the dependency-injection surface" caveat is
-  removed.
-- **Fluent builder.** `PubSubApplicationBuilder` composes connections,
-  groups, writers, readers, transports, and security in code; XML
-  configuration loads through the same builder. Inline construction or
-  full `IPubSubConfigurationStore` round-tripping are equivalent.
-- **Expanded v1.05.06 functionality.** UADP (§7.2.4) and JSON (§7.2.5)
-  encoders/decoders, including `JsonEncodingMode` { Verbose, Compact,
-  RawData }, `SingleNetworkMessage`, Action and Discovery messages;
-  UDP datagram-v2 (`DatagramConnectionTransport2DataType` +
-  `QosCategory` → DSCP), MQTT 3.1.1 + 5.0 with QoS 0/1/2 and retained
-  metadata at startup; SKS pull / push (§8.5.1, §8.5.2); AES-128-CTR
-  and AES-256-CTR with HMAC-SHA-256 (NIST SP 800-38A F.5.1 / F.5.5
-  KAT-asserted).
-- **Per-component diagnostics.** Every connection, group, writer, and
-  reader now carries its own `IPubSubDiagnostics` instance, surfaced
-  on the address space when `AddPubSubAddressSpace` is wired.
-- **Runtime configuration mutation.** `IPubSubApplication.Add/Remove*`
-  methods compose new connections / groups / writers / readers without
-  a stop-reconfigure-restart cycle; the same methods are bound to the
-  Part 14 §9 `PublishSubscribe` Object methods.
-- **Security wiring.** `UadpSecurityWrapper` is now invoked at send /
-  receive; configurations that named a `SecurityMode` other than
-  `None` actually get that security applied.
-- **Retained metadata.** `MetaDataPublisher` advertises every active
-  `DataSetMetaData` once at startup (UDP discovery / MQTT retained
-  topic) so subscribers that join mid-stream can decode RawData.
-- **MQTT 3.1.1 + 5.0.** The MQTT transport uses `MQTTnet` v4 on net48
-  / netstandard and v5 on net8 / 9 / 10. Certificate authentication
-  per [Part 14 §6.4.2.2.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.4.2.2.4)
-  is supported.
+### High availability and redundancy
 
-For library reference, code samples, and transport-specific security limits,
-read [`PubSub.md`](PubSub.md). In particular, its DTLS Curve25519 / Curve448
-profiles are not registered; optional NIST / Brainpool profiles depend on runtime
-capability probes. The feature list above is not a blanket conformance claim.
-For the upgrade story (breaking changes, compatibility matrix, and
-codemod recipes), read
-[`migrate/2.0.x/pubsub.md`](migrate/2.0.x/pubsub.md).
+Server redundancy metadata and `ManagedSession` failover support OPC UA redundancy
+workflows. Optional distributed stores add address-space, session, and subscription
+mirroring with eventual or strong consistency choices. Kubernetes integration
+provides deployment, discovery, and readiness support.
+See [High Availability](HighAvailability.md), [Replica-Consistent NodeIds](ReplicaNodeIdentity.md),
+and [Kubernetes](Kubernetes.md) for configuration and deployment constraints.
 
-### Tooling
+### Performance, memory, and pooling
 
-A new **MCP server** (see [MCP Server](McpServer.md)) exposes OPC UA client
-operations as Model Context Protocol tools, so an LLM or Copilot can
-browse, read, write, subscribe, and call methods on any OPC UA server.
-The MCP server additionally ships **packet-capture, packet-decode, and
-packet-replay** tools so the agent can capture a UA-TCP exchange to
-PCAP, inspect the decoded service calls, and replay them — useful for
-reproducing interop issues without re-running the original client. A
-**2.0 Migration Analyzer + code fixer** ships as a Roslyn analyser package
-(`OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer`) that detects the
-typical 1.5.378 → 2.0 patterns and applies most of the mechanical edits
-automatically; see the [Migration Guide](MigrationGuide.md) for the
-opt-in workflow.
+Value-type representations and pooled buffers reduce allocations in encoding and
+notification paths. Server work also improves resource lifetime and repeated
+permission checks. These changes do not imply that every workload is faster;
+use the measured results and sizing guidance for your deployment.
+See [Benchmarks](Benchmarks.md), [Server Scalability](ServerScalability.md),
+and [Rate Limiting](RateLimiting.md).
 
-### Build, CI, and observability
+### Tooling and diagnostics
 
-Runtime observability uses `ITelemetryContext` for logging, metrics, and tracing,
-with redaction through the audit APIs. Start with [Diagnostics](Diagnostics.md)
-when instrumenting or troubleshooting an application.
-
-For contributors building the SDK itself, the [Developer Guide](DeveloperGuide.md)
-owns SDK prerequisites, analyzers, formatting, and
-[continuous integration](DeveloperGuide.md#continuous-integration).
-These repository requirements are separate from the runtime requirements of
-applications consuming the NuGet packages.
+The MCP server exposes client operations and packet-capture tools to agents.
+`ITelemetryContext` supplies application logging, metrics, and tracing, with
+audit and redaction support. A migration analyzer and code fixer assist with
+mechanical API updates.
+See [MCP Server](McpServer.md) and [Diagnostics](Diagnostics.md).
 
 ## Further reading
 
-- [Migration Guide](MigrationGuide.md) — prescriptive, per-API migration
-  reference from 1.5.378 to 2.0.
-- [Profiles](Profiles.md) — supported OPC UA profiles, facets, and
-  security policies in 2.0.
-- [Sessions, Reconnection, and Subscription Engines](Sessions.md) —
-  architectural overview of `Session` vs `ManagedSession` and the
-  classic vs V2 subscription engines.
-- [High Availability and Redundancy](HighAvailability.md) — OPC 10000-4 §6.6
-  server/client/network redundancy and the opt-in distributed HA building
-  blocks; [Kubernetes High Availability Deployment](Kubernetes.md) — the
-  Kubernetes deployment guide for the `Opc.Ua.Redundancy.Kubernetes` package.
-- [NodeId Assignment](NodeIdAssignment.md) — how runtime NodeIds are
-  minted: the factory contract, identifier formats, types vs instances,
-  the generated helpers, and per-NodeManager behaviour.
-- [Dependency Injection](DependencyInjection.md),
-  [Native AOT](NativeAoT.md),
-  [Diagnostics](Diagnostics.md),
-  [Source-Generated NodeManagers](NodeManagers.md#source-generated-node-managers),
-  [Source-Generated DataTypes](SourceGeneratedDataTypes.md).
-- Companion specs:
-  [Alarms and Conditions](AlarmsAndConditions.md),
-  [Historical Access](HistoricalAccess.md),
-  [Aggregates](Aggregates.md),
-  [State Machines](StateMachines.md),
-  [Alias Names](AliasNames.md),
-  [Device Integration](DeviceIntegration.md),
-  [Relative Spatial Location and Global Positioning](Positioning.md),
-  [Vision](Vision.md),
-  [AI Model Management](AI.md),
-  [Software Update](SoftwareUpdate.md),
-  [WoT Connectivity](WoTConnectivity.md),
-  [Subscriptions and Monitored Items](Subscriptions.md),
-  [Node Management](NodeManagement.md),
-  [Model Change Tracking](ModelChangeTracking.md),
-  [Model Dependencies](ModelDependencies.md).
-- Security, identity, and certificates:
-  [Certificates](Certificates.md),
-  [Certificate Manager](CertificateManager.md),
-  [ECC Profiles](EccProfiles.md),
-  [Role-Based User Management](RoleBasedUserManagement.md),
-  [Identity Providers](IdentityProviders.md),
-  [Authorization Service](AuthorizationService.md),
-  [Key Credential Service](KeyCredentialService.md),
-  [GDS Developer Guide](GDS.md).
-- Client features:
-  [File System Client](FileSystemClient.md),
-  [NodeSet Export](NodeSetExport.md),
-  [Complex Types](ComplexTypes.md),
-  [Transfer Subscription](TransferSubscription.md),
-  [Reverse Connect](ReverseConnect.md),
-  [Durable Subscription](DurableSubscription.md).
-- Tooling: [MCP Server](McpServer.md),
-  [Container Reference Server](ContainerReferenceServer.md),
-  [Provisioning Mode](ProvisioningMode.md).
-- PubSub: [PubSub library](PubSub.md).
+- [Migration Guide](MigrationGuide.md) — breaking changes, per-API replacements,
+  and the migration analyzer workflow for upgrading from 1.5.378.
+- [Documentation index](README.md) — task-based routes into the SDK guides.
+- [Sample applications](Samples.md) — runnable client, server, PubSub, and
+  companion-model examples.
+- [Profiles and facets](Profiles.md) — capability and platform overview.

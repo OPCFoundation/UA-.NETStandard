@@ -21,7 +21,7 @@ separately from SDK usage.
 
 ## Start here
 
-1. Choose a [sample application](samples.md) and the packages for your client or
+1. Choose a [sample application](Samples.md) and the packages for your client or
    server. Check [package and platform support](DeveloperGuide.md#packages-platform-support-and-versioning)
    before selecting a target framework.
 2. Start a server with [dependency injection](DependencyInjection.md#server-feature)
@@ -128,7 +128,7 @@ namespace URIs or NodeIds are finalized.
 
 ## Reference application related
 
-- [Sample catalogue](samples.md) — minimal, reference, PubSub, and companion-model examples.
+- [Sample catalogue](Samples.md) — minimal, reference, PubSub, and companion-model examples.
 - [Reference client](../samples/Reference/ConsoleReferenceClient/README.md) — command-line configuration.
 - [Reference server](../samples/README.md) — hosting and CTT setup.
 - [Reference PubSub client](../samples/PubSub/ConsoleReferencePubSubClient/README.md) — publisher, subscriber, and external-adapter modes.

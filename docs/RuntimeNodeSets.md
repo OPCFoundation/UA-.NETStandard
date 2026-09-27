@@ -113,9 +113,10 @@ The rules that apply to every NodeManager registered at runtime -- what happens 
 
 ### Shadow reload
 
-`ShadowReloadRuntimeNodeSetAsync` keeps existing monitored items on the retired
-generation while new requests use the replacement. Normal reload instead migrates
-compatible monitored items; shadow reload does not bypass an active-item prohibition.
+`ShadowReloadRuntimeNodeSetAsync` permits replacing a generation that still owns
+active monitored items. Those items stay on the retired generation and continue
+to be served there until they are deleted or otherwise released; new requests use
+the replacement generation. Normal reload instead migrates compatible monitored items.
 
 ```csharp
 public async ValueTask ShadowReloadAsync(CancellationToken ct)

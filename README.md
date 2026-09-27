@@ -84,7 +84,7 @@ versions are released.
 ### Samples
 
 The stack also includes a large collection of
-[platform-independent sample applications](docs/samples.md) that turn its
+[platform-independent sample applications](docs/Samples.md) that turn its
 core services and companion models into runnable client/server workflows.
 More applications, including platform-specific examples, are available in
 the companion
