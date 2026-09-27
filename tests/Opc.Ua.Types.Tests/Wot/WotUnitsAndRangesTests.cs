@@ -710,7 +710,12 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public async Task ThePinnedLegacyModelDoesNotTurnAComponentTypeIntoAnInstanceAsync()
         {
-            using var document = WotDocument.Parse(ReadExample("02-thing-model-pump.jsonld"));
+            JsonObject model = JsonNode.Parse(ReadExample("02-thing-model-pump.jsonld"))!.AsObject();
+            JsonObject component = model["links"]!.AsArray().OfType<JsonObject>()
+                .Single(link => link["rel"]?.GetValue<string>() == "ua:HasComponent");
+            Assert.That(component.Remove("uav:declaration"), Is.True,
+                "The current example declares the component; remove it only from this legacy negative fixture.");
+            using var document = WotDocument.Parse(WotTestData.Utf8(model.ToJsonString()));
             WotConversionResult<UANodeSet> result =
                 await WotSpecExampleResolver.ConvertAsync(document).ConfigureAwait(false);
 
@@ -722,7 +727,6 @@ namespace Opc.Ua.Types.Tests.Wot
 
         private static WotDocument ReadUnitModelWithComponentDeclaration()
         {
-            // The pinned SPEC bytes stay unchanged until their owner hands off the SP01 artifacts.
             JsonObject model = JsonNode.Parse(ReadExample("02-thing-model-pump.jsonld"))!.AsObject();
             JsonObject component = model["links"]!.AsArray().OfType<JsonObject>()
                 .Single(link => link["rel"]?.GetValue<string>() == "ua:HasComponent");
