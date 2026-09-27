@@ -206,7 +206,9 @@ removed retain the last committed Resource and Version identity and content
 digest. A prediction does not recreate the deleted registry entry or retire its
 still-serving source.
 If private validation rejects that retirement, its row reports `Failed` in the
-Activation phase and retains the serving state from the committed publication.
+Activation phase and retains the metadata owned by the still-serving closure.
+An independent publication does not erase those diagnostics before that owner
+retires.
 Collation retains the selector-resolved Xid, VersionId and content digest together,
 including an explicitly selected non-default Version.
 

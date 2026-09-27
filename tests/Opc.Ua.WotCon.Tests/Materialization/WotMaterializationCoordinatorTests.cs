@@ -532,8 +532,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(committed.NewGeneration, Is.EqualTo(generation + 1));
         }
 
-        [Test]
-        public async Task DeletedResourceRetirementRejectionReportsFailureWithoutPublishing()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DeletedResourceRetirementRejectionReportsFailureWithoutPublishing(
+            bool publishIndependentResource)
         {
             bool rejectRetirement = true;
             var binders = new RecordingBinderRegistry();
@@ -560,6 +562,27 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             await m_registry.DeleteResourceAsync(active.GroupId, active.ResourceId).ConfigureAwait(false);
             Assert.That(m_coordinator.CommittedPublication.RegistrySnapshot
                 .FindResource(active.GroupId, active.ResourceId)!.RootNodeId, Is.EqualTo(active.RootNodeId));
+            if (publishIndependentResource)
+            {
+                await RegisterTd("td-b", TestMaterialization.Td("urn:td-b")).ConfigureAwait(false);
+                WotRefreshResult independent = await m_coordinator.RefreshAsync(new WotRefreshRequest
+                {
+                    Selection =
+                    [
+                        new WoTResourceSelectorDataType
+                        {
+                            Kind = WoTDocumentKindEnum.ThingDescription,
+                            GroupId = WotRegistryGroups.ThingDescriptions,
+                            ResourceId = "td-b"
+                        }
+                    ]
+                }).ConfigureAwait(false);
+                Assert.That(independent.Summary.Failed, Is.Zero);
+                Assert.That(m_host.AddCount, Is.EqualTo(2));
+                Assert.That(m_host.RemoveCount, Is.Zero);
+                Assert.That(m_coordinator.CommittedPublication.RegistrySnapshot
+                    .FindResource(active.GroupId, active.ResourceId), Is.Null);
+            }
             WotRegistrySnapshot before = m_registry.Current;
             var registrations = m_runtime.Lifecycle.Registrations;
             uint generation = m_coordinator.Generation;
@@ -571,9 +594,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Options = new WoTRefreshOptionsDataType { DryRun = true }
             }).ConfigureAwait(false);
 
-            WoTResourceLoadResultDataType result = rejected.Results.Single();
+            WoTResourceLoadResultDataType result = rejected.Results.Single(row => row.ResourceId == active.ResourceId);
             Assert.Multiple(() =>
             {
+                Assert.That(rejected.Results, Has.Length.EqualTo(publishIndependentResource ? 2 : 1));
                 Assert.That(rejected.Summary.Outcome, Is.EqualTo(WoTOutcomeEnum.Failed));
                 Assert.That(rejected.Summary.Failed, Is.EqualTo(1U));
                 Assert.That(rejected.Summary.Retired, Is.Zero);
@@ -595,6 +619,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Assert.That(binders.DeactivatedPlans, Is.Empty);
                 Assert.That(events, Is.Empty);
             });
+            if (publishIndependentResource)
+            {
+                Assert.That(rejected.Results.Single(row => row.ResourceId == "td-b").Outcome,
+                    Is.EqualTo(WoTOutcomeEnum.Unchanged));
+            }
 
             rejectRetirement = false;
             WotRefreshResult committed = await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);

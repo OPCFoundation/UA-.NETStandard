@@ -386,9 +386,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 return NormalizeUncommitted(staged, metadata.IntendedSnapshot, false, false);
             }
 
-            AddRetiredResourceMetadata(
-                capture, preview?.Closures ?? m_closures, snapshot,
-                CommittedPublication.RegistrySnapshot, start, mutation?.Desired);
+            AddRetiredResourceMetadata(capture, preview?.Closures ?? m_closures, snapshot, start, mutation?.Desired);
             if (preview is not null)
             {
                 capture.Changes.InsertRange(0, preview.Changes);
@@ -591,22 +589,27 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 foreach (WoTResourceLoadResultDataType row in results)
                 {
+                    WotResourceProjection? published = null;
+                    WotResource? previous = null;
+                    if (row.GroupId is { } groupId && row.ResourceId is { } resourceId)
+                    {
+                        capture.RetiredMetadata.TryGetValue((groupId, resourceId), out published);
+                        previous = snapshot.FindResource(groupId, resourceId);
+                    }
                     if (row.Outcome is not (WoTOutcomeEnum.Success or WoTOutcomeEnum.Warning) &&
+                        published is null &&
                         !capture.RetiredResources.Any(retired =>
                             row.GroupId == retired.GroupId && row.ResourceId == retired.ResourceId))
                     {
                         continue;
                     }
-                    WotResource? previous = row.GroupId is { } groupId && row.ResourceId is { } resourceId
-                        ? snapshot.FindResource(groupId, resourceId)
-                        : null;
-                    previous ??= capture.RetiredResources.FirstOrDefault(retired =>
-                        retired.GroupId == row.GroupId && retired.ResourceId == row.ResourceId);
                     row.Outcome = WoTOutcomeEnum.Failed;
                     row.Phase = WoTPhaseEnum.Activation;
-                    row.LoadState = previous?.LoadState ?? WoTLoadStateEnum.Unloaded;
-                    row.RootNodeId = previous is null ? NodeId.Null : previous.RootNodeId;
-                    row.MaterializedNodeCount = (uint)(previous?.MaterializedNodeCount ?? 0);
+                    row.LoadState = previous?.LoadState ?? published?.LoadState ?? WoTLoadStateEnum.Unloaded;
+                    row.RootNodeId = previous is not null ? previous.RootNodeId :
+                        published is not null ? published.RootNodeId : NodeId.Null;
+                    row.MaterializedNodeCount = (uint)(previous?.MaterializedNodeCount ??
+                        published?.MaterializedNodeCount ?? 0);
                     row.Message = "The private publication candidate could not be prepared: " + failure.Message;
                 }
                 staged.Summary.Total = (uint)results.Count;
@@ -742,42 +745,45 @@ namespace Opc.Ua.WotCon.Server.Materialization
             PublicationCapture capture,
             Dictionary<string, ClosureState> previous,
             WotRegistrySnapshot snapshot,
-            WotRegistrySnapshot publishedSnapshot,
             DateTime refreshedAt,
             WotRegistrySnapshot? desired = null)
         {
             var retained = new HashSet<string>(
                 capture.Closures.Values.SelectMany(closure => closure.Members).Select(member => member.Xid),
                 StringComparer.Ordinal);
-            foreach (ClosureMemberState member in previous.Values.SelectMany(closure => closure.Members))
+            foreach (ClosureState closure in previous.Values)
             {
-                if (!retained.Add(member.Xid))
+                foreach (ClosureMemberState member in closure.Members)
                 {
-                    continue;
-                }
-                WotResource? resource = snapshot.FindResourceByXid(member.Xid);
-                if (resource is null)
-                {
-                    WotResource? published = publishedSnapshot.FindResourceByXid(member.Xid);
+                    if (!retained.Add(member.Xid))
+                    {
+                        continue;
+                    }
+                    WotResourceProjection? published = closure.PublishedMetadata.FirstOrDefault(projection =>
+                        projection.GroupId == member.GroupId && projection.ResourceId == member.ResourceId);
                     if (published is not null)
                     {
-                        capture.RetiredResources.Add(published);
+                        capture.RetiredMetadata.Add((member.GroupId, member.ResourceId), published);
                     }
-                    continue;
+                    WotResource? resource = snapshot.FindResourceByXid(member.Xid);
+                    if (resource is null)
+                    {
+                        continue;
+                    }
+                    capture.RetiredResources.Add(resource);
+                    capture.Projections.RemoveAll(projection =>
+                        projection.GroupId == resource.GroupId && projection.ResourceId == resource.ResourceId);
+                    WotResource? planned = desired?.FindResourceByXid(resource.Xid);
+                    WoTLoadStateEnum state = planned is { Enabled: false, LoadState: WoTLoadStateEnum.Failed or
+                        WoTLoadStateEnum.Retired } ? planned.LoadState : WoTLoadStateEnum.Unloaded;
+                    capture.Projections.Add(new WotResourceProjection(
+                        resource.GroupId, resource.ResourceId, state, null,
+                        checked(snapshot.RefreshGeneration + 1), 0, NodeId.Null, resource.DefaultVersion?.Validation,
+                        planned is null ? resource.Diagnostics : planned.Diagnostics, refreshedAt)
+                    {
+                        VersionId = resource.DefaultVersionId
+                    });
                 }
-                capture.RetiredResources.Add(resource);
-                capture.Projections.RemoveAll(projection =>
-                    projection.GroupId == resource.GroupId && projection.ResourceId == resource.ResourceId);
-                WotResource? planned = desired?.FindResourceByXid(resource.Xid);
-                WoTLoadStateEnum state = planned is { Enabled: false, LoadState: WoTLoadStateEnum.Failed or
-                    WoTLoadStateEnum.Retired } ? planned.LoadState : WoTLoadStateEnum.Unloaded;
-                capture.Projections.Add(new WotResourceProjection(
-                    resource.GroupId, resource.ResourceId, state, null,
-                    checked(snapshot.RefreshGeneration + 1), 0, NodeId.Null, resource.DefaultVersion?.Validation,
-                    planned is null ? resource.Diagnostics : planned.Diagnostics, refreshedAt)
-                {
-                    VersionId = resource.DefaultVersionId
-                });
             }
         }
 
@@ -1166,6 +1172,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             public List<WotMaterializationEventArgs> Events { get; } = [];
             public List<WotResourceProjection> Projections { get; } = [];
             public List<WotResource> RetiredResources { get; } = [];
+            public Dictionary<(string GroupId, string ResourceId), WotResourceProjection> RetiredMetadata { get; } = [];
             public Dictionary<string, ExpandedNodeId> SourceRoots { get; } = new(StringComparer.Ordinal);
             public List<WotDependencyClosure> PreviewUnits { get; } = [];
             public uint? RecoveryGeneration { get; init; }
