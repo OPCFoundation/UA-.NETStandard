@@ -434,14 +434,23 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         public async Task RefreshExpectedGenerationMismatchIsRejected()
         {
             await RegisterTd("td-a", TestMaterialization.Td("urn:td-a")).ConfigureAwait(false);
+            WotRegistrySnapshot before = m_registry.Current;
+            var events = new List<WotMaterializationEventArgs>();
+            m_coordinator.Event += (_, notification) => events.Add(notification);
 
-            WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest
+            await Assert.ThatAsync(async () => await m_coordinator.RefreshAsync(new WotRefreshRequest
             {
                 ExpectedGeneration = 99999
-            }).ConfigureAwait(false);
+            }).ConfigureAwait(false), Throws.TypeOf<ServiceResultException>()
+                .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadInvalidState))
+                .ConfigureAwait(false);
 
-            Assert.That(result.Summary.Outcome, Is.EqualTo(WoTOutcomeEnum.Rejected));
             Assert.That(m_host.AddCount, Is.Zero);
+            Assert.That(m_host.Operations, Is.Empty);
+            Assert.That(m_registry.Current, Is.SameAs(before));
+            Assert.That(m_coordinator.Generation, Is.EqualTo(before.RefreshGeneration));
+            Assert.That(m_coordinator.LastRefreshPlan, Is.Null);
+            Assert.That(events, Is.Empty);
         }
 
         [Test]
