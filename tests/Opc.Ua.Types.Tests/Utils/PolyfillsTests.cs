@@ -46,7 +46,7 @@ namespace Opc.Ua.Types.Tests.Utils
             var endpoint = new IPEndPoint(IPAddress.Loopback, 1);
 
             ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(
-                async () => await Polyfills.ConnectAsync(
+                async () => await System.Net.Sockets.Polyfills.ConnectAsync(
                     null!,
                     endpoint,
                     CancellationToken.None).ConfigureAwait(false))!;
@@ -60,7 +60,7 @@ namespace Opc.Ua.Types.Tests.Utils
             using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 
             ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(
-                async () => await Polyfills.ConnectAsync(
+                async () => await System.Net.Sockets.Polyfills.ConnectAsync(
                     socket,
                     null!,
                     CancellationToken.None).ConfigureAwait(false))!;
@@ -76,7 +76,7 @@ namespace Opc.Ua.Types.Tests.Utils
             source.Cancel();
 
             OperationCanceledException exception = Assert.CatchAsync<OperationCanceledException>(
-                async () => await Polyfills.ConnectAsync(
+                async () => await System.Net.Sockets.Polyfills.ConnectAsync(
                     socket,
                     new IPEndPoint(IPAddress.Loopback, 1),
                     source.Token).ConfigureAwait(false))!;
@@ -94,7 +94,7 @@ namespace Opc.Ua.Types.Tests.Utils
                 using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                 var endpoint = (IPEndPoint)listener.LocalEndpoint;
 
-                await Polyfills.ConnectAsync(socket, endpoint, CancellationToken.None)
+                await System.Net.Sockets.Polyfills.ConnectAsync(socket, endpoint, CancellationToken.None)
                     .ConfigureAwait(false);
                 using Socket accepted = await listener.AcceptSocketAsync().ConfigureAwait(false);
 
@@ -115,7 +115,7 @@ namespace Opc.Ua.Types.Tests.Utils
             using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 
             Assert.ThrowsAsync<SocketException>(
-                async () => await Polyfills.ConnectAsync(
+                async () => await System.Net.Sockets.Polyfills.ConnectAsync(
                     socket,
                     reserved.LocalEndPoint!,
                     CancellationToken.None).ConfigureAwait(false));
