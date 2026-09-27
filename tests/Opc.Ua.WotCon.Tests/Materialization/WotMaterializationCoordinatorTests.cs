@@ -533,6 +533,78 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         [Test]
+        public async Task DeletedResourceRetirementRejectionReportsFailureWithoutPublishing()
+        {
+            bool rejectRetirement = true;
+            var binders = new RecordingBinderRegistry();
+            m_coordinator.Dispose();
+            m_preparedHost = m_runtime!.Observe(m_host.RecordCommitted, changes =>
+            {
+                if (rejectRetirement && changes.ToList().Any(change => change.Document is null))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadConfigurationError, "Injected deleted-source retirement rejection.");
+                }
+            });
+            m_coordinator = new WotMaterializationCoordinator(
+                m_registry, m_preparedHost, binders, documentConverter: m_converter)
+            {
+                ServerNamespaceUris = m_runtime.Namespaces
+            };
+            m_converter.SetRootNodeId("td-a",
+                new ExpandedNodeId(5000, $"urn:wot:{WotRegistryGroups.ThingDescriptions}/td-a"));
+            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a")).ConfigureAwait(false);
+            await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
+            WotResource active = m_registry.Current.FindResource(WotRegistryGroups.ThingDescriptions, "td-a")!;
+            Assert.That(active.RootNodeId.IsNull, Is.False);
+            await m_registry.DeleteResourceAsync(active.GroupId, active.ResourceId).ConfigureAwait(false);
+            Assert.That(m_coordinator.CommittedPublication.RegistrySnapshot
+                .FindResource(active.GroupId, active.ResourceId)!.RootNodeId, Is.EqualTo(active.RootNodeId));
+            WotRegistrySnapshot before = m_registry.Current;
+            var registrations = m_runtime.Lifecycle.Registrations;
+            uint generation = m_coordinator.Generation;
+            var events = new List<WotMaterializationEventArgs>();
+            m_coordinator.Event += (_, notification) => events.Add(notification);
+
+            WotRefreshResult rejected = await m_coordinator.RefreshAsync(new WotRefreshRequest
+            {
+                Options = new WoTRefreshOptionsDataType { DryRun = true }
+            }).ConfigureAwait(false);
+
+            WoTResourceLoadResultDataType result = rejected.Results.Single();
+            Assert.Multiple(() =>
+            {
+                Assert.That(rejected.Summary.Outcome, Is.EqualTo(WoTOutcomeEnum.Failed));
+                Assert.That(rejected.Summary.Failed, Is.EqualTo(1U));
+                Assert.That(rejected.Summary.Retired, Is.Zero);
+                Assert.That(rejected.NewGeneration, Is.EqualTo(generation));
+                Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Failed));
+                Assert.That(result.Phase, Is.EqualTo(WoTPhaseEnum.Activation));
+                Assert.That(result.Message, Does.Contain("Injected deleted-source retirement rejection"));
+                Assert.That(result.Xid, Is.EqualTo(active.Xid));
+                Assert.That(result.VersionId, Is.EqualTo(active.ActiveVersionId));
+                Assert.That(result.ContentDigest, Is.EqualTo(active.FindVersion(active.ActiveVersionId!)!.Digest));
+                Assert.That(result.LoadState, Is.EqualTo(WoTLoadStateEnum.Active));
+                Assert.That(result.RootNodeId, Is.EqualTo(active.RootNodeId));
+                Assert.That(result.MaterializedNodeCount, Is.EqualTo((uint)active.MaterializedNodeCount));
+                Assert.That(result.Generation, Is.EqualTo(generation));
+                Assert.That(m_registry.Current, Is.SameAs(before));
+                Assert.That(m_registry.Current.FindResource(active.GroupId, active.ResourceId), Is.Null);
+                Assert.That(m_runtime.Lifecycle.Registrations, Is.EqualTo(registrations));
+                Assert.That(m_host.RemoveCount, Is.Zero);
+                Assert.That(binders.DeactivatedPlans, Is.Empty);
+                Assert.That(events, Is.Empty);
+            });
+
+            rejectRetirement = false;
+            WotRefreshResult committed = await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
+            Assert.That(committed.Summary.Retired, Is.EqualTo(1U));
+            Assert.That(committed.NewGeneration, Is.EqualTo(generation + 1));
+            Assert.That(m_host.RemoveCount, Is.EqualTo(1));
+            Assert.That(binders.DeactivatedPlans, Has.Count.EqualTo(1));
+        }
+
+        [Test]
         public async Task DryRunsDoNotAdvanceExpectedGeneration()
         {
             await RegisterTd("td-a", TestMaterialization.Td("urn:td-a")).ConfigureAwait(false);

@@ -80,9 +80,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return registry;
         }
 
-        public IWotInvocationProjectionHost Observe(Action<ArrayOf<WotProjectionChange>> published)
+        public IWotInvocationProjectionHost Observe(
+            Action<ArrayOf<WotProjectionChange>> published,
+            Action<ArrayOf<WotProjectionChange>>? validate = null)
         {
-            return new ObservedHost(Host, published);
+            return new ObservedHost(Host, published, validate);
         }
 
         public async ValueTask DisposeAsync()
@@ -107,14 +109,16 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         private sealed class ObservedHost(
-            LifecycleWotProjectionHost inner, Action<ArrayOf<WotProjectionChange>> published) : IWotInvocationProjectionHost
+            LifecycleWotProjectionHost inner,
+            Action<ArrayOf<WotProjectionChange>> published,
+            Action<ArrayOf<WotProjectionChange>>? validate) : IWotInvocationProjectionHost
         {
             public bool SupportsPreparedPublication => inner.SupportsPreparedPublication;
             public ArrayOf<WoTAtomicityEnum> SupportedAtomicities => inner.SupportedAtomicities;
 
             public IWotProjectionPublicationCapture CapturePublication()
             {
-                return new ObservedCapture(inner.CapturePublication(), published);
+                return new ObservedCapture(inner.CapturePublication(), published, validate);
             }
 
             public async ValueTask<IWotPreparedProjectionPublication> PrepareAsync(
@@ -153,18 +157,22 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         private sealed class ObservedCapture(
-            IWotProjectionPublicationCapture inner, Action<ArrayOf<WotProjectionChange>> published)
+            IWotProjectionPublicationCapture inner,
+            Action<ArrayOf<WotProjectionChange>> published,
+            Action<ArrayOf<WotProjectionChange>>? validate)
             : IWotProjectionPublicationCapture
         {
             public async ValueTask<IWotProjectionPublication> BeginAsync(CancellationToken cancellationToken = default)
             {
                 IWotProjectionPublication invocation = await inner.BeginAsync(cancellationToken).ConfigureAwait(false);
-                return new ObservedInvocation(invocation, published);
+                return new ObservedInvocation(invocation, published, validate);
             }
         }
 
         private sealed class ObservedInvocation(
-            IWotProjectionPublication inner, Action<ArrayOf<WotProjectionChange>> published)
+            IWotProjectionPublication inner,
+            Action<ArrayOf<WotProjectionChange>> published,
+            Action<ArrayOf<WotProjectionChange>>? validate)
             : IWotProjectionValidationPublication
         {
             public bool IsCurrent => inner.IsCurrent;
@@ -179,6 +187,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 {
                     throw new NotSupportedException("The observed stock owner must support private validation.");
                 }
+                validate?.Invoke(changes);
                 return validation.ValidateAsync(changes, inspectAsync, views, cancellationToken);
             }
 

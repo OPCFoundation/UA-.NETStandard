@@ -386,7 +386,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 return NormalizeUncommitted(staged, metadata.IntendedSnapshot, false, false);
             }
 
-            AddRetiredResourceMetadata(capture, preview?.Closures ?? m_closures, snapshot, start, mutation?.Desired);
+            AddRetiredResourceMetadata(
+                capture, preview?.Closures ?? m_closures, snapshot,
+                CommittedPublication.RegistrySnapshot, start, mutation?.Desired);
             if (preview is not null)
             {
                 capture.Changes.InsertRange(0, preview.Changes);
@@ -598,6 +600,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     WotResource? previous = row.GroupId is { } groupId && row.ResourceId is { } resourceId
                         ? snapshot.FindResource(groupId, resourceId)
                         : null;
+                    previous ??= capture.RetiredResources.FirstOrDefault(retired =>
+                        retired.GroupId == row.GroupId && retired.ResourceId == row.ResourceId);
                     row.Outcome = WoTOutcomeEnum.Failed;
                     row.Phase = WoTPhaseEnum.Activation;
                     row.LoadState = previous?.LoadState ?? WoTLoadStateEnum.Unloaded;
@@ -738,6 +742,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             PublicationCapture capture,
             Dictionary<string, ClosureState> previous,
             WotRegistrySnapshot snapshot,
+            WotRegistrySnapshot publishedSnapshot,
             DateTime refreshedAt,
             WotRegistrySnapshot? desired = null)
         {
@@ -753,6 +758,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 WotResource? resource = snapshot.FindResourceByXid(member.Xid);
                 if (resource is null)
                 {
+                    WotResource? published = publishedSnapshot.FindResourceByXid(member.Xid);
+                    if (published is not null)
+                    {
+                        capture.RetiredResources.Add(published);
+                    }
                     continue;
                 }
                 capture.RetiredResources.Add(resource);

@@ -205,6 +205,8 @@ Retirement predictions for source owners whose registry Resources were already
 removed retain the last committed Resource and Version identity and content
 digest. A prediction does not recreate the deleted registry entry or retire its
 still-serving source.
+If private validation rejects that retirement, its row reports `Failed` in the
+Activation phase and retains the serving state from the committed publication.
 Collation retains the selector-resolved Xid, VersionId and content digest together,
 including an explicitly selected non-default Version.
 
