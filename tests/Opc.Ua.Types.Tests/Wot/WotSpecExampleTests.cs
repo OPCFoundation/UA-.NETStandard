@@ -374,6 +374,31 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        internal static byte[] ReadExample(string name)
+        {
+            string resource = ExampleNames()
+                .Single(n => n.EndsWith(name, StringComparison.Ordinal));
+            using Stream stream = typeof(WotSpecExampleTests).Assembly
+                .GetManifestResourceStream(resource)
+                ?? throw new InvalidOperationException($"Missing fixture '{name}'.");
+            using var buffer = new MemoryStream();
+            stream.CopyTo(buffer);
+            JsonObject root = JsonNode.Parse(buffer.ToArray())!.AsObject();
+            if (root["@context"] is JsonArray contexts)
+            {
+                for (int index = 0; index < contexts.Count; index++)
+                {
+                    if (contexts[index] is JsonValue value &&
+                        value.TryGetValue(out string uri) &&
+                        uri == "../opc-ua-wot-binding.context.jsonld")
+                    {
+                        contexts[index] = ReadPublishedContext();
+                    }
+                }
+            }
+            return Encoding.UTF8.GetBytes(root.ToJsonString());
+        }
+
         private static string DescribeErrors(IReadOnlyList<WotDiagnostic> diagnostics)
         {
             return string.Join(
@@ -397,31 +422,6 @@ namespace Opc.Ua.Types.Tests.Wot
                     n.EndsWith(".jsonld", StringComparison.Ordinal) &&
                     char.IsDigit(n[n.IndexOf(ResourcePrefix, StringComparison.Ordinal) + ResourcePrefix.Length]))
                 .OrderBy(n => n, StringComparer.Ordinal)];
-        }
-
-        private static byte[] ReadExample(string name)
-        {
-            string resource = ExampleNames()
-                .Single(n => n.EndsWith(name, StringComparison.Ordinal));
-            using Stream stream = typeof(WotSpecExampleTests).Assembly
-                .GetManifestResourceStream(resource)
-                ?? throw new InvalidOperationException($"Missing fixture '{name}'.");
-            using var buffer = new MemoryStream();
-            stream.CopyTo(buffer);
-            JsonObject root = JsonNode.Parse(buffer.ToArray())!.AsObject();
-            if (root["@context"] is JsonArray contexts)
-            {
-                for (int index = 0; index < contexts.Count; index++)
-                {
-                    if (contexts[index] is JsonValue value &&
-                        value.TryGetValue(out string uri) &&
-                        uri == "../opc-ua-wot-binding.context.jsonld")
-                    {
-                        contexts[index] = ReadPublishedContext();
-                    }
-                }
-            }
-            return Encoding.UTF8.GetBytes(root.ToJsonString());
         }
 
         private static JsonNode ReadPublishedContext()

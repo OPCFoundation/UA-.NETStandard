@@ -773,15 +773,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
         internal static byte[] ReadExample(string name)
         {
-            string resource = typeof(WotUnitsAndRangesTests).Assembly
-                .GetManifestResourceNames()
-                .Single(n => n.EndsWith("Wot.Assets." + name, StringComparison.Ordinal));
-            using System.IO.Stream? stream = typeof(WotUnitsAndRangesTests).Assembly
-                .GetManifestResourceStream(resource);
-            Assert.That(stream, Is.Not.Null, $"The example '{name}' should be embedded.");
-            using var buffer = new System.IO.MemoryStream();
-            stream!.CopyTo(buffer);
-            return buffer.ToArray();
+            return WotSpecExampleTests.ReadExample(name);
         }
 
         private static WotConversionResult<UANodeSet> Convert(string members)
