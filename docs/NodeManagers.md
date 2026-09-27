@@ -498,6 +498,10 @@ handled by a later cancellation or expiry pass; a new timed request retains its
 own expiry timer.
 Only lifetimes that accept cancellation contribute to the cancellation count
 and cancellation notifications.
+Each lifetime has one terminal owner. The winning cancellation status is visible
+before callbacks run; completion racing those callbacks defers token-resource
+disposal until they finish. Linked external cancellation uses the same ownership
+decision and retains its `Good` status.
 
 A server that rejects requests of its own by overriding `StandardServer.OnRequestValidatedAsync`
 does not interfere with this: a rejected request is completed before the exception leaves the

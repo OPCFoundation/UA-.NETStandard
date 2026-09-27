@@ -38,13 +38,31 @@ namespace Opc.Ua
     /// </summary>
     public sealed class RequestLifetime : IDisposable
     {
-        private static readonly Lazy<RequestLifetime> s_default = new(
-            () =>
+        /// <summary>
+        /// Initializes a new instance of the RequestLifetime class.
+        /// </summary>
+        public RequestLifetime(params CancellationToken[] externalTokens)
+        {
+            m_cts = new CancellationTokenSource();
+            CancellationToken = m_cts.Token;
+            m_externalRegistrations = externalTokens is { Length: > 0 }
+                ? new CancellationTokenRegistration[externalTokens.Length]
+                : [];
+            try
             {
-                var r = new RequestLifetime();
-                r.MarkCompleted();
-                return r;
-            });
+                for (int i = 0; i < m_externalRegistrations.Length; i++)
+                {
+                    m_externalRegistrations[i] = externalTokens[i].Register(
+                        static state => ((RequestLifetime)state!).TryCancel(StatusCodes.Good),
+                        this);
+                }
+            }
+            catch
+            {
+                Dispose();
+                throw;
+            }
+        }
 
         /// <summary>
         /// A default instance of the RequestLifetime class that is already completed and cannot be cancelled.
@@ -59,7 +77,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets the derived UA StatusCode for the cancellation.
         /// </summary>
-        public StatusCode StatusCode => m_statusCode;
+        public StatusCode StatusCode => new(unchecked((uint)Volatile.Read(ref m_state)));
 
         /// <summary>
         /// Gets or sets the optional sink that is notified when the request
@@ -71,44 +89,37 @@ namespace Opc.Ua
         public IRequestParkSink? ParkSink { get; set; }
 
         /// <summary>
-        /// Initializes a new instance of the RequestLifetime class.
-        /// </summary>
-        public RequestLifetime(params CancellationToken[] externalTokens)
-        {
-            if (externalTokens != null && externalTokens.Length > 0)
-            {
-                m_cts = CancellationTokenSource.CreateLinkedTokenSource(externalTokens);
-            }
-            else
-            {
-                m_cts = new CancellationTokenSource();
-            }
-            CancellationToken = m_cts.Token;
-            m_statusCode = StatusCodes.Good;
-        }
-
-        /// <summary>
         /// Attempts to cancel the request and assigns the corresponding status code.
         /// </summary>
         public bool TryCancel(StatusCode statusCode)
         {
-            if (m_disposed || m_cts.IsCancellationRequested)
+            long requested = c_cancelled | c_cancelling | statusCode.Code;
+            if (Interlocked.CompareExchange(ref m_state, requested, 0) != 0)
             {
                 return false;
             }
-
-            m_statusCode = statusCode;
 
             try
             {
                 m_cts.Cancel();
+                return true;
             }
-            catch (ObjectDisposedException)
+            finally
             {
-                return false;
-            }
+                long observed;
+                long completed;
+                do
+                {
+                    observed = Volatile.Read(ref m_state);
+                    completed = observed & ~c_cancelling;
+                }
+                while (Interlocked.CompareExchange(ref m_state, completed, observed) != observed);
 
-            return true;
+                if ((observed & c_completed) != 0)
+                {
+                    DisposeResources();
+                }
+            }
         }
 
         /// <summary>
@@ -122,16 +133,48 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void Dispose()
         {
-            if (!m_disposed)
+            long observed;
+            long completed;
+            do
             {
-                m_disposed = true;
-                m_cts.Dispose();
+                observed = Volatile.Read(ref m_state);
+                if ((observed & c_completed) != 0)
+                {
+                    return;
+                }
+                completed = observed | c_completed;
+            }
+            while (Interlocked.CompareExchange(ref m_state, completed, observed) != observed);
+
+            if ((observed & c_cancelling) == 0)
+            {
+                DisposeResources();
             }
             GC.SuppressFinalize(this);
         }
 
+        private void DisposeResources()
+        {
+            foreach (CancellationTokenRegistration registration in m_externalRegistrations)
+            {
+                registration.Dispose();
+            }
+            m_cts.Dispose();
+        }
+
+        // The lower bits publish the winning status together with its terminal ownership.
+        private const long c_cancelled = 1L << 32;
+        private const long c_cancelling = 1L << 33;
+        private const long c_completed = 1L << 34;
+        private static readonly Lazy<RequestLifetime> s_default = new(
+            () =>
+            {
+                var r = new RequestLifetime();
+                r.MarkCompleted();
+                return r;
+            });
         private readonly CancellationTokenSource m_cts;
-        private StatusCode m_statusCode;
-        private bool m_disposed;
+        private readonly CancellationTokenRegistration[] m_externalRegistrations;
+        private long m_state;
     }
 }
