@@ -47,7 +47,7 @@ namespace Opc.Ua
     /// <summary>
     /// A base class for a UA server implementation.
     /// </summary>
-    public partial class ServerBase : IServerBase, IResourceIsolationProviderSource
+    public partial class ServerBase : IServerBase, IResourceIsolationProviderSource, IRequestParkingPolicySource
     {
         /// <summary>
         /// Initializes object with default values.
@@ -76,12 +76,25 @@ namespace Opc.Ua
         public ServerBase(
             ITelemetryContext telemetry,
             ITransportBindingRegistry? transportBindings)
+            : this(telemetry, transportBindings, requestParkingPolicy: null)
+        {
+        }
+
+        /// <summary>
+        /// Constructs a server with optional transport bindings and a custom-handler parking policy.
+        /// The policy supplements intrinsic Publish support and does not override DecoupleHeldPublishRequests.
+        /// </summary>
+        public ServerBase(
+            ITelemetryContext telemetry,
+            ITransportBindingRegistry? transportBindings,
+            IRequestParkingPolicy? requestParkingPolicy)
         {
             ServerError = new ServiceResult(StatusCodes.BadServerHalted);
             m_requestQueue = new RequestQueue(this, 10, 100, 1000);
             m_telemetry = telemetry;
             m_logger = m_telemetry.CreateLogger(this);
             m_transportBindings = transportBindings;
+            RequestParkingPolicy = requestParkingPolicy;
         }
 
         /// <summary>
@@ -208,6 +221,12 @@ namespace Opc.Ua
         /// testing.
         /// </summary>
         public IServiceResponseMutator? ResponseMutator { get; set; }
+
+        /// <summary>
+        /// Gets or sets the optional custom-handler parking policy. Configure it before starting the server.
+        /// Publish parking remains intrinsic; DecoupleHeldPublishRequests disables all worker decoupling.
+        /// </summary>
+        public IRequestParkingPolicy? RequestParkingPolicy { get; set; }
 
         /// <summary>
         /// Returns the endpoints supported by the server.

@@ -362,13 +362,14 @@ TLS state, the garbage collector's working memory, and application code.
 Keep headroom for those allocations and measure the workload under the intended
 container limit.
 
-The stack does not currently derive its quotas from Kubernetes or cgroup limits.
+The stack does not derive its quotas from Kubernetes or cgroup limits.
 Container memory enforcement remains the runtime's responsibility and can
-terminate a process that exceeds its limit. Automatic sizing would need a
-documented allocation model and workload headroom rather than equating counted
-request bytes with process memory. CPU limits can inform how many handlers you
-allow to execute concurrently, but request slots do not measure CPU time.
-Explicit configuration remains the predictable approach for this release.
+terminate a process that exceeds its limit. Because .NET uses garbage collection
+and dynamic allocation, counted request bytes do not correspond exactly to
+process memory use. Collection timing, retained objects and temporary buffers
+also affect the peak. CPU limits can inform how many handlers you allow to
+execute concurrently, but request slots do not measure CPU time.
+Explicit configuration remains the predictable approach.
 
 ### Inspect the plan in application code
 
@@ -445,10 +446,74 @@ slot and retained-data allowance. Completing or cancelling the request releases
 those charges. If you disable `DecoupleHeldPublishRequests`, the waiting request
 keeps its execution slot instead.
 
-Custom request handlers do not currently have a supported public interface for
-reporting that they have parked. [Issue #4554](https://github.com/OPCFoundation/UA-.NETStandard/issues/4554)
-tracks exposing that capability and enabling worker release for handlers that
-explicitly opt in, with the same cancellation and resource-accounting guarantees.
+### Letting a custom handler release its worker while waiting
+
+Register an `IRequestParkingPolicy` to select custom requests whose handlers
+can wait without occupying an execution worker. The endpoint checks the policy
+before queueing the request and supplies `RequestLifetime.ParkSink` to selected
+handlers. Built-in Publish requests remain eligible without a policy.
+
+For example, this policy selects a single call to a method that waits for an
+alarm. Other calls continue using an execution worker until they complete:
+
+```csharp
+var waitMethodId = new NodeId("WaitForAlarm", 2);
+var parkingPolicy = new DelegateRequestParkingPolicy(request =>
+{
+    if (request is not CallRequest call || call.MethodsToCall.Count != 1)
+    {
+        return false;
+    }
+    return call.MethodsToCall[0].MethodId == waitMethodId;
+});
+
+services.AddOpcUa()
+    .AddServer(options => options.ApplicationName = "MyServer")
+    .WithRequestParking(parkingPolicy);
+```
+
+For a directly constructed server, assign
+`server.RequestParkingPolicy = parkingPolicy` before startup. You can also
+register an `IRequestParkingPolicy` singleton in the hosting container. The
+predicate must be quick, thread-safe, and free of authentication side effects.
+Selection is not permission to invoke the method. Normal request validation and
+authorization still apply.
+
+Inside the handler, finish validation and execution-intensive work, then start
+the asynchronous operation that will complete the response. Notify the supplied
+sink when the handler reaches its waiting point:
+
+```csharp
+private static async ValueTask<CallResponse> WaitForResponseAsync(
+    Task<CallResponse> pendingResponse,
+    RequestLifetime lifetime)
+{
+    lifetime.ParkSink?.NotifyParked();
+    return await pendingResponse.WaitAsync(lifetime.CancellationToken)
+        .ConfigureAwait(false);
+}
+```
+
+Do not replace the sink or signal a different sink. Do not resume unbounded
+CPU work after signaling. Bounded response completion and delivery may still
+continue. Repeated notifications are harmless, but the handler must remain
+pending until its real result, cancellation, or failure.
+
+With isolation enabled, selected requests reserve a `ParkedRequest` slot before
+entering the queue, even if the handler eventually completes without signaling.
+Signaling releases execution capacity only. The retained-data charge and parked
+slot remain in use until completion. A handler that ignores cancellation retains
+those charges through shutdown until it exits. Choose the policy narrowly to
+avoid reserving parked slots for ordinary short-running calls.
+
+The global `DecoupleHeldPublishRequests` setting controls this behavior for both
+Publish and custom requests. Setting it to `false` keeps the execution worker
+attached even when a handler signals its sink.
+
+If you implement `IEndpointIncomingRequest` directly instead of using the normal
+endpoint wrapper, implement `IParkableIncomingRequest` and expose one stable
+`RequestParkSink` before queueing. Signal that same sink from the handler. The
+queue then applies the same parked-capacity, completion and cancellation rules.
 
 | Stage | What stays charged |
 | --- | --- |
@@ -517,8 +582,16 @@ and explicitly classified reconnect work. One maximum-sized message may occupy
 the entire default reserve. To allow several large messages concurrently,
 increase `ReconnectReservedBytes` or the `ReassemblyBytes` stage's
 `ReconnectReserved`, while keeping the total budget large enough for all
-reserves and shared work. For separate guarantees per application group, use
-TrustedReservations and the [trusted-ingress example](#example-dedicated-trusted-ingress).
+reserves and shared work. Use a larger continuity reserve when several
+session-bound clients share one recovery allowance and do not require
+separation from each other. For example, it can accommodate two simultaneous
+large messages instead of one.
+
+Use TrustedReservations when particular application groups need capacity that
+other session-bound clients cannot consume. Each configured owner receives a
+separate reserve, and your classifier must verify that the caller belongs to
+that owner. The [trusted-ingress example](#example-dedicated-trusted-ingress)
+shows that setup. Its extra reserves must also fit within the total budget.
 An explicit classifier mapping to shared capacity remains shared.
 
 The shared budget's `MaxBytes` remains an overall ceiling. SharedOnly uses

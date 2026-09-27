@@ -41,6 +41,27 @@ namespace Microsoft.Extensions.DependencyInjection
     public static partial class OpcUaServerBuilderExtensions
     {
         /// <summary>
+        /// Registers an optional custom-handler parking policy, supplementing built-in Publish parking.
+        /// Selected requests reserve parked capacity before queuing even if they do not park.
+        /// DecoupleHeldPublishRequests remains the global switch for worker decoupling.
+        /// </summary>
+        public static IOpcUaServerBuilder WithRequestParking(
+            this IOpcUaServerBuilder builder,
+            IRequestParkingPolicy policy)
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (policy == null)
+            {
+                throw new ArgumentNullException(nameof(policy));
+            }
+            builder.Services.AddSingleton(policy);
+            return builder;
+        }
+
+        /// <summary>
         /// Configures server-wide resource isolation without replacing existing rate limiters.
         /// </summary>
         public static IOpcUaServerBuilder ConfigureResourceIsolation(

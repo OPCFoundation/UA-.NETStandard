@@ -41,6 +41,24 @@ namespace Opc.Ua.Aot.Tests
     public class RateLimitingAotTests
     {
         [Test]
+        public async Task CustomParkingPolicyAndLifetimeSignalAreAotCompatibleAsync()
+        {
+            var policy = new DelegateRequestParkingPolicy(static request => request is CallRequest);
+            await Assert.That(policy.CanPark(new CallRequest())).IsTrue();
+            await Assert.That(policy.CanPark(new ReadRequest())).IsFalse();
+            var sink = new RequestParkSink();
+            using var lifetime = new RequestLifetime { ParkSink = sink };
+            await Assert.That(sink.ParkedTask.IsCompleted).IsFalse();
+
+            lifetime.ParkSink.NotifyParked();
+            lifetime.ParkSink.NotifyParked();
+            await sink.ParkedTask.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+            await Assert.That(sink.ParkedTask.IsCompletedSuccessfully).IsTrue();
+            await Assert.That(lifetime.CancellationToken.IsCancellationRequested).IsFalse();
+        }
+
+        [Test]
         public async Task RuntimeIsolationPreservesBootstrapFloorAtSharedCapacityAsync()
         {
             var configuration = new ApplicationConfiguration

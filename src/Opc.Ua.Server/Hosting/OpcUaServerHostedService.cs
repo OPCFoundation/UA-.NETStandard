@@ -177,6 +177,17 @@ namespace Opc.Ua.Server.Hosting
         }
 
         /// <summary>
+        /// Applies an optional DI policy while preserving a policy supplied by the server factory when absent.
+        /// </summary>
+        internal static void ApplyRequestParking(ServerBase server, IServiceProvider services)
+        {
+            if (services.GetService<IRequestParkingPolicy>() is { } policy)
+            {
+                server.RequestParkingPolicy = policy;
+            }
+        }
+
+        /// <summary>
         /// Applies host configuration and injected features before startup, then waits for host shutdown.
         /// </summary>
         private async Task RunServerAsync(CancellationToken stoppingToken)
@@ -277,6 +288,7 @@ namespace Opc.Ua.Server.Hosting
             m_server.HistoryContinuationPointStore =
                 m_services.GetService<IHistoryContinuationPointStore>();
             m_server.MonitoredItemQueueFactory = m_services.GetService<IMonitoredItemQueueFactory>();
+            ApplyRequestParking(m_server, m_services);
             if (m_services.GetService<ITransportBindingRegistry>() is { } transportBindings)
             {
                 m_server.TransportBindings = transportBindings;
