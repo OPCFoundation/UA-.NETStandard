@@ -86,7 +86,10 @@ namespace Opc.Ua.Types.Tests.Wot
         [
             "uav:callObjectId",
             "uav:argumentLayout",
-            "uav:projectionKind"
+            "uav:projectionKind",
+            "uav:declaration",
+            "uav:defaultEncodings",
+            "uav:eventIdentityMode"
         ];
 
         [Test]
@@ -505,7 +508,8 @@ namespace Opc.Ua.Types.Tests.Wot
                 Assert.That(
                     WotBindingConformance.VocabularyTerms.Count,
                     Is.EqualTo(113 + s_additionalTerms.Length),
-                    "The implementation retains the 113 revision 1.1 IRIs and recognizes Call and projection-plan terms.");
+                    "The implementation retains the 113 revision 1.1 IRIs and recognizes the published " +
+                    "Call, projection, declaration, encoding, and event-identity terms.");
                 foreach (string term in s_additionalTerms)
                 {
                     Assert.That(WotBindingConformance.IsKnownTerm(term), Is.True, term);
