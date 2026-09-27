@@ -81,7 +81,7 @@ sources; every live materialized instance is released at teardown.
   - [Typed model-traversal — the Configure(I{Manager}NodeManagerBuilder) partial](#typed-model-traversal--the-configureimanagernodemanagerbuilder-partial)
     - [What the generator emits per model](#what-the-generator-emits-per-model)
     - [Methods with arguments — typed OnCall overloads](#methods-with-arguments--typed-oncall-overloads)
-  - [Event sources — typed Publish&lt;TEvent&gt; on notifier wrappers](#event-sources--typed-publishtevent-on-notifier-wrappers)
+  - [Event sources — typed `Publish<TEvent>` on notifier wrappers](#event-sources--typed-publishtevent-on-notifier-wrappers)
     - [Where the typed overload appears](#where-the-typed-overload-appears)
     - [Two registration shapes](#two-registration-shapes)
     - [Tuning lifecycle with EventPublishOptions](#tuning-lifecycle-with-eventpublishoptions)
@@ -2715,7 +2715,7 @@ the state NodeId; migrating an override written against 1.5.378 is covered by th
 
 - `samples/MinimalApi/MinimalBoilerServer/` — a fully self-contained,
   NativeAOT single-file Boiler server. Read it top-to-bottom in
-  &lt;200 lines.
+  under 200 lines.
 - `samples/MinimalApi/MinimalCalcServer/` — a calculator server that
   exercises the typed
   [methods-with-arguments OnCall overloads](#methods-with-arguments--typed-oncall-overloads)

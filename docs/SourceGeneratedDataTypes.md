@@ -5,6 +5,43 @@ implements the `IEncodeable` interface for annotated POCO classes and enums. Thi
 eliminates the need to hand-write `Encode`, `Decode`, `IsEqual`, and `Clone`
 methods for custom OPC UA data types.
 
+## Contents
+
+- [Quick Start](#quick-start)
+- [Prerequisites](#prerequisites)
+  - [Project Reference](#project-reference-internal-development)
+  - [NuGet Package](#nuget-package-external-consumers)
+- [The `DataType` Attribute](#the-datatype-attribute)
+  - [Properties](#properties)
+  - [Namespace Resolution Order](#namespace-resolution-order)
+- [The `DataTypeField` Attribute](#the-datatypefield-attribute)
+  - [Properties](#properties-1)
+  - [Field Selection Rules](#field-selection-rules)
+- [Supported Property Types](#supported-property-types)
+  - [Collections](#collections)
+  - [Enums and `IEncodeable` Types](#enums-and-iencodeable-types)
+  - [Unsupported Types](#unsupported-types)
+- [Class Variants](#class-variants)
+  - [Regular Partial Class](#regular-partial-class)
+  - [Sealed Partial Class](#sealed-partial-class)
+  - [Record Class](#record-class)
+  - [Derived Class](#derived-class-inheritance)
+  - [Internal Class](#internal-class)
+- [Enum Support](#enum-support)
+- [Registering Types with the Encodeable Factory](#registering-types-with-the-encodeable-factory)
+- [Complete Example](#complete-example)
+- [`StructureHandling` Enum](#structurehandling-enum)
+- [`DefaultValueHandling` Enum](#defaultvaluehandling-enum)
+  - [How It Works](#how-it-works)
+  - [Example: Configuration with Defaults](#example-configuration-with-defaults)
+- [Partial Init Properties](#partial-init-properties)
+  - [Example](#example)
+  - [How It Works](#how-it-works-1)
+  - [When to Use](#when-to-use)
+- [Requirements and Constraints](#requirements-and-constraints)
+- [Generated File Output](#generated-file-output)
+- [MSBuild Configuration](#msbuild-configuration)
+
 ## Quick Start
 
 1. Mark your class as `partial` and decorate it with `[DataType]`.

@@ -1,14 +1,64 @@
 ## Certificates
 
-All required application certificates for OPC UA are created at the first start of each application in a directory or OS-level certificate store and remain in use until deleted from the store.
+The application creates its required OPC UA certificates in a directory or
+OS-level certificate store on first startup. They remain in use until an
+administrator deletes them from the store.
 
-The UA stack allows also for using CA issued application certificates and remote certificate store and trust list management with a *Global Discovery Server* using *Server Push*.
+The stack also supports application certificates issued by a certificate
+authority (CA), plus remote certificate-store and trust-list management
+through a *Global Discovery Server* using *Server Push*.
 
-Private keys do not have to live in a file or an OS certificate store. A key can be held in a TPM, a smart card, an HSM or a remote key service and never enter process memory. See [CryptoProvider](CryptoProvider.md) for pluggable cryptography and hardware-held keys, and the `OPCFoundation.NetStandard.Opc.Ua.Security.Pkcs11` package for PKCS#11 tokens.
+Private keys do not have to live in a file or OS certificate store. A TPM,
+smart card, hardware security module (HSM), or remote key service can hold a
+key without exposing it to process memory. See [CryptoProvider](CryptoProvider.md)
+for pluggable cryptography and hardware-held keys, or use the
+`OPCFoundation.NetStandard.Opc.Ua.Security.Pkcs11` package for PKCS#11 tokens.
+
+## Contents
+
+- [Certificate stores](#certificate-stores)
+- [X509Store on Windows](#x509store-on-windows)
+- [Certificate and CertificateCollection Types](#certificate-and-certificatecollection-types)
+- [Opening a certificate store](#opening-a-certificate-store)
+- [Windows .NET applications](#windows-net-applications)
+- [Windows UWP applications](#windows-uwp-applications)
+- [.NET Core applications on Windows, Linux, iOS etc](#net-core-applications-on-windows-linux-ios-etc)
+- [Certificate Validation](#certificate-validation)
+  - [Validation Workflow](#validation-workflow)
+  - [Chain Building Process](#chain-building-process)
+    - [Overview](#overview)
+    - [Chain Building Algorithm Diagram](#chain-building-algorithm-diagram)
+    - [Detailed Algorithm Steps](#detailed-algorithm-steps)
+      - [Initialization](#step-1-initialization)
+      - [Iterative Chain Building Loop](#step-2-iterative-chain-building-loop)
+      - [Issuer Matching Algorithm](#step-3-issuer-matching-algorithm)
+      - [Certificate Revocation List (CRL) Checking](#step-4-certificate-revocation-list-crl-checking)
+    - [X509Chain Validation](#x509chain-validation)
+    - [Chain Validation Results](#chain-validation-results)
+    - [Key Behaviors](#key-behaviors)
+  - [Certificate List Configuration](#certificate-list-configuration)
+    - [Configuration Sources](#configuration-sources)
+    - [Configuration File Structure](#configuration-file-structure)
+    - [Certificate Store Types](#certificate-store-types)
+    - [Certificate List Population](#certificate-list-population)
+    - [Runtime Certificate Management](#runtime-certificate-management)
+    - [Certificate Store Management](#certificate-store-management)
+    - [Dual-Mode Operation](#dual-mode-operation)
+    - [Configuration Best Practices](#configuration-best-practices)
+  - [Configuration Settings](#configuration-settings)
+  - [Suppressible Validation Errors](#suppressible-validation-errors)
+  - [CA (issuer) KeyUsage validation](#ca-issuer-keyusage-validation)
+  - [Inspecting Certificate Validation Results](#inspecting-certificate-validation-results)
+  - [Configuring a Custom Certificate Validator](#configuring-a-custom-certificate-validator)
+  - [Best Practices](#best-practices)
 
 ### Certificate stores
 
-The layout of the certificate stores for sample applications which store the certificates in the file system follow the recommended layout in the [specification](https://reference.opcfoundation.org/v104/GDS/docs/F.1/), where certificates are stored in a `certs` folder, private keys under a `private` folder and revocation lists under a `crl` folder with a `<root>` folder called `pki`.
+File-based sample applications follow the certificate-store layout
+recommended in the [specification](https://reference.opcfoundation.org/v104/GDS/docs/F.1/).
+The root folder, called `pki`, contains a `certs` folder for certificates, a
+`private` folder for private keys, and a `crl` folder for certificate
+revocation lists (CRLs).
 
 The UA .NET Standard stack supports the following certificate stores:
 
@@ -18,7 +68,11 @@ The UA .NET Standard stack supports the following certificate stores:
 
 - The **Trusted** store  `<root>/trusted`which contains certificates which are trusted by the application. The certificates in this store can either be self signed, leaf, root CA or sub CA certificates.
   The most common use case is to add a self signed application certificate to the *Trusted* store to establish trust with that application.
-  If the application certificate is the leaf of a chain, the trust can be established by adding the root CA, a sub CA or the leaf certificate itself to the *Trusted* store. Each of the options enables a different set of trusted certificates. A trusted Root CA or Sub CA certificate is used as the trust anchor for the certificate chain, which means any leaf certificate with a chain which contains the Root CA and Sub CA certificate is trusted, but the specification still mandates the validation of the whole chain. For the chain validation any certificate in the chain except the leaf certificate must be available from the *Issuer* store.
+  If the application certificate is the leaf of a chain, the trust can be established by adding the root CA, a sub CA or the leaf certificate itself to the *Trusted* store. Each of the options enables a different set of trusted certificates.   A trusted Root CA or Sub CA certificate acts as the chain's trust anchor.
+  The application trusts a leaf certificate when its chain contains that
+  anchor. The specification still requires validation of the entire chain.
+  For this validation, the *Issuer* store must contain every certificate in
+  the chain except the leaf.
 
   If only the leaf certificate is in the *Trusted* store and the rest of the chain is stored in the *Issuer* store, then only the leaf certificate is trusted.
   As an example, to trust an application certificate that is issued by a Root CA, only the Root CA certificate is required in the *Trusted* store to establish trust to all application certificates issued by the CA. This option can greatly simplify the management of OPC UA Clients and Servers because only one certificate needs to be distributed across all systems.
@@ -58,7 +112,10 @@ using ICertificateStore store = identifier.OpenStore(telemetry);
 CertificateCollection certificates = await store.EnumerateAsync(ct);
 ```
 
-A component that accesses a store repeatedly should open one instance, keep it for the component's lifetime and dispose it at shutdown — the store refreshes its parsed-certificate cache itself when the backing data changes — rather than re-open the store per operation.
+A component that accesses a store repeatedly should open one instance and
+keep it for the component's lifetime. Dispose the store at shutdown instead
+of reopening it for each operation. The store refreshes its parsed-certificate
+cache when the backing data changes.
 
 ### Windows .NET applications
 
@@ -78,7 +135,13 @@ The *trusted*, *issuer* and *rejected* stores remain in a shared folder called *
 
 ## Certificate Validation
 
-The OPC UA .NET Standard Stack validates certificates according to the OPC UA specification. The new `CertificateManager` provides centralized certificate management with trust-list-scoped validation, lifecycle monitoring, and pluggable store backends (see [CertificateManager.md](CertificateManager.md)). The legacy `CertificateValidator` class remains supported via a backward compatibility adapter. This section describes the certificate validation workflow, configuration settings, and how to customize the validation process.
+The OPC UA .NET Standard Stack validates certificates according to the OPC UA
+specification. `CertificateManager` provides centralized certificate
+management with trust-list-scoped validation, lifecycle monitoring, and
+pluggable store backends (see [CertificateManager.md](CertificateManager.md)).
+The legacy `CertificateValidator` class remains supported through a backward
+compatibility adapter. This section explains the validation workflow and
+configuration settings, and how to customize validation.
 
 ### Validation Workflow
 
@@ -461,7 +524,8 @@ Certificate lists are populated from two primary sources:
 
 #### Configuration File Structure
 
-The `SecurityConfiguration` section in the application configuration file (`*.Config.xml`) defines certificate stores:
+The application configuration file (`*.Config.xml`) defines certificate
+stores in its `SecurityConfiguration` section:
 
 ```xml
 <SecurityConfiguration>
@@ -752,7 +816,18 @@ All other validation errors are **non-suppressible** and will always cause the v
 
 #### CA (issuer) KeyUsage validation
 
-OPC UA requires every CA (issuer) certificate in a chain to carry a KeyUsage extension that asserts both `keyCertSign` and `cRLSign` (OPC 10000-6 §6.2.4, Table 52 — Issuer Certificate). During chain validation the stack verifies this for each issuer certificate and reports the suppressible `BadCertificateIssuerUseNotAllowed` error (OPC 10000-4 §6.1.3, Table 100 — "Certificate Usage") when a CA certificate is missing these bits, including the case where the CA has no KeyUsage extension at all. This matches the behaviour of strict third-party OPC UA stacks, which reject such CA certificates (typically with `BadCertificateInvalid`). CA certificates created by this stack's `CertificateBuilder` always include the required bits; to interoperate with a legacy CA that does not, suppress the error as described above.
+OPC UA requires every CA (issuer) certificate in a chain to carry a KeyUsage
+extension with both `keyCertSign` and `cRLSign` set (OPC 10000-6 §6.2.4,
+Table 52 — Issuer Certificate). During chain validation, the stack checks
+each issuer certificate. If a CA certificate lacks either bit or has no
+KeyUsage extension, the stack reports the suppressible
+`BadCertificateIssuerUseNotAllowed` error (OPC 10000-4 §6.1.3, Table 100,
+"Certificate Usage").
+
+Strict third-party OPC UA stacks also reject such CA certificates, typically
+with `BadCertificateInvalid`. This stack's `CertificateBuilder` includes the
+required bits in every CA certificate it creates. To interoperate with a
+legacy CA that omits them, suppress the error as described above.
 
 ### Inspecting Certificate Validation Results
 

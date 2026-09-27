@@ -21,14 +21,56 @@ choose between them.
 
 Everything below explains how these pieces fit together.
 
+## Contents
+
+- [Quick reference](#quick-reference)
+- [`Session`](#1-session--the-opc-ua-session-primitive)
+  - [Operation limits and `MaxArrayLength`](#operation-limits-and-maxarraylength)
+  - [Plugging in a subscription engine](#plugging-in-a-subscription-engine)
+  - [`DefaultSessionFactory`](#defaultsessionfactory)
+- [`SessionReconnectHandler`](#2-sessionreconnecthandler--legacy-reconnect-driver)
+  - [Supported session types](#supported-session-types)
+- [`ManagedSession`](#3-managedsession--the-connection-state-machine-facade)
+  - [Failure of the initial connect](#failure-of-the-initial-connect)
+  - [Recovery after an established connection is exhausted](#recovery-after-an-established-connection-is-exhausted)
+  - [`ManagedSessionFactory`](#managedsessionfactory)
+  - [`ManagedSessionBuilder`](#managedsessionbuilder)
+  - [Reconnect semantics](#reconnect-semantics-on-managedsession)
+  - [Closing a `ManagedSession`](#closing-a-managedsession)
+  - [Server retry-after backpressure](#server-retry-after-backpressure)
+- [`IClientChannelManager`](#4-iclientchannelmanager--centralised-channel-sharing-and-reconnect)
+  - [Session factory choices](#session-factory-choices)
+  - [Channel identity](#channel-identity-managedchannelkey)
+  - [State model](#state-model)
+  - [Participant model](#participant-model--ireconnectparticipant)
+  - [Retry policy](#retry-policy--ichannelreconnectpolicy)
+  - [HTTPS resilience vs channel-manager reconnect](#https-resilience-vs-channel-mgr-reconnect)
+  - [HTTPS factory and OPC UA certificate validation](#https-factory--opc-ua-cert-validation-secure-by-default-fallback)
+  - [Shared retry budget](#shared-retry-budget-with-managedsession)
+  - [Diagnostics surface contract](#diagnostics-surface-contract--what-tags-and-structured-log-fields-carry)
+  - [DI registration](#di-registration)
+  - [Migrating from `AttachChannel` / `DetachChannel`](#migrating-from-attachchannel--detachchannel)
+  - [Testing the channel manager](#testing-the-channel-manager)
+- [Subscription engines](#5-subscription-engines)
+  - [`ClassicSubscriptionEngine`](#classicsubscriptionengine)
+  - [`DefaultSubscriptionEngine`](#defaultsubscriptionengine-v2)
+  - [Unbounded monitored items](#unbounded-monitored-items-default)
+  - [V2 notification pooling](#v2-notification-pooling-opt-in)
+  - [Handler contract](#handler-contract--retain-by-copy)
+  - [Server-side request/response pooling](#server-side-requestresponse-pooling)
+  - [Choosing an engine](#choosing-an-engine)
+- [`INodeCache`](#6-thenodecache-surface)
+- [Putting it all together](#7-putting-it-all-together)
+- [Server session lifecycle](#server-session-lifecycle)
+- [See also](#see-also)
+
 ## 1. `Session` — the OPC UA session primitive
 
-`Session` (`src/Opc.Ua.Client/Session/Session.cs`) is the lowest-level
-client object that maps directly to a UA secure-channel + session pair on
-the server. It implements `ISession` and exposes the full surface of the
-OPC UA service set (Read, Write, Browse, Call, AddNodes, etc.) plus
-session-level concerns: keep-alive, namespace tables, the type tree, the
-node cache, and a publish pipeline.
+`Session` (`src/Opc.Ua.Client/Session/Session.cs`) is the lowest-level client
+object. It maps directly to a UA SecureChannel and Session on the server.
+`Session` implements `ISession` and exposes OPC UA services such as Read,
+Write, Browse, Call, and AddNodes. It also manages keep-alive, namespace
+tables, the type tree, the node cache, and the publish pipeline.
 
 A `Session` is bound to:
 

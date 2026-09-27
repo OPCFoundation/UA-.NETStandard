@@ -8,6 +8,21 @@ This document explains how to expose the OPC 10000-100 §10.3
 software-update facet on a Device Integration (DI) device, what
 address-space surface it creates, and how clients drive it.
 
+## Contents
+
+- [Address-space layout](#address-space-layout)
+- [Server side — fluent surface](#server-side--fluent-surface)
+  - [Method-handler hooks](#method-handler-hooks)
+  - [Server-side state reporting](#server-side-state-reporting)
+- [Storage abstractions](#storage-abstractions)
+- [File-transfer pipeline](#file-transfer-pipeline)
+- [Client side](#client-side)
+  - [Uploading a package](#uploading-a-package)
+  - [Typed Part 16 state-machine surface](#typed-part-16-state-machine-surface)
+- [Hosted-server walkthrough](#hosted-server-walkthrough)
+- [Implementation pointers](#implementation-pointers)
+- [Spec references](#spec-references)
+
 ## Address-space layout
 
 `WithSoftwareUpdate(...)` materialises one
@@ -34,9 +49,14 @@ address-space surface it creates, and how clients drive it.
        └─ Confirm                     (Method)
 ```
 
-The Loading subtype is configurable: `UsePackageLoading()` (default,
-file transfer + `CloseAndCommit`), `UseDirectLoading()`,
-`UseCachedLoading()`. The full structure is added to the
+Choose the loading subtype with one of these methods:
+
+- `UsePackageLoading()` (default), which uses file transfer and
+  `CloseAndCommit`.
+- `UseDirectLoading()`.
+- `UseCachedLoading()`.
+
+The full structure is added to the
 `AsyncCustomNodeManager`'s `PredefinedNodes` via
 `AddPredefinedNodeAsync`, so direct NodeId lookup, browse, subscription
 wiring, and method calls all work out of the box.
@@ -91,10 +111,9 @@ device.WithSoftwareUpdate(packageStore, su => su
     }));
 ```
 
-`ISoftwareUpdateContext` exposes the device NodeId, the server's
-system context, the package store, and the per-device software
-folder so handlers can persist version metadata without having to
-re-resolve any of these.
+`ISoftwareUpdateContext` exposes the device NodeId, server system context,
+package store, and per-device software folder. Handlers can use these values
+to persist version metadata without resolving them again.
 
 ### Server-side state reporting
 
@@ -125,9 +144,9 @@ device.WithSoftwareUpdate(packageStore, su => su
     }));
 ```
 
-Each hook fires twice per method call — `Started` before the
-application callback runs, then `Completed` on success or `Failed`
-(with the exception message) on failure. The hook is invoked from the
+Each method call raises two hook events. `Started` fires before the
+application callback. On success, the method raises `Completed`; on failure,
+it raises `Failed` with the exception message. The hook runs in the
 service call's async context; exceptions thrown by the hook are
 logged and swallowed so instrumentation faults never abort the
 underlying SU operation. Domain-keyed `SoftwareUpdatePhase` (rather

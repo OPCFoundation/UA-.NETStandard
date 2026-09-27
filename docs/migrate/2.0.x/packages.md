@@ -2,6 +2,15 @@
 
 > **When to read this:** Read this for NuGet package renames / additions / removals, the new published packages, target-framework changes on `Opc.Ua.Types`, and the Newtonsoft.Json removal from `Opc.Ua.Core`.
 
+## Contents
+
+- [New published packages](#new-published-packages)
+- [Renamed packages — the GDS libraries drop `.Common`](#renamed-packages--the-gds-libraries-drop-common)
+- [Target Frameworks (only Opc.Ua.Types changes)](#target-frameworks-only-opcua-types-changes)
+- [NuGet dependency additions and removals](#nuget-dependency-additions-and-removals)
+- [ASP.NET Core packages are versioned per target framework](#aspnet-core-packages-are-versioned-per-target-framework)
+- [Newtonsoft.Json - what really changed](#newtonsoftjson---what-really-changed)
+
 ### New published packages
 
 The 2.0 packages are currently prereleases on nuget.org. Use

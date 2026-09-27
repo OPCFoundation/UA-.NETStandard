@@ -2,6 +2,14 @@
 
 > **When to read this:** Read this for the pluggable identity-provider model (`IClientIdentityProvider`, `IUserTokenAuthenticator`, `IAccessTokenProvider`, `ITokenIssuer`, `IIdentityClaims`), the new `IUserIdentityTokenHandler` registry, and the secret-store / caller-password registry.
 
+## Contents
+
+- [User Identity Token Handlers](#user-identity-token-handlers)
+- [User Identity Providers](#user-identity-providers)
+  - [`SessionManager.ImpersonateUser` → registry authenticators](#sessionmanagerimpersonateuser--registry-authenticators)
+  - [`ManagedSessionOptions.Identity` → `IdentityProvider`](#managedsessionoptionsidentity--identityprovider)
+- [Secrets — caller-supplied passwords go through a secret registry](#secrets--caller-supplied-passwords-go-through-a-secret-registry)
+
 ## User Identity Token Handlers
 
 **Breaking Change**: Identity tokens no longer perform cryptographic

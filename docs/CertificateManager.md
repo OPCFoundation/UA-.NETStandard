@@ -4,6 +4,42 @@ The `CertificateManager` provides centralized certificate lifecycle management f
 
 > **Note:** `CertificateIdentifier` is **metadata-only** (`StoreType` / `StorePath` / `SubjectName` / `Thumbprint` / `CertificateType` / `RawData` / `ValidationOptions`). It caches no `Certificate` and is not disposable. The `CertificateManager` (via `ICertificateRegistry`) is the single source of truth for materialized application certificates; `CertificateIdentifierResolver` is the stateless helper that materializes a `Certificate` from an identifier on demand. See *[Materializing a `Certificate` from a `CertificateIdentifier`](#materializing-a-certificate-from-a-certificateidentifier)* below.
 
+## Contents
+
+- [Architecture](#architecture)
+- [Quick Start](#quick-start)
+  - [Creating a CertificateManager](#creating-a-certificatemanager)
+  - [Instance-scoped store resolution](#instance-scoped-store-resolution)
+  - [Validating Certificates](#validating-certificates)
+  - [Subscribing to Certificate Changes](#subscribing-to-certificate-changes)
+  - [Updating Application Certificates](#updating-application-certificates)
+  - [Certificates for SecurityMode None](#certificates-for-securitymode-none)
+  - [Server-Side Certificate Rotation via Push](#server-side-certificate-rotation-via-push-opc-ua-part-12-7109)
+  - [TrustList-Change Effects on Channels, Sessions and Subscriptions](#trustlist-change-effects-on-channels-sessions-and-subscriptions-opc-ua-part-12-7109)
+  - [Origin-Independent Enforcement of Trust-Material Changes](#origin-independent-enforcement-of-trust-material-changes)
+  - [PushManagement Transactions](#pushmanagement-transactions-opc-ua-part-12-7102-71011)
+  - [Certificate-Expiration and TrustList-Staleness Alarms](#certificate-expiration-and-trustlist-staleness-alarms-opc-ua-part-12-783)
+  - [Optional ServerConfiguration Surface](#optional-serverconfiguration-surface-opc-ua-part-12-7103-71013-71020)
+  - [TrustList Size Limits](#trustlist-size-limits-opc-ua-part-12-845)
+  - [Client-Side Auto-Detection of Certificate Changes](#client-side-auto-detection-of-certificate-changes)
+  - [Working with Trust-Lists](#working-with-trust-lists)
+- [Interfaces Reference](#interfaces-reference)
+  - [`ICertificateRegistry`](#icertificateregistry)
+  - [`ICertificateTrustListManager`](#icertificatetrustlistmanager)
+  - [`ICertificateValidatorEx`](#icertificatevalidatorex)
+  - [Migrating from the legacy `CertificateValidation` event](#migrating-from-the-legacy-certificatevalidation-event)
+  - [`ICertificateLifecycle`](#icertificatelifecycle)
+  - [`ITrustListFileAccess`](#itrustlistfileaccess)
+  - [`ICertificateFactory`](#icertificatefactory)
+  - [`ICertificateIssuer`](#icertificateissuer)
+- [Pluggable Store Backends](#pluggable-store-backends)
+- [Certificate Wrapper and Reference Counting](#certificate-wrapper-and-reference-counting)
+- [Backward Compatibility](#backward-compatibility)
+- [OPC UA Specification Alignment](#opc-ua-specification-alignment)
+- [Materializing a `Certificate` from a `CertificateIdentifier`](#materializing-a-certificate-from-a-certificateidentifier)
+  - [Resolving an identifier](#resolving-an-identifier)
+  - [When to register an in-memory certificate with the manager](#when-to-register-an-in-memory-certificate-with-the-manager)
+
 ### Architecture
 
 The `CertificateManager` is composed of focused interfaces. Consumers depend only on the slice they need:
@@ -274,7 +310,7 @@ Server-base subclasses that want to observe rotation in custom ways can still su
 `ApplyChanges` also has to react to *TrustList* changes committed in the transaction, not just server-certificate rotation. Once the response has been delivered, `ConfigurationNodeManager` maps every committed TrustList to the certificate group it belongs to and applies the corresponding effect:
 
 - **Application group TrustList (`opc.tcp`)** validates the *peer* (client application) certificate presented in `OpenSecureChannel` against the `Peers` store. If a committed change (typically a removal of a trusted certificate or issuer) means a currently-connected peer would no longer validate, that peer's `opc.tcp` SecureChannel is forced to renegotiate; peers whose certificate is still trusted — and peers on a group whose TrustList did not change — keep their channels, Sessions and Subscriptions.
-- **HTTPS group TrustList** validates the certificates used by the request-scoped UA-HTTPS transport (`Https` store). Because UA-HTTPS has no long-lived, per-peer SecureChannel keyed by the client application certificate, and any client TLS certificate (mutual TLS) is re-validated at the next TLS handshake by the shared validator against the directory-backed trust stores, an HTTPS-group change forces **no** channel renegotiation rather than a meaningless connection teardown. Server-*certificate* rotation on HTTPS is a separate concern handled by `ITransportListenerCertificateRotation` (a Kestrel Stop/Start cycle).
+- **HTTPS group TrustList** validates certificates used by the request-scoped UA-HTTPS transport (`Https` store). UA-HTTPS has no long-lived, per-peer SecureChannel keyed by the client application certificate. The shared validator checks any client TLS certificate (mutual TLS) against the directory-backed trust stores at the next TLS handshake. Therefore, an HTTPS-group change does **not** trigger channel renegotiation or a connection teardown. Server-certificate rotation on HTTPS is separate; `ITransportListenerCertificateRotation` handles it with a Kestrel Stop/Start cycle.
 - **User-token group TrustList** validates X.509 user identity tokens. Every active Session that authenticated with a certificate user identity is re-validated against the updated user TrustList; a Session whose user certificate is no longer trusted is closed together with its Subscriptions (§7.10.9). Anonymous / username / issued-token Sessions are never disturbed.
 
 The effect fan-out runs after the same grace/flush boundary as certificate rotation and is awaitable through `IConfigurationNodeManager.DrainPendingApplyChangesAsync(CancellationToken)`.
@@ -282,11 +318,12 @@ The effect fan-out runs after the same grace/flush boundary as certificate rotat
 Both TCP listeners retain the complete peer chain validated at
 `OpenSecureChannel`, including intermediates supplied only by the client.
 Their `ITransportListenerPeerCertificateChainRotation` capability passes an
-owned chain snapshot to `CloseChannelsForUntrustedPeerChainsAsync`. The default
-effect handler prefers this capability and validates without writing to the
-rejected store. An unrelated trust addition therefore does not misclassify a
-peer whose intermediate is absent from the server's issuer store; removal of
-its trust anchor still closes the affected channel.
+owned chain snapshot to `CloseChannelsForUntrustedPeerChainsAsync`. The
+default effect handler prefers this capability and validates the chain
+without writing to the rejected store. This prevents an unrelated trust
+addition from misclassifying a peer whose intermediate is absent from the
+server's issuer store. Removing the peer's trust anchor still closes its
+channel.
 
 Custom transports should implement the chain-aware capability when peers can
 supply intermediates. The leaf-only capability below remains supported as a
@@ -295,7 +332,22 @@ finishes, even if the channel closes concurrently.
 
 Two seams make this behaviour injectable and testable:
 
-1. **`ITransportListenerPeerCertificateRotation`** — an optional capability interface on `ITransportListener` (sibling to `ITransportListenerCertificateRotation`). Each implementing listener advertises the single TrustList scope it validates its peer certificates against through `PeerCertificateTrustListScope`, and a committed change is routed to it **only** when the change targets that scope — so an `opc.tcp` listener is never re-validated or closed against the HTTPS store, and vice versa. Both `opc.tcp` listeners — the raw-socket `TcpTransportListener` and the Kestrel-hosted `KestrelTcpTransportListener` — implement it with the `Peers` scope, re-validating each tracked channel's client certificate through a caller-supplied async predicate and force-closing only the channels that fail (listener socket stays bound). The UA-HTTPS listener deliberately does **not** implement this capability (see the HTTPS bullet above). Custom transports opt in the same way:
+1. **`ITransportListenerPeerCertificateRotation`** — an optional
+   `ITransportListener` capability, alongside
+   `ITransportListenerCertificateRotation`. Implementing listeners expose
+   their peer-certificate TrustList scope through
+   `PeerCertificateTrustListScope`. The server routes a committed change to
+   a listener only when the change targets that scope. This prevents an
+   `opc.tcp` listener from being revalidated or closed against the HTTPS
+   store, and vice versa.
+
+   Both `opc.tcp` listeners implement this capability with the `Peers` scope:
+   the raw-socket `TcpTransportListener` and the Kestrel-hosted
+   `KestrelTcpTransportListener`. Each listener revalidates tracked client
+   certificates with a caller-supplied asynchronous predicate. It force-closes
+   only channels whose certificates fail validation, while keeping the
+   listener socket bound. The UA-HTTPS listener does **not** implement this
+   capability (see the HTTPS bullet above). Custom transports can opt in:
 
    ```csharp
    public sealed class MyTransportListener : ITransportListener, ITransportListenerPeerCertificateRotation
@@ -316,7 +368,18 @@ Two seams make this behaviour injectable and testable:
    }
    ```
 
-2. **`IPushConfigurationTrustListEffectHandler`** — the injectable provider that performs the two effects above. `ConfigurationNodeManager` builds a `PushConfigurationTrustListEffectContext` (the committed effects plus the live transport listeners, session manager, certificate validator and a session-close delegate) and dispatches it to the handler after the grace boundary. A default `PushConfigurationTrustListEffectHandler` is created automatically; hosts can register their own through DI (`services.TryAddSingleton<IPushConfigurationTrustListEffectHandler, ...>()`) or pass one to `MainNodeManagerFactory` / `ConfigurationNodeManager` directly.
+2. **`IPushConfigurationTrustListEffectHandler`** — an injectable provider
+   that performs the two effects above. `ConfigurationNodeManager` creates a
+   `PushConfigurationTrustListEffectContext` containing the committed effects,
+   live transport listeners, session manager, certificate validator, and
+   session-close delegate. It dispatches the context to the handler after the
+   grace boundary.
+
+   The stack creates a default `PushConfigurationTrustListEffectHandler`.
+   Hosts can register a custom handler through DI
+   (`services.TryAddSingleton<IPushConfigurationTrustListEffectHandler, ...>()`)
+   or pass one directly to `MainNodeManagerFactory` or
+   `ConfigurationNodeManager`.
 
 The default handler's SecureChannel renegotiation summary logs only the aggregate number of affected channels, not their identifiers or certificate contents.
 
@@ -404,14 +467,40 @@ Both are also constructor parameters on `ConfigurationNodeManager`/`MainNodeMana
 
 Two further collaborators are internal to the stack and not replaceable: the `NamespaceMetadataRegistry` behind the Part 5 `NamespaceMetadata` members of `IConfigurationNodeManager`, and the `CertificateAlarmScheduler` that refreshes and evaluates the §7.8.3 alarms. `ConfigurationNodeManager` itself is a partial class split into one `ConfigurationNodeManager.*.cs` file per concern (Push methods, push validation, certificate slots, ApplyChanges, trust material, certificate alarms, namespace metadata).
 
-**High-availability (distributed) transactions.** By default the PushManagement transaction is *per-server*: each replica of a `RedundantServerSet` would have its own independent transaction, so two administrators talking to two replicas could stage conflicting changes at once. Opting in with `UseDistributedPushConfiguration()` (from `Opc.Ua.Redundancy.Server`) replaces the two collaborators above with shared-store-backed variants so the transaction is single **across the whole replica set**:
+**High-availability (distributed) transactions.** By default, each server
+replica has its own PushManagement transaction. Two administrators using
+different replicas could therefore stage conflicting changes.
+`UseDistributedPushConfiguration()` (from `Opc.Ua.Redundancy.Server`)
+replaces the two collaborators above with shared-store-backed variants. The
+transaction is then shared **across the replica set**:
 
-- `DistributedPushConfigurationTransactionCoordinator` wraps the per-server coordinator and guards it with a compare-and-swap lease in the shared `ISharedKeyValueStore` (the same lease pattern as `SharedStoreLeaseElection`). A replica may only start a transaction while it holds the lease, so at most one replica has an active transaction at a time; a replica that stops renewing (for example, because it crashed) loses the lease once it expires and a standby can take over. The lease is acquired at an `await` boundary immediately before the synchronous `Stage`, so the coordinator's synchronous `Stage`/`CancelChanges` contract is preserved with no sync-over-async. It is released as soon as the transaction is applied, cancelled, reset, or its owning Session closes.
-- `SharedKeyValuePendingCertificateKeyStore` persists the regenerated `CreateSigningRequest` private key in the shared store instead of a local directory, so a `CreateSigningRequest` on one replica and the matching `UpdateCertificate` on another still complete. It is scoped per (CertificateGroup, CertificateType), consumes the key atomically (only one replica wins a concurrent `TryTake`), wipes every private-key working buffer, and — like the other distributed stores — protects each record with an `IRecordProtector` and fails closed if an external store is configured without one.
+- `DistributedPushConfigurationTransactionCoordinator` wraps the per-server
+  coordinator and guards it with a compare-and-swap lease in the shared
+  `ISharedKeyValueStore`, following the `SharedStoreLeaseElection` pattern.
+  Only the replica holding the lease can start a transaction. If a replica
+  stops renewing the lease, for example after a crash, the lease expires and
+  a standby can take over.
+
+  The coordinator acquires the lease at an `await` boundary immediately
+  before synchronous `Stage`. This preserves the synchronous
+  `Stage`/`CancelChanges` contract without sync-over-async. The coordinator
+  releases the lease when it applies, cancels, or resets the transaction, or
+  when the owning Session closes.
+- `SharedKeyValuePendingCertificateKeyStore` stores regenerated
+  `CreateSigningRequest` private keys in the shared store rather than a local
+  directory. This lets one replica create a signing request and another
+  complete its matching `UpdateCertificate`. The store scopes keys by
+  `(CertificateGroup, CertificateType)` and consumes each key atomically, so
+  only one replica succeeds in a concurrent `TryTake`. It wipes private-key
+  working buffers and protects each record with an `IRecordProtector`. If an
+  external store lacks a protector, the store fails closed.
 
 This composes with the configured leader election. Setting `DistributedPushConfigurationOptions.RequireLeadership = true` additionally restricts transaction ownership to the elected leader; when the Kubernetes extension is configured (`UseKubernetesLeaderElection`), that leader is decided by the Kubernetes-native `Lease` already registered as the `ILeaderElection` service, reused without creating a second Kubernetes client. Distributed behaviour is opt-in — a server that does not call `UseDistributedPushConfiguration()` keeps the per-server coordinator and directory-backed pending-key store unchanged. See [High Availability](HighAvailability.md#distributed-pushmanagement-transactions-beyond-66-opt-in) for the full setup.
 
-**Method security and validation.** The `ServerConfiguration` Methods enforce the per-Method SecureChannel and Role requirements from the §7.10 Method result tables. The **channel-security** requirement is checked first and reported separately from the **Role** requirement:
+**Method security and validation.** `ServerConfiguration` methods enforce
+the per-method SecureChannel and Role requirements in the §7.10 Method result
+tables. The server checks and reports the **channel-security** requirement
+separately, before it checks the **Role** requirement:
 
 - `UpdateCertificate` (§7.10.5) and `CreateSigningRequest` (§7.10.10) transfer private-key material and require an **encrypted** SecureChannel (`SignAndEncrypt`); a weaker channel is rejected with `Bad_SecurityModeInsufficient`.
 - `CreateSelfSignedCertificate` (§7.10.6), `DeleteCertificate` (§7.10.7), `GetCertificates` (§7.10.8), `GetRejectedList`, `ApplyChanges` (§7.10.9) and `CancelChanges` do not transfer a private key and accept any **authenticated** SecureChannel (`Sign` or `SignAndEncrypt`); an unauthenticated (`None`) channel is rejected with `Bad_SecurityModeInsufficient`.
@@ -618,7 +707,7 @@ hides a cap.
 
 The effective, actually-enforced limit is derived from the advertised
 `MaxTrustListSize` and `ServerConfigurationOptions.MaxTrustListSizeSafetyCeiling`
-(default 1&nbsp;MiB):
+(default 1 MiB):
 
 | Advertised `MaxTrustListSize` | Effective (enforced **and** advertised) limit |
 | --- | --- |
@@ -645,7 +734,7 @@ builder.ConfigureServerConfiguration(o =>
 > The legacy `TrustList` constructor overloads that take only a single
 > `maxTrustListSize` (no explicit ceiling) are unchanged and fully backward
 > compatible: a finite size is honored exactly (never clamped) and `0` falls
-> back to the 1&nbsp;MiB default. The overload that also takes a
+> back to the 1 MiB default. The overload that also takes a
 > `maxTrustListSizeSafetyCeiling` opts into the clamping semantics above.
 
 #### Client-Side Auto-Detection of Certificate Changes

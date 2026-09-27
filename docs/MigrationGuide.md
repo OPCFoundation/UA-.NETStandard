@@ -1,10 +1,43 @@
 # Migration Guide
 
-This document is the landing page for migrating your application between
-versions of the OPC UA .NET Standard Stack. The detailed per-version
-content lives in the [`migrate/`](migrate/) sub-folder; this page is the
-index that points you at the right version folder and keeps cross-cutting
-migration notes inline.
+Use this guide to migrate an application between versions of the OPC UA
+.NET Standard Stack. Detailed, version-specific instructions live in the
+[`migrate/`](migrate/) subfolder. This page links to those guides and
+covers cross-cutting changes.
+
+## Contents
+
+- [General principles](#general-principles)
+- [Per-version migration index](#per-version-migration-index)
+- [Migrating code that used the exposed diagnostics locks](#migrating-code-that-used-the-exposed-diagnostics-locks)
+  - [Why there is no `Obsolete` shim](#why-there-is-no-obsolete-shim)
+- [Migrating code that used `ILocalNode.DataLock`](#migrating-code-that-used-ilocalnodedatalock)
+- [Migrating code that used `BaseVariableValue.Lock`](#migrating-code-that-used-basevariablevaluelock)
+- [Migrating code that locked on a `NodeState` or a `NodeBrowser`](#migrating-code-that-locked-on-a-nodestate-or-a-nodebrowser)
+- [Migrating code that used `ApplicationConfiguration.PropertiesLock`](#migrating-code-that-used-applicationconfigurationpropertieslock)
+- [Migrating node types that override `FindChild` or `CreateChild`](#migrating-node-types-that-override-findchild-or-createchild)
+- [Adopting replica-consistent NodeIds](#adopting-replica-consistent-nodeids)
+- [Removed members on `ISession`](#removed-members-on-isession)
+- [Awaiting custom node-manager cleanup](#awaiting-custom-node-manager-cleanup)
+- [Migrating code that called `IServerInternal.Set*` mutators](#migrating-code-that-called-iserverinternalset-mutators)
+- [Migrating `IServerStartupTask` implementations to `IServerContext`](#migrating-iserverstartuptask-implementations-to-iservercontext)
+- [Removed members on `IServerInternal`](#removed-members-on-iserverinternal)
+- [Migrating servers that relied on unserved history advertisement](#migrating-servers-that-relied-on-unserved-history-advertisement)
+- [Migrating custom `ISessionManager` implementations to `ShutdownAsync`](#migrating-custom-isessionmanager-implementations-to-shutdownasync)
+- [Configuring distributed address-space storage](#configuring-distributed-address-space-storage)
+- [Migrating `SamplingGroupManager` create/modify overrides](#migrating-samplinggroupmanager-createmodify-overrides)
+- [Migrating synchronous `MonitoredNode2` notification callers](#migrating-callers-of-the-synchronous-monitorednode2-notification-wrappers)
+- [Migrating callers of `SecurityPolicies` lookup and cryptography statics](#migrating-callers-of-the-securitypolicies-lookup-and-cryptography-statics)
+- [Migrating code that drove the server subscription publish pipeline](#migrating-code-that-drove-the-server-subscription-publish-pipeline)
+- [Migrating channel subclasses that guarded state with `DataLock`](#migrating-channel-subclasses-that-guarded-state-with-datalock)
+- [Transport resource limits](#transport-resource-limits)
+- [Migrating channel subclasses that override `HandleIncomingMessage`](#migrating-channel-subclasses-that-override-handleincomingmessage)
+- [Migrating custom `IUserDatabase` implementations](#migrating-custom-iuserdatabase-implementations)
+- [Migrating from 1.05.377 to 1.05.378](#migrating-from-105377-to-105378)
+  - [Asynchronous as default](#asynchronous-as-default)
+  - [Observability](#observability)
+- [Migrating from 1.04 to 1.05](#migrating-from-104-to-105)
+- [Support](#support)
 
 ## General principles
 

@@ -141,13 +141,13 @@ fluent API for node managers.
 > `InstanceNamespaceIndex`, the server application's namespace derived
 > from `ApplicationConfiguration.ApplicationUri`, rather than in the
 > DI or companion-spec namespace of the parent. This follows the
-> companion-spec boilerplate rule (for example OPC 10000-100 §13.4 and
-> OPC 40223) that nodes not defined by a specification do not use the
-> standard namespace; the Local Server URI namespace is the namespace
-> for nodes defined by the local server. BrowseNames defined by DI or a
-> companion specification keep their specification namespace, while
-> application-defined instance names, functional groups, and properties
-> should use `InstanceNamespaceIndex`.
+> companion-spec modelling rules (for example OPC 10000-100 §13.4 and
+> OPC 40223): nodes not defined by a specification must not use the
+> standard namespace. The local server defines such nodes in its Local
+> Server URI namespace. BrowseNames defined by DI or another companion
+> specification keep that specification's namespace. Use
+> `InstanceNamespaceIndex` for application-defined instance names,
+> functional groups, and properties.
 
 ### Entry points
 
@@ -191,7 +191,7 @@ ITopologyElementBuilder<TElement> TopologyElementByBrowseName<TElement>(
     where TElement : TopologyElementState;
 ```
 
-`CreateDeviceAsync` performs four steps:
+`CreateDeviceAsync` performs five steps:
 
 1. Resolves the parent (default: Device Integration `DeviceSet`; subclasses override
    `ResolveDefaultDeviceParent()` — e.g. machinery managers can return
@@ -200,21 +200,22 @@ ITopologyElementBuilder<TElement> TopologyElementByBrowseName<TElement>(
    retain `HasComponent`.
 3. Fails fast if a child with the same browse name already exists
    (`StatusCodes.BadBrowseNameDuplicated`).
-4. Materialises the instance through the source-generated
-   `CreateInstanceOf<Type>` factory (e.g. `CreateInstanceOfDeviceType`)
-   so the device carries the type's **mandatory** children — for
-   `DeviceType` the eight nameplate variables (`Manufacturer`, `Model`,
+4. Materializes the instance through the source-generated
+   `CreateInstanceOf<Type>` factory, such as
+   `CreateInstanceOfDeviceType`. The factory adds the type's **mandatory**
+   children and `HasInterface` references. For `DeviceType`, the children
+   are eight nameplate variables: `Manufacturer`, `Model`,
    `HardwareRevision`, `SoftwareRevision`, `DeviceRevision`,
-   `DeviceManual`, `SerialNumber`, `RevisionCounter`) with correct
-   DI-namespace BrowseNames — plus the type's `HasInterface`
-   references. Because a browse name is supplied, the factory also
-   rebases the whole subtree onto per-instance NodeIds in the server's
-   application namespace (`DiNodeManager.InstanceNamespaceIndex`, the
-   Local Server URI namespace), so multiple instances of the
-   same type never collide on the TYPE NodeIds emitted by the generator
-   and never mint application nodes in DI or other companion-spec
-   namespaces. It then
-   sets BrowseName/SymbolicName/DisplayName and stamps the
+   `DeviceManual`, `SerialNumber`, and `RevisionCounter`. It assigns
+   each variable a DI-namespace BrowseName.
+
+   Because the factory receives a BrowseName, it also rebases the subtree
+   onto per-instance NodeIds in the server's application namespace
+   (`DiNodeManager.InstanceNamespaceIndex`, the Local Server URI
+   namespace). This prevents instances of the same type from colliding
+   on the generator's type NodeIds. It also keeps application nodes out
+   of DI and other companion-spec namespaces. Finally, the factory sets
+   `BrowseName`, `SymbolicName`, and `DisplayName`, and stamps
    `TypeDefinitionId`.
 5. Calls the real `AsyncCustomNodeManager.AddPredefinedNodeAsync` so
    the node create lifecycle, subscription wiring, type-tree registration,
@@ -291,11 +292,11 @@ their in-type `MethodDeclarationId`s. The model is intentionally **lean**
 (`IVendorNameplateType`/`ITagNameplateType`/`ISupportInfoType` members
 such as `AssetId`, `ProductCode`, `DeviceTypeImage`, `Documentation`,
 `ImageSet`, `ProtocolSupport`) to be instantiated, so they are omitted
-unless the application adds them. A strict external compliance checker
-may still flag those optional members or report placeholder warnings for
-application-added `HasComponent` children (e.g. a custom `Diagnostics`
-functional group or the `SoftwareUpdate` facet); these are permitted
-omissions/extensions rather than modelling errors.
+unless the application adds them. An external compliance checker may still flag omitted optional members.
+It may also report placeholder warnings for application-added
+`HasComponent` children, such as a custom `Diagnostics` functional group
+or the `SoftwareUpdate` facet. The specification permits these omissions
+and extensions; they are not modelling errors.
 
 #### Functional groups
 
@@ -452,8 +453,8 @@ device.WithSupportInfo(info =>
 
 ## Hosting integration
 
-`AddOpcUaDi()` and `ConfigureDevicesFor<TNodeManager>()` plug the
-Device Integration (DI) library into the unified `AddOpcUa()`
+Use `AddOpcUaDi()` and `ConfigureDevicesFor<TNodeManager>()` to add the
+Device Integration library to the unified `AddOpcUa()`
 `Microsoft.Extensions.DependencyInjection` hosting pattern.
 
 ### Server-side surface
@@ -1024,7 +1025,10 @@ References are to the OPC 10000-100 (DI v1.05) specification sections.
 
 - `TopologyElementType` (§5.2) — abstract base exposed through
   `ITopologyElementBuilder<TElement>`.
-- `IVendorNameplateType` (§5.10) — Manufacturer, Model, SerialNumber, HardwareRevision, SoftwareRevision, DeviceRevision, DeviceManual, DeviceClass, ProductInstanceUri, ProductCode. Populated by `IDeviceBuilder.WithIdentification(...)`.
+- `IVendorNameplateType` (§5.10) exposes `Manufacturer`, `Model`,
+  `SerialNumber`, `HardwareRevision`, `SoftwareRevision`, `DeviceRevision`,
+  `DeviceManual`, `DeviceClass`, `ProductInstanceUri`, and `ProductCode`.
+  Populate these properties with `IDeviceBuilder.WithIdentification(...)`.
 - `ITagNameplateType` (§5.11) — AssetId, ComponentName, DeviceRevision. Populated by the same builder.
 - `IDeviceHealthType` (§5.12) — DeviceHealth enum plus the four NAMUR alarm references.
 - `IAssetLocationIndicationType` (§5.13) — `StartLocationIndication` / `StopLocationIndication` methods.
@@ -1063,7 +1067,11 @@ Custom groups go through `WithFunctionalGroup(qualifiedName, action)`.
 
 ### Lock service (§10.5)
 
-- `LockingServicesType` and the four method types (`InitLockMethodType`, `RenewLockMethodType`, `ExitLockMethodType`, `BreakLockMethodType`) — wired through `ILockService` and `DefaultLockService` (session ownership, configurable timeout, automatic cleanup on session close).
+- `LockingServicesType` and four method types:
+  `InitLockMethodType`, `RenewLockMethodType`, `ExitLockMethodType`, and
+  `BreakLockMethodType`. `ILockService` and `DefaultLockService` wire these
+  methods and provide session ownership, configurable timeouts, and cleanup
+  when a session closes.
 
 ### Software update (§10.3)
 
@@ -1071,7 +1079,10 @@ Custom groups go through `WithFunctionalGroup(qualifiedName, action)`.
 - `SoftwareLoadingType`, `PackageLoadingType` (§10.3.4) — abstract bases.
 - `DirectLoadingType`, `CachedLoadingType`, `FileSystemLoadingType` (§10.3.4) — the three loading variants.
 - `SoftwareVersionType` (§10.3.6) — Manufacturer, ProductInstanceUri, SoftwareRevision, PatchIdentifiers, ReleaseDate, ChangeLog, Hash.
-- `PrepareForUpdateStateMachineType` (§10.3.7), `InstallationStateMachineType` (§10.3.8), `PowerCycleStateMachineType` (§10.3.9), `ConfirmationStateMachineType` (§10.3.10) — generated proxies driven by the application.
+- Generated proxies for `PrepareForUpdateStateMachineType` (§10.3.7),
+  `InstallationStateMachineType` (§10.3.8),
+  `PowerCycleStateMachineType` (§10.3.9), and
+  `ConfirmationStateMachineType` (§10.3.10), driven by the application.
 - Storage abstraction: `ISoftwarePackageStore` with `MemoryPackageStore` and `FileSystemPackageStore` implementations.
 
 ### Support info & lifetime indication
@@ -1085,7 +1096,18 @@ Custom groups go through `WithFunctionalGroup(qualifiedName, action)`.
 
 ### DataTypes & VariableTypes
 
-All Device Integration DataTypes (`DeviceHealthEnumeration`, `SoftwareClass`, `LocationIndicationType`, `SoftwareVersionFileType`, `UpdateBehavior`, `FetchResultDataType`, `TransferResultErrorDataType`, `TransferResultDataDataType`, `ParameterResultDataType`) ship as source-generated types in the `Opc.Ua.Di` model library.
+The `Opc.Ua.Di` model library includes these source-generated Device
+Integration DataTypes:
+
+- `DeviceHealthEnumeration`
+- `SoftwareClass`
+- `LocationIndicationType`
+- `SoftwareVersionFileType`
+- `UpdateBehavior`
+- `FetchResultDataType`
+- `TransferResultErrorDataType`
+- `TransferResultDataDataType`
+- `ParameterResultDataType`
 
 ### Not yet implemented
 

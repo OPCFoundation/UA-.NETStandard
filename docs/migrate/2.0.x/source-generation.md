@@ -2,6 +2,13 @@
 
 > **When to read this:** Read this for the move from pre-generated code files to the source-generated NodeManager / data-type model, including the project-structure changes and the new default for boolean properties.
 
+## Contents
+
+- [Default value of boolean properties in source-generated data types is now false](#default-value-of-boolean-properties-in-source-generated-data-types-is-now-false)
+- [Server default Aggregate configuration now treats Uncertain as Bad (Part 13)](#server-default-aggregate-configuration-now-treats-uncertain-as-bad-part-13)
+- [MIG01 resolution playbook](#mig01-resolution-playbook)
+- [Project Structure](#project-structure)
+
 Instead of generating code for OPC UA design files using the [ModelCompiler](https://github.com/OPCFoundation/UA-ModelCompiler), this version of the stack uses [Source Generators](https://learn.microsoft.com/dotnet/csharp/roslyn-sdk/#source-generators) to generate code behind for your project. Input into the source generator can be NodeSet2.xml files or ModelDesign.xml files (the same that ModelCompiler consumes). Example projects are provided in the Applications folder. Source generators are Roslyn analyzers, that are called by the Roslyn compiler and emit code during the build process.
 
 **Model compiler generated csharp code is not supported in this version!**

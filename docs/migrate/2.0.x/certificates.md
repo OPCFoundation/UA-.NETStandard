@@ -2,6 +2,21 @@
 
 > **When to read this:** Read this for the new ref-counted `Certificate` wrapper, the segregated-interface `CertificateManager` design, the `ICertificateProvider` cache, and the obsoleted `X509Certificate2` direct-exposure APIs.
 
+## Contents
+
+- [Centralised certificate cache via `ICertificateProvider`](#centralised-certificate-cache-via-icertificateprovider)
+- [Certificate Management](#certificate-management)
+  - [ECC security policies require .NET 8 or later](#ecc-security-policies-require-net-8-or-later)
+  - [Certificates with an empty distinguished name are always rejected](#certificates-with-an-empty-distinguished-name-are-always-rejected)
+  - [Certificate and CertificateCollection wrapper types](#certificate-and-certificatecollection-wrapper-types)
+  - [CertificateManager and segregated interfaces](#certificatemanager-and-segregated-interfaces)
+  - [CertificateIdentifier is metadata-only](#certificateidentifier-is-metadata-only)
+  - [CertificateStoreIdentifier is a store description — `OpenStore` returns a caller-owned store](#certificatestoreidentifier-is-a-store-description--openstore-returns-a-caller-owned-store)
+  - [PushManagement transactions: TrustList/Certificate updates now require `ApplyChanges`](#pushmanagement-transactions-trustlistcertificate-updates-now-require-applychanges)
+  - [Optional ServerConfiguration surface now available (additive, opt-in)](#optional-serverconfiguration-surface-now-available-additive-opt-in)
+  - [`MaxTrustListSize` is advertised honestly and bounded by a safety ceiling](#maxtrustlistsize-is-advertised-honestly-and-bounded-by-a-safety-ceiling)
+  - [Obsoleted certificate APIs](#obsoleted-certificate-apis)
+
 ## Centralised certificate cache via `ICertificateProvider`
 
 A new public `ICertificateProvider` interface exposes the existing
@@ -235,7 +250,7 @@ through the new `ServerConfigurationOptions` argument on
 
 Previously, a `ServerConfiguration.MaxTrustListSize` of `0` (unlimited per OPC
 UA Part 12 §8.4.5) was advertised to Clients as `0` while the server silently
-enforced a hidden 1&nbsp;MiB cap on TrustList `Read`/`Write`. The advertised
+enforced a hidden 1 MiB cap on TrustList `Read`/`Write`. The advertised
 value and the enforced value could therefore disagree.
 
 The server now:
@@ -243,17 +258,17 @@ The server now:
 - **Advertises the honest effective limit.** `ServerConfiguration.MaxTrustListSize`
   now reports the value the TrustList handlers actually enforce — never `0`
   while a finite cap is in force. A server configured with `MaxTrustListSize = 0`
-  now advertises the safety ceiling (default 1&nbsp;MiB) instead of `0`.
+  now advertises the safety ceiling (default 1 MiB) instead of `0`.
 - **Adds a configurable resource-protection safety ceiling.**
   `ServerConfigurationOptions.MaxTrustListSizeSafetyCeiling` (default
-  1&nbsp;MiB) bounds the actually-enforced size. The effective limit is:
+  1 MiB) bounds the actually-enforced size. The effective limit is:
   `MaxTrustListSize == 0` → the ceiling; `MaxTrustListSize` above the ceiling →
   the ceiling; otherwise → the configured `MaxTrustListSize`.
 
 **Migration action.** No action is required for the common cases
-(`MaxTrustListSize` of `0` or a finite value ≤ 1&nbsp;MiB); enforcement is
+(`MaxTrustListSize` of `0` or a finite value ≤ 1 MiB); enforcement is
 unchanged and only the advertised value becomes honest. **If you configured a
-finite `MaxTrustListSize` larger than 1&nbsp;MiB**, raise
+finite `MaxTrustListSize` larger than 1 MiB**, raise
 `ServerConfigurationOptions.MaxTrustListSizeSafetyCeiling` to at least that
 value, otherwise the effective limit is clamped to the ceiling:
 
@@ -267,7 +282,7 @@ builder.ConfigureServerConfiguration(o =>
 
 The legacy `TrustList` constructor overloads (without an explicit safety
 ceiling) are unchanged and remain fully backward compatible: a finite size is
-honored exactly (never clamped) and `0` falls back to the 1&nbsp;MiB default.
+honored exactly (never clamped) and `0` falls back to the 1 MiB default.
 
 ### Obsoleted certificate APIs
 
@@ -292,7 +307,7 @@ functional forwarders to the new design for binary-compatibility, but emit `CS06
 | `ServerBase.InstanceCertificateTypesProvider` (property) | `ServerBase.CertificateManager` (use `ICertificateRegistry` surface) |
 
 > **Lifecycle ordering.** `configuration.CertificateManager` is populated *inside* `await applicationInstance.CheckApplicationInstanceCertificatesAsync(...)`. Code that reads it before that call gets `null`. The required ordering is:
->
+
 > 1. Construct `new ApplicationInstance(telemetry)`.
 > 2. Load `ApplicationConfiguration` (e.g. via `LoadApplicationConfigurationAsync`).
 > 3. `await applicationInstance.CheckApplicationInstanceCertificatesAsync(silent: false, ..., ct);`.

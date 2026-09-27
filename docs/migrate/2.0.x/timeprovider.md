@@ -2,6 +2,10 @@
 
 > **When to read this:** Read this when adopting `System.TimeProvider` across the stack (replacing direct `DateTime.UtcNow`, `Timer`, and similar timing primitives in custom NodeManagers, durable subscriptions, and reconnect policies).
 
+## Contents
+
+- [Monotonic timestamps for duration calculations](#monotonic-timestamps-for-duration-calculations)
+
 **Not source-breaking.** The stack now uses
 [`System.TimeProvider`](https://learn.microsoft.com/dotnet/api/system.timeprovider) as
 its canonical clock and scheduler so that timeouts, intervals, keep-alive loops,
@@ -134,4 +138,3 @@ TimeSpan elapsed = m_timeProvider.GetElapsedTime(startTimestamp);
 - Related: [sessions-subscriptions.md](sessions-subscriptions.md), [node-states.md](node-states.md).
 - [2.0 migration index](README.md) — analyzer quick-start + symptom → sub-doc table.
 - [Migration Guide](../../MigrationGuide.md) — landing page across versions.
-

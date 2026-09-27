@@ -1,12 +1,35 @@
 # Runtime NodeSets
 
-This guide explains how to load one or more NodeSet2 XML documents into the server's address space at startup without writing a source-generated or hand-coded NodeManager. You configure which files or streams to load; the server imports them in dependency order and registers the resulting nodes.
+This guide explains how to import one or more NodeSet2 XML documents into a
+server's address space at startup, without writing a source-generated or
+hand-coded NodeManager. Configure the files or streams to load. The server
+imports them in dependency order and registers the resulting nodes.
 
 Within each imported set, types are registered in inheritance order rather than
 XML record order. A derived type may precede its supertype in the document;
 an inheritance cycle is rejected before registration. Imported namespace-zero
 `InputArguments` and `OutputArguments` Properties populate their Method's typed
 signature, retaining the declared Property NodeIds, argument order, and values.
+
+## Contents
+
+- [When to use the runtime NodeSet path](#when-to-use-the-runtime-nodeset-path)
+- [Startup and live lifecycle semantics](#startup-and-live-lifecycle-semantics)
+  - [Shadow reload](#shadow-reload)
+  - [Immediate reload](#immediate-reload)
+- [Quick-start examples](#quick-start-examples)
+  - [Single file](#single-file)
+  - [Single file with a fluent callback](#single-file-with-a-fluent-callback)
+  - [Group of dependent NodeSets](#group-of-dependent-nodesets)
+  - [Custom stream source](#custom-stream-source)
+  - [Direct factory registration](#direct-factory-registration)
+- [Stream ownership contract](#stream-ownership-contract)
+- [Default namespace for unqualified browse paths](#default-namespace-for-unqualified-browse-paths)
+- [Dependency sorting](#dependency-sorting)
+  - [Referencing a Node another NodeManager owns](#referencing-a-node-another-nodemanager-owns)
+- [Complex types](#complex-types)
+- [Comparison with source-generated NodeManagers](#comparison-with-source-generated-nodemanagers)
+- [Related documentation](#related-documentation)
 
 ## When to use the runtime NodeSet path
 

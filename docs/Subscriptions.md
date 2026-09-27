@@ -41,6 +41,8 @@ For the full engine comparison (publish-pipeline ownership, worker
 pools, when to pick which) see
 [Sessions.md §4](Sessions.md#4-subscription-engines).
 
+## Contents
+
 - [Quick reference](#quick-reference)
 - [Server retransmission queues](#server-retransmission-queues)
 - [Publishing during session recovery](#publishing-during-session-recovery)
@@ -75,6 +77,7 @@ pools, when to pick which) see
   - [Tuning knobs](#tuning-knobs)
   - [Engine wiring](#engine-wiring)
 - [Three-API summary](#three-api-summary)
+- [Reference](#reference)
 
 ## Quick reference
 

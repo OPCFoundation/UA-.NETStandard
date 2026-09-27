@@ -12,6 +12,27 @@ everything else. The PubSub Schema Registry and WoT Connectivity registry are co
 specializations: PubSub resources are schema documents, while WoT resources are Thing Description /
 Thing Model documents.
 
+## Contents
+
+- [Packages](#packages)
+- [Core concepts](#core-concepts)
+  - [Structural identity and content lookup](#structural-identity-and-content-lookup)
+  - [Opaque-NodeId fast path](#opaque-nodeid-fast-path)
+  - [Registration lifecycle and auto-bootstrap](#registration-lifecycle-and-auto-bootstrap)
+  - [File open modes](#file-open-modes)
+  - [Resource storage](#resource-storage)
+  - [Transport security](#transport-security)
+  - [Federation](#federation)
+  - [Labels](#labels)
+  - [Native xRegistry events](#native-xregistry-events)
+- [Server-side usage](#server-side-usage)
+  - [Async lifecycle](#async-lifecycle)
+  - [Resource-exhaustion bounds](#resource-exhaustion-bounds)
+- [Client-side usage](#client-side-usage)
+  - [Extending for a domain registry](#extending-for-a-domain-registry)
+- [Well-known identifiers](#well-known-identifiers)
+- [Related documentation](#related-documentation)
+
 ## Packages
 
 | Package | Depends on | Contains |

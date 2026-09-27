@@ -1,9 +1,9 @@
 # Identity Providers (OPC UA Part 6 §6.5)
 
-The OPC UA .NET Standard stack exposes a pluggable identity-provider model
-that covers every user identity mechanism defined in
-[OPC UA Part 6 §6.5](https://reference.opcfoundation.org/Core/Part6/v105/docs/6.5) and the
-identity-provider handshakes described in
+The OPC UA .NET Standard stack provides a pluggable identity-provider model.
+It covers the user-identity mechanisms in
+[OPC UA Part 6 §6.5](https://reference.opcfoundation.org/Core/Part6/v105/docs/6.5)
+and the identity-provider handshakes in
 [OPC UA Part 4 §6.2](https://reference.opcfoundation.org/Core/Part4/v105/docs/6.2).
 
 The design is intentionally **symmetric**:
@@ -34,6 +34,36 @@ contracts that ship on the wire — those are still the canonical
 on-the-wire types. The provider model layers on top of those types so
 legacy callbacks keep working during migration, while new code can
 register `IUserTokenAuthenticator` instances directly.
+
+## Contents
+
+- [Quick start — dependency injection](#quick-start--dependency-injection)
+  - [Server example](#server-example)
+  - [Custom authenticator registrations](#custom-authenticator-registrations)
+  - [Client example](#client-example)
+  - [GDS example](#gds-example)
+  - [Configuration reference](#configuration-reference)
+- [Three layers, kept separate](#three-layers-kept-separate)
+- [Client side](#client-side)
+  - [`IClientIdentityProvider`](#iclientidentityprovider--what-to-send-in-activatesession)
+  - [`IAccessTokenProvider`](#iaccesstokenprovider--orthogonal-to-the-opc-ua-stack)
+  - [`AuthorizationServerMetadata`](#authorizationservermetadata--the-json-nobody-told-you-about)
+- [Server side](#server-side)
+  - [`IUserTokenAuthenticator`](#iusertokenauthenticator--what-to-do-with-the-incoming-token)
+  - [`IServerIdentityRegistry`](#iserveridentityregistry--composing-authenticators)
+  - [Identity augmenters](#identity-augmenters)
+  - [Claims surface](#claims-surface--wiring-identitycriteriatypegroupid-and-role)
+  - [`ITokenIssuer`](#itokenissuer--server-side-jwt-issuance)
+  - [`IIssuerKeyResolver` and `IssuerVerificationKey`](#iissuerkeyresolver--issuerverificationkey--jwt-validation)
+- [How-to: server-side authentication](#how-to-server-side-authentication)
+- [How-to: client-side provider selection](#how-to-client-side-provider-selection)
+- [Migrate from `SessionManager.ImpersonateUser`](#how-to-migrate-from-sessionmanagerimpersonateuser)
+- [Implementing your own provider](#implementing-your-own-provider)
+  - [Entra ID provider](#entra-id-provider)
+  - [OIDC provider](#oidc-provider)
+  - [Windows Integrated provider](#windows-integrated-provider)
+  - [ASP.NET Core provider](#aspnet-core-provider)
+- [See also](#see-also)
 
 ## Quick start — dependency injection
 
@@ -323,10 +353,10 @@ separate so each layer can be replaced independently:
 | **Claim extraction** | `IIdentityClaims` (probe interface on the returned identity) | Surfaces OIDC / JWT / X.509 claims so role mapping has data to work with. | Decide which roles get granted. |
 | **Role mapping** | `IRoleManager.ResolveGrantedRoles` (already exists, see [Role-Based Security](RoleBasedUserManagement.md)) | Applies OPC UA Part 18 §4.4 identity-mapping rules to the claims and emits the granted role NodeIds. | Authenticate the token. |
 
-If you find yourself granting roles inside an authenticator, you have
-overstepped — push that logic into an `IRoleManager` identity-mapping
-rule instead, then the same rule applies whether the user came in via
-UserName, X509, JWT, or a future token type.
+Do not grant roles inside an authenticator. Put role assignment in an
+`IRoleManager` identity-mapping rule instead. The same rule then applies
+whether the user authenticated with a username, X.509 certificate, JWT, or
+another token type.
 
 ## Client side
 

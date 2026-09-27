@@ -2,6 +2,18 @@
 
 > **When to read this:** Read this for `IEncodeableFactoryBuilder` / `IType` / `EncodeableFactory.GlobalFactory` migration, JSON / XML / binary encoder/decoder changes (removed Default JSON encoding infrastructure, `IJsonEncodeable` removal), and complex-types moves to `Opc.Ua.Client`.
 
+## Contents
+
+- [Encodeable Factory and Complex Type System](#encodeable-factory-and-complex-type-system)
+  - [IType hierarchy](#itype-hierarchy)
+  - [IEncodeableTypeLookup changes](#iencodeabletypelookup-changes)
+  - [IEncodeableFactoryBuilder changes](#iencodeablefactorybuilder-changes)
+  - [EncodeableFactory.GlobalFactory removed](#encodeablefactoryglobalfactory-removed)
+  - [ComplexTypes moved to Opc.Ua.Core.Schema](#complextypes-moved-to-opcuacoreschema)
+  - [OptionSet DataType support](#optionset-datatype-support)
+- [Encoders and Decoders](#encoders-and-decoders)
+- [Complex Types](#complex-types)
+
 ## Encodeable Factory and Complex Type System
 
 ### IType hierarchy
@@ -94,4 +106,3 @@ Impact on existing code:
 - Related: [types.md](types.md), [source-generation.md](source-generation.md).
 - [2.0 migration index](README.md) — analyzer quick-start + symptom → sub-doc table.
 - [Migration Guide](../../MigrationGuide.md) — landing page across versions.
-

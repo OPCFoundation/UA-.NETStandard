@@ -14,6 +14,42 @@ control.
 | [KeyCredentialService](KeyCredentialService.md) | Credential issuance for non-UA services |
 | [AuthorizationService](AuthorizationService.md) | OAuth2-style access token issuance |
 
+## Contents
+
+- [Packages](#packages)
+- [Client API](#1-client-api)
+  - [`GlobalDiscoveryServerClient`](#globaldiscoveryserverclient)
+  - [`ServerPushConfigurationClient`](#serverpushconfigurationclient)
+  - [OPC 10000-21 OnboardingClient](#opc-10000-21-onboardingclient)
+- [Server-side: Building a GDS](#2-server-side-building-a-gds)
+  - [Minimal GDS Server](#minimal-gds-server)
+  - [Using GdsNodeManagerFactory](#using-gdsnodemanagerfactory)
+  - [Extension Points](#extension-points)
+- [Implementing Providers](#3-implementing-providers)
+  - [`IApplicationsDatabase`](#iapplicationsdatabase)
+  - [`ICertificateGroup`](#icertificategroup)
+  - [`IGdsUserDatabase`](#igdsuserdatabase)
+  - [`IConfigurationDataStore`](#iconfigurationdatastore)
+- [Roles and Authorization](#4-roles-and-authorization)
+  - [GDS Roles](#gds-roles-opc-10000-12-72)
+  - [ApplicationSelfAdmin Privilege](#applicationselfadmin-privilege)
+  - [ApplicationAdmin Privilege](#applicationadmin-privilege)
+  - [Fail-closed channel validation](#security-fail-closed-channel-validation)
+- [End-to-End Example](#5-end-to-end-example)
+- [Conformance Matrix](#conformance-matrix)
+- [GDS Directory](#gds-directory-65)
+- [Certificate Management — Pull Model](#certificate-management--pull-model-79)
+- [Roles and Privileges](#roles-and-privileges-72)
+- [Push Management — ServerConfiguration](#push-management--serverconfiguration-710)
+- [TrustList](#trustlist-78)
+- [Audit Events](#audit-events)
+- [KeyCredentialService](#keycredentialservice-8)
+- [AuthorizationService](#authorizationservice-9)
+  - [Refresh tokens](#refresh-tokens)
+- [Remaining optional / unsupported Part 12 items](#remaining-optional--unsupported-part-12-items)
+- [LDS / LDS-ME](#lds--lds-me-4-5)
+- [Extension Points](#extension-points-phase-2-abstractions)
+
 ## Packages
 
 | NuGet Package | Contents |
@@ -598,7 +634,13 @@ The GDS-side proxy that exposes *other* applications' configurations under a `Ma
 
 ### Certificate and TrustList alarms (§7.8.3)
 
-Each `CertificateGroup` exposes the two optional standard alarm instances with **full active/inactive transitions and events** (previously property-only). `ConfigurationNodeManager` creates and wires them in `CreateAddressSpace` and `StandardServer.OnServerStarted` starts periodic monitoring (60&nbsp;s) once the subscription infrastructure is ready; all thresholds and timers flow through the injected `TimeProvider`. See [CertificateManager.md → Certificate-Expiration and TrustList-Staleness Alarms](CertificateManager.md#certificate-expiration-and-trustlist-staleness-alarms-opc-ua-part-12-783).
+Each `CertificateGroup` exposes the two optional standard alarm instances
+with **full active/inactive transitions and events** (previously
+property-only). `ConfigurationNodeManager` creates and wires them in
+`CreateAddressSpace`. `StandardServer.OnServerStarted` starts periodic
+monitoring every 60 s once the subscription infrastructure is ready. The
+injected `TimeProvider` supplies all thresholds and timers. See
+[CertificateManager.md → Certificate-Expiration and TrustList-Staleness Alarms](CertificateManager.md#certificate-expiration-and-trustlist-staleness-alarms-opc-ua-part-12-783).
 
 | Alarm | Status | Source | Tests |
 |-------|--------|--------|-------|

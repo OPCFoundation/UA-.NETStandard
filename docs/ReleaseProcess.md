@@ -11,6 +11,26 @@ without any other context.
 > release branch, backporting a fix, running `release.yml`, or recovering
 > from a failed release.
 
+## Contents
+
+- [Terms](#terms)
+- [Common preflight](#common-preflight)
+- [Which procedure do I need?](#which-procedure-do-i-need)
+- [Branch and channel model](#branch-and-channel-model)
+- [First stable release](#first-stable-release)
+- [Patch release](#patch-release)
+- [Minor release](#minor-release)
+- [Routine backport](#routine-backport)
+- [Emergency hotfix](#emergency-hotfix)
+- [Candidate and dry run](#candidate-and-dry-run)
+- [Approved promotion](#approved-promotion)
+- [Failed or partial release](#failed-or-partial-release)
+- [Post-release verification](#post-release-verification)
+- [Release handoff template](#release-handoff-template)
+- [Release handoff](#release-handoff-version)
+- [Historical `release/2.0.0` branch](#historical-release200-branch)
+- [Maintaining this document](#maintaining-this-document)
+
 ## Terms
 
 - **Root version** - the package version computed from the committed

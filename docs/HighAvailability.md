@@ -1,10 +1,47 @@
 # High Availability and OPC UA Redundancy
 
-This guide maps the OPC UA .NET Standard high-availability APIs to OPC 10000-4 §6.6 Redundancy. It documents the implemented server, client, subscription, session, [Kubernetes](Kubernetes.md), and active/active extension seams; the worked examples are `samples/Redundancy/RedundantServer` and `samples/Redundancy/RedundantClient`.
+This guide explains how the OPC UA .NET Standard high-availability APIs
+implement OPC 10000-4 §6.6 Redundancy. It covers server, client,
+subscription, and session redundancy, plus [Kubernetes](Kubernetes.md)
+and active/active extensions. Worked examples are in
+`samples/Redundancy/RedundantServer` and
+`samples/Redundancy/RedundantClient`.
 
-Redundancy and high availability are opt-in and require adding the extra `OPCFoundation.NetStandard.Opc.Ua.Redundancy.*` NuGet packages (for example `OPCFoundation.NetStandard.Opc.Ua.Redundancy.Server` or `.Client`) to your application. A server or client built only with the standard `OPCFoundation.NetStandard.Opc.Ua.Client` and `OPCFoundation.NetStandard.Opc.Ua.Server` libraries does not support OPC UA redundancy.
+Redundancy and high availability are opt-in. Add the relevant
+`OPCFoundation.NetStandard.Opc.Ua.Redundancy.*` NuGet package to your
+application, such as `OPCFoundation.NetStandard.Opc.Ua.Redundancy.Server`
+or `.Client`. The standard `OPCFoundation.NetStandard.Opc.Ua.Client` and
+`OPCFoundation.NetStandard.Opc.Ua.Server` libraries alone do not provide
+OPC UA redundancy.
 
 For distributed PubSub active/standby publishers and subscribers, see the PubSub counterpart: [PubSub High Availability](PubSubHighAvailability.md).
+
+## Contents
+
+- [Redundancy overview](#redundancy-overview-as-per-part-4-661)
+- [Server redundancy](#server-redundancy-as-per-part-4-662)
+  - [Server.ServerRedundancy model](#serverserverredundancy-model)
+  - [Add* and Use* API convention](#add-and-use-api-convention)
+- [ServiceLevel and load balancing](#servicelevel-and-load-balancing-as-per-part-4-66242-and-66243)
+- [Non-transparent failover modes and client actions](#non-transparent-failover-modes-and-client-actions-as-per-part-4-66245)
+- [Manual failover and Maintenance](#manual-failover-and-maintenance-as-per-part-4-665)
+- [HotAndMirrored and Transparent state mirroring](#hotandmirrored-and-transparent-state-mirroring)
+  - [Active/passive address-space consistency](#activepassive-address-space-consistency)
+  - [Strong active/passive historian](#strong-activepassive-historian)
+- [Client redundancy](#client-redundancy-as-per-part-4-663)
+- [Network redundancy](#network-redundancy-as-per-part-4-664)
+- [Distributed extensions](#beyond-66-distributed-extensions)
+  - [Dynamic peer discovery](#dynamic-peer-discovery-beyond-66-opt-in)
+  - [Distributed value cache](#sharing-values-across-replicas-distributed-value-cache-beyond-66-opt-in)
+  - [Shared certificate stores](#shared-certificate-stores-distributed-trust-lists-beyond-66-opt-in)
+  - [Distributed PushManagement transactions](#distributed-pushmanagement-transactions-beyond-66-opt-in)
+  - [GetEndpoints load direction](#getendpoints-load-direction-beyond-66-opt-in)
+  - [Client-side high availability](#client-side-high-availability-replica-sets)
+- [Kubernetes deployment](#kubernetes-deployment)
+- [Samples](#samples)
+- [Security considerations](#security-considerations)
+  - [Record context and plaintext ownership](#record-context-and-plaintext-ownership)
+  - [Shared application identity](#shared-application-identity)
 
 ## Redundancy overview (as per Part 4 §6.6.1)
 

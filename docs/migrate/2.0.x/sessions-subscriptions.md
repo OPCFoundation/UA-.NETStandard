@@ -6,6 +6,27 @@
 > subscriptions, removed `ReverseConnectClientCollection`, and transport
 > abstraction changes.
 
+## Contents
+
+- [GDS Client API modernization](#gds-client-api-modernization)
+  - [`Task` → `ValueTask` on GDS client interfaces](#task--valuetask-on-gds-client-interfaces)
+  - [Removal of obsolete GDS APIs](#removal-of-obsolete-gds-apis)
+- [ManagedSession and Automatic Reconnection](#managedsession-and-automatic-reconnection)
+  - [Configuring Reconnection Policy](#configuring-reconnection-policy)
+  - [Server Redundancy](#server-redundancy)
+  - [Service Call Behavior During Reconnect](#service-call-behavior-during-reconnect)
+  - [Fluent Builder, V2 Subscriptions, and Dependency Injection](#fluent-builder-v2-subscriptions-and-dependency-injection)
+- [Server Session Activation and Subscription Transfer](#server-session-activation-and-subscription-transfer)
+- [Subscriptions and Transports](#subscriptions-and-transports)
+  - [Durable subscriptions and reshaped Subscription tree](#durable-subscriptions-and-reshaped-subscription-tree)
+  - [Request completion is owned by `OperationContext`](#request-completion-is-owned-by-operationcontext)
+  - [`Opc.Ua.Server.ISession`: `IsClosing` and `InvalidateContinuationPoints`](#opcuaserversession-isclosing-and-invalidatecontinuationpoints)
+  - [`Opc.Ua.Server.ISubscription`: the publish pipeline is server-internal](#opcuaserversubscription-the-publish-pipeline-is-server-internal)
+  - [PubSub](#pubsub)
+  - [Reverse connect](#reverse-connect)
+  - [`IMessageSocket` abstraction removed](#imessagesocket-abstraction-removed)
+  - [Transport binding registry — `TransportBindings` static API removed](#transport-binding-registry--transportbindings-static-api-removed)
+
 ## GDS Client API modernization
 
 The `Opc.Ua.Gds.Client` package has undergone a significant cleanup. Two breaking changes affect almost every consumer of the GDS / LDS / Server-Push client APIs.
@@ -202,14 +223,14 @@ ManagedSession session = await new ManagedSessionBuilder(configuration, telemetr
 The V2 options-based subscription manager (`ISubscriptionManager`) is exposed on `ISession` through `bool TryGetSubscriptionManager(out ISubscriptionManager? manager)` — it returns `true` and the manager for V2-engine sessions (the default for `ManagedSession`) and `false` for classic-engine sessions. The classic `Subscriptions` property remains available alongside it. Use `UseSubscriptionEngine(ClassicSubscriptionEngineFactory.Instance)` on the builder if you need the legacy classic engine instead.
 
 > **Source-breaking (2.0 preview):** the earlier throwing `ManagedSession.SubscriptionManager` property has been **removed** in favor of `ISession.TryGetSubscriptionManager`. Replace `var manager = session.SubscriptionManager;` (which threw `InvalidOperationException` on classic-engine sessions) with:
->
+
 > ```csharp
 > if (session.TryGetSubscriptionManager(out ISubscriptionManager? manager))
 > {
 >     // use manager (V2 engine)
 > }
 > ```
->
+
 > The `session.AddSubscription(...)` fluent extensions are unchanged.
 
 ```csharp

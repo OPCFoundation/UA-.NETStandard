@@ -2,6 +2,24 @@
 
 > **When to read this:** Read this when hit by `CS0029` / `CS1503` / `CS0266` on `NodeId`, `Variant`, `DataValue`, `ExtensionObject`, `QualifiedName`, `LocalizedText`, `ArrayOf<T>` / `MatrixOf<T>`, `ByteString`, `StatusCode`, `XmlElement`, `EnumValue`, or by `[Obsolete]` warnings on built-in type APIs - covers every value-type and `Variant`-for-`object` migration. Maps to analyzer rules `UA0002`–`UA0008`, `UA0014`, and `UA0019`.
 
+## Contents
+
+- [Several built in types are now immutable value types](#several-built-in-types-are-now-immutable-value-types)
+- [ByteString](#bytestring)
+- [ArrayOf and MatrixOf](#arrayof-and-matrixof)
+- [DateTimeUtc](#datetimeutc)
+- [QualifiedName and LocalizedText](#qualifiedname-and-localizedtext)
+- [StatusCode](#statuscode)
+- [NodeId/ExpandedNodeId](#nodeidexpandednodeid)
+- [Variant, DataValue and ExtensionObject](#variant-datavalue-and-extensionobject)
+  - [DataValue](#datavalue)
+- [XmlElement](#xmlelement)
+- [EnumValue to represent the enumeration built in type](#enumvalue-to-represent-the-enumeration-built-in-type)
+- [ExtensionObject array helpers changed](#extensionobject-array-helpers-changed)
+- [Other Data Types](#other-data-types)
+- [Obsoleted APIs and replacements](#obsoleted-apis-and-replacements)
+- [APIs permanently removed](#apis-permanently-removed)
+
 ### Several built in types are now immutable value types
 
 The `Variant` and `TypeInfo`, `NodeId`, `ExpandedNodeId`, `ExtensionObject`, `LocalizedText` and `QualifiedName` are now `readonly struct`s. This is a large breaking change and affects existing usage:

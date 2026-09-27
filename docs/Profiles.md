@@ -9,12 +9,21 @@ The OPC UA .NET Standard Stack is a reference implementation that targets
 compliance through an OPC Foundation Certification Test Lab and is
 continuously tested for compliance using the latest Compliance Test Tool (CTT).
 
-The stack ships full server- and client-side support for: Part 9 (Alarms &
-Conditions), Part 11 (Historical Access) + Part 13 (Aggregates), Part 16
-(State Machines), Part 17 (Alias Names), Part 18 (Role Management), Part 20
-(File Transfer), Part 100 (Device Integration / Software Update), OPC 10100-1
-(WoT Connectivity), OPC 40001-1 (Industrial Automation), OPC 40010-1
-(Robotics), and the Local Discovery Server. See
+The stack ships server- and client-side support for:
+
+- Part 9 (Alarms & Conditions)
+- Part 11 (Historical Access) and Part 13 (Aggregates)
+- Part 16 (State Machines)
+- Part 17 (Alias Names)
+- Part 18 (Role Management)
+- Part 20 (File Transfer)
+- Part 100 (Device Integration / Software Update)
+- OPC 10100-1 (WoT Connectivity)
+- OPC 40001-1 (Industrial Automation)
+- OPC 40010-1 (Robotics)
+- The Local Discovery Server
+
+See
 [What's New in 2.0](WhatsNewIn2.0.md) for the broader change narrative.
 
 The canonical list of all OPC UA profile and facet URIs is maintained by the
@@ -23,6 +32,41 @@ hyperlinks a URI, that URI is the same string the reference server
 advertises in `ServerProfileArray`; URIs not yet present in a shipping
 config are referred to *by name* and the reader should consult the OPC
 Foundation registry for the canonical URI form.
+
+## Contents
+
+- [Overview](#overview)
+- [Server Profiles](#server-profiles)
+  - [Core Server Profiles](#core-server-profiles)
+  - [Functional Facets](#functional-facets)
+  - [Local Discovery Server profile](#local-discovery-server-lds-profile)
+  - [Additional facets](#additional-facets-supported-by-the-implementation-beyond-the-default-advertised-set)
+- [Client Profiles](#client-profiles)
+- [Transport Profiles](#transport-profiles)
+  - [Client and server transports](#client-and-server-transports)
+  - [PubSub transports](#pubsub-transports)
+- [Security Profiles](#security-profiles)
+  - [RSA-based security policies](#rsa-based-security-policies)
+  - [ECC-based security policies](#ecc-based-security-policies)
+    - [Traditional ECC curves](#traditional-ecc-curves)
+    - [Modern ECC curves](#modern-ecc-curves-v20)
+    - [AES-GCM and ChaCha20-Poly1305 variants](#aes-gcm-and-chacha20-poly1305-variants-v20)
+    - [RSA Diffie-Hellman](#rsa-diffie-hellman-v20)
+  - [Deprecated security policies](#deprecated-security-policies)
+  - [Security policy None](#security-policy-none)
+- [User Authentication](#user-authentication)
+- [Certificate Types](#certificate-types)
+  - [RSA certificates](#rsa-certificates)
+  - [ECC certificates](#ecc-certificates)
+- [Global Discovery Server](#global-discovery-server-gds)
+- [Message Encoding](#message-encoding)
+- [Specification Compliance](#specification-compliance)
+- [Configuration](#configuration)
+  - [Server profile configuration](#server-profile-configuration)
+  - [Security policy configuration](#security-policy-configuration)
+- [Related Documentation](#related-documentation)
+  - [Core and companion spec related documentation](#core-and-companion-spec-related-documentation)
+- [References](#references)
 
 ## Server Profiles
 

@@ -2,18 +2,73 @@
 
 ## Overview
 
-The `Opc.Ua.Client` and `Opc.Ua.Client.ComplexTypes` libraries provide support for handling custom data types (complex types) in OPC UA client applications. Complex types include:
+The `Opc.Ua.Client` and `Opc.Ua.Client.ComplexTypes` libraries let client
+applications handle custom data types (complex types) in Open Platform
+Communications Unified Architecture (OPC UA). Complex types include:
 
 - **Custom Structures**: User-defined structured data types with multiple fields
 - **Custom Enumerations**: User-defined enumeration types with custom values
 
-The library allows OPC UA clients to automatically discover, load, and work with server-specific custom types, enabling seamless reading and writing of structured data without manual type definitions.
+The libraries let clients discover and load server-specific types. Clients
+can then read and write structured values without manually defining each type.
+
+## Contents
+
+- [Overview](#overview)
+- [Key Concepts](#key-concepts)
+  - [What are Complex Types?](#what-are-complex-types)
+  - [Type Discovery and Loading](#type-discovery-and-loading)
+  - [Supported Type Systems](#supported-type-systems)
+- [Getting Started](#getting-started)
+  - [Type builders](#type-builders)
+  - [Basic Usage](#basic-usage)
+    - [Loading All Custom Types from a Server](#1-loading-all-custom-types-from-a-server)
+    - [Reading Values with Complex Types](#2-reading-values-with-complex-types)
+    - [Writing Values with Complex Types](#3-writing-values-with-complex-types)
+- [Approaches for Working with Custom Types](#approaches-for-working-with-custom-types)
+  - [Hand-Written `IEncodeable` + EncodeableFactory Registration](#approach-1-hand-written-iencodeable--encodeablefactory-registration)
+  - [Source-Generated `IEncodeable`](#approach-2-source-generated-iencodeable-recommended-for-new-code)
+  - [Runtime `IStructure`](#approach-3-runtime-istructure-no-pre-defined-types-required)
+- [Advanced Usage](#advanced-usage)
+  - [Loading Specific Types](#loading-specific-types)
+  - [Working with Complex Type Properties](#working-with-complex-type-properties)
+  - [Handling Enumeration Types](#handling-enumeration-types)
+  - [Type Information and Introspection](#type-information-and-introspection)
+  - [Using Custom Type Factories](#using-custom-type-factories)
+  - [Working with Telemetry and Logging](#working-with-telemetry-and-logging)
+- [Common Patterns](#common-patterns)
+  - [One-Time Type Loading at Session Start](#pattern-1-one-time-type-loading-at-session-start)
+  - [Lazy Loading on Demand](#pattern-2-lazy-loading-on-demand)
+  - [Reading Multiple Complex Values](#pattern-3-reading-multiple-complex-values)
+- [Error Handling](#error-handling)
+  - [Handling Type Loading Failures](#handling-type-loading-failures)
+  - [Handling Missing Type Definitions](#handling-missing-type-definitions)
+- [Performance Considerations](#performance-considerations)
+  - [Type System Caching](#type-system-caching)
+  - [Minimizing Load Time](#minimizing-load-time)
+  - [Batch Operations](#batch-operations)
+- [Troubleshooting](#troubleshooting)
+  - [Types Not Loading](#types-not-loading)
+  - [Values Still Encoded as ExtensionObject](#values-still-encoded-as-extensionobject)
+  - [Performance Issues](#performance-issues)
+- [Server-Side Complex Types](#server-side-complex-types)
+  - [How compiled types reach the factory](#how-compiled-types-reach-the-factory)
+  - [Configuring via dependency injection](#configuring-via-dependency-injection-recommended)
+  - [Direct usage without dependency injection](#direct-usage-without-dependency-injection)
+- [API Reference](#api-reference)
+  - [`ComplexTypeSystem`](#complextypesystem-class)
+  - [`IStructure`](#istructure-interface)
+  - [`IStructureField`](#istructurefield-interface)
+- [Known Limitations](#known-limitations)
+- [Additional Resources](#additional-resources)
+- [See Also](#see-also)
 
 ## Key Concepts
 
 ### What are Complex Types?
 
-In OPC UA, complex types are custom data types defined by the server that extend beyond the built-in OPC UA data types. These types are commonly used to represent structured data such as:
+In OPC UA, complex types are custom data types that a server defines beyond
+the built-in data types. They commonly represent structured data such as:
 
 - Configuration structures with multiple parameters
 - Device status information with multiple fields
@@ -21,11 +76,12 @@ In OPC UA, complex types are custom data types defined by the server that extend
 
 ### Type Discovery and Loading
 
-The `ComplexTypeSystem` class manages the discovery and loading of custom types from an OPC UA server. It:
+The `ComplexTypeSystem` class discovers and loads custom types from an OPC UA
+server. It:
 
 1. Browses the server's type system to discover custom types
 2. Loads type definitions (using DataTypeDefinition attribute or binary/XML dictionaries)
-3. Registers types complying to the type definitions in the session's type factory for encoding/decoding
+3. Registers types that match those definitions in the session's type factory for encoding and decoding.
 
 ### Supported Type Systems
 
@@ -747,15 +803,37 @@ await complexTypeSystem.LoadAsync();
 
 ## Server-Side Complex Types
 
-Servers can build the same dynamic stand-in encodeables for the custom DataTypes in their address space. This is useful when a server loads a NodeSet2 at **runtime** whose DataTypes were never compiled into a .NET type: without a matching encodeable the server cannot encode or decode instances of those DataTypes. Server-side complex types prime the server's `IEncodeableFactory` with stand-ins built from the `DataTypeDefinition` attribute of every custom DataType, reusing exactly the same NativeAOT friendly path as the client (`ComplexTypeSystem`, in `Opc.Ua.Core.Schema`). This runs by default in `StandardServer` (controlled by `LoadComplexTypes`).
+Servers can build the same dynamic stand-in encodeables for custom DataTypes
+in their address space. This is useful when a server loads a NodeSet2 at
+**runtime** and its DataTypes have no compiled .NET types. Without a matching
+encodeable, the server cannot encode or decode instances of those DataTypes.
 
-DataTypes that are already backed by a compiled, source-generated type are **already registered in the server's `IEncodeableFactory` and used as-is** for encoding and decoding; the server only builds stand-ins for the DataTypes that are still missing from the factory (i.e. those loaded from a NodeSet at runtime).
+Server-side complex types prime the server's `IEncodeableFactory` with
+stand-ins built from each custom DataType's `DataTypeDefinition` attribute.
+This reuses the client's NativeAOT-friendly `ComplexTypeSystem` path in
+`Opc.Ua.Core.Schema`. `StandardServer` runs this by default; control it with
+`LoadComplexTypes`.
+
+The server uses compiled, source-generated DataTypes as-is because the
+generator already registers them in `IEncodeableFactory`. It builds stand-ins
+only for DataTypes missing from the factory, such as types loaded from a
+NodeSet at runtime.
 
 If you are using [Runtime NodeSets](RuntimeNodeSets.md), the server-side complex-type pass runs automatically after startup imports and before each live lifecycle generation is published. No extra configuration is needed. See [RuntimeNodeSets.md](RuntimeNodeSets.md) for startup and live add/reload/remove semantics, compatible DataType rules, and the stream ownership contract.
 
 ### How compiled types reach the factory
 
-Compiled DataTypes are registered explicitly, not by reflection: the OPC UA source generator emits one `Add<Namespace>(this IEncodeableFactoryBuilder)` extension per namespace, and a node manager calls it while it builds its address space (for example `Server.Factory.Builder.AddTestData().Commit()`). Node managers finish starting before `OnNodeManagerStartedAsync` runs, so every source-generated type is already present in `server.Factory` when the complex-type pass executes — `ComplexTypeSystem` finds them via `TryGetType` / `TryGetEncodeableType` and skips them, creating stand-ins only for the remaining runtime-loaded DataTypes.
+Compiled DataTypes register explicitly, not through reflection. The OPC UA
+source generator emits an `Add<Namespace>(this IEncodeableFactoryBuilder)`
+extension for each namespace. A node manager calls the extension while it
+builds its address space, for example
+`Server.Factory.Builder.AddTestData().Commit()`.
+
+Node managers finish starting before `OnNodeManagerStartedAsync` runs.
+Therefore, all source-generated types are already in `server.Factory` when
+the complex-type pass executes. `ComplexTypeSystem` finds these types with
+`TryGetType` or `TryGetEncodeableType` and skips them. It creates stand-ins
+only for runtime-loaded DataTypes that remain.
 
 ### Configuring via dependency injection (recommended)
 
@@ -771,7 +849,17 @@ builder.Services
     .AddComplexTypeSystem();  // build stand-ins for runtime-loaded DataTypes
 ```
 
-The pass runs once, after the address space is fully built and before the server starts accepting connections, so clients never observe a window where custom values cannot be decoded. The primed `IEncodeableFactory` is also exposed as the schema `IDataTypeDefinitionResolver` (via `EncodeableFactoryDefinitionSource`), so schemas can be produced directly from the factory — no separate registry population or address-space walk is required. If a `DataTypeDefinitionRegistry` is registered (for example by `AddSchemaGeneration()` for schema-only types that have no encodeable), it is composed as a fallback.
+The pass runs once after the server builds its address space and before it
+accepts connections. Clients therefore do not encounter custom values that
+they cannot decode.
+
+The server also exposes the primed `IEncodeableFactory` as a schema
+`IDataTypeDefinitionResolver` through `EncodeableFactoryDefinitionSource`.
+This lets the server produce schemas directly from the factory without
+populating a separate registry or walking the address space. If a
+`DataTypeDefinitionRegistry` is registered, for example through
+`AddSchemaGeneration()` for schema-only types without an encodeable, the
+server composes it as a fallback.
 
 Options can be configured:
 

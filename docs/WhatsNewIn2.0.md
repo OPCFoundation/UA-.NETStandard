@@ -5,6 +5,29 @@ This document is a developer-facing tour of the changes between **1.5.378** and
 broad-stroke change with a paragraph and links to the deeper feature
 documentation in this folder.
 
+## Contents
+
+- [At a glance](#at-a-glance)
+- [Breaking changes at a glance](#breaking-changes-at-a-glance)
+- [Cross-cutting themes](#cross-cutting-themes)
+  - [Type system and immutability](#type-system-and-immutability)
+  - [Async, cancellation, and `TimeProvider`](#async-cancellation-and-timeprovider)
+  - [Dependency injection and hosting](#dependency-injection-and-hosting)
+  - [Native AOT](#native-aot)
+  - [Source generators and modeling](#source-generators-and-modeling)
+  - [OPC UA companion-spec coverage](#opc-ua-companion-spec-coverage)
+  - [Performance, memory, and pooling](#performance-memory-and-pooling)
+  - [Security and certificates](#security-and-certificates)
+- [By layer](#by-layer)
+  - [Server](#server)
+  - [Client](#client)
+  - [High availability and redundancy](#high-availability-and-redundancy)
+  - [Global Discovery Server](#global-discovery-server)
+  - [Part 14 PubSub modernization](#part-14-pubsub-modernization)
+  - [Tooling](#tooling)
+  - [Build, CI, and observability](#build-ci-and-observability)
+- [Further reading](#further-reading)
+
 If you are migrating an existing application, the companion
 [Migration Guide](MigrationGuide.md) is the prescriptive, API-level reference.
 
@@ -46,14 +69,17 @@ If you are migrating an existing application, the companion
 ## Breaking changes at a glance
 
 2.0 is the first major break of the public API since the project moved to
-.NET Standard. The biggest sources of breakage are the readonly-struct
-built-ins (`NodeId`, `ExtensionObject`, `Variant`, `DataValue`,
-`QualifiedName`, `LocalizedText`, `ArrayOf<T>`), the `Variant`-for-`object`
-pivot in code and API, the new `IEncodeableFactoryBuilder` and IType
-hierarchy, the removal of Newtonsoft.Json from `Opc.Ua.Core`, the
-`ManagedSession` family next to the classic `Session`, and the move to
-`AsyncCustomNodeManager` for server extensibility. The
-[Migration Guide](MigrationGuide.md) walks every break in detail, with the
+.NET Standard. The biggest sources of breakage are:
+
+- The readonly-struct built-ins (`NodeId`, `ExtensionObject`, `Variant`,
+  `DataValue`, `QualifiedName`, `LocalizedText`, and `ArrayOf<T>`).
+- The `Variant`-for-`object` pivot in code and API.
+- The new `IEncodeableFactoryBuilder` and `IType` hierarchy.
+- The removal of Newtonsoft.Json from `Opc.Ua.Core`.
+- The `ManagedSession` family alongside the classic `Session`.
+- The move to `AsyncCustomNodeManager` for server extensibility.
+
+The [Migration Guide](MigrationGuide.md) walks every break in detail, with the
 companion [2.0 Migration Analyzer](#tooling) handling most of the mechanical
 edits automatically.
 

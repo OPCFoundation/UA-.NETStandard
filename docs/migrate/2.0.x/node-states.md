@@ -2,6 +2,17 @@
 
 > **When to read this:** Read this when migrating custom NodeManagers, `NodeState` clone / read / write helpers (`Clone` -> `CreateCopy`, removed `BaseVariableState` helpers), the new `INodeManager3` role-permission hooks, `OnAfterCreate(CancellationToken)`, predefined-node processing, generics on `BaseVariableState` / `BaseVariableTypeState`, code that took `lock (node)` on a `NodeState` or used `NodeBrowser.DataLock`, or `INodeCache.InvalidateNode`.
 
+## Contents
+
+- [Node States](#node-states)
+  - [Generics and Typed BaseVariableState and BaseVariableTypeState](#generics-and-typed-basevariablestate-and-basevariabletypestate)
+  - [Predefined node processing](#predefined-node-processing)
+  - [NodeState Cloning and Lifecycle](#nodestate-cloning-and-lifecycle)
+  - [INodeManager3 - new role-permission and method-resolution hooks](#inodemanager3--new-role-permission-and-method-resolution-hooks)
+  - [NodeState guards itself; NodeBrowser is single-consumer (UA0027)](#nodestate-guards-itself-nodebrowser-is-single-consumer-ua0027)
+  - [NodeBrowser gains an async iteration seam](#nodebrowser-gains-an-async-iteration-seam)
+- [`INodeCache` changes](#inodecache-changes)
+
 ## Node States
 
 ### Generics and Typed BaseVariableState and BaseVariableTypeState
@@ -10,7 +21,7 @@ With the changes to Variant, the generic node state classes reflecting the inner
 
 1. T is a built in type -> use `VariantBuilder`
 2. T is a instance of `IEncodeable` (a complex structure) -> Use `StructureBuilder<T>` where T is the name of the structure.
-3. T is an instance of Enum (an enumeration) -> Use `EnumBuilder<T>` where T is the name fo the enumeration type.
+3. T is an instance of Enum (an enumeration) -> Use `EnumBuilder<T>` where T is the name of the enumeration type.
 
 E.g. to create an instance of a `PropertyState<T>` where T is `ArrayOf<ExtensionObject>` use
 
@@ -391,7 +402,7 @@ Version 2.0 collapses the two parallel node-cache contracts into a single public
     | `FetchSuperTypesAsync(ExpandedNodeId, ct)` | extension method that loops `FindSuperTypeAsync`. |
     | `GetNodeWithBrowsePathAsync(NodeId, ArrayOf<QualifiedName>, ct)` | extension method on `NodeCacheExtensions`. |
     | `GetBuiltInTypeAsync(NodeId, ct)` | extension method on `NodeCacheExtensions`. |
-    | `GetDisplayTextAsync(INode | ExpandedNodeId | ReferenceDescription, ct)` | three extension methods on `NodeCacheExtensions`. |
+    | `GetDisplayTextAsync(INode \| ExpandedNodeId \| ReferenceDescription, ct)` | three extension methods on `NodeCacheExtensions`. |
 
   External implementations of `INodeCache` no longer need to implement these members. Call sites that already used `using Opc.Ua;` keep compiling unchanged because the extensions live in the same namespace.
 

@@ -7,6 +7,36 @@ proxies and the existing `FiniteStateMachineState` server base.
 For the formal model, see
 [OPC UA Part 16 — State Machines](https://reference.opcfoundation.org/specs/OPC-10000-16/full).
 
+## Contents
+
+- [Two-mode unified builder](#two-mode-unified-builder)
+- [Quick reference](#quick-reference)
+- [Client side](#client-side)
+  - [Read the current state](#read-the-current-state)
+  - [Stream transitions](#stream-transitions)
+  - [Wait for a target state](#wait-for-a-target-state)
+  - [Enumerate states and transitions](#enumerate-states--transitions)
+  - [Alarm shelving alignment](#alarm-shelving-alignment)
+  - [Device Integration software-update alignment](#device-integration-di-software-update-alignment)
+  - [Vendor extensibility](#vendor-extensibility)
+- [Server side — definition mode](#server-side--definition-mode)
+- [Server side — lifecycle mode](#server-side--lifecycle-mode)
+  - [Stack-shipped state machine](#stack-shipped-state-machine)
+  - [Inside a fluent node-manager build pipeline](#inside-a-fluent-node-manager-build-pipeline)
+  - [Lifecycle ordering](#lifecycle-ordering)
+- [How the source-generator integrates](#how-the-source-generator-integrates)
+- [Guard clauses](#guard-clauses-fluent-sugar)
+- [Sub-state machines](#sub-state-machines-hierarchical-state)
+  - [Server-side `WithSubStateMachine`](#server-side-withsubstatemachine)
+  - [Materialized state and transition nodes](#server-side-materialized-state-and-transition-nodes)
+  - [Executable causes](#executable-causes)
+  - [Client-side sub-SM observation](#client-side-sub-sm-observation)
+  - [Typed sub-SM accessors](#client-side-typed-sub-sm-accessors-generated)
+  - [`HasSubStateMachine` on the state node](#fluent-builder-behavior--hassubstatemachine-is-on-the-state-node)
+- [Extensibility recipes](#extensibility-recipes)
+- [Tests](#tests)
+- [See also](#see-also)
+
 ## Two-mode unified builder
 
 The server side ships **one** fluent builder — `StateMachineBuilder` —

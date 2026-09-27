@@ -5,6 +5,13 @@ that demonstrate the stack's client, server, PubSub, companion-model, and
 developer-tooling APIs. Each sample has its own `README.md` with build and run
 instructions.
 
+## Contents
+
+- [Reference applications](#reference-applications)
+- [PubSub samples](#pubsub-samples)
+- [Minimal and companion-model samples](#minimal-and-companion-model-samples)
+- [OpenUSD site composition](#openusd-site-composition)
+
 ## Reference applications
 
 - [Console Reference Server](../samples/Reference/ConsoleReferenceServer/README.md) —

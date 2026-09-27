@@ -2,6 +2,17 @@
 
 This document describes how the reference server scales to large numbers of concurrent client sessions on a single node, what bounds that scale, the built-in controls for degrading gracefully under load, and how to configure the server and scale out. For measured numbers see [Performance Benchmarks — Server session scalability](Benchmarks.md#server-session-scalability).
 
+## Contents
+
+- [How a session is established](#how-a-session-is-established)
+- [What bounds single-node scale](#what-bounds-single-node-scale)
+- [Admission control and rate limiting](#admission-control-and-rate-limiting)
+- [Held Publishes and the request-thread budget](#held-publishes-and-the-request-thread-budget)
+- [Session diagnostics cost](#session-diagnostics-cost)
+- [Configuration](#configuration)
+- [Scaling out](#scaling-out)
+- [See also](#see-also)
+
 ## How a session is established
 
 A client session is brought up in four stages:
@@ -35,9 +46,22 @@ Session establishment keeps the CPU-bound signature work outside the session-tab
 
 ## Held Publishes and the request-thread budget
 
-A steady-state session keeps one or more long-poll `Publish` requests outstanding, each waiting for the next notification. How many a client keeps outstanding depends on its publish-pipelining strategy — the classic subscription engine deliberately queues several per session to smooth delivery. The operating-system thread is released while each waits. With **`DecoupleHeldPublishRequests`** enabled (the default), each parked `Publish` also releases its request-processing worker at the point it parks — independently, so a session holding several parked Publishes releases a worker for each — so a small worker pool can hold many thousands of outstanding Publishes across sessions and **`MaxRequestThreadCount`** does not have to scale with the session or publish count.
+A steady-state session keeps one or more long-poll `Publish` requests
+outstanding. Each waits for the next notification. The number depends on the
+client's publish-pipelining strategy; the classic subscription engine queues
+several per session to smooth delivery.
 
-Setting `DecoupleHeldPublishRequests` to `false` restores the behavior where each held `Publish` occupies a worker for the duration of its wait; a server serving N sessions then needs `MaxRequestThreadCount` well above N to avoid starving other requests.
+The operating-system thread is released while a `Publish` waits. By default,
+`DecoupleHeldPublishRequests` also releases the request-processing worker when
+the request parks. Each parked request releases its worker, so a session with
+several outstanding Publishes releases several workers. A small pool can
+therefore support many thousands of parked Publishes without scaling
+`MaxRequestThreadCount` to the number of sessions or Publishes.
+
+Set `DecoupleHeldPublishRequests` to `false` to restore the legacy behavior.
+Each held `Publish` then occupies a worker for the duration of its wait. A
+server serving N sessions needs `MaxRequestThreadCount` well above N to avoid
+starving other requests.
 
 ## Session diagnostics cost
 

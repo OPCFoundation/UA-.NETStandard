@@ -7,6 +7,47 @@ companion specification, plus the OpenUSD offscreen capture adapter and the
 Model Context Protocol tool package that lets a language-model agent see through
 a Vision server and act on what it sees.
 
+## Contents
+
+- [Packages](#packages)
+- [Two perception paths behind one contract](#two-perception-paths-behind-one-contract)
+- [Minimal hosted server](#minimal-hosted-server)
+- [Hosting API](#hosting-api)
+  - [`VisionServerOptions`](#visionserveroptions)
+- [Build context](#build-context)
+  - [Without DI](#without-di)
+- [Topology builders](#topology-builders)
+  - [Frames](#frames)
+  - [Sensors](#sensors)
+  - [Pipelines](#pipelines)
+  - [Providers](#providers)
+- [§5.12 conventions](#512-conventions)
+- [§6.4 media gating](#64-media-gating)
+- [Rendering without pixels](#rendering-without-pixels)
+- [Facets supported](#facets-supported)
+- [Using the client libraries](#using-the-client-libraries)
+  - [Registration](#registration)
+  - [Discovery](#discovery)
+  - [Reading a detection](#reading-a-detection)
+  - [Composing a pose](#composing-a-pose)
+  - [Submitting feedback](#submitting-feedback)
+  - [Streaming detections](#streaming-detections)
+- [MCP tools](#mcp-tools)
+- [Sample: bin-picking](#sample-bin-picking)
+  - [Scene lighting](#scene-lighting)
+  - [Feedback validation](#feedback-validation)
+- [Limitations](#limitations)
+- [Visual inspection: a cross-companion cell](#visual-inspection-a-cross-companion-cell)
+  - [The model never decides](#the-model-never-decides)
+  - [Address-space composition](#address-space-composition)
+  - [Recipe and verdict rule](#recipe-and-verdict-rule)
+  - [Why uncertainty is physical](#why-uncertainty-is-physical)
+  - [Inspection loop](#inspection-loop)
+  - [Escalation and ground truth](#escalation-and-ground-truth)
+  - [Modes](#modes)
+  - [What is deliberately not implemented](#what-is-deliberately-not-implemented)
+- [See also](#see-also)
+
 > **Draft.** The namespace `http://opcfoundation.org/UA/Vision/` and every
 > NodeId in it are provisional. The API is stable within this repository but
 > every ObjectType, DataType and BrowseName can still change when the
@@ -752,7 +793,6 @@ characteristic.
 > training label, and a false positive is corrected by asserting that
 > nothing replaces it. Neither statement can be made by submitting an
 > array, because both *are* the empty array.
->
 > The pairing is checked in both directions. An empty `Detections`
 > without `SceneIsEmpty` is refused — the flag is what distinguishes a
 > deliberate observation from a lost payload — and `SceneIsEmpty` with

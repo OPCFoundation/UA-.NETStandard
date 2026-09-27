@@ -1,5 +1,31 @@
 # Native AOT Testing
 
+## Contents
+
+- [Overview](#overview)
+- [Prerequisites](#prerequisites)
+  - [.NET SDK](#net-sdk)
+  - [Platform-Specific Native Toolchain](#platform-specific-native-toolchain)
+- [Project Structure](#project-structure)
+  - [Why TUnit Instead of NUnit?](#why-tunit-instead-of-nunit)
+  - [Test Fixture Pattern](#test-fixture-pattern)
+- [How to Build and Run](#how-to-build-and-run)
+  - [Publish the Native AOT Binary](#1-publish-the-native-aot-binary)
+  - [Run the Tests](#2-run-the-tests)
+  - [Build + Run in a Single Step (Development)](#build--run-in-a-single-step-development)
+- [CI Integration](#ci-integration)
+- [Writing New AOT Tests](#writing-new-aot-tests)
+  - [Choose or Create a Test Class](#1-choose-or-create-a-test-class)
+  - [Use TUnit Attributes and Assertions](#2-use-tunit-attributes-and-assertions)
+  - [Keep Code AOT-Compatible](#3-keep-code-aot-compatible)
+  - [Handle Trimming Warnings](#4-handle-trimming-warnings)
+- [Troubleshooting](#troubleshooting)
+  - [Publish Fails with Linker Errors](#publish-fails-with-linker-errors)
+  - [`TypeInitializationException` or `MissingMetadataException` at Runtime](#typeinitializationexception-or-missingmetadataexception-at-runtime)
+  - [Tests Pass Under `dotnet test` but Fail Under AOT](#tests-pass-under-dotnet-test-but-fail-under-aot)
+  - [Slow Publish Times](#slow-publish-times)
+  - [`IL2104` or Other Trimming Warnings](#il2104-or-other-trimming-warnings)
+
 ## Overview
 
 The OPC UA .NET Standard stack supports
@@ -10,11 +36,14 @@ compiler and the .NET runtime on the target machine, resulting in faster startup
 and a smaller deployment footprint.
 
 The **Opc.Ua.Aot.Tests** project verifies that the core OPC UA libraries work
-correctly when published as a Native AOT binary. The tests exercise encoding,
-sessions, subscriptions, monitored items, discovery, security, events, history,
-diagnostics, batch operations, node cache, complex types, GDS client operations,
-and client sample patterns — all running inside a single ahead-of-time compiled
-executable.
+correctly when published as a Native AOT binary. The tests cover:
+
+- Encoding, sessions, subscriptions, and monitored items.
+- Discovery, security, events, and history.
+- Diagnostics, batch operations, and the node cache.
+- Complex types, GDS client operations, and client sample patterns.
+
+All tests run inside a single ahead-of-time compiled executable.
 
 The crypto provider model is AOT-compatible and covered by
 `CryptoProviderAotTests`; see [CryptoProvider](CryptoProvider.md). The optional
