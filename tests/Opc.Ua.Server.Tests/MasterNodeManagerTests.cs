@@ -35,6 +35,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.TestFramework;
+using Opc.Ua.Server.Tests.NodeManager;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests
@@ -238,11 +239,10 @@ namespace Opc.Ua.Server.Tests
                 //-- Act
                 StandardServer server = await fixture.StartAsync()
                     .ConfigureAwait(false);
-                using var sut = new MasterNodeManager(
+                using MasterNodeManager sut = DeterministicServerMock.CreateIsolatedMasterNodeManager(
                     server.CurrentInstance,
                     fixture.Config,
-                    null,
-                    nodeManager.Object);
+                    [nodeManager.Object]);
                 sut.RegisterNamespaceManager(ns, nodeManager.Object);
 
                 //-- Assert
@@ -284,11 +284,10 @@ namespace Opc.Ua.Server.Tests
                 //-- Act
                 StandardServer server = await fixture.StartAsync()
                     .ConfigureAwait(false);
-                using var sut = new MasterNodeManager(
+                using MasterNodeManager sut = DeterministicServerMock.CreateIsolatedMasterNodeManager(
                     server.CurrentInstance,
                     fixture.Config,
-                    null,
-                    originalNodeManager.Object);
+                    [originalNodeManager.Object]);
                 sut.RegisterNamespaceManager(ns, newNodeManager.Object);
 
                 //-- Assert
@@ -341,11 +340,10 @@ namespace Opc.Ua.Server.Tests
                 //-- Act
                 StandardServer server = await fixture.StartAsync()
                     .ConfigureAwait(false);
-                using var sut = new MasterNodeManager(
+                using MasterNodeManager sut = DeterministicServerMock.CreateIsolatedMasterNodeManager(
                     server.CurrentInstance,
                     fixture.Config,
-                    null,
-                    additionalManagers);
+                    additionalManagers.ToArrayOf());
                 bool result = sut.UnregisterNamespaceManager(ns, nodeManagerToRemove);
 
                 //-- Assert
@@ -391,13 +389,11 @@ namespace Opc.Ua.Server.Tests
                 //-- Act
                 StandardServer server = await fixture.StartAsync()
                     .ConfigureAwait(false);
-                using var sut = new MasterNodeManager(
+                using MasterNodeManager sut = DeterministicServerMock.CreateIsolatedMasterNodeManager(
                     server.CurrentInstance,
                     fixture.Config,
-                    null,
-                    firstNodeManager.Object,
                     // Do not add the secondNodeManager to additionalManagers
-                    thirdNodeManager.Object);
+                    [firstNodeManager.Object, thirdNodeManager.Object]);
                 bool result = sut.UnregisterNamespaceManager(ns, secondNodeManager.Object);
 
                 //-- Assert
@@ -442,11 +438,10 @@ namespace Opc.Ua.Server.Tests
                 //-- Act
                 StandardServer server = await fixture.StartAsync()
                     .ConfigureAwait(false);
-                using var sut = new MasterNodeManager(
+                using MasterNodeManager sut = DeterministicServerMock.CreateIsolatedMasterNodeManager(
                     server.CurrentInstance,
                     fixture.Config,
-                    null,
-                    originalNodeManager.Object);
+                    [originalNodeManager.Object]);
                 bool result = sut.UnregisterNamespaceManager(newNs, newNodeManager.Object);
 
                 //-- Assert

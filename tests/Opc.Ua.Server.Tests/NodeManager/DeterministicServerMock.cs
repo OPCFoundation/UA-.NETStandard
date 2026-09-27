@@ -27,6 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
+using System;
+using System.Threading;
 using Moq;
 
 namespace Opc.Ua.Server.Tests.NodeManager
@@ -75,6 +79,102 @@ namespace Opc.Ua.Server.Tests.NodeManager
             mockServer.Setup(s => s.DefaultSystemContext).Returns(serverSystemContext);
 
             return mockServer;
+        }
+
+        /// <summary>
+        /// Creates a dispatcher with its own type and factory publication owners
+        /// while borrowing the running fixture's server-wide services.
+        /// </summary>
+        public static MasterNodeManager CreateIsolatedMasterNodeManager(
+            IServerInternal template,
+            ApplicationConfiguration configuration,
+            ArrayOf<INodeManager> additionalManagers = default,
+            ArrayOf<IAsyncNodeManager> additionalAsyncManagers = default)
+        {
+            _ = template ?? throw new ArgumentNullException(nameof(template));
+            _ = configuration ?? throw new ArgumentNullException(nameof(configuration));
+            if (template.Factory is not EncodeableFactory factory)
+            {
+                throw new NotSupportedException("The fixture requires a snapshot-capable encodeable factory.");
+            }
+
+            var server = new Mock<IServerInternal>(MockBehavior.Strict);
+            if (template is ITimeProviderProvider timeProvider)
+            {
+                server.As<ITimeProviderProvider>()
+                    .SetupGet(s => s.TimeProvider).Returns(timeProvider.TimeProvider);
+            }
+            MasterNodeManager? manager = null;
+            EncodeableFactory isolatedFactory = factory.Fork();
+            TypeTable isolatedTypes = template.TypeTree.CaptureSnapshot(out _, out _);
+            var messageContext = new ServiceMessageContext(template.Telemetry, isolatedFactory)
+            {
+                NamespaceUris = template.NamespaceUris,
+                ServerUris = template.ServerUris,
+                MaxStringLength = template.MessageContext.MaxStringLength,
+                MaxByteStringLength = template.MessageContext.MaxByteStringLength,
+                MaxArrayLength = template.MessageContext.MaxArrayLength,
+                MaxMessageSize = template.MessageContext.MaxMessageSize,
+                MaxEncodingNestingLevels = template.MessageContext.MaxEncodingNestingLevels,
+                MaxDecoderRecoveries = template.MessageContext.MaxDecoderRecoveries
+            };
+            server.SetupGet(s => s.NamespaceUris).Returns(template.NamespaceUris);
+            server.SetupGet(s => s.ServerUris).Returns(template.ServerUris);
+            server.SetupGet(s => s.Factory).Returns(isolatedFactory);
+            server.SetupGet(s => s.TypeTree).Returns(isolatedTypes);
+            server.SetupGet(s => s.MessageContext).Returns(messageContext);
+            server.SetupGet(s => s.Telemetry).Returns(template.Telemetry);
+            server.SetupGet(s => s.EndpointAddresses).Returns(template.EndpointAddresses);
+            server.SetupGet(s => s.EventManager).Returns(template.EventManager);
+            server.SetupGet(s => s.ResourceManager).Returns(template.ResourceManager);
+            server.SetupGet(s => s.RequestManager).Returns(template.RequestManager);
+            server.SetupGet(s => s.AggregateManager).Returns(template.AggregateManager);
+            server.SetupGet(s => s.SessionManager).Returns(template.SessionManager);
+            server.SetupGet(s => s.RoleManager).Returns(template.RoleManager);
+            server.SetupGet(s => s.IdentityRegistry).Returns(template.IdentityRegistry);
+            server.SetupGet(s => s.UserManagement).Returns(template.UserManagement);
+            server.SetupGet(s => s.SubscriptionManager).Returns(template.SubscriptionManager);
+            server.SetupGet(s => s.MonitoredItemQueueFactory).Returns(template.MonitoredItemQueueFactory);
+            server.SetupGet(s => s.SubscriptionStore).Returns(template.SubscriptionStore);
+            server.SetupGet(s => s.ServerObject).Returns(template.ServerObject);
+            server.SetupGet(s => s.CurrentState).Returns(() => template.CurrentState);
+            server.SetupGet(s => s.IsRunning).Returns(() => template.IsRunning);
+            server.SetupGet(s => s.Auditing).Returns(() => template.Auditing);
+            server.SetupGet(s => s.NodeManager).Returns(() => manager!);
+            server.SetupGet(s => s.CoreNodeManager).Returns(() => manager?.CoreNodeManager!);
+            server.SetupGet(s => s.ConfigurationNodeManager).Returns(() => manager?.ConfigurationNodeManager!);
+            server.SetupGet(s => s.DiagnosticsNodeManager).Returns(() => manager?.DiagnosticsNodeManager!);
+            server.SetupGet(s => s.MainNodeManagerFactory)
+                .Returns(new MainNodeManagerFactory(configuration, server.Object));
+            var systemContext = new ServerSystemContext(server.Object);
+            server.SetupGet(s => s.DefaultSystemContext).Returns(systemContext);
+            server.SetupGet(s => s.DefaultAuditContext).Returns(systemContext);
+            server.Setup(s => s.CreateSystemContext(It.IsAny<ISession>()))
+                .Returns((ISession session) => new ServerSystemContext(server.Object, session));
+            server.Setup(s => s.UpdateServerDiagnostics(It.IsAny<Action<ServerDiagnosticsSummaryDataType>>()))
+                .Callback((Action<ServerDiagnosticsSummaryDataType> update) => template.UpdateServerDiagnostics(update));
+            server.Setup(s => s.UpdateServerStatus(It.IsAny<Action<ServerStatusValue>>()))
+                .Callback((Action<ServerStatusValue> update) => template.UpdateServerStatus(update));
+            server.Setup(s => s.ReportEvent(It.IsAny<IFilterTarget>()))
+                .Callback((IFilterTarget notification) => template.ReportEvent(notification));
+            server.Setup(s => s.ReportEvent(It.IsAny<ISystemContext>(), It.IsAny<IFilterTarget>()))
+                .Callback((ISystemContext context, IFilterTarget notification) =>
+                    template.ReportEvent(context, notification));
+            server.Setup(s => s.ReportEventAsync(It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
+                .Returns((IFilterTarget notification, CancellationToken token) =>
+                    template.ReportEventAsync(notification, token));
+            server.Setup(s => s.ReportEventAsync(
+                    It.IsAny<ISystemContext>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
+                .Returns((ISystemContext context, IFilterTarget notification, CancellationToken token) =>
+                    template.ReportEventAsync(context, notification, token));
+            server.Setup(s => s.ReportAuditEvent(It.IsAny<ISystemContext>(), It.IsAny<AuditEventState>()))
+                .Callback((ISystemContext context, AuditEventState notification) =>
+                    template.ReportAuditEvent(context, notification));
+
+            manager = new MasterNodeManager(
+                server.Object, configuration, null,
+                additionalAsyncManagers.ToArray(), additionalManagers.ToArray());
+            return manager;
         }
     }
 }

@@ -36,6 +36,7 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.TestFramework;
+using Opc.Ua.Server.Tests.NodeManager;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -107,6 +108,56 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(sut.AsyncNodeManagers, Has.Count.EqualTo(2));
             Assert.That(sut.NodeManagers, Has.Count.EqualTo(2));
+        }
+
+        [Test]
+        public void IsolatedDispatchersPreserveRunningServerPublicationOwnership()
+        {
+            IServerInternal server = m_server.CurrentInstance;
+            IMasterNodeManager originalManager = server.NodeManager;
+            TypeTable originalTypes = server.TypeTree;
+            IEncodeableFactory originalFactory = server.Factory;
+            using (MasterNodeManager first = CreateMasterNodeManager())
+            using (MasterNodeManager second = CreateMasterNodeManager())
+            {
+                ServerSystemContext firstContext = ((CoreNodeManager)first.CoreNodeManager!).SystemContext;
+                ServerSystemContext secondContext = ((CoreNodeManager)second.CoreNodeManager!).SystemContext;
+                Assert.Multiple(() =>
+                {
+                    Assert.That(firstContext.TypeTable, Is.Not.SameAs(originalTypes));
+                    Assert.That(secondContext.TypeTable, Is.Not.SameAs(firstContext.TypeTable));
+                    Assert.That(firstContext.EncodeableFactory, Is.Not.SameAs(originalFactory));
+                    Assert.That(secondContext.EncodeableFactory, Is.Not.SameAs(firstContext.EncodeableFactory));
+                    Assert.That(firstContext.Server.NodeManager, Is.SameAs(first));
+                    Assert.That(secondContext.Server.NodeManager, Is.SameAs(second));
+                    Assert.That(firstContext.Server.MessageContext.Factory, Is.SameAs(firstContext.EncodeableFactory));
+                    Assert.That(firstContext.Server.MessageContext.MaxMessageSize,
+                        Is.EqualTo(server.MessageContext.MaxMessageSize));
+                    Assert.That(firstContext.Server.MessageContext.MaxStringLength,
+                        Is.EqualTo(server.MessageContext.MaxStringLength));
+                    Assert.That(firstContext.Server.MessageContext.MaxArrayLength,
+                        Is.EqualTo(server.MessageContext.MaxArrayLength));
+                    Assert.That(firstContext.Server.MessageContext.MaxByteStringLength,
+                        Is.EqualTo(server.MessageContext.MaxByteStringLength));
+                    Assert.That(firstContext.Server.MessageContext.MaxEncodingNestingLevels,
+                        Is.EqualTo(server.MessageContext.MaxEncodingNestingLevels));
+                    Assert.That(firstContext.Server.MessageContext.MaxDecoderRecoveries,
+                        Is.EqualTo(server.MessageContext.MaxDecoderRecoveries));
+                    Assert.That(firstContext.TypeTable.FindSuperType(ObjectTypeIds.FolderType),
+                        Is.EqualTo(ObjectTypeIds.BaseObjectType));
+                });
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(server.NodeManager, Is.SameAs(originalManager));
+                Assert.That(server.TypeTree, Is.SameAs(originalTypes));
+                Assert.That(server.Factory, Is.SameAs(originalFactory));
+                Assert.That(originalTypes.FindSuperType(ObjectTypeIds.FolderType),
+                    Is.EqualTo(ObjectTypeIds.BaseObjectType));
+                Assert.That(() => originalTypes.SetViewSelector(() => null),
+                    Throws.TypeOf<InvalidOperationException>());
+            });
         }
 
         [Test]
@@ -1325,12 +1376,10 @@ namespace Opc.Ua.Server.Tests
                     })
                 .Returns(default(ValueTask));
 
-            using var sut = new MasterNodeManager(
+            using MasterNodeManager sut = DeterministicServerMock.CreateIsolatedMasterNodeManager(
                 m_server.CurrentInstance,
                 m_fixture.Config,
-                null,
-                owner.Object,
-                laterOwner.Object);
+                additionalAsyncManagers: [owner.Object, laterOwner.Object]);
             using var item = CreateMonitoredItem(owner.Object, sourceSession.Object, 2, 3, 42);
             using var laterItem = CreateMonitoredItem(laterOwner.Object, sourceSession.Object, 4, 5, 84);
 
@@ -1449,12 +1498,10 @@ namespace Opc.Ua.Server.Tests
                     })
                 .Returns(default(ValueTask));
 
-            using var sut = new MasterNodeManager(
+            using MasterNodeManager sut = DeterministicServerMock.CreateIsolatedMasterNodeManager(
                 m_server.CurrentInstance,
                 m_fixture.Config,
-                null,
-                firstOwner.Object,
-                secondOwner.Object);
+                additionalAsyncManagers: [firstOwner.Object, secondOwner.Object]);
             using var firstItem = CreateMonitoredItem(firstOwner.Object, sourceSession.Object, 6, 7, 126);
             using var secondItem = CreateMonitoredItem(secondOwner.Object, sourceSession.Object, 8, 9, 168);
             var errors = new List<ServiceResult> { null!, null! };
@@ -1485,11 +1532,8 @@ namespace Opc.Ua.Server.Tests
 
         private MasterNodeManager CreateMasterNodeManager()
         {
-            return new MasterNodeManager(
-                m_server.CurrentInstance,
-                m_fixture.Config,
-                null,
-                System.Array.Empty<INodeManager>());
+            return DeterministicServerMock.CreateIsolatedMasterNodeManager(
+                m_server.CurrentInstance, m_fixture.Config);
         }
 
         private MonitoredItem CreateDetachedMonitoredItem(
