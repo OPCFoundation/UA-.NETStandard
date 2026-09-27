@@ -87,6 +87,23 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
+        public void ConnectAsyncWithRefusedConnectionPreservesSocketException()
+        {
+            using var reserved = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            reserved.Bind(new IPEndPoint(IPAddress.Loopback, 0));
+            int port = ((IPEndPoint)reserved.LocalEndPoint!).Port;
+            using var transport = new TcpByteTransport(m_bufferManager, kBufferSize, m_telemetry);
+
+            Assert.ThrowsAsync<SocketException>(
+                async () => await transport.ConnectAsync(
+                    new Uri($"opc.tcp://127.0.0.1:{port}"),
+                    CancellationToken.None).ConfigureAwait(false));
+
+            Assert.That(transport.LocalEndpoint, Is.Null);
+            Assert.That(transport.RemoteEndpoint, Is.Null);
+        }
+
+        [Test]
         public async Task ConnectAsyncHonorsCancellationBeforeConnection()
         {
             using var cancellationSource = new CancellationTokenSource();
