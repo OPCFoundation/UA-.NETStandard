@@ -588,9 +588,9 @@ namespace Opc.Ua.Server
         /// </summary>
         public void CancelRequests(NodeId sessionId, uint requestHandle, out uint cancelCount)
         {
-            var cancelledRequests = new List<uint>();
+            var selectedRequests = new List<OperationContext>();
 
-            // flag requests as cancelled.
+            // Capture the selection before callbacks can complete or admit requests.
             lock (m_requestsLock)
             {
                 foreach (OperationContext request in m_requests.Values)
@@ -598,17 +598,24 @@ namespace Opc.Ua.Server
                     if (request.SessionId == sessionId &&
                         request.ClientHandle == requestHandle)
                     {
-                        request.RequestLifetime.TryCancel(StatusCodes.BadRequestCancelledByRequest);
-                        cancelledRequests.Add(request.RequestId);
-
-                        // report the AuditCancelEventType
-                        m_server.ReportAuditCancelEvent(
-                            request.SessionId,
-                            requestHandle,
-                            StatusCodes.Good,
-                            m_logger);
+                        selectedRequests.Add(request);
                     }
                 }
+            }
+
+            var cancelledRequests = new List<uint>(selectedRequests.Count);
+            foreach (OperationContext request in selectedRequests)
+            {
+                if (!request.RequestLifetime.TryCancel(StatusCodes.BadRequestCancelledByRequest))
+                {
+                    continue;
+                }
+                cancelledRequests.Add(request.RequestId);
+                m_server.ReportAuditCancelEvent(
+                    request.SessionId,
+                    requestHandle,
+                    StatusCodes.Good,
+                    m_logger);
             }
 
             // return the number of requests found.
@@ -642,9 +649,9 @@ namespace Opc.Ua.Server
         /// </summary>
         private void OnTimerExpired(object? state)
         {
-            var expiredRequests = new List<uint>();
+            var expiredRequests = new List<OperationContext>();
 
-            // flag requests as expired.
+            // Complete the scan before cancellation callbacks can change the request table.
             lock (m_requestsLock)
             {
                 // find the completed request.
@@ -654,8 +661,7 @@ namespace Opc.Ua.Server
                 {
                     if (request.OperationDeadline < m_timeProvider.GetUtcNow().UtcDateTime)
                     {
-                        request.RequestLifetime.TryCancel(StatusCodes.BadTimeout);
-                        expiredRequests.Add(request.RequestId);
+                        expiredRequests.Add(request);
                     }
                     else if (request.OperationDeadline < DateTime.MaxValue)
                     {
@@ -671,16 +677,25 @@ namespace Opc.Ua.Server
                 }
             }
 
+            var cancelledRequests = new List<uint>(expiredRequests.Count);
+            foreach (OperationContext request in expiredRequests)
+            {
+                if (request.RequestLifetime.TryCancel(StatusCodes.BadTimeout))
+                {
+                    cancelledRequests.Add(request.RequestId);
+                }
+            }
+
             // raise notifications.
             lock (m_lock)
             {
-                for (int ii = 0; ii < expiredRequests.Count; ii++)
+                for (int ii = 0; ii < cancelledRequests.Count; ii++)
                 {
                     if (m_RequestCancelled != null)
                     {
                         try
                         {
-                            m_RequestCancelled(this, expiredRequests[ii], StatusCodes.BadTimeout);
+                            m_RequestCancelled(this, cancelledRequests[ii], StatusCodes.BadTimeout);
                         }
                         catch (Exception e)
                         {

@@ -491,6 +491,14 @@ at most as long as the longest deadline still outstanding plus `RequestManager.R
 after which the lifecycle operation fails with a `TimeoutException` instead of blocking
 indefinitely.
 
+Cancellation and expiry capture their request selection before invoking lifetime
+callbacks. A callback may complete a selected request or admit another request
+without changing the captured selection. Requests admitted by a callback are
+handled by a later cancellation or expiry pass; a new timed request retains its
+own expiry timer.
+Only lifetimes that accept cancellation contribute to the cancellation count
+and cancellation notifications.
+
 A server that rejects requests of its own by overriding `StandardServer.OnRequestValidatedAsync`
 does not interfere with this: a rejected request is completed before the exception leaves the
 server, so it never holds a lifecycle operation up.
