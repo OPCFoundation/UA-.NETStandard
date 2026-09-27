@@ -571,15 +571,18 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         /// <summary>
-        /// An <see cref="ICollection{T}"/> whose <see cref="Count"/> does not
-        /// match the number of elements <see cref="GetEnumerator"/> yields,
-        /// reproducing what a concurrent collection can report to
-        /// <see cref="System.Linq.Enumerable.TryGetNonEnumeratedCount{TSource}"/>,
-        /// which only takes the fast <see cref="Count"/> path for
-        /// <see cref="ICollection{T}"/> and not for the read-only interface.
+        /// An <see cref="ICollection"/> whose <see cref="Count"/> does not match
+        /// the number of elements <see cref="GetEnumerator"/> yields, mirroring
+        /// the interfaces <see cref="System.Collections.Concurrent.ConcurrentQueue{T}"/>
+        /// implements (<see cref="ICollection"/> and <see cref="IReadOnlyCollection{T}"/>,
+        /// not the generic <see cref="ICollection{T}"/>) so both the count-based
+        /// fast path of
+        /// <see cref="System.Linq.Enumerable.TryGetNonEnumeratedCount{TSource}"/>
+        /// and the plain enumeration fallback on earlier target frameworks are
+        /// exercised the same way a live producer/consumer queue would.
         /// </summary>
         /// <typeparam name="T">Type of the element in the collection.</typeparam>
-        private sealed class StaleCountCollection<T> : ICollection<T>
+        private sealed class StaleCountCollection<T> : ICollection, IEnumerable<T>, IReadOnlyCollection<T>
         {
             private readonly T[] m_items;
 
@@ -591,7 +594,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             public int Count { get; }
 
-            public bool IsReadOnly => true;
+            public bool IsSynchronized => false;
+
+            public object SyncRoot => this;
 
             public IEnumerator<T> GetEnumerator()
             {
@@ -603,27 +608,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 return GetEnumerator();
             }
 
-            public void Add(T item)
-            {
-                throw new NotSupportedException();
-            }
-
-            public void Clear()
-            {
-                throw new NotSupportedException();
-            }
-
-            public bool Contains(T item)
-            {
-                throw new NotSupportedException();
-            }
-
-            public void CopyTo(T[] array, int arrayIndex)
-            {
-                throw new NotSupportedException();
-            }
-
-            public bool Remove(T item)
+            void ICollection.CopyTo(Array array, int index)
             {
                 throw new NotSupportedException();
             }
