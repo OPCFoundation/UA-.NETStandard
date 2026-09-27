@@ -1700,7 +1700,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
                 "\"title\":\"T\"," +
                 "\"links\":[{\"rel\":\"ua:HasComponent\"," +
-                "\"href\":\"https://example.org/td?id=ns=2;i=100\"}]}");
+                "\"href\":\"opc.tcp://example.org/td?id=ns=2;i=100\"}]}");
 
             using WotDocument document = WotDocument.Parse(json);
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
@@ -1710,7 +1710,7 @@ namespace Opc.Ua.Types.Tests.Wot
                     d.Code == WotDiagnosticCode.NonPortableIdentity &&
                     d.Message.Contains("ns=2;i=100", StringComparison.Ordinal)),
                 Is.True,
-                "An href with ?id=ns=<index> query should produce NonPortableIdentity warning.");
+                "An OPC UA href with ?id=ns=<index> query should produce NonPortableIdentity warning.");
         }
 
         [Test]
