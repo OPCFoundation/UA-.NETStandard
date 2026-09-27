@@ -29,6 +29,8 @@
 
 using System;
 using System.Linq;
+using System.Net;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -47,6 +49,48 @@ namespace Opc.Ua.Sessions.Tests
     [Category("SessionlessInvocation")]
     public class SessionlessInvocationTests : TestFixture
     {
+        [Test]
+        public async Task DiscoveryFailureDoesNotInterruptHealthyClientAsync()
+        {
+            using var reserved = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            reserved.Bind(new IPEndPoint(IPAddress.Loopback, 0));
+            int port = ((IPEndPoint)reserved.LocalEndPoint!).Port;
+            var refusedUrl = new Uri($"opc.tcp://127.0.0.1:{port}");
+            var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
+            endpointConfiguration.OperationTimeout = 5000;
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using DiscoveryClient healthyClient = await DiscoveryClient.CreateAsync(
+                ServerUrl, endpointConfiguration, Telemetry, ct: timeout.Token).ConfigureAwait(false);
+
+            await Assert.ThatAsync(async () =>
+            {
+                using DiscoveryClient unexpectedClient = await DiscoveryClient.CreateAsync(
+                    refusedUrl, endpointConfiguration, Telemetry, ct: timeout.Token).ConfigureAwait(false);
+            }, Throws.TypeOf<ServiceResultException>()
+                .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo((uint)StatusCodes.BadNotConnected)
+                .And.Property(nameof(Exception.InnerException)).TypeOf<SocketException>()).ConfigureAwait(false);
+
+            ArrayOf<EndpointDescription> endpoints = await healthyClient.GetEndpointsAsync(
+                default, timeout.Token).ConfigureAwait(false);
+
+            Assert.That(endpoints.Count, Is.GreaterThan(0));
+            Assert.That(timeout.IsCancellationRequested, Is.False);
+        }
+
+        [Test]
+        public async Task DiscoveryPreservesCallerCancellationAsync()
+        {
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+            var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
+
+            await Assert.ThatAsync(async () =>
+            {
+                using DiscoveryClient unexpectedClient = await DiscoveryClient.CreateAsync(
+                    ServerUrl, endpointConfiguration, Telemetry, ct: cancellation.Token).ConfigureAwait(false);
+            }, Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+        }
+
         [Description("Call GetEndpoints via DiscoveryClient without an established session. The service should return Good with at least one endpoint.")]
         [Test]
         public async Task GetEndpointsWithoutSessionAsync()

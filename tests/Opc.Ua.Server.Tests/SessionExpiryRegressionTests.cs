@@ -60,7 +60,17 @@ namespace Opc.Ua.Server.Tests
             server.Setup(value => value.MessageContext).Returns(ServiceMessageContext.CreateEmpty(telemetry));
             server.Setup(value => value.IdentityRegistry)
                 .Returns(new ServerIdentityRegistry(new AnonymousAuthenticator()));
-            server.Setup(value => value.DiagnosticsNodeManager).Returns(Mock.Of<IDiagnosticsNodeManager>());
+            var diagnostics = new Mock<IDiagnosticsNodeManager>();
+            int nextSessionId = 0;
+            diagnostics.Setup(value => value.CreateSessionDiagnosticsAsync(
+                    It.IsAny<ServerSystemContext>(),
+                    It.IsAny<SessionDiagnosticsDataType>(),
+                    It.IsAny<NodeValueSimpleEventHandler>(),
+                    It.IsAny<SessionSecurityDiagnosticsDataType>(),
+                    It.IsAny<NodeValueSimpleEventHandler>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<NodeId>(new NodeId((uint)Interlocked.Increment(ref nextSessionId), 1)));
+            server.Setup(value => value.DiagnosticsNodeManager).Returns(diagnostics.Object);
             server.Setup(value => value.DefaultSystemContext).Returns(new ServerSystemContext(server.Object));
             var configuration = new ApplicationConfiguration
             {

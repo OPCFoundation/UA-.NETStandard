@@ -27,7 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -36,14 +37,14 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Subscriptions.Classic.Tests
 {
     /// <summary>
     /// Tests for subscription transfer scenarios.
-    /// Each fixture instance handles one <see cref="TransferType"/>, and the four boolean
-    /// combinations of sendInitialValues × sequentialPublishing run in parallel within each
-    /// fixture, while the five fixture instances themselves also execute in parallel.
+    /// Each fixture combines one <see cref="TransferType"/> with acknowledged or retained
+    /// origin notifications, initial values, and sequential publishing.
     /// </summary>
     [TestFixture]
     [Category("Client")]
@@ -96,12 +97,10 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
 
             /// <summary>
             /// The origin session gets network disconnected; available sequence
-            /// numbers are republished but the client delays the acknowledgement.
+            /// numbers are republished but the target delays the acknowledgement.
             /// </summary>
             DisconnectedRepublishDelayedAck
         }
-
-        private readonly TransferType m_transferType;
 
         [Test]
         public void TransferredSequencesRemainAvailableForRepublish()
@@ -135,6 +134,7 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
             // Use a shared session for namespace URI lookups; tests create their own sessions.
             SingleSession = true;
             MaxChannelCount = 1000;
+            ClientFixtureSubscriptionEngineFactory = ClassicSubscriptionEngineFactory.Instance;
             return OneTimeSetUpCoreAsync(securityNone: true);
         }
 
@@ -161,9 +161,8 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
 
         /// <summary>
         /// Transfer subscriptions for all combinations of
-        /// <paramref name="sendInitialValues"/> and <paramref name="sequentialPublishing"/>.
-        /// Each combination runs in parallel with the others within this fixture instance
-        /// and also in parallel across the five <see cref="TransferType"/> fixture instances.
+        /// <paramref name="sendInitialValues"/>, <paramref name="sequentialPublishing"/>,
+        /// and <paramref name="retainOriginNotifications"/>.
         /// </summary>
         [Test]
         [Combinatorial]
@@ -171,12 +170,14 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
         [Parallelizable]
         public Task TransferSubscriptionAsync(
             [Values] bool sendInitialValues,
-            [Values] bool sequentialPublishing)
+            [Values] bool sequentialPublishing,
+            [Values] bool retainOriginNotifications)
         {
             return InternalTransferSubscriptionAsync(
                 m_transferType,
                 sendInitialValues,
-                sequentialPublishing);
+                sequentialPublishing,
+                retainOriginNotifications);
         }
 
         /// <summary>
@@ -188,7 +189,8 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
         [Explicit]
         public async Task TransferSubscriptionDebugAsync(
             [Values] bool sendInitialValues,
-            [Values] bool sequentialPublishing)
+            [Values] bool sequentialPublishing,
+            [Values] bool retainOriginNotifications)
         {
             const int loopCount = 30;
             for (int i = 0; i < loopCount; i++)
@@ -196,7 +198,8 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
                 await InternalTransferSubscriptionAsync(
                     m_transferType,
                     sendInitialValues,
-                    sequentialPublishing).ConfigureAwait(false);
+                    sequentialPublishing,
+                    retainOriginNotifications).ConfigureAwait(false);
 
                 TestContext.Out.WriteLine("===========================================");
                 TestContext.Out.WriteLine("===========================================");
@@ -209,39 +212,42 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
         private async Task InternalTransferSubscriptionAsync(
             TransferType transferType,
             bool sendInitialValues,
-            bool sequentialPublishing)
+            bool sequentialPublishing,
+            bool retainOriginNotifications)
         {
-            // create test session and subscription
-            ISession originSession = await ClientFixture
+            using ISession originSession = await ClientFixture
                 .ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256)
                 .ConfigureAwait(false);
-            ISession targetSession = null;
+            string filePath = Path.GetTempFileName();
             try
             {
-                targetSession = await InternalTransferSubscriptionAsync(
+                await InternalTransferSubscriptionAsync(
                     originSession,
                     transferType,
                     sendInitialValues,
-                    sequentialPublishing).ConfigureAwait(false);
+                    sequentialPublishing,
+                    retainOriginNotifications,
+                    filePath).ConfigureAwait(false);
             }
             finally
             {
-                originSession?.Dispose();
-                targetSession?.Dispose();
+                File.Delete(filePath);
             }
         }
 
-        private async Task<ISession> InternalTransferSubscriptionAsync(
+        private async Task InternalTransferSubscriptionAsync(
             ISession originSession,
             TransferType transferType,
             bool sendInitialValues,
-            bool sequentialPublishing)
+            bool sequentialPublishing,
+            bool retainOriginNotifications,
+            string filePath)
         {
             const int kTestSubscriptions = 5;
             const int kDelay = 2_000;
             const int kQueueSize = 10;
 
-            if (transferType == TransferType.DisconnectedRepublishDelayedAck)
+            if (retainOriginNotifications)
             {
                 originSession.PublishSequenceNumbersToAcknowledge += DeferSubscriptionAcknowledge;
             }
@@ -255,12 +261,17 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
             int[] targetSubscriptionCounters = new int[kTestSubscriptions];
             int[] targetSubscriptionFastDataCounters = new int[kTestSubscriptions];
             int[] originSubscriptionTransferred = new int[kTestSubscriptions];
+            var staticTargetNotifications = new ConcurrentQueue<DataChangeNotification>();
+            int targetKeepAliveCount = 0;
+            bool expectRepublish = retainOriginNotifications &&
+                transferType >= TransferType.DisconnectedRepublish;
+            int expectedStaticBatchCount = (expectRepublish ? 1 : 0) + (sendInitialValues ? 1 : 0);
             using var subscriptionTemplate = new TestableSubscription(originSession.DefaultSubscription)
             {
                 PublishingInterval = 1_000,
                 LifetimeCount = 30,
-                KeepAliveCount = 5,
-                PublishingEnabled = true,
+                KeepAliveCount = 1,
+                PublishingEnabled = false,
                 RepublishAfterTransfer = transferType >= TransferType.DisconnectedRepublish,
                 SequentialPublishing = sequentialPublishing
             };
@@ -291,11 +302,38 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
                 }
             }
 
-            // settle
-            await Task.Delay(kDelay).ConfigureAwait(false);
+            foreach (Subscription subscription in originSubscriptions)
+            {
+                await subscription.SetPublishingModeAsync(true).ConfigureAwait(false);
+            }
+            await TestPolling.WaitUntilAsync(
+                () => Enumerable.Range(0, kTestSubscriptions).All(index =>
+                    Volatile.Read(ref originSubscriptionCounters[index]) >=
+                        originSubscriptions[index].MonitoredItemCount &&
+                    Volatile.Read(ref originSubscriptionFastDataCounters[index]) > 0),
+                timeoutMessage: "The origin did not deliver every initial monitored-item value.")
+                .ConfigureAwait(false);
 
-            // persist the subscription state
-            string filePath = Path.GetTempFileName();
+            Subscription staticOrigin = originSubscriptions[0];
+            if (!retainOriginNotifications)
+            {
+                await TestPolling.WaitUntilAsync(
+                    () => staticOrigin.AvailableSequenceNumbers.IsEmpty,
+                    timeoutMessage: "The origin's initial notification was not acknowledged by the server.")
+                    .ConfigureAwait(false);
+            }
+            else
+            {
+                Assert.That(
+                    staticOrigin.AvailableSequenceNumbers.ToArray(),
+                    Is.EqualTo([staticOrigin.SequenceNumber]));
+            }
+            NotificationMessage originStaticMessage = staticOrigin.Notifications.Single();
+            Assert.That(originStaticMessage.NotificationData.Count, Is.EqualTo(1));
+            Assert.That(
+                originStaticMessage.NotificationData[0].TryGetValue(out DataChangeNotification originStaticData),
+                Is.True);
+            Assert.That(originStaticData.MonitoredItems.Count, Is.EqualTo(staticOrigin.MonitoredItemCount));
 
             // close session, do not delete subscription
             if (transferType != TransferType.KeepOpen)
@@ -331,7 +369,7 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
             }
 
             // create target session
-            ISession targetSession = await ClientFixture
+            using ISession targetSession = await ClientFixture
                 .ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256)
                 .ConfigureAwait(false);
             if (transferType == TransferType.DisconnectedRepublishDelayedAck)
@@ -345,81 +383,59 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
             {
                 // load subscriptions for transfer
                 transferSubscriptions.AddRange(targetSession.Load(filePath, true));
-
-                // hook notifications for log output
-                int ii = 0;
-                foreach (Subscription subscription in transferSubscriptions)
-                {
-                    subscription.Handle = ii;
-                    subscription.FastDataChangeCallback = (s, n, _) =>
-                    {
-                        TestContext.Out.WriteLine(
-                            $"FastDataChangeHandlerTarget: {s.Id}-{n.SequenceNumber}-{n.MonitoredItems.Count}");
-                        targetSubscriptionFastDataCounters[(int)subscription.Handle]++;
-                    };
-                    subscription
-                        .MonitoredItems.ToList()
-                        .ForEach(i =>
-                            i.Notification += (item, _) =>
-                            {
-                                targetSubscriptionCounters[(int)subscription.Handle]++;
-                                foreach (DataValue value in item.DequeueValues())
-                                {
-                                    TestContext.Out.WriteLine(
-                                        "Tra:{0}: {1:20}, {2}, {3}, {4}",
-                                        subscription.Id,
-                                        item.DisplayName,
-                                        value.WrappedValue,
-                                        value.SourceTimestamp,
-                                        value.StatusCode);
-                                }
-                            });
-                    ii++;
-                }
-
-                // wait
-                await Task.Delay(kDelay).ConfigureAwait(false);
             }
             else
             {
-                // wait
-                await Task.Delay(kDelay).ConfigureAwait(false);
-
                 transferSubscriptions.AddRange((SubscriptionCollection)originSubscriptions.Clone());
-                int ii = 0;
-                transferSubscriptions.ForEach(s =>
+            }
+
+            for (int ii = 0; ii < transferSubscriptions.Count; ii++)
+            {
+                Subscription subscription = transferSubscriptions[ii];
+                if (originSessionOpen)
                 {
-                    targetSession.AddSubscription(s);
-                    s.Handle = ii++;
-                    s.FastDataChangeCallback = (sub, n, _) =>
+                    Assert.That(targetSession.AddSubscription(subscription), Is.True);
+                }
+                subscription.Handle = ii;
+                subscription.FastDataChangeCallback = (s, notification, _) =>
+                {
+                    TestContext.Out.WriteLine(
+                        "FastDataChangeHandlerTarget: {0}-{1}-{2}",
+                        s.Id,
+                        notification.SequenceNumber,
+                        notification.MonitoredItems.Count);
+                    int index = (int)s.Handle;
+                    Interlocked.Increment(ref targetSubscriptionFastDataCounters[index]);
+                    if (index == 0)
                     {
-                        TestContext.Out.WriteLine(
-                            $"FastDataChangeHandlerTarget: {sub.Id}-{n.SequenceNumber}-{n.MonitoredItems.Count}");
-                        targetSubscriptionFastDataCounters[(int)s.Handle]++;
+                        staticTargetNotifications.Enqueue(notification);
+                    }
+                };
+                if (ii == 0)
+                {
+                    subscription.FastKeepAliveCallback = (_, _) => Interlocked.Increment(ref targetKeepAliveCount);
+                }
+                foreach (MonitoredItem monitoredItem in subscription.MonitoredItems)
+                {
+                    monitoredItem.Notification += (item, _) =>
+                    {
+                        Interlocked.Increment(ref targetSubscriptionCounters[(int)subscription.Handle]);
+                        foreach (DataValue value in item.DequeueValues())
+                        {
+                            TestContext.Out.WriteLine(
+                                "Tra:{0}: {1:20}, {2}, {3}, {4}",
+                                subscription.Id,
+                                item.DisplayName,
+                                value.WrappedValue,
+                                value.SourceTimestamp,
+                                value.StatusCode);
+                        }
                     };
-                    s.MonitoredItems.ToList()
-                        .ForEach(i =>
-                            i.Notification += (item, _) =>
-                            {
-                                targetSubscriptionCounters[(int)s.Handle]++;
-                                foreach (DataValue value in item.DequeueValues())
-                                {
-                                    TestContext.Out.WriteLine(
-                                        "Tra:{0}: {1:20}, {2}, {3}, {4}",
-                                        s.Id,
-                                        item.DisplayName,
-                                        value.WrappedValue,
-                                        value.SourceTimestamp,
-                                        value.StatusCode);
-                                }
-                            });
-                    s.StateChanged += (su, e) =>
-                        TestContext.Out
-                            .WriteLine($"StateChanged: {su.Session.SessionId}-{su.Id}-{e.Status}");
-                    s.PublishStatusChanged += (su, e) =>
-                        TestContext.Out.WriteLine(
-                            $"PublishStatusChanged: {su.Session.SessionId}-{su.Id}-{e.Status}");
-                });
+                }
+                subscription.StateChanged += (s, e) =>
+                    TestContext.Out.WriteLine($"StateChanged: {s.Session.SessionId}-{s.Id}-{e.Status}");
+                subscription.PublishStatusChanged += (s, e) =>
+                    TestContext.Out.WriteLine($"PublishStatusChanged: {s.Session.SessionId}-{s.Id}-{e.Status}");
             }
 
             // transfer restored subscriptions
@@ -437,35 +453,25 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
             TestContext.Out
                 .WriteLine("TargetSession is now SessionId={0}", targetSession.SessionId);
 
-            // wait for some events
-            await Task.Delay(2 * kDelay).ConfigureAwait(false);
+            await TestPolling.WaitUntilAsync(
+                () => staticTargetNotifications.Count >= expectedStaticBatchCount &&
+                    Volatile.Read(ref targetKeepAliveCount) > 0 &&
+                    Enumerable.Range(1, kTestSubscriptions - 1).All(index =>
+                        Volatile.Read(ref targetSubscriptionCounters[index]) > 0 &&
+                        Volatile.Read(ref targetSubscriptionFastDataCounters[index]) > 0),
+                timeoutMessage: "The target did not deliver expected notifications and a keepalive.")
+                .ConfigureAwait(false);
 
             if (TransferType.KeepOpen == transferType)
             {
+                await TestPolling.WaitUntilAsync(
+                    () => Enumerable.Range(0, kTestSubscriptions).All(index =>
+                        Volatile.Read(ref originSubscriptionTransferred[index]) > 0),
+                    timeoutMessage: "The origin did not receive every subscription-transferred notification.")
+                    .ConfigureAwait(false);
                 foreach (Subscription subscription in originSubscriptions)
                 {
-                    // assert if originSubscriptionTransferred is incremented
                     Assert.That(originSubscriptionTransferred[(int)subscription.Handle], Is.EqualTo(1));
-                }
-            }
-
-            // For DisconnectedRepublishDelayedAck with sendInitialValues=true, the server
-            // sends initial values immediately after transfer, and DeferSubscriptionAcknowledge
-            // on the target session prevents those acks, causing the server to republish them
-            // on the next publish cycle. Poll until subscription 0 reaches 2×monitoredItemCount
-            // (initial values + one republish batch) or a generous timeout expires.
-            // For sendInitialValues=false there is no reliable notification source for static
-            // subscription 0: the server sends no initial values, and whether the origin
-            // session's unacknowledged notifications are still available for republish depends
-            // on the server's session-cleanup timing, so no polling is needed.
-            if (transferType == TransferType.DisconnectedRepublishDelayedAck && sendInitialValues)
-            {
-                uint expectedCount0 = 2u * transferSubscriptions[0].MonitoredItemCount;
-                DateTime deadline = DateTime.UtcNow.AddSeconds(10);
-                while ((uint)targetSubscriptionCounters[0] < expectedCount0 &&
-                    DateTime.UtcNow < deadline)
-                {
-                    await Task.Delay(200).ConfigureAwait(false);
                 }
             }
 
@@ -497,30 +503,13 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
                 uint targetExpectedCount = sendInitialValues ? monitoredItemCount : 0;
                 if (jj == 0)
                 {
-                    // correct for delayed ack and republish count:
-                    // when sendInitialValues=true, the target session's DeferSubscriptionAcknowledge
-                    // prevents acks for the initial-value notifications, causing the server to
-                    // republish them — adding monitoredItemCount to account for that republish batch.
-                    // When sendInitialValues=false, static subscription 0 may receive zero
-                    // notifications (server sends no initial values and origin-session republish
-                    // is not reliable), so no additional count is expected.
-                    if (transferType == TransferType.DisconnectedRepublishDelayedAck && sendInitialValues)
-                    {
-                        targetExpectedCount += monitoredItemCount;
-                    }
-
-                    // static nodes, expect only one set of changes, another one if send initial values was set
+                    targetExpectedCount = (uint)expectedStaticBatchCount * monitoredItemCount;
                     Assert.That(originSubscriptionCounters[jj], Is.EqualTo(originExpectedCount));
-                    // For DisconnectedRepublishDelayedAck deferred acks cause continuous republishing,
-                    // so the counter may exceed the exact expected value.
-                    if (transferType == TransferType.DisconnectedRepublishDelayedAck)
-                    {
-                        Assert.That(targetSubscriptionCounters[jj], Is.GreaterThanOrEqualTo(targetExpectedCount));
-                    }
-                    else
-                    {
-                        Assert.That(targetSubscriptionCounters[jj], Is.EqualTo(targetExpectedCount));
-                    }
+                    Assert.That(originSubscriptionFastDataCounters[jj], Is.EqualTo(1));
+                    Assert.That(targetSubscriptionCounters[jj], Is.EqualTo(targetExpectedCount));
+                    Assert.That(targetSubscriptionFastDataCounters[jj], Is.EqualTo(expectedStaticBatchCount));
+                    AssertStaticNotifications(
+                        staticTargetNotifications, originStaticData, expectRepublish, sendInitialValues);
                 }
                 else
                 {
@@ -530,11 +519,17 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
                 }
             }
 
-            // reset counters
-            Array.Clear(originSubscriptionCounters, 0, kTestSubscriptions);
-            Array.Clear(originSubscriptionFastDataCounters, 0, kTestSubscriptions);
-            Array.Clear(targetSubscriptionCounters, 0, kTestSubscriptions);
-            Array.Clear(targetSubscriptionFastDataCounters, 0, kTestSubscriptions);
+            int[] countsBeforeResume =
+            [
+                .. Enumerable.Range(0, kTestSubscriptions)
+                    .Select(index => Volatile.Read(ref targetSubscriptionCounters[index]))
+            ];
+            int[] batchesBeforeResume =
+            [
+                .. Enumerable.Range(0, kTestSubscriptions)
+                    .Select(index => Volatile.Read(ref targetSubscriptionFastDataCounters[index]))
+            ];
+            int keepAlivesBeforeResume = Volatile.Read(ref targetKeepAliveCount);
 
             // restart publishing
             foreach (Subscription subscription in transferSubscriptions)
@@ -546,8 +541,13 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
                 await subscription.SetPublishingModeAsync(true).ConfigureAwait(false);
             }
 
-            // wait for some events
-            await Task.Delay(2 * kDelay).ConfigureAwait(false);
+            await TestPolling.WaitUntilAsync(
+                () => Volatile.Read(ref targetKeepAliveCount) > keepAlivesBeforeResume &&
+                    Enumerable.Range(1, kTestSubscriptions - 1).All(index =>
+                        Volatile.Read(ref targetSubscriptionCounters[index]) > countsBeforeResume[index] &&
+                        Volatile.Read(ref targetSubscriptionFastDataCounters[index]) > batchesBeforeResume[index]),
+                timeoutMessage: "Transferred subscriptions did not resume dynamic values and static keepalives.")
+                .ConfigureAwait(false);
 
             // validate expected counts
             for (int jj = 0; jj < kTestSubscriptions; jj++)
@@ -563,20 +563,17 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
                     originSubscriptionFastDataCounters[jj],
                     targetSubscriptionFastDataCounters[jj]);
 
-                int[] testCounter = targetSubscriptionCounters;
-                int[] testFastDataCounter = targetSubscriptionFastDataCounters;
-
                 if (jj == 0)
                 {
-                    // static nodes, expect no activity
-                    Assert.That(testCounter[jj], Is.Zero);
-                    Assert.That(testFastDataCounter[jj], Is.Zero);
+                    Assert.That(targetSubscriptionCounters[jj], Is.EqualTo(countsBeforeResume[jj]));
+                    Assert.That(targetSubscriptionFastDataCounters[jj], Is.EqualTo(batchesBeforeResume[jj]));
+                    AssertStaticNotifications(
+                        staticTargetNotifications, originStaticData, expectRepublish, sendInitialValues);
                 }
                 else
                 {
-                    // dynamic nodes, expect changes in target counters
-                    Assert.That(testCounter[jj], Is.GreaterThanOrEqualTo(0));
-                    Assert.That(testFastDataCounter[jj], Is.GreaterThanOrEqualTo(0));
+                    Assert.That(targetSubscriptionCounters[jj], Is.GreaterThan(countsBeforeResume[jj]));
+                    Assert.That(targetSubscriptionFastDataCounters[jj], Is.GreaterThan(batchesBeforeResume[jj]));
                 }
             }
 
@@ -591,10 +588,43 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
                 closeResult = await originSession.CloseAsync().ConfigureAwait(false);
                 Assert.That(ServiceResult.IsGood(closeResult), Is.True);
             }
+        }
 
-            // cleanup
-            File.Delete(filePath);
-            return targetSession;
+        private static void AssertStaticNotifications(
+            ConcurrentQueue<DataChangeNotification> received,
+            DataChangeNotification origin,
+            bool expectRepublish,
+            bool sendInitialValues)
+        {
+            DataChangeNotification[] notifications = [.. received];
+            Assert.That(
+                notifications.Count(notification => notification.SequenceNumber == origin.SequenceNumber),
+                Is.EqualTo(expectRepublish ? 1 : 0),
+                "Only a retained origin message requested for republish should reuse its sequence number.");
+            Assert.That(
+                notifications.Count(notification => notification.SequenceNumber != origin.SequenceNumber),
+                Is.EqualTo(sendInitialValues ? 1 : 0),
+                "Requested initial values must arrive in one new notification message.");
+            Assert.That(notifications.Select(notification => notification.SequenceNumber), Is.Unique);
+
+            Dictionary<uint, MonitoredItemNotification> originalItems =
+                origin.MonitoredItems.ToArray().ToDictionary(item => item.ClientHandle);
+            foreach (DataChangeNotification notification in notifications)
+            {
+                Assert.That(notification.SequenceNumber, Is.GreaterThanOrEqualTo(origin.SequenceNumber));
+                Assert.That(
+                    notification.MonitoredItems.ToArray().Select(item => item.ClientHandle),
+                    Is.EquivalentTo(originalItems.Keys));
+                foreach (MonitoredItemNotification item in notification.MonitoredItems)
+                {
+                    Assert.That(
+                        originalItems.TryGetValue(item.ClientHandle, out MonitoredItemNotification original),
+                        Is.True);
+                    Assert.That(item.Value.WrappedValue, Is.EqualTo(original.Value.WrappedValue));
+                    Assert.That(item.Value.StatusCode, Is.EqualTo(original.Value.StatusCode));
+                    Assert.That(item.Value.SourceTimestamp, Is.EqualTo(original.Value.SourceTimestamp));
+                }
+            }
         }
 
         /// <summary>
@@ -608,5 +638,7 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
             e.DeferredAcknowledgementsToSend.Clear();
             e.AcknowledgementsToSend.Clear();
         }
+
+        private readonly TransferType m_transferType;
     }
 }

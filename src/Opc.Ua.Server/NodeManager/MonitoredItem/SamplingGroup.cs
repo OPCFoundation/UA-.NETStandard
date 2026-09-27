@@ -379,22 +379,28 @@ namespace Opc.Ua.Server
         /// </summary>
         private double AdjustSamplingInterval(double samplingInterval)
         {
+            samplingInterval = SubscriptionManager.CalculateRevisedSamplingInterval(
+                samplingInterval, 0, MinimumSamplingIntervals.Continuous, 0);
             foreach (SamplingRateGroup samplingRate in m_samplingRates)
             {
+                if (double.IsNaN(samplingRate.Start) || double.IsInfinity(samplingRate.Start) || samplingRate.Start < 0)
+                {
+                    continue;
+                }
                 // groups are ordered by start rate.
                 if (samplingInterval <= samplingRate.Start)
                 {
-                    return samplingRate.Start;
+                    return Math.Min(samplingRate.Start, int.MaxValue);
                 }
 
-                // check if within range specified by the group.
-                double maxSamplingRate = samplingRate.Start;
-
-                if (samplingRate.Increment > 0)
+                if (!(samplingRate.Increment > 0) ||
+                    double.IsInfinity(samplingRate.Increment) ||
+                    samplingRate.Count <= 0)
                 {
-                    maxSamplingRate += samplingRate.Increment * samplingRate.Count;
+                    continue;
                 }
 
+                double maxSamplingRate = samplingRate.Start + (samplingRate.Increment * samplingRate.Count);
                 if (samplingInterval > maxSamplingRate)
                 {
                     continue;
@@ -403,18 +409,12 @@ namespace Opc.Ua.Server
                 // find sampling rate within rate group.
                 if (samplingInterval == maxSamplingRate)
                 {
-                    return maxSamplingRate;
+                    return Math.Min(maxSamplingRate, int.MaxValue);
                 }
 
-                for (double ii = samplingRate.Start;
-                    ii <= maxSamplingRate;
-                    ii += samplingRate.Increment)
-                {
-                    if (ii >= samplingInterval)
-                    {
-                        return ii;
-                    }
-                }
+                double steps = Math.Ceiling((samplingInterval - samplingRate.Start) / samplingRate.Increment);
+                double revised = samplingRate.Start + (steps * samplingRate.Increment);
+                return Math.Min(Math.Max(samplingInterval, revised), int.MaxValue);
             }
 
             return samplingInterval;

@@ -38,6 +38,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using NUnit.Framework;
 
 namespace Opc.Ua.Tools.Tests
@@ -889,6 +890,61 @@ namespace Opc.Ua.Tools.Tests
                     "Exactly the two post-push feed checks must require presence.");
                 Assert.That(verifier, Does.Contain("[switch]$RequirePresent"));
                 Assert.That(verifier, Does.Contain("WaitUntilPresent:$RequirePresent"));
+            });
+        }
+
+        [Test]
+        public void NbgvCliUsesTheCentralPackageVersion()
+        {
+            string root = FindRepositoryRoot();
+            XDocument packages = XDocument.Load(Path.Combine(root, "Directory.Packages.props"));
+            string? version = packages
+                .Descendants("PackageVersion")
+                .SingleOrDefault(element =>
+                    string.Equals(
+                        (string?)element.Attribute("Include"),
+                        "Nerdbank.GitVersioning",
+                        StringComparison.Ordinal))
+                ?.Attribute("Version")
+                ?.Value;
+            string script = File.ReadAllText(Path.Combine(root, ".azurepipelines", "set-version.ps1"));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(version, Is.EqualTo("3.10.94"));
+                Assert.That(
+                    script,
+                    Does.Contain("$centralPackages.Project.ItemGroup.PackageVersion"),
+                    "The CLI must derive its exact version from central package management.");
+                Assert.That(script, Does.Contain("'--framework'"));
+                Assert.That(script, Does.Contain("'net10.0'"));
+                Assert.That(script, Does.Not.Contain("3.7.115"));
+                Assert.That(
+                    script,
+                    Does.Contain("[System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT"),
+                    "Azure invokes this script through Windows PowerShell 5.1, which does not define $IsWindows.");
+                Assert.That(script, Does.Not.Contain("$IsWindows"));
+            });
+        }
+
+        [Test]
+        public void OpenUsdPackageFamilyUsesOneVerifiedPrerelease()
+        {
+            XDocument packages = XDocument.Load(Path.Combine(FindRepositoryRoot(), "Directory.Packages.props"));
+            string[] versions =
+            [
+                .. packages
+                    .Descendants("PackageVersion")
+                    .Where(element =>
+                        ((string?)element.Attribute("Include"))?.StartsWith("OpenUsd", StringComparison.Ordinal) == true)
+                    .Select(element => (string?)element.Attribute("Version"))
+                    .OfType<string>()
+            ];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(versions, Has.Length.EqualTo(8));
+                Assert.That(versions, Is.All.EqualTo("0.14.0-alpha"));
             });
         }
 

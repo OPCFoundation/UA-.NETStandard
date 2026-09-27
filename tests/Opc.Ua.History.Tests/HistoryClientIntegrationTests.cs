@@ -391,10 +391,10 @@ namespace Opc.Ua.History.Tests
         }
 
         /// <summary>
-        /// Verifies that an insertion collision rolls back the entire history batch.
+        /// Verifies that an insertion collision preserves the existing entry and applies the other values.
         /// </summary>
         [Test]
-        public async Task InsertCollisionRollsBackEntireBatchAsync()
+        public async Task InsertCollisionPreservesOtherUpdatesAsync()
         {
             var client = new HistoryClient(Session);
             DateTime baseTime = DateTime.UtcNow.AddYears(-10).AddSeconds(1101);
@@ -425,9 +425,9 @@ namespace Opc.Ua.History.Tests
                 ]).ConfigureAwait(false);
 
             Assert.That(statuses, Has.Count.EqualTo(3));
-            Assert.That(statuses[0], Is.EqualTo(StatusCodes.BadTransactionFailed));
+            Assert.That(statuses[0], Is.EqualTo(StatusCodes.GoodEntryInserted));
             Assert.That(statuses[1], Is.EqualTo(StatusCodes.BadEntryExists));
-            Assert.That(statuses[2], Is.EqualTo(StatusCodes.BadTransactionFailed));
+            Assert.That(statuses[2], Is.EqualTo(StatusCodes.GoodEntryInserted));
 
             var remaining = new List<DataValue>();
             await foreach (DataValue dataValue in client.ReadRawAsync(
@@ -438,12 +438,15 @@ namespace Opc.Ua.History.Tests
                 remaining.Add(dataValue);
             }
 
-            Assert.That(remaining, Has.Count.EqualTo(1));
-            Assert.That(remaining[0].SourceTimestamp, Is.EqualTo(existingTime));
-            Assert.That(
-                remaining[0].WrappedValue.TryGetValue(out double remainingValue),
-                Is.True);
-            Assert.That(remainingValue, Is.EqualTo(99.0));
+            DateTimeUtc[] expectedTimes = [firstTime, existingTime, thirdTime];
+            double[] expectedValues = [1.0, 99.0, 3.0];
+            Assert.That(remaining, Has.Count.EqualTo(expectedTimes.Length));
+            for (int ii = 0; ii < expectedTimes.Length; ii++)
+            {
+                Assert.That(remaining[ii].SourceTimestamp, Is.EqualTo(expectedTimes[ii]));
+                Assert.That(remaining[ii].WrappedValue.TryGetValue(out double remainingValue), Is.True);
+                Assert.That(remainingValue, Is.EqualTo(expectedValues[ii]));
+            }
         }
 
         /// <summary>

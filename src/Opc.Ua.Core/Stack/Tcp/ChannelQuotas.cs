@@ -98,5 +98,40 @@ namespace Opc.Ua.Bindings
         /// The default lifetime for a security token in milliseconds.
         /// </summary>
         public int SecurityTokenLifetime { get; set; }
+
+        /// <summary>
+        /// The budget that bounds the memory the chunks of incomplete messages
+        /// hold across all the channels created with these quotas, or
+        /// <c>null</c> to bound each channel only by its negotiated message size
+        /// and chunk count.
+        /// </summary>
+        /// <remarks>
+        /// A channel reads this once, when it is created. A transport listener
+        /// sets it before it accepts connections, so that all its channels - and
+        /// all the listeners of a server - share one budget.
+        /// </remarks>
+        public ChunkReassemblyBudget? ChunkReassemblyBudget { get; set; }
+
+        /// <summary>
+        /// The server's authoritative session binding lookup, shared by all its channels.
+        /// </summary>
+        /// <remarks>
+        /// Without this optional capability, standalone channels retain legacy response-based
+        /// membership hints only. Those hints cannot establish identity or trusted capacity.
+        /// </remarks>
+        public ISessionBindingProvider? SessionBindingProvider { get; set; }
+
+        /// <summary>
+        /// Bounds incomplete-message retention even when the channel lifetime is unset.
+        /// Non-positive values use the same default as a newly configured channel,
+        /// without changing the lifetime used by other channel operations.
+        /// </summary>
+        internal int MessageAssemblyLifetime =>
+            ChannelLifetime > 0 ? ChannelLifetime : TcpMessageLimits.DefaultChannelLifetime;
+
+        /// <summary>
+        /// Shares assembly-deadline checks across channels using these quotas and the same clock.
+        /// </summary>
+        internal MessageAssemblyScheduler MessageAssemblyScheduler { get; } = new();
     }
 }

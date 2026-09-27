@@ -37,6 +37,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.WotCon.Client;
@@ -491,6 +492,18 @@ namespace Opc.Ua.WotCon.Samples.Tests
             WotSampleEnvironment environment = await WotSampleEnvironment
                 .StartAsync(timeout.Token).ConfigureAwait(false);
             await using ConfiguredAsyncDisposable environmentLifetime = environment.ConfigureAwait(false);
+            // Test the mapped read failure, not the default five-minute upstream retry cycle.
+            OpcUaClientOptions upstreamOptions = environment.AggregationHost.Services
+                .GetRequiredService<OpcUaClientOptions>();
+            upstreamOptions.Session = upstreamOptions.Session with
+            {
+                ReconnectPolicy = upstreamOptions.Session.ReconnectPolicy with
+                {
+                    MaxRetries = 1,
+                    InitialDelay = TimeSpan.Zero,
+                    JitterFactor = 0
+                }
+            };
             string unavailableEndpoint =
                 $"opc.tcp://127.0.0.1:{TestPorts.GetFreePort()}/UnavailableSource";
 
@@ -502,6 +515,8 @@ namespace Opc.Ua.WotCon.Samples.Tests
                     timeout.Token)).ConfigureAwait(false);
 
             Assert.That(failure, Is.TypeOf<ServiceResultException>());
+            Assert.That(timeout.IsCancellationRequested, Is.False);
+            Assert.That(failure.Message, Does.Contain("Reading materialized Pump value"));
         }
 
         private static async Task AssertPumpHierarchyAsync(

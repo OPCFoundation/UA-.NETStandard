@@ -166,13 +166,25 @@ namespace Opc.Ua.Server
 
                 try
                 {
-                    IReadOnlyList<string> closed = await rotator
-                        .CloseChannelsForUntrustedPeersAsync(
-                            (peerCertificate, ct) =>
-                                IsPeerTrustedInScopeAsync(validator, listenerScope, peerCertificate, ct),
-                            cancellationToken)
-                        .ConfigureAwait(false);
-                    totalCut += closed.Count;
+                    if (rotator is ITransportListenerPeerCertificateChainRotation chainRotator)
+                    {
+                        ArrayOf<string> closed = await chainRotator.CloseChannelsForUntrustedPeerChainsAsync(
+                            (chain, ct) => IsPeerTrustedInScopeAsync(validator, listenerScope, chain, ct),
+                            cancellationToken).ConfigureAwait(false);
+                        // Span.Length separates cardinality from serialized contents for static analysis.
+                        totalCut += closed.Span.Length;
+                    }
+                    else
+                    {
+                        IReadOnlyList<string> closed = await rotator.CloseChannelsForUntrustedPeersAsync(
+                            (certificate, ct) => IsPeerTrustedInScopeAsync(validator, listenerScope, certificate, ct),
+                            cancellationToken).ConfigureAwait(false);
+                        totalCut += closed.Count;
+                    }
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
                 }
                 catch (Exception ex)
                 {
@@ -193,8 +205,19 @@ namespace Opc.Ua.Server
             Certificate peerCertificate,
             CancellationToken ct)
         {
+            using var chain = new CertificateCollection { peerCertificate };
+            return await IsPeerTrustedInScopeAsync(validator, scope, chain, ct).ConfigureAwait(false);
+        }
+
+        private static async ValueTask<bool> IsPeerTrustedInScopeAsync(
+            ICertificateValidatorEx validator,
+            TrustListIdentifier scope,
+            CertificateCollection chain,
+            CancellationToken ct)
+        {
             CertificateValidationResult result = await validator
-                .ValidateAsync(peerCertificate, scope, ct)
+                .ValidateAsync(chain, scope,
+                    new Security.Certificates.CertificateValidationOptions { RecordRejectedCertificates = false }, ct)
                 .ConfigureAwait(false);
             return result.IsValid;
         }
@@ -251,10 +274,13 @@ namespace Opc.Ua.Server
                 bool valid;
                 try
                 {
-                    CertificateValidationResult result = await validator
-                        .ValidateAsync(userCertificate, TrustListIdentifier.Users, cancellationToken)
+                    valid = await IsPeerTrustedInScopeAsync(
+                        validator, TrustListIdentifier.Users, userCertificate, cancellationToken)
                         .ConfigureAwait(false);
-                    valid = result.IsValid;
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
                 }
                 catch (Exception ex)
                 {

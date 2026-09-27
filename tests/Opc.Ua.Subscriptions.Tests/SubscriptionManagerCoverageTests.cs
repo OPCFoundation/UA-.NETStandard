@@ -713,6 +713,8 @@ namespace Opc.Ua.Subscriptions.Tests
 
             public bool IsCreationInProgress { get; init; }
 
+            public bool IsIntentionallyDeleted { get; init; }
+
             public long MissingMessageCount { get; init; }
 
             public long RepublishMessageCount { get; init; }

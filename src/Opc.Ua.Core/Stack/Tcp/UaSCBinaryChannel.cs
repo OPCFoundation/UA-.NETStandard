@@ -229,6 +229,7 @@ namespace Opc.Ua.Bindings
 
             BufferManager = bufferManager ?? throw new ArgumentNullException(nameof(bufferManager));
             Quotas = quotas ?? throw new ArgumentNullException(nameof(quotas));
+            m_chunkReassemblyBudget = quotas.ChunkReassemblyBudget;
             m_serverCertificates = serverCertificates;
             ServerCertificate = serverCertificate;
             ServerCertificateChain = serverCertificateChain;
@@ -310,25 +311,7 @@ namespace Opc.Ua.Bindings
                 transport?.Close();
                 DiscardTokens();
 
-                // A message the peer never finished sending leaves its chunks
-                // queued here. Nothing else returns them, so a client that sends
-                // one intermediate chunk and disconnects would cost the pool a
-                // receive buffer per channel.
-                //
-                // Dispose runs alongside the receive loop, which may be saving a
-                // chunk at this moment, so the collection is detached under the
-                // same lock every partial message operation takes, and closed so
-                // a chunk saved afterwards is not queued into a new collection
-                // nothing would ever release.
-                BufferCollection? partialChunks;
-
-                lock (m_partialMessageLock)
-                {
-                    m_partialMessageClosed = true;
-                    partialChunks = m_partialMessageChunks;
-                    m_partialMessageChunks = null;
-                }
-                partialChunks?.Release(BufferManager, "Dispose");
+                ClosePartialMessage();
 
                 ServerCertificateChain?.Dispose();
                 ServerCertificateChain = null;
@@ -571,8 +554,32 @@ namespace Opc.Ua.Bindings
             bool isServerContext,
             bool gateHeld)
         {
+            return SaveChunk(requestId, chunk, isServerContext, gateHeld, isFinal: false);
+        }
+
+        private bool SaveChunk(
+            uint requestId,
+            ArraySegment<byte> chunk,
+            bool isServerContext,
+            bool gateHeld,
+            bool isFinal)
+        {
             bool firstChunk;
             bool chunkOrSizeLimitsExceeded;
+            bool budgetExceeded = false;
+            bool hasSession = true;
+            if (!isFinal && requestId != 0 && chunk.Array != null && m_chunkReassemblyBudget != null)
+            {
+                try
+                {
+                    hasSession = ServesActivatedSession;
+                }
+                catch
+                {
+                    ReturnBuffer(chunk, "SaveIntermediateChunk");
+                    throw;
+                }
+            }
 
             lock (m_partialMessageLock)
             {
@@ -585,15 +592,7 @@ namespace Opc.Ua.Bindings
                     return false;
                 }
 
-                firstChunk = m_partialMessageChunks == null;
-                m_partialMessageChunks ??= [];
-
-                chunkOrSizeLimitsExceeded = MessageLimitsExceeded(
-                    isServerContext,
-                    m_partialMessageChunks.TotalSize,
-                    m_partialMessageChunks.Count);
-
-                if ((m_partialRequestId != requestId) || chunkOrSizeLimitsExceeded)
+                if (m_partialRequestId != requestId && m_partialMessageChunks != null)
                 {
                     if (m_partialMessageChunks.Count > 0)
                     {
@@ -601,12 +600,49 @@ namespace Opc.Ua.Bindings
                     }
 
                     m_partialMessageChunks.Release(BufferManager, "SaveIntermediateChunk");
+                    m_partialMessageChunks = null;
+                    ReleasePartialMessageReservation();
+                }
+
+                firstChunk = m_partialMessageChunks == null;
+                int savedSize = m_partialMessageChunks?.TotalSize ?? 0;
+                int savedCount = m_partialMessageChunks?.Count ?? 0;
+                int incomingCount = chunk.Array != null ? 1 : 0;
+                chunkOrSizeLimitsExceeded =
+                    chunk.Count > int.MaxValue - savedSize ||
+                    incomingCount > int.MaxValue - savedCount ||
+                    MessageLimitsExceeded(
+                        isServerContext,
+                        savedSize + chunk.Count,
+                        savedCount + incomingCount);
+
+                if (chunkOrSizeLimitsExceeded)
+                {
+                    m_partialMessageChunks?.Release(BufferManager, "SaveIntermediateChunk");
+                    m_partialMessageChunks = null;
+                    ReleasePartialMessageReservation();
                 }
 
                 if (!chunkOrSizeLimitsExceeded && requestId != 0 && chunk.Array != null)
                 {
-                    m_partialRequestId = requestId;
-                    m_partialMessageChunks.Add(chunk);
+                    if (isFinal || TryReservePartialMessageChunk(chunk.Array.Length, hasSession))
+                    {
+                        if (m_partialMessageChunks == null)
+                        {
+                            m_partialMessageChunks = [];
+                            m_partialMessageStartedAt = TimeProvider.GetTimestamp();
+                        }
+                        m_partialRequestId = requestId;
+                        m_partialMessageChunks.Add(chunk);
+                    }
+                    else
+                    {
+                        m_partialMessageChunks?.Release(BufferManager, "SaveIntermediateChunk");
+                        m_partialMessageChunks = null;
+                        ReleasePartialMessageReservation();
+                        ReturnBuffer(chunk, "SaveIntermediateChunk");
+                        budgetExceeded = true;
+                    }
                 }
                 else
                 {
@@ -619,6 +655,21 @@ namespace Opc.Ua.Bindings
             if (chunkOrSizeLimitsExceeded)
             {
                 DoMessageLimitsExceeded(gateHeld);
+            }
+            else if (budgetExceeded)
+            {
+                m_logger.UaSCChannelChunkReassemblyBudgetExceeded(
+                    ChannelId,
+                    hasSession ? m_chunkReassemblyBudget!.MaxBytes : m_chunkReassemblyBudget!.MaxBytesWithoutSession,
+                    hasSession);
+                try
+                {
+                    ReportChunkReassemblyBudgetExceeded();
+                }
+                finally
+                {
+                    DoMessageLimitsExceeded(gateHeld);
+                }
             }
 
             return firstChunk;
@@ -646,6 +697,26 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Whether an unfinished message has exhausted its fixed assembly lifetime.
+        /// </summary>
+        internal bool HasExpiredPartialMessage
+        {
+            get
+            {
+                if (Volatile.Read(ref m_partialMessageChunks) == null)
+                {
+                    return false;
+                }
+                lock (m_partialMessageLock)
+                {
+                    return m_partialMessageChunks != null &&
+                        TimeProvider.GetElapsedTime(m_partialMessageStartedAt).TotalMilliseconds >=
+                            Quotas.MessageAssemblyLifetime;
+                }
+            }
+        }
+
+        /// <summary>
         /// Returns a pooled buffer nothing downstream took ownership of.
         /// </summary>
         /// <param name="buffer">The segment whose array goes back to the pool.</param>
@@ -668,7 +739,7 @@ namespace Opc.Ua.Bindings
             bool isServerContext,
             bool gateHeld)
         {
-            SaveIntermediateChunk(requestId, chunk, isServerContext, gateHeld);
+            SaveChunk(requestId, chunk, isServerContext, gateHeld, isFinal: true);
             return TakeSavedChunks();
         }
 
@@ -684,8 +755,25 @@ namespace Opc.Ua.Bindings
             {
                 BufferCollection savedChunks = m_partialMessageChunks ?? [];
                 m_partialMessageChunks = null;
+                ReleasePartialMessageReservation();
                 return savedChunks;
             }
+        }
+
+        /// <summary>
+        /// Releases an unfinished message and prevents late receive callbacks from retaining more chunks.
+        /// </summary>
+        private protected void ClosePartialMessage()
+        {
+            BufferCollection? chunks;
+            lock (m_partialMessageLock)
+            {
+                m_partialMessageClosed = true;
+                chunks = m_partialMessageChunks;
+                m_partialMessageChunks = null;
+                ReleasePartialMessageReservation();
+            }
+            chunks?.Release(BufferManager, nameof(ClosePartialMessage));
         }
 
         /// <summary>
@@ -710,6 +798,42 @@ namespace Opc.Ua.Bindings
         protected virtual void DoMessageLimitsExceeded(bool gateHeld)
         {
             m_logger.UaSCChannelLog5(ChannelId);
+        }
+
+        /// <summary>
+        /// Whether retained chunks may use the headroom reserved for activated sessions.
+        /// </summary>
+        private protected virtual bool ServesActivatedSession => true;
+
+        /// <summary>
+        /// Reports a reassembly-budget rejection before the existing message-limit cleanup closes the channel.
+        /// </summary>
+        private protected virtual void ReportChunkReassemblyBudgetExceeded()
+        {
+        }
+
+        private bool TryReservePartialMessageChunk(int byteCount, bool hasSession)
+        {
+            if (m_chunkReassemblyBudget == null)
+            {
+                return true;
+            }
+            if (!m_chunkReassemblyBudget.TryReserve(byteCount, hasSession))
+            {
+                return false;
+            }
+            m_partialMessageReservedBytes += byteCount;
+            return true;
+        }
+
+        private void ReleasePartialMessageReservation()
+        {
+            long reservedBytes = m_partialMessageReservedBytes;
+            m_partialMessageReservedBytes = 0;
+            if (reservedBytes > 0)
+            {
+                m_chunkReassemblyBudget!.Release(reservedBytes);
+            }
         }
 
         /// <inheritdoc/>
@@ -1671,11 +1795,15 @@ namespace Opc.Ua.Bindings
         private bool m_firstReceivedSequenceNumber = true;
         private uint m_partialRequestId;
         private BufferCollection? m_partialMessageChunks;
+        private long m_partialMessageStartedAt;
+        private long m_partialMessageReservedBytes;
+        private readonly ChunkReassemblyBudget? m_chunkReassemblyBudget;
 
         /// <summary>
         /// Guards <see cref="m_partialMessageChunks"/>,
         /// <see cref="m_partialRequestId"/> and
-        /// <see cref="m_partialMessageClosed"/>. The channel gate cannot serve:
+        /// <see cref="m_partialMessageClosed"/>, including their reservation and
+        /// assembly timestamp. The channel gate cannot serve:
         /// it is not re-entrant, the client saves response chunks without it,
         /// and disposal does not take it. Nothing is acquired while this is held.
         /// </summary>
@@ -1985,5 +2113,14 @@ namespace Opc.Ua.Bindings
         public static partial void UaSCChannelNonceRejected(
             this ILogger logger,
             Exception exception);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryChannel + 17, Level = LogLevel.Warning,
+            Message = "ChannelId {ChannelId}: Incomplete-message buffers exceed the {LimitBytes} byte " +
+                "reassembly limit (session activated: {HasSession}); discarding the message.")]
+        public static partial void UaSCChannelChunkReassemblyBudgetExceeded(
+            this ILogger logger,
+            uint channelId,
+            long limitBytes,
+            bool hasSession);
     }
 }

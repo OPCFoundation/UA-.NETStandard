@@ -281,7 +281,7 @@ namespace Opc.Ua.Bindings
         : ITransportListener,
             ITcpChannelListener,
             ITransportListenerCertificateRotation,
-            ITransportListenerPeerCertificateRotation
+            ITransportListenerPeerCertificateChainRotation
     {
         /// <summary>
         /// The default pending-connection backlog for the listener socket when the
@@ -416,7 +416,8 @@ namespace Opc.Ua.Bindings
             };
             m_quotas = new ChannelQuotas(messageContext)
             {
-                SecurityPolicyRegistry = settings.SecurityPolicyRegistry
+                SecurityPolicyRegistry = settings.SecurityPolicyRegistry,
+                SessionBindingProvider = settings.SessionBindingProvider
             };
 
             if (configuration != null)
@@ -437,6 +438,13 @@ namespace Opc.Ua.Bindings
             }
 
             m_quotas.CertificateValidator = settings.CertificateValidator;
+
+            // Bound what incomplete messages may hold across all the channels,
+            // not only per channel: without it every connection may keep the
+            // negotiated maximum message size alive by never sending a final
+            // chunk, and enough connections exhaust the memory of the process.
+            m_quotas.ChunkReassemblyBudget = settings.ChunkReassemblyBudget ??
+                global::Opc.Ua.Bindings.ChunkReassemblyBudget.CreateDefault(configuration);
 
             // save the server certificate.
             m_serverCertificates = settings.ServerCertificates!;
@@ -1000,7 +1008,24 @@ namespace Opc.Ua.Bindings
         public TrustListIdentifier PeerCertificateTrustListScope => TrustListIdentifier.Peers;
 
         /// <inheritdoc/>
-        public ValueTask<IReadOnlyList<string>> CloseChannelsForUntrustedPeersAsync(
+        public ValueTask<ArrayOf<string>> CloseChannelsForUntrustedPeerChainsAsync(
+            Func<CertificateCollection, CancellationToken, ValueTask<bool>> isPeerTrustedAsync,
+            CancellationToken ct = default)
+        {
+            if (isPeerTrustedAsync == null)
+            {
+                throw new ArgumentNullException(nameof(isPeerTrustedAsync));
+            }
+            TcpListenerChannel[] channels;
+            lock (m_lock)
+            {
+                channels = m_channels?.Values.ToArray() ?? [];
+            }
+            return CloseChannelsForUntrustedPeersCoreAsync(channels, isPeerTrustedAsync, ct);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<IReadOnlyList<string>> CloseChannelsForUntrustedPeersAsync(
             Func<Certificate, CancellationToken, ValueTask<bool>> isPeerTrustedAsync,
             CancellationToken ct = default)
         {
@@ -1009,36 +1034,24 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentNullException(nameof(isPeerTrustedAsync));
             }
 
-            // Snapshot the channel map so we can iterate without holding
-            // m_lock while re-validating peer certificates and invoking
-            // per-channel close paths (each channel acquires its own
-            // DataLock internally — avoid lock inversion).
-            TcpListenerChannel[] channels;
-            lock (m_lock)
-            {
-                channels = m_channels?.Values.ToArray() ?? [];
-            }
-
-            if (channels.Length == 0)
-            {
-                return new ValueTask<IReadOnlyList<string>>([]);
-            }
-
-            return CloseChannelsForUntrustedPeersCoreAsync(channels, isPeerTrustedAsync, ct);
+            ArrayOf<string> closed = await CloseChannelsForUntrustedPeerChainsAsync(
+                (chain, token) => isPeerTrustedAsync(chain[0], token), ct).ConfigureAwait(false);
+            return closed.ToArray() ?? [];
         }
 
-        private async ValueTask<IReadOnlyList<string>> CloseChannelsForUntrustedPeersCoreAsync(
+        private async ValueTask<ArrayOf<string>> CloseChannelsForUntrustedPeersCoreAsync(
             TcpListenerChannel[] channels,
-            Func<Certificate, CancellationToken, ValueTask<bool>> isPeerTrustedAsync,
+            Func<CertificateCollection, CancellationToken, ValueTask<bool>> isPeerTrustedAsync,
             CancellationToken ct)
         {
             var closed = new List<string>(channels.Length);
             foreach (TcpListenerChannel channel in channels)
             {
-                Certificate? peerCertificate = null;
+                ct.ThrowIfCancellationRequested();
+                CertificateCollection? peerCertificate = null;
                 try
                 {
-                    peerCertificate = channel.SnapshotClientCertificateForRevalidation();
+                    peerCertificate = channel.SnapshotClientCertificateChainForRevalidation();
                     if (peerCertificate == null)
                     {
                         // No client certificate (e.g. SecurityPolicy.None) —
@@ -1050,6 +1063,10 @@ namespace Opc.Ua.Bindings
                     try
                     {
                         trusted = await isPeerTrustedAsync(peerCertificate, ct).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                    {
+                        throw;
                     }
                     catch (Exception ex)
                     {
@@ -1071,6 +1088,10 @@ namespace Opc.Ua.Bindings
                         closed.Add(globalChannelId!);
                     }
                 }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    throw;
+                }
                 catch (Exception ex)
                 {
                     // Best-effort: log and continue closing remaining
@@ -1086,7 +1107,7 @@ namespace Opc.Ua.Bindings
 
             m_logger.TcpTransportLog30(closed.Count);
 
-            return closed;
+            return closed.ToArrayOf();
         }
 
         /// <summary>
@@ -1371,6 +1392,12 @@ namespace Opc.Ua.Bindings
         /// The maximum number of secure channels
         /// </summary>
         public int MaxChannelCount { get; private set; }
+
+        /// <summary>
+        /// The budget the channels of the listener reserve the chunks of their
+        /// incomplete messages against, once the listener is open.
+        /// </summary>
+        internal ChunkReassemblyBudget? ChunkReassemblyBudget => m_quotas?.ChunkReassemblyBudget;
 
         /// <summary>
         /// Handles requests arriving from a channel.

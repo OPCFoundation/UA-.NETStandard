@@ -1111,6 +1111,76 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
         }
 
         /// <summary>
+        /// Verifies that annotation counts are Bad_NoData outside the data and Partial at its edges
+        /// (Part 13 §5.4.3.20, §5.3.3.2), and Bad_NoData for a node without any data.
+        /// </summary>
+        [Test]
+        public async Task AnnotationCountReportsIntervalsOutsideDataAsync()
+        {
+            using var store = new StrongTestStore();
+            using AesCbcHmacRecordProtector protector = CreateProtector();
+            await using SharedKeyValueHistorianProvider provider = CreateProvider(
+                store,
+                protector,
+                new TestElection(true));
+            HistorianOperationContext context = CreateOperationContext();
+            var nodeId = new NodeId("annotation-count-edges", 2);
+            await provider.InsertAsync(
+                context,
+                nodeId,
+                [ValueAt(1, 2), ValueAt(2, 7)],
+                default).ConfigureAwait(false);
+            await provider.InsertAnnotationsAsync(
+                context,
+                nodeId,
+                [new Annotation { AnnotationTime = TimeAt(3) }],
+                default).ConfigureAwait(false);
+
+            HistorianPage<DataValue> page = await provider.ReadProcessedAsync(
+                context,
+                new HistorianProcessedReadRequest
+                {
+                    NodeId = nodeId,
+                    AggregateId = ObjectIds.AggregateFunction_AnnotationCount,
+                    StartTime = TimeAt(0),
+                    EndTime = TimeAt(15),
+                    ProcessingInterval = 5000,
+                    Configuration = new AggregateConfiguration()
+                },
+                default,
+                default).ConfigureAwait(false);
+
+            Assert.That(page.Values, Has.Count.EqualTo(3));
+            Assert.That(page.Values[0].WrappedValue.TryGetValue(out int first), Is.True);
+            Assert.That(first, Is.EqualTo(1));
+            Assert.That(
+                page.Values[0].StatusCode.AggregateBits,
+                Is.EqualTo(AggregateBits.Calculated | AggregateBits.Partial));
+            Assert.That(
+                page.Values[1].StatusCode.AggregateBits,
+                Is.EqualTo(AggregateBits.Calculated | AggregateBits.Partial));
+            Assert.That(page.Values[2].StatusCode.Code, Is.EqualTo(StatusCodes.BadNoData));
+
+            HistorianPage<DataValue> empty = await provider.ReadProcessedAsync(
+                context,
+                new HistorianProcessedReadRequest
+                {
+                    NodeId = new NodeId("annotation-count-empty", 2),
+                    AggregateId = ObjectIds.AggregateFunction_AnnotationCount,
+                    StartTime = TimeAt(0),
+                    EndTime = TimeAt(10),
+                    ProcessingInterval = 5000,
+                    Configuration = new AggregateConfiguration()
+                },
+                default,
+                default).ConfigureAwait(false);
+
+            Assert.That(empty.Values, Has.Count.EqualTo(2));
+            Assert.That(empty.Values[0].StatusCode.Code, Is.EqualTo(StatusCodes.BadNoData));
+            Assert.That(empty.Values[1].StatusCode.Code, Is.EqualTo(StatusCodes.BadNoData));
+        }
+
+        /// <summary>
         /// Verifies provider identity, supported historian interfaces, portable tokens, and default structured-data
         /// capability.
         /// </summary>

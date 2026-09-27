@@ -389,10 +389,9 @@ namespace Opc.Ua.Server
             {
                 if (m_configuration.CertificateManager is ICertificateLifecycle lifecycle)
                 {
-                    using var certOnly = Certificate.FromRawData(addCertificateWithKey.RawData);
                     await lifecycle.UpdateApplicationCertificateAsync(
                         existingCertIdentifier.CertificateType,
-                        certOnly,
+                        addCertificateWithKey,
                         issuerChain: null,
                         ct).ConfigureAwait(false);
                 }
@@ -676,14 +675,15 @@ namespace Opc.Ua.Server
             // active certificate registry rather than the EndpointDescription's
             // ServerCertificate blob captured at startup: after a successful
             // certificate rotation that blob may be stale, so the live registry
-            // (keyed by the endpoint's SecurityPolicyUri, exactly as the channel
-            // handshake resolves the presented certificate) is authoritative for
+            // (using the endpoint's security and user-token policies) is authoritative for
             // which certificate/type is presented at this moment. When no
             // registry is available (an external/mocked IServerInternal) the
             // endpoint's own blob is the only source and is used as a fallback.
             var registry = m_configuration.CertificateManager as ICertificateRegistry;
 
-            if (IsCertificateReferencedByEndpoint(deletedThumbprint!, endpoints, registry, Server.Telemetry))
+            if (IsCertificateReferencedByEndpoint(
+                deletedThumbprint!, endpoints, registry, Server.Telemetry,
+                (Server as ISecurityPolicyRegistryProvider)?.SecurityPolicyRegistry))
             {
                 throw new ServiceResultException(
                     StatusCodes.BadInvalidState,

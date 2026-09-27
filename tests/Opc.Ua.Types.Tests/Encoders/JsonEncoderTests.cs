@@ -479,6 +479,212 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.Fail("Exception not thrown");
         }
 
+        [TestCase(null, null)]
+        [TestCase("", null)]
+        [TestCase(null, "")]
+        [TestCase("", "")]
+        public void WriteLocalizedTextWithoutTextAndLocaleWritesNull(string locale, string text)
+        {
+            // Text and Locale are not encoded if null or empty (Part 6 5.4.2.15), so the
+            // value is the null LocalizedText: JSON null in Verbose, omitted in Compact.
+            var value = new LocalizedText(locale, text);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    Encode(JsonEncoderOptions.Verbose, w => w.WriteLocalizedText(JsonProperties.Value, value)),
+                    Is.EqualTo("""{"Value":null}"""));
+                Assert.That(
+                    Encode(JsonEncoderOptions.Compact, w => w.WriteLocalizedText(JsonProperties.Value, value)),
+                    Is.EqualTo("{}"));
+                Assert.That(
+                    Encode(JsonEncoderOptions.Verbose, w => w.WriteLocalizedTextArray(JsonProperties.Value, [value])),
+                    Is.EqualTo("""{"Value":[null]}"""));
+            });
+        }
+
+        [Test]
+        public void WriteLocalizedTextOmitsEmptyText()
+        {
+            var value = new LocalizedText("en-US", string.Empty);
+
+            Assert.That(
+                Encode(JsonEncoderOptions.Verbose, w => w.WriteLocalizedText(JsonProperties.Value, value)),
+                Is.EqualTo("""{"Value":{"Locale":"en-US"}}"""));
+        }
+
+        [Test]
+        public void WriteVariantWithNullArrayKeepsArrayRank()
+        {
+            // Only a NULL of a nullable built-in type may omit Value (Part 6 5.4.2.17); a
+            // null array is written as an empty array, which is semantically the same.
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            Variant value = Variant.CreateDefault(TypeInfo.Arrays.UInt16);
+
+            foreach (JsonEncoderOptions options in new[] { JsonEncoderOptions.Verbose, JsonEncoderOptions.Compact })
+            {
+                using var buffer = new PooledBufferWriter();
+                using (var writer = new JsonEncoder(buffer, messageContext, options))
+                {
+                    writer.WriteVariant(JsonProperties.Value, value);
+                }
+
+                using var decoder = new JsonDecoder(buffer.WrittenMemory.ToReadOnlySequence(16), messageContext);
+                Variant decoded = decoder.ReadVariant(JsonProperties.Value);
+
+                Assert.That(decoded.TypeInfo, Is.EqualTo(TypeInfo.Arrays.UInt16), options.Name);
+            }
+        }
+
+        [Test]
+        public void WriteVariantWithNullMatrixWritesEmptyArray()
+        {
+            // A null matrix has no Dimensions a peer can accept, so it is written as the
+            // semantically equal empty array (Part 6 5.1.11) instead of failing to encode.
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            Variant value = Variant.CreateDefault(
+                TypeInfo.Create(BuiltInType.UInt16, ValueRanks.TwoDimensions));
+
+            foreach (JsonEncoderOptions options in new[] { JsonEncoderOptions.Verbose, JsonEncoderOptions.Compact })
+            {
+                using var buffer = new PooledBufferWriter();
+                using (var writer = new JsonEncoder(buffer, messageContext, options))
+                {
+                    writer.WriteVariant(JsonProperties.Value, value);
+                }
+
+                using var decoder = new JsonDecoder(buffer.WrittenMemory.ToReadOnlySequence(16), messageContext);
+                Variant decoded = decoder.ReadVariant(JsonProperties.Value);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        System.Text.Encoding.UTF8.GetString(buffer.WrittenMemory.ToArray()),
+                        Is.EqualTo("""{"Value":{"UaType":5,"Value":[]}}"""),
+                        options.Name);
+                    Assert.That(decoded.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.UInt16), options.Name);
+                    Assert.That(decoded.TypeInfo.IsScalar, Is.False, options.Name);
+                });
+            }
+        }
+
+        [Test]
+        public void WriteVariantWithNullOfNullableValueTypeRoundTrips()
+        {
+            // DateTime and Guid are nullable (Part 6 Table 1): MinValue and all zeros are
+            // their null, so Compact omits Value, and either form decodes to the same value.
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            (Variant Value, string CompactJson)[] cases =
+            [
+                (new Variant(DateTimeUtc.MinValue), """{"Value":{"UaType":13}}"""),
+                (new Variant(Uuid.Empty), """{"Value":{"UaType":14}}""")
+            ];
+
+            foreach ((Variant value, string compactJson) in cases)
+            {
+                Assert.That(
+                    Encode(JsonEncoderOptions.Compact, w => w.WriteVariant(JsonProperties.Value, value)),
+                    Is.EqualTo(compactJson));
+
+                foreach (JsonEncoderOptions options in new[] { JsonEncoderOptions.Verbose, JsonEncoderOptions.Compact })
+                {
+                    using var buffer = new PooledBufferWriter();
+                    using (var writer = new JsonEncoder(buffer, messageContext, options))
+                    {
+                        writer.WriteVariant(JsonProperties.Value, value);
+                    }
+
+                    using var decoder = new JsonDecoder(buffer.WrittenMemory.ToReadOnlySequence(16), messageContext);
+                    Assert.That(decoder.ReadVariant(JsonProperties.Value), Is.EqualTo(value), options.Name);
+                }
+            }
+        }
+
+        [Test]
+        public void WriteVariantWithDefaultDataValueWritesValue()
+        {
+            var value = new Variant(new DataValue());
+
+            Assert.That(
+                Encode(JsonEncoderOptions.Compact, w => w.WriteVariant(JsonProperties.Value, value)),
+                Is.EqualTo("""{"Value":{"UaType":23,"Value":{}}}"""));
+        }
+
+        [Test]
+        public void WriteVariantValueOmissionFollowsIgnoreOptions()
+        {
+            // Like every other field: NULLs are omitted when nulls or defaults are ignored,
+            // defaults of non-nullable types only when defaults are ignored.
+            var nullValue = new Variant(NodeId.Null);
+            var defaultValue = new Variant((ushort)0);
+            JsonEncoderOptions ignoreNullsOnly = JsonEncoderOptions.Verbose with
+            {
+                IgnoreNullValues = true
+            };
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    Encode(JsonEncoderOptions.Verbose, w => w.WriteVariant(JsonProperties.Value, nullValue)),
+                    Is.EqualTo("""{"Value":{"UaType":17,"Value":null}}"""));
+                Assert.That(
+                    Encode(JsonEncoderOptions.Compact, w => w.WriteVariant(JsonProperties.Value, nullValue)),
+                    Is.EqualTo("""{"Value":{"UaType":17}}"""));
+                Assert.That(
+                    Encode(ignoreNullsOnly, w => w.WriteVariant(JsonProperties.Value, nullValue)),
+                    Is.EqualTo("""{"Value":{"UaType":17}}"""));
+                Assert.That(
+                    Encode(JsonEncoderOptions.Verbose, w => w.WriteVariant(JsonProperties.Value, defaultValue)),
+                    Is.EqualTo("""{"Value":{"UaType":5,"Value":0}}"""));
+                Assert.That(
+                    Encode(JsonEncoderOptions.Compact, w => w.WriteVariant(JsonProperties.Value, defaultValue)),
+                    Is.EqualTo("""{"Value":{"UaType":5}}"""));
+                Assert.That(
+                    Encode(ignoreNullsOnly, w => w.WriteVariant(JsonProperties.Value, defaultValue)),
+                    Is.EqualTo("""{"Value":{"UaType":5,"Value":0}}"""));
+            });
+        }
+
+        [Test]
+        public void WriteExpandedNodeIdWithServerIndexAndNullIdentifierRoundTrips()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            var expected = new ExpandedNodeId(NodeId.Null, null, 1);
+            using var buffer = new PooledBufferWriter();
+            using (var writer = new JsonEncoder(buffer, messageContext))
+            {
+                writer.WriteExpandedNodeId(JsonProperties.Value, expected);
+            }
+
+            using var decoder = new JsonDecoder(buffer.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            ExpandedNodeId actual = decoder.ReadExpandedNodeId(JsonProperties.Value);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    System.Text.Encoding.UTF8.GetString(buffer.WrittenMemory.ToArray()),
+                    Is.EqualTo("""{"Value":"svr=1;i=0"}"""));
+                Assert.That(actual.ServerIndex, Is.EqualTo(1u));
+                Assert.That(actual.IsNull, Is.False);
+            });
+        }
+
+        private static string Encode(JsonEncoderOptions options, Action<JsonEncoder> write)
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            using var buffer = new PooledBufferWriter();
+            using (var writer = new JsonEncoder(buffer, messageContext, options))
+            {
+                write(writer);
+            }
+            return System.Text.Encoding.UTF8.GetString(buffer.WrittenMemory.ToArray());
+        }
+
         public static Argument CreateType => new()
         {
             Description = LocalizedText.From("Test"),

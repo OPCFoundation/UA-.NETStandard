@@ -59,12 +59,14 @@ namespace Opc.Ua.Server.FileSystem
         /// <summary>
         /// Gets or sets the maximum number of entries materialised per directory.
         /// </summary>
-        public int MaxEntries { get; set; } = 1024;
+        public int MaxEntries { get; set; } = DefaultMaxEntries;
 
         /// <summary>
         /// Gets or sets the maximum directory nesting materialised below the bound root.
         /// </summary>
         public int MaxDepth { get; set; } = 8;
+
+        internal const int DefaultMaxEntries = 1024;
     }
 
     /// <summary>

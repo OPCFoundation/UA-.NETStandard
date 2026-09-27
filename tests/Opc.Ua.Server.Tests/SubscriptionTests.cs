@@ -785,6 +785,42 @@ namespace Opc.Ua.Server.Tests
             Assert.That(subscription.Diagnostics.CurrentKeepAliveCount, Is.EqualTo(1));
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PublishTimerKeepsQueuedMessagesReadyUntilDrainedAsync(bool eventNotifications)
+        {
+            var clock = new FakeTimeProvider();
+            using Subscription subscription = CreateSubscription(
+                publishingInterval: 100,
+                maxNotificationsPerPublish: 1,
+                timeProvider: clock);
+            var limits = new List<uint>();
+            IMonitoredItem item = eventNotifications
+                ? CreateEventMonitoredItem(1, 3, limits).Object
+                : CreateDataChangeMonitoredItem(1, 3, limits).Object;
+            await RegisterMonitoredItemsAsync(subscription, item).ConfigureAwait(false);
+            using var context = new OperationContext(m_sessionMock.Object, DiagnosticsMasks.None);
+
+            for (uint sequence = 1; sequence <= 3; sequence++)
+            {
+                clock.Advance(TimeSpan.FromMilliseconds(101));
+                Assert.That(subscription.PublishTimerExpired(), Is.EqualTo(PublishingState.NotificationsAvailable),
+                    "Queued notification messages must not wait for keep-alive expiry.");
+                NotificationMessage message = subscription.Publish(context, out _, out bool moreNotifications);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(message.SequenceNumber, Is.EqualTo(sequence));
+                    Assert.That(message.NotificationData, Has.Count.EqualTo(1));
+                    Assert.That(moreNotifications, Is.EqualTo(sequence < 3));
+                    Assert.That(GetItemsToPublishCount(subscription), Is.Zero);
+                });
+            }
+
+            clock.Advance(TimeSpan.FromMilliseconds(101));
+            Assert.That(subscription.PublishTimerExpired(), Is.EqualTo(PublishingState.Idle),
+                "Messages retained only for retransmission must not count as queued notifications.");
+        }
+
         [Test]
         public void PublishTimerExpired_Triggering_CorrectlyTriggersAndPublishes()
         {

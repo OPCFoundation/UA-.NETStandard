@@ -31,6 +31,8 @@
 #nullable enable
 
 using System;
+using System.IO;
+using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
@@ -118,6 +120,121 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(options.StoreProviders, Does.Contain(provider.Object));
         }
 
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task ConfigurationValidationUsesScopedTrustStoreProviderAsync(bool customProvider, bool builtInIssuers)
+        {
+            string root = Path.Combine(Path.GetTempPath(), "sdk-trust-provider-" + Guid.NewGuid().ToString("N"));
+            string storeType = customProvider ? "ScopedValidationDirectory" : CertificateStoreType.Directory;
+            var provider = new Mock<ICertificateStoreProvider>(MockBehavior.Strict);
+            provider.SetupGet(instance => instance.StoreTypeName).Returns("ScopedValidationDirectory");
+            provider.Setup(instance => instance.SupportsStorePath(It.IsAny<string>())).Returns(false);
+            provider.Setup(instance => instance.CreateStore(m_telemetry))
+                .Returns(() => new DirectoryCertificateStore(false, m_telemetry));
+            var security = new SecurityConfiguration
+            {
+                ApplicationCertificates = [new CertificateIdentifier
+                {
+                    StoreType = CertificateStoreType.Directory,
+                    StorePath = Path.Combine(root, "own"),
+                    SubjectName = "CN=ScopedValidation",
+                    CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
+                }],
+                TrustedPeerCertificates = TrustStore("trusted"),
+                TrustedIssuerCertificates = TrustStore("issuer"),
+                TrustedHttpsCertificates = TrustStore("https-trusted"),
+                HttpsIssuerCertificates = TrustStore("https-issuer"),
+                TrustedUserCertificates = TrustStore("user-trusted"),
+                UserIssuerCertificates = TrustStore("user-issuer")
+            };
+            try
+            {
+                using CertificateManager manager = CertificateManagerFactory.Create(security, m_telemetry, options =>
+                {
+                    if (customProvider)
+                    {
+                        options.AddStoreProvider(provider.Object);
+                    }
+                });
+                var configuration = new ApplicationConfiguration(m_telemetry)
+                {
+                    ApplicationName = "ScopedValidation",
+                    ApplicationUri = "urn:localhost:ScopedValidation",
+                    ApplicationType = ApplicationType.Client,
+                    ClientConfiguration = new ClientConfiguration(),
+                    SecurityConfiguration = security,
+                    CertificateManager = manager
+                };
+                await configuration.ValidateAsync(ApplicationType.Client).ConfigureAwait(false);
+                Assert.That(security.TrustedPeerCertificates.StoreType, Is.EqualTo(storeType));
+                provider.Verify(instance => instance.CreateStore(m_telemetry),
+                    customProvider ? Times.Exactly(builtInIssuers ? 3 : 6) : Times.Never());
+            }
+            finally
+            {
+                if (Directory.Exists(root))
+                {
+                    Directory.Delete(root, true);
+                }
+            }
+
+            CertificateTrustList TrustStore(string name) => new()
+            {
+                StoreType = builtInIssuers && name.EndsWith("issuer", StringComparison.Ordinal)
+                    ? CertificateStoreType.Directory : storeType,
+                StorePath = Path.Combine(root, name)
+            };
+        }
+
+        [TestCase("unknown-provider")]
+        [TestCase("provider-failure")]
+        [TestCase("missing-path")]
+        public async Task ConfigurationValidationRejectsInvalidScopedStoresAsync(string failure)
+        {
+            var provider = new Mock<ICertificateStoreProvider>(MockBehavior.Strict);
+            provider.SetupGet(instance => instance.StoreTypeName).Returns("InvalidScopedStore");
+            provider.Setup(instance => instance.SupportsStorePath(It.IsAny<string>())).Returns(false);
+            provider.Setup(instance => instance.CreateStore(m_telemetry)).Throws(new IOException("Provider unavailable"));
+            var security = new SecurityConfiguration
+            {
+                ApplicationCertificates = [new CertificateIdentifier
+                {
+                    SubjectName = "CN=ScopedFailure", CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
+                }],
+                TrustedPeerCertificates = new CertificateTrustList { StoreType = "InvalidScopedStore", StorePath = "scoped-trusted" },
+                TrustedIssuerCertificates = new CertificateTrustList
+                {
+                    StoreType = "InvalidScopedStore", StorePath = failure == "missing-path" ? string.Empty : "scoped-issuer"
+                }
+            };
+            using CertificateManager manager = CertificateManagerFactory.Create(security, m_telemetry, options =>
+            {
+                if (failure != "unknown-provider")
+                {
+                    options.AddStoreProvider(provider.Object);
+                }
+            });
+            var configuration = new ApplicationConfiguration(m_telemetry)
+            {
+                ApplicationName = "ScopedFailure", ClientConfiguration = new ClientConfiguration(),
+                SecurityConfiguration = security, CertificateManager = manager
+            };
+            ServiceResultException? error = null;
+            try
+            {
+                await configuration.ValidateAsync(ApplicationType.Client).ConfigureAwait(false);
+            }
+            catch (ServiceResultException exception)
+            {
+                error = exception;
+            }
+            Assert.That(error, Is.Not.Null);
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+            provider.Verify(instance => instance.CreateStore(m_telemetry),
+                failure == "provider-failure" ? Times.Once() : Times.Never());
+        }
+
         [Test]
         public void CreateRejectsNullSecurityConfiguration()
         {
@@ -125,6 +242,37 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 () => CertificateManagerFactory.Create(null!, m_telemetry))!;
 
             Assert.That(exception.ParamName, Is.EqualTo("securityConfiguration"));
+        }
+
+        [Test]
+        public void StoreResolversKeepSameNamedProvidersInstanceScoped()
+        {
+            var firstStore = new Mock<ICertificateStore>(MockBehavior.Strict);
+            firstStore.Setup(store => store.Open("same-path", false));
+            firstStore.Setup(store => store.Dispose());
+            var secondStore = new Mock<ICertificateStore>(MockBehavior.Strict);
+            secondStore.Setup(store => store.Open("same-path", true));
+            secondStore.Setup(store => store.Dispose());
+            var firstProvider = new Mock<ICertificateStoreProvider>(MockBehavior.Strict);
+            firstProvider.SetupGet(provider => provider.StoreTypeName).Returns("SameProviderName");
+            firstProvider.Setup(provider => provider.CreateStore(m_telemetry)).Returns(firstStore.Object);
+            var secondProvider = new Mock<ICertificateStoreProvider>(MockBehavior.Strict);
+            secondProvider.SetupGet(provider => provider.StoreTypeName).Returns("SameProviderName");
+            secondProvider.Setup(provider => provider.CreateStore(m_telemetry)).Returns(secondStore.Object);
+            using var first = new CertificateManager(m_telemetry, [firstProvider.Object]);
+            using var second = new CertificateManager(m_telemetry, [secondProvider.Object]);
+            using (ICertificateStore opened = first.OpenCertificateStore("same-path", "SameProviderName", false))
+            {
+                Assert.That(opened, Is.SameAs(firstStore.Object));
+            }
+            using (ICertificateStore opened = second.OpenCertificateStore("same-path", "SameProviderName", true))
+            {
+                Assert.That(opened, Is.SameAs(secondStore.Object));
+            }
+            firstProvider.Verify(provider => provider.CreateStore(m_telemetry), Times.Once());
+            secondProvider.Verify(provider => provider.CreateStore(m_telemetry), Times.Once());
+            firstStore.Verify(store => store.Open("same-path", false), Times.Once());
+            secondStore.Verify(store => store.Open("same-path", true), Times.Once());
         }
 
         [Test]

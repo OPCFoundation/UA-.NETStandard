@@ -29,10 +29,6 @@
 
 #if NET8_0_OR_GREATER
 using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Net;
-using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.Extensions.Logging;
@@ -57,31 +53,39 @@ namespace Opc.Ua.Bindings
 
         public override async Task OnConnectedAsync(ConnectionContext connection)
         {
-            var transport = new PipeByteTransport(
-                connection,
-                m_owner.BufferManager,
-                m_owner.Quotas.MaxBufferSize,
-                m_owner.Telemetry);
-            try
+            if (!m_owner.TryAdmitConnection(connection.RemoteEndPoint, out UaScConnectionAdmission.Lease? lease))
             {
+                m_owner.Logger.KestrelTcpConnectionRejected();
+                connection.Abort();
+                return;
+            }
+
+            using (lease)
+            {
+                lease.SetAbortAction(connection.Abort);
                 uint channelId = m_owner.NextChannelId();
-                TcpListenerChannel channel = m_owner.CreateChannel();
+                TcpListenerChannel? channel = null;
                 try
                 {
+                    connection.ConnectionClosed.ThrowIfCancellationRequested();
+                    using var transport = new PipeByteTransport(
+                        connection,
+                        m_owner.BufferManager,
+                        m_owner.Quotas.MaxBufferSize,
+                        m_owner.Telemetry);
+                    lease.Attach(transport);
+                    channel = m_owner.CreateChannel();
                     m_owner.RegisterChannel(channelId, channel);
-                    channel.Attach(channelId, transport);
-                    // Ownership of the transport has been transferred to the
-                    // channel; null it out so the finally block below does
-                    // not dispose what the channel now owns.
-                    transport = null;
+                    channel.Attach(channelId, lease);
 
-                    // Hold the connection open until either side tears it down,
-                    // OR (in reverse-connect mode) until TransferListenerChannelAsync
-                    // hands the transport off to the application AND the new
-                    // owner closes the underlying pipe (Kestrel disposes the
-                    // ConnectionContext the instant this method returns).
-                    await m_owner.WaitForConnectionAsync(channelId, connection.ConnectionClosed)
+                    // Registry removal is not physical close: reverse-connect can
+                    // transfer the transport before this wait even begins.
+                    await lease.WaitForCloseAsync(connection.ConnectionClosed)
                         .ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (connection.ConnectionClosed.IsCancellationRequested)
+                {
+                    // Connection cancellation is normal shutdown.
                 }
                 catch (Exception ex)
                 {
@@ -90,20 +94,8 @@ namespace Opc.Ua.Bindings
                 finally
                 {
                     m_owner.UnregisterChannel(channelId);
-                    // channel.Dispose() closes the transport if the channel
-                    // still owns it. In reverse-connect mode after a successful
-                    // handoff the transport has been detached and a NEW owner
-                    // is responsible for it; channel.Dispose() is a no-op for
-                    // that transport in that case.
-                    channel.Dispose();
+                    channel?.Dispose();
                 }
-            }
-            finally
-            {
-                // Disposed only on the rare path where channel.Attach throws
-                // before ownership transfer; in the happy path 'transport' is
-                // already null and the channel owns it.
-                transport?.Dispose();
             }
         }
 
@@ -121,6 +113,10 @@ namespace Opc.Ua.Bindings
             this ILogger logger,
             Exception exception,
             uint id);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.KestrelTcpConnectionHandler + 1, Level = LogLevel.Debug,
+            Message = "Kestrel TCP connection rejected by listener admission settings.")]
+        public static partial void KestrelTcpConnectionRejected(this ILogger logger);
     }
 }
 #endif // NET8_0_OR_GREATER

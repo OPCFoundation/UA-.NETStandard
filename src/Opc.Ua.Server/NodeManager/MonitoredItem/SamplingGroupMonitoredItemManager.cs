@@ -124,7 +124,9 @@ namespace Opc.Ua.Server
                     filterToUse,
                     euRange,
                     samplingInterval,
-                    createDurable);
+                    createDurable,
+                    sourceSamplingInterval: Math.Max(1, SubscriptionManager.CalculateRevisedSamplingInterval(
+                        0, 1, handle.Node, itemToCreate.ItemToMonitor.AttributeId, 0)));
 
             // save the monitored item.
             MonitoredItems.AddOrUpdate(
@@ -297,7 +299,8 @@ namespace Opc.Ua.Server
                 monitoredItem,
                 itemToModify,
                 filterToUse,
-                euRange);
+                euRange,
+                revisedSamplingInterval: samplingInterval);
         }
 
         /// <inheritdoc/>
