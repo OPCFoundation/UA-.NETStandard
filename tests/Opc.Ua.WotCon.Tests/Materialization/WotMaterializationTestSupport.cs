@@ -56,6 +56,44 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         public string NextReloadWarning { get; set; } = string.Empty;
         public bool FailNextReload { get; set; }
 
+        public void RecordCommitted(ArrayOf<WotProjectionChange> changes)
+        {
+            bool replaced = false;
+            foreach (WotProjectionChange change in changes)
+            {
+                if (change.Document is null)
+                {
+                    RemoveCount++;
+                    Operations.Add(new HostOperation("remove", null, change.Current!.ClosureKey));
+                }
+                else if (change.Current is null)
+                {
+                    AddCount++;
+                    Operations.Add(new HostOperation("add", change.Document));
+                }
+                else
+                {
+                    replaced = true;
+                    if (change.RetirementPolicy == WotProjectionRetirementPolicy.Immediate)
+                    {
+                        ImmediateCount++;
+                        Operations.Add(new HostOperation("immediate", change.Document));
+                    }
+                    else
+                    {
+                        ShadowCount++;
+                        Operations.Add(new HostOperation("shadow", change.Document));
+                    }
+                }
+            }
+            if (replaced && !string.IsNullOrEmpty(NextReloadWarning))
+            {
+                string warning = NextReloadWarning;
+                NextReloadWarning = string.Empty;
+                throw new InvalidOperationException(warning);
+            }
+        }
+
         public ValueTask<WotProjectionHandle> AddAsync(
             WotProjectionDocument document, CancellationToken cancellationToken = default)
         {

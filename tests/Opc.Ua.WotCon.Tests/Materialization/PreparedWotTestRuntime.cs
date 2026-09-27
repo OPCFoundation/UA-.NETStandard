@@ -164,9 +164,23 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         private sealed class ObservedInvocation(
-            IWotProjectionPublication inner, Action<ArrayOf<WotProjectionChange>> published) : IWotProjectionPublication
+            IWotProjectionPublication inner, Action<ArrayOf<WotProjectionChange>> published)
+            : IWotProjectionValidationPublication
         {
             public bool IsCurrent => inner.IsCurrent;
+
+            public ValueTask ValidateAsync(
+                ArrayOf<WotProjectionChange> changes,
+                Func<IWotPreparedProjectionPublication, CancellationToken, ValueTask> inspectAsync,
+                IWotPreparedViewPublication? views = null,
+                CancellationToken cancellationToken = default)
+            {
+                if (inner is not IWotProjectionValidationPublication validation)
+                {
+                    throw new NotSupportedException("The observed stock owner must support private validation.");
+                }
+                return validation.ValidateAsync(changes, inspectAsync, views, cancellationToken);
+            }
 
             public async ValueTask<IWotPreparedProjectionPublication> PrepareAsync(
                 ArrayOf<WotProjectionChange> changes, IWotPreparedViewPublication? views = null,

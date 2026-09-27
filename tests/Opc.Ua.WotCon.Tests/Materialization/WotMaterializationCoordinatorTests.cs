@@ -53,24 +53,33 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         private WotRegistryService m_registry = null!;
         private FakeWotProjectionHost m_host = null!;
+        private IWotInvocationProjectionHost m_preparedHost = null!;
+        private PreparedWotTestRuntime? m_runtime;
         private FakeWotDocumentConverter m_converter = null!;
         private WotMaterializationCoordinator m_coordinator = null!;
 
         [SetUp]
-        public void SetUp()
+        public async Task SetUpAsync()
         {
-            m_registry = new WotRegistryService();
+            m_runtime = await PreparedWotTestRuntime.StartAsync().ConfigureAwait(false);
+            m_registry = await m_runtime.CreateRegistryAsync().ConfigureAwait(false);
             m_host = new FakeWotProjectionHost();
+            m_preparedHost = m_runtime.Observe(m_host.RecordCommitted);
             m_converter = new FakeWotDocumentConverter();
             m_coordinator = new WotMaterializationCoordinator(
-                m_registry, m_host, documentConverter: m_converter);
+                m_registry, m_preparedHost, documentConverter: m_converter);
         }
 
         [TearDown]
-        public void TearDown()
+        public async Task TearDownAsync()
         {
-            m_coordinator.Dispose();
-            m_registry.Dispose();
+            m_coordinator?.Dispose();
+            if (m_runtime is not null)
+            {
+                await m_runtime.DisposeAsync().ConfigureAwait(false);
+                m_runtime = null;
+            }
+            m_coordinator = null!;
         }
 
         private Task<WotRegistryMutationResult> RegisterTd(string resourceId, byte[] content)
@@ -227,7 +236,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             var options = new WotNodeSetConverterOptions { ProjectionCompatibilityMode = initial };
             m_coordinator.Dispose();
             m_coordinator = new WotMaterializationCoordinator(
-                m_registry, m_host, converterOptions: options, documentConverter: m_converter);
+                m_registry, m_preparedHost, converterOptions: options, documentConverter: m_converter);
             await RegisterTd("td-mode", TestMaterialization.Td("urn:td-mode")).ConfigureAwait(false);
             await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
             WotRefreshResult stable = await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
@@ -435,7 +444,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             var binders = new RecordingBinderRegistry();
             m_coordinator.Dispose();
             m_coordinator = new WotMaterializationCoordinator(
-                m_registry, m_host, binders, documentConverter: m_converter);
+                m_registry, m_preparedHost, binders, documentConverter: m_converter);
 
             await RegisterTd("td-a", TestMaterialization.Td("urn:td-a")).ConfigureAwait(false);
             await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
