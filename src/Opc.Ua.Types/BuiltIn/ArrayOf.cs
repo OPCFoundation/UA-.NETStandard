@@ -924,17 +924,26 @@ namespace Opc.Ua
 #if NET8_0_OR_GREATER
             if (values.TryGetNonEnumeratedCount(out int count))
             {
-                if (count == 0)
-                {
-                    return [];
-                }
+                // TryGetNonEnumeratedCount reads a live Count (e.g. a
+                // ConcurrentQueue<T> shared with a producer), which is not
+                // atomic with the enumeration below: the source can grow or
+                // shrink before or while it is enumerated. Grow the buffer
+                // rather than index past it, and trim if it enumerated short.
                 var copy = new T[count];
                 int index = 0;
                 foreach (T item in values)
                 {
+                    if (index == copy.Length)
+                    {
+                        Array.Resize(ref copy, Math.Max(copy.Length * 2, 4));
+                    }
                     copy[index++] = item;
                 }
-                return new(copy);
+                if (index != copy.Length)
+                {
+                    Array.Resize(ref copy, index);
+                }
+                return index == 0 ? [] : new(copy);
             }
 #endif
 #pragma warning disable RCS1151 // Cast explicit to avoid covariant conversion

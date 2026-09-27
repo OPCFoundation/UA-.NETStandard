@@ -544,6 +544,92 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
+        public void ToArrayOfFromIEnumerableThatGrowsPastItsReportedCountTest()
+        {
+            // TryGetNonEnumeratedCount reads a live Count that is not atomic
+            // with the enumeration, e.g. a ConcurrentQueue<T> a producer
+            // enqueues to between the count check and the foreach below.
+            int[] items = [1, 2, 3, 4, 5];
+            var enumerable = new StaleCountCollection<int>(reportedCount: 2, items);
+
+            var arrayOf = enumerable.ToArrayOf();
+
+            Assert.That(arrayOf.Count, Is.EqualTo(items.Length));
+            Assert.That(arrayOf.Span.ToArray(), Is.EquivalentTo(items));
+        }
+
+        [Test]
+        public void ToArrayOfFromIEnumerableThatShrinksBelowItsReportedCountTest()
+        {
+            int[] items = [1, 2];
+            var enumerable = new StaleCountCollection<int>(reportedCount: 5, items);
+
+            var arrayOf = enumerable.ToArrayOf();
+
+            Assert.That(arrayOf.Count, Is.EqualTo(items.Length));
+            Assert.That(arrayOf.Span.ToArray(), Is.EquivalentTo(items));
+        }
+
+        /// <summary>
+        /// An <see cref="ICollection{T}"/> whose <see cref="Count"/> does not
+        /// match the number of elements <see cref="GetEnumerator"/> yields,
+        /// reproducing what a concurrent collection can report to
+        /// <see cref="System.Linq.Enumerable.TryGetNonEnumeratedCount{TSource}"/>,
+        /// which only takes the fast <see cref="Count"/> path for
+        /// <see cref="ICollection{T}"/> and not for the read-only interface.
+        /// </summary>
+        /// <typeparam name="T">Type of the element in the collection.</typeparam>
+        private sealed class StaleCountCollection<T> : ICollection<T>
+        {
+            private readonly T[] m_items;
+
+            public StaleCountCollection(int reportedCount, T[] items)
+            {
+                Count = reportedCount;
+                m_items = items;
+            }
+
+            public int Count { get; }
+
+            public bool IsReadOnly => true;
+
+            public IEnumerator<T> GetEnumerator()
+            {
+                return ((IEnumerable<T>)m_items).GetEnumerator();
+            }
+
+            IEnumerator IEnumerable.GetEnumerator()
+            {
+                return GetEnumerator();
+            }
+
+            public void Add(T item)
+            {
+                throw new NotSupportedException();
+            }
+
+            public void Clear()
+            {
+                throw new NotSupportedException();
+            }
+
+            public bool Contains(T item)
+            {
+                throw new NotSupportedException();
+            }
+
+            public void CopyTo(T[] array, int arrayIndex)
+            {
+                throw new NotSupportedException();
+            }
+
+            public bool Remove(T item)
+            {
+                throw new NotSupportedException();
+            }
+        }
+
+        [Test]
         public void ToArrayOfFromArrayTest()
         {
             int[] array = [1, 2, 3];
