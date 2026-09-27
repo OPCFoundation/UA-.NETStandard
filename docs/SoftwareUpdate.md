@@ -15,6 +15,9 @@ address-space surface it creates, and how clients drive it.
   - [Method-handler hooks](#method-handler-hooks)
   - [Server-side state reporting](#server-side-state-reporting)
 - [Storage abstractions](#storage-abstractions)
+  - [Package-store contract](#package-store-contract)
+  - [File-system layout and provider composition](#file-system-layout-and-provider-composition)
+  - [Seeding a package](#seeding-a-package)
 - [File-transfer pipeline](#file-transfer-pipeline)
 - [Client side](#client-side)
   - [Uploading a package](#uploading-a-package)
@@ -183,6 +186,77 @@ Default implementations:
 | `FileSystemPackageStore` | Disk-backed, composed over `IFileSystemProvider`. |
 | `MemorySoftwareFolder` | Default for `WithSoftwareUpdate`. |
 | `FileSystemSoftwareFolder` | Persistence across server restarts. |
+
+### Package-store contract
+
+`ISoftwarePackageStore` implementations must support concurrent calls.
+The interface exposes the following asynchronous operations:
+
+| Operation | Result |
+| --- | --- |
+| `ListAsync` | Enumerate package metadata. |
+| `GetAsync` | Return the matching `SoftwarePackage`, or null if absent. |
+| `ExistsAsync` | Report whether an id is present. |
+| `OpenReadAsync` | Return a caller-owned payload stream; throw `FileNotFoundException` for an unknown id. |
+| `AddAsync` | Copy the supplied stream and add or replace the package with that id. |
+| `DeleteAsync` | Return whether a package was removed. |
+
+`SoftwarePackage` carries `Id`, `Version`, `Vendor`, `Description`, `SizeBytes`,
+`CreatedAt`, and an optional `Hash`. Both in-box stores compute `SizeBytes` and
+`CreatedAt` during `AddAsync`; callers may supply zero and `default` for those
+fields. They do not compute a content hash from an empty `Hash`.
+See [`ISoftwarePackageStore`](../src/Opc.Ua.Di.Server/SoftwareUpdate/ISoftwarePackageStore.cs)
+for the exact signatures.
+
+### File-system layout and provider composition
+
+`FileSystemPackageStore` stores each package beneath a provider-relative root:
+
+```text
+{root}/
+    {package-id}/
+        payload.bin
+        metadata.json
+```
+
+The JSON metadata uses the source-generated `SoftwarePackageJsonContext`, so
+serialization does not require reflection. Package ids must be nonempty, must
+not contain `/` or `\`, and must not be `.` or `..`; invalid ids throw
+`ArgumentException`.
+
+Reuse the server's configured `IFileSystemProvider`:
+
+```csharp
+ISoftwarePackageStore store = new FileSystemPackageStore(
+    provider: fileSystemProvider,
+    rootPath: "/SoftwarePackages");
+```
+
+The provider must permit writes for add/delete operations. A read-only provider
+can still serve list, metadata, and payload-read operations. The same provider can
+also be mounted through `FileSystemNodeManager`; use the store API rather than
+editing package files directly.
+
+### Seeding a package
+
+Resolve `ISoftwarePackageStore` from the host, then copy the payload into it.
+The caller owns and disposes the source stream:
+
+```csharp
+ISoftwarePackageStore store = serviceProvider.GetRequiredService<ISoftwarePackageStore>();
+using FileStream payload = File.OpenRead("firmware.bin");
+SoftwarePackage package = await store.AddAsync(
+    new SoftwarePackage(
+        Id: "firmware-1.0.0",
+        Version: "1.0.0",
+        Vendor: "Acme",
+        Description: "Device firmware",
+        SizeBytes: 0,
+        CreatedAt: default,
+        Hash: string.Empty),
+    payload,
+    ct);
+```
 
 ## File-transfer pipeline
 

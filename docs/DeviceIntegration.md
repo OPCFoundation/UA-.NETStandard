@@ -24,6 +24,7 @@ plugs it together.
 - [Software update](#software-update)
 - [Client helpers](#client-helpers)
 - [What is supported (OPC 10000-100)](#what-is-supported-opc-10000-100)
+- [See also](#see-also)
 
 ## Library layout
 
@@ -776,121 +777,54 @@ Then attach the session-close hook from inside a
 
 ## Software update
 
-The software-update facet exposes a package-storage layer plus a
-minimal client helper for OPC 10000-100 §10.3. The full state-machine
-wiring (PrepareForUpdate / Installation / PowerCycle / Confirmation)
-remains application-specific — the source generator emits typed
-`*StateMachineState` proxies that applications drive directly when
-needed.
+The software-update facet implements OPC 10000-100 workflows for loading,
+preparation, installation, power cycle, and confirmation. Attach it with
+`WithSoftwareUpdate`; application handlers supply device-specific behavior.
+The SDK supplies the state-machine wiring and file-transfer infrastructure.
 
 ### Server-side: package store
 
-The store is an application-facing abstraction over the binary
-artifacts that the Device Integration software-update facet exposes. Two
-implementations ship in `Opc.Ua.Di.Server.SoftwareUpdate`:
-
-| Type | Backing | Use case |
-|------|---------|----------|
-| `MemoryPackageStore` | `ConcurrentDictionary<string, byte[]>` | Unit tests; small fixtures. |
-| `FileSystemPackageStore` | `Opc.Ua.Server.FileSystem.IFileSystemProvider` | Production — reuses the same provider model used by the server's `FileSystem` mount. |
+`ISoftwarePackageStore` stores package metadata and payloads.
+`ISoftwareFolder` maintains each device's Current / Previous / Future versions.
+Both have memory and file-system implementations. See
+[Software Update storage abstractions](SoftwareUpdate.md#storage-abstractions)
+for their contracts and persistence choices.
 
 #### Surface
 
-```csharp
-public interface ISoftwarePackageStore
-{
-    IAsyncEnumerable<SoftwarePackage> ListAsync(CancellationToken ct = default);
-    ValueTask<SoftwarePackage?> GetAsync(string packageId, CancellationToken ct = default);
-    ValueTask<bool> ExistsAsync(string packageId, CancellationToken ct = default);
-    ValueTask<Stream> OpenReadAsync(string packageId, CancellationToken ct = default);
-    ValueTask<SoftwarePackage> AddAsync(SoftwarePackage metadata, Stream payload, CancellationToken ct = default);
-    ValueTask<bool> DeleteAsync(string packageId, CancellationToken ct = default);
-}
-```
-
-`SoftwarePackage` is a record carrying `Id`, `Version`, `Vendor`,
-`Description`, `SizeBytes`, `CreatedAt`, `Hash`. Both stores
-recompute `SizeBytes` and `CreatedAt` during `AddAsync` so callers
-can pass zeros / `default` in the input metadata.
+Use the [package-store contract](SoftwareUpdate.md#package-store-contract)
+for operations, metadata, and stream ownership. The Software Update guide also
+owns `WithSoftwareUpdate` options and handler hooks.
 
 #### `FileSystemPackageStore` layout
 
-Each package is stored as a directory containing two files:
-
-```
-{root}/
-    {package-id}/
-        payload.bin       ← the binary firmware/installer
-        metadata.json     ← the SoftwarePackage record as JSON
-```
-
-JSON serialization uses a source-generated `System.Text.Json`
-context (`SoftwarePackageJsonContext`) so the store is AOT-friendly.
-
-Package IDs must NOT contain `/` or `\` — the store validates and
-throws `ArgumentException` to prevent path traversal.
+Use the store through `ISoftwarePackageStore`, rather than modifying its backing
+files directly. See [file-system layout and provider composition](SoftwareUpdate.md#file-system-layout-and-provider-composition)
+for the file-system provider and persistence options.
 
 #### Composing with `IFileSystemProvider`
 
-```csharp
-IFileSystemProvider fs = new PhysicalFileSystemProvider(
-    rootDirectory: "/var/lib/myserver/packages",
-    mountName: "Packages",
-    isWritable: true);
-
-ISoftwarePackageStore store = new FileSystemPackageStore(
-    provider: fs,
-    rootPath: "/SoftwarePackages");
-```
-
-The same `IFileSystemProvider` instance can also be mounted into the
-server's address space via `FileSystemNodeManager` — both paths
-share the on-disk layout.
+Reuse the configured provider as described in
+[provider composition](SoftwareUpdate.md#file-system-layout-and-provider-composition).
 
 ### Hosting
 
-Register the store as a singleton and seed it from a
-`ConfigureDevicesFor` configurator:
-
-```csharp
-builder.Services.AddSingleton<ISoftwarePackageStore, MemoryPackageStore>();
-builder.Services
-    .AddOpcUa()
-    .AddServer(o => { ... })
-    .AddNodeManager<MyNodeManagerFactory>()
-    .ConfigureDevicesFor<MyNodeManager>(async ctx =>
-    {
-        ISoftwarePackageStore store = ctx.GetRequiredService<ISoftwarePackageStore>();
-        await store.AddAsync(
-            new SoftwarePackage(
-                Id: "firmware-1.0.0",
-                Version: "1.0.0",
-                Vendor: "Acme",
-                Description: "Initial firmware",
-                SizeBytes: 0,
-                CreatedAt: default,
-                Hash: string.Empty),
-            new FileStream("/path/to/firmware.bin", FileMode.Open));
-    });
-```
+Register the package store with the host and attach it to the device's
+software-update facet. See the [hosted-server walkthrough](SoftwareUpdate.md#hosted-server-walkthrough)
+and [package seeding example](SoftwareUpdate.md#seeding-a-package).
 
 ### Client-side software update
 
-`SoftwareUpdateClient` exposes a minimal read-only surface:
+`SoftwareUpdateClient` reads versions, uploads packages, and exposes typed
+state-machine operations. The usual workflow is upload, prepare, install, and
+confirm; supported steps depend on the device's advertised update capabilities.
+See [uploading a package](SoftwareUpdate.md#uploading-a-package) and
+[typed state-machine operations](SoftwareUpdate.md#typed-part-16-state-machine-surface)
+for runnable call sequences.
 
-```csharp
-public sealed class SoftwareUpdateClient
-{
-    public SoftwareUpdateClient(ISession session, NodeId softwareUpdateNodeId, ITelemetryContext telemetry);
-    public ValueTask<string> ReadSoftwareVersionAsync(CancellationToken ct = default);
-}
-```
-
-Method-level invocation (Loading, Installation, ...) is performed
-through the typed `*MethodStateClient` proxies emitted by the source
-generator for the Device Integration model. The client integration registers the
-factory `Func<NodeId, CancellationToken, ValueTask<SoftwareUpdateClient>>`
-via `services.AddOpcUa().AddClient(...).AddOpcUaDi()`.
+The DI client integration registers
+`Func<NodeId, CancellationToken, ValueTask<SoftwareUpdateClient>>` through
+`services.AddOpcUa().AddClient(...).AddOpcUaDi()`.
 
 ## Client helpers
 
@@ -1111,7 +1045,6 @@ Integration DataTypes:
 
 ### Not yet implemented
 
-- `SoftwareFolderType` (§10.3.5) — multi-version repository.
 - `TransferServicesType` (§10.4) — parameter set transfer.
 
 ## See also

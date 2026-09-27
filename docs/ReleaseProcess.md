@@ -27,7 +27,6 @@ without any other context.
 - [Failed or partial release](#failed-or-partial-release)
 - [Post-release verification](#post-release-verification)
 - [Release handoff template](#release-handoff-template)
-- [Release handoff](#release-handoff-version)
 - [Historical `release/2.0.0` branch](#historical-release200-branch)
 - [Maintaining this document](#maintaining-this-document)
 

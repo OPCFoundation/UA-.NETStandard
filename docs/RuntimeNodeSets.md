@@ -113,7 +113,9 @@ The rules that apply to every NodeManager registered at runtime -- what happens 
 
 ### Shadow reload
 
-`ShadowReloadRuntimeNodeSetAsync` (backed by `INodeManagerLifecycle.ShadowReloadAsync`) replaces a live registration the same way `ReloadRuntimeNodeSetAsync` does, but without the active-monitored-item guard:
+`ShadowReloadRuntimeNodeSetAsync` keeps existing monitored items on the retired
+generation while new requests use the replacement. Normal reload instead migrates
+compatible monitored items; shadow reload does not bypass an active-item prohibition.
 
 ```csharp
 public async ValueTask ShadowReloadAsync(CancellationToken ct)
@@ -128,18 +130,19 @@ public async ValueTask ShadowReloadAsync(CancellationToken ct)
 }
 ```
 
-The replacement generation is prepared and published through the same transactional prepare/publish/commit/rollback path as `ReloadAsync`, so a failure during preparation, publication, or the routing switch leaves the current generation fully active and cleans up the replacement, exactly as a normal reload does. Once committed, every new service request is atomically routed to the replacement generation, including for namespaces the current and replacement generations share.
-
-The current generation is not torn down immediately. It is moved to the same retired-generation bookkeeping used for an ordinary reload, but its existing monitored items and any request or continuation point that already captured it keep being served by it, unaffected by the routing switch. The retired generation is disposed automatically, without deleting any client subscription, once its monitored items and in-flight state drain; a later lifecycle operation (or shutdown) opportunistically retries that cleanup until it succeeds. `ShadowReloadAsync` returns the replacement `NodeManagerRegistration` immediately and invalidates the current handle for further lifecycle mutations, the same as `ReloadAsync`.
-
-Use `ShadowReloadAsync` when a model update must take effect for new requests without waiting for existing subscriptions to unsubscribe first; use the fail-closed `ReloadAsync` when a stale generation must never remain reachable, even briefly, for already-open monitored items.
+The returned registration replaces the old handle for lifecycle operations.
+Choose shadow reload only when retaining the old model for existing subscriptions
+is intentional; its resources remain allocated until those subscriptions drain.
 
 ### Immediate reload
 
-`ImmediateReloadRuntimeNodeSetAsync` (backed by `INodeManagerLifecycle.ImmediateReloadAsync`) performs the same atomic replacement but does not retain the previous generation until monitored items drain. After requests that already captured the old routing generation finish, every affected data-change monitored item is made publishable with `BadNodeIdUnknown`, event monitored items stop producing events, continuation points are invalidated, and the old NodeManager is disposed. The subscription and monitored-item records remain available so clients can receive the status and delete or recreate the affected items.
+`ImmediateReloadRuntimeNodeSetAsync` does not migrate existing monitored items.
+Affected data-change items receive `BadNodeIdUnknown`, and clients may recreate
+items against the replacement model.
 
-Use immediate reload only when continuity through the previous generation is not required. Durable monitored items are not eligible for immediate retirement because their terminal state would have to survive restart; choose shadow reload for any generation that owns them.
-
+The [node-manager reload matrix](NodeManagers.md#reload-modes) is authoritative for
+all three modes, including request draining, continuation points, and generation
+cleanup. Runtime NodeSet reload methods use those same lifecycle operations.
 
 ## Quick-start examples
 

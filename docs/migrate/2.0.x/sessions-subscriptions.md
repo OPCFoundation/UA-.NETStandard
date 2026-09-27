@@ -20,8 +20,8 @@
 - [Subscriptions and Transports](#subscriptions-and-transports)
   - [Durable subscriptions and reshaped Subscription tree](#durable-subscriptions-and-reshaped-subscription-tree)
   - [Request completion is owned by `OperationContext`](#request-completion-is-owned-by-operationcontext)
-  - [`Opc.Ua.Server.ISession`: `IsClosing` and `InvalidateContinuationPoints`](#opcuaserversession-isclosing-and-invalidatecontinuationpoints)
-  - [`Opc.Ua.Server.ISubscription`: the publish pipeline is server-internal](#opcuaserversubscription-the-publish-pipeline-is-server-internal)
+  - [`Opc.Ua.Server.ISession`: `IsClosing` and `InvalidateContinuationPoints`](#opcuaserverisession-isclosing-and-invalidatecontinuationpoints)
+  - [`Opc.Ua.Server.ISubscription`: the publish pipeline is server-internal](#opcuaserverisubscription-the-publish-pipeline-is-server-internal)
   - [PubSub](#pubsub)
   - [Reverse connect](#reverse-connect)
   - [`IMessageSocket` abstraction removed](#imessagesocket-abstraction-removed)
@@ -414,8 +414,7 @@ already implements them.
 **Source-breaking for custom implementations and for callers.** This is the **server-side**
 `Opc.Ua.Server.ISubscription` — not the client-side `Opc.Ua.Client.Subscriptions.ISubscription`
 introduced by the V2 subscription shape above. Twelve members leave the interface
-(analyzer `UA0030`; see [MigrationGuide.md](../../MigrationGuide.md#ua0030) for the
-caller-side migration):
+(analyzer `UA0030`):
 
 - `ItemReadyToPublish` and `ItemNotificationsAvailable` are **deleted**. Their implementation
   bodies had been commented out since 1.5.x, so every call was a no-op — delete the calls and
@@ -448,13 +447,22 @@ rest of the pipeline members.
 queue is the other half of the publish protocol. Code that constructed or drove one should use
 the `Publish` service path via `ISubscriptionManager.PublishAsync`.
 
+For the public operations that remain, obtain a subscription with
+`ISubscriptionManager.TryGetSubscription` before calling `ResendData`,
+`GetMonitoredItems`, or the monitored-item operations. Acknowledgements belong
+in the Publish request, not in direct calls into the subscription's internal
+publishing state machine.
+
 ### PubSub
 
-**Not source-breaking.** No public top-level types in `Opc.Ua.PubSub` were removed or renamed in 2.0. Changes are limited to internal modernization, AOT preparation, and diagnostics improvements. `Newtonsoft.Json` remains a direct `<PackageReference>` of `src/Opc.Ua.PubSub/Opc.Ua.PubSub.csproj`, so PubSub consumers keep receiving it transitively (see [Newtonsoft.Json - what really changed](#newtonsoftjson---what-really-changed)).
+PubSub has source-breaking package and API changes. See the
+[PubSub migration guide](pubsub.md) for removed application/connection types,
+builder replacements, JSON encoding changes, and wire-compatibility limits.
+Dependency changes are maintained in the [package guide](packages.md#newtonsoftjson---what-really-changed).
 
 ### Reverse connect
 
-**Not source-breaking.** `ReverseConnectManager`, `ReverseConnectProperty`, and `ReverseConnectServer` retain the same public shape in 2.0. The previously published `ReverseConnectClientCollection` wrapper has been removed; this is already covered by the broader [Configuration collection types removed](#configuration-collection-types-removed) guidance.
+`ReverseConnectManager`, `ReverseConnectProperty`, and `ReverseConnectServer` retain the same public shape in 2.0. The `ReverseConnectClientCollection` wrapper is removed, which is source-breaking for callers using that collection. See [Configuration collection types removed](types.md#configuration-collection-types-removed).
 
 ### `IMessageSocket` abstraction removed
 

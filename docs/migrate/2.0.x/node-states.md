@@ -8,7 +8,7 @@
   - [Generics and Typed BaseVariableState and BaseVariableTypeState](#generics-and-typed-basevariablestate-and-basevariabletypestate)
   - [Predefined node processing](#predefined-node-processing)
   - [NodeState Cloning and Lifecycle](#nodestate-cloning-and-lifecycle)
-  - [INodeManager3 - new role-permission and method-resolution hooks](#inodemanager3--new-role-permission-and-method-resolution-hooks)
+  - [INodeManager3 - new role-permission and method-resolution hooks](#inodemanager3---new-role-permission-and-method-resolution-hooks)
   - [NodeState guards itself; NodeBrowser is single-consumer (UA0027)](#nodestate-guards-itself-nodebrowser-is-single-consumer-ua0027)
   - [NodeBrowser gains an async iteration seam](#nodebrowser-gains-an-async-iteration-seam)
 - [`INodeCache` changes](#inodecache-changes)

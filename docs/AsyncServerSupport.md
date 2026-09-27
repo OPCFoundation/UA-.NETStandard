@@ -25,16 +25,16 @@ The server library provides these TAP features:
 
 - [Upgrading an existing server](#upgrading-an-existing-server)
 - [Async method calls](#async-method-calls)
-- [`AsyncCustomNodeManager`](#asynccustomnodemanager)
+- [AsyncCustomNodeManager](#asynccustomnodemanager)
   - [Registering an AsyncCustomNodeManager](#registering-an-asynccustomnodemanager)
   - [Async browse iteration](#async-browse-iteration)
   - [Locking strategy vs CustomNodeManager2](#locking-strategy-vs-customnodemanager2)
-    - [Global write semaphore](#1-global-write-semaphore--m_writesemaphore)
-    - [Monitored-item semaphore](#2-monitored-item-semaphore--m_monitoreditemsemaphore)
-    - [Per-node locking](#3-per-node-locking-for-read-and-attribute-access)
+    - [1. Global write semaphore — `m_writeSemaphore`](#1-global-write-semaphore--m_writesemaphore)
+    - [2. Monitored-item semaphore — `m_monitoredItemSemaphore`](#2-monitored-item-semaphore--m_monitoreditemsemaphore)
+    - [3. Per-node locking for read and attribute access](#3-per-node-locking-for-read-and-attribute-access)
   - [Monitored-item manager selection](#monitored-item-manager-selection)
   - [Fully asynchronous change notifications](#fully-asynchronous-change-notifications)
-- [Creating a custom node manager](#creating-a-custom-node-manager)
+  - [Creating a custom node manager](#creating-a-custom-node-manager)
 
 ## Upgrading an existing server
 
@@ -114,40 +114,20 @@ for the browser contract.
 
 ### Locking strategy vs CustomNodeManager2
 
-`CustomNodeManager2` protects its entire address space with a **single coarse-grained monitor
-lock** stored in the `Lock` property:
+The synchronous `CustomNodeManager2` service paths use coarse-grained manager
+synchronization. `AsyncCustomNodeManager` instead coordinates writes and
+monitored-item management with awaitable semaphores while leaving node-state
+synchronization inside `NodeState`.
 
-```csharp
-lock (Lock)
-{
-    // all reads and writes go through this single lock
-}
-```
-
-While simple, this serialises all concurrent requests for the whole node manager and blocks the
-calling thread, which prevents the use of `await` inside the critical section.
-
-`AsyncCustomNodeManager` replaces this with a **two-tier, await-compatible locking model**:
+The following describes the implementation, not locks that application callers
+should acquire. Use the manager's service, lifecycle, and fluent APIs so operation
+admission, cancellation, and disposal remain coordinated.
 
 #### 1. Global write semaphore — `m_writeSemaphore`
 
-A `SemaphoreSlim(1, 1)` that serialises all **write** operations across the node manager.
-Because it is a `SemaphoreSlim` it can be acquired with `await`:
-
-```csharp
-await m_writeSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-try
-{
-    // safe to write any node
-}
-finally
-{
-    m_writeSemaphore.Release();
-}
-```
-
-Only one write request runs at a time, preventing concurrent modifications of the address space.
-Read operations do **not** acquire this semaphore.
+The manager serializes its Write service operations through an awaitable semaphore.
+Read operations do not acquire it. The semaphore does not turn external updates or
+several attribute accesses into a transaction; use the node APIs for state access.
 
 #### 2. Monitored-item semaphore — `m_monitoredItemSemaphore`
 
@@ -160,44 +140,26 @@ or writes. The semaphore protects:
 - event subscriptions and condition refresh
 - monitored-item transfers
 
-```csharp
-await m_monitoredItemSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-try
-{
-    // create / delete / modify monitored items
-}
-finally
-{
-    m_monitoredItemSemaphore.Release();
-}
-```
-
 #### 3. Per-node locking for read and attribute access
 
-Reads do not acquire any manager-wide lock. Instead they lock **only the individual `NodeState`
-object** being accessed. This allows many reads to run truly in parallel across different nodes:
+Reads do not acquire a manager-wide lock. `NodeState` synchronizes attribute and
+collection access internally; the async manager awaits `ReadAttributeAsync` so that
+asynchronous value handlers can complete without blocking a thread.
 
-```csharp
-lock (handle.Node)
-{
-    errors[ii] = handle.Node.ReadAttribute(
-        systemContext,
-        nodeToRead.AttributeId,
-        nodeToRead.ParsedIndexRange,
-        nodeToRead.DataEncoding,
-        value);
-}
-```
+**Do not use `lock (node)` or `lock (handle.Node)`.** Those monitors do not coordinate
+with the node's private locks and cannot protect its state. Use the node's attribute,
+child, and reference APIs instead. Individually synchronized operations do not form
+an atomic multi-attribute transaction.
 
-The same per-node lock is used for the old-value read inside `WriteAsync` and for
-`FindChildBySymbolicName` lookups in the component cache.
+See the [threading contract for nodes and browsers](NodeManagers.md#threading-contract-for-nodes-and-browsers)
+for supported operations, snapshot boundaries, and browser ownership.
 
 | Concern                          | `CustomNodeManager2`       | `AsyncCustomNodeManager`           |
 |----------------------------------|----------------------------|------------------------------------|
-| Address-space reads              | Global `lock (Lock)`       | Per-node `lock (node)` (parallel)  |
-| Address-space writes             | Global `lock (Lock)`       | `await m_writeSemaphore` (serial)  |
-| Monitored-item management        | Global `lock (Lock)`       | `await m_monitoredItemSemaphore`   |
-| `await` inside critical section  | Not possible               | Supported everywhere               |
+| Address-space reads              | Manager synchronization   | Internally synchronized node APIs |
+| Write service operations         | Manager synchronization   | Awaitable write serialization     |
+| Monitored-item management        | Manager synchronization   | Awaitable monitored-item serialization |
+| Awaiting asynchronous handlers   | Use the asynchronous path | Supported by asynchronous operations |
 | Implemented interface            | `INodeManager3`            | `IAsyncNodeManager`                |
 
 ### Monitored-item manager selection

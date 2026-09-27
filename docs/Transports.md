@@ -510,7 +510,7 @@ wire.
       token while awaiting peer data — long-lived sessions rely on this
       to tear down cleanly.
 - [ ] Error mapping. Map transport-layer errors to
-      [`ServiceResultException`](../src/Opc.Ua.Core/Types/Result/ServiceResultException.cs)
+      [`ServiceResultException`](../src/Opc.Ua.Types/Utils/ServiceResultException.cs)
       with the matching `StatusCodes.BadXxx` (`BadConnectionClosed`,
       `BadTcpMessageTypeInvalid`, `BadTcpMessageTooLarge`, …) so the
       channel can route them through normal UA fault paths.

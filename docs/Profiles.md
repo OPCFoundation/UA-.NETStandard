@@ -39,8 +39,8 @@ Foundation registry for the canonical URI form.
 - [Server Profiles](#server-profiles)
   - [Core Server Profiles](#core-server-profiles)
   - [Functional Facets](#functional-facets)
-  - [Local Discovery Server profile](#local-discovery-server-lds-profile)
-  - [Additional facets](#additional-facets-supported-by-the-implementation-beyond-the-default-advertised-set)
+  - [Local Discovery Server (LDS) Profile](#local-discovery-server-lds-profile)
+  - [Additional facets supported by the implementation (beyond the default advertised set)](#additional-facets-supported-by-the-implementation-beyond-the-default-advertised-set)
 - [Client Profiles](#client-profiles)
 - [Transport Profiles](#transport-profiles)
   - [Client and server transports](#client-and-server-transports)
@@ -49,16 +49,16 @@ Foundation registry for the canonical URI form.
   - [RSA-based security policies](#rsa-based-security-policies)
   - [ECC-based security policies](#ecc-based-security-policies)
     - [Traditional ECC curves](#traditional-ecc-curves)
-    - [Modern ECC curves](#modern-ecc-curves-v20)
-    - [AES-GCM and ChaCha20-Poly1305 variants](#aes-gcm-and-chacha20-poly1305-variants-v20)
-    - [RSA Diffie-Hellman](#rsa-diffie-hellman-v20)
+    - [Modern ECC curves (v2.0)](#modern-ecc-curves-v20)
+    - [AES-GCM and ChaCha20-Poly1305 variants (v2.0)](#aes-gcm-and-chacha20-poly1305-variants-v20)
+    - [RSA Diffie-Hellman (v2.0)](#rsa-diffie-hellman-v20)
   - [Deprecated security policies](#deprecated-security-policies)
   - [Security policy None](#security-policy-none)
 - [User Authentication](#user-authentication)
 - [Certificate Types](#certificate-types)
   - [RSA certificates](#rsa-certificates)
   - [ECC certificates](#ecc-certificates)
-- [Global Discovery Server](#global-discovery-server-gds)
+- [Global Discovery Server (GDS)](#global-discovery-server-gds)
 - [Message Encoding](#message-encoding)
 - [Specification Compliance](#specification-compliance)
 - [Configuration](#configuration)
@@ -405,12 +405,15 @@ Modern AEAD cipher alternatives for traditional ECC curves:
 - **RSA_DH_AesGcm** — RSA Diffie-Hellman key agreement with AES-GCM
 - **RSA_DH_ChaChaPoly** — RSA Diffie-Hellman key agreement with ChaCha20-Poly1305
 
-**Platform requirements for ECC.** ECC support is available on .NET
-Framework 4.8, .NET Standard 2.1, and .NET 5.0 or later. Modern curves
-(Curve25519, Curve448) and AEAD ciphers (AES-GCM, ChaCha20-Poly1305)
-require .NET 8.0 or later (`AesGcm.IsSupported` /
-`ChaCha20Poly1305.IsSupported` guard the runtime registration). Not all
-curves are supported by every OS platform and .NET implementation.
+**Platform requirements for ECC.** Certificate creation, storage, and validation
+are distinct from ECC SecureChannel and user-token security policies. Those policies
+require the stack's .NET 8.0-or-later target assets; running a .NET Standard asset
+on a newer runtime does not add the raw-secret APIs excluded at build time.
+Curve and cipher availability also depends on the OS and runtime probes
+(`AesGcm.IsSupported` / `ChaCha20Poly1305.IsSupported`). See the
+[ECC platform limitations](EccProfiles.md#known-limitations) for the certificate-operation
+and channel-policy boundaries. PubSub has its own
+[transport security limits](PubSub.md#security).
 
 ### Deprecated security policies
 
@@ -470,8 +473,8 @@ for storage, ref-counted lifetime, and the segregated-interface design.
 
 ## Global Discovery Server (GDS)
 
-The stack ships a Global Discovery Server implementation that is
-**full OPC UA Part 12 compliance**, including:
+The stack ships a Global Discovery Server implementation covering the following
+OPC UA Part 12 areas:
 
 - Application registration and discovery.
 - Pull and Push certificate-management models, including pushing to
@@ -486,8 +489,9 @@ The stack ships a Global Discovery Server implementation that is
   Credential issuance for non-OPC UA services such as MQTT brokers and
   REST APIs, backed by `IKeyCredentialRequestStore` / `ISecretStore`.
 
-See the [GDS Developer Guide](GDS.md) for the full feature breakdown and
-hosting integration. The Local Discovery Server is a separate library
+See the [GDS Developer Guide](GDS.md) for the implemented facets, provider-dependent
+features, partial support, and hosting integration. This is not a claim that every
+optional Part 12 function is implemented or certified. The Local Discovery Server is a separate library
 (`Opc.Ua.Lds.Server`) and reference application (`ConsoleLdsServer`) that
 advertises the
 [Local Discovery Server 2017](http://opcfoundation.org/UA-Profile/Server/LocalDiscovery2017)
@@ -513,10 +517,12 @@ server-defined types.
 ## Specification Compliance
 
 - **OPC UA Specification:** Version 1.05.07.
-- **Certification:** The reference server has been certified for
-  compliance through an OPC Foundation Certification Test Lab.
-- **Testing:** All releases are verified for compliance using the latest
-  Compliance Test Tool (CTT).
+- **Certification:** Historical reference-server certification does not establish
+  certification of the current release or of an application built with the SDK.
+  Verify the certificate and tested profile scope for the exact product version.
+- **Testing:** Automated repository tests provide implementation evidence, not a
+  substitute for certification. The [GDS conformance matrix](GDS.md)
+  explicitly distinguishes its test evidence from CTT results.
 - **Redundancy (Part 4 §6.6):** Server and client redundancy are implemented
   (opt-in) — `RedundancySupport`, `Server.ServiceLevel`, non-transparent
   (`ServerUriArray` / `RedundantServerArray`) and transparent (`CurrentServerId`)

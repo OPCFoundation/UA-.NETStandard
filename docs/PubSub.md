@@ -18,15 +18,15 @@
 - [Encodings](#encodings)
 - [Transcoding](#transcoding)
 - [Discovery](#discovery)
-- [Security](#security)
+- [Security](#security-1)
 - [Security Key Service (SKS)](#security-key-service-sks)
+- [Actions (request/response)](#actions-requestresponse)
 - [Server-side address space](#server-side-address-space)
 - [Binding PubSub to an external OPC UA server (client-session adapters)](#binding-pubsub-to-an-external-opc-ua-server-client-session-adapters)
 - [High availability and redundancy](#high-availability-and-redundancy)
 - [Diagnostics](#diagnostics)
 - [Native AOT](#native-aot)
 - [Spec coverage](#spec-coverage)
-- [Test coverage](#test-coverage)
 - [Cross-references](#cross-references)
 
 ## At a glance
@@ -497,7 +497,6 @@ broadcast. The transport honours the
 | `MessageRepeatCount`       | How many times the publisher re-sends the same NetworkMessage.       |
 | `MessageRepeatDelay`       | Delay between repeats; receivers deduplicate using `SequenceNumber`. |
 
-
 ### Ethernet / UADP (`opc.eth://`)
 
 Implemented in `Opc.Ua.PubSub.Eth`. Wire profile
@@ -558,7 +557,6 @@ services.AddOpcUa().AddPubSub(pubsub => pubsub
 Notes: only UADP encoding is defined for the Ethernet mapping (no JSON over `opc.eth://`); frames exceeding `MaxFrameSize` (the link MTU) cannot be sent, so enable UADP chunking or raise the MTU; the native AF_PACKET / BPF backends are exercised by opt-in / manual tests only (they need privileges and real hardware), while CI uses the in-memory loopback backend.
 
 **Security.** The Ethernet mapping provides **no transport-level authentication, integrity, or confidentiality** (unlike `opc.dtls://`): raw Layer 2 frames are unauthenticated and unencrypted, and any node on the broadcast / VLAN domain can sniff, inject, replay, or spoof them. Always configure **message-level PubSub security** (`SecurityMode = SignAndEncrypt` with a SecurityGroup / SKS), exactly as for UDP — the transport applies the same inbound security gate. The transport logs a prominent **warning** when a connection is opened with `SecurityMode = None`. Run the process with the **least privilege** required for raw L2 access — on Linux grant the `CAP_NET_RAW` capability to the binary (`setcap cap_net_raw+ep`) rather than running as root; `Promiscuous` mode is off by default and broadens the receive exposure when enabled. The in-memory loopback backend delivers every frame to all peers on its bus (no destination filtering) and is a test / diagnostic double only — it must not be relied on as a security or isolation boundary. SharpPcap (+ PacketDotNet) are pinned native dependencies tracked under the repository's SDL native-code policy (see `Directory.Packages.props`).
-
 
 ### DTLS / UADP (`opc.dtls://`)
 
@@ -650,7 +648,7 @@ transport open throws a clear `NotSupportedException`.
 | Brainpool P256r1/P384r1 + AES-GCM / ChaCha20 / integrity-only | Implemented only on platforms where the BCL can create the Brainpool curve OID. | Not registered. | None. |
 | Curve25519 / Curve448 mandatory profiles | Unsupported: .NET BCL has no portable X25519/X448 API; fail-closed. | Unsupported. | Unsupported. |
 
-Peer authentication reuses the injected stack `CertificateValidator` /
+Peer authentication reuses the injected stack certificate validator /
 certificate stores. Certificates must be ECC/ECDSA and match the selected profile
 hash strength. DTLS records enforce sequence-number protection and anti-replay
 per RFC 9147.

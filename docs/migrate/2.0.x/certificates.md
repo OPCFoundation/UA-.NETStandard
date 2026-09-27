@@ -286,8 +286,8 @@ honored exactly (never clamped) and `0` falls back to the 1 MiB default.
 
 ### Obsoleted certificate APIs
 
-The following APIs are marked `[Obsolete]` and will be removed in the next minor version. They remain
-functional forwarders to the new design for binary-compatibility, but emit `CS0618` warnings when used.
+The following static factory methods remain `[Obsolete]` forwarders and emit
+`CS0618` when used. Migrate them to the instance-based factory and issuer APIs.
 
 | Obsolete API | Replacement |
 |-------------|-------------|
@@ -298,11 +298,20 @@ functional forwarders to the new design for binary-compatibility, but emit `CS06
 | `CertificateFactory.RevokeCertificate(...)` | `DefaultCertificateIssuer.Instance.RevokeCertificates(...)` |
 | `CertificateFactory.CreateCertificateWithPEMPrivateKey(...)` | `DefaultCertificateFactory.Instance.CreateWithPEMPrivateKey(...)` |
 | `CertificateFactory.CreateCertificateWithPrivateKey(...)` | `DefaultCertificateFactory.Instance.CreateWithPrivateKey(...)` |
-| `CertificateStoreIdentifier.RegisterCertificateStoreType(...)` | Register `ICertificateStoreProvider` via dependency injection or pass to the `CertificateManager` constructor |
+| `CertificateStoreType.RegisterCertificateStoreType(...)` | Register `ICertificateStoreProvider` through dependency injection or pass it to `CertificateManager`. This obsolete registration API is not a factory forwarder. |
+
+#### Removed certificate APIs
+
+The following types and properties are removed, not obsolete forwarders.
+Update callers before compiling against 2.0.
+
+| Removed API | Replacement |
+|-------------|-------------|
 | `CertificateValidator` (class) | `ICertificateManager` (composed of `ICertificateValidatorEx` for validation, `ICertificateRegistry` for app certs, `ICertificateTrustListManager` for trust lists, `ICertificateLifecycle` for change events). Construct via `CertificateManagerFactory.Create(securityConfiguration, telemetry, ...)` |
 | `ICertificateValidator` (interface) | `ICertificateValidatorEx` from `ICertificateManager`. The new interface returns a structured `CertificateValidationResult` (`IsValid`, `StatusCode`, `Errors`, `IsBeingTrustedTransiently`) instead of throwing. Per-error accept logic moves from the `CertificateValidation` event to the new `CertificateValidationOptions.AcceptError` callback. |
 | `CertificateTypesProvider` (class) | `ICertificateRegistry` (composed in `ICertificateManager`). Use `using CertificateEntry? e = manager.AcquireApplicationCertificateBySecurityPolicy(securityPolicyUri);` (caller-owned — dispose the entry). The entry already carries the chain: use `e.IssuerChain` / `e.GetEncodedChainBlob()`. |
-| `ApplicationConfiguration.CertificateValidator` (property) | `ApplicationConfiguration.CertificateManager` (parallel property — set in `ApplicationInstance.CheckApplicationInstanceCertificatesAsync`) |
+| `CertificateValidatorAdapter` (class) | No legacy bridge; consume `ICertificateValidatorEx` or `ICertificateManager` directly. |
+| `ApplicationConfiguration.CertificateValidator` (property) | `ApplicationConfiguration.CertificateManager` (set in `ApplicationInstance.CheckApplicationInstanceCertificatesAsync`) |
 | `ServerBase.CertificateValidator` (property) | `ServerBase.CertificateManager` |
 | `ServerBase.InstanceCertificateTypesProvider` (property) | `ServerBase.CertificateManager` (use `ICertificateRegistry` surface) |
 
@@ -315,8 +324,10 @@ functional forwarders to the new design for binary-compatibility, but emit `CS06
 
 #### Migrating the `CertificateValidator.CertificateValidation` event
 
-The legacy event with mutable `e.Accept = true` mutability has been replaced by
-the structured `CertificateValidationOptions.AcceptError` callback:
+The legacy event with mutable `e.Accept = true` has been replaced by
+the structured `CertificateValidationOptions.AcceptError` callback. The following
+untrusted-certificate exception is for controlled development only; configure
+trust stores instead in production.
 
 ```csharp
 // Before:
@@ -336,7 +347,7 @@ var options = new CertificateValidationOptions
         error.StatusCode == StatusCodes.BadCertificateUntrusted
 };
 CertificateValidationResult result =
-    await applicationInstance.CertificateManager.ValidateAsync(cert, options: options);
+    await configuration.CertificateManager.ValidateAsync(cert, options: options);
 if (!result.IsValid)
 {
     throw new ServiceResultException(result.StatusCode);
@@ -348,17 +359,16 @@ if (!result.IsValid)
 `CertificateValidator.ValidateApplicationUri(...)` and
 `CertificateValidator.ValidateDomains(...)` are now exposed as extension
 methods on `ICertificateValidatorEx` in the
-`Opc.Ua.CertificateValidationExtensions` static class. Existing call sites
-that previously used the legacy class continue to work transparently.
+`Opc.Ua.CertificateValidationExtensions` static class. Change the receiver to
+`configuration.CertificateManager`; the removed legacy class is not a
+compatibility shim.
 
 > The `CertificateFactory.DefaultKeySize` / `DefaultLifeTime` / `DefaultHashSize` constants are
 > intentionally **not** marked obsolete; they remain the canonical default values used across
 > configuration sites.
 
-To suppress `CS0618` warnings while migrating, add at the top of affected files:
-```csharp
-#pragma warning disable CS0618 // Obsolete API usage during migration
-```
+Replace the obsolete calls rather than suppressing `CS0618` across a file.
+Warnings for forwarders do not imply that the removed APIs above are available.
 
 ---
 

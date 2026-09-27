@@ -446,14 +446,15 @@ design and [Kubernetes](Kubernetes.md) for the deployment guide.
 
 ### Global Discovery Server
 
-The GDS implementation is now **full OPC UA Part 12 compliance**, including
+The GDS implementation expands its OPC UA Part 12 support, including
 modern `StartRequestToken` / `FinishRequestToken` flows
 ([AuthorizationService](AuthorizationService.md)) and the pull/push
 [KeyCredentialService](KeyCredentialService.md). The client supports
 pushing to arbitrary certificate groups; the server supports custom
 certificate groups; SubCAs can be revoked without auto-creating an empty
 CRL; and method-call validation is strict. The full developer guide
-is in [GDS](GDS.md).
+is in [GDS](GDS.md), including provider requirements, partial functionality,
+and the distinction between automated test evidence and certification.
 
 ### Part 14 PubSub modernization
 
@@ -475,7 +476,7 @@ to track [Part 14 v1.05.06](https://reference.opcfoundation.org/specs/OPC-10000-
   groups, writers, readers, transports, and security in code; XML
   configuration loads through the same builder. Inline construction or
   full `IPubSubConfigurationStore` round-tripping are equivalent.
-- **Full v1.05.06 spec coverage.** UADP (§7.2.4) and JSON (§7.2.5)
+- **Expanded v1.05.06 functionality.** UADP (§7.2.4) and JSON (§7.2.5)
   encoders/decoders, including `JsonEncodingMode` { Verbose, Compact,
   RawData }, `SingleNetworkMessage`, Action and Discovery messages;
   UDP datagram-v2 (`DatagramConnectionTransport2DataType` +
@@ -501,7 +502,10 @@ to track [Part 14 v1.05.06](https://reference.opcfoundation.org/specs/OPC-10000-
   per [Part 14 §6.4.2.2.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.4.2.2.4)
   is supported.
 
-For library reference and code samples, read [`PubSub.md`](PubSub.md).
+For library reference, code samples, and transport-specific security limits,
+read [`PubSub.md`](PubSub.md). In particular, its DTLS Curve25519 / Curve448
+profiles are not registered; optional NIST / Brainpool profiles depend on runtime
+capability probes. The feature list above is not a blanket conformance claim.
 For the upgrade story (breaking changes, compatibility matrix, and
 codemod recipes), read
 [`migrate/2.0.x/pubsub.md`](migrate/2.0.x/pubsub.md).
@@ -523,23 +527,15 @@ opt-in workflow.
 
 ### Build, CI, and observability
 
-The build pipeline now runs on a managed DevOps pool with a per-TFM
-build/test matrix and parallelized client tests. `Nullable` is enabled
-across `src/`, the nine `src/`, and the `samples/` projects;
-dispose-analyzers (`CA2000`, `CA2213`) are on and clean. The repository
-follows a strict `dotnet format` baseline (whitespace, IDE, RCS) enforced
-by the `opc-ua-codestyle-enforcer` agent. Code analysis runs at "preview"
-level with "all" mode, package validation is on, and treat-warnings-as-
-errors is set repo-wide. On the runtime side,
-[Diagnostics](Diagnostics.md) is plumbed through `ITelemetryContext`:
-loggers, meters, and activities all hang off the same context object, and
-log redaction is wired through the audit APIs. Tests have been
-reorganised for faster CI, with several integration suites separated from
-unit suites, and code-coverage gates apply to all non-test, non-application
-projects. Those gates now run inside the pipeline itself - an absolute
-project floor plus a changed-lines check - instead of relying on an external
-coverage service; see
-[Continuous integration](DeveloperGuide.md#continuous-integration).
+Runtime observability uses `ITelemetryContext` for logging, metrics, and tracing,
+with redaction through the audit APIs. Start with [Diagnostics](Diagnostics.md)
+when instrumenting or troubleshooting an application.
+
+For contributors building the SDK itself, the [Developer Guide](DeveloperGuide.md)
+owns SDK prerequisites, analyzers, formatting, and
+[continuous integration](DeveloperGuide.md#continuous-integration).
+These repository requirements are separate from the runtime requirements of
+applications consuming the NuGet packages.
 
 ## Further reading
 

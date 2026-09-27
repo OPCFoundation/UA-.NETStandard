@@ -932,19 +932,15 @@ on:
 - **Zero-norm quaternion or pose with fewer than three position
   components** — refused with the detection index.
 
-An **empty** detection set is refused too, with `Bad_InvalidArgument`,
-because §9.5 states it plainly: "`Detections` empty" is an argument
-error. So is a `SubmitCorrection` whose corrected arrays are both empty
-or both populated — §9.5 requires *exactly one* to be non-empty.
+An empty detection set is accepted only when `SceneIsEmpty` is set; setting
+that flag with a nonempty set is rejected. For corrections, `RetractAll` allows
+both corrected arrays to be empty. Otherwise exactly one corrected array must
+be nonempty, and `RetractAll` must not accompany corrected entries.
 
-That is worth dwelling on, because it means two useful statements cannot
-be made at all. An agent that has emptied the bin cannot report "I looked
-and there is nothing there"; it must either invent a detection or say
-nothing. And a false positive — the model saw something that was not
-there — cannot be retracted by correcting the result down to an empty
-set, which is one of the more valuable labels a correction could carry.
-The implementation conforms rather than deviating, and the gap is raised
-against the draft; see [Limitations](#limitations).
+These flags let an agent report an empty scene or retract a false positive
+without inventing a detection. See [Submitting feedback](#submitting-feedback)
+for the payload contract and [Limitations](#limitations) for the host's
+responsibility for learning counters.
 
 ## Limitations
 

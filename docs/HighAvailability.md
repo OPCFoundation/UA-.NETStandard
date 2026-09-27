@@ -18,25 +18,25 @@ For distributed PubSub active/standby publishers and subscribers, see the PubSub
 
 ## Contents
 
-- [Redundancy overview](#redundancy-overview-as-per-part-4-661)
-- [Server redundancy](#server-redundancy-as-per-part-4-662)
+- [Redundancy overview (as per Part 4 §6.6.1)](#redundancy-overview-as-per-part-4-661)
+- [Server redundancy (as per Part 4 §6.6.2)](#server-redundancy-as-per-part-4-662)
   - [Server.ServerRedundancy model](#serverserverredundancy-model)
   - [Add* and Use* API convention](#add-and-use-api-convention)
-- [ServiceLevel and load balancing](#servicelevel-and-load-balancing-as-per-part-4-66242-and-66243)
-- [Non-transparent failover modes and client actions](#non-transparent-failover-modes-and-client-actions-as-per-part-4-66245)
-- [Manual failover and Maintenance](#manual-failover-and-maintenance-as-per-part-4-665)
+- [ServiceLevel and load balancing (as per Part 4 §6.6.2.4.2 and §6.6.2.4.3)](#servicelevel-and-load-balancing-as-per-part-4-66242-and-66243)
+- [Non-transparent failover modes and client actions (as per Part 4 §6.6.2.4.5)](#non-transparent-failover-modes-and-client-actions-as-per-part-4-66245)
+- [Manual failover and Maintenance (as per Part 4 §6.6.5)](#manual-failover-and-maintenance-as-per-part-4-665)
 - [HotAndMirrored and Transparent state mirroring](#hotandmirrored-and-transparent-state-mirroring)
   - [Active/passive address-space consistency](#activepassive-address-space-consistency)
   - [Strong active/passive historian](#strong-activepassive-historian)
-- [Client redundancy](#client-redundancy-as-per-part-4-663)
-- [Network redundancy](#network-redundancy-as-per-part-4-664)
-- [Distributed extensions](#beyond-66-distributed-extensions)
-  - [Dynamic peer discovery](#dynamic-peer-discovery-beyond-66-opt-in)
-  - [Distributed value cache](#sharing-values-across-replicas-distributed-value-cache-beyond-66-opt-in)
-  - [Shared certificate stores](#shared-certificate-stores-distributed-trust-lists-beyond-66-opt-in)
-  - [Distributed PushManagement transactions](#distributed-pushmanagement-transactions-beyond-66-opt-in)
-  - [GetEndpoints load direction](#getendpoints-load-direction-beyond-66-opt-in)
-  - [Client-side high availability](#client-side-high-availability-replica-sets)
+- [Client redundancy (as per Part 4 §6.6.3)](#client-redundancy-as-per-part-4-663)
+- [Network redundancy (as per Part 4 §6.6.4)](#network-redundancy-as-per-part-4-664)
+- [Beyond §6.6: distributed extensions](#beyond-66-distributed-extensions)
+  - [Dynamic peer discovery (beyond §6.6, opt-in)](#dynamic-peer-discovery-beyond-66-opt-in)
+  - [Sharing values across replicas: distributed value cache (beyond §6.6, opt-in)](#sharing-values-across-replicas-distributed-value-cache-beyond-66-opt-in)
+  - [Shared certificate stores (distributed trust lists) (beyond §6.6, opt-in)](#shared-certificate-stores-distributed-trust-lists-beyond-66-opt-in)
+  - [Distributed PushManagement transactions (beyond §6.6, opt-in)](#distributed-pushmanagement-transactions-beyond-66-opt-in)
+  - [GetEndpoints load direction (beyond §6.6, opt-in)](#getendpoints-load-direction-beyond-66-opt-in)
+  - [Client-side high availability (replica sets)](#client-side-high-availability-replica-sets)
 - [Kubernetes deployment](#kubernetes-deployment)
 - [Samples](#samples)
 - [Security considerations](#security-considerations)
@@ -666,7 +666,7 @@ builder
     });
 ```
 
-Give every replica a distinct `ReplicaId`, keep `RenewInterval` well below `LeaseDuration`, and share the same `KeyPrefix` and record-protection key across the set. See [Certificate Manager — PushManagement Transactions](CertificateManager.md#pushmanagement-transactions-opc-ua-part-12-71027101) for the underlying transaction model.
+Give every replica a distinct `ReplicaId`, keep `RenewInterval` well below `LeaseDuration`, and share the same `KeyPrefix` and record-protection key across the set. See [Certificate Manager — PushManagement Transactions](CertificateManager.md#pushmanagement-transactions-opc-ua-part-12-7102-71011) for the underlying transaction model.
 
 ### GetEndpoints load direction (beyond §6.6, opt-in)
 

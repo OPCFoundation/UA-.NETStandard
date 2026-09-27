@@ -14,16 +14,16 @@ automation systems through natural language.
 - [Resources](#resources)
   - [Multi-Session Support](#multi-session-support)
 - [Installation](#installation)
-  - [Run without installing](#option-1-run-without-installing-net-10-sdk)
-  - [Install as a .NET global tool](#option-2-install-as-a-net-global-tool)
-  - [Run from source](#option-3-run-from-source)
-  - [Install from local build](#option-4-install-from-local-build)
+  - [Option 1: Run without installing (.NET 10 SDK)](#option-1-run-without-installing-net-10-sdk)
+  - [Option 2: Install as a .NET global tool](#option-2-install-as-a-net-global-tool)
+  - [Option 3: Run from source](#option-3-run-from-source)
+  - [Option 4: Install from local build](#option-4-install-from-local-build)
 - [Configuration](#configuration)
   - [Run on demand without a global installation](#run-on-demand-without-a-global-installation)
   - [Claude Desktop](#claude-desktop)
   - [VS Code / GitHub Copilot](#vs-code--github-copilot)
   - [Cursor](#cursor)
-  - [HTTP Transport](#http-transport-for-remote-clients)
+  - [HTTP Transport (for remote clients)](#http-transport-for-remote-clients)
 - [Usage](#usage)
   - [Typical Workflow](#typical-workflow)
   - [NodeId Formats](#nodeid-formats)
@@ -32,7 +32,7 @@ automation systems through natural language.
 - [PubSub Tools](#pubsub-tools)
 - [Architecture](#architecture)
   - [Packages](#packages)
-  - [Embedding the tools](#embedding-the-tools-in-your-own-mcp-server)
+  - [Embedding the tools in your own MCP server](#embedding-the-tools-in-your-own-mcp-server)
 - [Security Notes](#security-notes)
 - [Agent-Usability Quality Gate](#agent-usability-quality-gate)
 - [Requirements](#requirements)
@@ -653,7 +653,7 @@ registration extensions.
 ## Security Notes
 
 - The `autoAcceptCerts` parameter is for **testing only**. In production, configure proper certificate trust using the OPC UA certificate stores under `%LocalApplicationData%/OPC Foundation/pki/`.
-- The server manages a single OPC UA session at a time. Disconnect before connecting to a different server.
+- The server supports simultaneous named OPC UA sessions. Use the intended session identifier for each operation and disconnect that session when finished; connecting to another server does not require closing unrelated sessions.
 - Application certificates are automatically created on first use and stored in the local certificate store.
 - Logs are written to `%LocalApplicationData%/OPC Foundation/Logs/McpServer.log.txt`.
 

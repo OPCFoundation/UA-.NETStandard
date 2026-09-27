@@ -10,29 +10,29 @@ covers cross-cutting changes.
 - [General principles](#general-principles)
 - [Per-version migration index](#per-version-migration-index)
 - [Migrating code that used the exposed diagnostics locks](#migrating-code-that-used-the-exposed-diagnostics-locks)
-  - [Why there is no `Obsolete` shim](#why-there-is-no-obsolete-shim)
-- [Migrating code that used `ILocalNode.DataLock`](#migrating-code-that-used-ilocalnodedatalock)
-- [Migrating code that used `BaseVariableValue.Lock`](#migrating-code-that-used-basevariablevaluelock)
-- [Migrating code that locked on a `NodeState` or a `NodeBrowser`](#migrating-code-that-locked-on-a-nodestate-or-a-nodebrowser)
-- [Migrating code that used `ApplicationConfiguration.PropertiesLock`](#migrating-code-that-used-applicationconfigurationpropertieslock)
-- [Migrating node types that override `FindChild` or `CreateChild`](#migrating-node-types-that-override-findchild-or-createchild)
+  - [Why there is no `[Obsolete]` shim](#why-there-is-no-obsolete-shim)
+- [Migrating code that used ILocalNode.DataLock](#migrating-code-that-used-ilocalnodedatalock)
+- [Migrating code that used BaseVariableValue.Lock](#migrating-code-that-used-basevariablevaluelock)
+- [Migrating code that locked on a NodeState or a NodeBrowser](#migrating-code-that-locked-on-a-nodestate-or-a-nodebrowser)
+- [Migrating code that used ApplicationConfiguration.PropertiesLock](#migrating-code-that-used-applicationconfigurationpropertieslock)
+- [Migrating node types that override FindChild or CreateChild](#migrating-node-types-that-override-findchild-or-createchild)
 - [Adopting replica-consistent NodeIds](#adopting-replica-consistent-nodeids)
-- [Removed members on `ISession`](#removed-members-on-isession)
+- [Removed members on ISession](#removed-members-on-isession)
 - [Awaiting custom node-manager cleanup](#awaiting-custom-node-manager-cleanup)
-- [Migrating code that called `IServerInternal.Set*` mutators](#migrating-code-that-called-iserverinternalset-mutators)
-- [Migrating `IServerStartupTask` implementations to `IServerContext`](#migrating-iserverstartuptask-implementations-to-iservercontext)
-- [Removed members on `IServerInternal`](#removed-members-on-iserverinternal)
+- [Migrating code that called IServerInternal.Set* mutators](#migrating-code-that-called-iserverinternalset-mutators)
+- [Migrating IServerStartupTask implementations to IServerContext](#migrating-iserverstartuptask-implementations-to-iservercontext)
+- [Removed members on IServerInternal](#removed-members-on-iserverinternal)
 - [Migrating servers that relied on unserved history advertisement](#migrating-servers-that-relied-on-unserved-history-advertisement)
-- [Migrating custom `ISessionManager` implementations to `ShutdownAsync`](#migrating-custom-isessionmanager-implementations-to-shutdownasync)
+- [Migrating custom ISessionManager implementations to ShutdownAsync](#migrating-custom-isessionmanager-implementations-to-shutdownasync)
 - [Configuring distributed address-space storage](#configuring-distributed-address-space-storage)
-- [Migrating `SamplingGroupManager` create/modify overrides](#migrating-samplinggroupmanager-createmodify-overrides)
-- [Migrating synchronous `MonitoredNode2` notification callers](#migrating-callers-of-the-synchronous-monitorednode2-notification-wrappers)
-- [Migrating callers of `SecurityPolicies` lookup and cryptography statics](#migrating-callers-of-the-securitypolicies-lookup-and-cryptography-statics)
+- [Migrating SamplingGroupManager create/modify overrides](#migrating-samplinggroupmanager-createmodify-overrides)
+- [Migrating callers of the synchronous MonitoredNode2 notification wrappers](#migrating-callers-of-the-synchronous-monitorednode2-notification-wrappers)
+- [Migrating callers of the SecurityPolicies lookup and cryptography statics](#migrating-callers-of-the-securitypolicies-lookup-and-cryptography-statics)
 - [Migrating code that drove the server subscription publish pipeline](#migrating-code-that-drove-the-server-subscription-publish-pipeline)
-- [Migrating channel subclasses that guarded state with `DataLock`](#migrating-channel-subclasses-that-guarded-state-with-datalock)
+- [Migrating channel subclasses that guarded state with DataLock](#migrating-channel-subclasses-that-guarded-state-with-datalock)
 - [Transport resource limits](#transport-resource-limits)
-- [Migrating channel subclasses that override `HandleIncomingMessage`](#migrating-channel-subclasses-that-override-handleincomingmessage)
-- [Migrating custom `IUserDatabase` implementations](#migrating-custom-iuserdatabase-implementations)
+- [Migrating channel subclasses that override HandleIncomingMessage](#migrating-channel-subclasses-that-override-handleincomingmessage)
+- [Migrating custom IUserDatabase implementations](#migrating-custom-iuserdatabase-implementations)
 - [Migrating from 1.05.377 to 1.05.378](#migrating-from-105377-to-105378)
   - [Asynchronous as default](#asynchronous-as-default)
   - [Observability](#observability)
@@ -216,63 +216,17 @@ already, so this only affects hand-written derived value classes and callers.
 
 ## Migrating code that locked on a NodeState or a NodeBrowser
 
-A `NodeState` guards its own attributes, children, notifiers and references, and
-`NodeState.CreateBrowser` guards the browser it builds. Nothing in the stack
-takes a lock on a node instance any more, so neither should a caller:
+Remove external `lock (node)` statements: `NodeState` synchronizes its own
+attributes and collections. Replace reference check-then-add pairs with
+`AddReferenceIfMissing`. Browsers are single-consumer, and `NodeBrowser.DataLock`
+is removed (analyzer `UA0027`).
 
-```csharp
-// was — the node manager reached for the node's monitor from outside the node
-lock (source)
-{
-    browser = source.CreateBrowser(context, view, referenceType, includeSubtypes,
-        browseDirection, default, null, false);
-}
-
-// now
-INodeBrowser browser = source.CreateBrowser(context, view, referenceType,
-    includeSubtypes, browseDirection, default, null, false);
-```
-
-`lock (node)` was also the only way to make a check-then-act pair atomic. Use
-`NodeState.AddReferenceIfMissing` instead, which does the check and the insert
-under the node's own lock:
-
-```csharp
-// was
-lock (node)
-{
-    if (!node.ReferenceExists(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server))
-    {
-        node.AddReference(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
-    }
-}
-
-// now
-node.AddReferenceIfMissing(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
-```
-
-`NodeBrowser.DataLock` is gone with it. A browser is **single-consumer**: it
-belongs to whoever created it and performs no synchronization of its own. A
-derived browser that took `DataLock` inside its `Next()` override drops the
-`lock` statement and keeps the body. Where a browser genuinely outlives one
-service call — the instance parked in a continuation point for `BrowseNext` —
-its owner serializes it, as the stack does for its own continuation points.
-
-A node type that overrides `CreateBrowser` and builds its own browser instead of
-delegating to the base implementation must fill it through
-`PopulateBrowserSynchronized` rather than calling `PopulateBrowser` directly,
-otherwise its browser is assembled from separately locked reads and can observe
-a node halfway through a change.
-
-Analyzer `UA0027` flags `NodeBrowser.DataLock`. See
-[migrate/2.0.x/node-states.md](migrate/2.0.x/node-states.md).
-
-`INodeBrowser` also gains `NextAsync(CancellationToken)`, which the async server
-browse and translate-path loops use to iterate a browser. The default completes
-synchronously with `Next()`, so existing browsers are unaffected; a browser whose
-references come from I/O overrides `NextAsync` and awaits there instead of
-blocking inside `Next()`. Details in
-[migrate/2.0.x/node-states.md](migrate/2.0.x/node-states.md#nodebrowser-gains-an-async-iteration-seam).
+The [node-state migration guide](migrate/2.0.x/node-states.md#nodestate-guards-itself-nodebrowser-is-single-consumer-ua0027)
+contains the before/after examples and the `PopulateBrowserSynchronized`
+requirement for custom browsers. For I/O-backed iteration, see
+[the async iteration seam](migrate/2.0.x/node-states.md#nodebrowser-gains-an-async-iteration-seam).
+The current [threading contract](NodeManagers.md#threading-contract-for-nodes-and-browsers)
+defines snapshot and synchronization boundaries.
 
 ## Migrating code that used ApplicationConfiguration.PropertiesLock
 
@@ -737,68 +691,18 @@ a warning rather than an error. The `ILogger` argument on the `Encrypt` and
 
 ## Migrating code that drove the server subscription publish pipeline
 
-Twelve members left the server `Opc.Ua.Server.ISubscription`, and the
-`SessionPublishQueue` class became internal. The publish pipeline — timer
-expiry, message acknowledgement, notification consumption, session release —
-is now driven exclusively by `SubscriptionManager` and the publish queue
-through an internal contract that only `Subscription` implements. Any holder
-of an `ISubscription` (for example via
-`IServerInternal.SubscriptionManager.GetSubscriptions()`) could previously
-call these members and corrupt the publishing state machine: consume
-notifications a client never saw, advance sequence numbers, or release a
-subscription its session still owned.
+The server publish pipeline is internal. Analyzer `UA0030` identifies removed
+`Opc.Ua.Server.ISubscription` members: remove no-op calls and use the service
+operations for publishing, acknowledgements, transfers, and session teardown.
+Custom server subscriptions must derive from `Subscription`.
 
-**Deleted outright — remove the call.** `ItemReadyToPublish` and
-`ItemNotificationsAvailable` had commented-out bodies since 1.5.x, so every
-call was already a no-op. The obsolete parameterless `SessionClosed()` is
-gone with them, and so is `TransferSessionAsync`: the server transfers
-subscriptions through its internal claim/prepare/commit protocol, reached
-via the `TransferSubscriptions` service
-(`ISubscriptionManager.TransferSubscriptionsAsync`) — the one-shot direct
-transfer bypassed the reservation that protects a transfer against a
-concurrently closing source session.
+See the [server subscription migration](migrate/2.0.x/sessions-subscriptions.md#opcuaserverisubscription-the-publish-pipeline-is-server-internal)
+for the complete removed-member list, replacement service paths, and custom
+implementation requirements. `SessionPublishQueue` is internal too; applications
+must not drive it directly.
 
-**Internalized — use the service operations.** `PublishTimerExpired`,
-`Acknowledge`, `PublishTimeout`, `SubscriptionTransferred`,
-`AvailableSequenceNumbersForRetransmission`, `QueueOverflowHandler`,
-`SessionClosed(ISession)` and `Publish` are no longer on the interface.
-Code that called them was reimplementing a slice of the server; the
-supported path is the service set (`Publish`, `Republish`,
-`TransferSubscriptions`) and the `ISubscriptionManager` surface
-(`SessionClosingAsync` for session teardown). `ResendData`,
-`GetMonitoredItems` and the monitored-item service operations remain on
-`ISubscription` — resolve the subscription with
-`ISubscriptionManager.TryGetSubscription` first, the way the
-`Server_ResendData` method handler does.
-
-```csharp
-// was: drive the pipeline directly
-if (server.SubscriptionManager.TryGetSubscription(subscriptionId, out ISubscription? subscription))
-{
-    subscription.PublishTimerExpired();
-    subscription.Acknowledge(context, sequenceNumber);
-}
-
-// now: the pipeline is server-internal; acknowledgements travel with the
-// Publish service request, and the publish timer belongs to the server
-Task<PublishResponse> response = server.SubscriptionManager.PublishAsync(
-    context, subscriptionAcknowledgements, parkSink, cancellationToken);
-```
-
-**Custom subscription implementations must derive from `Subscription`.**
-`SubscriptionManager.CreateSubscription` and `RestoreSubscriptionAsync`
-still return `ISubscription`, but an override returning a type that does not
-derive from `Subscription` now fails at creation with `Bad_InternalError`
-instead of publishing partially (transfer already required the concrete
-type). Derive from `Subscription` and override the behaviour you need; the
-pipeline members are explicit implementations of the internal contract and
-are not virtual.
-
-The no-`[Obsolete]`-shim rule [above](#why-there-is-no-obsolete-shim)
-applies here for the same reason: `ISubscription` is implemented by
-downstream code, and re-adding an interface member later would break every
-implementer. Analyzer `UA0030` flags each removed member on the migration
-path and names the replacement.
+The [no-obsolete-shim rule](#why-there-is-no-obsolete-shim) applies because
+restoring members to a public interface would break downstream implementers.
 
 ## Migrating channel subclasses that guarded state with DataLock
 

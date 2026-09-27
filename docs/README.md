@@ -1,103 +1,156 @@
 # OPC UA .NET Standard stack documentation
 
-Here is a list of available documentation for different topics:
+Start with a working application, then use the task guides and reference material
+as your requirements grow. Repository build and release procedures are grouped
+separately from SDK usage.
 
 ## Contents
 
+- [Start here](#start-here)
 - [UA Core stack related](#ua-core-stack-related)
+  - [Connect, read, and subscribe](#connect-read-and-subscribe)
+  - [Host a server and expose a model](#host-a-server-and-expose-a-model)
+  - [Security and identity](#security-and-identity)
+  - [Data types and schemas](#data-types-and-schemas)
+  - [Deploy and operate](#deploy-and-operate)
+- [PubSub](#pubsub)
+- [Companion models and connectivity](#companion-models-and-connectivity)
 - [Reference application related](#reference-application-related)
-- [Global Discovery Server](#global-discovery-server-gds)
+- [Global Discovery Server (GDS)](#global-discovery-server-gds)
+- [Contributing and maintaining the SDK](#contributing-and-maintaining-the-sdk)
 
-> **New contributor?** Start with the **[Developer Guide](DeveloperGuide.md)** — prerequisites, building, testing, coding standards, and how-to recipes (including how to add logging).
+## Start here
 
-> **Cutting, backporting, or promoting a release?** See the **[Release process](ReleaseProcess.md)** — the authoritative, step-by-step procedures for every release operation, including the branch/version model, backports, and recovering from a failed release.
+1. Choose a [sample application](samples.md) and the packages for your client or
+   server. Check [package and platform support](DeveloperGuide.md#packages-platform-support-and-versioning)
+   before selecting a target framework.
+2. Start a server with [dependency injection](DependencyInjection.md#server-feature)
+   or the [reference server](../samples/README.md). Establish
+   [certificate trust](Certificates.md) before enabling secured connections.
+3. [Connect a managed client](Sessions.md), then
+   [subscribe to data changes](Subscriptions.md#streaming-subscriptions).
+4. Expose your own model with [node managers](NodeManagers.md#start-with-a-model)
+   or [runtime NodeSets](RuntimeNodeSets.md#quick-start-examples).
+5. Add the security, history, alarms, and deployment capabilities your application
+   needs using the guides below.
 
-* [Sample applications](samples.md) - Platform-independent reference, PubSub, minimal API, companion-model, robotics, Vision, AI, ISA-95, and OpenUSD demos included in this repository.
+Upgrading an existing application? Read [What's New in 2.0](WhatsNewIn2.0.md)
+for orientation, then follow the [Migration Guide](MigrationGuide.md) and its
+[topic-specific 2.0 guides](migrate/2.0.x/README.md).
 
 ## UA Core stack related
 
-* [OPC UA Profiles and Facets](Profiles.md) - Overview of supported OPC UA profiles, facets, security policies, and transport protocols.
-* [Transport Profiles](Transports.md) - Developer guide for the wire transports: `opc.tcp` / HTTPS (binary + JSON + REST) / WSS (binary + JSON), including server hosting and client connect examples.
-* [REST Binding (OpenAPI Mapping)](WebApi.md) - OPC UA Part 6 §G.3 OpenAPI mapping: ASP.NET Core MVC controllers for every spec service, Compact / Verbose encoding negotiation, four pluggable auth modes (Anonymous / Bearer JWT / HTTP Basic / Mutual TLS), and the symmetric `IWebApiClient`.
-* [What's New in 2.0](WhatsNewIn2.0.md) - Developer-facing tour of the 1.5.378 → 2.0 changes, grouped by theme and layer, with links to deeper feature docs.
-* [Migration Guide](MigrationGuide.md) - How to migrate from a previous version.
-* [Sessions, Reconnection, and Subscription Engines](Sessions.md) - Architectural overview of `Session`, `ManagedSession`, `SessionReconnectHandler`, and the classic / V2 subscription engines, including guidance on which to use.
-* About [.NET platform support, NuGet packages and versioning](DeveloperGuide.md#packages-platform-support-and-versioning).
-* About [continuous integration](DeveloperGuide.md#continuous-integration) — which pipeline runs what, how to start a validation build on a pull request with `/azp run`, and the coverage gates a change has to satisfy.
-* How X.509 [Certificates](Certificates.md) are used in the certificate stores.
-* [CertificateManager](CertificateManager.md) - Centralized certificate lifecycle management, server-side push certificate rotation, and the OPC UA Part 12 PushManagement transaction model (`ApplyChanges`/`CancelChanges`, staged TrustList/Certificate updates, `DeleteCertificate`, pending-key persistence).
-* [Crypto provider](CryptoProvider.md) - Replacing the stack's cryptography with another library, a remote service or hardware (TPM, HSM, PKCS#11, cloud key service), keeping private keys inside the device, selecting providers per purpose and security policy, and auditing the use of uncertified cryptography.
-* Using the [Reverse Connect](ReverseConnect.md) for the UA-TCP and WSS transports.
-* Support for the [TransferSubscriptions](TransferSubscription.md) service set.
-* [Diagnostics](Diagnostics.md) — logging, telemetry, server audit events, server diagnostics nodes, and packet capture.
-* [Performance Benchmarks](Benchmarks.md) — BenchmarkDotNet methodology, the 2.0 (`master`) vs 1.5.378 (`master378`) comparison, root-cause analysis of the encoder/decoder/session regressions and their real-world impact, the subscription-notification (pooled encodeable) micro-benchmarks, server session scalability (the 500-session capability, sizing and bottlenecks), and planned future work.
-* [Server Session Scalability](ServerScalability.md) — why a single node tops out at ~2000 concurrent sessions, the establishment vs steady-state boundaries (socket backlog, the `BadTcpInternalError` retry-storm amplifier, the O(N²) diagnostics rescan, CreateSession crypto-under-lock, the RSA CPU wall, and the held-Publish worker-accounting coupling) with code references, and a prioritized admission-control / rate-limiting roadmap for moving beyond it.
-* [Rate Limiting and Admission Control](RateLimiting.md) — the server's deterministic, configurable connection- and session-establishment limiters (on by default, `System.Threading.RateLimiting`-based, DI-pluggable), shared incomplete-message capacity and sessionless headroom, the `BadServerTooBusy` signalling, the diagnostics-independent server retry-after carriers (`ResponseHeader.additionalHeader`, HTTP `Retry-After`, UA-TCP ERR, and load-based `Server.ServiceLevel`), and the client's server-signal-aware adaptive reconnect backoff (`IReconnectPolicy.TryGetNextDelay`).
-* Support for [WellKnownRoles & RoleBasedUserManagement](RoleBasedUserManagement.md).
-* Pluggable [Identity Providers](IdentityProviders.md) — interfaces (`IClientIdentityProvider`, `IUserTokenAuthenticator`, `IAccessTokenProvider`, `ITokenIssuer`, `IIdentityClaims`) plus the OPC 10000-6 §6.5.2.2 `IssuerEndpointUrl` JSON parser for OAuth2 / OIDC / Entra / JWT flows.
-* Support for [ECC Certificates](EccProfiles.md).
-* Working with [ComplexTypes](ComplexTypes.md) - Custom structures and enumerations.
-* Client-based [NodeSet Export](NodeSetExport.md) - Export server address space to NodeSet2 XML.
-* Source generated [DataTypes] - How to annotate POCO classes and let the source generator generate the `IEncodeable` implementation.
-* Runtime [Schema Generation](SchemaGeneration.md) - Produce XSD, OPC Binary (BSD) and JSON Schema (Part 6 Annex C, compact + verbose) for generated encodeable types and dynamically added complex types via the injectable `ISchemaProvider`; schemas are built as object models in code (trimmable, NativeAOT compatible).
-* [NodeManagers](NodeManagers.md) - Overview of the server node-manager architecture, built-in managers (master, core, diagnostics/configuration), CoreNodeManager vs CustomNodeManager2 guidance, registration and runtime lifecycle rules, namespace metadata and historical-access reconciliation, and source-generated `AsyncCustomNodeManager` authoring with the fluent `INodeManagerBuilder` API. Includes NativeAOT single-file server guidance and samples such as [MinimalBoilerServer](../samples/MinimalApi/MinimalBoilerServer) and [PumpDeviceIntegrationServer](../samples/DI/PumpDeviceIntegrationServer).
-* Runtime [NodeSets](RuntimeNodeSets.md) - Load one or more NodeSet2 XML documents into the server address space at startup without source generation. Covers file and stream sources, dependency ordering, parent-child browse-path resolution, fluent `Configure` callbacks, default namespace inference, and the default complex-type loading path. Use when the XML content changes independently of the server binary or for rapid prototyping.
-* [WoT / NodeSet conversion](WoTNodeSetConversion.md) - `WotNodeSetConverter` readable mapping, preservation projections, and the WoT-to-NodeSet default/failure table.
-* [WoT Connectivity](WoTConnectivity.md) - OPC 10100-1 asset connectivity, the WoT Connectivity 1.1 registry/client, dependency-closure materialization, and runtime NodeSet projection.
-* [WoT protocol bindings](WotBindings.md) - The bindings that ship today (planner/executor architecture, bundled and separate packages, operation coverage, target mapping, lazy channels, generation lifetime) and the contributor guide for adding your own, with a complete memory binding, registration, diagnostics, tests, packaging, TFM, trimming, and NativeAOT guidance.
-* [WoT aggregation sample](../samples/WotCon/README.md) - Two flat OPC UA sources aggregated into a runtime-loaded DI/Machinery/Pumps Pump model, including commands, Refresh, monitoring, replacement, troubleshooting, and NativeAOT publishing.
-* [Device Integration (DI) developer guide](DeviceIntegration.md) - End-to-end documentation for the `Opc.Ua.Di*` library trio: fluent `IDeviceBuilder`, device sub-type extensions (`AddSoftware`, `AddBlock`, `AddConfigurableObject`, `AddLifetimeIndication`, `WithSupportInfo`), hosting integration (`AddOpcUaDi` / `ConfigureDevicesFor`), lock service, software-update package store, and client helpers (`DiLockClient`, `DiTopologyClient`, `SoftwareUpdateClient`). Includes a section enumerating supported OPC 10000-100 features against the spec.
-* [OpenUSD](OpenUsd.md) — bridge an OPC UA address space to an OpenUSD stage, in two parts. **Part 1 — bindings**: the generic domain-agnostic `OpenUsdConnector` (discovers `Server/OpenUSD/Representations`, subscribes, composes, verifies stage/asset digests, replays history), the `Variant`-based `IUsdSink` with `UsdFileSink` / `MockUsdSink`, the fluent/DI `AddOpenUsdConnector` extensions + `OpenUsdConnectorFactory` / `OpenUsdConnectorOptions`, server-side `UsdAssetDelivery`, and the optional `--view` viewport. **Part 2 — scene materialization**: materializes a composed USD stage *inside* the address space so the prim tree is the node hierarchy — the `Opc.Ua.OpenUsd.Scene` companion and scene-document APIs, `Opc.Ua.OpenUsd.Scene.Conversion` `.usda` reader/writer and §6.2 `UsdValueTypeMap` (USD roles as DataTypes subtyping their built-in), and `Opc.Ua.OpenUsd.Server.Scene` materialization/export APIs with unknown-type fallbacks, Mode-A live attributes, portable Cesium georeference dual-authoring, discovery and Part 1 binding-target resolution. Both parts ship in the `Opc.Ua.OpenUsd` and `Opc.Ua.OpenUsd.Server` packages, and both companion models are currently drafts.
-* [Robotics developer guide](Robotics.md) — the `Opc.Ua.Robotics` / `Opc.Ua.Robotics.Server` / `Opc.Ua.Robotics.Client` trio for OPC 40010 Robotics 1.02 over OPC 40001-1 IA and OPC 10000-100 DI: source-generated models, `AddRobotics` / `AddRoboticsModel` / `ConfigureRobotics(For)` hosting, `IRoboticsModelProvider` / `IRoboticsConfigurator` / `IRoboticsBuildContext`, validated fluent topology builders (`AddMotionDeviceSystemAsync` down to axes, power trains, motors, gears, drives, safety states, and task controls), semantic references, `ArrayOf<T>` snapshot contracts, and `RoboticsClient` discovery. It also covers [Robot Intent](Robotics.md#robot-intent), the draft task-level motion verbs OPC 40010 leaves undefined, including the MCP surface for LLM agents.
-* [Vision developer guide](Vision.md) — the `Opc.Ua.Vision` / `Opc.Ua.Vision.Server` / `Opc.Ua.Vision.Client` / `Opc.Ua.Vision.OpenUsd` package family for the draft *OPC UA — Vision* companion specification: source-generated Vision model, `AddVision` / `ConfigureVision` hosting with `IVisionMediaProvider` / `IVisionInferenceProvider` / `IVisionFeedbackSink`, the two perception paths behind one contract (`OnServer` deterministic detector vs `EdgeOffServer` agent submissions), fluent topology builders for frames, sensors, calibrations, media endpoints and inference pipelines, `VisionClient` discovery + `VisionFrameGraph` §5.12 pose composition + `VisionResultReader` streaming detections + `VisionFeedbackClient` for off-server VLM agents, the §6.4 media-gating states, the `NoRenderingBackend` degrade path, facet derivation, and the composed [`vision` MCP profile](McpServer.md) with the [BinPickingCell / BinPickingClient](../samples/Robotics/BinPickingCell) example.
-* [AI Model Management developer guide](AI.md) — the `Opc.Ua.AI` / `Opc.Ua.AI.Inference` / `Opc.Ua.AI.Server` / `Opc.Ua.AI.Client` package family for the draft *OPC UA — AI Model Management and Inference* companion specification over xRegistry: source-generated catalogues, datasets, deployments, inference endpoints and learning jobs, the `IInferenceBackend` contract with `Microsoft.Extensions.AI` `IChatClient` and OpenAI-compatible REST backends, `AINodeManagerFactory` hosting via `AddNodeManager<AINodeManagerFactory>`, `Invoke` routing, standard file-transfer artefact streaming, credential resolvers that keep secret material out of the address space, and the [ModelManagementServer / ModelManagementClient](../samples/AI/README.md) example.
-* [Relative Spatial Location and Global Positioning](Positioning.md) — source-generated OPC 10000-210 RSL and OPC 10000-211 GPOS models, standalone/composed server hosting, provider contracts, high-level clients, frame-chain resolution, WGS84/ENU conversion, and ground-control-point fitting.
-* [Generators (generating sets)](../samples/OpenUsd/GeneratorServer/Generators.md) — the draft Generators companion specification realised end to end by [GeneratorServer](../samples/OpenUsd/GeneratorServer): a datasheet-driven simulation in which load fraction is the only independent variable, DI + Machinery integration, and one independent OpenUSD twin per configured set. Includes [SiteCompositionServer](../samples/OpenUsd/SiteCompositionServer), a supervisory server that owns no devices and composes the pump and generator servers into a single scene through cross-server components.
-* [ISA-95 developer guide](ISA95.md) - End-to-end documentation for the `Opc.Ua.ISA95*` library trio: the OPC-10030 Common Model and OPC-10031-4 Job Control V1/V2, the two transparently-documented normative NodeSet repairs, `AddIsa95Server`/`AddIsa95Client` hosting, the typed common-model builder, the shared Job Control state engine and its `Uncertain`/Annex-B `ReturnStatus` result model, the provider-backed `GeoSpatialLocationType` seam and planned Part 210/211 RSL/GPOS integration, and a conformance matrix distinguishing static NodeSet structure from runtime-tested behavior.
-* [Alias Names](AliasNames.md) - Full server + client support for the OPC UA Part 17 alias-name model (`AliasNameType`, `AliasNameCategoryType`, `FindAlias`, `FindAliasVerbose`, `AddAliasesToCategory`, `DeleteAliasesFromCategory`, `LastChange`).
-* [Alarms and Conditions](AlarmsAndConditions.md) - Full server + client support for OPC UA Part 9. Server-side state types for latched/silenced/out-of-service alarms, alarm groups and suppression engine, alarm rate metrics. Client-side `AlarmClient`, typed alarm event records, fluent `AlarmEventFilterBuilder`, `IAsyncEnumerable` alarm streaming via `AlarmStreamExtensions`.
-* [Historical Access (Part 11)](HistoricalAccess.md) - Server provider model (`IHistorianProvider` family) and `InMemoryHistorianProvider`, plus the client `HistoryClient` (`session.Historian()`) for raw/modified/at-time/processed/event reads, modification audit metadata, annotations, and data/event/structured updates.
-* [Aggregates (Part 13)](Aggregates.md) - All 37 standard Part 13 v1.05.07 aggregate functions over historical data: server `AggregateManager` / calculators, native push-down vs framework fallback, `AnnotationCount` via the annotation provider, `AggregateConfiguration` defaults, and the client `ReadProcessedAsync` helper.
-* [Subscriptions and Monitored Items Service Set](Subscriptions.md) - V2 subscription engine API. Covers `ISubscriptionManager` for long-lived callback-based subscriptions, the declarative+imperative `SetTriggering` API with N:M support and automatic replay on recreate/reconnect, and `IStreamingSubscription` (`IAsyncEnumerable`-based) for state-machine waits and short-lived monitoring (`ManagedSession.DefaultStreaming`, `TakeUntilAsync` / `WithTimeoutAsync` helpers).
-* [Unbounded Monitored Items](Subscriptions.md#unbounded-monitored-items) - V2 logical-subscription wrapper that transparently splits monitored items across multiple server-side partitions when the per-subscription cap is exceeded (`IPartitionedSubscription`, `MonitoredItemOptions.Affinity`, reactive `Bad_TooManyMonitoredItems` fallback, secondary-partition idle-delete).
-* [State Machines](StateMachines.md) - Generic, extensible Part 16 state-machine API. Client side: streaming + read helpers on the source-generated `*TypeClient` proxies (`GetCurrentFiniteStateAsync`, `ObserveFiniteTransitionsAsync`, `WaitForStateAsync`). Server side: unified fluent `StateMachineBuilder` with two complementary modes — *definition* (`Create(...)` + `AddState` / `AddTransition` / `OnCause` for ad-hoc machines via `FluentFiniteStateMachineState`) and *lifecycle* (`For(...)` / `INodeBuilder.AsStateMachine()` + `OnEnterState` / `WithCause` / `WithTimedTransition` to attach behavior to stack-shipped or generator-emitted FSMs). Vendor state machines inherit both ends of the API automatically.
-* [Model Change Tracking](ModelChangeTracking.md) - Client-side address-space change tracking with per-node `INodeCache` invalidation; server-side `ModelChangeAggregator` and auto-emitted `GeneralModelChangeEvent` from `CustomNodeManager.CreateNode/DeleteNode`.
-* [NodeManagement Service Set](NodeManagement.md) - Server-side AddNodes / DeleteNodes / AddReferences / DeleteReferences, including the `INodeManagementAsyncNodeManager` opt-in pattern and per-NodeManager `AllowNodeManagement` gate.
-* [High Availability and OPC UA Redundancy](HighAvailability.md) - OPC 10000-4 §6.6 mapping for server, client, and network redundancy; `RedundancySupport`, `ServiceLevel`, manual failover, transparent/non-transparent `ManagedSession` modes, HotAndMirrored/Transparent state mirroring, distributed address-space/session/subscription stores with CRDT (eventual) or Raft (strong) consistency, shared certificate/trust-list stores, snapshot+delta hydration, and the optional GetEndpoints load-direction seam.
-  * [Replica-consistent NodeIds](ReplicaNodeIdentity.md) - Required fixed shared namespace layout, guarded factory assignment, protected store/peer contracts, writer-created identities, and unchanged client NodeIds across failover.
-  * [Kubernetes High Availability Deployment](Kubernetes.md) - Consolidated Kubernetes guide for the `Opc.Ua.Redundancy.Kubernetes` package: Lease leader election, EndpointSlice peer discovery, ServiceLevel-driven readiness, StatefulSet/Deployment and Service manifests, RBAC, probes, time sync, secrets, and GDS/NTRS registration.
-  * [Redundant Sample Integration Tests](RedundancySampleTests.md) - Process-level integration tests that launch the `RedundantServer` / `RedundantClient` / `RedundantPubSub` sample apps and assert on their failover, reconnect, and data-loss-visibility behavior; short-haul variants run on every PR, long-haul soak variants run via dedicated manual/scheduled GitHub Actions and Azure DevOps jobs (`SAMPLE_HA_DURATION_MINUTES`).
-* [Dependency Injection](DependencyInjection.md) - The unified `services.AddOpcUa()` / `IOpcUaBuilder` surface for hosting OPC UA components in `Microsoft.Extensions.DependencyInjection` / the .NET Generic Host (servers as `IHostedService`, options via `Action<T>` or `IConfiguration`, AOT-friendly).
-* [AuthorizationService](AuthorizationService.md) - Modern Part 12 `StartRequestToken` / `FinishRequestToken`, `ITokenIssuer`, and GDS token issuance.
-* [Fuzz testing](../fuzzing/Fuzzing.md) - SharpFuzz + afl-fuzz + libFuzzer integration. Three areas: `Encoders` (Binary/JSON/XML decoders, built-in type readers, parser entry points), `Certificates` (`X509CRL`, X509 extension parsers, `PEMReader`, `Pkcs10CertificationRequest`, ASN.1 helpers), and `Network` (UA-SC framing via `Opc.Ua.Core.Diagnostics` + internal `TcpMessageParsers` seam on `Opc.Ua.Core`). The [`fuzz-tester`](../.github/agents/fuzz-tester.agent.md) custom agent drives the whole toolchain autonomously: it detects OS-available engines, runs them in parallel, fixes novel findings per repo guidelines, adds the failing input as a regression asset, and pushes one commit per fix until the user says stop.
-* [KeyCredentialService](KeyCredentialService.md) - Pull, Push, and experimental bridge guidance for Part 12 KeyCredential flows.
-* [xRegistry (abstract registry base model)](XRegistry.md) - Generic registry with structural `Xid` identity and a separate `IResourceContentIdProvider` Opaque-NodeId document fast path, true dirty-`Close` registration, federated resource proxies, native events, and resource-exhaustion bounds. Shipped as `Opc.Ua.XRegistry`, `Opc.Ua.XRegistry.Client`, and `Opc.Ua.XRegistry.Server`.
-* [PubSub (Part 14)](PubSub.md) - Publisher/subscriber support library: architecture, fluent builder, transports (UDP / MQTT 3.1.1 + 5.0 / Kafka / Ethernet Layer 2), encodings (UADP / JSON), security, and server-side address space.
-  * [PubSub High Availability](PubSubHighAvailability.md) - Distributed Part 14 §9.1.6 active/standby publishers and subscribers with Cold/Warm/Hot modes, leader election or fenced leases, shared runtime checkpoints, protected SKS key storage, consistency guidance, and Kubernetes deployment notes.
-  * [Migration sub-doc](migrate/2.0.x/pubsub.md) - 1.5.378 → 2.0 breaking API, transport, JSON, and field-encoding changes, plus the compatibility matrix.
-  * [Ethernet transport](PubSub.md#transports) - Layer 2 PubSub (`opc.eth://`, EtherType `0xB62C`, 802.1Q VLAN) with native AF_PACKET / BPF, SharpPcap, and in-memory backends.
-  * [Kafka transport](PubSub.md#apache-kafka) - Apache Kafka broker transport (`kafka://`, `kafkas://`) for UADP and JSON PubSub profiles with SASL/TLS and NativeAOT support on `net10.0`.
-  * [PubSub Transcoding](PubSub.md#transcoding) - In-process subscriber-to-publisher transcoding with UADP/JSON cross-encoding, field/value/metadata transforms, identifier remap, receive hooks, egress, and managed UADP re-securing.
-  * [External server adapter](PubSub.md#binding-pubsub-to-an-external-opc-ua-server-client-session-adapters) - Bind PubSub publishers, subscribers, and Action responders to an external OPC UA server through `ManagedSession`.
-  * [Dependency Injection extensions](DependencyInjection.md) - `AddPubSub`, `AddPubSubPublisher`, `AddPubSubSubscriber`, `AddPubSubSecurityKeyServiceClient/Server`, `AddPubSubAddressSpace`.
-  * [Profiles](Profiles.md#pubsub-transports) - Datagram-v2, SKS pull / push, AES-128/256-CTR security facets.
-  * [PubSub Diagnostics](Diagnostics.md#5-pubsub-packet-capture-and-dissection) - packet capture, dissection and replay of UDP / MQTT PubSub traffic, including decryption of encrypted UADP messages.
+### Connect, read, and subscribe
+
+- [Sessions](Sessions.md) — session selection, connection, reconnection, and subscription engines.
+- [Subscriptions](Subscriptions.md) — streaming and callback APIs, monitored items, triggering, and partitioning.
+- [TransferSubscriptions](TransferSubscription.md) — preserve server subscriptions across session changes.
+- [Durable subscriptions](DurableSubscription.md) — persist subscriptions and notifications.
+- [Transports](Transports.md) — UA-TCP, HTTPS, and WebSocket client/server configuration.
+- [REST binding](WebApi.md) — OpenAPI mapping, encoding negotiation, and authentication.
+- [Reverse Connect](ReverseConnect.md) — server-initiated transport connections.
+- [File system client](FileSystemClient.md) — standard OPC UA file-transfer operations.
+- [Model change tracking](ModelChangeTracking.md) — refresh client caches when the address space changes.
+- [NodeSet export](NodeSetExport.md) — export a server model to NodeSet2 XML.
+
+### Host a server and expose a model
+
+- [Dependency injection](DependencyInjection.md) — shared configuration and Generic Host integration.
+- [Node managers](NodeManagers.md) — model authoring, callbacks, routing, and runtime lifecycle.
+- [Asynchronous server support](AsyncServerSupport.md) — async service and node-manager extension points.
+- [Runtime NodeSets](RuntimeNodeSets.md) — load models from files or streams without regenerating code.
+- [Node management](NodeManagement.md) — AddNodes, DeleteNodes, and reference services.
+- [NodeId assignment](NodeIdAssignment.md) — identifier allocation and custom assignment.
+- [Model dependencies](ModelDependencies.md) — register and compose dependent models.
+- [Alarms and conditions](AlarmsAndConditions.md) — server alarm behavior and typed client access.
+- [Historical access](HistoricalAccess.md) — historian providers and client read/update workflows.
+- [Aggregates](Aggregates.md) — historical processing and aggregate configuration.
+- [State machines](StateMachines.md) — define, drive, and observe state transitions.
+- [Alias names](AliasNames.md) — named lookup and alias-category management.
+
+### Security and identity
+
+- [Certificates](Certificates.md) — certificate stores, trust, chain validation, and deployment.
+- [Certificate manager](CertificateManager.md) — lifecycle, rotation, validation APIs, and push transactions.
+- [Identity providers](IdentityProviders.md) — client identities, server authenticators, and token issuance.
+- [Role-based user management](RoleBasedUserManagement.md) — authorization and identity-to-role mapping.
+- [ECC profiles](EccProfiles.md) — curve support and target-framework restrictions.
+- [Crypto providers](CryptoProvider.md) — hardware-held keys and injectable cryptography.
+- [Provisioning mode](ProvisioningMode.md) — initial trust and secure server configuration.
+
+### Data types and schemas
+
+- [Source-generated data types](SourceGeneratedDataTypes.md) — generated encodeables and model annotations.
+- [Complex types](ComplexTypes.md) — discover and load server-defined types at runtime.
+- [Schema generation](SchemaGeneration.md) — XSD, BSD, and JSON Schema generation.
+
+### Deploy and operate
+
+- [Profiles and facets](Profiles.md) — capability overview and implementation boundaries.
+- [Diagnostics](Diagnostics.md) — logging, metrics, tracing, auditing, and packet capture.
+- [Native AOT](NativeAoT.md) — publishing without a JIT compiler.
+- [Rate limiting](RateLimiting.md) — admission controls and overload/retry signaling.
+- [High availability](HighAvailability.md) — redundancy, failover, and distributed state.
+- [Replica-consistent NodeIds](ReplicaNodeIdentity.md) — stable identity across replicas.
+- [Kubernetes](Kubernetes.md) — cluster deployment, discovery, readiness, and secrets.
+- [Server scalability](ServerScalability.md) — sizing limits and bottlenecks.
+- [Benchmarks](Benchmarks.md) — measured performance and methodology.
+- [MCP server](McpServer.md) — browse, read, write, and diagnose OPC UA servers through tools.
+
+## PubSub
+
+- [PubSub guide](PubSub.md) — builder, configuration, transports, security, and address-space integration.
+- [PubSub high availability](PubSubHighAvailability.md) — redundant publishers/subscribers.
+- [Transport selection](PubSub.md#transports) — UDP, Ethernet, MQTT, and Kafka.
+- [Transcoding](PubSub.md#transcoding) — bridge encodings, values, and metadata.
+- [External-server adapter](PubSub.md#binding-pubsub-to-an-external-opc-ua-server-client-session-adapters) — bind PubSub to a managed client session.
+- [PubSub migration](migrate/2.0.x/pubsub.md) — package/API transitions and wire-compatibility limits.
+
+## Companion models and connectivity
+
+- [Device Integration](DeviceIntegration.md) — device composition, topology, and locking.
+- [Software update](SoftwareUpdate.md) — package storage, loading, installation, and confirmation.
+- [Robotics](Robotics.md) — motion-device topology and client access.
+- [Vision](Vision.md) — perception, media providers, feedback, and client workflows.
+- [AI model management](AI.md) — catalogues, deployments, inference, and learning jobs.
+- [Positioning](Positioning.md) — relative frames and geographic coordinates.
+- [ISA-95](ISA95.md) — common models and job control.
+- [OpenUSD](OpenUsd.md) — scene materialization and address-space integration.
+- [xRegistry](XRegistry.md) — registry resources, storage, and federation.
+- [WoT connectivity](WoTConnectivity.md) — hosting, registry access, and projection lifecycle.
+- [WoT / NodeSet conversion](WoTNodeSetConversion.md) — mappings, preservation, and round trips.
+- [WoT protocol bindings](WotBindings.md) — protocol planners, executors, and custom bindings.
+- [WoT aggregation sample](../samples/WotCon/README.md) — compose live sources into a companion model.
+- [Generator sample model](../samples/OpenUsd/GeneratorServer/Generators.md) — generating-set simulation and scene composition.
+
+Draft companion models are identified in their own guides; do not assume their
+namespace URIs or NodeIds are finalized.
 
 ## Reference application related
 
-* [Reference Client](../samples/Reference/ConsoleReferenceClient/README.md) documentation for configuration of the console reference client using parameters.
-* [Reference Server](../samples/README.md) documentation for running against CTT.
-* [ConsoleReferencePubSubClient](../samples/PubSub/ConsoleReferencePubSubClient/README.md) documentation for the PubSub reference sample (publisher / subscriber / external-server adapter modes).
-* [Provisioning Mode](ProvisioningMode.md) for secure certificate provisioning and initial server configuration.
-* Using the [Container support](ContainerReferenceServer.md) of the Reference Server in Visual Studio 2026 and for local testing.
+- [Sample catalogue](samples.md) — minimal, reference, PubSub, and companion-model examples.
+- [Reference client](../samples/Reference/ConsoleReferenceClient/README.md) — command-line configuration.
+- [Reference server](../samples/README.md) — hosting and CTT setup.
+- [Reference PubSub client](../samples/PubSub/ConsoleReferencePubSubClient/README.md) — publisher, subscriber, and external-adapter modes.
+- [Container reference server](ContainerReferenceServer.md) — container configuration and local deployment.
 
-Starting with version 1.5.375.XX the Windows Forms reference client & reference server were moved to the [OPC UA .NET Standard Samples](https://github.com/OPCFoundation/UA-.NETStandard-Samples) repository.
+The Windows Forms reference applications are maintained in the
+[Samples repository](https://github.com/OPCFoundation/UA-.NETStandard-Samples).
 
 ## Global Discovery Server (GDS)
 
-* [GDS Developer Guide](GDS.md) — Application registration, certificate management (pull & push models), roles and authorization, OPC 10000-21 registrar ticket administration, provider implementation, the runnable [`samples/Gds`](../samples/Gds/README.md) onboarding demo, and a per-requirement [OPC UA Part 12 conformance matrix](GDS.md#conformance-matrix).
-* [KeyCredentialService](KeyCredentialService.md) — Credential issuance for non-OPC UA services (MQTT, REST), IKeyCredentialRequestStore provider guide, ISecretStore integration.
-* [AuthorizationService](AuthorizationService.md) — OAuth2-style access token issuance, IAccessTokenProvider implementation guide.
-* [Role-Based Security](RoleBasedUserManagement.md) — Part 18 roles and claim-based identity-mapping rules.
-* [Identity Providers](IdentityProviders.md) — server and client identity-provider architecture.
-* [Dependency Injection](DependencyInjection.md) — dependency injection hosting and identity registration extensions.
+- [GDS guide](GDS.md) — registration, pull/push certificates, hosting, and conformance evidence.
+- [GDS sample](../samples/Gds/README.md) — runnable onboarding workflow.
+- [KeyCredentialService](KeyCredentialService.md) — credentials for non-OPC UA services.
+- [AuthorizationService](AuthorizationService.md) — access-token issuance and provider contracts.
+
+## Contributing and maintaining the SDK
+
+These documents concern building and maintaining this repository, rather than
+adding the SDK to an application:
+
+- [Developer Guide](DeveloperGuide.md) — prerequisites, build, tests, and coding conventions.
+- [Continuous integration](DeveloperGuide.md#continuous-integration) — pipelines and coverage gates.
+- [Release process](ReleaseProcess.md) — release branches, versioning, backports, and recovery.
+- [Redundancy sample tests](RedundancySampleTests.md) — process-level failover and soak validation.
+- [Fuzz testing](../fuzzing/Fuzzing.md) — encoder, certificate, and network campaigns.

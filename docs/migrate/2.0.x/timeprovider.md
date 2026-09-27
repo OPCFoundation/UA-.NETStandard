@@ -4,7 +4,10 @@
 
 ## Contents
 
+- [Adopting TimeProvider](#adopting-timeprovider)
 - [Monotonic timestamps for duration calculations](#monotonic-timestamps-for-duration-calculations)
+
+## Adopting TimeProvider
 
 **Not source-breaking.** The stack now uses
 [`System.TimeProvider`](https://learn.microsoft.com/dotnet/api/system.timeprovider) as
@@ -103,7 +106,7 @@ The `Timer` field type changes from `System.Threading.Timer` to `ITimer` — bot
 implement `IDisposable` and the same `Change` / `Dispose` semantics; only the
 parameter types on `Change` differ (`TimeSpan` instead of `int`/`uint`/`long`).
 
-### Monotonic timestamps for duration calculations
+## Monotonic timestamps for duration calculations
 
 `TimeProvider.GetTimestamp()` returns a `long` monotonic timestamp that does not
 suffer from the 32-bit wraparound of `Environment.TickCount` / `HiResClock.TickCount`

@@ -9,6 +9,7 @@ TransferSubscriptions service to retrieve missed notifications.
 
 ## Contents
 
+- [Overview](#overview)
 - [Fix an existing server with minimal changes](#fix-an-existing-server-with-minimal-changes)
 - [Enabling durable subscriptions on an existing server](#enabling-durable-subscriptions-on-an-existing-server)
 - [Known limitations and issues](#known-limitations-and-issues)
@@ -30,7 +31,7 @@ Typically the following porting steps are necessary:
 - Implement `IMonitoredItemQueueFactory` and set
   `SupportsDurableQueues` to `true`. Return an `IMonitoredItemQueue` that
   persists values and supports large queue sizes. See the sample
-  [DurableMonitoredItemQueueFactory](../../samples/Quickstarts.Servers/DurableSubscription/DurableMonitoredItemQueueFactory.cs).
+  [DurableMonitoredItemQueueFactory](../samples/Quickstarts.Servers/DurableSubscription/DurableMonitoredItemQueueFactory.cs).
 - Register the queue factory by overriding
   `StandardServer.CreateMonitoredItemQueueFactory`.
 - Implement `ISubscriptionStore` to persist and restore subscriptions across

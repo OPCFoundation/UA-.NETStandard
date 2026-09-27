@@ -45,19 +45,22 @@ register `IUserTokenAuthenticator` instances directly.
   - [Configuration reference](#configuration-reference)
 - [Three layers, kept separate](#three-layers-kept-separate)
 - [Client side](#client-side)
-  - [`IClientIdentityProvider`](#iclientidentityprovider--what-to-send-in-activatesession)
-  - [`IAccessTokenProvider`](#iaccesstokenprovider--orthogonal-to-the-opc-ua-stack)
-  - [`AuthorizationServerMetadata`](#authorizationservermetadata--the-json-nobody-told-you-about)
+  - [`IClientIdentityProvider` — what to send in `ActivateSession`](#iclientidentityprovider--what-to-send-in-activatesession)
+  - [`IAccessTokenProvider` — orthogonal to the OPC UA stack](#iaccesstokenprovider--orthogonal-to-the-opc-ua-stack)
+  - [`AuthorizationServerMetadata` — the JSON nobody told you about](#authorizationservermetadata--the-json-nobody-told-you-about)
 - [Server side](#server-side)
-  - [`IUserTokenAuthenticator`](#iusertokenauthenticator--what-to-do-with-the-incoming-token)
-  - [`IServerIdentityRegistry`](#iserveridentityregistry--composing-authenticators)
+  - [`IUserTokenAuthenticator` — what to do with the incoming token](#iusertokenauthenticator--what-to-do-with-the-incoming-token)
+  - [`IServerIdentityRegistry` — composing authenticators](#iserveridentityregistry--composing-authenticators)
   - [Identity augmenters](#identity-augmenters)
-  - [Claims surface](#claims-surface--wiring-identitycriteriatypegroupid-and-role)
-  - [`ITokenIssuer`](#itokenissuer--server-side-jwt-issuance)
-  - [`IIssuerKeyResolver` and `IssuerVerificationKey`](#iissuerkeyresolver--issuerverificationkey--jwt-validation)
+  - [Claims surface — wiring `IdentityCriteriaType.GroupId` and `Role`](#claims-surface--wiring-identitycriteriatypegroupid-and-role)
+  - [`ITokenIssuer` — server-side JWT issuance](#itokenissuer--server-side-jwt-issuance)
+  - [`IIssuerKeyResolver` + `IssuerVerificationKey` — JWT validation](#iissuerkeyresolver--issuerverificationkey--jwt-validation)
 - [How-to: server-side authentication](#how-to-server-side-authentication)
 - [How-to: client-side provider selection](#how-to-client-side-provider-selection)
-- [Migrate from `SessionManager.ImpersonateUser`](#how-to-migrate-from-sessionmanagerimpersonateuser)
+- [How-to: migrate from `SessionManager.ImpersonateUser`](#how-to-migrate-from-sessionmanagerimpersonateuser)
+  - [1. Legacy event code](#1-legacy-event-code)
+  - [2. Implement an authenticator for that token type](#2-implement-an-authenticator-for-that-token-type)
+  - [3. Register via dependency injection or the server registry](#3-register-via-dependency-injection-or-the-server-registry)
 - [Implementing your own provider](#implementing-your-own-provider)
   - [Entra ID provider](#entra-id-provider)
   - [OIDC provider](#oidc-provider)
@@ -540,11 +543,11 @@ public sealed class StaticUserNameAuthenticator : IUserTokenAuthenticator
 
     public StaticUserNameAuthenticator(Func<string, byte[], bool> checkPassword)
     {
-        m_checkPassword = checkPassword;
+        m_checkPassword = checkPassword ?? throw new ArgumentNullException(nameof(checkPassword));
     }
 
     public UserTokenType TokenType => UserTokenType.UserName;
-    public string IssuedTokenProfileUri => null;  // n/a for UserName
+    public string? IssuedTokenProfileUri => null;
 
     public ValueTask<AuthenticationResult> AuthenticateAsync(
         AuthenticationContext context,
@@ -786,6 +789,8 @@ using Opc.Ua.Identity;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
 
+services.AddSingleton<Func<string, byte[], bool>>(checkPassword);
+
 services.AddOpcUa()
     .AddServer(o =>
     {
@@ -793,7 +798,7 @@ services.AddOpcUa()
         o.ApplicationUri = "urn:example:my-server";
         o.EndpointUrls.Add("opc.tcp://localhost:4840");
     })
-    .AddIdentityAuthenticator<MyAuthenticator>()
+    .AddIdentityAuthenticator<StaticUserNameAuthenticator>()
     .AddDefaultIdentityAuthenticators(o =>
     {
         o.EnableAnonymous = true;
@@ -808,35 +813,20 @@ services.AddOpcUa()
         o.JwksUri = "https://issuer.example/.well-known/jwks.json";
         o.Audience = "urn:example:my-server";
     });
-
-public sealed class MyAuthenticator : IUserTokenAuthenticator
-{
-    public UserTokenType TokenType => UserTokenType.UserName;
-    public string? IssuedTokenProfileUri => null;
-
-    public ValueTask<AuthenticationResult> AuthenticateAsync(
-        AuthenticationContext context, CancellationToken ct = default)
-    {
-        if (context.TokenHandler is not UserNameIdentityTokenHandler userName)
-        {
-            return new ValueTask<AuthenticationResult>(AuthenticationResult.NotHandled);
-        }
-
-        bool ok = userName.UserName == "alice" &&
-            !Utils.Utf8IsNullOrEmpty(userName.DecryptedPassword);
-        return new ValueTask<AuthenticationResult>(ok
-            ? AuthenticationResult.Accept(new UserIdentity(userName))
-            : AuthenticationResult.Reject(new ServiceResult(StatusCodes.BadUserAccessDenied)));
-    }
-}
 ```
+
+This uses `StaticUserNameAuthenticator` from the [server-side example](#server-side).
+Supply `checkPassword` from your application's credential-verification service before
+registering it. It must verify the supplied password against the user's stored credentials;
+a recognized username or a nonempty password is not sufficient. Do not log or retain the
+decrypted password.
 
 Manual hosts can register against the running server instance. Prefer dependency injection
 for hosted applications, but this is useful for existing `StandardServer`
 subclasses:
 
 ```csharp
-server.CurrentInstance.IdentityRegistry.Register(new MyAuthenticator());
+server.CurrentInstance.IdentityRegistry.Register(new StaticUserNameAuthenticator(checkPassword));
 server.CurrentInstance.IdentityRegistry.Register(
     new JwtAuthenticator(keyResolver, expectedAudience: "urn:example:my-server"));
 ```

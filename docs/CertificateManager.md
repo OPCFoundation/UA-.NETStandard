@@ -1,6 +1,9 @@
-## CertificateManager
+# CertificateManager
 
-The `CertificateManager` provides centralized certificate lifecycle management for OPC UA applications. It replaces the scattered certificate handling across `CertificateValidator`, `CertificateIdentifier`, `CertificateTypesProvider`, and `CertificateFactory` with a cohesive set of interfaces following the Interface Segregation Principle.
+`CertificateManager` manages application certificates, trust lists, validation,
+and lifecycle notifications. Use [Certificates](Certificates.md) for trust and
+store concepts, this guide for current APIs, and the
+[certificate migration guide](migrate/2.0.x/certificates.md) for 1.5.x API replacements.
 
 > **Note:** `CertificateIdentifier` is **metadata-only** (`StoreType` / `StorePath` / `SubjectName` / `Thumbprint` / `CertificateType` / `RawData` / `ValidationOptions`). It caches no `Certificate` and is not disposable. The `CertificateManager` (via `ICertificateRegistry`) is the single source of truth for materialized application certificates; `CertificateIdentifierResolver` is the stateless helper that materializes a `Certificate` from an identifier on demand. See *[Materializing a `Certificate` from a `CertificateIdentifier`](#materializing-a-certificate-from-a-certificateidentifier)* below.
 
@@ -14,24 +17,23 @@ The `CertificateManager` provides centralized certificate lifecycle management f
   - [Subscribing to Certificate Changes](#subscribing-to-certificate-changes)
   - [Updating Application Certificates](#updating-application-certificates)
   - [Certificates for SecurityMode None](#certificates-for-securitymode-none)
-  - [Server-Side Certificate Rotation via Push](#server-side-certificate-rotation-via-push-opc-ua-part-12-7109)
-  - [TrustList-Change Effects on Channels, Sessions and Subscriptions](#trustlist-change-effects-on-channels-sessions-and-subscriptions-opc-ua-part-12-7109)
+  - [Server-Side Certificate Rotation via Push (OPC UA Part 12 §7.10.9)](#server-side-certificate-rotation-via-push-opc-ua-part-12-7109)
+  - [TrustList-Change Effects on Channels, Sessions and Subscriptions (OPC UA Part 12 §7.10.9)](#trustlist-change-effects-on-channels-sessions-and-subscriptions-opc-ua-part-12-7109)
   - [Origin-Independent Enforcement of Trust-Material Changes](#origin-independent-enforcement-of-trust-material-changes)
-  - [PushManagement Transactions](#pushmanagement-transactions-opc-ua-part-12-7102-71011)
-  - [Certificate-Expiration and TrustList-Staleness Alarms](#certificate-expiration-and-trustlist-staleness-alarms-opc-ua-part-12-783)
-  - [Optional ServerConfiguration Surface](#optional-serverconfiguration-surface-opc-ua-part-12-7103-71013-71020)
-  - [TrustList Size Limits](#trustlist-size-limits-opc-ua-part-12-845)
+  - [PushManagement Transactions (OPC UA Part 12 §7.10.2-§7.10.11)](#pushmanagement-transactions-opc-ua-part-12-7102-71011)
+  - [Certificate-Expiration and TrustList-Staleness Alarms (OPC UA Part 12 §7.8.3)](#certificate-expiration-and-trustlist-staleness-alarms-opc-ua-part-12-783)
+  - [Optional ServerConfiguration Surface (OPC UA Part 12 §7.10.3, §7.10.13, §7.10.20)](#optional-serverconfiguration-surface-opc-ua-part-12-7103-71013-71020)
+  - [TrustList Size Limits (OPC UA Part 12 §8.4.5)](#trustlist-size-limits-opc-ua-part-12-845)
   - [Client-Side Auto-Detection of Certificate Changes](#client-side-auto-detection-of-certificate-changes)
   - [Working with Trust-Lists](#working-with-trust-lists)
 - [Interfaces Reference](#interfaces-reference)
-  - [`ICertificateRegistry`](#icertificateregistry)
-  - [`ICertificateTrustListManager`](#icertificatetrustlistmanager)
-  - [`ICertificateValidatorEx`](#icertificatevalidatorex)
-  - [Migrating from the legacy `CertificateValidation` event](#migrating-from-the-legacy-certificatevalidation-event)
-  - [`ICertificateLifecycle`](#icertificatelifecycle)
-  - [`ITrustListFileAccess`](#itrustlistfileaccess)
-  - [`ICertificateFactory`](#icertificatefactory)
-  - [`ICertificateIssuer`](#icertificateissuer)
+  - [ICertificateRegistry](#icertificateregistry)
+  - [ICertificateTrustListManager](#icertificatetrustlistmanager)
+  - [ICertificateValidatorEx](#icertificatevalidatorex)
+  - [ICertificateLifecycle](#icertificatelifecycle)
+  - [ITrustListFileAccess](#itrustlistfileaccess)
+  - [ICertificateFactory](#icertificatefactory)
+  - [ICertificateIssuer](#icertificateissuer)
 - [Pluggable Store Backends](#pluggable-store-backends)
 - [Certificate Wrapper and Reference Counting](#certificate-wrapper-and-reference-counting)
 - [Backward Compatibility](#backward-compatibility)
@@ -40,7 +42,7 @@ The `CertificateManager` provides centralized certificate lifecycle management f
   - [Resolving an identifier](#resolving-an-identifier)
   - [When to register an in-memory certificate with the manager](#when-to-register-an-in-memory-certificate-with-the-manager)
 
-### Architecture
+## Architecture
 
 The `CertificateManager` is composed of focused interfaces. Consumers depend only on the slice they need:
 
@@ -57,9 +59,9 @@ Standalone (no CertificateManager dependency):
 └── ICertificateIssuer           — "Sign as a CA"
 ```
 
-### Quick Start
+## Quick Start
 
-#### Creating a CertificateManager
+### Creating a CertificateManager
 
 From an existing `SecurityConfiguration` (most common):
 
@@ -88,7 +90,7 @@ await manager.LoadApplicationCertificatesAsync(securityConfiguration);
 
 The `CertificateManager` is also automatically initialized by `ServerBase` and `ApplicationInstance` during startup.
 
-#### Instance-scoped store resolution
+### Instance-scoped store resolution
 
 `CertificateManager` also implements the optional `ICertificateStoreResolver` capability.
 This interface is separate from `ICertificateManager`, so existing custom manager implementations
@@ -119,7 +121,7 @@ GDS signing-request path and server-hosted `TrustList` access use it as well. Di
 can use the overload accepting `ICertificateStoreResolver`; existing constructors retain their behavior.
 Provider routing does not change trust acceptance, GDS access controls or transaction semantics.
 
-#### Validating Certificates
+### Validating Certificates
 
 ```csharp
 // Validate against the Peers trust-list (default)
@@ -208,7 +210,7 @@ still used by active calls; new calls acquire the new configuration.
 Registry enumeration returns stable snapshots, and terminal manager
 disposal prevents late certificate publication.
 
-#### Subscribing to Certificate Changes
+### Subscribing to Certificate Changes
 
 ```csharp
 // Subscribe to all changes
@@ -238,7 +240,7 @@ private class MyObserver : IObserver<CertificateChangeEvent>
 }
 ```
 
-#### Updating Application Certificates
+### Updating Application Certificates
 
 ```csharp
 // Replace an application certificate (notifies all subscribers synchronously)
@@ -254,7 +256,7 @@ take independent references before returning and release them after processing.
 The built-in client rotation pump does this for pending, replaced and processed
 notifications.
 
-#### Certificates for SecurityMode None
+### Certificates for SecurityMode None
 
 On `SecurityMode.None` endpoints, encrypted username or issued-token policies
 use an RSA application certificate compatible with every advertised encrypted
@@ -271,7 +273,7 @@ configuration error; it never substitutes ECC or RSA_DH on a None endpoint.
 Anonymous, X.509 and explicitly unencrypted token policies retain their existing
 semantics. This follows [OPC 10000-4, 7.41](https://reference.opcfoundation.org/specs/OPC-10000-4/7.41.md).
 
-#### Server-Side Certificate Rotation via Push (OPC UA Part 12 §7.10.9)
+### Server-Side Certificate Rotation via Push (OPC UA Part 12 §7.10.9)
 
 When a client rotates a server's application certificate through the standard `ServerConfiguration.UpdateCertificate` + `ServerConfiguration.ApplyChanges` push flow, the server must — once the `ApplyChanges` response has been delivered — force the SecureChannels that were negotiated against the old certificate to renegotiate. The session (and any subscriptions) stay alive so the client's reconnect logic can transfer them onto a fresh channel.
 
@@ -305,7 +307,7 @@ public sealed class MyTransportListener : ITransportListener, ITransportListener
 
 Server-base subclasses that want to observe rotation in custom ways can still subscribe to `ICertificateManager.CertificateChanges` and react to `ApplicationCertificateUpdated` events — but should not drive channel teardown from that hook (the event fires twice during a push update: once when the new cert is staged, once when `ApplyChanges` reloads, and only `ApplyChanges` has the real old-cert reference).
 
-#### TrustList-Change Effects on Channels, Sessions and Subscriptions (OPC UA Part 12 §7.10.9)
+### TrustList-Change Effects on Channels, Sessions and Subscriptions (OPC UA Part 12 §7.10.9)
 
 `ApplyChanges` also has to react to *TrustList* changes committed in the transaction, not just server-certificate rotation. Once the response has been delivered, `ConfigurationNodeManager` maps every committed TrustList to the certificate group it belongs to and applies the corresponding effect:
 
@@ -383,7 +385,7 @@ Two seams make this behaviour injectable and testable:
 
 The default handler's SecureChannel renegotiation summary logs only the aggregate number of affected channels, not their identifiers or certificate contents.
 
-#### Origin-Independent Enforcement of Trust-Material Changes
+### Origin-Independent Enforcement of Trust-Material Changes
 
 The effect fan-out above is not limited to changes committed through `ApplyChanges`. Two additional mechanisms guarantee that a trust-material change — most importantly a CRL that revokes a connected client's certificate — takes effect immediately instead of at the client's next security-token renewal (default lifetime: one hour):
 
@@ -392,7 +394,7 @@ The effect fan-out above is not limited to changes committed through `ApplyChang
 
 Session semantics are unchanged: an application-group change (certificate or CRL) cuts only the affected SecureChannels — the Session survives for the client's reconnect logic, and dies with its timeout when the reconnect is rejected — while a user-token-group change closes the invalidated Sessions together with their Subscriptions.
 
-#### PushManagement Transactions (OPC UA Part 12 §7.10.2-§7.10.11)
+### PushManagement Transactions (OPC UA Part 12 §7.10.2-§7.10.11)
 
 `ConfigurationNodeManager` implements the full PushManagement transaction model: every `UpdateCertificate`, `CreateSelfSignedCertificate`, `DeleteCertificate` and TrustList (`AddCertificate` / `RemoveCertificate` / `Open`+`CloseAndUpdate`) call made within a Session is **staged**, not applied. Nothing takes effect until `ApplyChanges` is called; `CancelChanges` discards the staged work instead. This matches §7.10.2's *Transaction Lifecycle*: a transaction is created automatically on the first staging call, is owned exclusively by the Session that created it (every other Session's staging calls fail with `Bad_TransactionPending`), and is torn down by `ApplyChanges`, `CancelChanges`, or the owning Session closing.
 
@@ -541,7 +543,7 @@ original commit failure with success.
 
 `DeleteCertificate`'s endpoint-reference safety check (§7.10.7: "Certificates that are referenced by EndpointDescriptions shall not be deleted. This determination happens when ApplyChanges is called.") resolves the exact certificate each active `EndpointDescription` presents **from the active certificate registry**, using its security policy and, on None endpoints, its encrypted user-token policies. It rejects the transaction with `Bad_InvalidState` at `ApplyChanges` if the deleted certificate is still referenced. Resolving from the live registry (rather than the `EndpointDescription.ServerCertificate` blob captured when the endpoints were created) ensures a certificate that was rotated after startup is still protected. A delete that is superseded within the same transaction by a `CreateSelfSignedCertificate`/`UpdateCertificate` for the same slot coalesces to the later operation (§7.10.2 ordered-queue semantics), so replacing a referenced certificate in one transaction remains allowed. A conservative net "last remaining certificate" check still runs at staging time for immediate feedback.
 
-#### Certificate-Expiration and TrustList-Staleness Alarms (OPC UA Part 12 §7.8.3)
+### Certificate-Expiration and TrustList-Staleness Alarms (OPC UA Part 12 §7.8.3)
 
 Certificate inputs come from an owned snapshot of the active certificate
 registry, including certificates originally loaded from stores. Group
@@ -575,7 +577,7 @@ inactive and acknowledged. Alarm values are re-evaluated after every committed
 `UpdateCertificate`/`TrustList` change, so replacing an expiring certificate
 clears the alarm without waiting for the next tick.
 
-#### Optional ServerConfiguration Surface (OPC UA Part 12 §7.10.3, §7.10.13, §7.10.20)
+### Optional ServerConfiguration Surface (OPC UA Part 12 §7.10.3, §7.10.13, §7.10.20)
 
 Beyond the mandatory Push Certificate Management Methods, the
 `ServerConfigurationType` (§7.10.3) defines several **Optional** members.
@@ -696,7 +698,7 @@ stream body (a serialized `UABinaryFileDataType` whose `SupportedDataType` is
 `ApplicationConfigurationDataType`) and is treated opaquely by the node manager,
 so the concrete encoding is entirely the provider's responsibility.
 
-#### TrustList Size Limits (OPC UA Part 12 §8.4.5)
+### TrustList Size Limits (OPC UA Part 12 §8.4.5)
 
 `ServerConfiguration.MaxTrustListSize` advertises, in bytes, the largest
 TrustList a Client may write (`0` = unlimited). Enforcing a truly unbounded
@@ -737,7 +739,7 @@ builder.ConfigureServerConfiguration(o =>
 > back to the 1 MiB default. The overload that also takes a
 > `maxTrustListSizeSafetyCeiling` opts into the clamping semantics above.
 
-#### Client-Side Auto-Detection of Certificate Changes
+### Client-Side Auto-Detection of Certificate Changes
 
 `ManagedSession` automatically subscribes to
 `CertificateManager.CertificateChanges` and surfaces the three
@@ -810,7 +812,7 @@ continue calling `Session.ReloadInstanceCertificateAsync` + their own
 reconnect logic. The `ApplicationCertificateChanged` event still fires
 either way.
 
-#### Working with Trust-Lists
+### Working with Trust-Lists
 
 ```csharp
 // Register a custom trust-list at runtime
@@ -843,9 +845,9 @@ validation caches are invalidated in that case.
 
 > **Note:** `ITrustListTransaction`/`BeginUpdateAsync` above is a local, in-process staging API on `CertificateManager`. It is unrelated to the OPC UA PushManagement transaction model (`ApplyChanges`/`CancelChanges`, see *PushManagement Transactions* above), which is driven remotely by a Client over the `ServerConfiguration` address space and governs `TrustList`/`ServerConfiguration` Methods called through `ConfigurationNodeManager`.
 
-### Interfaces Reference
+## Interfaces Reference
 
-#### ICertificateRegistry
+### ICertificateRegistry
 
 Read-only access to the application's own certificates.
 
@@ -865,7 +867,7 @@ Read-only access to the application's own certificates.
 > registry's own certificates, and the registry may concurrently replace its certificates
 > (e.g. a hot-update) without invalidating handles you already hold.
 
-#### ICertificateTrustListManager
+### ICertificateTrustListManager
 
 Manages an extensible set of named trust-lists.
 
@@ -879,7 +881,7 @@ Manages an extensible set of named trust-lists.
 
 Well-known trust-lists: `TrustListIdentifier.Peers`, `.Users`, `.Https`, `.Rejected`.
 
-#### ICertificateValidatorEx
+### ICertificateValidatorEx
 
 Validates certificates against any trust-list. Works with both stored and ephemeral (wire-parsed) certificates.
 
@@ -891,19 +893,16 @@ Validates certificates against any trust-list. Works with both stored and epheme
 
 Returns `CertificateValidationResult` with `IsValid`, `StatusCode`, `Errors`, and `IsSuppressible`.
 
-##### Migrating from the legacy `CertificateValidation` event
+#### Migrating from the legacy `CertificateValidation` event
 
-Set the global `AcceptError` property once on `ApplicationConfiguration.CertificateValidator` (or any `ICertificateValidatorEx` instance) and a single delegate handles every validation:
+Set the global `AcceptError` property on `ApplicationConfiguration.CertificateManager`
+(or another `ICertificateValidatorEx` instance) after application-certificate initialization.
+A per-call callback overrides the global callback for that validation. The example below
+accepts untrusted certificates for development only; configure trust stores in production.
 
 ```csharp
-// Before (legacy event):
-config.CertificateValidator.CertificateValidation += (s, e) =>
-{
-    if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted) { e.Accept = true; }
-};
-
-// After (modern global hook on ICertificateValidatorEx):
-config.CertificateValidator.AcceptError = (cert, error) =>
+ICertificateManager manager = config.CertificateManager;
+manager.AcceptError = (cert, error) =>
     error.StatusCode == StatusCodes.BadCertificateUntrusted;
 
 // Or per-call (overrides the global hook for that call only):
@@ -914,6 +913,9 @@ var options = new CertificateValidationOptions
 };
 CertificateValidationResult result = await manager.ValidateAsync(chain, options: options);
 ```
+
+For the old-to-new event mapping, see
+[certificate migration](migrate/2.0.x/certificates.md#migrating-the-certificatevalidatorcertificatevalidation-event).
 
 Per-call validation behaviour can be overridden via
 `CertificateValidationOptions`:
@@ -926,7 +928,7 @@ Per-call validation behaviour can be overridden via
 | `AutoAcceptUntrustedCertificates` | Override the global auto-accept policy. |
 | `AcceptError` | `Func<Certificate, ServiceResult, bool>` — invoked for each suppressible error encountered. Returning `true` accepts the specific error and validation continues. Structured replacement for the legacy `CertificateValidator.CertificateValidation += handler` + mutable `e.Accept = true` pattern. |
 
-#### ICertificateLifecycle
+### ICertificateLifecycle
 
 Monitors certificate changes and expiry.
 
@@ -938,7 +940,7 @@ Monitors certificate changes and expiry.
 
 Change event kinds: `ApplicationCertificateUpdated`, `TrustListUpdated`, `CrlUpdated`, `CertificateRejected`, `CertificateExpiring`.
 
-#### ITrustListFileAccess
+### ITrustListFileAccess
 
 Read/write trust-lists as serialized blobs for GDS Push Management (Part 12 §7.5).
 
@@ -947,7 +949,7 @@ Read/write trust-lists as serialized blobs for GDS Push Management (Part 12 §7.
 | `ReadTrustListAsync(TrustListIdentifier, TrustListMasks)` | Read trust-list contents |
 | `WriteTrustListAsync(TrustListIdentifier, TrustListData, TrustListMasks)` | Write trust-list contents |
 
-#### ICertificateFactory
+### ICertificateFactory
 
 Stateless certificate creation and parsing. Located in `Opc.Ua.Security.Certificates`.
 
@@ -961,7 +963,7 @@ Stateless certificate creation and parsing. Located in `Opc.Ua.Security.Certific
 | `CreateWithPEMPrivateKey(...)` | Combine cert with PEM private key |
 | `CreateWithPrivateKey(...)` | Combine cert with private key from another cert |
 
-#### ICertificateIssuer
+### ICertificateIssuer
 
 CA signing and CRL revocation. Located in `Opc.Ua.Security.Certificates`.
 
@@ -970,7 +972,7 @@ CA signing and CRL revocation. Located in `Opc.Ua.Security.Certificates`.
 | `IssueCertificate(ICertificateBuilder, Certificate)` | Sign a certificate with a CA key |
 | `RevokeCertificates(...)` | Produce an updated CRL |
 
-### Pluggable Store Backends
+## Pluggable Store Backends
 
 The rejected-certificate store limit uses zero for unlimited history and a
 negative value to disable new rejected-certificate storage. Negative limits
@@ -1018,7 +1020,7 @@ var manager = new CertificateManager(
     storeProviders: [new DirectoryStoreProvider(), new MyAzureKeyVaultProvider()]);
 ```
 
-### Certificate Wrapper and Reference Counting
+## Certificate Wrapper and Reference Counting
 
 The `Certificate` class wraps `X509Certificate2` with reference counting:
 
@@ -1040,9 +1042,9 @@ ECC secret decryption clears owned plaintext, derived keys, IVs, and decoded
 temporary byte strings on success and failure, while preserving the returned
 secret and data outside the encrypted segment.
 
-### Backward Compatibility
+## Backward Compatibility
 
-All migration is complete; the legacy `CertificateValidator` class,
+The legacy `CertificateValidator` class,
 `ICertificateValidator` interface, `CertificateValidatorAdapter`
 bridge, `CertificateTypesProvider` class, and the legacy
 `ApplicationConfiguration.CertificateValidator` /
@@ -1065,7 +1067,7 @@ and forward to `Certificate.FromRawData(...)`,
 they remain the canonical default values used across configuration
 sites.
 
-### OPC UA Specification Alignment
+## OPC UA Specification Alignment
 
 | Spec Area | Interface |
 |-----------|-----------|
@@ -1084,8 +1086,7 @@ sites.
 
 The authoritative, per-requirement Part 12 support status — every implemented ServerConfiguration / PushManagement, TrustList, certificate-alarm, KeyCredentialService and AuthorizationService requirement linked to its source **and** its automated tests, with complete / partial / optional / unsupported marks — lives in the [GDS Conformance Matrix](GDS.md#conformance-matrix). That matrix also identifies the applicable OPC UA Facets / conformance units and states explicitly that the formal UACTT/CTT (a licensed GUI tool) is not run automatically here.
 
-
-### Materializing a `Certificate` from a `CertificateIdentifier`
+## Materializing a `Certificate` from a `CertificateIdentifier`
 
 `CertificateIdentifier` is metadata only: `StoreType` / `StorePath` / `SubjectName` / `Thumbprint` /
 `CertificateType` / `RawData` / `ValidationOptions`. It caches no `Certificate`, is not disposable, and
@@ -1094,7 +1095,7 @@ The authoritative, per-requirement Part 12 support status — every implemented 
 returns `IList<CertificateIssuerReference>`, a public sealed record carrying `Certificate` plus
 `CertificateValidationOptions`.
 
-#### Resolving an identifier
+### Resolving an identifier
 
 Use the `CertificateIdentifierResolver` static helper:
 
@@ -1134,7 +1135,7 @@ using ICertificateStore store = CertificateIdentifierResolver.OpenStore(id, tele
 
 The resolver always returns a caller-owned, `AddRef`'d `Certificate` (or `null`). The caller is responsible for disposing it.
 
-#### When to register an in-memory certificate with the manager
+### When to register an in-memory certificate with the manager
 
 If you have a `Certificate` instance that wasn't loaded from a configured store (for example, a freshly generated cert or one returned by a GDS push), persist it to a store and let the manager pick it up:
 

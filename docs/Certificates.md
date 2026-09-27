@@ -1,4 +1,4 @@
-## Certificates
+# Certificates
 
 The application creates its required OPC UA certificates in a directory or
 OS-level certificate store on first startup. They remain in use until an
@@ -29,10 +29,10 @@ for pluggable cryptography and hardware-held keys, or use the
     - [Overview](#overview)
     - [Chain Building Algorithm Diagram](#chain-building-algorithm-diagram)
     - [Detailed Algorithm Steps](#detailed-algorithm-steps)
-      - [Initialization](#step-1-initialization)
-      - [Iterative Chain Building Loop](#step-2-iterative-chain-building-loop)
-      - [Issuer Matching Algorithm](#step-3-issuer-matching-algorithm)
-      - [Certificate Revocation List (CRL) Checking](#step-4-certificate-revocation-list-crl-checking)
+      - [Step 1: Initialization](#step-1-initialization)
+      - [Step 2: Iterative Chain Building Loop](#step-2-iterative-chain-building-loop)
+      - [Step 3: Issuer Matching Algorithm](#step-3-issuer-matching-algorithm)
+      - [Step 4: Certificate Revocation List (CRL) Checking](#step-4-certificate-revocation-list-crl-checking)
     - [X509Chain Validation](#x509chain-validation)
     - [Chain Validation Results](#chain-validation-results)
     - [Key Behaviors](#key-behaviors)
@@ -41,18 +41,27 @@ for pluggable cryptography and hardware-held keys, or use the
     - [Configuration File Structure](#configuration-file-structure)
     - [Certificate Store Types](#certificate-store-types)
     - [Certificate List Population](#certificate-list-population)
+      - [1. Initialization via ApplicationConfiguration](#1-initialization-via-applicationconfiguration)
+      - [2. Internal Update Process](#2-internal-update-process)
+      - [3. Certificate Search Behavior](#3-certificate-search-behavior)
     - [Runtime Certificate Management](#runtime-certificate-management)
     - [Certificate Store Management](#certificate-store-management)
     - [Dual-Mode Operation](#dual-mode-operation)
     - [Configuration Best Practices](#configuration-best-practices)
   - [Configuration Settings](#configuration-settings)
+    - [AutoAcceptUntrustedCertificates](#autoacceptuntrustedcertificates)
+    - [RejectSHA1SignedCertificates](#rejectsha1signedcertificates)
+    - [RejectUnknownRevocationStatus](#rejectunknownrevocationstatus)
+    - [MinimumCertificateKeySize](#minimumcertificatekeysize)
+    - [UseValidatedCertificates](#usevalidatedcertificates)
+    - [MaxRejectedCertificates](#maxrejectedcertificates)
   - [Suppressible Validation Errors](#suppressible-validation-errors)
-  - [CA (issuer) KeyUsage validation](#ca-issuer-keyusage-validation)
+    - [CA (issuer) KeyUsage validation](#ca-issuer-keyusage-validation)
   - [Inspecting Certificate Validation Results](#inspecting-certificate-validation-results)
   - [Configuring a Custom Certificate Validator](#configuring-a-custom-certificate-validator)
   - [Best Practices](#best-practices)
 
-### Certificate stores
+## Certificate stores
 
 File-based sample applications follow the certificate-store layout
 recommended in the [specification](https://reference.opcfoundation.org/v104/GDS/docs/F.1/).
@@ -87,12 +96,12 @@ The UA .NET Standard stack supports the following certificate stores:
 
 - The **Trusted Https** store  `<root>/trustedHttps` which contains https certificates which are trusted by an application. To establish trust, the same rules apply as explained for the *Trusted* and the *Issuer* store.
 
-### X509Store on Windows
+## X509Store on Windows
 
 On the **Windows OS** the X509Store supports the storage and retrieval of CRLs.
 This enables the usage of the X509Store instead of the Directory Store for stores requiring the use of crls, e.g. the issuer or the directory Store.
 
-### Certificate and CertificateCollection Types
+## Certificate and CertificateCollection Types
 
 The stack uses the `Certificate` wrapper type (in `Opc.Ua.Security.Certificates`) instead of `X509Certificate2` directly. `Certificate` wraps `X509Certificate2` with reference counting for safe shared ownership — the inner `X509Certificate2` is disposed only when the last reference is released. Use `Certificate.AddRef()` before sharing and `Dispose()` to release.
 
@@ -102,7 +111,7 @@ For interop with .NET APIs that require `X509Certificate2`, use `certificate.AsX
 
 See [CertificateManager.md](CertificateManager.md#certificate-wrapper-and-reference-counting) for details.
 
-### Opening a certificate store
+## Opening a certificate store
 
 A `CertificateStoreIdentifier` is only a *description* of a store (`StoreType` / `StorePath`) — the analogue of a `CertificateIdentifier` resolving to a `Certificate`. Every call to `OpenStore` creates and opens a new `ICertificateStore` instance that the caller owns and must dispose:
 
@@ -117,17 +126,17 @@ keep it for the component's lifetime. Dispose the store at shutdown instead
 of reopening it for each operation. The store refreshes its parsed-certificate
 cache when the backing data changes.
 
-### Windows .NET applications
+## Windows .NET applications
 
 By default the self signed certificates are stored in a **X509Store** called **CurrentUser\\UA_MachineDefault**. The certificates can be viewed or deleted with the Windows Certificate Management Console (certmgr.msc). The *trusted*, *issuer* and *rejected* stores remain in a folder called **OPC Foundation\pki** with a root folder which is specified by the `SpecialFolder` variable **%CommonApplicationData%**. On Windows 7/8/8.1/10 this is usually the invisible folder **C:\ProgramData**.
 
-### Windows UWP applications
+## Windows UWP applications
 
 By default the self signed certificates are stored in a **X509Store** called **CurrentUser\\UA_MachineDefault**. The certificates can be viewed or deleted with the Windows Certificate Management Console (certmgr.msc).
 
 The *trusted*, *issuer* and *rejected* stores remain in a folder called **OPC Foundation\pki** in the **LocalState** folder of the installed universal windows package. Deleting the application state also deletes the certificate stores.
 
-### .NET Core applications on Windows, Linux, iOS etc
+## .NET Core applications on Windows, Linux, iOS etc
 
 The self signed certificates are stored in a folder called **OPC Foundation/pki/own** with a root folder which is specified by the `SpecialFolder` variable **%LocalApplicationData%** or in a **X509Store** called **CurrentUser\\My**, depending on the configuration. For best cross platform support the personal store **CurrentUser\\My** was chosen to support all platforms with the same configuration. Some platforms, like macOS, do not support arbitrary certificate stores.
 
@@ -139,9 +148,9 @@ The OPC UA .NET Standard Stack validates certificates according to the OPC UA
 specification. `CertificateManager` provides centralized certificate
 management with trust-list-scoped validation, lifecycle monitoring, and
 pluggable store backends (see [CertificateManager.md](CertificateManager.md)).
-The legacy `CertificateValidator` class remains supported through a backward
-compatibility adapter. This section explains the validation workflow and
-configuration settings, and how to customize validation.
+The legacy validator and adapter are removed. This section explains trust,
+validation workflow, and configuration; the current API reference lives in
+[CertificateManager](CertificateManager.md#icertificatevalidatorex).
 
 ### Validation Workflow
 
@@ -149,7 +158,10 @@ The certificate validation process follows these steps:
 
 1. **Structural Check**: Any certificate in the chain whose **subject or issuer is an empty distinguished name** is rejected immediately with the non-suppressible `Bad_CertificateInvalid`. An empty name is an empty `RDNSequence`: it identifies nothing, and two unrelated issuers become indistinguishable, so such a certificate can never take part in a trust decision. RFC 5280 §4.1.2.4 requires a non-empty issuer, and §4.1.2.6 only permits an empty subject for an end entity carrying a critical `subjectAltName` — which a CA may never do. This check runs before the trust-list lookup and the chain build so the outcome is identical on every target framework, rather than depending on whether the platform's X.509 parser happens to accept the certificate.
 
-2. **Pre-validation Check**: If the certificate was previously validated and `UseValidatedCertificates` is enabled, the validation is skipped.
+2. **Validation Cache**: `UseValidatedCertificates` can skip expensive chain-policy
+   rebuilding for a previously accepted certificate. The issuer walk and revocation
+   checks still run before a cached result is used, so a newly revoked certificate
+   is not accepted solely because it was previously cached.
 
 3. **Trust Check**: The validator checks if the certificate is explicitly trusted by searching in:
    - The **trusted certificate list** (`TrustedPeerCertificates.TrustedCertificates`) - An in-memory collection of explicitly trusted certificates
@@ -172,7 +184,7 @@ The certificate validation process follows these steps:
 7. **Application URI Validation**: Verifies that the certificate contains the expected Application URI in the Subject Alternative Name extension.
 
 8. **Error Handling**: If validation errors occur, they are classified as either:
-   - **Suppressible errors**: Can be accepted via the `CertificateValidation` event callback
+   - **Suppressible errors**: Can be accepted via `CertificateValidationOptions.AcceptError` or the manager's global `AcceptError` callback
    - **Non-suppressible errors**: Always cause validation to fail
 
 9. **Rejected Certificate Storage**: Failed certificates are saved to the rejected certificate store for administrator review.
@@ -181,7 +193,10 @@ Certificates with an empty distinguished name are also skipped when a PEM file i
 
 ### Chain Building Process
 
-This section provides detailed technical documentation of the certificate chain building and validation algorithm implemented in `CertificateValidator.GetIssuersNoExceptionsOnGetIssuerAsync()`.
+This section explains the chain-building and validation algorithm used by
+`CertificateManager`. The implementation is in the internal
+[`CertificateValidationCore`](../src/Opc.Ua.Core/Security/Certificates/CertificateManager/CertificateValidationCore.cs);
+applications use `ICertificateValidatorEx`, not that internal class.
 
 #### Overview
 
@@ -600,50 +615,34 @@ unverifiable or overly broad permissions are never silently accepted.
 
 #### Certificate List Population
 
-Both the new `CertificateManager` and the legacy `CertificateValidator`
-(via the `CertificateValidatorAdapter` bridge) source their trust lists
-from the same `SecurityConfiguration` defined in
-`ApplicationConfiguration`.
+`CertificateManager` sources its well-known trust lists from the
+`SecurityConfiguration` in `ApplicationConfiguration`. Hosts may also register
+named trust lists for other purposes.
 
 ##### 1. Initialization via ApplicationConfiguration
 
 ```csharp
-// Load configuration from file
-ApplicationConfiguration config = await ApplicationConfiguration
-    .Load(new FileInfo("MyApp.Config.xml"), ApplicationType.Client, null)
-    .ConfigureAwait(false);
-
-// Recommended: build a CertificateManager from the SecurityConfiguration.
-// CertificateManagerFactory automatically registers the well-known trust
-// lists (Peers, Users, Https, Rejected) from the configuration.
+// Direct-construction alternative for an already loaded configuration.
 using CertificateManager manager = CertificateManagerFactory.Create(
     config.SecurityConfiguration,
     telemetry);
 await manager
     .LoadApplicationCertificatesAsync(config.SecurityConfiguration, config.ApplicationUri)
     .ConfigureAwait(false);
-
-// `ApplicationInstance` and `ServerBase` automatically construct and own
-// the `CertificateManager` during `Start*Async`. Access it via
-// `applicationInstance.CertificateManager` or `Server.CertificateManager`.
 ```
+
+For a hosted application, use `config.CertificateManager` after application
+certificate initialization instead of creating another manager. See
+[initialization ordering](migrate/2.0.x/certificates.md#removed-certificate-apis).
 
 ##### 2. Internal Update Process
 
-When `UpdateAsync()` is called, the validator performs these steps:
-
-```
-// From SecurityConfiguration
-trustedStore = config.SecurityConfiguration.TrustedPeerCertificates
-issuerStore = config.SecurityConfiguration.TrustedIssuerCertificates
-
-// Populate internal structures
-m_trustedCertificateStore = trustedStore.StorePath
-m_trustedCertificateList = trustedStore.TrustedCertificates (if specified)
-m_issuerCertificateStore = issuerStore.StorePath
-m_issuerCertificateList = issuerStore.TrustedCertificates (if specified)
-m_applicationCertificates = config.SecurityConfiguration.ApplicationCertificates
-```
+The factory registers the configured trusted and issuer stores. Validation uses
+the selected trust list's certificate lists and stores; application code does
+not populate private validator fields or call a legacy `UpdateAsync` method.
+For changing a live trust list, use
+[trust-list transactions](CertificateManager.md#working-with-trust-lists).
+The manager coordinates change notifications and validation-cache invalidation.
 
 ##### 3. Certificate Search Behavior
 
@@ -651,14 +650,14 @@ During validation, certificates are searched in the following order:
 
 **For Trusted Certificates:**
 
-1. Search `m_trustedCertificateList` (explicit list) - if populated
-2. Search `m_trustedCertificateStore` (file system or X509Store)
-3. Search `m_applicationCertificates` (application's own certificates)
+1. Search the configured explicit trusted-certificate list, if populated.
+2. Search the trusted store (file system or X509Store).
+3. Check the application's own certificates.
 
 **For Issuer Certificates:**
 
-1. Search `m_issuerCertificateList` (explicit list) - if populated
-2. Search `m_issuerCertificateStore` (file system or X509Store)
+1. Search the configured explicit issuer-certificate list, if populated.
+2. Search the issuer store (file system or X509Store).
 
 #### Runtime Certificate Management
 
@@ -886,77 +885,26 @@ as `ApplicationCertificateUpdated`, `TrustListUpdated`,
 `CrlUpdated`, `CertificateRejected`, and `CertificateExpiring`. See
 [CertificateManager.md](CertificateManager.md) for the full reference.
 
-> **Legacy callback (deprecated)**: the
-> `CertificateValidator.CertificateValidation` event with mutable
-> `e.Accept = true` continues to work for existing applications via the
-> backward‑compat `CertificateValidator` class. New code should prefer
-> the structured result above.
+The legacy `CertificateValidator.CertificateValidation` event and adapter are
+removed. See [certificate migration](migrate/2.0.x/certificates.md#migrating-the-certificatevalidatorcertificatevalidation-event)
+for the old-to-new mapping.
 
 ### Configuring a Custom Certificate Validator
 
-To use a custom certificate validator, implement the new
-`ICertificateValidatorEx` interface (or wrap your implementation in a
-`CertificateValidatorAdapter` to expose the legacy
-`ICertificateValidator` surface):
+Use `ApplicationConfiguration.CertificateManager` for the application's normal
+validation path. It combines trust-list management, certificate validation, and
+certificate lifecycle notifications. Keep those checks in place when adding
+application-specific requirements; an always-successful validator bypasses trust,
+validity, and revocation checks.
 
-```csharp
-public sealed class CustomCertificateValidator : ICertificateValidatorEx
-{
-    public Task<CertificateValidationResult> ValidateAsync(
-        Certificate certificate,
-        TrustListIdentifier? trustList = null,
-        CancellationToken ct = default)
-    {
-        return ValidateAsync(
-            new CertificateCollection(new[] { certificate }),
-            trustList,
-            options: null,
-            ct);
-    }
-
-    public Task<CertificateValidationResult> ValidateAsync(
-        CertificateCollection chain,
-        TrustListIdentifier? trustList = null,
-        CertificateValidationOptions? options = null,
-        CancellationToken ct = default)
-    {
-        Certificate certificate = chain[0];
-
-        if (!MeetsCustomRequirements(certificate))
-        {
-            return Task.FromResult(new CertificateValidationResult(
-                isValid: false,
-                statusCode: StatusCodes.BadCertificateInvalid,
-                errors: new[]
-                {
-                    new ServiceResult(
-                        StatusCodes.BadCertificateInvalid,
-                        "Certificate does not meet custom requirements.")
-                },
-                isSuppressible: false));
-        }
-
-        return Task.FromResult(CertificateValidationResult.Success);
-    }
-
-    private static bool MeetsCustomRequirements(Certificate certificate)
-    {
-        // Implement your custom validation logic
-        return true;
-    }
-}
-
-// Bridge a custom ICertificateValidatorEx to legacy ICertificateValidator:
-ICertificateValidator legacyApi = new CertificateValidatorAdapter(
-    new CustomCertificateValidator());
-```
-
-> **Note**: Replacing
-> `ApplicationConfiguration.CertificateValidator` with a custom
-> implementation is still supported for backward compatibility but is
-> discouraged in new code. Prefer providing a custom
-> `ICertificateValidatorEx` (or `ICertificateManager`) and consuming it
-> directly in your transport / channel pipeline.
+The current validation contract is `ICertificateValidatorEx`. Its
+`CertificateValidationOptions.AcceptError` callback can accept individual
+suppressible errors; accepting untrusted certificates is appropriate only for
+controlled development environments. For the interface, initialization order,
+callback precedence, and examples, see
+[CertificateManager validation](CertificateManager.md#icertificatevalidatorex).
+There is no `CertificateValidatorAdapter` or legacy
+`ApplicationConfiguration.CertificateValidator` property in the current API.
 
 ### Best Practices
 
