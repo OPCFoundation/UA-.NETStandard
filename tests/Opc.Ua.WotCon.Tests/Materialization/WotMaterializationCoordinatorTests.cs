@@ -457,6 +457,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         public async Task DryRunDoesNotCommit()
         {
             await RegisterTd("td-a", TestMaterialization.Td("urn:td-a")).ConfigureAwait(false);
+            WotRegistrySnapshot before = m_registry.Current;
+            var events = new List<WotMaterializationEventArgs>();
+            m_coordinator.Event += (_, notification) => events.Add(notification);
 
             WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest
             {
@@ -466,7 +469,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(m_host.AddCount, Is.Zero, "A dry run must not project.");
             Assert.That(result.NewGeneration, Is.Zero);
             Assert.That(m_coordinator.Generation, Is.Zero);
-            Assert.That(result.Results.Single().Generation, Is.EqualTo(1u));
+            Assert.That(result.Summary.Generation, Is.EqualTo(before.RefreshGeneration));
+            Assert.That(result.Results.Single().Generation, Is.EqualTo(before.RefreshGeneration));
+            Assert.That(m_registry.Current, Is.SameAs(before));
+            Assert.That(m_coordinator.LastRefreshPlan, Is.Null);
+            Assert.That(events, Is.Empty);
         }
 
         [Test]
@@ -512,6 +519,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             WotRefreshResult committed = await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
             uint expectedGeneration = committed.NewGeneration;
             Assert.That(expectedGeneration, Is.EqualTo(m_coordinator.Generation));
+            WotRegistrySnapshot before = m_registry.Current;
+            WoTRefreshPlanDataType plan = m_coordinator.LastRefreshPlan!;
+            var events = new List<WotMaterializationEventArgs>();
+            m_coordinator.Event += (_, notification) => events.Add(notification);
 
             for (int i = 0; i < 2; i++)
             {
@@ -520,8 +531,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     Options = new WoTRefreshOptionsDataType { DryRun = true }
                 }).ConfigureAwait(false);
 
-                Assert.That(dryRun.NewGeneration, Is.Zero);
+                Assert.That(dryRun.NewGeneration, Is.EqualTo(expectedGeneration));
+                Assert.That(dryRun.Summary.Generation, Is.EqualTo(expectedGeneration));
+                Assert.That(dryRun.Results.Select(row => row.Generation),
+                    Is.All.EqualTo(expectedGeneration));
                 Assert.That(m_coordinator.Generation, Is.EqualTo(expectedGeneration));
+                Assert.That(m_registry.Current, Is.SameAs(before));
+                Assert.That(m_coordinator.LastRefreshPlan!.IsEqual(plan), Is.True);
+                Assert.That(events, Is.Empty);
             }
 
             WotRefreshResult afterDryRuns = await m_coordinator.RefreshAsync(new WotRefreshRequest
@@ -529,8 +546,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 ExpectedGeneration = expectedGeneration
             }).ConfigureAwait(false);
 
-            Assert.That(afterDryRuns.Summary.Outcome, Is.Not.EqualTo(WoTOutcomeEnum.Rejected));
-            Assert.That(m_coordinator.Generation, Is.EqualTo(expectedGeneration + 1));
+            Assert.That(afterDryRuns.Summary.Outcome, Is.EqualTo(WoTOutcomeEnum.Unchanged));
+            Assert.That(afterDryRuns.NewGeneration, Is.EqualTo(expectedGeneration));
+            Assert.That(m_coordinator.Generation, Is.EqualTo(expectedGeneration));
+            Assert.That(m_host.ShadowCount, Is.Zero);
+            Assert.That(m_host.Operations, Has.Count.EqualTo(1));
         }
 
         [Test]
