@@ -634,8 +634,7 @@ namespace Opc.Ua.Bindings
                     {
                         if (isFinal || TryReservePartialMessageChunk(
                             chunk.Array.Length,
-                            (isolation is IResourceIsolationReassemblyProvider && isolation.UseFairScheduling) ||
-                                hasSession))
+                            isolation is IResourceIsolationReassemblyProvider || hasSession))
                         {
                             if (m_partialMessageChunks == null)
                             {

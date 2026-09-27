@@ -1670,6 +1670,31 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(pool.OutstandingCount, Is.Zero);
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public void CustomReassemblyCapabilityReplacesThresholdIndependentlyOfRequestOrdering(bool fairScheduling)
+        {
+            var pool = new TrackingArrayPool();
+            var recording = new RecordingIsolation { UseFairScheduling = fairScheduling };
+            var policy = new ReassemblyIsolation(recording);
+            using TestServerChannel probe = CreateOpenChannel(pool);
+            int rental = probe.GetRentedLengthForTest(32);
+            var budget = new ChunkReassemblyBudget(4L * rental, rental);
+            using TestServerChannel channel = CreateOpenChannel(pool, budget: budget, isolation: policy);
+
+            channel.SaveReceivedPartForTest(1, new ArraySegment<byte>(channel.TakeBufferForTest(32)));
+            channel.SaveReceivedPartForTest(1, new ArraySegment<byte>(channel.TakeBufferForTest(32)));
+
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Open));
+            Assert.That(budget.ReservedBytes, Is.EqualTo(2L * rental));
+            Assert.That(recording.OutstandingBytes, Is.EqualTo(2L * rental));
+            channel.ReleaseSavedPartsForTest(1);
+            Assert.That(recording.OutstandingBytes, Is.Zero);
+            Assert.That(budget.ReservedBytes, Is.Zero);
+            Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+        }
+
         [TestCase("complete")]
         [TestCase("abort")]
         [TestCase("close")]
@@ -2364,7 +2389,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
         private sealed class RecordingIsolation : IServerResourceIsolationProvider
         {
-            public bool UseFairScheduling => true;
+            public bool UseFairScheduling { get; set; } = true;
             public event Action<ResourceIsolationStage> CapacityAvailable
             {
                 add { }
@@ -2428,6 +2453,52 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     }
                 }
                 private int m_released;
+            }
+        }
+
+        /// <summary>
+        /// Adds the optional reassembly capability without changing the recording provider's ordering choice.
+        /// </summary>
+        private sealed class ReassemblyIsolation(RecordingIsolation inner) :
+            IServerResourceIsolationProvider, IResourceIsolationReassemblyProvider
+        {
+            public bool UseFairScheduling => inner.UseFairScheduling;
+
+            public event Action<ResourceIsolationStage> CapacityAvailable
+            {
+                add => inner.CapacityAvailable += value;
+                remove => inner.CapacityAvailable -= value;
+            }
+
+            public ResourceIsolationOwner ClassifyConnection(IPEndPoint remoteEndpoint)
+            {
+                return inner.ClassifyConnection(remoteEndpoint);
+            }
+
+            public ResourceIsolationOwner Classify(
+                SecureChannelContext context, NodeId token = default, bool sessionEstablishment = false,
+                bool controlRequest = false)
+            {
+                return inner.Classify(context, token, sessionEstablishment, controlRequest);
+            }
+
+            public ResourceIsolationOwner ClassifyReassembly(SecureChannelContext context)
+            {
+                return inner.Classify(context);
+            }
+
+            public bool IsCurrent(
+                ResourceIsolationOwner owner, SecureChannelContext context, NodeId token = default,
+                bool sessionEstablishment = false, bool controlRequest = false)
+            {
+                return inner.IsCurrent(owner, context, token, sessionEstablishment, controlRequest);
+            }
+
+            public bool TryAcquire(
+                ResourceIsolationStage stage, ResourceIsolationOwner owner, long amount,
+                out IDisposable lease, out ResourceIsolationFailure failure)
+            {
+                return inner.TryAcquire(stage, owner, amount, out lease, out failure);
             }
         }
 

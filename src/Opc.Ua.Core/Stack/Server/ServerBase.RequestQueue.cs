@@ -88,7 +88,7 @@ namespace Opc.Ua
                 };
 
                 m_queue = System.Threading.Channels.Channel.CreateBounded<QueuedRequest>(options);
-                if (resourceIsolationProvider?.UseFairScheduling == true)
+                if (resourceIsolationProvider != null)
                 {
                     m_fairQueue = new FairRequestQueue(
                         resourceIsolationProvider,
@@ -502,14 +502,14 @@ namespace Opc.Ua
             private readonly bool m_decoupleHeldPublishRequests;
 
             /// <summary>
-            /// Compatibility FIFO used when fair scheduling is disabled.
+            /// Compatibility FIFO used when no isolation provider is installed.
             /// </summary>
             private readonly System.Threading.Channels.Channel<QueuedRequest> m_queue;
             // Ownership transfers to StopCoreAsync, which disposes these after asynchronous shutdown.
             // TODO: Remove the pragma when CA2213 recognizes deferred asynchronous ownership.
 #pragma warning disable CA2213
             /// <summary>
-            /// Fair admission queue owned by the asynchronous shutdown task after disposal begins.
+            /// Provider-accounted queue owned by the asynchronous shutdown task after disposal begins.
             /// </summary>
             private readonly FairRequestQueue? m_fairQueue;
 

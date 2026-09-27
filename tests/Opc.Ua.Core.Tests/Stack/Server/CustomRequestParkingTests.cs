@@ -548,7 +548,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         }
 
         [Test]
-        public async Task CustomParkingAlsoReleasesTheCompatibilityQueueWorkerAsync()
+        public async Task CustomParkingReleasesFifoWorkerWithoutBypassingProviderAccountingAsync()
         {
             var provider = new TrackingProvider { UseFairScheduling = false };
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
@@ -564,7 +564,10 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 Task<IServiceResponse> peerResponse = endpoint.SendAsync(new ReadRequest(), "peer");
                 await peer.Started.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
                 Assert.That(response.IsCompleted, Is.False);
-                Assert.That(provider.TotalGrants, Is.Zero);
+                Assert.That(provider.Used(ResourceIsolationStage.RequestExecution), Is.EqualTo(1));
+                Assert.That(provider.Used(ResourceIsolationStage.RequestQueue), Is.Zero);
+                Assert.That(provider.Used(ResourceIsolationStage.RequestQueueBytes), Is.EqualTo(20));
+                Assert.That(provider.Used(ResourceIsolationStage.ParkedRequest), Is.EqualTo(1));
                 held.Release();
                 peer.Release();
                 Assert.That(await response.WaitAsync(deadline.Token).ConfigureAwait(false), Is.TypeOf<CallResponse>());

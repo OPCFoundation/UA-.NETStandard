@@ -254,6 +254,12 @@ limit still rejects excess work. The next section explains the checks performed
 for the default provider. A custom provider must perform equivalent checks for
 the promises it makes.
 
+An installed provider checks decoded-request capacity whether it selects
+weighted scheduling or FIFO. `UseFairScheduling = false` selects one queue in
+arrival order, not an exemption from request-count, retained-data, execution,
+or parked-request limits. If the request at the front cannot obtain execution
+capacity, later requests do not overtake it.
+
 ## Startup validation and sizing
 
 `ServerResourceIsolationOptions.CreateRuntimePlan` validates FairShare,
@@ -598,7 +604,8 @@ The shared budget's `MaxBytes` remains an overall ceiling. SharedOnly uses
 the `MaxBytesWithoutSession` occupancy rule explained in
 [Rate limiting](RateLimiting.md#incomplete-messages). A custom provider that
 implements `IResourceIsolationReassemblyProvider` can replace that rule with
-its own classification policy. A provider without that capability keeps the
+its own classification policy, independently of `UseFairScheduling`. The
+shared budget still enforces its total-byte limit. A provider without that capability keeps the
 occupancy rule, even if it enables fair request scheduling.
 
 ## Trust, anonymous clients and NAT

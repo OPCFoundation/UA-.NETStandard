@@ -122,9 +122,12 @@ namespace Opc.Ua.Server
         public long ReconnectReservedBytes { get; }
 
         /// <summary>
-        /// The sum of all protected reassembly floors.
+        /// The sum of all protected reassembly floors, including a runtime control reserve when configured.
         /// </summary>
-        public long ReservedReassemblyBytes => BootstrapReservedBytes + ReconnectReservedBytes + TrustedReservedBytes;
+        public long ReservedReassemblyBytes => m_stages == null
+            ? BootstrapReservedBytes + ReconnectReservedBytes + TrustedReservedBytes
+            : m_stages[(int)ResourceIsolationStage.ReassemblyBytes].Capacity -
+                m_stages[(int)ResourceIsolationStage.ReassemblyBytes].SharedCapacity;
 
         /// <summary>
         /// The remaining shared bytes inside the original total.

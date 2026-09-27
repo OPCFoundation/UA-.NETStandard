@@ -55,6 +55,23 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable(ParallelScope.All)]
     public sealed class RuntimeResourceIsolationTests
     {
+        [TestCase(0L)]
+        [TestCase(10L)]
+        [TestCase(20L)]
+        public void ReservedReassemblyTotalIncludesExplicitControlCapacity(long controlBytes)
+        {
+            ServerResourceIsolationOptions options = Options();
+            options.Stages[(int)ResourceIsolationStage.ReassemblyBytes].ControlReserved = controlBytes;
+            using DefaultServerResourceIsolationProvider provider = CreateProvider(options);
+            ServerResourceIsolationPlan plan = provider.Plan;
+            ResourceIsolationStagePlan stage = plan.GetStage(ResourceIsolationStage.ReassemblyBytes);
+
+            Assert.That(plan.ReservedReassemblyBytes,
+                Is.EqualTo(stage.BootstrapReserved + stage.ReconnectReserved + stage.TrustedReserved + controlBytes));
+            Assert.That(plan.ReservedReassemblyBytes + plan.UnreservedReassemblyBytes,
+                Is.EqualTo(plan.MaxReassemblyBytes));
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public void StartupLogsEffectiveStageLimitsWithoutOwnerIdentities(bool informationEnabled)

@@ -234,6 +234,7 @@ namespace Opc.Ua
     {
         /// <summary>
         /// Whether decoded requests use weighted scheduling instead of compatibility FIFO.
+        /// This changes ordering only. Installed providers enforce decoded-request limits in either mode.
         /// </summary>
         bool UseFairScheduling { get; }
 

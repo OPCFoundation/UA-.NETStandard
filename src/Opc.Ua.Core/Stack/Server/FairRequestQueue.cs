@@ -37,8 +37,8 @@ using System.Threading.Tasks;
 namespace Opc.Ua
 {
     /// <summary>
-    /// Bounded, weighted owner FIFO. The provider owns admission and non-borrowable
-    /// partitions; this queue owns ordering, cancellation and the lifetime of its leases.
+    /// Bounded admission with weighted owner FIFOs or one global FIFO. The provider owns
+    /// admission and non-borrowable partitions; this queue owns ordering and lease lifetimes.
     /// </summary>
     /// <remarks>
     /// The provider's RequestQueue capacity must not exceed the physical maxQueuedRequests.
@@ -48,7 +48,8 @@ namespace Opc.Ua
     internal sealed class FairRequestQueue : IDisposable
     {
         /// <summary>
-        /// Creates a bounded owner queue sharing admission accounting with its provider.
+        /// Creates a bounded queue sharing admission accounting with its provider.
+        /// The provider's scheduling flag selects weighted owner order or strict global FIFO.
         /// </summary>
         public FairRequestQueue(
             IServerResourceIsolationProvider provider,
@@ -68,6 +69,7 @@ namespace Opc.Ua
             }
             m_maxQueuedRequests = maxQueuedRequests;
             m_requestCost = requestCost;
+            m_useFairScheduling = provider.UseFairScheduling;
             m_decoupleHeldPublishRequests = decoupleHeldPublishRequests;
             m_complete = complete ?? throw new ArgumentNullException(nameof(complete));
             m_provider.CapacityAvailable += OnCapacityAvailable;
@@ -88,7 +90,8 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Gets the number of owners with queued requests.
+        /// Gets the number of scheduling FIFOs with queued requests: one per owner in weighted
+        /// mode, or one shared FIFO regardless of owner in global FIFO mode.
         /// </summary>
         internal int OwnerCount
         {
@@ -190,11 +193,12 @@ namespace Opc.Ua
                         error = StatusCodes.BadServerTooBusy;
                         return false;
                     }
-                    if (!m_owners.TryGetValue(owner.Key, out OwnerQueue? ownerQueue))
+                    string schedulingKey = m_useFairScheduling ? owner.Key : string.Empty;
+                    if (!m_owners.TryGetValue(schedulingKey, out OwnerQueue? ownerQueue))
                     {
-                        ownerQueue = new OwnerQueue(owner.Weight);
+                        ownerQueue = new OwnerQueue(m_useFairScheduling ? owner.Weight : 1);
                         ownerQueue.RoundNode = m_round.AddLast(ownerQueue);
-                        m_owners.Add(owner.Key, ownerQueue);
+                        m_owners.Add(schedulingKey, ownerQueue);
                     }
                     entry.OwnerQueue = ownerQueue;
                     entry.Node = ownerQueue.Requests.AddLast(entry);
@@ -215,7 +219,8 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Makes at most one attempt per currently eligible owner per capacity version.
+        /// Makes at most one attempt per currently eligible scheduling FIFO per capacity version.
+        /// A blocked global FIFO head cannot be overtaken by another owner.
         /// Provider calls and completions are deliberately outside the queue gate.
         /// </summary>
         public bool TryDequeue([NotNullWhen(true)] out Entry? result)
@@ -472,7 +477,7 @@ namespace Opc.Ua
             if (owner.Requests.Count == 0)
             {
                 m_round.Remove(owner.RoundNode!);
-                m_owners.Remove(entry.Owner.Key);
+                m_owners.Remove(m_useFairScheduling ? entry.Owner.Key : string.Empty);
             }
             else if (consumeTurn && --owner.Remaining == 0)
             {
@@ -719,7 +724,8 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Tracks one owner's FIFO and weighted turn under the queue gate.
+        /// Tracks a scheduling FIFO and its weighted turn under the queue gate.
+        /// Global FIFO mode shares one instance across all resource-accounting owners.
         /// </summary>
         internal sealed class OwnerQueue(int weight)
         {
@@ -816,6 +822,11 @@ namespace Opc.Ua
         private readonly long m_requestCost;
 
         /// <summary>
+        /// Whether requests are grouped into weighted owner FIFOs rather than one global FIFO.
+        /// </summary>
+        private readonly bool m_useFairScheduling;
+
+        /// <summary>
         /// Whether parkable requests reserve an independent parked slot.
         /// </summary>
         private readonly bool m_decoupleHeldPublishRequests;
@@ -831,7 +842,8 @@ namespace Opc.Ua
         private readonly Lock m_gate = new();
 
         /// <summary>
-        /// Owner FIFOs retained only while they contain queued requests.
+        /// Scheduling FIFOs retained while nonempty, keyed by owner in weighted mode
+        /// or by the empty string for global FIFO mode.
         /// </summary>
         private readonly Dictionary<string, OwnerQueue> m_owners = new(StringComparer.Ordinal);
 

@@ -70,6 +70,142 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             Assert.That(provider.Used(ResourceIsolationStage.RequestQueueBytes), Is.Zero);
         }
 
+        /// <summary>
+        /// FIFO ordering ignores owner weights and preserves interleaved global admission order.
+        /// </summary>
+        [Test]
+        public async Task FifoPreservesGlobalOrderAcrossWeightedOwnersAsync()
+        {
+            var provider = new TestProvider { UseFairScheduling = false };
+            NodeId a = provider.AddOwner("A", weight: 3);
+            NodeId b = provider.AddOwner("B", weight: 2);
+            using var queue = CreateQueue(provider);
+            Enqueue(queue, new TestRequest(a, 1));
+            Enqueue(queue, new TestRequest(b, 2));
+            Enqueue(queue, new TestRequest(a, 3));
+            Enqueue(queue, new TestRequest(b, 4));
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            for (uint handle = 1; handle <= 4; handle++)
+            {
+                using FairRequestQueue.Entry entry = await queue.DequeueAsync(deadline.Token).ConfigureAwait(false);
+                Assert.That(entry.Request.Request.RequestHeader.RequestHandle, Is.EqualTo(handle));
+            }
+            Assert.That(queue.Count, Is.Zero);
+            Assert.That(queue.OwnerCount, Is.Zero);
+            Assert.That(provider.TotalUsed, Is.Zero);
+        }
+
+        /// <summary>
+        /// A blocked FIFO head retains its place even when later protected owners could execute.
+        /// </summary>
+        [Test]
+        public async Task FifoBlockedHeadCannotBeOvertakenAndResumesOnReleaseAsync()
+        {
+            var provider = new TestProvider(executionCapacity: 2) { UseFairScheduling = false };
+            NodeId a = provider.AddOwner("A", executionLimit: 1);
+            NodeId b = provider.AddOwner("B", weight: 3, ownerClass: ResourceIsolationClass.Trusted);
+            using var queue = CreateQueue(provider);
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            Enqueue(queue, new TestRequest(a));
+            using FairRequestQueue.Entry running = await queue.DequeueAsync(deadline.Token).ConfigureAwait(false);
+            Enqueue(queue, new TestRequest(a, 2));
+            Enqueue(queue, new TestRequest(b, 3));
+            Assert.That(queue.TryDequeue(out _), Is.False);
+            Assert.That(provider.ExecutionAttempts, Is.EqualTo(2));
+            Assert.That(queue.TryDequeue(out _), Is.False);
+            Assert.That(provider.ExecutionAttempts, Is.EqualTo(2), "An unchanged blocked head must not spin.");
+            Enqueue(queue, new TestRequest(b, 4));
+            Task<FairRequestQueue.Entry> waiting = queue.DequeueAsync(deadline.Token).AsTask();
+            Assert.That(waiting.IsCompleted, Is.False);
+            Assert.That(provider.ExecutionGrants, Is.EqualTo(1));
+            Assert.That(provider.Used(ResourceIsolationStage.RequestQueue), Is.EqualTo(3));
+            Assert.That(provider.Used(ResourceIsolationStage.RequestQueueBytes), Is.EqualTo(40));
+            running.Dispose();
+            using FairRequestQueue.Entry head = await waiting.ConfigureAwait(false);
+            Assert.That(head.Request.Request.RequestHeader.RequestHandle, Is.EqualTo(2));
+            using FairRequestQueue.Entry next = await queue.DequeueAsync(deadline.Token).ConfigureAwait(false);
+            Assert.That(next.Request.Request.RequestHeader.RequestHandle, Is.EqualTo(3));
+            head.Dispose();
+            next.Dispose();
+            using FairRequestQueue.Entry last = await queue.DequeueAsync(deadline.Token).ConfigureAwait(false);
+            Assert.That(last.Request.Request.RequestHeader.RequestHandle, Is.EqualTo(4));
+            last.Dispose();
+            Assert.That(provider.TotalUsed, Is.Zero);
+        }
+
+        /// <summary>
+        /// Cancelling a blocked FIFO head releases its retention and wakes the next owner's request.
+        /// </summary>
+        [Test]
+        public async Task FifoCancellationOfBlockedHeadWakesNextOwnerAsync()
+        {
+            var provider = new TestProvider(executionCapacity: 2) { UseFairScheduling = false };
+            NodeId a = provider.AddOwner("A", executionLimit: 1);
+            NodeId b = provider.AddOwner("B");
+            using var queue = CreateQueue(provider);
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            using var cancellation = new CancellationTokenSource();
+            Enqueue(queue, new TestRequest(a));
+            using FairRequestQueue.Entry running = await queue.DequeueAsync(deadline.Token).ConfigureAwait(false);
+            var cancelled = new TestRequest(a, 2, park: true);
+            Enqueue(queue, cancelled, cancellation.Token);
+            var next = new TestRequest(b, 3);
+            Enqueue(queue, next);
+            Task<FairRequestQueue.Entry> waiting = queue.DequeueAsync(deadline.Token).AsTask();
+            Assert.That(waiting.IsCompleted, Is.False);
+            cancellation.Cancel();
+            using FairRequestQueue.Entry executing = await waiting.ConfigureAwait(false);
+            Assert.That(executing.Request, Is.SameAs(next));
+            Assert.That(cancelled.CompletionCount, Is.EqualTo(1));
+            Assert.That(cancelled.Status, Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
+            Assert.That(provider.Used(ResourceIsolationStage.ParkedRequest), Is.Zero);
+            Assert.That(provider.Used(ResourceIsolationStage.RequestQueueBytes), Is.EqualTo(20));
+            Assert.That(provider.Used(ResourceIsolationStage.RequestExecution), Is.EqualTo(2));
+            executing.Dispose();
+            running.Dispose();
+            Assert.That(queue.Count, Is.Zero);
+            Assert.That(queue.OwnerCount, Is.Zero);
+            Assert.That(provider.TotalUsed, Is.Zero);
+        }
+
+        /// <summary>
+        /// FIFO preserves the provider's protected byte reservation while retaining all admitted requests.
+        /// </summary>
+        [Test]
+        public async Task FifoHonorsProviderReservedRequestBytesAsync()
+        {
+            var provider = new TestProvider(costCapacity: 30, reservedCostCapacity: 10)
+            {
+                UseFairScheduling = false
+            };
+            NodeId a = provider.AddOwner("A");
+            NodeId b = provider.AddOwner("B");
+            NodeId trusted = provider.AddOwner("trusted", ownerClass: ResourceIsolationClass.Trusted);
+            using var queue = CreateQueue(provider);
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            Enqueue(queue, new TestRequest(a, 1));
+            using FairRequestQueue.Entry running = await queue.DequeueAsync(deadline.Token).ConfigureAwait(false);
+            Enqueue(queue, new TestRequest(b, 2));
+            Assert.That(queue.TryEnqueue(new TestRequest(a, 3), default, out StatusCode status), Is.False);
+            Assert.That(status, Is.EqualTo(StatusCodes.BadServerTooBusy));
+            Assert.That(provider.Used(ResourceIsolationStage.RequestQueueBytes), Is.EqualTo(20));
+            Enqueue(queue, new TestRequest(trusted, 4));
+            Assert.That(provider.Used(ResourceIsolationStage.RequestQueueBytes), Is.EqualTo(30));
+            Assert.That(provider.Used(ResourceIsolationStage.RequestQueue), Is.EqualTo(2));
+            Assert.That(queue.TryEnqueue(new TestRequest(trusted, 5), default, out status), Is.False);
+            Assert.That(status, Is.EqualTo(StatusCodes.BadServerTooBusy));
+            using FairRequestQueue.Entry shared = await queue.DequeueAsync(deadline.Token).ConfigureAwait(false);
+            Assert.That(shared.Request.Request.RequestHeader.RequestHandle, Is.EqualTo(2));
+            using FairRequestQueue.Entry protectedRequest =
+                await queue.DequeueAsync(deadline.Token).ConfigureAwait(false);
+            Assert.That(protectedRequest.Request.Request.RequestHeader.RequestHandle, Is.EqualTo(4));
+            Assert.That(provider.Used(ResourceIsolationStage.RequestQueueBytes), Is.EqualTo(30));
+            running.Dispose();
+            shared.Dispose();
+            protectedRequest.Dispose();
+            Assert.That(provider.TotalUsed, Is.Zero);
+        }
+
         [Test]
         public void FloodCannotFillAnotherOwnersQueueOrExecutionShare()
         {
@@ -112,10 +248,11 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             Assert.That(fourth.Request.Request.RequestHeader.RequestHandle, Is.EqualTo(4));
         }
 
-        [Test]
-        public void UnknownCostsRemainChargedDuringExecutionAndReleaseExactlyOnce()
+        [TestCase(false)]
+        [TestCase(true)]
+        public void UnknownCostsRemainChargedDuringExecutionAndReleaseExactlyOnce(bool useFairScheduling)
         {
-            var provider = new TestProvider(costCapacity: 20);
+            var provider = new TestProvider(costCapacity: 20) { UseFairScheduling = useFairScheduling };
             NodeId token = provider.AddOwner("A");
             using var queue = CreateQueue(provider, requestCost: 10);
             Enqueue(queue, new TestRequest(token));
@@ -155,10 +292,11 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             }
         }
 
-        [Test]
-        public void QueuedCancellationCompletesOnceAndReturnsAllLeases()
+        [TestCase(false)]
+        [TestCase(true)]
+        public void QueuedCancellationCompletesOnceAndReturnsAllLeases(bool useFairScheduling)
         {
-            var provider = new TestProvider();
+            var provider = new TestProvider { UseFairScheduling = useFairScheduling };
             NodeId token = provider.AddOwner("A");
             using var cancellation = new CancellationTokenSource();
             using var queue = CreateQueue(provider);
@@ -188,10 +326,11 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             Assert.That(provider.TotalUsed, Is.Zero);
         }
 
-        [Test]
-        public void CancellationDuringAdmissionReturnsEveryAcquiredLease()
+        [TestCase(false)]
+        [TestCase(true)]
+        public void CancellationDuringAdmissionReturnsEveryAcquiredLease(bool useFairScheduling)
         {
-            var provider = new TestProvider();
+            var provider = new TestProvider { UseFairScheduling = useFairScheduling };
             NodeId token = provider.AddOwner("A");
             using var cancellation = new CancellationTokenSource();
             using var queue = CreateQueue(provider);
@@ -204,10 +343,11 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             Assert.That(provider.TotalUsed, Is.Zero);
         }
 
-        [Test]
-        public void QueueLimitRaceDisposesUnpublishedAdmissionWithoutRevokingQueuedWork()
+        [TestCase(false)]
+        [TestCase(true)]
+        public void QueueLimitRaceDisposesUnpublishedAdmissionWithoutRevokingQueuedWork(bool useFairScheduling)
         {
-            var provider = new TestProvider();
+            var provider = new TestProvider { UseFairScheduling = useFairScheduling };
             NodeId token = provider.AddOwner("A");
             using var queue = CreateQueue(provider, maxQueued: 1);
             var admitted = new TestRequest(token);
@@ -231,10 +371,11 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             Assert.That(provider.TotalUsed, Is.Zero);
         }
 
-        [Test]
-        public void StopDuringAdmissionReleasesUnpublishedEntry()
+        [TestCase(false)]
+        [TestCase(true)]
+        public void StopDuringAdmissionReleasesUnpublishedEntry(bool useFairScheduling)
         {
-            var provider = new TestProvider();
+            var provider = new TestProvider { UseFairScheduling = useFairScheduling };
             NodeId token = provider.AddOwner("A");
             using var queue = CreateQueue(provider);
             provider.BeforeCostGrant = queue.Dispose;
@@ -246,10 +387,11 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             Assert.That(provider.TotalUsed, Is.Zero);
         }
 
-        [Test]
-        public void CancellationDuringGrantCannotExecuteOrDoubleComplete()
+        [TestCase(false)]
+        [TestCase(true)]
+        public void CancellationDuringGrantCannotExecuteOrDoubleComplete(bool useFairScheduling)
         {
-            var provider = new TestProvider();
+            var provider = new TestProvider { UseFairScheduling = useFairScheduling };
             NodeId token = provider.AddOwner("A");
             using var cancellation = new CancellationTokenSource();
             using var queue = CreateQueue(provider);
@@ -262,10 +404,11 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             Assert.That(provider.TotalUsed, Is.Zero);
         }
 
-        [Test]
-        public void RunningCancellationKeepsAccountingUntilTheHandlerFinishes()
+        [TestCase(false)]
+        [TestCase(true)]
+        public void RunningCancellationKeepsAccountingUntilTheHandlerFinishes(bool useFairScheduling)
         {
-            var provider = new TestProvider();
+            var provider = new TestProvider { UseFairScheduling = useFairScheduling };
             NodeId token = provider.AddOwner("A");
             using var cancellation = new CancellationTokenSource();
             using var queue = CreateQueue(provider);
@@ -283,11 +426,13 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         /// <summary>
         /// A live replacement is retryable, while transfer rejects execution on the original channel.
         /// </summary>
-        [TestCase(false)]
-        [TestCase(true)]
-        public void StaleClassificationOrChannelTransferIsFaultedBeforeExecution(bool transfer)
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public void StaleClassificationOrChannelTransferIsFaultedBeforeExecution(bool transfer, bool useFairScheduling)
         {
-            var provider = new TestProvider();
+            var provider = new TestProvider { UseFairScheduling = useFairScheduling };
             NodeId token = provider.AddOwner("trusted", ownerClass: ResourceIsolationClass.Trusted);
             using var queue = CreateQueue(provider);
             var request = new TestRequest(token);
@@ -304,10 +449,11 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         /// <summary>
         /// A deleted session is rejected as missing rather than offered a retryable classification refresh.
         /// </summary>
-        [Test]
-        public void RemovedSessionIsRejectedBeforeExecution()
+        [TestCase(false)]
+        [TestCase(true)]
+        public void RemovedSessionIsRejectedBeforeExecution(bool useFairScheduling)
         {
-            var provider = new TestProvider();
+            var provider = new TestProvider { UseFairScheduling = useFairScheduling };
             NodeId token = provider.AddOwner("trusted", ownerClass: ResourceIsolationClass.Trusted);
             using var queue = CreateQueue(provider);
             var request = new TestRequest(token);
@@ -462,10 +608,11 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             Assert.That(third.Request.Request.RequestHeader.RequestHandle, Is.EqualTo(4));
         }
 
-        [Test]
-        public async Task SharedProviderReleaseWakesAnotherQueuesWaitingWorkerAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SharedProviderReleaseWakesAnotherQueuesWaitingWorkerAsync(bool useFairScheduling)
         {
-            var provider = new TestProvider(executionCapacity: 1);
+            var provider = new TestProvider(executionCapacity: 1) { UseFairScheduling = useFairScheduling };
             NodeId token = provider.AddOwner("A");
             using var firstQueue = CreateQueue(provider);
             using var secondQueue = CreateQueue(provider);
@@ -573,10 +720,11 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         /// <summary>
         /// A release consumed by a competing reader during admission is not lost on rejection.
         /// </summary>
-        [Test]
-        public async Task ReleaseDuringRejectedAdmissionStillWakesACompetingReaderAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ReleaseDuringRejectedAdmissionStillWakesACompetingReaderAsync(bool useFairScheduling)
         {
-            var provider = new TestProvider(executionCapacity: 1);
+            var provider = new TestProvider(executionCapacity: 1) { UseFairScheduling = useFairScheduling };
             NodeId token = provider.AddOwner("A");
             using var queue = CreateQueue(provider);
             Enqueue(queue, new TestRequest(token));
@@ -606,10 +754,11 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         /// <summary>
         /// Queued work admitted during the first grant grows workers without any capacity release.
         /// </summary>
-        [Test]
-        public async Task FairWorkersGrowForBacklogAdmittedBeforeTheFirstDispatchAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task WorkersGrowForBacklogAdmittedBeforeTheFirstDispatchAsync(bool useFairScheduling)
         {
-            var provider = new TestProvider(executionCapacity: 4);
+            var provider = new TestProvider(executionCapacity: 4) { UseFairScheduling = useFairScheduling };
             NodeId token = provider.AddOwner("A");
             using var server = new QueueServer(provider, workers: 4, minWorkers: 1);
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -639,10 +788,11 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             Assert.That(provider.TotalUsed, Is.Zero);
         }
 
-        [Test]
-        public async Task RealWorkersReleaseAtParkAndBoundTheNoisyPublishOwnerAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RealWorkersReleaseAtParkAndBoundTheNoisyPublishOwnerAsync(bool useFairScheduling)
         {
-            var provider = new TestProvider(executionCapacity: 1);
+            var provider = new TestProvider(executionCapacity: 1) { UseFairScheduling = useFairScheduling };
             NodeId a = provider.AddOwner("A", parkedLimit: 1);
             NodeId b = provider.AddOwner("B");
             using var server = new QueueServer(provider, workers: 1);
@@ -665,10 +815,11 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             Assert.That(parked.CompletionCount, Is.EqualTo(1));
         }
 
-        [Test]
-        public async Task StopCancelsQueuedRunningAndParkedRequestsWithoutSyncWaitingAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task StopCancelsQueuedRunningAndParkedRequestsWithoutSyncWaitingAsync(bool useFairScheduling)
         {
-            var provider = new TestProvider(executionCapacity: 2);
+            var provider = new TestProvider(executionCapacity: 2) { UseFairScheduling = useFairScheduling };
             NodeId a = provider.AddOwner("A", executionLimit: 1);
             NodeId b = provider.AddOwner("B", executionLimit: 1);
             using var server = new QueueServer(provider, workers: 2);
@@ -689,16 +840,20 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             Assert.That(queued.Status, Is.EqualTo(StatusCodes.BadServerHalted));
             Assert.That(running.Status, Is.EqualTo(StatusCodes.BadServerHalted));
             Assert.That(parked.Status, Is.EqualTo(StatusCodes.BadServerHalted));
+            Assert.That(queued.CompletionCount, Is.EqualTo(1));
+            Assert.That(running.CompletionCount, Is.EqualTo(1));
+            Assert.That(parked.CompletionCount, Is.EqualTo(1));
             Assert.That(provider.TotalUsed, Is.Zero);
         }
 
         /// <summary>
         /// Reactivation during execution admission rejects stale privileged leases as retryable.
         /// </summary>
-        [Test]
-        public async Task RevalidationAfterGrantStillPrecedesProtectedExecutionAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RevalidationAfterGrantStillPrecedesProtectedExecutionAsync(bool useFairScheduling)
         {
-            var provider = new TestProvider();
+            var provider = new TestProvider { UseFairScheduling = useFairScheduling };
             NodeId token = provider.AddOwner("trusted", ownerClass: ResourceIsolationClass.Trusted);
             provider.BeforeExecutionGrant = () => provider.ReplaceBinding(token, "channel");
             using var server = new QueueServer(provider, workers: 1);
@@ -712,10 +867,11 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             Assert.That(provider.TotalUsed, Is.Zero);
         }
 
-        [Test]
-        public async Task ProviderFailureFaultsOnlyThatRequestAndKeepsTheWorkerAliveAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ProviderFailureFaultsOnlyThatRequestAndKeepsTheWorkerAliveAsync(bool useFairScheduling)
         {
-            var provider = new TestProvider();
+            var provider = new TestProvider { UseFairScheduling = useFairScheduling };
             NodeId token = provider.AddOwner("A");
             provider.BeforeExecutionGrant = () =>
             {
@@ -736,8 +892,11 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             Assert.That(provider.TotalUsed, Is.Zero);
         }
 
+        /// <summary>
+        /// Selecting FIFO does not bypass the installed provider's decoded-request accounting.
+        /// </summary>
         [Test]
-        public async Task SharedOnlyProviderUsesCompatibilityFifoWithoutAdmissionCallsAsync()
+        public async Task CustomFifoProviderAccountsForRunningRequestsAsync()
         {
             var provider = new TestProvider { UseFairScheduling = false };
             using var server = new QueueServer(provider, workers: 1);
@@ -745,16 +904,167 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             var request = new TestRequest(NodeId.Null);
             server.Enqueue(request);
             await request.Started.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
-            Assert.That(provider.ClassificationCount, Is.Zero);
-            Assert.That(provider.TotalUsed, Is.Zero);
+            Assert.That(provider.ClassificationCount, Is.GreaterThan(0));
+            Assert.That(provider.Used(ResourceIsolationStage.RequestQueue), Is.Zero);
+            Assert.That(provider.Used(ResourceIsolationStage.RequestExecution), Is.EqualTo(1));
+            Assert.That(provider.Used(ResourceIsolationStage.RequestQueueBytes), Is.EqualTo(10));
             request.Release();
             await server.FinishAsync(deadline.Token).ConfigureAwait(false);
+            Assert.That(provider.TotalUsed, Is.Zero);
         }
 
+        /// <summary>
+        /// A custom FIFO policy bounds all four stages and retains bytes and parked slots after parking.
+        /// </summary>
         [Test]
-        public void EnabledQueueRejectsMissingCostInsteadOfFallingBack()
+        public async Task CustomFifoProviderEnforcesEveryStageAndRetainsParkedCostsAsync()
         {
-            var provider = new TestProvider();
+            var provider = new TestProvider(executionCapacity: 1, costCapacity: 20) { UseFairScheduling = false };
+            NodeId a = provider.AddOwner("A", queueLimit: 1, executionLimit: 1, parkedLimit: 1);
+            NodeId b = provider.AddOwner("B");
+            using var server = new QueueServer(provider, workers: 1);
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var running = new TestRequest(a);
+            server.Enqueue(running);
+            await running.Started.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
+            var parked = new TestRequest(a, park: true);
+            server.Enqueue(parked);
+            Assert.That(provider.Used(ResourceIsolationStage.RequestQueue), Is.EqualTo(1));
+            Assert.That(provider.Used(ResourceIsolationStage.RequestQueueBytes), Is.EqualTo(20));
+            Assert.That(provider.Used(ResourceIsolationStage.RequestExecution), Is.EqualTo(1));
+            Assert.That(provider.Used(ResourceIsolationStage.ParkedRequest), Is.EqualTo(1));
+            var queueExcess = new TestRequest(a);
+            server.Enqueue(queueExcess);
+            Assert.That(queueExcess.Status, Is.EqualTo(StatusCodes.BadServerTooBusy));
+            Assert.That(queueExcess.CompletionCount, Is.EqualTo(1));
+            Assert.That(provider.Attempts(ResourceIsolationStage.RequestQueue), Is.EqualTo(3));
+            Assert.That(provider.Attempts(ResourceIsolationStage.RequestQueueBytes), Is.EqualTo(2));
+            var costExcess = new TestRequest(b);
+            server.Enqueue(costExcess);
+            Assert.That(costExcess.Status, Is.EqualTo(StatusCodes.BadServerTooBusy));
+            Assert.That(costExcess.CompletionCount, Is.EqualTo(1));
+            Assert.That(provider.Used(ResourceIsolationStage.RequestQueue), Is.EqualTo(1));
+            Assert.That(provider.Used(ResourceIsolationStage.RequestQueueBytes), Is.EqualTo(20));
+            running.Release();
+            await parked.Started.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
+            var parkExcess = new TestRequest(a, park: true);
+            server.Enqueue(parkExcess);
+            Assert.That(parkExcess.Status, Is.EqualTo(StatusCodes.BadServerTooBusy));
+            Assert.That(parkExcess.CompletionCount, Is.EqualTo(1));
+            Assert.That(provider.Used(ResourceIsolationStage.RequestQueue), Is.Zero);
+            Assert.That(provider.Used(ResourceIsolationStage.RequestQueueBytes), Is.EqualTo(10));
+            Assert.That(provider.Used(ResourceIsolationStage.ParkedRequest), Is.EqualTo(1));
+            var other = new TestRequest(b);
+            server.Enqueue(other);
+            await other.Started.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
+            Assert.That(parked.Completed.Task.IsCompleted, Is.False);
+            Assert.That(provider.Used(ResourceIsolationStage.RequestExecution), Is.EqualTo(1));
+            Assert.That(provider.Used(ResourceIsolationStage.RequestQueueBytes), Is.EqualTo(20));
+            Assert.That(provider.Used(ResourceIsolationStage.ParkedRequest), Is.EqualTo(1));
+            var retainedCostExcess = new TestRequest(a);
+            server.Enqueue(retainedCostExcess);
+            Assert.That(retainedCostExcess.Status, Is.EqualTo(StatusCodes.BadServerTooBusy));
+            Assert.That(retainedCostExcess.CompletionCount, Is.EqualTo(1));
+            Assert.That(provider.Attempts(ResourceIsolationStage.RequestQueue), Is.EqualTo(7));
+            Assert.That(provider.Attempts(ResourceIsolationStage.RequestQueueBytes), Is.EqualTo(6));
+            Assert.That(provider.Attempts(ResourceIsolationStage.RequestExecution), Is.EqualTo(3));
+            Assert.That(provider.Attempts(ResourceIsolationStage.ParkedRequest), Is.EqualTo(2));
+            Assert.That(queueExcess.Started.Task.IsCompleted, Is.False);
+            Assert.That(costExcess.Started.Task.IsCompleted, Is.False);
+            Assert.That(parkExcess.Started.Task.IsCompleted, Is.False);
+            Assert.That(retainedCostExcess.Started.Task.IsCompleted, Is.False);
+            other.Release();
+            parked.Release();
+            await Task.WhenAll(running.Completed.Task, parked.Completed.Task, other.Completed.Task)
+                .WaitAsync(deadline.Token).ConfigureAwait(false);
+            await server.FinishAsync(deadline.Token).ConfigureAwait(false);
+            Assert.That(provider.TotalUsed, Is.Zero);
+            Assert.That(running.CompletionCount, Is.EqualTo(1));
+            Assert.That(parked.CompletionCount, Is.EqualTo(1));
+            Assert.That(other.CompletionCount, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// A park notification without queue opt-in retains execution and does not reserve a parked slot.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ParkingWithoutOptInRetainsExecutionAndSkipsParkAdmissionAsync(bool useFairScheduling)
+        {
+            var provider = new TestProvider(executionCapacity: 1) { UseFairScheduling = useFairScheduling };
+            NodeId token = provider.AddOwner("A");
+            using var server = new QueueServer(provider, workers: 2, decoupleHeldPublishRequests: false);
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var rejectedExecution = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releasedCost = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            provider.BeforeExecutionRejection = () => rejectedExecution.TrySetResult(true);
+            provider.CapacityAvailable += stage =>
+            {
+                if (stage == ResourceIsolationStage.RequestQueueBytes)
+                {
+                    releasedCost.TrySetResult(true);
+                }
+            };
+            var held = new TestRequest(token, park: true);
+            server.Enqueue(held);
+            await held.Started.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
+            var next = new TestRequest(token, 2);
+            server.Enqueue(next);
+            await rejectedExecution.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
+            Assert.That(next.Started.Task.IsCompleted, Is.False);
+            Assert.That(provider.Used(ResourceIsolationStage.RequestExecution), Is.EqualTo(1));
+            Assert.That(provider.Used(ResourceIsolationStage.RequestQueue), Is.EqualTo(1));
+            Assert.That(provider.Used(ResourceIsolationStage.RequestQueueBytes), Is.EqualTo(20));
+            Assert.That(provider.Attempts(ResourceIsolationStage.ParkedRequest), Is.Zero);
+            held.Release();
+            await next.Started.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
+            await releasedCost.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
+            Assert.That(provider.Used(ResourceIsolationStage.RequestQueueBytes), Is.EqualTo(10));
+            Assert.That(provider.Used(ResourceIsolationStage.RequestExecution), Is.EqualTo(1));
+            next.Release();
+            await server.FinishAsync(deadline.Token).ConfigureAwait(false);
+            Assert.That(provider.TotalUsed, Is.Zero);
+        }
+
+        /// <summary>
+        /// With no installed provider, compatibility FIFO needs no admission cost or classification.
+        /// </summary>
+        [Test]
+        public async Task NullProviderKeepsCompatibilityFifoWithoutRequestCostAsync()
+        {
+            using var server = new QueueServer(null, workers: 1, requestCost: 0);
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var first = new TestRequest(new NodeId(1));
+            var second = new TestRequest(new NodeId(2));
+            var third = new TestRequest(new NodeId(1), 3);
+            server.Enqueue(first);
+            await first.Started.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
+            server.Enqueue(second);
+            server.Enqueue(third);
+            Assert.That(second.Started.Task.IsCompleted, Is.False);
+            Assert.That(third.Started.Task.IsCompleted, Is.False);
+            first.Release();
+            await second.Started.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
+            Assert.That(third.Started.Task.IsCompleted, Is.False);
+            second.Release();
+            await third.Started.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
+            third.Release();
+            await Task.WhenAll(first.Completed.Task, second.Completed.Task, third.Completed.Task)
+                .WaitAsync(deadline.Token).ConfigureAwait(false);
+            await server.FinishAsync(deadline.Token).ConfigureAwait(false);
+            Assert.That(first.Status, Is.EqualTo(StatusCodes.Good));
+            Assert.That(second.Status, Is.EqualTo(StatusCodes.Good));
+            Assert.That(third.Status, Is.EqualTo(StatusCodes.Good));
+            Assert.That(first.CompletionCount, Is.EqualTo(1));
+            Assert.That(second.CompletionCount, Is.EqualTo(1));
+            Assert.That(third.CompletionCount, Is.EqualTo(1));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void EnabledQueueRejectsMissingCostInsteadOfFallingBack(bool useFairScheduling)
+        {
+            var provider = new TestProvider { UseFairScheduling = useFairScheduling };
             Assert.Throws<ArgumentOutOfRangeException>(() =>
             {
                 using var queue = CreateQueue(provider, requestCost: 0);
@@ -794,10 +1104,16 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             /// <summary>
             /// Creates a real worker queue with independently configurable initial and maximum workers.
             /// </summary>
-            public QueueServer(TestProvider provider, int workers, int? minWorkers = null)
+            public QueueServer(
+                TestProvider provider,
+                int workers,
+                int? minWorkers = null,
+                bool decoupleHeldPublishRequests = true,
+                long requestCost = 10)
                 : base(NUnitTelemetryContext.Create())
             {
-                m_queue = new RequestQueue(this, minWorkers ?? workers, workers, 100, true, provider, 10);
+                m_queue = new RequestQueue(
+                    this, minWorkers ?? workers, workers, 100, decoupleHeldPublishRequests, provider, requestCost);
             }
 
             public void Enqueue(TestRequest request, CancellationToken cancellationToken = default)
@@ -889,17 +1205,22 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         /// </summary>
         private sealed class TestProvider : IServerResourceIsolationProvider, IResourceIsolationRevalidationProvider
         {
-            public TestProvider(long executionCapacity = 100, long costCapacity = 10000)
+            public TestProvider(
+                long executionCapacity = 100,
+                long costCapacity = 10000,
+                long reservedCostCapacity = 0)
             {
                 int stages = (int)ResourceIsolationStage.ParkedRequest + 1;
                 m_capacity = new long[stages];
                 m_used = new long[stages];
+                m_attempts = new int[stages];
                 for (int ii = 0; ii < stages; ii++)
                 {
                     m_capacity[ii] = 1000;
                 }
                 m_capacity[(int)ResourceIsolationStage.RequestExecution] = executionCapacity;
                 m_capacity[(int)ResourceIsolationStage.RequestQueueBytes] = costCapacity;
+                m_reservedCostCapacity = reservedCostCapacity;
                 m_unknownToken = AddOwner("unknown");
             }
 
@@ -1054,14 +1375,18 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 bool acquired;
                 lock (m_gate)
                 {
+                    m_attempts[(int)stage]++;
                     if (stage == ResourceIsolationStage.RequestExecution)
                     {
                         ExecutionAttempts++;
                     }
                     var key = (owner.Key, stage);
                     m_ownerUsed.TryGetValue(key, out long ownerUsed);
+                    bool sharedCost = stage == ResourceIsolationStage.RequestQueueBytes &&
+                        owner.Class == ResourceIsolationClass.Established;
                     if ((BlockSharedExecution && stage == ResourceIsolationStage.RequestExecution &&
                         owner.Class == ResourceIsolationClass.Established) ||
+                        (sharedCost && amount > m_capacity[(int)stage] - m_reservedCostCapacity - m_sharedCostUsed) ||
                         amount > m_capacity[(int)stage] - m_used[(int)stage] ||
                         amount > owner.GetHardLimit(stage) - ownerUsed)
                     {
@@ -1074,11 +1399,15 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                     {
                         m_used[(int)stage] += amount;
                         m_ownerUsed[key] = ownerUsed + amount;
+                        if (sharedCost)
+                        {
+                            m_sharedCostUsed += amount;
+                        }
                         if (stage == ResourceIsolationStage.RequestExecution)
                         {
                             ExecutionGrants++;
                         }
-                        lease = new TestLease(() => Release(owner.Key, stage, amount));
+                        lease = new TestLease(() => Release(owner.Key, stage, amount, sharedCost));
                         failure = default;
                         acquired = true;
                     }
@@ -1099,14 +1428,29 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             }
 
             /// <summary>
+            /// Gets admission calls, including rejected attempts, for the requested stage.
+            /// </summary>
+            public int Attempts(ResourceIsolationStage stage)
+            {
+                lock (m_gate)
+                {
+                    return m_attempts[(int)stage];
+                }
+            }
+
+            /// <summary>
             /// Returns one lease and reports its stage after leaving the accounting gate.
             /// </summary>
-            private void Release(string key, ResourceIsolationStage stage, long amount)
+            private void Release(string key, ResourceIsolationStage stage, long amount, bool sharedCost)
             {
                 lock (m_gate)
                 {
                     m_used[(int)stage] -= amount;
                     m_ownerUsed[(key, stage)] -= amount;
+                    if (sharedCost)
+                    {
+                        m_sharedCostUsed -= amount;
+                    }
                 }
                 CapacityAvailable?.Invoke(stage);
             }
@@ -1124,9 +1468,12 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             private readonly Lock m_gate = new();
             private readonly long[] m_capacity;
             private readonly long[] m_used;
+            private readonly int[] m_attempts;
+            private readonly long m_reservedCostCapacity;
             private readonly NodeId m_unknownToken;
             private readonly Dictionary<NodeId, (ResourceIsolationOwner Owner, string Channel)> m_bindings = [];
             private readonly Dictionary<(string Owner, ResourceIsolationStage Stage), long> m_ownerUsed = [];
+            private long m_sharedCostUsed;
         }
     }
 }
