@@ -315,8 +315,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 await ReconcileRetirementsAsync(
                     targetKeys, newGeneration, dryRun, cancellationToken).ConfigureAwait(false);
             retired += retiredCount;
-            skipped += retiredResults.Length;
-            results.AddRange(retiredResults);
+            if (invocation.DryRun)
+            {
+                skipped += retiredResults.Length;
+                results.AddRange(retiredResults);
+            }
 
             foreach (WotDependencyClosure closure in closures)
             {
@@ -1392,7 +1395,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     }
                 }
             }
-            return (retired, dryRun ? results.ToImmutable() : []);
+            return (retired, results.ToImmutable());
         }
 
         private async ValueTask<(

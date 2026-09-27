@@ -201,6 +201,10 @@ Results contain one row per Resource even when separate rejected units retry the
 same retirement. If a later unit validates that retirement, its earlier failed
 prediction is replaced by the validated retirement outcome; failures of other
 Resources remain reported.
+Retirement predictions for source owners whose registry Resources were already
+removed retain the last committed Resource and Version identity and content
+digest. A prediction does not recreate the deleted registry entry or retire its
+still-serving source.
 Collation retains the selector-resolved Xid, VersionId and content digest together,
 including an explicitly selected non-default Version.
 

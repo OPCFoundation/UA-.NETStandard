@@ -488,8 +488,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
             Assert.That(m_host.AddCount, Is.EqualTo(1));
             Assert.That(binders.ActivatedPlans, Has.Count.EqualTo(1));
+            WotResource active = m_registry.Current.FindResource(WotRegistryGroups.ThingDescriptions, "td-a")!;
 
             await m_registry.DeleteResourceAsync(WotRegistryGroups.ThingDescriptions, "td-a").ConfigureAwait(false);
+            WotRegistrySnapshot before = m_registry.Current;
+            uint generation = m_coordinator.Generation;
+            WoTRefreshPlanDataType plan = m_coordinator.LastRefreshPlan!;
+            var events = new List<WotMaterializationEventArgs>();
+            m_coordinator.Event += (_, notification) => events.Add(notification);
             WotRefreshResult dryRun = await m_coordinator.RefreshAsync(new WotRefreshRequest
             {
                 Options = new WoTRefreshOptionsDataType { DryRun = true }
@@ -498,18 +504,32 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(m_host.RemoveCount, Is.Zero, "A dry-run retirement must not remove the projection.");
             Assert.That(binders.DeactivatedPlans, Is.Empty,
                 "A dry-run retirement must not deactivate active binding plans.");
-            Assert.That(dryRun.Summary.Retired, Is.EqualTo(1u));
+            Assert.That(dryRun.Summary.Retired, Is.Zero,
+                "A preview does not count a generation as actually retired.");
+            Assert.That(dryRun.NewGeneration, Is.EqualTo(generation));
+            Assert.That(m_registry.Current, Is.SameAs(before));
+            Assert.That(m_coordinator.LastRefreshPlan!.IsEqual(plan), Is.True);
+            Assert.That(events, Is.Empty);
             WoTResourceLoadResultDataType retired = dryRun.Results.Single();
             Assert.That(retired.ResourceId, Is.EqualTo("td-a"));
+            Assert.That(retired.Xid, Is.EqualTo(active.Xid));
+            Assert.That(retired.VersionId, Is.EqualTo(active.ActiveVersionId));
+            Assert.That(retired.ContentDigest, Is.EqualTo(active.FindVersion(active.ActiveVersionId!)!.Digest));
             Assert.That(retired.Outcome, Is.EqualTo(WoTOutcomeEnum.Skipped));
             Assert.That(retired.LoadState, Is.EqualTo(WoTLoadStateEnum.Unloaded));
+            Assert.That(retired.RootNodeId.IsNull, Is.True);
+            Assert.That(retired.MaterializedNodeCount, Is.Zero);
             Assert.That(retired.Message, Does.Contain("would be retired"));
+            Assert.That(retired.Generation, Is.EqualTo(generation));
 
-            await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
+            WotRefreshResult committed =
+                await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
             Assert.That(m_host.RemoveCount, Is.EqualTo(1),
                 "The committed retirement must still find the tracked closure after the dry run.");
             Assert.That(binders.DeactivatedPlans, Has.Count.EqualTo(1));
+            Assert.That(committed.Summary.Retired, Is.EqualTo(1U));
+            Assert.That(committed.NewGeneration, Is.EqualTo(generation + 1));
         }
 
         [Test]
