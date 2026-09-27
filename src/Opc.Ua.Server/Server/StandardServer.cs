@@ -220,6 +220,18 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Runtime isolation options, applied at startup unless a custom provider is supplied.
+        /// Balanced is the default; SharedOnly explicitly retains shared-capacity compatibility.
+        /// The configured handshake deadline is validated regardless of mode or provider.
+        /// </summary>
+        public ServerResourceIsolationOptions ResourceIsolationOptions { get; set; } = new();
+
+        /// <summary>
+        /// Optional trusted ingress/owner mapper. Set before startup.
+        /// </summary>
+        public IResourceIsolationClassifier? ResourceIsolationClassifier { get; set; }
+
+        /// <summary>
         /// Optional complex type load options applied when
         /// <see cref="LoadComplexTypes"/> is enabled.
         /// </summary>
@@ -287,6 +299,8 @@ namespace Opc.Ua.Server
                 m_rateLimiterProvider?.Dispose();
             }
             m_rateLimiterProvider = null;
+            ResetOwnedResourceIsolation();
+            ResourceIsolationProvider = null;
 
             m_certManagerSubscription?.Dispose();
             m_certManagerSubscription = null;
@@ -600,7 +614,8 @@ namespace Opc.Ua.Server
             // Admission control: reject with BadServerTooBusy before doing the
             // CPU-bound certificate validation / signing when at capacity. The
             // lease (a concurrency permit) is held for the duration of the call.
-            using IDisposable? rateLimitLease = BeginSessionEstablishmentOrThrow();
+            using IDisposable? rateLimitLease = BeginSessionEstablishmentOrThrow(
+                secureChannelContext, requestHeader.AuthenticationToken);
 
             ISession? session = null;
             CertificateCollection? clientIssuerCertificates = null;
@@ -1008,7 +1023,8 @@ namespace Opc.Ua.Server
             // Admission control: reject with BadServerTooBusy before the CPU-bound
             // signature / identity-token verification when at capacity. The lease
             // (a concurrency permit) is held for the duration of the call.
-            using IDisposable? rateLimitLease = BeginSessionEstablishmentOrThrow();
+            using IDisposable? rateLimitLease = BeginSessionEstablishmentOrThrow(
+                secureChannelContext, requestHeader.AuthenticationToken);
 
             try
             {
@@ -3518,14 +3534,9 @@ namespace Opc.Ua.Server
             try
             {
                 base.OnServerStarting(configuration);
+                InitializeResourceIsolation(configuration, MessageContext.Telemetry);
 
-                // ensure an admission-control provider exists (on by default with
-                // conservative limits) unless one was supplied via DI.
-                if (m_rateLimiterProvider == null)
-                {
-                    m_rateLimiterProvider = new DefaultServerRateLimiterProvider(RateLimitOptions);
-                    m_ownsRateLimiterProvider = true;
-                }
+                InitializeRateLimiting();
 
                 // save minimum nonce length.
                 m_minNonceLength = configuration.SecurityConfiguration.NonceLength;
@@ -3549,7 +3560,9 @@ namespace Opc.Ua.Server
             TransportListenerSettings settings,
             Uri endpointUri)
         {
+            ResourceIsolationOptions.ValidateHandshakeTimeout();
             base.ConfigureTransportListenerSettings(settings, endpointUri);
+            settings.HandshakeTimeout = ResourceIsolationOptions.HandshakeTimeout;
             IServerRateLimiterProvider? provider = m_rateLimiterProvider;
             if (provider != null)
             {
@@ -3559,6 +3572,81 @@ namespace Opc.Ua.Server
                 }
 
                 settings.ConnectionRateLimiter = provider.ConnectionRateLimiter;
+            }
+        }
+
+        /// <summary>
+        /// Recreates server-owned isolation from validated limits without replacing a borrowed provider or budget.
+        /// </summary>
+        internal void InitializeResourceIsolation(
+            ApplicationConfiguration configuration,
+            ITelemetryContext telemetry)
+        {
+            ResourceIsolationOptions.ValidateHandshakeTimeout();
+            if ((ResourceIsolationProvider != null &&
+                !ReferenceEquals(ResourceIsolationProvider, m_ownedResourceIsolationProvider)) ||
+                ResourceIsolationOptions.Mode == ServerResourceIsolationMode.SharedOnly)
+            {
+                ResetOwnedResourceIsolation();
+                return;
+            }
+            bool ownsBudget = ChunkReassemblyBudget == null ||
+                ReferenceEquals(ChunkReassemblyBudget, m_ownedChunkReassemblyBudget);
+            ChunkReassemblyBudget budget = ownsBudget
+                ? global::Opc.Ua.Bindings.ChunkReassemblyBudget.CreateDefault(
+                    EndpointConfiguration.Create(configuration))
+                : ChunkReassemblyBudget!;
+            ServerResourceIsolationPlan plan = ResourceIsolationOptions.CreateRuntimePlan(
+                configuration, RateLimitOptions, budget);
+            var provider = new DefaultServerResourceIsolationProvider(
+                plan, telemetry, SessionBindingProvider ?? this, ResourceIsolationClassifier);
+            ResetOwnedResourceIsolation();
+            m_ownedResourceIsolationProvider = provider;
+            if (ownsBudget)
+            {
+                m_ownedChunkReassemblyBudget = budget;
+                ChunkReassemblyBudget = budget;
+            }
+            ResourceIsolationProvider = m_ownedResourceIsolationProvider;
+        }
+
+        /// <summary>
+        /// Recreates server-owned rate limits against the active isolation plan while preserving borrowed providers.
+        /// </summary>
+        internal void InitializeRateLimiting()
+        {
+            if (m_rateLimiterProvider != null && !m_ownsRateLimiterProvider)
+            {
+                return;
+            }
+            var provider = new DefaultServerRateLimiterProvider(
+                RateLimitOptions, ResourceIsolationProvider as DefaultServerResourceIsolationProvider, TimeProvider);
+            m_rateLimiterProvider?.Dispose();
+            m_rateLimiterProvider = provider;
+            m_ownsRateLimiterProvider = true;
+        }
+
+        /// <summary>
+        /// Releases only server-owned isolation resources, preserving host replacements.
+        /// </summary>
+        private void ResetOwnedResourceIsolation()
+        {
+            if (m_ownedResourceIsolationProvider != null)
+            {
+                if (ReferenceEquals(ResourceIsolationProvider, m_ownedResourceIsolationProvider))
+                {
+                    ResourceIsolationProvider = null;
+                }
+                m_ownedResourceIsolationProvider.Dispose();
+                m_ownedResourceIsolationProvider = null;
+            }
+            if (m_ownedChunkReassemblyBudget != null)
+            {
+                if (ReferenceEquals(ChunkReassemblyBudget, m_ownedChunkReassemblyBudget))
+                {
+                    ChunkReassemblyBudget = null;
+                }
+                m_ownedChunkReassemblyBudget = null;
             }
         }
 
@@ -3590,28 +3678,101 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <returns>
         /// A lease that MUST be disposed when the operation completes, or
-        /// <c>null</c> when session rate limiting is disabled.
+        /// <c>null</c> when neither isolation nor rate limiting supplies a lease.
         /// </returns>
         /// <exception cref="ServiceResultException">
         /// The server is too busy to admit the operation.
         /// </exception>
         /// <exception cref="ServerBusyException"></exception>
-        private IDisposable? BeginSessionEstablishmentOrThrow()
+        internal IDisposable? BeginSessionEstablishmentOrThrow(
+            SecureChannelContext channelContext,
+            NodeId authenticationToken)
         {
-            IServerRateLimiterProvider? provider = m_rateLimiterProvider;
-            if (provider == null)
+            IDisposable? isolationLease = null;
+            IDisposable? rateLimitLease = null;
+            try
             {
-                return null;
-            }
-
-            if (provider.TryAcquireSessionEstablishment(
-                out IDisposable? lease,
-                out TimeSpan? retryAfter))
-            {
+                IServerResourceIsolationProvider? isolation = ResourceIsolationProvider;
+                if (isolation != null && !isolation.TryAcquire(
+                    ResourceIsolationStage.SessionEstablishment,
+                    isolation.Classify(channelContext, authenticationToken, sessionEstablishment: true),
+                    1,
+                    out isolationLease,
+                    out ResourceIsolationFailure failure))
+                {
+                    throw CreateServerTooBusyException(failure.RetryAfter);
+                }
+                IServerRateLimiterProvider? provider = m_rateLimiterProvider;
+                if (provider != null && !provider.TryAcquireSessionEstablishment(
+                    out rateLimitLease, out TimeSpan? retryAfter))
+                {
+                    throw CreateServerTooBusyException(retryAfter);
+                }
+                IDisposable? lease = isolationLease;
+                if (lease == null)
+                {
+                    lease = rateLimitLease;
+                }
+                else if (rateLimitLease != null)
+                {
+                    lease = new SessionEstablishmentLease(lease, rateLimitLease);
+                }
                 return lease;
             }
+            catch
+            {
+                try
+                {
+                    rateLimitLease?.Dispose();
+                }
+                finally
+                {
+                    isolationLease?.Dispose();
+                }
+                throw;
+            }
+        }
 
-            throw CreateServerTooBusyException(retryAfter);
+        /// <summary>
+        /// Releases both session-establishment permits once, even if rate-limit cleanup fails.
+        /// </summary>
+        /// <param name="isolation">Owned resource-isolation permit.</param>
+        /// <param name="rateLimit">Optional owned rate-limit permit.</param>
+        private sealed class SessionEstablishmentLease(IDisposable isolation, IDisposable? rateLimit) : IDisposable
+        {
+            /// <summary>
+            /// Returns both permits without allowing repeated disposal to release capacity twice.
+            /// </summary>
+            public void Dispose()
+            {
+                if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+                {
+                    return;
+                }
+                try
+                {
+                    m_rateLimit?.Dispose();
+                }
+                finally
+                {
+                    m_isolation.Dispose();
+                }
+            }
+
+            /// <summary>
+            /// Resource-isolation permit released even when rate-limit cleanup throws.
+            /// </summary>
+            private readonly IDisposable m_isolation = isolation;
+
+            /// <summary>
+            /// Rate-limit permit, if this operation was subject to rate limiting.
+            /// </summary>
+            private readonly IDisposable? m_rateLimit = rateLimit;
+
+            /// <summary>
+            /// Claims ownership of releasing both permits exactly once.
+            /// </summary>
+            private int m_disposed;
         }
 
         /// <summary>
@@ -4224,7 +4385,7 @@ namespace Opc.Ua.Server
 
             // Drain in-flight requests by disposing the request queue before the address space
             // is torn down.
-            StopRequestQueue();
+            await StopRequestQueueAsync(cancellationToken).ConfigureAwait(false);
 
             await RunShutdownStageAsync(
                     failures,
@@ -5162,6 +5323,8 @@ namespace Opc.Ua.Server
         private ServerRateLimitOptions? m_rateLimitOptions;
         private IServerRateLimiterProvider? m_rateLimiterProvider;
         private bool m_ownsRateLimiterProvider;
+        private DefaultServerResourceIsolationProvider? m_ownedResourceIsolationProvider;
+        private ChunkReassemblyBudget? m_ownedChunkReassemblyBudget;
         private readonly ILogger m_eventLogger;
 
         private readonly record struct HistorianProviderRegistration(

@@ -56,7 +56,8 @@ namespace Opc.Ua.Server.TestFramework
         public T Server { get; private set; }
         public bool AutoAccept { get; set; }
         public bool OperationLimits { get; set; }
-        public int MaxChannelCount { get; set; } = 10;
+        // Keep room for the default 100 Sessions, one replacement channel and two protected startup floors.
+        public int MaxChannelCount { get; set; } = 103;
         public int ReverseConnectTimeout { get; set; }
         public bool AllNodeManagers { get; set; }
 
