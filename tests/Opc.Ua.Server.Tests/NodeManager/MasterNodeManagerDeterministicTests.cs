@@ -1148,17 +1148,20 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task ModifyMonitoredItemsAsyncDetachedItemReturnsBadNodeIdUnknownAsync()
+        public async Task ModifyMonitoredItemsAsyncDetachedItemUpdatesParametersAndKeepsBadDataAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
             using MonitoredItem item = CreateDetachedMonitoredItem();
+            ((IDetachableMonitoredItem)item).QueueNodeIdUnknown();
+            Assert.That(item.IsReadyToPublish, Is.True);
             var request = new MonitoredItemModifyRequest
             {
+                MonitoredItemId = item.Id,
                 RequestedParameters = new MonitoringParameters
                 {
-                    ClientHandle = item.ClientHandle,
-                    SamplingInterval = item.SamplingInterval,
-                    QueueSize = item.QueueSize,
+                    ClientHandle = 43,
+                    SamplingInterval = 2000,
+                    QueueSize = 4,
                     DiscardOldest = true
                 }
             };
@@ -1174,8 +1177,19 @@ namespace Opc.Ua.Server.Tests
                 filterResults,
                 cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
-            Assert.That(request.Processed, Is.True);
+            Queue<MonitoredItemNotification> notifications = Publish(item);
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(errors[0]), Is.True);
+                Assert.That(request.Processed, Is.True);
+                Assert.That(item.ClientHandle, Is.EqualTo(43U));
+                Assert.That(item.SamplingInterval, Is.EqualTo(2000));
+                Assert.That(item.QueueSize, Is.EqualTo(4U));
+                Assert.That(((IDetachableMonitoredItem)item).IsDetached, Is.True);
+                Assert.That(notifications, Has.Count.EqualTo(1));
+            });
+            Assert.That(notifications.Peek().ClientHandle, Is.EqualTo(43U));
+            Assert.That(notifications.Peek().Value.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
         [Test]
