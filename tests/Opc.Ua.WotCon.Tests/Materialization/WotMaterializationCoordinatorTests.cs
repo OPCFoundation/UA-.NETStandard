@@ -292,9 +292,17 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "A failed refresh must retain the previous active projection.");
             WotResource afterFail =
                 m_registry.Current.FindResource(WotRegistryGroups.ThingDescriptions, "td-a")!;
-            Assert.That(afterFail.LoadState, Is.EqualTo(WoTLoadStateEnum.Failed));
+            Assert.That(afterFail.LoadState, Is.EqualTo(WoTLoadStateEnum.Active));
             Assert.That(afterFail.ActiveVersionId, Is.EqualTo(activeBefore),
                 "The previously active version must be retained on failure.");
+            Assert.That(afterFail.DesiredVersionId, Is.Not.EqualTo(activeBefore));
+            Assert.That(afterFail.RootNodeId, Is.EqualTo(afterFirst.RootNodeId));
+            Assert.That(afterFail.RefreshGeneration, Is.EqualTo(afterFirst.RefreshGeneration));
+            Assert.That(afterFail.MaterializedNodeCount, Is.EqualTo(afterFirst.MaterializedNodeCount));
+            Assert.That(result.NewGeneration, Is.EqualTo(afterFirst.RefreshGeneration));
+            Assert.That(m_host.ShadowCount, Is.Zero);
+            Assert.That(afterFail.FindVersion(afterFail.DesiredVersionId!)!.Validation!.FormatOutcome,
+                Is.EqualTo(WoTOutcomeEnum.Failed));
             Assert.That(
                 result.Results.Single(r => r.ResourceId == "td-a").Outcome,
                 Is.EqualTo(WoTOutcomeEnum.Failed));
