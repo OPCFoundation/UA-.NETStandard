@@ -110,13 +110,19 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             await RegisterTm("tm-a", TestMaterialization.Tm("urn:tm-a")).ConfigureAwait(false);
             await RegisterTd("td-a", TestMaterialization.Td("urn:td-a", extendsHrefs: "urn:tm-a")).ConfigureAwait(false);
 
-            WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
+            WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest
+            {
+                Options = new WoTRefreshOptionsDataType { Atomicity = WoTAtomicityEnum.PerClosure }
+            }).ConfigureAwait(false);
 
             Assert.That(m_host.AddCount, Is.EqualTo(1),
-                "A shared closure must project as one runtime NodeManager.");
-            HostOperation op = m_host.Operations.Single(o => o.Op == "add");
-            Assert.That(op.SourceNames, Is.EqualTo(s_tmTdSourceNames),
-                "Thing Models must be ordered before the Thing Descriptions that extend them.");
+                "The explicitly requested closure must publish its source models together.");
+            Assert.That(m_coordinator.LastRefreshPlan!.UnitCount, Is.EqualTo(1U));
+            Assert.That(m_coordinator.LastRefreshPlan.AppliedAtomicity, Is.EqualTo(WoTAtomicityEnum.PerClosure));
+            Assert.That(m_registry.Current.RefreshGeneration, Is.EqualTo(1U));
+            Assert.That(m_host.Operations.Where(operation => operation.Op == "add")
+                .SelectMany(operation => operation.SourceNames), Is.EqualTo(s_tmTdSourceNames),
+                "The closure must prepare its model source before the dependent description source.");
             // With the default (no-op) binder, affordance forms have no binder and
             // materialize as degraded nodes, so the projected outcome is Warning;
             // both members nonetheless reach the Active load state.
@@ -164,7 +170,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         {
             await RegisterTd("td-a", TestMaterialization.Td("urn:td-a", extendsHrefs: "urn:tm-a")).ConfigureAwait(false);
 
-            WotRefreshResult first = await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
+            var request = new WotRefreshRequest
+            {
+                Options = new WoTRefreshOptionsDataType { Atomicity = WoTAtomicityEnum.PerClosure }
+            };
+            WotRefreshResult first = await m_coordinator.RefreshAsync(request).ConfigureAwait(false);
 
             Assert.That(m_host.AddCount, Is.Zero,
                 "A Thing Description with a missing model dependency must not project.");
@@ -178,10 +188,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Is.EqualTo(WoTLoadStateEnum.Failed));
 
             await RegisterTm("tm-a", TestMaterialization.Tm("urn:tm-a")).ConfigureAwait(false);
-            WotRefreshResult second = await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
+            WotRefreshResult second = await m_coordinator.RefreshAsync(request).ConfigureAwait(false);
 
             Assert.That(m_host.AddCount, Is.EqualTo(1),
-                "Registering the missing model must let the closure project.");
+                "Registering the missing model must let the explicitly requested closure project.");
+            Assert.That(m_coordinator.LastRefreshPlan!.UnitCount, Is.EqualTo(1U));
+            Assert.That(m_coordinator.LastRefreshPlan.AppliedAtomicity, Is.EqualTo(WoTAtomicityEnum.PerClosure));
+            Assert.That(m_host.Operations.Where(operation => operation.Op == "add")
+                .SelectMany(operation => operation.SourceNames), Is.EqualTo(s_tmTdSourceNames));
             Assert.That(
                 second.Results.Count(r =>
                     r.Outcome is WoTOutcomeEnum.Success or WoTOutcomeEnum.Warning),
