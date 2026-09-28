@@ -642,9 +642,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
+        [NonParallelizable]
         public void EqualsWithSameLocalDateTimeShouldReturnTrue()
         {
-            // the constructor converts local times to UTC, Equals must too.
+            // the constructor converts local times to UTC, Equals must too. A local zone
+            // other than UTC is forced, otherwise raw and converted ticks are equal.
+            using LocalTimeZoneScope scope = LocalTimeZoneScope.Create();
             var local = new DateTime(2023, 1, 1, 12, 0, 0, DateTimeKind.Local);
             DateTimeUtc dateTimeUtc = local;
 

@@ -611,11 +611,13 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        [NonParallelizable]
         public void DateTimeWithoutOffsetIsDecodedAsUtc()
         {
             // An offset-less value was converted with ToUniversalTime, which
             // treats it as host-local time, so the result depended on the
-            // time zone of the decoding host.
+            // time zone of the decoding host (a non-UTC zone is forced here).
+            using BuiltIn.LocalTimeZoneScope scope = BuiltIn.LocalTimeZoneScope.Create();
             ServiceMessageContext context = CreateContext();
             using var decoder = new JsonDecoder(
                 "{\"Value\":\"2024-01-01T00:00:00\",\"Utc\":\"2024-01-01T00:00:00Z\"}",
