@@ -436,8 +436,11 @@ namespace Opc.Ua
                 // check the length.
                 EncodingLimits.CheckStringLength(Context.MaxStringLength, value);
 
-                // A whitespace only string is still a value - writing nothing
-                // would turn it into an empty string on the wire.
+                // Write whitespace only strings verbatim (xs:string preserves
+                // whitespace). Note that XmlDecoder/XmlParser read an element
+                // holding only whitespace as "" (pretty-printed NodeSets use
+                // that for empty values), so such a string does not round
+                // trip through this stack.
                 if (!string.IsNullOrEmpty(value))
                 {
                     m_writer.WriteString(value);
