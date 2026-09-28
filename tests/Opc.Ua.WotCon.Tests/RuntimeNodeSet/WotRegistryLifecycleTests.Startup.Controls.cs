@@ -40,6 +40,7 @@ using Opc.Ua.WotCon.Bindings;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
+using Opc.Ua.WotCon.Tests.Materialization;
 using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
@@ -78,27 +79,62 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
         }
 
         [Test]
-        public async Task StoredRegistryFailedMaterializationIsReportedAndRemovableAsync()
+        public async Task UnexpectedPreparationFailureKeepsStoredStateAndParentRemovableAsync()
         {
             var runtime = new StartupRuntimeProbe(fail: true);
             runtime.Release.TrySetResult(true);
             (int baseline, DeadlineProjectionHost host, _) =
                 await PrepareControlledStartupAsync(runtime).ConfigureAwait(false);
+            WotRegistrySnapshot before = m_registry.Current;
             using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(20));
 
             InvalidOperationException failure = Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await AddStoredRegistryAsync(cancellation.Token).ConfigureAwait(false))!;
-            Assert.That(failure.InnerException, Is.InstanceOf<ServiceResultException>());
-            Assert.That(((ServiceResultException)failure.InnerException!).StatusCode,
-                Is.EqualTo(StatusCodes.BadConfigurationError));
+            Assert.That(failure.InnerException, Is.SameAs(runtime.Failure));
             m_registryRegistration = FindStartupRegistryRegistration();
             Assert.That(host.AddCalls, Is.EqualTo(1));
             Assert.That(host.DeadlineExpired, Is.False);
             Assert.That(runtime.Entered.Task.IsCompleted, Is.True,
                 "The failure must come from the real runtime NodeSet preparation.");
             Assert.That(m_server.NodeManagerLifecycle.Registrations.Count, Is.EqualTo(baseline + 1));
-            Assert.That(StartupResource().LoadState, Is.EqualTo(WoTLoadStateEnum.Failed));
+            WotResource previous = before.FindResource(WotRegistryGroups.ThingDescriptions, "sensor")!;
+            WotResource current = StartupResource();
+            Assert.That(m_registry.Current.Generation, Is.EqualTo(before.Generation));
+            Assert.That(current.LoadState, Is.EqualTo(previous.LoadState));
+            Assert.That(current.MetaEpoch, Is.EqualTo(previous.MetaEpoch));
+            Assert.That(current.ActiveVersionId, Is.EqualTo(previous.ActiveVersionId));
+            Assert.That(current.RootNodeId, Is.EqualTo(previous.RootNodeId));
+            Assert.That(current.DefaultVersion!.Epoch, Is.EqualTo(previous.DefaultVersion!.Epoch));
+            Assert.That(current.DefaultVersion.Digest, Is.EqualTo(previous.DefaultVersion.Digest));
+            Assert.That(current.Diagnostics, Is.EqualTo(previous.Diagnostics));
+            Assert.That(m_coordinator.Generation, Is.EqualTo(before.RefreshGeneration));
             await AssertStartupSensorAsync(readable: false).ConfigureAwait(false);
+            await VerifyStartupCleanupAndReentryAsync(baseline).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task FailedConversionReportsStoredFailureAndParentRemainsRemovableAsync()
+        {
+            var converter = new FakeWotDocumentConverter();
+            converter.MarkInvalid("sensor");
+            (int baseline, DeadlineProjectionHost host, _) =
+                await PrepareControlledStartupAsync(converter: converter).ConfigureAwait(false);
+            using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+
+            InvalidOperationException failure = Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await AddStoredRegistryAsync(cancellation.Token).ConfigureAwait(false))!;
+
+            Assert.That(failure.InnerException, Is.InstanceOf<ServiceResultException>());
+            Assert.That(((ServiceResultException)failure.InnerException!).StatusCode,
+                Is.EqualTo(StatusCodes.BadConfigurationError));
+            m_registryRegistration = FindStartupRegistryRegistration();
+            Assert.That(host.AddCalls, Is.Zero, "Failed conversion must not attempt native publication.");
+            Assert.That(host.DeadlineExpired, Is.False);
+            Assert.That(m_server.NodeManagerLifecycle.Registrations.Count, Is.EqualTo(baseline + 1));
+            Assert.That(StartupResource().LoadState, Is.EqualTo(WoTLoadStateEnum.Failed));
+            Assert.That(StartupResource().DefaultVersion!.HasContent, Is.True);
+            Assert.That(StartupResource().RootNodeId.IsNull, Is.True);
+            Assert.That(m_coordinator.Generation, Is.Zero);
             await VerifyStartupCleanupAndReentryAsync(baseline).ConfigureAwait(false);
         }
 
@@ -326,7 +362,8 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
         }
 
         private async Task<(int Baseline, DeadlineProjectionHost Host, RemovalDeadlineProjectionHost Cleanup)>
-            PrepareControlledStartupAsync(IWotProjectionBindingRuntimeFactory? runtime = null)
+            PrepareControlledStartupAsync(
+                IWotProjectionBindingRuntimeFactory? runtime = null, IWotDocumentConverter? converter = null)
         {
             using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(20));
             await m_server.NodeManagerLifecycle.RemoveAsync(
@@ -338,7 +375,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle, runtime));
             var host = new DeadlineProjectionHost(cleanup);
             m_coordinator = new WotMaterializationCoordinator(
-                m_registry, host, documentConverter: new SensorConverter());
+                m_registry, host, documentConverter: converter ?? new SensorConverter());
             return (baseline, host, cleanup);
         }
 
@@ -395,6 +432,11 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
         private async Task AssertStartupSensorAsync(bool readable)
         {
             int index = m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri);
+            if (index < 0)
+            {
+                Assert.That(readable, Is.False, "An unregistered model namespace cannot have a readable sensor.");
+                return;
+            }
             Assert.That(index, Is.GreaterThan(0));
             DataValue value = await ReadValueAsync(new NodeId(kValueNodeId, checked((ushort)index)))
                 .ConfigureAwait(false);
@@ -546,6 +588,8 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
 
         private sealed class StartupRuntimeProbe(bool fail = false) : IWotProjectionBindingRuntimeFactory
         {
+            public InvalidOperationException Failure { get; } = new("Controlled startup materialization failure.");
+
             public TaskCompletionSource<bool> Entered { get; } =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -564,7 +608,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 await Release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
                 if (fail)
                 {
-                    throw new InvalidOperationException("Controlled startup materialization failure.");
+                    throw Failure;
                 }
                 return null;
             }
