@@ -90,6 +90,7 @@ for orientation, then follow the [Migration Guide](MigrationGuide.md) and its
 - [Diagnostics](Diagnostics.md) — logging, metrics, tracing, auditing, and packet capture.
 - [Native AOT](NativeAoT.md) — publishing without a JIT compiler.
 - [Rate limiting](RateLimiting.md) — admission controls and overload/retry signaling.
+- [Server resource isolation](ResourceIsolation.md) — shared/fair/balanced/trusted admission, protected resource floors, bounded caller accounting, and fair decoded-request scheduling.
 - [High availability](HighAvailability.md) — redundancy, failover, and distributed state.
 - [Replica-consistent NodeIds](ReplicaNodeIdentity.md) — stable identity across replicas.
 - [Kubernetes](Kubernetes.md) — cluster deployment, discovery, readiness, and secrets.
