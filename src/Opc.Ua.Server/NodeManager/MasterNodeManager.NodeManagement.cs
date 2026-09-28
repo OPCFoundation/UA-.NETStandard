@@ -829,6 +829,13 @@ namespace Opc.Ua.Server
                 return new ServiceResult(StatusCodes.BadReferenceTypeIdInvalid);
             }
 
+            // Part 3 5.3.1: no Reference of an abstract ReferenceType exists to delete.
+            if (await IsAbstractReferenceTypeAsync(item.ReferenceTypeId, cancellationToken)
+                .ConfigureAwait(false))
+            {
+                return new ServiceResult(StatusCodes.BadReferenceTypeIdInvalid);
+            }
+
             (object? sourceHandle, IAsyncNodeManager? sourceOwner) =
                 await GetManagerHandleAsync(item.SourceNodeId, cancellationToken).ConfigureAwait(false);
             if (sourceHandle == null || sourceOwner == null)

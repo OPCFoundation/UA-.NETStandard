@@ -573,8 +573,9 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// No Reference of an abstract ReferenceType shall exist (Part 3 5.3.1), so AddNodes
-        /// and AddReferences reject abstract ReferenceTypeIds with Bad_ReferenceTypeIdInvalid.
+        /// No Reference of an abstract ReferenceType shall exist (Part 3 5.3.1), so AddNodes,
+        /// AddReferences and DeleteReferences reject abstract ReferenceTypeIds with
+        /// Bad_ReferenceTypeIdInvalid.
         /// </summary>
         [TestCase(ReferenceTypes.References)]
         [TestCase(ReferenceTypes.HierarchicalReferences)]
@@ -615,9 +616,23 @@ namespace Opc.Ua.Server.Tests
                     }
                 }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
+            (ArrayOf<StatusCode> deleteResults, _) = await sut.DeleteReferencesAsync(
+                ctx,
+                new DeleteReferencesItem[]
+                {
+                    new()
+                    {
+                        SourceNodeId = ObjectIds.ObjectsFolder,
+                        ReferenceTypeId = referenceTypeId,
+                        IsForward = true,
+                        TargetNodeId = ObjectIds.Server
+                    }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(addResults[0], Is.EqualTo(StatusCodes.BadReferenceTypeIdInvalid));
             Assert.That(addNodesResults[0].StatusCode, Is.EqualTo(StatusCodes.BadReferenceTypeIdInvalid));
+            Assert.That(deleteResults[0], Is.EqualTo(StatusCodes.BadReferenceTypeIdInvalid));
         }
 
         [Test]
