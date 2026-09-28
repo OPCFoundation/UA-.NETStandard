@@ -437,10 +437,10 @@ namespace Opc.Ua
                 EncodingLimits.CheckStringLength(Context.MaxStringLength, value);
 
                 // Write whitespace only strings verbatim (xs:string preserves
-                // whitespace). Note that XmlDecoder/XmlParser read an element
-                // holding only whitespace as "" (pretty-printed NodeSets use
-                // that for empty values), so such a string does not round
-                // trip through this stack.
+                // whitespace, Part 6 5.3.1.5); XmlDecoder/XmlParser read them
+                // back unchanged. Only NodeSet/design importers opt in to read
+                // such an element as "" (XmlDecoder.TreatWhitespaceOnlyStringsAsEmpty)
+                // because pretty-printed NodeSets use it for empty values.
                 if (!string.IsNullOrEmpty(value))
                 {
                     m_writer.WriteString(value);

@@ -291,6 +291,18 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public IServiceMessageContext Context { get; }
 
+        /// <summary>
+        /// Reads a String element that holds only whitespace as an empty string.
+        /// </summary>
+        /// <remarks>
+        /// xs:string preserves whitespace (Part 6 5.3.1.5), so by default such an
+        /// element decodes to its whitespace. Hand-edited, pretty-printed documents
+        /// such as NodeSets write empty values as an element with only layout
+        /// whitespace (e.g. an empty Locale); importers of such documents enable
+        /// this option to read them as empty strings.
+        /// </remarks>
+        public bool TreatWhitespaceOnlyStringsAsEmpty { get; set; }
+
         /// <inheritdoc/>
         public void PushNamespace(string namespaceUri)
         {
@@ -586,7 +598,12 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public string? ReadString(string? fieldName)
         {
-            if (BeginField(fieldName, true, out bool isNil))
+            if (BeginField(
+                fieldName,
+                true,
+                out bool isNil,
+                !TreatWhitespaceOnlyStringsAsEmpty,
+                out string? whitespace))
             {
                 // xs:string has whiteSpace=preserve (Part 6 5.3.1.5): do not trim.
                 string? value = SafeReadString();
@@ -594,7 +611,19 @@ namespace Opc.Ua
                 return value;
             }
 
-            return !isNil ? string.Empty : null;
+            if (isNil)
+            {
+                return null;
+            }
+
+            // an element holding only whitespace keeps it (Part 6 5.3.1.5).
+            if (whitespace != null)
+            {
+                EncodingLimits.CheckStringLength(Context.MaxStringLength, whitespace);
+                return whitespace;
+            }
+
+            return string.Empty;
         }
 
         /// <inheritdoc/>
@@ -862,17 +891,7 @@ namespace Opc.Ua
                     EndField("NamespaceIndex");
                 }
 
-                string? name = null;
-
-                if (BeginField("Name", true, out bool isNil))
-                {
-                    name = ReadString(null);
-                    EndField("Name");
-                }
-                else if (!isNil)
-                {
-                    name = string.Empty;
-                }
+                string? name = ReadString("Name");
 
                 PopNamespace();
                 EndField(fieldName);
@@ -894,28 +913,8 @@ namespace Opc.Ua
             if (BeginField(fieldName, true))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
-                string? text = null;
-                string? locale = null;
-
-                if (BeginField("Locale", true, out bool isNil))
-                {
-                    locale = ReadString(null);
-                    EndField("Locale");
-                }
-                else if (!isNil)
-                {
-                    locale = string.Empty;
-                }
-
-                if (BeginField("Text", true, out isNil))
-                {
-                    text = ReadString(null);
-                    EndField("Text");
-                }
-                else if (!isNil)
-                {
-                    text = string.Empty;
-                }
+                string? locale = ReadString("Locale");
+                string? text = ReadString("Text");
 
                 var value = new LocalizedText(locale ?? string.Empty, text ?? string.Empty);
 
@@ -3136,6 +3135,23 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private bool BeginField(string? fieldName, bool isOptional, out bool isNil)
         {
+            return BeginField(fieldName, isOptional, out isNil, false, out _);
+        }
+
+        /// <summary>
+        /// Reads the start of field. With <paramref name="captureWhitespace"/> the
+        /// whitespace of an element that holds nothing else is returned in
+        /// <paramref name="whitespace"/> (the method returns false for it).
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private bool BeginField(
+            string? fieldName,
+            bool isOptional,
+            out bool isNil,
+            bool captureWhitespace,
+            out string? whitespace)
+        {
+            whitespace = null;
             try
             {
                 isNil = false;
@@ -3187,6 +3203,17 @@ namespace Opc.Ua
 
                 if (!isEmpty)
                 {
+                    string? content = null;
+                    if (captureWhitespace)
+                    {
+                        // MoveToContent skips whitespace nodes, keep them for xs:string.
+                        while (m_reader.NodeType is XmlNodeType.Whitespace or XmlNodeType.SignificantWhitespace)
+                        {
+                            content = content == null ? m_reader.Value : content + m_reader.Value;
+                            m_reader.Read();
+                        }
+                    }
+
                     m_reader.MoveToContent();
 
                     // check for an element with no children but not empty (due to whitespace).
@@ -3195,6 +3222,7 @@ namespace Opc.Ua
                         m_reader.NamespaceURI == m_namespaces.Peek())
                     {
                         m_reader.ReadEndElement();
+                        whitespace = content;
                         return false;
                     }
                 }

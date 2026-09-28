@@ -1512,7 +1512,11 @@ namespace Opc.Ua.Export
         {
             IServiceMessageContext messageContext = context.AsMessageContext();
 
-            var decoder = new XmlDecoder(WrapAsVariant(source), messageContext);
+            var decoder = new XmlDecoder(WrapAsVariant(source), messageContext)
+            {
+                // pretty-printed NodeSets write empty strings as layout whitespace.
+                TreatWhitespaceOnlyStringsAsEmpty = true
+            };
 
             var namespaceUris = new NamespaceTable();
 

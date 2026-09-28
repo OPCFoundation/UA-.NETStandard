@@ -4412,7 +4412,10 @@ namespace Opc.Ua.Schema.Model
 
                 if (variableType.DefaultValue != null)
                 {
-                    var decoder = new XmlDecoder(variableType.DefaultValue, m_context);
+                    var decoder = new XmlDecoder(variableType.DefaultValue, m_context)
+                    {
+                        TreatWhitespaceOnlyStringsAsEmpty = true
+                    };
                     Variant variant = decoder.ReadVariantValue(null, default);
 
                     if (!variant.TypeInfo.IsUnknown)
@@ -4701,7 +4704,10 @@ namespace Opc.Ua.Schema.Model
 
                 if (variable.DefaultValue != null)
                 {
-                    var decoder = new XmlDecoder(variable.DefaultValue, m_context);
+                    var decoder = new XmlDecoder(variable.DefaultValue, m_context)
+                    {
+                        TreatWhitespaceOnlyStringsAsEmpty = true
+                    };
                     Variant variant = decoder.ReadVariantValue(null, default);
                     if (!variant.TypeInfo.IsUnknown)
                     {
@@ -7432,7 +7438,10 @@ namespace Opc.Ua.Schema.Model
         {
             try
             {
-                using var decoder = new XmlDecoder(defaultValue, m_context);
+                using var decoder = new XmlDecoder(defaultValue, m_context)
+                {
+                    TreatWhitespaceOnlyStringsAsEmpty = true
+                };
                 variant = decoder.ReadVariantValue(null, default);
                 return !variant.TypeInfo.IsUnknown;
             }

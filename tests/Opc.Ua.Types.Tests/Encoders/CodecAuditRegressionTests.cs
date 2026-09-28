@@ -355,6 +355,8 @@ namespace Opc.Ua.Types.Tests.Encoders
         [TestCase("  secret ")]
         [TestCase("\tTag\n")]
         [TestCase("x")]
+        [TestCase("   ")]
+        [TestCase("\n  \t")]
         public void XmlStringKeepsLeadingAndTrailingWhitespace(string value)
         {
             // ReadString trimmed the value although xs:string preserves
@@ -400,6 +402,37 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var parser = new XmlParser(xml, context);
             parser.PushNamespace(kNs);
             Assert.That(parser.ReadString("Value"), Is.EqualTo(value));
+        }
+
+        [Test]
+        public void XmlWhitespaceOnlyStringIsEmptyWhenOptedIn()
+        {
+            // Pretty-printed NodeSets write an empty Locale as layout whitespace;
+            // their importers opt in to read such an element as "".
+            ServiceMessageContext context = CreateContext();
+            const string xml =
+                "<Text xmlns=\"" + kNs + "\">\n  <Locale>\n  </Locale>\n  <Text>Site</Text>\n</Text>";
+
+            using (var decoder = new XmlDecoder(
+                XmlReader.Create(new StringReader(xml), CoreUtils.DefaultXmlReaderSettings()),
+                context))
+            {
+                decoder.PushNamespace(kNs);
+                Assert.That(decoder.ReadLocalizedText("Text").Locale, Is.EqualTo("\n  "));
+            }
+
+            using (var decoder = new XmlDecoder(
+                XmlReader.Create(new StringReader(xml), CoreUtils.DefaultXmlReaderSettings()),
+                context)
+            {
+                TreatWhitespaceOnlyStringsAsEmpty = true
+            })
+            {
+                decoder.PushNamespace(kNs);
+                LocalizedText text = decoder.ReadLocalizedText("Text");
+                Assert.That(text.Locale, Is.Empty);
+                Assert.That(text.Text, Is.EqualTo("Site"));
+            }
         }
 
         [Test]
