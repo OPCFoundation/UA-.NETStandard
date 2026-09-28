@@ -726,8 +726,10 @@ namespace Opc.Ua.Server
                             snapshot, monitoredItem, PermissionType.Read, cancellationToken)
                             .ConfigureAwait(false);
 
+                    // Part 4 5.13.2.1: denied read access is reported in the Publish response.
                     if (ServiceResult.IsBad(validationResult))
                     {
+                        QueueError(monitoredItem, validationResult);
                         continue;
                     }
 
@@ -762,6 +764,7 @@ namespace Opc.Ua.Server
 
                     if (ServiceResult.IsBad(validationResult))
                     {
+                        QueueError(monitoredItem, validationResult);
                         continue;
                     }
 
@@ -769,7 +772,8 @@ namespace Opc.Ua.Server
                     // the subscriber, so they are read again as the item's owner.
                     if (IsUserDependentAttribute(monitoredItem.AttributeId))
                     {
-                        (_, snapshotValue) = await Node.ReadAttributeAsync(
+                        ServiceResult readResult;
+                        (readResult, snapshotValue) = await Node.ReadAttributeAsync(
                             contextToUse,
                             monitoredItem.AttributeId,
                             default,
@@ -780,11 +784,28 @@ namespace Opc.Ua.Server
                                 DateTime.MinValue,
                                 m_timeProvider.GetUtcNow().UtcDateTime),
                             cancellationToken).ConfigureAwait(false);
+
+                        if (ServiceResult.IsBad(readResult))
+                        {
+                            QueueError(monitoredItem, readResult);
+                            continue;
+                        }
                     }
 
                     monitoredItem.QueueValue(snapshotValue, ServiceResult.Good);
                 }
             }
+        }
+
+        /// <summary>
+        /// Queues a bad status value so the Publish response reports the error
+        /// instead of the item going silent.
+        /// </summary>
+        private void QueueError(IDataChangeMonitoredItem2 monitoredItem, ServiceResult error)
+        {
+            monitoredItem.QueueValue(
+                DataValue.FromStatusCode(error.StatusCode, m_timeProvider.GetUtcNow().UtcDateTime),
+                error);
         }
 
         private static bool IsUserDependentAttribute(uint attributeId)
