@@ -113,10 +113,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task AMalformedDocumentDoesNotStopTheRefreshOfAnotherAsync()
         {
-            using var registry = new WotRegistryService();
+            await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync().ConfigureAwait(false);
+            WotRegistryService registry = await runtime.CreateRegistryAsync().ConfigureAwait(false);
             var host = new FakeWotProjectionHost();
             using var coordinator = new WotMaterializationCoordinator(
-                registry, host, documentConverter: new WotNodeSetDocumentConverter());
+                registry, runtime.Observe(host.RecordCommitted), documentConverter: new WotNodeSetDocumentConverter())
+            {
+                ServerNamespaceUris = runtime.Namespaces
+            };
             await StoreAsync(
                 registry, WotRegistryGroups.ThingModels, "tm-good",
                 WoTDocumentKindEnum.ThingModel, DataTypeModel()).ConfigureAwait(false);

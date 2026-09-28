@@ -728,9 +728,10 @@ namespace Opc.Ua.WotCon.Tests
                 It.IsAny<WotBindingPlan>(), It.IsAny<CancellationToken>())).Returns(default(ValueTask));
             binders.Setup(registry => registry.DeactivateAsync(
                 It.IsAny<WotBindingPlan>(), It.IsAny<CancellationToken>())).Returns(default(ValueTask));
-            using var registry = new WotRegistryService();
+            await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync().ConfigureAwait(false);
+            WotRegistryService registry = await runtime.CreateRegistryAsync().ConfigureAwait(false);
             using var coordinator = new WotMaterializationCoordinator(registry,
-                new FakeWotProjectionHost(), binders.Object, documentConverter: new FakeWotDocumentConverter());
+                runtime.Host, binders.Object, documentConverter: new FakeWotDocumentConverter());
             await registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
                 GroupId = WotRegistryGroups.ThingDescriptions,
@@ -804,12 +805,14 @@ namespace Opc.Ua.WotCon.Tests
                 SecurityNone = false
             };
             ReferenceServer? server = null;
+            FileWotRegistryStore? store = null;
             WotRegistryService? registry = null;
             WotMaterializationCoordinator? coordinator = null;
             try
             {
                 server = await fixture.StartAsync(directory).ConfigureAwait(false);
-                registry = new WotRegistryService();
+                store = new FileWotRegistryStore(Path.Combine(directory, "registry"));
+                registry = new WotRegistryService(store);
                 IWotBinderRegistry binders = registeredBinders ?? new WotProtocolBinderRegistry([new MemoryWotBinder()],
                     executable ? [new MemoryWotBindingExecutor(new MemoryWotStore())] : null);
                 coordinator = new WotMaterializationCoordinator(
@@ -851,6 +854,7 @@ namespace Opc.Ua.WotCon.Tests
                             }
                             finally
                             {
+                                store?.Dispose();
                                 if (Directory.Exists(directory))
                                 {
                                     Directory.Delete(directory, recursive: true);
