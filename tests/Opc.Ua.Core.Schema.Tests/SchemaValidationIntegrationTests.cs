@@ -226,6 +226,8 @@ namespace Opc.Ua.Schema.Tests
 
         /// <summary>
         /// A4-7: a LocalizedText with a locale but no text, as written by JsonEncoder.
+        /// Part 6 5.4.2.15 omits the null Text in every flavour, so the schema keeps
+        /// Text a plain string.
         /// </summary>
         [TestCase(true)]
         [TestCase(false)]
@@ -243,7 +245,11 @@ namespace Opc.Ua.Schema.Tests
 
             EvaluationResults results = Evaluate(schema, instance);
 
-            Assert.That(results.IsValid, Is.True, instance.ToJsonString() + "\n" + Errors(results));
+            Assert.Multiple(() =>
+            {
+                Assert.That(results.IsValid, Is.True, instance.ToJsonString() + "\n" + Errors(results));
+                Assert.That(instance["Label"]!.AsObject().ContainsKey("Text"), Is.False, instance.ToJsonString());
+            });
         }
 
         /// <summary>
