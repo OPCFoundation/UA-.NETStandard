@@ -23,6 +23,28 @@ to make remote file-system navigation feel like working with a local disk.
 | `FileSystemClientOptions` | n/a | Tuning knobs: `ChunkSize`, `MaxBufferedReadSize`, `PathCacheSize`, type-subtype filters. |
 | `TemporaryFileTransferClient` + `UaTemporaryWriteFile` | n/a | Separate surface for Part 5 §C.5 atomic temp-file transfers (`GenerateFileForRead/Write` + `CloseAndCommit`). |
 
+## Contents
+
+- [Quick reference](#quick-reference)
+- [Getting started](#getting-started)
+  - [Open the standard server file system](#open-the-standard-server-file-system)
+  - [Open any `FileDirectoryType` instance](#open-any-filedirectorytype-instance)
+  - [Read a file](#read-a-file)
+  - [Stream a large file](#stream-a-large-file)
+  - [Create a directory tree and write a file](#create-a-directory-tree-and-write-a-file)
+  - [Move and delete](#move-and-delete)
+- [Path syntax](#path-syntax)
+- [Path resolution and caching](#path-resolution-and-caching)
+- [Type classification](#type-classification-filetype-vs-filedirectorytype)
+- [File metadata](#file-metadata)
+- [Streams](#streams)
+- [Error mapping](#error-mapping)
+- [Move, copy, and delete semantics](#move-copy-and-delete-semantics)
+- [Temporary file transfer](#temporary-file-transfer-part-5-c5)
+- [What lives where](#what-lives-where)
+- [Server-side file bindings](#server-side-file-bindings)
+- [See also](#see-also)
+
 ## Getting started
 
 ### Open the standard server file system
@@ -142,14 +164,16 @@ properties (`MimeType`, `MaxByteStringLength`, `LastModifiedTime`) are
 returned as `null` when the server does not expose them
 (`BadNoMatch`, `BadNodeIdUnknown`, or empty target lists are tolerated).
 
-On the stack's `FileSystemNodeManager`, metadata reads and initial monitored-item
-values use the asynchronous provider binding without allocating retained file
-handle state or opening a stream. The first `Size` notification contains the
-file's current byte count and status, not a stored null placeholder. Reattaching
-an item after removing and re-adding its manager, or re-enabling a disabled item,
-also reads fresh metadata. These initial reads do not add periodic polling for
-external file changes; later notifications still require the node's normal
-change-notification mechanism.
+In the stack's `FileSystemNodeManager`, metadata reads and initial
+monitored-item values use the asynchronous provider binding. These reads do
+not allocate retained file-handle state or open a stream. The first `Size`
+notification contains the file's current byte count and status, not a stored
+null placeholder.
+
+When the manager reattaches an item or re-enables a disabled item, it also
+reads fresh metadata. Initial reads do not add periodic polling for external
+file changes. Later notifications still require the node's normal change
+notification mechanism.
 
 `Writable` / `UserWritable` are advisory: callers should not pre-check
 them before opening a file. Rely on the server's `Open` response for the
@@ -303,16 +327,18 @@ Both lazy `FileSystemNodeManager` nodes and materialized
 move, and copy. A NodeId from another namespace, an invalid encoded type,
 or a component identifier cannot alias a file-system object.
 
-Virtual directory browsing walks one provider cursor in provider order across
-Browse/BrowseNext pages, retaining only the current entry and a continuation's
-lookahead reference. It does not snapshot the directory or impose the materialized
-binder's `MaxEntries` limit. Named-child lookup scans without retaining unrelated
-entries and stops at the match. Exhaustion, cancellation, and continuation release
-dispose the cursor exactly once. Cancellation applies to the active page;
-cancelling an already-completed page does not cancel subsequent pages.
-Synchronous continuation release starts observed asynchronous cursor cleanup
-without blocking its caller. Provider failures are surfaced, not converted into
-an empty directory.
+Virtual directory browsing uses one provider cursor and preserves provider
+order across Browse/BrowseNext pages. It retains only the current entry and a
+continuation's lookahead reference. It does not snapshot the directory or
+apply the materialized binder's `MaxEntries` limit. Named-child lookup scans
+without retaining unrelated entries and stops when it finds a match.
+
+The cursor is disposed exactly once on exhaustion, cancellation, or
+continuation release. Cancellation affects only the active page; cancelling
+an already completed page does not cancel later pages. Synchronous
+continuation release starts and observes asynchronous cursor cleanup without
+blocking its caller. The system surfaces provider failures instead of
+returning an empty directory.
 
 Before Delete or MoveOrCopy reaches an arbitrary provider, the lazy host
 validates the decoded provider path. Separator-only root aliases resolve to
@@ -332,10 +358,11 @@ allocations. At EOF, a valid positive-length read returns an empty byte
 string. Service calls use the asynchronous read handler; legacy direct
 synchronous delegates remain available.
 
-File opens reserve compatible access before invoking the provider, so a
-rejected erase request cannot truncate a file held by another opener.
-Failed or cancelled opens release their reservations; streams returned
-after session closure or disposal are closed rather than published.
+File opens reserve compatible access before invoking the provider. This
+prevents a rejected erase request from truncating a file held by another
+opener. Failed or cancelled opens release their reservations. If a provider
+returns a stream after session closure or disposal, the system closes it
+instead of publishing it.
 `Read` and `Write` enforce the requested open mode even if the provider's
 stream supports both operations. `SetPosition` clamps positions beyond
 EOF to the current file length. `Writable` describes the provider/file

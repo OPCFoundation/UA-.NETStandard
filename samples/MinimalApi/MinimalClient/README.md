@@ -61,7 +61,8 @@ The minimal client demonstrates the following operations:
 6. **Alarms & Conditions**: Resolves `AlarmClientFactory` and creates an A&C client for the session
 7. **Browsing**: Browses the server's address space (`ObjectsFolder`)
 8. **Reading**: Reads the server's current time from the StandardServer
-9. **Clean Shutdown**: Properly closes the subscription, session, and host
+9. **Notifications**: Waits up to 10 seconds for the subscription's first data change notification
+10. **Clean Shutdown**: Properly closes the subscription, session, and host
 
 ## Architecture
 

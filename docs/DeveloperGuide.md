@@ -4,6 +4,32 @@ This guide is the starting point for contributing to the OPC UA .NET Standard st
 
 If you are new here, read the sections in order: [Prerequisites](#prerequisites) → [Repository layout](#repository-layout) → [Building](#building) → [Running tests](#running-tests) → [Coding standards](#coding-standards-dos-and-donts). The [How-to guides](#how-to-guides) and [Packages, platform support, and versioning](#packages-platform-support-and-versioning) sections are reference material you can jump to as needed.
 
+## Contents
+
+- [Prerequisites](#prerequisites)
+- [Repository layout](#repository-layout)
+- [Building](#building)
+- [Running tests](#running-tests)
+- [Coding standards (dos and don'ts)](#coding-standards-dos-and-donts)
+- [How-to guides](#how-to-guides)
+  - [Add a log message (source-generated)](#add-a-log-message-source-generated)
+  - [Other common tasks](#other-common-tasks)
+- [Packages, platform support, and versioning](#packages-platform-support-and-versioning)
+  - [Released packages](#released-packages)
+  - [Supported target frameworks](#supported-target-frameworks)
+  - [Supported analyzer and source generator hosts](#supported-analyzer-and-source-generator-hosts)
+  - [Versioning](#versioning)
+- [Continuous integration](#continuous-integration)
+  - [What runs where](#what-runs-where)
+  - [Test tiers](#test-tiers)
+  - [Running the full scope](#running-the-full-scope)
+  - [Required checks and coverage](#required-checks-and-coverage)
+  - [Reproducing a CI leg locally](#reproducing-a-ci-leg-locally)
+  - [Pull requests from outside contributors](#pull-requests-from-outside-contributors)
+  - [Azure Pipelines on other branches](#azure-pipelines-on-other-branches)
+- [Contributing and pull requests](#contributing-and-pull-requests)
+- [Related documentation](#related-documentation)
+
 ## Prerequisites
 
 - **.NET SDK 10.0** — the whole repository builds and restores with the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0). Older SDKs are not supported for building `main`. The class libraries still *target* older frameworks (see [Packages, platform support, and versioning](#packages-platform-support-and-versioning)), but you build them with the .NET 10 SDK.
@@ -277,7 +303,7 @@ The analyzer and source generator packages ship under `analyzers/dotnet/roslyn<m
 The version is declared once in `roslyn.props`.
 
 > **Adding a band below 4.14 is not just another entry in that file.** The analyzer closure — the generator, `Opc.Ua.SourceGeneration.Core` **and** `Opc.Ua.Types` — must bind against the Roslyn host's own `System.Collections.Immutable` and `System.Reflection.Metadata`. .NET satisfies a reference from a *higher* assembly version but never from a lower one, and those assemblies are supplied by the compiler, so the closure must reference the lowest version across every supported band and must never ship a copy of its own. Roslyn 4.14 and 5.0 both depend on 9.0.0, which is why `$(RoslynRuntimeVersion)` in `roslyn.props` drives the central pin and one build of the non-Roslyn closure serves both bands. Going lower — Roslyn 4.8 wants 7.x — would mean building that whole closure, `Opc.Ua.Types` included, a second time.
->
+
 > Get it wrong and the failure is silent: the generator is skipped (`CS9057`), fails to load (`CS8032`) or throws `MissingMethodException` while initializing (`CS8784`) — all *warnings*, so the consumer just gets no generated code. `validate-source-generator-packages.ps1` therefore refuses any package that ships `Microsoft.CodeAnalysis*`, `System.Collections.Immutable` or `System.Reflection.Metadata`, and runs the packed down-level payload through a real compiler of that band.
 
 ### Versioning

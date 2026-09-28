@@ -10,6 +10,13 @@ value must agree. Built-in server diagnostics and configuration remain local.
 The module wraps the standard `DefaultNodeIdFactory`; it does not introduce a
 second hashing algorithm or a persistent logical-key-to-NodeId database.
 
+## Contents
+
+- [Configure the whole replica set](#configure-the-whole-replica-set)
+- [Creating, importing and hydrating nodes](#creating-importing-and-hydrating-nodes)
+- [Stored contracts and peer admission](#stored-contracts-and-peer-admission)
+- [Sample client proof](#sample-client-proof)
+
 ## Configure the whole replica set
 
 Every replica uses the same replica-set ID, ordered namespace list and assignment
@@ -66,20 +73,28 @@ instance namespaces before creating nodes, including namespaces needed by their
 types, references and NodeId-valued data. New shared namespaces require an explicit
 layout revision, not a different runtime append order.
 
-Validation covers namespace-bearing type definitions, data types, modelling rules,
-references and role permissions, plus NodeId/ExpandedNodeId/QualifiedName values
-inside arrays, matrices, DataValues and encodeable structures (including method
-arguments). Structured values are visited through their normal encoding contract,
-without reflection. Register the codec for an opaque ExtensionObject before using
-it as shared data; an unknown body cannot be certified as namespace-safe.
+Validation checks:
 
-Runtime manager preparation validates the future ownership composition and
-hydrates retained identities into the hidden replacement before its routes are
-published. After publication, the module rebinds capture and hydration to the new
-manager instances. Active/passive retains the shared store and election;
-active/active retains the gossip transport and CRDT map. A failed preparation
-recovers bindings for the composition the lifecycle retained rather than leaving
-replication attached only to retired managers.
+- Namespace-bearing type definitions, data types, modelling rules, references,
+  and role permissions.
+- `NodeId`, `ExpandedNodeId`, and `QualifiedName` values inside arrays,
+  matrices, `DataValue`s, and encodeable structures, including method
+  arguments.
+
+The validator visits structured values through their normal encoding contract,
+without reflection. Register a codec for an opaque `ExtensionObject` before
+using it as shared data; the validator cannot certify an unknown body as
+namespace-safe.
+
+Before publishing a replacement manager, the runtime validates its ownership
+composition and hydrates retained identities into it. After publication, the
+module rebinds capture and hydration to the new manager instances. Active/passive
+reconfiguration retains the shared store and election. Active/active
+reconfiguration retains the gossip transport and CRDT map.
+
+If preparation fails, the runtime restores bindings for the manager composition
+that the lifecycle retained. Replication therefore does not remain attached
+only to retired managers.
 
 Both server startup modules reject missing identity configuration for replicated
 operation. Process-local active/passive experimentation and ordinary standalone

@@ -99,6 +99,13 @@ namespace Opc.Ua.Client
         int OperationTimeout { get; }
 
         /// <summary>
+        /// The session timeout revised by the server in milliseconds, or 0
+        /// before the session has been created. Subscriptions compare their
+        /// lifetime with this value.
+        /// </summary>
+        double SessionTimeout { get; }
+
+        /// <summary>
         /// The current server state as known by the session.
         /// </summary>
         ServerState ServerState { get; }

@@ -177,6 +177,17 @@ namespace Opc.Ua.Schema.Model
 
                 if (MethodDesignArgumentResolver.HasMethodArguments(method))
                 {
+                    // Only method types have a typed class. A reference to a
+                    // method that declares its arguments inline uses the base
+                    // MethodState; declaration names keep the typed name.
+                    if (applyStandardFallback &&
+                        !MethodDesignArgumentResolver.HasTypedMethodState(method))
+                    {
+                        return CoreUtils.Format(
+                            "{0}global::Opc.Ua.MethodState",
+                            asFactory ? "new " : string.Empty);
+                    }
+
                     string typedClassName = CoreUtils.Format(
                         "{0}{1}MethodState",
                         asFactory ? "new " : string.Empty,

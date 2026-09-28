@@ -7,6 +7,17 @@ to host or connect to OPC UA servers over something other than the
 default `opc.tcp://` transport — for example to traverse firewalls or
 to integrate with web-based tooling.
 
+## Contents
+
+- [Transport profile matrix](#transport-profile-matrix)
+- [Assembly layout](#assembly-layout)
+- [Server-side configuration](#server-side-configuration)
+- [Client-side usage](#client-side-usage)
+- [Discovery](#discovery)
+- [Opt-in: Kestrel-hosted `opc.tcp`](#opt-in-kestrel-hosted-opctcp)
+- [Implementing a custom byte transport](#implementing-a-custom-byte-transport)
+- [See also](#see-also)
+
 ## Transport profile matrix
 
 | Profile | URL scheme | Wire format | UA Secure Conversation | Security modes |
@@ -499,7 +510,7 @@ wire.
       token while awaiting peer data — long-lived sessions rely on this
       to tear down cleanly.
 - [ ] Error mapping. Map transport-layer errors to
-      [`ServiceResultException`](../src/Opc.Ua.Core/Types/Result/ServiceResultException.cs)
+      [`ServiceResultException`](../src/Opc.Ua.Types/Utils/ServiceResultException.cs)
       with the matching `StatusCodes.BadXxx` (`BadConnectionClosed`,
       `BadTcpMessageTypeInvalid`, `BadTcpMessageTooLarge`, …) so the
       channel can route them through normal UA fault paths.

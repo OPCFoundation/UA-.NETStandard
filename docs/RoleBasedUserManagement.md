@@ -1,5 +1,21 @@
 # Role-Based Security (OPC UA Part 18)
 
+## Contents
+
+- [Overview](#overview)
+- [Server side](#server-side)
+  - [`IRoleManager`](#irolemanager)
+  - [Authoring an identity-mapping rule with claims](#authoring-an-identity-mapping-rule-with-claims)
+  - [`RoleConfigurationChanged` event](#roleconfigurationchanged-event)
+  - [Typed-proxy address-space binding](#typed-proxy-address-space-binding)
+  - [Default impersonation flow](#default-impersonation-flow)
+  - [User Management](#user-management-part-18-5)
+  - [User name / password storage](#user-name--password-storage)
+- [Client side](#client-side)
+- [GDS](#gds)
+- [Known limitations](#known-limitations)
+- [References](#references)
+
 ## Overview
 
 The OPC UA .NET Standard Stack implements the role-based security model from
@@ -68,7 +84,6 @@ At least one field must be non-default; `AddEndpoint` returns `Bad_InvalidArgume
 `EndpointType`.
 
 > **Identity-claim criteria support**:
->
 > - `IdentityCriteriaType.GroupId` probes the returned `IUserIdentity` for `Opc.Ua.Identity.IIdentityClaims` (see [Identity Providers](IdentityProviders.md)) and matches `IIdentityClaims.Groups`.
 > - `IdentityCriteriaType.Role` matches roles asserted **inside the access token** via `IIdentityClaims.Roles`, optionally prefixed by the issuer URI as `iss/roleName`, per Part 18 4.4.4.
 
