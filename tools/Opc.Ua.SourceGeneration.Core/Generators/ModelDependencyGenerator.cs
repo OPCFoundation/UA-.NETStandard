@@ -314,6 +314,39 @@ namespace Opc.Ua.SourceGeneration
                                 ModellingRule = modellingRule,
                                 InstanceKind = instanceKind
                             };
+                            // A child re-declared from a base type in another
+                            // namespace keeps that namespace on its browse
+                            // name. Carrying it only when it differs from the
+                            // declaring model keeps the payload unchanged for
+                            // the common case.
+                            string childBrowseNamespace =
+                                child.SymbolicName?.Namespace ?? string.Empty;
+                            if (childBrowseNamespace.Length > 0 &&
+                                !string.Equals(
+                                    childBrowseNamespace,
+                                    targetUri,
+                                    StringComparison.Ordinal))
+                            {
+                                entryChild.BrowseNameNamespace = childBrowseNamespace;
+                            }
+                            // Likewise only a reference type that departs from
+                            // the kind default needs carrying; the consumer
+                            // applies the default for everything else.
+                            if (child.ReferenceType != null &&
+                                !(string.Equals(
+                                        child.ReferenceType.Name,
+                                        ModelDependencyV1.GetDefaultReferenceTypeName(instanceKind),
+                                        StringComparison.Ordinal) &&
+                                    string.Equals(
+                                        child.ReferenceType.Namespace,
+                                        ModelDependencyV1.OpcUaNamespaceUri,
+                                        StringComparison.Ordinal)))
+                            {
+                                entryChild.ReferenceTypeName =
+                                    child.ReferenceType.Name ?? string.Empty;
+                                entryChild.ReferenceTypeNamespace =
+                                    child.ReferenceType.Namespace ?? string.Empty;
+                            }
                             if (child is VariableDesign variable)
                             {
                                 var effectiveVariable =

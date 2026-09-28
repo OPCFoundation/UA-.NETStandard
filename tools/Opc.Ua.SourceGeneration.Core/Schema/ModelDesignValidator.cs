@@ -7098,15 +7098,39 @@ namespace Opc.Ua.Schema.Model
                 _ => new ObjectDesign()
             };
             instance.BrowseName = c.BrowseName ?? string.Empty;
+            // SymbolicName.Namespace is what qualifies the emitted browse name.
+            // A child the upstream model re-declared from a base type in
+            // another namespace carries that namespace in the payload; without
+            // it the child would be re-qualified into the declaring model and
+            // a standard member such as 0:EngineeringUnits would be emitted
+            // under the wrong namespace.
+            string browseNameNamespace =
+                string.IsNullOrEmpty(c.BrowseNameNamespace)
+                    ? parentSymbolicId.Namespace
+                    : c.BrowseNameNamespace;
             var childSymbolicId = new XmlQualifiedName(
                 string.IsNullOrEmpty(c.SymbolicName) ? c.BrowseName : c.SymbolicName,
-                parentSymbolicId.Namespace);
+                browseNameNamespace);
             instance.SymbolicName = childSymbolicId;
+            // The symbolic id stays in the declaring type's namespace: it is
+            // the identity SetOverriddenNodes matches on, not a browse name.
             instance.SymbolicId = new XmlQualifiedName(
                 NodeDesign.CreateSymbolicId(
                     parentSymbolicId.Name,
                     childSymbolicId.Name),
                 parentSymbolicId.Namespace);
+            // ImportInstance defaults the reference type for a locally declared
+            // instance, but a child materialised from a dependency payload never
+            // passes through it. Left null the generator emits
+            // ReferenceTypeId = NodeId.Null, and the child is then invisible to
+            // a filtered browse even though it is present in the node tree.
+            instance.ReferenceType = !string.IsNullOrEmpty(c.ReferenceTypeName)
+                ? new XmlQualifiedName(
+                    c.ReferenceTypeName,
+                    c.ReferenceTypeNamespace ?? string.Empty)
+                : new XmlQualifiedName(
+                    ModelDependencyV1.GetDefaultReferenceTypeName(c.InstanceKind),
+                    ModelDependencyV1.OpcUaNamespaceUri);
             instance.ModellingRule = c.ModellingRule switch
             {
                 1 => ModellingRule.Mandatory,

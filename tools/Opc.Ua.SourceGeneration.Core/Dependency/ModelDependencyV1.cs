@@ -180,6 +180,16 @@ namespace Opc.Ua.SourceGeneration.Dependency
         public string BrowseName { get; set; } = string.Empty;
 
         /// <summary>
+        /// Namespace URI qualifying <see cref="BrowseName"/>. Empty when the
+        /// declaring type's own namespace qualifies it. A child re-declared
+        /// from a base type in another namespace keeps the namespace of its
+        /// original declaration here, so a consumer that instantiates the
+        /// derived type on its own still emits <c>0:EngineeringUnits</c>
+        /// rather than re-qualifying it into the declaring model.
+        /// </summary>
+        public string BrowseNameNamespace { get; set; } = string.Empty;
+
+        /// <summary>
         /// Symbolic name (often equal to BrowseName).
         /// </summary>
         public string SymbolicName { get; set; } = string.Empty;
@@ -216,6 +226,18 @@ namespace Opc.Ua.SourceGeneration.Dependency
         /// Instance kind: 1=Object 2=Variable 3=Property 4=Method.
         /// </summary>
         public byte InstanceKind { get; set; }
+
+        /// <summary>
+        /// Name of the reference type binding the child to its parent. Empty
+        /// when the kind default applies (<c>HasProperty</c> for a property,
+        /// <c>HasComponent</c> otherwise).
+        /// </summary>
+        public string ReferenceTypeName { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Namespace URI of <see cref="ReferenceTypeName"/>.
+        /// </summary>
+        public string ReferenceTypeNamespace { get; set; } = string.Empty;
 
         /// <summary>
         /// ModelDesign access level value (variables only).
@@ -459,6 +481,32 @@ namespace Opc.Ua.SourceGeneration.Dependency
         private const byte kRawUserAccessLevel = 0x04;
         private const byte kMinimumSamplingIntervalSpecified = 0x08;
         private const byte kHistorizingSpecified = 0x10;
+        // 0x20 / 0x40 share the per-child flag byte and mark the optional
+        // BrowseName-namespace and ReferenceType trailers at the end of a child
+        // record. Older payloads never set them, so a new reader stays
+        // compatible with a payload produced before they existed.
+        private const byte kChildBrowseNameNamespace = 0x20;
+        private const byte kChildReferenceType = 0x40;
+
+        /// <summary>
+        /// Namespace URI that qualifies the standard reference types.
+        /// </summary>
+        public const string OpcUaNamespaceUri = "http://opcfoundation.org/UA/";
+
+        /// <summary>
+        /// Reference type a child of the given instance kind is bound with when
+        /// the declaring model does not name one. Mirrors the defaulting the
+        /// validator applies to a locally declared instance, so a child
+        /// materialised from a dependency payload is bound the same way as the
+        /// identical child declared in the consuming model.
+        /// </summary>
+        /// <param name="instanceKind">
+        /// Instance kind: 1=Object 2=Variable 3=Property 4=Method.
+        /// </param>
+        public static string GetDefaultReferenceTypeName(byte instanceKind)
+        {
+            return instanceKind == 3 ? "HasProperty" : "HasComponent";
+        }
 
         /// <summary>
         /// The model URI this dependency payload describes.
@@ -627,6 +675,18 @@ namespace Opc.Ua.SourceGeneration.Dependency
                     {
                         variableFlags |= kHistorizingSpecified;
                     }
+                    bool hasBrowseNameNamespace =
+                        !string.IsNullOrEmpty(child.BrowseNameNamespace);
+                    if (hasBrowseNameNamespace)
+                    {
+                        variableFlags |= kChildBrowseNameNamespace;
+                    }
+                    bool hasReferenceType =
+                        !string.IsNullOrEmpty(child.ReferenceTypeName);
+                    if (hasReferenceType)
+                    {
+                        variableFlags |= kChildReferenceType;
+                    }
                     writer.Write(variableFlags);
                     writer.Write(child.AccessLevel);
                     writer.Write(child.RawAccessLevel.GetValueOrDefault());
@@ -649,6 +709,15 @@ namespace Opc.Ua.SourceGeneration.Dependency
                         WriteString(writer, a.DataTypeName);
                         WriteString(writer, a.DataTypeNamespace);
                         writer.Write(a.ValueRank);
+                    }
+                    if (hasBrowseNameNamespace)
+                    {
+                        WriteString(writer, child.BrowseNameNamespace);
+                    }
+                    if (hasReferenceType)
+                    {
+                        WriteString(writer, child.ReferenceTypeName);
+                        WriteString(writer, child.ReferenceTypeNamespace);
                     }
                 }
             }
@@ -854,6 +923,15 @@ namespace Opc.Ua.SourceGeneration.Dependency
                                     reader.ReadInt32());
                             }
                             c.OutputArguments = args;
+                        }
+                        if ((variableFlags & kChildBrowseNameNamespace) != 0)
+                        {
+                            c.BrowseNameNamespace = ReadString(reader);
+                        }
+                        if ((variableFlags & kChildReferenceType) != 0)
+                        {
+                            c.ReferenceTypeName = ReadString(reader);
+                            c.ReferenceTypeNamespace = ReadString(reader);
                         }
                         children[j] = c;
                     }
