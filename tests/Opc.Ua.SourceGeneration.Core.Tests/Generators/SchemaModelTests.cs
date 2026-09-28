@@ -149,6 +149,10 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 opt.IndexOf("name=\"EncodingMask\"", StringComparison.Ordinal),
                 Is.GreaterThan(0).And.LessThan(opt.IndexOf("name=\"Note\"", StringComparison.Ordinal)));
 
+            // OPC 10000-6 5.3.6: the mask element is mandatory and typed as in
+            // the example of the clause.
+            Assert.That(opt, Does.Contain("<xs:element name=\"EncodingMask\" type=\"xs:unsignedLong\" />"));
+
             string derived = Element(m_xsd, "xs:complexType", "OptDerived");
             Assert.That(derived, Does.Not.Contain("xs:extension"));
             int mask = derived.IndexOf("name=\"EncodingMask\"", StringComparison.Ordinal);

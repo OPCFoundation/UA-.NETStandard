@@ -387,6 +387,7 @@ namespace Opc.Ua.SourceGeneration
                         <xs:element name="LocalizedText" type="tns:LocalizedText" minOccurs="0" />
                         <xs:element name="ExtensionObject" type="tns:ExtensionObject" minOccurs="0" />
                         <xs:element name="Variant" type="tns:Variant" minOccurs="0" />
+                        <xs:any namespace="##other" minOccurs="0" processContents="lax" />
                       </xs:choice>
                     </xs:complexType>
                   </xs:element>

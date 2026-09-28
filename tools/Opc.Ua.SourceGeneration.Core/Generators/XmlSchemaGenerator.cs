@@ -388,8 +388,14 @@ namespace Opc.Ua.SourceGeneration
             return false;
         }
 
+        /// <summary>
+        /// OPC 10000-6 5.3.6: the first element of a structure with optional
+        /// fields is the (mandatory) bit mask, typed xs:unsignedLong as in the
+        /// example of the clause; the 32 bit mask XmlEncoder writes is a
+        /// valid value of it.
+        /// </summary>
         private const string kEncodingMaskElement =
-            "<xs:element name=\"EncodingMask\" type=\"xs:unsignedInt\" minOccurs=\"0\" />";
+            "<xs:element name=\"EncodingMask\" type=\"xs:unsignedLong\" />";
 
         private TemplateString LoadTemplate_XmlTypeFields(ILoadContext context)
         {
@@ -464,26 +470,14 @@ namespace Opc.Ua.SourceGeneration
 
             if (field.ValueRank == ValueRank.OneOrMoreDimensions)
             {
-                // An inline matrix (OPC 10000-6 5.3.4). XmlEncoder writes a
-                // matrix of a concrete structure as the Dimensions and
-                // Elements (ua namespace) directly inside the field element,
-                // any other matrix as the Matrix element of a Variant.
-                context.Out.WriteLine("<xs:element name=\"{0}\" minOccurs=\"0\" nillable=\"true\">", fieldName);
-                context.Out.WriteLine("  <xs:complexType>");
-                context.Out.WriteLine("    <xs:sequence>");
-                if (DataTypeGenerator.IsConcreteEncodeableMatrix(field))
-                {
-                    context.Out.WriteLine(
-                        "      <xs:any namespace=\"{0}\" minOccurs=\"0\" maxOccurs=\"2\" processContents=\"lax\" />",
-                        Namespaces.OpcUaXsd);
-                }
-                else
-                {
-                    context.Out.WriteLine("      <xs:element ref=\"ua:Matrix\" minOccurs=\"0\" />");
-                }
-                context.Out.WriteLine("    </xs:sequence>");
-                context.Out.WriteLine("  </xs:complexType>");
-                context.Out.WriteLine("</xs:element>");
+                // "Multi-dimensional Array parameters are encoded using the
+                // Matrix type" (OPC 10000-6 5.3.4, 5.3.1.17): the field element
+                // itself is of type Matrix and holds the Dimensions and
+                // Elements, for every element type (built-in, enumeration,
+                // Variant, structure, subtyped structure) - no Matrix wrapper.
+                context.Out.WriteLine(
+                    "<xs:element name=\"{0}\" type=\"ua:Matrix\" minOccurs=\"0\" nillable=\"true\" />",
+                    fieldName);
                 return null;
             }
 
