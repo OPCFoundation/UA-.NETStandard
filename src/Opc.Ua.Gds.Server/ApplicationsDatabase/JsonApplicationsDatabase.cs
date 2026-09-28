@@ -115,22 +115,66 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         /// <remarks>
         /// The database is written to a temporary file which then replaces
         /// the database file, so a crash during the write does not leave a
-        /// truncated database behind.
+        /// truncated database behind. A symbolic link is followed so its
+        /// target is updated, the file mode of the database file is kept on
+        /// Unix, and a database file that cannot be replaced (e.g. a
+        /// single-file bind mount) is written in place instead.
         /// </remarks>
         public override void Save()
         {
             string json = JsonSerializer.Serialize(
                 this, GdsApplicationsDatabaseJsonContext.Default.JsonApplicationsDatabase);
-            string tempFileName = FileName + ".tmp";
+            string fileName = ResolveLinkTarget(FileName);
+            string tempFileName = fileName + ".tmp";
             File.WriteAllText(tempFileName, json);
-            if (File.Exists(FileName))
+            try
             {
-                File.Replace(tempFileName, FileName, null);
+                if (File.Exists(fileName))
+                {
+#if NET8_0_OR_GREATER
+                    if (!OperatingSystem.IsWindows())
+                    {
+                        File.SetUnixFileMode(tempFileName, File.GetUnixFileMode(fileName));
+                    }
+#endif
+                    File.Replace(tempFileName, fileName, null);
+                }
+                else
+                {
+                    File.Move(tempFileName, fileName);
+                }
             }
-            else
+            catch (IOException)
             {
-                File.Move(tempFileName, FileName);
+                // The database file cannot be replaced by another file (a
+                // bind mount, or a handle open without delete sharing):
+                // update it in place as a last resort.
+                File.WriteAllText(fileName, json);
+                File.Delete(tempFileName);
             }
+        }
+
+        /// <summary>
+        /// Returns the final target of <paramref name="fileName"/> when it is
+        /// a symbolic link, so a save replaces the target and not the link.
+        /// </summary>
+        private static string ResolveLinkTarget(string fileName)
+        {
+#if NET8_0_OR_GREATER
+            try
+            {
+                FileSystemInfo? target = new FileInfo(fileName).ResolveLinkTarget(returnFinalTarget: true);
+                if (target != null)
+                {
+                    return target.FullName;
+                }
+            }
+            catch (IOException)
+            {
+                // The database file does not exist yet.
+            }
+#endif
+            return fileName;
         }
 
         /// <summary>

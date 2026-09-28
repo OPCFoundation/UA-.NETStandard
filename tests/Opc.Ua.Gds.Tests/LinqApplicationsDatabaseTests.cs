@@ -380,6 +380,105 @@ namespace Opc.Ua.Gds.Tests
         }
 
         /// <summary>
+        /// A database file that cannot be replaced by another file (on Unix a
+        /// single-file bind mount; here a handle without delete sharing) is
+        /// updated in place.
+        /// </summary>
+        [Test]
+        public void SaveUpdatesDatabaseFileThatCannotBeReplaced()
+        {
+            string fileName = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".json");
+            try
+            {
+                var database = JsonApplicationsDatabase.Load(fileName);
+                database.RegisterApplication(CreateServerApplication("urn:test:a", "ServerA"));
+
+                using (new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                {
+                    database.RegisterApplication(CreateServerApplication("urn:test:b", "ServerB"));
+                }
+
+                database = JsonApplicationsDatabase.Load(fileName);
+                Assert.That(database.FindApplications("urn:test:a"), Has.Length.EqualTo(1));
+                Assert.That(database.FindApplications("urn:test:b"), Has.Length.EqualTo(1));
+                Assert.That(File.Exists(fileName + ".tmp"), Is.False);
+            }
+            finally
+            {
+                File.Delete(fileName);
+                File.Delete(fileName + ".tmp");
+            }
+        }
+
+#if NET8_0_OR_GREATER
+        /// <summary>
+        /// A database file that is a symbolic link keeps being a link: the
+        /// save updates the link target.
+        /// </summary>
+        [Test]
+        public void SaveThroughSymbolicLinkUpdatesTheTarget()
+        {
+            string target = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".json");
+            string link = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".json");
+            try
+            {
+                File.WriteAllText(target, string.Empty);
+                try
+                {
+                    File.CreateSymbolicLink(link, target);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    Assert.Ignore("Creating a symbolic link is not permitted: " + ex.Message);
+                }
+
+                var database = JsonApplicationsDatabase.Load(link);
+                database.RegisterApplication(CreateServerApplication("urn:test:a", "ServerA"));
+
+                Assert.That(new FileInfo(link).LinkTarget, Is.Not.Null);
+                Assert.That(
+                    JsonApplicationsDatabase.Load(target).FindApplications("urn:test:a"),
+                    Has.Length.EqualTo(1));
+            }
+            finally
+            {
+                File.Delete(link);
+                File.Delete(target);
+            }
+        }
+
+        /// <summary>
+        /// The save keeps the file mode an administrator set on the database.
+        /// </summary>
+        [Test]
+        public void SaveKeepsUnixFileMode()
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                Assert.Ignore("Unix file modes do not exist on Windows.");
+                return;
+            }
+
+            string fileName = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".json");
+            try
+            {
+                File.WriteAllText(fileName, string.Empty);
+                const UnixFileMode mode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+                File.SetUnixFileMode(fileName, mode);
+
+                var database = JsonApplicationsDatabase.Load(fileName);
+                database.RegisterApplication(CreateServerApplication("urn:test:a", "ServerA"));
+
+                Assert.That(File.GetUnixFileMode(fileName), Is.EqualTo(mode));
+            }
+            finally
+            {
+                File.Delete(fileName);
+            }
+        }
+#endif
+
+        /// <summary>
         /// OPC 10000-12 §7.9.4: the private key password shall not be persisted.
         /// </summary>
         [Test]
