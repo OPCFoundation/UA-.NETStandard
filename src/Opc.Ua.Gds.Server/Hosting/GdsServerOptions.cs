@@ -165,9 +165,10 @@ namespace Opc.Ua.Gds.Server.Hosting
         /// empty, the mandatory <c>DefaultApplicationGroup</c> (Id
         /// <c>Default</c>, <c>RsaSha256ApplicationCertificateType</c>) is
         /// configured with its CA under
-        /// <c>{BaseCertificateGroupStorePath}/default</c>.
+        /// <c>{BaseCertificateGroupStorePath}/default</c>. Bindable from
+        /// configuration, e.g. <c>OpcUa:Gds:Server:CertificateGroups:0:Id</c>.
         /// </summary>
-        public IList<CertificateGroupConfiguration> CertificateGroups { get; } = [];
+        public IList<GdsCertificateGroupOptions> CertificateGroups { get; } = [];
 
         /// <summary>
         /// Default subject-name suffix appended to certificates issued

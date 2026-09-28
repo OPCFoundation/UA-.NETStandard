@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -185,9 +186,7 @@ namespace Opc.Ua.Gds.Server.Hosting
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            string appName = string.IsNullOrEmpty(m_options.ApplicationName)
-                ? "GlobalDiscoveryServer"
-                : m_options.ApplicationName;
+            string appName = ResolveApplicationName(m_options);
 
             string pkiRoot = string.IsNullOrEmpty(m_options.PkiRoot)
                 ? DefaultPkiRoot.Get(appName, m_logger)
@@ -244,7 +243,7 @@ namespace Opc.Ua.Gds.Server.Hosting
                     new XmlQualifiedName(
                         nameof(GlobalDiscoveryServerConfiguration),
                         Namespaces.OpcUaGds + "Configuration.xsd"),
-                    BuildGdsConfiguration(pkiRoot))
+                    BuildGdsConfiguration(m_options, pkiRoot))
                 .CreateAsync(stoppingToken)
                 .ConfigureAwait(false);
 
@@ -367,32 +366,47 @@ namespace Opc.Ua.Gds.Server.Hosting
             base.Dispose();
         }
 
-        private GlobalDiscoveryServerConfiguration BuildGdsConfiguration(string pkiRoot)
+        /// <summary>
+        /// The application name the GDS runs as: <see cref="GdsServerOptions.ApplicationName"/>
+        /// or <c>GlobalDiscoveryServer</c> when it is empty.
+        /// </summary>
+        internal static string ResolveApplicationName(GdsServerOptions options)
         {
-            string authoritiesStorePath = string.IsNullOrEmpty(m_options.AuthoritiesStorePath)
+            return string.IsNullOrEmpty(options.ApplicationName)
+                ? "GlobalDiscoveryServer"
+                : options.ApplicationName;
+        }
+
+        internal static GlobalDiscoveryServerConfiguration BuildGdsConfiguration(
+            GdsServerOptions options,
+            string pkiRoot)
+        {
+            string authoritiesStorePath = string.IsNullOrEmpty(options.AuthoritiesStorePath)
                 ? Path.Combine(pkiRoot, "CA", "authorities")
-                : m_options.AuthoritiesStorePath;
+                : options.AuthoritiesStorePath;
 
             string applicationCertificatesStorePath = string.IsNullOrEmpty(
-                m_options.ApplicationCertificatesStorePath)
+                options.ApplicationCertificatesStorePath)
                 ? Path.Combine(pkiRoot, "applications")
-                : m_options.ApplicationCertificatesStorePath;
+                : options.ApplicationCertificatesStorePath;
 
             string baseCertificateGroupStorePath = string.IsNullOrEmpty(
-                m_options.BaseCertificateGroupStorePath)
+                options.BaseCertificateGroupStorePath)
                 ? Path.Combine(pkiRoot, "CA")
-                : m_options.BaseCertificateGroupStorePath;
+                : options.BaseCertificateGroupStorePath;
 
             string defaultSubjectNameContext = string.IsNullOrEmpty(
-                m_options.DefaultSubjectNameContext)
+                options.DefaultSubjectNameContext)
                 ? ",O=OPC Foundation,DC=localhost"
-                : m_options.DefaultSubjectNameContext;
+                : options.DefaultSubjectNameContext;
 
             // OPC 10000-12 §7.8.3.3: the DefaultApplicationGroup is mandatory,
             // without a certificate group the GDS cannot issue certificates.
-            ArrayOf<CertificateGroupConfiguration> certificateGroups = m_options.CertificateGroups.Count > 0
-                ? m_options.CertificateGroups.ToArrayOf()
-                : [CreateDefaultApplicationGroup(baseCertificateGroupStorePath)];
+            ArrayOf<CertificateGroupConfiguration> certificateGroups = options.CertificateGroups.Count > 0
+                ? options.CertificateGroups
+                    .Select(group => ToCertificateGroupConfiguration(group, baseCertificateGroupStorePath))
+                    .ToArrayOf()
+                : [CreateDefaultApplicationGroup(ResolveApplicationName(options), baseCertificateGroupStorePath)];
 
             return new GlobalDiscoveryServerConfiguration
             {
@@ -405,15 +419,37 @@ namespace Opc.Ua.Gds.Server.Hosting
             };
         }
 
-        private CertificateGroupConfiguration CreateDefaultApplicationGroup(
+        private static CertificateGroupConfiguration CreateDefaultApplicationGroup(
+            string applicationName,
             string baseCertificateGroupStorePath)
         {
             return new CertificateGroupConfiguration
             {
                 Id = "Default",
                 CertificateTypes = [nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)],
-                SubjectName = $"CN={m_options.ApplicationName} CA, O=OPC Foundation",
+                SubjectName = $"CN={applicationName} CA, O=OPC Foundation",
                 BaseStorePath = Path.Combine(baseCertificateGroupStorePath, "default")
+            };
+        }
+
+        private static CertificateGroupConfiguration ToCertificateGroupConfiguration(
+            GdsCertificateGroupOptions group,
+            string baseCertificateGroupStorePath)
+        {
+            return new CertificateGroupConfiguration
+            {
+                Id = group.Id,
+                CertificateTypes = group.CertificateTypes.ToArrayOf(),
+                SubjectName = group.SubjectName,
+                BaseStorePath = string.IsNullOrEmpty(group.BaseStorePath)
+                    ? Path.Combine(baseCertificateGroupStorePath, group.Id)
+                    : group.BaseStorePath,
+                DefaultCertificateLifetime = group.DefaultCertificateLifetime,
+                DefaultCertificateKeySize = group.DefaultCertificateKeySize,
+                DefaultCertificateHashSize = group.DefaultCertificateHashSize,
+                CACertificateLifetime = group.CACertificateLifetime,
+                CACertificateKeySize = group.CACertificateKeySize,
+                CACertificateHashSize = group.CACertificateHashSize
             };
         }
 
