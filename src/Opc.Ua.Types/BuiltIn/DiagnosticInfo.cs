@@ -576,14 +576,16 @@ namespace Opc.Ua
                     return false;
                 }
 
+                if (depth >= MaxInnerDepth)
+                {
+                    // ignore the remaining inner diagnostic info on both sides
+                    // and consider it equal (GetHashCode stops here as well).
+                    return true;
+                }
+
                 if (InnerDiagnosticInfo != null)
                 {
-                    if (depth < MaxInnerDepth)
-                    {
-                        return InnerDiagnosticInfo.Equals(value.InnerDiagnosticInfo, depth + 1);
-                    }
-                    // ignore the remaining inner diagnostic info and consider it equal.
-                    return true;
+                    return InnerDiagnosticInfo.Equals(value.InnerDiagnosticInfo, depth + 1);
                 }
 
                 return value.InnerDiagnosticInfo == null;

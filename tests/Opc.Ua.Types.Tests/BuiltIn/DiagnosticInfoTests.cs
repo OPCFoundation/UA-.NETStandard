@@ -544,6 +544,28 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
+        public void EqualsIsSymmetricWhenOnlyOneSideGoesBeyondMaxDepth()
+        {
+            // A1-7: a chain deeper than MaxInnerDepth and its truncated copy
+            // must compare equal in both directions (they hash alike).
+            var deep = new DiagnosticInfo(7, 0, 0, 0, null);
+            for (int i = 0; i <= DiagnosticInfo.MaxInnerDepth; i++)
+            {
+                deep = new DiagnosticInfo(1, 2, 3, 4, null) { InnerDiagnosticInfo = deep };
+            }
+            var truncated = new DiagnosticInfo(deep);
+            bool forward = deep.Equals(truncated);
+            bool backward = truncated.Equals(deep);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(forward, Is.True);
+                Assert.That(backward, Is.True);
+                Assert.That(deep.GetHashCode(), Is.EqualTo(truncated.GetHashCode()));
+            });
+        }
+
+        [Test]
         public void GetHashCodeReturnsConsistentValue()
         {
             var di = new DiagnosticInfo(1, 2, 3, 4, "test");
