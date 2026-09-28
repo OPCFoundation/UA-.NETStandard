@@ -270,16 +270,33 @@ namespace Opc.Ua.Di.Client
                 Opc.Ua.Di.ObjectTypeIds.FunctionalGroupType;
             NodeId refTypeId = Opc.Ua.ReferenceTypeIds.HasComponent;
 
-            (_, _, ArrayOf<ReferenceDescription> references) = await Session.BrowseAsync(
-                requestHeader: null,
-                view: null,
-                DeviceNodeId,
-                maxResultsToReturn: 0,
-                BrowseDirection.Forward,
-                refTypeId,
-                includeSubtypes: true,
-                (uint)NodeClass.Object,
-                ct).ConfigureAwait(false);
+            // A raw single BrowseAsync call silently drops everything past
+            // the first continuation point on a server that paginates (a
+            // device with many functional groups and components in one
+            // HasComponent set). Browser.BrowseAsync(NodeId, ct) drains
+            // BrowseNext until the continuation point is exhausted.
+            var browser = new Browser(Session, new BrowserOptions
+            {
+                BrowseDirection = BrowseDirection.Forward,
+                ReferenceTypeId = refTypeId,
+                IncludeSubtypes = true,
+                NodeClassMask = (int)NodeClass.Object,
+                ResultMask = (uint)BrowseResultMask.All
+            });
+
+            // A bad browse status yields no functional groups rather than
+            // an exception, matching the enumerator's other empty-result
+            // paths (an unreadable device should not crash a client walking
+            // its topology).
+            ArrayOf<ReferenceDescription> references;
+            try
+            {
+                references = await browser.BrowseAsync(DeviceNodeId, ct).ConfigureAwait(false);
+            }
+            catch (ServiceResultException ex) when (StatusCode.IsBad(ex.StatusCode))
+            {
+                yield break;
+            }
 
             var snapshot =
                 new ReferenceDescription[references.Count];

@@ -219,6 +219,20 @@ namespace Opc.Ua.Di.Tests
             var nsTable = new NamespaceTable();
             nsTable.GetIndexOrAppend(global::Opc.Ua.Di.Namespaces.OpcUaDi);
             mock.SetupGet(s => s.NamespaceUris).Returns(nsTable);
+
+            // Browser reads Session.MessageContext.Telemetry in its own
+            // constructor before anything else, to create its logger.
+            mock.SetupGet(s => s.MessageContext)
+                .Returns(ServiceMessageContext.Create(DefaultTelemetry.Create(_ => { })));
+
+            // Browser reads these three properties as soon as it is attached
+            // to a session (DiTopologyClient's BrowseChildrenAsync now goes
+            // through Browser so pagination is not silently dropped).
+            // ISession declares OperationLimits/ServerCapabilities
+            // non-nullable, so a real session always has them.
+            mock.SetupGet(s => s.OperationLimits).Returns(new OperationLimits());
+            mock.SetupGet(s => s.ServerCapabilities).Returns(new ServerCapabilities());
+            mock.SetupGet(s => s.ContinuationPointPolicy).Returns(ContinuationPointPolicy.Default);
             return mock;
         }
 
