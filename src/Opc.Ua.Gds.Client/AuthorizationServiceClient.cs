@@ -314,7 +314,16 @@ namespace Opc.Ua.Gds.Client
             }
 
             object? boxed = outputArguments[index].AsBoxedObject(Variant.BoxingBehavior.Legacy);
-            return boxed is byte[] bytes ? ByteString.From(bytes) : default;
+            return boxed switch
+            {
+                null => default,
+                byte[] bytes => ByteString.From(bytes),
+                _ => throw ServiceResultException.Create(
+                    StatusCodes.BadTypeMismatch,
+                    "AuthorizationService output argument {0} has unexpected type {1}.",
+                    index,
+                    boxed.GetType().Name)
+            };
         }
 
         private static Guid GetGuidOutput(ArrayOf<Variant> outputArguments, int index)

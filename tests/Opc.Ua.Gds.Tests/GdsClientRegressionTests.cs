@@ -272,6 +272,44 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
         }
 
+        /// <summary>
+        /// A wrongly typed ServiceData output is rejected instead of being read as empty.
+        /// </summary>
+        [Test]
+        public void AuthorizationServiceWronglyTypedServiceDataThrowsTypeMismatch()
+        {
+            ServiceMessageContext messageContext = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
+            var session = new Mock<ISession>();
+            session.SetupGet(s => s.MessageContext).Returns(messageContext);
+            session.SetupGet(s => s.NamespaceUris).Returns(messageContext.NamespaceUris);
+            session
+                .Setup(s => s.BrowseAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ViewDescription>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<ArrayOf<BrowseDescription>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<BrowseResponse>(new BrowseResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results = [new BrowseResult { StatusCode = StatusCodes.Good, References = [] }]
+                }));
+            session
+                .Setup(s => s.CallAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<CallMethodRequest>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<CallResponse>(CreateCallResponse(
+                    new Variant("not a ByteString"),
+                    new Variant(new Uuid(Guid.NewGuid())))));
+            var client = new AuthorizationServiceClient(session.Object, new NodeId(1000u, 2));
+
+            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await client.StartRequestTokenAsync("urn:resource", "jwt", ByteString.Empty).ConfigureAwait(false));
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
+        }
+
         private static CallResponse CreateCallResponse(params Variant[] outputs)
         {
             return new CallResponse
