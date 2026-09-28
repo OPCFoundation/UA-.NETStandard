@@ -28,6 +28,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Text;
 using System.Text.Json;
 using NUnit.Framework;
@@ -139,6 +140,60 @@ namespace Opc.Ua.Types.Tests.Wot
 
             Assert.That(exact.ToArray(), Is.EqualTo(json));
             Assert.That(document.ToCanonicalUtf8(), Is.Not.EqualTo(json));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void LeadingUtf8PreamblePreservesOriginalBytesAndCanonicalValue(bool includePreamble)
+        {
+            byte[] json = Encoding.UTF8.GetBytes("{ \"title\" : \"T\", \"vendor:x\" : 2 }");
+            byte[] input = includePreamble ? [0xEF, 0xBB, 0xBF, .. json] : [.. json];
+            byte[] expected = [.. input];
+            using WotDocument document = WotDocument.Parse(input);
+            input[0] = 0;
+
+            Assert.That(document.Title, Is.EqualTo("T"));
+            Assert.That(document.Utf8Json.ToArray(), Is.EqualTo(expected));
+            using var output = new System.IO.MemoryStream();
+            document.Write(output);
+            Assert.That(output.ToArray(), Is.EqualTo(expected));
+            Assert.That(Encoding.UTF8.GetString(document.ToCanonicalUtf8()),
+                Is.EqualTo("{\"title\":\"T\",\"vendor:x\":2}"));
+        }
+
+        [TestCase(-1)]
+        [TestCase(0)]
+        [TestCase(1)]
+        public void DocumentByteLimitIncludesUtf8Preamble(int adjustment)
+        {
+            byte[] input = [0xEF, 0xBB, 0xBF, (byte)'{', (byte)'}'];
+            var options = new WotNodeSetConverterOptions { MaxJsonDocumentSize = input.Length + adjustment };
+            if (adjustment < 0)
+            {
+                Assert.That(() => WotDocument.Parse(input, options), Throws.TypeOf<FormatException>());
+            }
+            else
+            {
+                using WotDocument document = WotDocument.Parse(input, options);
+                Assert.That(document.RootElement.ValueKind, Is.EqualTo(JsonValueKind.Object));
+                Assert.That(document.Utf8Json.ToArray(), Is.EqualTo(input));
+            }
+        }
+
+        [TestCase("\uFEFF\uFEFF{}")]
+        [TestCase(" \uFEFF{}")]
+        [TestCase("{}\uFEFF")]
+        public void PreambleIsNotAcceptedOutsideTheSingleLeadingPosition(string json)
+        {
+            Assert.That(() => WotDocument.Parse(Encoding.UTF8.GetBytes(json)), Throws.InstanceOf<JsonException>());
+        }
+
+        [TestCase(1)]
+        [TestCase(2)]
+        public void TruncatedUtf8PreambleIsRejected(int length)
+        {
+            byte[] preamble = [0xEF, 0xBB, 0xBF];
+            Assert.That(() => WotDocument.Parse(preamble.AsMemory(0, length)), Throws.InstanceOf<JsonException>());
         }
     }
 }

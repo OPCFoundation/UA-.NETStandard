@@ -357,6 +357,12 @@ This comparison does not rewrite retained JSON or change preservation digests.
 Annex G distinguishes three measurements over a JSON value, and this
 implementation keeps them apart. Two of them are digests; the third is a size.
 
+`WotDocument` accepts one leading UTF-8 byte-order mark for parsing while retaining
+it in `Utf8Json` and exact `Write` output. The full received length, including the
+preamble, counts toward the document byte limit. Canonical output represents the
+JSON value and does not include the preamble. Repeated, misplaced or incomplete
+preambles remain invalid JSON input.
+
 * **A digest over retained bytes.** The `Sha256` of a `WoTJsonResidue` member is
   the SHA-256 of the **decoded residue bytes exactly** — the bytes the producer
   encoded, and the bytes a verifier decoded. Nothing is canonicalized, reordered,

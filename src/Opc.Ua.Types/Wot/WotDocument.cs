@@ -931,6 +931,10 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Parses a UTF-8 WoT document while preserving its original bytes.
         /// </summary>
+        /// <remarks>
+        /// A single leading UTF-8 byte-order mark is retained and counts toward the byte limit,
+        /// but is not part of the parsed JSON value.
+        /// </remarks>
         /// <param name="utf8Json">The UTF-8 encoded document.</param>
         /// <param name="options">Resource limits; defaults are used when omitted.</param>
         /// <returns>The parsed, byte-preserving document.</returns>
@@ -947,16 +951,7 @@ namespace Opc.Ua.Wot
                     $"WoT document exceeds the configured {options.MaxJsonDocumentSize} byte limit.");
             }
 
-            byte[] copy = utf8Json.ToArray();
-            var document = JsonDocument.Parse(
-                copy,
-                new JsonDocumentOptions
-                {
-                    AllowTrailingCommas = false,
-                    CommentHandling = JsonCommentHandling.Disallow,
-                    MaxDepth = options.MaxJsonDepth
-                });
-            return new WotDocument(copy, document);
+            return FromOwnedBytes(utf8Json.ToArray(), options);
         }
 
         /// <summary>
@@ -1106,8 +1101,14 @@ namespace Opc.Ua.Wot
             byte[] utf8Json,
             WotNodeSetConverterOptions options)
         {
+            ReadOnlyMemory<byte> json = utf8Json;
+            ReadOnlySpan<byte> preamble = [0xEF, 0xBB, 0xBF];
+            if (json.Span.StartsWith(preamble))
+            {
+                json = json.Slice(3);
+            }
             var document = JsonDocument.Parse(
-                utf8Json,
+                json,
                 new JsonDocumentOptions
                 {
                     AllowTrailingCommas = false,
