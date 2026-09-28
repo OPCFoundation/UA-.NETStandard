@@ -82,9 +82,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         public IWotInvocationProjectionHost Observe(
             Action<ArrayOf<WotProjectionChange>> published,
-            Action<ArrayOf<WotProjectionChange>>? validate = null)
+            Action<ArrayOf<WotProjectionChange>>? validate = null,
+            Action<ArrayOf<WotProjectionChange>>? prepare = null)
         {
-            return new ObservedHost(Host, published, validate);
+            return new ObservedHost(Host, published, validate, prepare);
         }
 
         public async ValueTask DisposeAsync()
@@ -111,20 +112,22 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         private sealed class ObservedHost(
             LifecycleWotProjectionHost inner,
             Action<ArrayOf<WotProjectionChange>> published,
-            Action<ArrayOf<WotProjectionChange>>? validate) : IWotInvocationProjectionHost
+            Action<ArrayOf<WotProjectionChange>>? validate,
+            Action<ArrayOf<WotProjectionChange>>? prepare) : IWotInvocationProjectionHost
         {
             public bool SupportsPreparedPublication => inner.SupportsPreparedPublication;
             public ArrayOf<WoTAtomicityEnum> SupportedAtomicities => inner.SupportedAtomicities;
 
             public IWotProjectionPublicationCapture CapturePublication()
             {
-                return new ObservedCapture(inner.CapturePublication(), published, validate);
+                return new ObservedCapture(inner.CapturePublication(), published, validate, prepare);
             }
 
             public async ValueTask<IWotPreparedProjectionPublication> PrepareAsync(
                 ArrayOf<WotProjectionChange> changes, IWotPreparedViewPublication? views = null,
                 CancellationToken cancellationToken = default)
             {
+                prepare?.Invoke(changes);
                 IWotPreparedProjectionPublication unit = await inner.PrepareAsync(changes, views, cancellationToken)
                     .ConfigureAwait(false);
                 return new ObservedUnit(unit, changes, published);
@@ -160,20 +163,22 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         private sealed class ObservedCapture(
             IWotProjectionPublicationCapture inner,
             Action<ArrayOf<WotProjectionChange>> published,
-            Action<ArrayOf<WotProjectionChange>>? validate)
+            Action<ArrayOf<WotProjectionChange>>? validate,
+            Action<ArrayOf<WotProjectionChange>>? prepare)
             : IWotProjectionPublicationCapture
         {
             public async ValueTask<IWotProjectionPublication> BeginAsync(CancellationToken cancellationToken = default)
             {
                 IWotProjectionPublication invocation = await inner.BeginAsync(cancellationToken).ConfigureAwait(false);
-                return new ObservedInvocation(invocation, published, validate);
+                return new ObservedInvocation(invocation, published, validate, prepare);
             }
         }
 
         private sealed class ObservedInvocation(
             IWotProjectionPublication inner,
             Action<ArrayOf<WotProjectionChange>> published,
-            Action<ArrayOf<WotProjectionChange>>? validate)
+            Action<ArrayOf<WotProjectionChange>>? validate,
+            Action<ArrayOf<WotProjectionChange>>? prepare)
             : IWotProjectionValidationPublication
         {
             public bool IsCurrent => inner.IsCurrent;
@@ -196,6 +201,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 ArrayOf<WotProjectionChange> changes, IWotPreparedViewPublication? views = null,
                 CancellationToken cancellationToken = default)
             {
+                prepare?.Invoke(changes);
                 IWotPreparedProjectionPublication unit = await inner.PrepareAsync(changes, views, cancellationToken)
                     .ConfigureAwait(false);
                 return new ObservedUnit(unit, changes, published);
