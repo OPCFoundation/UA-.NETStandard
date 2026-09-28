@@ -1538,17 +1538,11 @@ namespace Opc.Ua.Export
         /// In a NodeSet server index 0 is always the local server and index N refers to
         /// <c>ServerUris[N - 1]</c> (Part 6 F.2), so the table starts with the local server
         /// URI of the context. Without a known local server URI the indexes cannot be mapped
-        /// and are left as written.
+        /// and are left as written. The local server URI is seeded even when the NodeSet
+        /// declares no ServerUris, otherwise local ids would be written as svr=65535.
         /// </remarks>
         private StringTable? CreateServerUriTable(IServiceMessageContext messageContext)
         {
-            var serverUris = new StringTable();
-
-            if (ServerUris == null || ServerUris.Length == 0)
-            {
-                return serverUris;
-            }
-
             string? localServerUri = messageContext.ServerUris?.GetString(0);
 
             if (string.IsNullOrEmpty(localServerUri))
@@ -1556,7 +1550,13 @@ namespace Opc.Ua.Export
                 return null;
             }
 
+            var serverUris = new StringTable();
             serverUris.Append(localServerUri!);
+
+            if (ServerUris == null)
+            {
+                return serverUris;
+            }
 
             for (int ii = 0; ii < ServerUris.Length; ii++)
             {

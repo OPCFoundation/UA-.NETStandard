@@ -208,6 +208,38 @@ namespace Opc.Ua.Types.Tests.Schema
         }
 
         [Test]
+        public void ValueExportWithoutServerUrisKeepsLocalIdsLocal()
+        {
+            // Without ServerUris in the NodeSet the server table was empty, so the
+            // local server index 0 was not found and written as svr=65535.
+            var context = new SystemContext(NUnitTelemetryContext.Create())
+            {
+                NamespaceUris = new NamespaceTable(),
+                ServerUris = new StringTable()
+            };
+            context.NamespaceUris.GetIndexOrAppend("urn:test:audit");
+            context.ServerUris.Append("urn:test:local");
+
+            var variable = new BaseDataVariableState(null)
+            {
+                NodeId = new NodeId("Local", 1),
+                BrowseName = new QualifiedName("Local", 1),
+                DisplayName = new LocalizedText("Local"),
+                DataType = DataTypeIds.ExpandedNodeId,
+                ValueRank = ValueRanks.Scalar,
+                Value = new Variant(new ExpandedNodeId(new NodeId(85)))
+            };
+
+            var exported = new UANodeSet { NamespaceUris = ["urn:test:audit"] };
+            exported.Export(context, variable);
+
+            string written = exported.Items!.OfType<UAVariable>().Single().Value!.OuterXml;
+
+            Assert.That(written, Does.Contain("i=85"));
+            Assert.That(written, Does.Not.Contain("svr="));
+        }
+
+        [Test]
         public void ImportFillsStructureBaseDataTypeFromTheSupertype()
         {
             // Part 3 8.48 / Part 6 F.12: baseDataType is the direct supertype, taken
