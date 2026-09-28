@@ -1074,11 +1074,39 @@ namespace Opc.Ua.SourceGeneration
         {
             CSharpCompilation compilation =
                 OptimizationLevel.Release.CreateCompilation(assemblyName);
-            return compilation
+            compilation = compilation
                 .WithOptions(compilation.Options.WithGeneralDiagnosticOption(
                     ReportDiagnostic.Error))
                 .AddReferences(GetStackReferences());
+
+            // Generated node managers use ILogger and IAsyncDisposable. The
+            // Opc.Ua.Server output folder of a .NET Framework build contains
+            // neither Microsoft.Extensions.Logging.Abstractions nor
+            // Microsoft.Bcl.AsyncInterfaces (and the base references of that
+            // leg do not either), so reference the copies this test process
+            // loaded when they are missing. On .NET the types live in
+            // assemblies that are already referenced.
+            foreach (Type dependency in s_generatedCodeDependencies)
+            {
+                string location = dependency.Assembly.Location;
+                string fileName = Path.GetFileName(location);
+                if (!compilation.References.Any(reference => string.Equals(
+                    Path.GetFileName(reference.Display),
+                    fileName,
+                    StringComparison.OrdinalIgnoreCase)))
+                {
+                    compilation = compilation.AddReferences(
+                        MetadataReference.CreateFromFile(location));
+                }
+            }
+            return compilation;
         }
+
+        private static readonly Type[] s_generatedCodeDependencies =
+        [
+            typeof(Microsoft.Extensions.Logging.ILogger),
+            typeof(IAsyncDisposable)
+        ];
 
         private static IEnumerable<MetadataReference> GetStackReferences()
         {

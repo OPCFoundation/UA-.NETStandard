@@ -76,6 +76,18 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(content, Does.Contain("public const string Letters = \"abc\";"));
         }
 
+        /// <summary>
+        /// An empty UTF-16 resource must be a constant expression: string.Empty
+        /// is not allowed as a const initializer (CS0133).
+        /// </summary>
+        [Test]
+        public void Embed_EmptyUtf16Resource_EmitsEmptyLiteral()
+        {
+            string content = Embed(new TextResource("Nothing", string.Empty, AsUtf16: true));
+
+            Assert.That(content, Does.Contain("public const string Nothing = \"\";"));
+        }
+
         private static string Embed(Resource resource)
         {
             var fileSystem = new Mock<IFileSystem>();

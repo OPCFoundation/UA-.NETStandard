@@ -174,6 +174,39 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             Assert.That(decoded.Arr, Is.EqualTo(s_ints));
         }
 
+        /// <summary>
+        /// A null scalar field is written in XML like the typed field of its
+        /// type (OPC 10000-6 5.3.5), as Structure does, not as a nil field
+        /// that decodes to a null Variant instead of the typed value. (The
+        /// property accessor already yields a typed default for a null
+        /// property; the encoder normalizes a null Variant as well.)
+        /// </summary>
+        [Test]
+        public void XmlNullScalarFieldIsWrittenLikeATypedField()
+        {
+            ServiceMessageContext context = CreateContext();
+            var value = new XmlFieldStructure { A = 5, S = null, Arr = [1, 2] };
+
+            string xml;
+            using (var encoder = new XmlEncoder(context))
+            {
+                encoder.PushNamespace(Namespaces.OpcUaXsd);
+                encoder.WriteEncodeable("V", value, value.TypeId);
+                encoder.PopNamespace();
+                xml = encoder.CloseAndReturnText();
+            }
+
+            Assert.That(xml, Does.Not.Contain("nil"), xml);
+
+            using var parser = new XmlParser(xml, context);
+            parser.PushNamespace(Namespaces.OpcUaXsd);
+            XmlFieldStructure decoded = parser.ReadEncodeable<XmlFieldStructure>("V");
+            parser.PopNamespace();
+            Assert.That(decoded.A, Is.EqualTo(5));
+            Assert.That(decoded.S, Is.Null.Or.Empty);
+            Assert.That(decoded.Arr, Is.EqualTo(s_ints));
+        }
+
         private static readonly int[] s_ints = [1, 2];
 
         private static byte[] Encode(ServiceMessageContext context, NumberStructure value)

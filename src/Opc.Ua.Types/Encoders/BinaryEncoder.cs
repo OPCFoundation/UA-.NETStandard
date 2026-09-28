@@ -2252,15 +2252,12 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private void WriteInlineMatrixDimensions(int[] dimensions, int count)
         {
-            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < count)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
-                    "MaxArrayLength {0} < {1}",
-                    Context.MaxArrayLength,
-                    count);
-            }
-            WriteInt32Array(null, MatrixOf.GetInlineMatrixDimensions(dimensions, count));
+            WriteInt32Array(
+                null,
+                MatrixOf.GetValidatedInlineMatrixDimensions(
+                    dimensions,
+                    count,
+                    Context.MaxArrayLength));
         }
 
         /// <summary>

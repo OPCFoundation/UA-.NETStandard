@@ -783,10 +783,12 @@ namespace Opc.Ua
                 WriteNull(fieldName);
                 return;
             }
-            // The inline matrix has at least two dimensions (5.4.5, 5.2.5).
-            int[] dimensions = MatrixOf.GetInlineMatrixDimensions(
+            // The inline matrix has at least two dimensions (5.4.5, 5.2.5)
+            // and a shape the decoder accepts (limits also for empty ones).
+            int[] dimensions = MatrixOf.GetValidatedInlineMatrixDimensions(
                 values.Dimensions,
-                values.Count);
+                values.Count,
+                Context.MaxArrayLength);
             m_writer.WritePropertyName(fieldName!);
             StartObject();
             WriteInt32Array(JsonProperties.Dimensions, dimensions);
@@ -2376,13 +2378,19 @@ namespace Opc.Ua
                 // MatrixOf (single zero dimension) is written as 0 x 0.
                 if (writeRawValue)
                 {
-                    dim = MatrixOf.GetInlineMatrixDimensions(
+                    // The shape also bounds an empty matrix: a decoder
+                    // rejects [100000, 100000, 0] beyond MaxArrayLength.
+                    int elementCount = dim.Length == 1
+                        ? dim[0]
+                        : MatrixOf.TryGetInlineMatrixElementCount(dim, out int count, out _)
+                            ? count
+                            : -1;
+                    dim = MatrixOf.GetValidatedInlineMatrixDimensions(
                         dim,
-                        dim.Length == 1 ? dim[0] : 0);
+                        elementCount,
+                        Context.MaxArrayLength);
                 }
-                if (writeRawValue
-                    ? !MatrixOf.IsValidInlineMatrix(dim)
-                    : !MatrixOf.IsValidMatrix(dim))
+                else if (!MatrixOf.IsValidMatrix(dim))
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadEncodingError,

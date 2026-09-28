@@ -54,6 +54,7 @@ namespace Opc.Ua.Types.Tests.Encoders
     public class InlineMatrixDeclaredRankTests
     {
         private const uint BadEncodingLimitsExceeded = 0x80080000;
+        private const uint BadEncodingErrorCode = 0x80060000;
         private static readonly int[] s_zeroByZero = [0, 0];
         private static readonly int[] s_zeroByTwo = [0, 2];
         private static readonly int[] s_zeroByThree = [0, 3];
@@ -339,6 +340,39 @@ namespace Opc.Ua.Types.Tests.Encoders
                     pairs.ToArrayOf().ToMatrix(11, 10),
                     new ExpandedNodeId(77790u)));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        /// <summary>
+        /// The encoders check the shape of an empty inline matrix like the
+        /// decoders do: the product of the non zero dimensions is bounded by
+        /// MaxArrayLength (and must fit an array), so they do not emit a
+        /// shape the peer rejects.
+        /// </summary>
+        [TestCase(new[] { 0, 70000 }, BadEncodingLimitsExceeded)]
+        [TestCase(new[] { 100000, 100000, 0 }, BadEncodingErrorCode)]
+        public void EmptyInlineMatrixShapeIsBoundedByTheEncoders(int[] dimensions, uint expected)
+        {
+            ServiceMessageContext context = CreateContext();
+            context.MaxArrayLength = 65535;
+            MatrixOf<double> doubles = Array.Empty<double>().ToArrayOf().ToMatrix(dimensions);
+            MatrixOf<InlineMatrixFieldTests.Pair> pairs =
+                Array.Empty<InlineMatrixFieldTests.Pair>().ToArrayOf().ToMatrix(dimensions);
+
+            using var binary = new BinaryEncoder(context);
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => binary.WriteInlineMatrixValue("M", Variant.From(doubles)));
+            Assert.That(ex.StatusCode, Is.EqualTo(new StatusCode(expected)));
+            ex = Assert.Throws<ServiceResultException>(
+                () => binary.WriteEncodeableMatrix("M", pairs));
+            Assert.That(ex.StatusCode, Is.EqualTo(new StatusCode(expected)));
+
+            using var json = new JsonEncoder(context, JsonEncoderOptions.Verbose);
+            ex = Assert.Throws<ServiceResultException>(
+                () => json.WriteInlineMatrixValue("M", Variant.From(doubles)));
+            Assert.That(ex.StatusCode, Is.EqualTo(new StatusCode(expected)));
+            ex = Assert.Throws<ServiceResultException>(
+                () => json.WriteEncodeableMatrix("N", pairs));
+            Assert.That(ex.StatusCode, Is.EqualTo(new StatusCode(expected)));
         }
 
         /// <summary>

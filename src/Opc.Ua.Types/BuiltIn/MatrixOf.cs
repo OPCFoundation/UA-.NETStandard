@@ -915,6 +915,44 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Returns the dimensions to write for an inline matrix (see
+        /// <see cref="GetInlineMatrixDimensions(int[], int)"/>) after checking
+        /// the shape the way a decoder does: the product of the non zero
+        /// dimensions - which bounds every dimension, also of an empty matrix
+        /// such as [100000, 100000, 0] - must fit an array and must not exceed
+        /// <paramref name="maxArrayLength"/> (0 = unlimited). Writing a shape
+        /// the peer rejects would fail the whole message on the receiver.
+        /// </summary>
+        /// <exception cref="ServiceResultException">with
+        /// <see cref="StatusCodes.BadEncodingError"/> for an invalid shape or
+        /// <see cref="StatusCodes.BadEncodingLimitsExceeded"/> when the shape
+        /// exceeds <paramref name="maxArrayLength"/>.</exception>
+        internal static int[] GetValidatedInlineMatrixDimensions(
+            int[] dimensions,
+            int elementCount,
+            int maxArrayLength)
+        {
+            int[] inline = GetInlineMatrixDimensions(dimensions, elementCount);
+            if (!TryGetInlineMatrixElementCount(inline, out int count, out int shapeLength) ||
+                count != elementCount)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingError,
+                    "Cannot encode an inline matrix with inconsistent Dimensions [{0}].",
+                    string.Join(",", inline));
+            }
+            if (maxArrayLength > 0 && shapeLength > maxArrayLength)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxArrayLength {0} < {1}",
+                    maxArrayLength,
+                    shapeLength);
+            }
+            return inline;
+        }
+
+        /// <summary>
         /// Create array of T
         /// </summary>
         /// <typeparam name="T"></typeparam>

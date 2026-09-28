@@ -182,7 +182,11 @@ namespace Opc.Ua.SourceGeneration
                     _ => throw new NotSupportedException(
                         $"Unable to read text of resource {str.GetType().Name}")
                 };
-                context.Template.AddReplacement(Tokens.Resource, text.AsStringLiteral());
+                // AsStringLiteral renders an empty string as string.Empty,
+                // which is not a constant expression (CS0133 in a const).
+                context.Template.AddReplacement(
+                    Tokens.Resource,
+                    string.IsNullOrEmpty(text) ? "\"\"" : text.AsStringLiteral());
                 return context.Template.Render();
             }
 

@@ -367,8 +367,13 @@ namespace Opc.Ua.Client.ComplexTypes
                     // information, so a null Variant must still carry the
                     // field's type and shape (default scalar, null array or
                     // null inline matrix), never nothing at all.
+                    // XML writes a field like the typed writer of its type
+                    // (OPC 10000-6 5.3.5), which needs the type of a null
+                    // value too, as in Structure. (Json writes a null
+                    // Variant as a null field; an XML matrix stays nil.)
                     if (variant.IsNull &&
-                        encoder.EncodingType == EncodingType.Binary)
+                        (encoder.EncodingType == EncodingType.Binary ||
+                        (encoder.EncodingType == EncodingType.Xml && !property.TypeInfo.IsMatrix)))
                     {
                         variant = Variant.CreateDefault(property.TypeInfo);
                     }
