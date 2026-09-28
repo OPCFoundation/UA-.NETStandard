@@ -6010,6 +6010,10 @@ namespace Opc.Ua
                     return this;
                 case BuiltInType.String:
                     return new LocalizedText(GetString());
+                case BuiltInType.QualifiedName:
+                    // Part 4 Table 121: implicit, the name becomes the text
+                    // without a locale (like a String does).
+                    return new LocalizedText(GetQualifiedName().Name);
                 case >= BuiltInType.Null and <= BuiltInType.Enumeration:
                     // conversion not supported.
                     throw new InvalidCastException();
@@ -6167,6 +6171,12 @@ namespace Opc.Ua
         /// to <paramref name="targetType"/> by the ConvertToXxx methods (the
         /// value itself may still fail to convert).
         /// </summary>
+        /// <remarks>
+        /// These general-purpose conversions are a superset of Part 4 Table 121:
+        /// they also convert StatusCode, XmlElement and ExtensionObject to
+        /// String and String to StatusCode, XmlElement and ByteString. The
+        /// ContentFilter Cast operator restricts itself to Table 121.
+        /// </remarks>
         private static bool IsConversionSupported(BuiltInType sourceType, BuiltInType targetType)
         {
             targetType = targetType switch
@@ -6229,8 +6239,10 @@ namespace Opc.Ua
                     BuiltInType.ExtensionObject,
                 BuiltInType.DateTime or
                 BuiltInType.XmlElement or
-                BuiltInType.QualifiedName or
-                BuiltInType.LocalizedText => sourceType == BuiltInType.String,
+                BuiltInType.QualifiedName => sourceType == BuiltInType.String,
+                BuiltInType.LocalizedText => sourceType is
+                    BuiltInType.String or
+                    BuiltInType.QualifiedName,
                 BuiltInType.Guid => sourceType is BuiltInType.String or BuiltInType.ByteString,
                 BuiltInType.ByteString => sourceType is BuiltInType.String or BuiltInType.Guid,
                 BuiltInType.NodeId => sourceType is BuiltInType.String or BuiltInType.ExpandedNodeId,

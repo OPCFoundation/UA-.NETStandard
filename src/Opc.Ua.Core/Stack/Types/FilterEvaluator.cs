@@ -892,7 +892,39 @@ namespace Opc.Ua
                 return default; // not supported
             }
 
+            if (!IsTable121Conversion(value.TypeInfo.BuiltInType, targetType))
+            {
+                return default;
+            }
+
             return ConvertValue(value, targetType);
+        }
+
+        /// <summary>
+        /// Whether OPC 10000-4 Table 121 allows an (implicit or explicit)
+        /// conversion. <see cref="Variant.ConvertTo(BuiltInType)"/> is general
+        /// purpose and also converts pairs the table marks X; those are
+        /// rejected here so the Cast operator evaluates to NULL for them.
+        /// </summary>
+        private static bool IsTable121Conversion(BuiltInType sourceType, BuiltInType targetType)
+        {
+            if (sourceType == targetType || targetType == BuiltInType.Variant)
+            {
+                return true;
+            }
+
+            return (sourceType, targetType) switch
+            {
+                (BuiltInType.StatusCode, BuiltInType.String) or
+                (BuiltInType.String, BuiltInType.StatusCode) or
+                (BuiltInType.String, BuiltInType.XmlElement) or
+                (BuiltInType.String, BuiltInType.ByteString) or
+                (BuiltInType.XmlElement, _) or
+                (BuiltInType.ExtensionObject, _) or
+                (BuiltInType.DataValue, _) or
+                (BuiltInType.DiagnosticInfo, _) => false,
+                _ => true
+            };
         }
 
         private Variant ConvertValue(Variant value, BuiltInType targetType)

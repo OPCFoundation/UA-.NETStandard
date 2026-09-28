@@ -570,6 +570,54 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
                 Is.False);
         }
 
+        /// <summary>
+        /// OPC 10000-4 7.7.3 Table 121 marks these conversions X, so Cast is
+        /// NULL even though the general-purpose Variant converters support them.
+        /// </summary>
+        [TestCase(BuiltInType.StatusCode, BuiltInType.String)]
+        [TestCase(BuiltInType.String, BuiltInType.StatusCode)]
+        [TestCase(BuiltInType.String, BuiltInType.XmlElement)]
+        [TestCase(BuiltInType.String, BuiltInType.ByteString)]
+        [TestCase(BuiltInType.XmlElement, BuiltInType.String)]
+        [TestCase(BuiltInType.ExtensionObject, BuiltInType.String)]
+        public void CastNotInTable121IsNull(BuiltInType sourceType, BuiltInType targetType)
+        {
+            Variant value = sourceType switch
+            {
+                BuiltInType.StatusCode => new Variant(new StatusCode(0x80000000u)),
+                BuiltInType.String => Variant.From("0A0B"),
+                BuiltInType.XmlElement => new Variant(XmlElement.From("<a>1</a>")),
+                _ => new Variant(new ExtensionObject(new Argument { Name = "x" }))
+            };
+            Assert.That(value.TypeInfo.BuiltInType, Is.EqualTo(sourceType));
+            ContentFilterElement cast = Element(
+                FilterOperator.Cast,
+                new LiteralOperand(value),
+                new LiteralOperand(Variant.From(new NodeId((uint)targetType))));
+            Assert.That(
+                Filter(Element(FilterOperator.IsNull, new ElementOperand(1)), cast)
+                    .Evaluate(m_context, m_target),
+                Is.True);
+        }
+
+        /// <summary>
+        /// OPC 10000-4 7.7.3 Table 121: QualifiedName converts implicitly to
+        /// LocalizedText.
+        /// </summary>
+        [Test]
+        public void CastQualifiedNameToLocalizedTextUsesName()
+        {
+            ContentFilterElement equals = Element(
+                FilterOperator.Equals,
+                new ElementOperand(1),
+                new LiteralOperand(Variant.From(new LocalizedText("Name"))));
+            ContentFilterElement cast = Element(
+                FilterOperator.Cast,
+                new LiteralOperand(Variant.From(new QualifiedName("Name", 2))),
+                new LiteralOperand(Variant.From(DataTypeIds.LocalizedText)));
+            Assert.That(Filter(equals, cast).Evaluate(m_context, m_target), Is.True);
+        }
+
         [Test]
         public void CastWithNullStringOperandIsNull()
         {
