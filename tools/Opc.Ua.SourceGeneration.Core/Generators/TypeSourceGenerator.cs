@@ -448,12 +448,15 @@ namespace Opc.Ua.SourceGeneration
             // (Table 1: 0, false, null, ...), because a conformant decoder
             // reads a missing field as that type default. The field is
             // therefore only omitted when its value is the type default and
-            // a missing field also decodes to the type default here: a
-            // SetIfMissing field always does; an Exclude field keeps its
-            // declared default, so only when that is the type default too (no
-            // initializer, or a default literal). A field with any other or
-            // an unknown declared default is always written, and nothing is
-            // omitted when the encoder cannot omit fields (binary, Verbose).
+            // a missing field also decodes to the type default here: in JSON
+            // and for a SetIfMissing field it always does; an Exclude field
+            // missing from XML keeps its declared default, so only when that
+            // is the type default too (no initializer, or a default literal).
+            // A field with any other or an unknown declared default is always
+            // written (the Compact JsonEncoder still drops a type default by
+            // itself, which JSON decodes back to the type default), and
+            // nothing is omitted when the encoder cannot omit fields (binary,
+            // Verbose).
             if ((field.DefaultValueHandling & 1) == 0 &&
                 (IsSetIfMissing(field) ||
                     (!field.HasNonConstantInitializer && field.DefaultValueLiteral == null)))
@@ -587,16 +590,20 @@ namespace Opc.Ua.SourceGeneration
                     field.FieldName.Escape());
             }
 
-            // Without SetIfMissing a missing field keeps the declared default
-            // instead of the type default OPC 10000-6 5.4.1/5.3.5 prescribe.
-            // This is a deliberate leniency so configuration files can leave
-            // fields out; the encoder never omits a field whose declared
-            // default differs from the type default, so values this SDK
-            // writes still round trip with conformant peers.
+            // OPC 10000-6 5.4.1/5.4.2.1/5.4.7: a field missing from JSON is
+            // the type default (Table 1), so JSON (and binary) always read
+            // the field; the JSON decoder returns the type default for a
+            // missing field. Only XML keeps the declared default of a
+            // missing field (unless SetIfMissing): a deliberate leniency so
+            // configuration files that predate a field still load. The
+            // encoder never omits a field in XML whose declared default
+            // differs from the type default, so values this SDK writes
+            // still round trip with conformant peers.
             if ((field.DefaultValueHandling & 2) == 0)
             {
                 decodeLine = CoreUtils.Format(
-                    "if (decoder.HasField(\"{0}\")) {1}",
+                    "if (decoder.EncodingType != global::Opc.Ua.EncodingType.Xml || " +
+                    "decoder.HasField(\"{0}\")) {1}",
                     field.FieldName.Escape(),
                     decodeLine);
             }

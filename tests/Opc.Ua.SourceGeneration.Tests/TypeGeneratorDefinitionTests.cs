@@ -808,6 +808,98 @@ namespace Opc.Ua.SourceGeneration
             Assert.That(EncodeJson(atDeclared, JsonEncoderOptions.Compact), Does.Not.Contain("Name"));
         }
 
+        /// <summary>
+        /// E7: a field missing from JSON is the type default (OPC 10000-6
+        /// 5.4.1, 5.4.2.1, 5.4.7), not the declared initializer. The Compact
+        /// JsonEncoder drops a 0 by itself, so a 4840-initialised field set
+        /// to 0 came back as 4840. XML keeps the declared default of a
+        /// missing field so configuration files that predate a field load.
+        /// </summary>
+        [Test]
+        public void MissingJsonFieldIsTheTypeDefaultMissingXmlFieldTheDeclaredDefault()
+        {
+            const string source =
+                """
+                #nullable enable
+                using Opc.Ua;
+
+                namespace TestApp.MissingDefaults
+                {
+                    [DataType(Namespace = "urn:defs", DataTypeId = "i=1")]
+                    public partial class Endpoint
+                    {
+                        public int Port { get; set; } = 4840;
+                        public bool Enabled { get; set; } = true;
+                        public string Name { get; set; } = "opc";
+                    }
+                }
+                """;
+            Assembly assembly = CompileAndLoad(source, out _);
+            Type type = assembly.GetType("TestApp.MissingDefaults.Endpoint", throwOnError: true);
+            ServiceMessageContext context = CreateContext();
+            context.Factory.Builder.AddEncodeableTypes(assembly).Commit();
+
+            // Compact JSON round trip of the type defaults returns them.
+            var zero = (IEncodeable)Activator.CreateInstance(type);
+            Set(zero, "Port", 0);
+            Set(zero, "Enabled", false);
+            Set(zero, "Name", null);
+            string compact = EncodeCompactJson(zero);
+            Assert.That(compact, Does.Not.Contain("Port"));
+            object decoded = DecodeJson(type, compact);
+            Assert.That(Get(decoded, "Port"), Is.Zero);
+            Assert.That(Get(decoded, "Enabled"), Is.False);
+            Assert.That(Get(decoded, "Name"), Is.Null);
+
+            // A missing JSON field (a conformant peer's omission) is the
+            // type default.
+            decoded = DecodeJson(type, "{}");
+            Assert.That(Get(decoded, "Port"), Is.Zero);
+            Assert.That(Get(decoded, "Enabled"), Is.False);
+            Assert.That(Get(decoded, "Name"), Is.Null);
+
+            // A missing XML field keeps the declared default.
+            string xml = EncodeXml(context, zero);
+            foreach (string field in new[] { "Port", "Enabled", "Name" })
+            {
+                int start = xml.IndexOf("<" + field, StringComparison.Ordinal);
+                if (start < 0)
+                {
+                    continue;
+                }
+                int selfClose = xml.IndexOf("/>", start, StringComparison.Ordinal);
+                int close = xml.IndexOf("</" + field + ">", start, StringComparison.Ordinal);
+                int end = close >= 0 && (selfClose < 0 || close < selfClose)
+                    ? close + field.Length + 3
+                    : selfClose + 2;
+                xml = xml.Remove(start, end - start);
+            }
+            Assert.That(xml, Does.Not.Contain("Port"));
+            using var parser = new XmlParser(xml, context);
+            parser.PushNamespace(NamespaceUri);
+            IEncodeable fromXml = parser.ReadEncodeable<IEncodeable>("Value", zero.TypeId);
+            parser.PopNamespace();
+            Assert.That(Get(fromXml, "Port"), Is.EqualTo(4840));
+            Assert.That(Get(fromXml, "Enabled"), Is.True);
+            Assert.That(Get(fromXml, "Name"), Is.EqualTo("opc"));
+
+            // Value type defaults still round trip through XML (written).
+            // A null reference is never written by the XmlEncoder, so it
+            // reads back as the declared default (the XML leniency).
+            object xmlZero = XmlRoundTrip(context, zero, zero.TypeId);
+            Assert.That(Get(xmlZero, "Port"), Is.Zero);
+            Assert.That(Get(xmlZero, "Enabled"), Is.False);
+            Assert.That(Get(xmlZero, "Name"), Is.EqualTo("opc"));
+        }
+
+        private object DecodeJson(Type type, string json)
+        {
+            var decoded = (IEncodeable)Activator.CreateInstance(type);
+            using var decoder = new JsonDecoder(json, m_context);
+            decoded.Decode(decoder);
+            return decoded;
+        }
+
         private static string EncodeXml(ServiceMessageContext context, IEncodeable value)
         {
             using var encoder = new XmlEncoder(context);
