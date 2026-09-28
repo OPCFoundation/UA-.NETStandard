@@ -298,7 +298,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void OpenTwiceReplacesPreviousSessionAndInvalidatesOldHandle()
+        public void OpenForReadSeveralTimesKeepsEveryReadHandle()
         {
             TrustListState node = CreateNode();
             CreateTrustList(node);
@@ -315,24 +315,91 @@ namespace Opc.Ua.Server.Tests
                 node.NodeId,
                 (byte)OpenFileMode.Read,
                 ref handleB);
-
-            Assert.That(ServiceResult.IsGood(secondOpenResult), Is.True);
-            Assert.That(handleB, Is.Not.EqualTo(handleA));
-            // The last open always wins: the open count stays at 1, and the
-            // handle from the first (discarded) session is no longer valid.
-            Assert.That(node.OpenCount.Value, Is.EqualTo((ushort)1));
-
-            ByteString data = default;
-            ServiceResult readWithStaleHandleResult = node.Read.OnCall(
-                contextB,
-                node.Read,
+            uint handleA2 = 0;
+            ServiceResult sameSessionOpenResult = node.Open.OnCall(
+                contextA,
+                node.Open,
                 node.NodeId,
-                handleA,
-                1024,
-                ref data);
+                (byte)OpenFileMode.Read,
+                ref handleA2);
+
+            // OPC 10000-20 §4.2.2: Clients can open the same file several
+            // times for read; no read handle is evicted by another one.
+            Assert.That(ServiceResult.IsGood(secondOpenResult), Is.True);
+            Assert.That(ServiceResult.IsGood(sameSessionOpenResult), Is.True);
+            Assert.That(new[] { handleA, handleB, handleA2 }, Is.Unique);
+            Assert.That(node.OpenCount.Value, Is.EqualTo((ushort)3));
+
+            ByteString dataA = default;
+            ServiceResult readA = node.Read.OnCall(
+                contextA, node.Read, node.NodeId, handleA, 1024 * 1024, ref dataA);
+            ByteString dataB = default;
+            ServiceResult readB = node.Read.OnCall(
+                contextB, node.Read, node.NodeId, handleB, 1024 * 1024, ref dataB);
+            Assert.That(ServiceResult.IsGood(readA), Is.True, readA.ToString());
+            Assert.That(ServiceResult.IsGood(readB), Is.True, readB.ToString());
+            Assert.That(dataA.Length, Is.GreaterThan(0));
+            Assert.That(dataB.ToArray(), Is.EqualTo(dataA.ToArray()));
+
+            // A handle is only usable by the Session that opened it.
+            ByteString data = default;
+            ServiceResult readWithOtherSessionsHandle = node.Read.OnCall(
+                contextB, node.Read, node.NodeId, handleA, 1024, ref data);
             Assert.That(
-                readWithStaleHandleResult.StatusCode,
-                Is.EqualTo(StatusCodes.BadInvalidArgument));
+                readWithOtherSessionsHandle.StatusCode,
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
+
+            ServiceResult close = node.Close.OnCall(contextA, node.Close, node.NodeId, handleA);
+            Assert.That(ServiceResult.IsGood(close), Is.True);
+            Assert.That(node.OpenCount.Value, Is.EqualTo((ushort)2));
+
+            // A write open is refused while any read handle is open.
+            uint writeHandle = 0;
+            ServiceResult writeOpen = node.Open.OnCall(
+                contextA,
+                node.Open,
+                node.NodeId,
+                (int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting,
+                ref writeHandle);
+            Assert.That(writeOpen.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
+        }
+
+        [Test]
+        public void SameSessionOpenWhileItsWriteHandleIsOpenIsRejected()
+        {
+            TrustListState node = CreateNode();
+            CreateTrustList(node);
+            ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
+
+            uint writeHandle = 0;
+            ServiceResult firstOpen = node.Open.OnCall(
+                context,
+                node.Open,
+                node.NodeId,
+                (int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting,
+                ref writeHandle);
+            Assert.That(ServiceResult.IsGood(firstOpen), Is.True);
+
+            // OPC 10000-20 §4.2.2: a file that is already open cannot be
+            // opened for writing, and a file open for writing cannot be
+            // opened for reading - also by the Session holding the handle.
+            uint secondHandle = 0;
+            ServiceResult reopenWrite = node.Open.OnCall(
+                context,
+                node.Open,
+                node.NodeId,
+                (int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting,
+                ref secondHandle);
+            Assert.That(reopenWrite.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
+            ServiceResult reopenRead = node.Open.OnCall(
+                context, node.Open, node.NodeId, (byte)OpenFileMode.Read, ref secondHandle);
+            Assert.That(reopenRead.StatusCode, Is.EqualTo(StatusCodes.BadNotReadable));
+
+            // The original write handle survives.
+            ServiceResult write = node.Write.OnCall(
+                context, node.Write, node.NodeId, writeHandle, ByteString.From(new byte[] { 1 }));
+            Assert.That(ServiceResult.IsGood(write), Is.True, write.ToString());
+            Assert.That(node.OpenCount.Value, Is.EqualTo((ushort)1));
         }
 
         [Test]

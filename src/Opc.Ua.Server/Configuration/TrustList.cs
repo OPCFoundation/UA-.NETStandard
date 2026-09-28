@@ -294,6 +294,13 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
+                lock (m_lock)
+                {
+                    foreach (OpenHandle handle in m_handles.Values.ToList())
+                    {
+                        RemoveHandleNoLock(handle);
+                    }
+                }
                 Interlocked.Exchange(ref m_trustedStoreInstance, null)?.Dispose();
                 Interlocked.Exchange(ref m_issuerStoreInstance, null)?.Dispose();
             }
@@ -417,25 +424,29 @@ namespace Opc.Ua.Server
             CertificateStoreIdentifier trustedStore);
 
         /// <summary>
-        /// Closes this TrustList's open read/write handle if it is
-        /// currently owned by <paramref name="sessionId"/>. Called by
+        /// Closes every open read/write handle of this TrustList owned by
+        /// <paramref name="sessionId"/>. Called by
         /// <see cref="ConfigurationNodeManager.SessionClosingAsync"/> so an
         /// abandoned Session does not leave the TrustList permanently
         /// open for writing.
         /// </summary>
         internal void NotifySessionClosing(NodeId sessionId)
         {
+            bool closedWriter = false;
             lock (m_lock)
             {
-                if (m_sessionId.IsNull || !Utils.IsEqual(m_sessionId, sessionId))
+                foreach (OpenHandle handle in m_handles.Values
+                    .Where(handle => Utils.IsEqual(handle.SessionId, sessionId))
+                    .ToList())
                 {
-                    return;
+                    closedWriter |= RemoveHandleNoLock(handle);
                 }
-
-                DiscardOpenHandleNoLock();
             }
 
-            m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
+            if (closedWriter)
+            {
+                m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
+            }
         }
 
         /// <summary>
@@ -450,80 +461,100 @@ namespace Opc.Ua.Server
         /// </summary>
         private void ReleaseAbandonedHandle(ISystemContext context)
         {
-            NodeId ownerSessionId;
+            NodeId callerSessionId = GetSessionId(context);
+            List<NodeId> ownerSessionIds;
             lock (m_lock)
             {
-                ownerSessionId = m_sessionId;
+                ownerSessionIds = [];
+                foreach (OpenHandle handle in m_handles.Values)
+                {
+                    if (!handle.SessionId.IsNull &&
+                        !Utils.IsEqual(handle.SessionId, callerSessionId) &&
+                        !ownerSessionIds.Any(id => Utils.IsEqual(id, handle.SessionId)))
+                    {
+                        ownerSessionIds.Add(handle.SessionId);
+                    }
+                }
             }
 
-            if (ownerSessionId.IsNull ||
-                Utils.IsEqual(ownerSessionId, GetSessionId(context)) ||
+            if (ownerSessionIds.Count == 0 ||
                 context is not ServerSystemContext serverContext)
             {
                 return;
             }
 
-            bool ownerAlive;
-            try
+            foreach (NodeId ownerSessionId in ownerSessionIds)
             {
-                ISessionManager? sessionManager = serverContext.Server.SessionManager;
-                if (sessionManager == null)
+                bool ownerAlive;
+                try
                 {
+                    ISessionManager? sessionManager = serverContext.Server.SessionManager;
+                    if (sessionManager == null)
+                    {
+                        return;
+                    }
+
+                    ownerAlive = sessionManager.GetSessions().Any(session =>
+                        session != null &&
+                        !session.IsClosing &&
+                        Utils.IsEqual(session.Id, ownerSessionId));
+                }
+                catch (Exception ex)
+                {
+                    // The session table is unavailable (e.g. server shutting
+                    // down): keep the handles rather than evicting a live owner.
+                    m_logger.TrustListOwnerSessionLookupFailed(ex, ownerSessionId);
                     return;
                 }
 
-                ownerAlive = sessionManager.GetSessions().Any(session =>
-                    session != null &&
-                    !session.IsClosing &&
-                    Utils.IsEqual(session.Id, ownerSessionId));
-            }
-            catch (Exception ex)
-            {
-                // The session table is unavailable (e.g. server shutting
-                // down): keep the handle rather than evicting a live owner.
-                m_logger.TrustListOwnerSessionLookupFailed(ex, ownerSessionId);
-                return;
-            }
-
-            if (!ownerAlive)
-            {
-                // NotifySessionClosing only discards the handle if it is
-                // still owned by the (now gone) Session.
-                m_logger.TrustListAbandonedHandleReleased(ownerSessionId);
-                NotifySessionClosing(ownerSessionId);
+                if (!ownerAlive)
+                {
+                    // NotifySessionClosing only discards the handles still
+                    // owned by the (now gone) Session.
+                    m_logger.TrustListAbandonedHandleReleased(ownerSessionId);
+                    NotifySessionClosing(ownerSessionId);
+                }
             }
         }
 
         /// <summary>
-        /// Closes the open handle. The caller holds <see cref="m_lock"/>.
+        /// Closes <paramref name="handle"/> and returns whether it was open
+        /// for writing. The caller holds <see cref="m_lock"/>.
         /// </summary>
-        private void DiscardOpenHandleNoLock()
+        private bool RemoveHandleNoLock(OpenHandle handle)
         {
-            m_sessionId = default;
-            m_strm?.Dispose();
-            m_strm = null;
-            m_openForWrite = false;
-            m_node.OpenCount!.Value = 0;
+            if (!m_handles.Remove(handle.Id))
+            {
+                return false;
+            }
+
+            handle.Stream.Dispose();
+            m_node.OpenCount!.Value = (ushort)Math.Min(m_handles.Count, ushort.MaxValue);
+            return handle.ForWrite;
         }
 
         /// <summary>
         /// Closes the handle a completed CloseAndUpdate validated, unless it
-        /// was replaced while the update awaited: a newer open must not be
-        /// torn down by the completion of an older one.
+        /// was already closed while the update awaited.
         /// </summary>
         private void ReleaseHandle(uint fileHandle, MemoryStream strm)
         {
+            bool closedWriter;
             lock (m_lock)
             {
-                if (m_fileHandle != fileHandle || !ReferenceEquals(m_strm, strm))
+                if (!m_handles.TryGetValue(fileHandle, out OpenHandle? handle) ||
+                    !ReferenceEquals(handle.Stream, strm))
                 {
                     return;
                 }
 
-                DiscardOpenHandleNoLock();
+                closedWriter = RemoveHandleNoLock(handle);
             }
 
-            m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
+            if (closedWriter)
+            {
+                m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
+            }
         }
 
         /// <summary>
@@ -538,12 +569,12 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                if (m_sessionId.IsNull)
+                if (m_handles.Count == 0)
                 {
                     return ServiceResult.Good;
                 }
 
-                return m_openForWrite
+                return HasWriteHandleNoLock()
                     ? ServiceResult.Create(
                         StatusCodes.BadInvalidState,
                         "The TrustList is open for writing.")
@@ -551,6 +582,22 @@ namespace Opc.Ua.Server
                         StatusCodes.BadNotWritable,
                         "The TrustList is open for reading.");
             }
+        }
+
+        /// <summary>
+        /// Whether a handle is open for writing. The caller holds
+        /// <see cref="m_lock"/>.
+        /// </summary>
+        private bool HasWriteHandleNoLock()
+        {
+            foreach (OpenHandle handle in m_handles.Values)
+            {
+                if (handle.ForWrite)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -754,19 +801,15 @@ namespace Opc.Ua.Server
                 NodeId sessionId = GetSessionId(context);
                 lock (m_lock)
                 {
-                    // OPC 10000-20 §4.2.2: a file that is open for writing
+                    // OPC 10000-20 §4.2.2: Clients can open the file several
+                    // times for reading, but a file that is open for writing
                     // cannot be opened again (Bad_NotReadable for a read,
                     // Bad_NotWritable for a write), and a file that is open at
-                    // all cannot be opened for writing (Bad_NotWritable).
-                    // Another Session's handle must therefore never be evicted
-                    // by a write open, nor its upload by any open. Handles of
-                    // Sessions that no longer exist were released above. The
-                    // owning Session may still replace its own open so a
-                    // client that lost its handle is not locked out until its
-                    // Session closes.
-                    if (m_strm != null &&
-                        (m_openForWrite || isWriteMode) &&
-                        !Utils.IsEqual(m_sessionId, sessionId))
+                    // all cannot be opened for writing (Bad_NotWritable). This
+                    // also applies to the Session that holds the open handle;
+                    // no handle is ever evicted by a new open. Handles of
+                    // Sessions that no longer exist were released above.
+                    if (HasWriteHandleNoLock() || (isWriteMode && m_handles.Count > 0))
                     {
                         strm.Dispose();
                         return new OpenMethodStateResult
@@ -778,25 +821,16 @@ namespace Opc.Ua.Server
                         };
                     }
 
-                    if (m_strm != null)
+                    do
                     {
-                        // Only one handle is supported: a read open (or the
-                        // owning Session's own open) is replaced by the new one.
-                        DiscardOpenHandleNoLock();
+                        fileHandle = ++m_fileHandle;
                     }
+                    while (fileHandle == 0 || m_handles.ContainsKey(fileHandle));
 
-                    m_sessionId = sessionId;
-                    fileHandle = ++m_fileHandle;
-                    m_totalBytesProcessed = 0; // Reset counter for new file operation
-                    m_strm = strm;
-                    m_openForWrite = isWriteMode;
-                    m_node.OpenCount!.Value = 1;
+                    m_handles.Add(fileHandle, new OpenHandle(fileHandle, sessionId, strm, isWriteMode));
+                    m_node.OpenCount!.Value = (ushort)Math.Min(m_handles.Count, ushort.MaxValue);
                 }
 
-                // Cleared unconditionally (idempotent) before being set so
-                // an evicted previous open never leaves a stale "open for
-                // writing" entry behind.
-                m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
                 if (isWriteMode)
                 {
                     m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, true);
@@ -851,7 +885,7 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                ServiceResult handleResult = ValidateFileHandle(context, fileHandle);
+                ServiceResult handleResult = ValidateFileHandle(context, fileHandle, out OpenHandle? handle);
                 if (ServiceResult.IsBad(handleResult))
                 {
                     return new ValueTask<ReadMethodStateResult>(new ReadMethodStateResult
@@ -875,7 +909,7 @@ namespace Opc.Ua.Server
                     });
                 }
 
-                if (m_openForWrite)
+                if (handle!.ForWrite)
                 {
                     return new ValueTask<ReadMethodStateResult>(new ReadMethodStateResult
                     {
@@ -891,14 +925,15 @@ namespace Opc.Ua.Server
                 // an upper bound. Clamp it to the bytes left in the already
                 // encoded stream before allocating; the stream was produced by
                 // the server itself, so there is no size limit to enforce here.
-                length = (int)Math.Min(length, m_strm!.Length - m_strm.Position);
+                MemoryStream strm = handle.Stream;
+                length = (int)Math.Min(length, strm.Length - strm.Position);
 
                 byte[] buffer = new byte[length];
-                int bytesRead = m_strm!.Read(buffer, 0, length);
+                int bytesRead = strm.Read(buffer, 0, length);
                 Debug.Assert(bytesRead >= 0);
                 data = ByteString.From(buffer)[..bytesRead];
 
-                m_totalBytesProcessed += bytesRead;
+                handle.TotalBytesProcessed += bytesRead;
             }
 
             return new ValueTask<ReadMethodStateResult>(new ReadMethodStateResult
@@ -940,7 +975,7 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                ServiceResult handleResult = ValidateFileHandle(context, fileHandle);
+                ServiceResult handleResult = ValidateFileHandle(context, fileHandle, out OpenHandle? handle);
                 if (ServiceResult.IsBad(handleResult))
                 {
                     return new ValueTask<WriteMethodStateResult>(new WriteMethodStateResult
@@ -951,7 +986,7 @@ namespace Opc.Ua.Server
 
                 // OPC 10000-20 §4.2.5: Bad_InvalidState when the file was not
                 // opened for writing.
-                if (!m_openForWrite)
+                if (!handle!.ForWrite)
                 {
                     return new ValueTask<WriteMethodStateResult>(new WriteMethodStateResult
                     {
@@ -961,12 +996,12 @@ namespace Opc.Ua.Server
                     });
                 }
 
-                // Overflow-safe cumulative bound: m_totalBytesProcessed is a
+                // Overflow-safe cumulative bound: TotalBytesProcessed is a
                 // long, so promoting the int data.Length keeps the addition in
                 // long range and cannot wrap. Enforced against the effective,
                 // actually-advertised limit before the payload is buffered
                 // (OPC 10000-12 §7.8.2: Bad_RequestTooLarge).
-                if (m_totalBytesProcessed + data.Length > m_effectiveMaxTrustListSize)
+                if (handle.TotalBytesProcessed + data.Length > m_effectiveMaxTrustListSize)
                 {
                     return new ValueTask<WriteMethodStateResult>(new WriteMethodStateResult
                     {
@@ -977,8 +1012,8 @@ namespace Opc.Ua.Server
                     });
                 }
 
-                m_strm!.Write(data.ToArray(), 0, data.Length);
-                m_totalBytesProcessed += data.Length;
+                handle.Stream.Write(data.ToArray(), 0, data.Length);
+                handle.TotalBytesProcessed += data.Length;
             }
 
             return new ValueTask<WriteMethodStateResult>(new WriteMethodStateResult
@@ -990,19 +1025,21 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Checks that the TrustList stream is open and the handle belongs to the requesting session.
         /// </summary>
-        private ServiceResult ValidateFileHandle(ISystemContext context, uint fileHandle)
+        private ServiceResult ValidateFileHandle(
+            ISystemContext context,
+            uint fileHandle,
+            out OpenHandle? handle)
         {
-            if (m_strm == null)
+            if (!m_handles.TryGetValue(fileHandle, out handle))
             {
                 return ServiceResult.Create(StatusCodes.BadInvalidArgument, "Invalid file handle");
             }
-            if (context is ISessionSystemContext session && !m_sessionId.Equals(session.SessionId))
+            if (context is ISessionSystemContext session && !handle.SessionId.Equals(session.SessionId))
             {
+                handle = null;
                 return ServiceResult.Create(StatusCodes.BadUserAccessDenied, "Session not authorized");
             }
-            return m_fileHandle == fileHandle
-                ? ServiceResult.Good
-                : ServiceResult.Create(StatusCodes.BadInvalidArgument, "Invalid file handle");
+            return ServiceResult.Good;
         }
 
         private ServiceResult Close(
@@ -1032,9 +1069,10 @@ namespace Opc.Ua.Server
         {
             HasSecureReadAccess(context);
 
+            bool closedWriter;
             lock (m_lock)
             {
-                ServiceResult handleResult = ValidateFileHandle(context, fileHandle);
+                ServiceResult handleResult = ValidateFileHandle(context, fileHandle, out OpenHandle? handle);
                 if (ServiceResult.IsBad(handleResult))
                 {
                     return new ValueTask<CloseMethodStateResult>(new CloseMethodStateResult
@@ -1043,10 +1081,13 @@ namespace Opc.Ua.Server
                     });
                 }
 
-                DiscardOpenHandleNoLock();
+                closedWriter = RemoveHandleNoLock(handle!);
             }
 
-            m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
+            if (closedWriter)
+            {
+                m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
+            }
 
             return new ValueTask<CloseMethodStateResult>(new CloseMethodStateResult
             {
@@ -1115,7 +1156,7 @@ namespace Opc.Ua.Server
             MemoryStream? strm;
             lock (m_lock)
             {
-                ServiceResult handleResult = ValidateFileHandle(context, fileHandle);
+                ServiceResult handleResult = ValidateFileHandle(context, fileHandle, out OpenHandle? handle);
                 if (ServiceResult.IsBad(handleResult))
                 {
                     return new CloseAndUpdateMethodStateResult
@@ -1127,7 +1168,7 @@ namespace Opc.Ua.Server
 
                 // OPC 10000-12 §7.8.2.5: CloseAndUpdate can only be called
                 // if the TrustList was opened for writing.
-                if (!m_openForWrite)
+                if (!handle!.ForWrite)
                 {
                     return new CloseAndUpdateMethodStateResult
                     {
@@ -1138,7 +1179,7 @@ namespace Opc.Ua.Server
                     };
                 }
 
-                strm = m_strm;
+                strm = handle.Stream;
             }
 
             ServiceResult result = StatusCodes.Good;
@@ -2427,7 +2468,7 @@ namespace Opc.Ua.Server
         private readonly Lock m_lock = new();
         private readonly SecureAccess m_readAccess;
         private readonly SecureAccess m_writeAccess;
-        private NodeId m_sessionId;
+        private readonly Dictionary<uint, OpenHandle> m_handles = [];
         private uint m_fileHandle;
         private readonly CertificateStoreIdentifier m_trustedStore;
         private readonly CertificateStoreIdentifier m_issuerStore;
@@ -2438,13 +2479,35 @@ namespace Opc.Ua.Server
         private readonly ILogger m_logger;
         private readonly TrustListState m_node;
         private readonly IPushConfigurationTransactionCoordinator? m_coordinator;
-        private MemoryStream? m_strm;
-        private bool m_openForWrite;
         private SecurityConfiguration? m_validationConfiguration;
         private readonly int m_effectiveMaxTrustListSize;
         private ICertificateTrustListManager? m_changeNotifier;
         private TrustListIdentifier? m_changeNotifierScope;
-        private long m_totalBytesProcessed;
+
+        /// <summary>
+        /// An open TrustList file handle (OPC 10000-20 §4.2.2): several read
+        /// handles may be open at once, a write handle is exclusive.
+        /// </summary>
+        private sealed class OpenHandle
+        {
+            public OpenHandle(uint id, NodeId sessionId, MemoryStream stream, bool forWrite)
+            {
+                Id = id;
+                SessionId = sessionId;
+                Stream = stream;
+                ForWrite = forWrite;
+            }
+
+            public uint Id { get; }
+
+            public NodeId SessionId { get; }
+
+            public MemoryStream Stream { get; }
+
+            public bool ForWrite { get; }
+
+            public long TotalBytesProcessed { get; set; }
+        }
     }
 
     internal static partial class TrustListLog
