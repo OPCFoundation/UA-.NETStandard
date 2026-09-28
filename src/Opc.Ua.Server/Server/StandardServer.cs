@@ -612,7 +612,7 @@ namespace Opc.Ua.Server
             // It is acquired before the request is registered, so a handshake that
             // waits for a permit is not a request that lifecycle drains wait for.
             using IDisposable? rateLimitLease = await BeginSessionEstablishmentOrThrowAsync(
-                secureChannelContext, requestHeader.AuthenticationToken, requestLifetime)
+                secureChannelContext, requestHeader?.AuthenticationToken ?? default, requestLifetime)
                 .ConfigureAwait(false);
 
             using OperationContext context = await ValidateRequestAsync(
@@ -1024,7 +1024,7 @@ namespace Opc.Ua.Server
             // acquired before the request is registered, so a handshake that waits
             // for a permit is not a request that lifecycle drains wait for.
             using IDisposable? rateLimitLease = await BeginSessionEstablishmentOrThrowAsync(
-                secureChannelContext, requestHeader.AuthenticationToken, requestLifetime)
+                secureChannelContext, requestHeader?.AuthenticationToken ?? default, requestLifetime)
                 .ConfigureAwait(false);
 
             using OperationContext context = await ValidateRequestAsync(
@@ -3796,12 +3796,14 @@ namespace Opc.Ua.Server
             try
             {
                 IServerResourceIsolationProvider? isolation = ResourceIsolationProvider;
+#pragma warning disable CA2000 // disposed in the catch below or owned by the returned lease
                 if (isolation != null && !isolation.TryAcquire(
                     ResourceIsolationStage.SessionEstablishment,
                     isolation.Classify(channelContext, authenticationToken, sessionEstablishment: true),
                     1,
                     out isolationLease,
                     out ResourceIsolationFailure failure))
+#pragma warning restore CA2000
                 {
                     throw CreateServerTooBusyException(failure.RetryAfter);
                 }
