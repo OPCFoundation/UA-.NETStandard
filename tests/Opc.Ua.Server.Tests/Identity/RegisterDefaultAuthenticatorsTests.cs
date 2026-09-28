@@ -216,6 +216,44 @@ namespace Opc.Ua.Server.Tests.Identity
             Assert.That(result.Error!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
+        [Test]
+        public async Task UserDatabaseVerifierDoesNotSnapshotUsersForInvalidCredentialsAsync()
+        {
+            var database = new FakeUserDatabase { CredentialsValid = false };
+
+            UserNamePasswordAuthenticator authenticator = GetUserNamePasswordAuthenticator(database);
+            AuthenticationResult result = await authenticator
+                .AuthenticateAsync(CreateContext("alice", [1, 2, 3, 4]))
+                .ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
+            Assert.That(database.GetUsersCalls, Is.Zero);
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task LinqUserDatabaseVerifierAppliesDisabledFlagAsync(bool disabled)
+        {
+            var database = new LinqUserDatabase();
+            byte[] password = [1, 2, 3, 4];
+            Assert.That(database.CreateUser(
+                "alice",
+                password,
+                [],
+                disabled ? UserConfigurationMask.Disabled : default,
+                string.Empty), Is.True);
+            database.CreateUser("bob", password, [], UserConfigurationMask.Disabled, string.Empty);
+
+            UserNamePasswordAuthenticator authenticator = GetUserNamePasswordAuthenticator(database);
+            AuthenticationResult result = await authenticator
+                .AuthenticateAsync(CreateContext("alice", password))
+                .ConfigureAwait(false);
+
+            Assert.That(
+                result.Outcome,
+                Is.EqualTo(disabled ? AuthenticationOutcome.Rejected : AuthenticationOutcome.Accepted));
+        }
+
         private static UserNamePasswordAuthenticator GetUserNamePasswordAuthenticator(IUserDatabase database)
         {
             var registry = new RecordingRegistry();
@@ -266,8 +304,11 @@ namespace Opc.Ua.Server.Tests.Identity
             /// <inheritdoc/>
             public IReadOnlyList<UserManagementDataType> GetUsers()
             {
+                GetUsersCalls++;
                 return Users;
             }
+
+            public int GetUsersCalls { get; private set; }
 
             /// <inheritdoc/>
             public bool ChangePassword(

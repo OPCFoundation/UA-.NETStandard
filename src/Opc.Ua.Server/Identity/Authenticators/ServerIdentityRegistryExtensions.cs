@@ -137,8 +137,10 @@ namespace Opc.Ua.Server
 
             // A user disabled through UserManagement (Part 18 UserConfigurationMask.Disabled)
             // is persisted in the database and must be rejected like a wrong password.
-            bool credentialsValid = userDatabase.CheckCredentials(userName, password);
-            if (IsUserDisabled(userDatabase, userName) || !credentialsValid)
+            // The flag is only looked up for valid credentials, so failed attempts do not
+            // pay for the lookup.
+            if (!userDatabase.CheckCredentials(userName, password) ||
+                IsUserDisabled(userDatabase, userName))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadUserAccessDenied,
@@ -150,6 +152,16 @@ namespace Opc.Ua.Server
 
         private static bool IsUserDisabled(IUserDatabase userDatabase, string userName)
         {
+            // The built-in stores answer with one dictionary lookup; other stores only
+            // expose the full snapshot.
+            if (userDatabase is LinqUserDatabase linqUserDatabase)
+            {
+                return linqUserDatabase.TryGetUserConfiguration(
+                    userName,
+                    out UserConfigurationMask userConfiguration) &&
+                    (userConfiguration & UserConfigurationMask.Disabled) != 0;
+            }
+
             foreach (UserManagementDataType user in userDatabase.GetUsers())
             {
                 if (string.Equals(user.UserName, userName, StringComparison.Ordinal))
