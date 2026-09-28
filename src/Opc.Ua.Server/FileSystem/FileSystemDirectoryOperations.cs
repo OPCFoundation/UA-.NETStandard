@@ -393,6 +393,14 @@ namespace Opc.Ua.Server.FileSystem
                 };
             }
 
+            // The NodeId kind is chosen by the client: take directory-ness from the provider
+            // so a file-typed NodeId for a directory cannot skip the subtree guard below.
+            ServiceResult sourceKindResult = await CheckEntryKindAsync(
+                host.Provider, sourcePath, sourceIsDirectory, cancellationToken).ConfigureAwait(false);
+            if (ServiceResult.IsBad(sourceKindResult))
+            {
+                return new MoveOrCopyMethodStateResult { ServiceResult = sourceKindResult };
+            }
             string sourceName = ProviderPathName(sourcePath);
             string finalName = !string.IsNullOrEmpty(newName) ? newName : sourceName;
             if (!IsValidEntryName(finalName, out ServiceResult newNameResult))
@@ -509,6 +517,34 @@ namespace Opc.Ua.Server.FileSystem
                 default:
                     throw new ArgumentOutOfRangeException(nameof(kind));
             }
+        }
+
+        /// <summary>
+        /// Confirms with the provider that an existing entry is a directory exactly when
+        /// the caller's NodeId says so. A missing entry is left to the provider mutation,
+        /// which reports it as not found.
+        /// </summary>
+        private static async ValueTask<ServiceResult> CheckEntryKindAsync(
+            IFileSystemProvider provider,
+            string providerPath,
+            bool expectDirectory,
+            CancellationToken cancellationToken)
+        {
+            FileSystemEntry? entry;
+            try
+            {
+                entry = await provider.GetEntryAsync(providerPath, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+            {
+                return ServiceResult.Create(ex, StatusCodes.BadNotFound, "Source not found.");
+            }
+            if (entry != null && entry.Value.IsDirectory != expectDirectory)
+            {
+                return ServiceResult.Create(StatusCodes.BadInvalidArgument,
+                    "Source NodeId does not match the kind of the file-system object.");
+            }
+            return ServiceResult.Good;
         }
 
         private static bool CanCreate(IFileSystemHost host, ISystemContext context, out ServiceResult result)

@@ -248,6 +248,25 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         /// <summary>
+        /// Review A3-6: a file-typed NodeId naming a directory cannot bypass the
+        /// "into its own subtree" guard, and does not resolve to a node.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task MoveOrCopyDirectoryWithFileNodeIdIsRejectedAsync(bool createCopy)
+        {
+            DirectoryObjectState root = CreateRoot();
+
+            MoveOrCopyMethodStateResult result = await root.MoveOrCopy!.OnCallAsync!(
+                m_manager.SystemContext, root.MoveOrCopy, root.NodeId, FileId("a"), DirId("a/b"),
+                createCopy, string.Empty, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(System.IO.Directory.Exists(Path.Combine(m_root, "a", "b", "a")), Is.False);
+            Assert.That(System.IO.Directory.Exists(Path.Combine(m_root, "a")), Is.True);
+        }
+
+        /// <summary>
         /// Review D-7: an open still waiting for its provider stream locks the file, so a
         /// Delete or Move issued in that window is rejected instead of racing the open.
         /// </summary>

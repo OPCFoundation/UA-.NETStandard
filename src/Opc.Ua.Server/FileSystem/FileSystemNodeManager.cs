@@ -354,7 +354,10 @@ namespace Opc.Ua.Server.FileSystem
                 FileSystemEntry? entry = await Provider
                     .GetEntryAsync(providerPath, cancellationToken)
                     .ConfigureAwait(false);
-                if (parsed.Value.RootType != FileSystemNodeId.Root && entry == null)
+                // The NodeId kind must match the provider entry: a file NodeId for a
+                // directory (or the reverse) does not name an existing node.
+                if (parsed.Value.RootType != FileSystemNodeId.Root &&
+                    (entry == null || entry.Value.IsDirectory != (parsed.Value.RootType == FileSystemNodeId.Directory)))
                 {
                     return null!;
                 }
