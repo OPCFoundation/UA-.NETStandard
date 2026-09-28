@@ -125,6 +125,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         public async Task PersistAndReloadRoundTripsResource()
         {
             var store = new FileWotRegistryStore(m_root);
+            WoTValidationOutcomeDataType expectedValidation;
             using (var service = new WotRegistryService(store))
             {
                 await service.InitializeAsync().ConfigureAwait(false);
@@ -158,7 +159,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     "owner",
                     "plant-1",
                     createdTd.MetaEpoch).ConfigureAwait(false);
-                await service.ValidateResourceAsync(
+                expectedValidation = await service.ValidateResourceAsync(
                     WotRegistryGroups.ThingDescriptions,
                     "a").ConfigureAwait(false);
             }
@@ -178,7 +179,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 Assert.That(td.DefaultVersion.Labels["version"], Is.EqualTo("one"));
                 Assert.That(
                     td.DefaultVersion.Validation!.FormatOutcome,
-                    Is.EqualTo(WoTOutcomeEnum.Success));
+                    Is.EqualTo(WoTOutcomeEnum.Skipped));
+                Assert.That(td.DefaultVersion.Validation.FormatValidated, Is.False);
+                Assert.That(td.DefaultVersion.Validation.IsEqual(expectedValidation), Is.True);
                 Assert.That(td.MetaLabels["owner"], Is.EqualTo("plant-1"));
                 Assert.That(td.MetaCreatedAt, Is.Not.Default);
                 Assert.That(td.MetaModifiedAt, Is.GreaterThanOrEqualTo(td.MetaCreatedAt));
@@ -613,11 +616,12 @@ namespace Opc.Ua.WotCon.Tests.Registry
         [Test]
         public async Task Schema3ManifestMigratesVersionAndResourceMetaDefaults()
         {
+            WoTValidationOutcomeDataType expectedValidation;
             using (var service = new WotRegistryService(new FileWotRegistryStore(m_root)))
             {
                 await service.InitializeAsync().ConfigureAwait(false);
                 await service.UpsertResourceAsync(TdRequest("legacy", "urn:legacy")).ConfigureAwait(false);
-                await service.ValidateResourceAsync(
+                expectedValidation = await service.ValidateResourceAsync(
                     WotRegistryGroups.ThingDescriptions,
                     "legacy").ConfigureAwait(false);
             }
@@ -654,7 +658,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 Assert.That(migrated.DefaultVersion.Title, Is.EqualTo("urn:legacy-1"));
                 Assert.That(
                     migrated.DefaultVersion.Validation!.FormatOutcome,
-                    Is.EqualTo(WoTOutcomeEnum.Success));
+                    Is.EqualTo(WoTOutcomeEnum.Skipped));
+                Assert.That(migrated.DefaultVersion.Validation.FormatValidated, Is.False);
+                Assert.That(migrated.DefaultVersion.Validation.IsEqual(expectedValidation), Is.True);
                 Assert.That(migrated.MetaCreatedAt, Is.Not.Default);
                 Assert.That(
                     migrated.MetaModifiedAt,
