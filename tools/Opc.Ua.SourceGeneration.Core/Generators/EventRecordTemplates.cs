@@ -182,11 +182,15 @@ namespace Opc.Ua.SourceGeneration
             $$"""
             /// <summary>
             /// Browse paths in positional order with every browse name in
-            /// namespace index 0. Positions match
+            /// namespace index 0: a positional layout only. Positions match
             /// <see cref="GetStandardFields"/>, which resolves the
             /// namespace of the browse names declared by the model and
             /// is what select clauses have to use.
             /// </summary>
+            [global::System.Obsolete(
+                "The browse names of a companion model are not in namespace 0, so a select " +
+                "clause built from this table does not match them (OPC 10000-4 7.7.4.5). " +
+                "Use GetStandardFields(NamespaceTable) with the session namespace table.")]
             public static readonly global::Opc.Ua.QualifiedName[][] StandardFields =
                 GetStandardFields(null);
 
@@ -197,6 +201,12 @@ namespace Opc.Ua.SourceGeneration
             /// layout (and any filter built from it) uses the same
             /// positional convention; the runtime remaps from the
             /// composed positions before calling <see cref="Decode"/>.
+            /// A browse name whose namespace is not in
+            /// <paramref name="namespaceUris"/> gets an index no server
+            /// table holds, so the server returns null for that field
+            /// (OPC 10000-4 7.7.4.5) instead of matching a namesake in
+            /// namespace 0. Without a table every browse name is in
+            /// namespace 0 (a positional layout only).
             /// </summary>
             /// <param name="namespaceUris">The session namespace table.</param>
             public static global::Opc.Ua.QualifiedName[][] GetStandardFields(
@@ -212,8 +222,12 @@ namespace Opc.Ua.SourceGeneration
                 global::Opc.Ua.NamespaceTable? namespaceUris,
                 string namespaceUri)
             {
-                int index = namespaceUris != null ? namespaceUris.GetIndex(namespaceUri) : -1;
-                return index > 0 ? (ushort)index : (ushort)0;
+                if (namespaceUris == null)
+                {
+                    return 0;
+                }
+                int index = namespaceUris.GetIndex(namespaceUri);
+                return index > 0 ? (ushort)index : ushort.MaxValue;
             }
             """);
 

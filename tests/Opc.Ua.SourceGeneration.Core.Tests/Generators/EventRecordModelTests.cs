@@ -99,6 +99,42 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         /// <summary>
+        /// S2 (OPC 10000-4 7.7.4.5, 7.22.3): when the session does not know
+        /// the model's namespace the browse name used to fall back to
+        /// namespace 0, where it could match a standard field of the same
+        /// name. It now gets an index no server table holds, so the server
+        /// returns null for the field. The companion StandardFields table,
+        /// all in namespace 0, is marked obsolete.
+        /// </summary>
+        [Test]
+        public void VendorFieldOfAnUnknownNamespaceCannotMatchNamespaceZero()
+        {
+            Type decoder = m_assembly.GetType(
+                "Test.Ev.MachineEventTypeRecord+Decoder",
+                throwOnError: true);
+            MethodInfo getStandardFields = decoder.GetMethod(
+                "GetStandardFields",
+                BindingFlags.Public | BindingFlags.Static);
+            var namespaceUris = new NamespaceTable();
+            namespaceUris.Append("urn:other");
+
+            var paths = (QualifiedName[][])getStandardFields.Invoke(null, [namespaceUris]);
+
+            QualifiedName machineId = paths.Single(p => p[0].Name == "MachineId")[0];
+            Assert.That(machineId.NamespaceIndex, Is.EqualTo(ushort.MaxValue));
+            QualifiedName eventId = paths.Single(p => p[0].Name == "EventId")[0];
+            Assert.That(eventId.NamespaceIndex, Is.Zero);
+
+            FieldInfo standardFields = decoder.GetField(
+                "StandardFields",
+                BindingFlags.Public | BindingFlags.Static);
+            Assert.That(
+                standardFields.GetCustomAttribute<ObsoleteAttribute>(),
+                Is.Not.Null,
+                "the all-namespace-0 companion table must point callers to GetStandardFields");
+        }
+
+        /// <summary>
         /// D-16: a property whose data type is a simple subtype of a
         /// built-in type (no class is generated for it) is represented by
         /// the built-in type; a model data type named like a standard one
