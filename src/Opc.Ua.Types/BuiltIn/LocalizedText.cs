@@ -322,6 +322,11 @@ namespace Opc.Ua
         /// </summary>
         public override int GetHashCode()
         {
+            if (Text == null && string.IsNullOrEmpty(Locale))
+            {
+                // Equals LocalizedText.Null, so hash like a null variant.
+                return 0;
+            }
             var hash = new HashCode();
             if (Text != null)
             {

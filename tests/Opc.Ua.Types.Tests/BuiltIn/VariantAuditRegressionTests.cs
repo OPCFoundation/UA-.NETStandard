@@ -612,6 +612,25 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
+        public void LocalizedTextWithEmptyLocaleAndNullTextHashesLikeNull()
+        {
+            // A1-5: a boxed LocalizedText("", null) equals LocalizedText.Null
+            // (which hashes 0 as a typed null) and must hash the same.
+            var emptyLocale = new LocalizedText(string.Empty, text: null);
+            var a = new Variant(LocalizedText.Null);
+            var b = new Variant(emptyLocale);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(emptyLocale, Is.EqualTo(LocalizedText.Null));
+                Assert.That(emptyLocale.GetHashCode(), Is.EqualTo(LocalizedText.Null.GetHashCode()));
+                Assert.That(IsEqual(a, b), Is.True);
+                Assert.That(IsEqual(b, a), Is.True);
+                Assert.That(a.GetHashCode(), Is.EqualTo(b.GetHashCode()));
+            });
+        }
+
+        [Test]
         public void XmlElementToXElementDoesNotProcessDtd()
         {
             // T2-5: XElement.Load(Stream) expanded DTD entities.
