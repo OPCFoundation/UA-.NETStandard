@@ -55,6 +55,7 @@ using Opc.Ua.XRegistry;
 using UaLens.Connection;
 using UaLens.Plugins.Companions;
 using UaLens.Plugins.Companions.Providers;
+using UaLens.Tests.Companions;
 using ISession = Opc.Ua.Client.ISession;
 using Wot = Opc.Ua.WotCon;
 
@@ -182,7 +183,7 @@ namespace UaLens.Tests.Samples
         [Category("RepositorySampleProbe")]
         public Task PrivateGeneratorBindingsRetainSourceAndPublishEvidence()
         {
-            return WithPrivateCompanionServerAsync(true, async (context, server, _, token) =>
+            return WithPrivateCompanionServerAsync(true, async (context, server, root, token) =>
             {
                 var provider = new OpenUsdCompanionProvider();
                 ArrayOf<CompanionTarget> targets = await provider.DiscoverAsync(context, token).ConfigureAwait(false);
@@ -197,6 +198,14 @@ namespace UaLens.Tests.Samples
                         .TryGetValue(out int bindings) &&
                         bindings > 0)
                     {
+                        Assert.That(inspection.Values.ToList()
+                            .Single(value => value.Name == "Advertised root digest").Value
+                            .TryGetValue(out ByteString rootDigest), Is.True);
+                        Assert.That(rootDigest.Length, Is.EqualTo(32));
+                        Assert.That(inspection.Values.ToList()
+                            .Single(value => value.Name == "Digest algorithm").Text, Is.EqualTo("Sha256"));
+                        Assert.That(inspection.Values.ToList()
+                            .Single(value => value.Name == "Root layer").Text, Is.EqualTo("Powerhouse.usda"));
                         selected = target;
                         break;
                     }
@@ -207,19 +216,7 @@ namespace UaLens.Tests.Samples
                     provider, context, selected!, "read-bindings", [], token),
                     Throws.TypeOf<ServiceResultException>().With.Property("StatusCode")
                         .EqualTo(StatusCodes.BadTypeMismatch)).ConfigureAwait(false);
-                OpenUsdRepresentationState representation =
-                    server.FindNodeManagers<GeneratorNodeManager>().Single()
-                        .FindPredefinedNode<OpenUsdRepresentationState>(selected!.NodeId) ??
-                    throw new AssertionException("The owned representation is missing.");
-                var children = new System.Collections.Generic.List<BaseInstanceState>();
-                representation.GetChildren(server.DefaultSystemContext, children);
-                OpenUsdLiveBindingState textReadout = children.OfType<OpenUsdLiveBindingState>()
-                    .Single(binding => binding.TargetPropertyName?.Value == "ua:operatingState");
-                Assert.That(textReadout.Enabled!.Value, Is.True);
-                // Configure the owned fixture's supported numeric/color/visibility profile explicitly.
-                textReadout.Enabled.Value = false;
-                await textReadout.ClearChangeMasksAsync(
-                    server.DefaultSystemContext, includeChildren: true, CancellationToken.None).ConfigureAwait(false);
+                await server(selected!.NodeId, token).ConfigureAwait(false);
                 CompanionOperationResult values = await RunFixtureTaskAsync(
                     provider, context, selected!, "read-bindings", [], token).ConfigureAwait(false);
                 Assert.That(Value(values, "Sample count").TryGetValue(out int count), Is.True);
@@ -240,8 +237,106 @@ namespace UaLens.Tests.Samples
                 Assert.That(sequence, Is.GreaterThan(0));
                 Assert.That(Value(observed, "Sample 1 publish time").TryGetValue(out DateTimeUtc publishTime), Is.True);
                 Assert.That(publishTime, Is.Not.Default);
+                string destination = Path.Combine(root, "verified-export");
+                CompanionOperationResult exported = await provider.ExecuteAsync(
+                    context, selected!, "export", destination, token).ConfigureAwait(false);
+                Assert.That(Value(exported, "Export directory").TryGetValue(out string? exportedDirectory), Is.True);
+                Assert.That(exportedDirectory, Is.EqualTo(destination));
+                string snapshot = Path.Combine(destination, "ualens-snapshot.usda");
+                string authored = await File.ReadAllTextAsync(snapshot, token).ConfigureAwait(false);
+                Assert.That(authored, Does.StartWith("#usda 1.0").And.Contain("ua:frequencyHertz"));
+                ByteString digest = ByteString.From(SHA256.HashData(await File.ReadAllBytesAsync(snapshot, token)
+                    .ConfigureAwait(false)));
+                await Assert.ThatAsync(() => provider.ExecuteAsync(
+                    context, selected!, "export", destination, token).AsTask(), Throws.TypeOf<IOException>())
+                    .ConfigureAwait(false);
+                Assert.That(ByteString.From(SHA256.HashData(await File.ReadAllBytesAsync(snapshot, token)
+                    .ConfigureAwait(false))), Is.EqualTo(digest));
                 Assert.That(context.Session.Connected, Is.True, "The borrowed primary session must remain owned.");
             });
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        [Explicit("Starts the bounded owned-server test entry point to verify failure cleanup.")]
+        [Category("RepositorySampleProbe")]
+        public async Task OwnedServerStartupFailureDoesNotLeaveResources(bool cancelBeforeStart)
+        {
+            string root = OpenUsdTestPaths.NewDestination();
+            Directory.CreateDirectory(root);
+            string assembly = Environment.GetEnvironmentVariable("UALENS_COMPANION_SERVER_ASSEMBLY") ??
+                typeof(RepositorySampleLiveTests).Assembly.Location;
+            using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            if (cancelBeforeStart)
+            {
+                await cancellation.CancelAsync().ConfigureAwait(false);
+            }
+            try
+            {
+                Task<OwnedCompanionServerProcess> start = OwnedCompanionServerProcess.StartAsync(
+                    assembly, false, root, "opc.tcp://outside.example.test:4840", cancellation.Token);
+                if (cancelBeforeStart)
+                {
+                    await Assert.ThatAsync(() => start,
+                        Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+                    Assert.That(Directory.GetFileSystemEntries(root), Is.Empty);
+                }
+                else
+                {
+                    await Assert.ThatAsync(() => start,
+                        Throws.TypeOf<AssertionException>().With.Message
+                            .Contains("The owned server exited before connecting")).ConfigureAwait(false);
+                    Assert.That(cancellation.IsCancellationRequested, Is.False);
+                }
+            }
+            finally
+            {
+                Directory.Delete(root, recursive: true);
+            }
+            Assert.That(Directory.Exists(root), Is.False);
+        }
+
+        [Test]
+        [Explicit("Child-process entry point for the owned companion qualification protocol.")]
+        [Category("RepositorySampleProbe")]
+        public async Task RunOwnedCompanionServerProcess()
+        {
+            await OwnedCompanionServerProcess.RunServerAsync(
+                async (generator, root, endpoint, ready, receive, reply, token) =>
+                {
+                    var started = new OwnedCompanionStartup();
+                    using IHost host = CreatePrivateCompanionHost(
+                        generator, Path.Combine(root, "server"), endpoint, started);
+                    try
+                    {
+                        await host.StartAsync(token).ConfigureAwait(false);
+                        IServerContext server = await started.Ready.WaitAsync(token).ConfigureAwait(false);
+                        await ready().ConfigureAwait(false);
+                        while (true)
+                        {
+                            string command = await receive().ConfigureAwait(false);
+                            if (command == "stop")
+                            {
+                                break;
+                            }
+                            const string prefix = "numeric-profile ";
+                            if (!generator ||
+                                !command.StartsWith(prefix, StringComparison.Ordinal) ||
+                                !NodeId.TryParse(command[prefix.Length..], out NodeId node))
+                            {
+                                throw new InvalidOperationException("The owned fixture command is not supported.");
+                            }
+                            await SelectNumericProfileAsync(server, node, token).ConfigureAwait(false);
+                            await reply("profile-selected").ConfigureAwait(false);
+                        }
+                    }
+                    finally
+                    {
+                        using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                        await host.StopAsync(cleanup.Token).ConfigureAwait(false);
+                    }
+                    await reply("stopped").ConfigureAwait(false);
+                }).ConfigureAwait(false);
         }
 
         private static async Task<uint> ReadUnsignedAsync(
@@ -256,9 +351,10 @@ namespace UaLens.Tests.Samples
         }
 
         private static async Task WithPrivateCompanionServerAsync(
-            bool generator, Func<CompanionContext, IServerContext, string, CancellationToken, Task> exercise)
+            bool generator,
+            Func<CompanionContext, Func<NodeId, CancellationToken, Task>, string, CancellationToken, Task> exercise)
         {
-            string root = Path.Combine(Path.GetTempPath(), "UaLens-companion-probe-" + Guid.NewGuid().ToString("N"));
+            string root = OpenUsdTestPaths.NewDestination();
             string serverPki = Path.Combine(root, "server");
             Directory.CreateDirectory(root);
             using var port = new TcpListener(IPAddress.Loopback, 0);
@@ -266,10 +362,69 @@ namespace UaLens.Tests.Samples
             int portNumber = ((IPEndPoint)port.LocalEndpoint).Port;
             port.Stop();
             string endpointUrl = $"opc.tcp://localhost:{portNumber}/UaLensOwnedCompanion";
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(120));
+            try
+            {
+                string? serverAssembly = Environment.GetEnvironmentVariable("UALENS_COMPANION_SERVER_ASSEMBLY");
+                if (!string.IsNullOrEmpty(serverAssembly))
+                {
+                    OwnedCompanionServerProcess process = await OwnedCompanionServerProcess.StartAsync(
+                        serverAssembly, generator, root, endpointUrl, deadline.Token).ConfigureAwait(false);
+                    await using (process.ConfigureAwait(false))
+                    {
+                        ITelemetryContext telemetry = DefaultTelemetry.Create(static _ => { });
+                        await ExercisePrivateCompanionAsync(
+                            telemetry, root, serverPki, endpointUrl, process.SelectNumericProfileAsync,
+                            exercise, deadline.Token).ConfigureAwait(false);
+                    }
+                    Assert.That(process.ExitedNormally, Is.True);
+                    return;
+                }
+                var started = new OwnedCompanionStartup();
+                using IHost host = CreatePrivateCompanionHost(generator, serverPki, endpointUrl, started);
+                try
+                {
+                    await host.StartAsync(deadline.Token).ConfigureAwait(false);
+                    IServerContext server = await started.Ready.WaitAsync(deadline.Token).ConfigureAwait(false);
+                    await ExercisePrivateCompanionAsync(host.Services.GetRequiredService<ITelemetryContext>(),
+                        root, serverPki, endpointUrl,
+                        (node, token) => SelectNumericProfileAsync(server, node, token),
+                        exercise, deadline.Token).ConfigureAwait(false);
+                }
+                finally
+                {
+                    using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                    await host.StopAsync(cleanup.Token).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+
+        private static async Task SelectNumericProfileAsync(
+            IServerContext server, NodeId node, CancellationToken token)
+        {
+            token.ThrowIfCancellationRequested();
+            GeneratorNodeManager manager = server.FindNodeManagers<GeneratorNodeManager>().Single();
+            OpenUsdRepresentationState representation = manager.FindPredefinedNode<OpenUsdRepresentationState>(node) ??
+                throw new AssertionException("The owned representation is missing.");
+            var children = new System.Collections.Generic.List<BaseInstanceState>();
+            representation.GetChildren(server.DefaultSystemContext, children);
+            OpenUsdLiveBindingState textReadout = children.OfType<OpenUsdLiveBindingState>()
+                .Single(binding => binding.TargetPropertyName?.Value == "ua:operatingState");
+            Assert.That(textReadout.Enabled!.Value, Is.True);
+            textReadout.Enabled.Value = false;
+            await textReadout.ClearChangeMasksAsync(server.DefaultSystemContext, true, token).ConfigureAwait(false);
+        }
+
+        private static IHost CreatePrivateCompanionHost(
+            bool generator, string serverPki, string endpointUrl, OwnedCompanionStartup started)
+        {
             HostApplicationBuilder builder = Host.CreateApplicationBuilder();
             builder.Logging.ClearProviders();
             builder.Logging.SetMinimumLevel(LogLevel.Warning);
-            var started = new OwnedCompanionStartup();
             builder.Services.AddSingleton<IServerStartupTask>(started);
             IOpcUaBuilder opc = builder.Services.AddOpcUa();
             var server = opc.AddServer(options =>
@@ -305,62 +460,55 @@ namespace UaLens.Tests.Samples
                     };
                 });
             }
-            using IHost host = builder.Build();
-            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(120));
-            try
+            return builder.Build();
+        }
+
+        private static async Task ExercisePrivateCompanionAsync(
+            ITelemetryContext telemetry, string root, string serverPki, string endpointUrl,
+            Func<NodeId, CancellationToken, Task> selectNumericProfile,
+            Func<CompanionContext, Func<NodeId, CancellationToken, Task>, string, CancellationToken, Task> exercise,
+            CancellationToken token)
+        {
+            var backend = new StackConnectionBackend(telemetry,
+                ct => AppConfig.BuildAsync(telemetry, Path.Combine(root, "client"), ct));
+            await using (backend.ConfigureAwait(false))
             {
-                await host.StartAsync(deadline.Token).ConfigureAwait(false);
-                IServerContext serverContext = await started.Ready.WaitAsync(deadline.Token).ConfigureAwait(false);
-                ITelemetryContext telemetry = host.Services.GetRequiredService<ITelemetryContext>();
-                var backend = new StackConnectionBackend(telemetry,
-                    token => AppConfig.BuildAsync(telemetry, Path.Combine(root, "client"), token));
-                await using (backend.ConfigureAwait(false))
+                var connection = new ConnectionService(telemetry, null, backend, new ProfileCredentialProvider());
+                await using (connection.ConfigureAwait(false))
                 {
-                    var connection = new ConnectionService(telemetry, null, backend, new ProfileCredentialProvider());
-                    await using (connection.ConfigureAwait(false))
+                    ApplicationConfiguration configuration = await connection.GetConfigAsync(token)
+                        .ConfigureAwait(false);
+                    ArrayOf<EndpointDescription> endpoints = await backend.DiscoverAsync(
+                        configuration, endpointUrl, token).ConfigureAwait(false);
+                    EndpointDescription endpoint = endpoints.ToList().Single(candidate =>
+                        candidate.SecurityMode == MessageSecurityMode.SignAndEncrypt &&
+                        candidate.SecurityPolicyUri == SecurityPolicies.Basic256Sha256);
+                    using ICertificateStore own = new CertificateStoreIdentifier(
+                        serverPki, CertificateStoreType.Directory).OpenStore(telemetry);
+                    using CertificateCollection certificates = await own.EnumerateAsync(token).ConfigureAwait(false);
+                    Assert.That(certificates.Any(certificate =>
+                        certificate.RawData.AsSpan().SequenceEqual(endpoint.ServerCertificate.Span)), Is.True);
+                    await TrustOwnedPeersAsync(configuration, endpoint, serverPki, telemetry, token)
+                        .ConfigureAwait(false);
+                    UserTokenPolicy policy = endpoint.UserIdentityTokens.ToList()
+                        .Single(candidate => candidate.TokenType == UserTokenType.Anonymous);
+                    var identity = new UserIdentity(new AnonymousIdentityToken()) { PolicyId = policy.PolicyId! };
+                    await connection.ConnectAsync(new ConnectionOptions
                     {
-                        ApplicationConfiguration configuration = await connection.GetConfigAsync(deadline.Token)
-                            .ConfigureAwait(false);
-                        ArrayOf<EndpointDescription> endpoints = await backend.DiscoverAsync(
-                            configuration, endpointUrl, deadline.Token).ConfigureAwait(false);
-                        EndpointDescription endpoint = endpoints.ToList().Single(candidate =>
-                            candidate.SecurityMode == MessageSecurityMode.SignAndEncrypt &&
-                            candidate.SecurityPolicyUri == SecurityPolicies.Basic256Sha256);
-                        using ICertificateStore own = new CertificateStoreIdentifier(
-                            serverPki, CertificateStoreType.Directory).OpenStore(telemetry);
-                        using CertificateCollection certificates = await own.EnumerateAsync(deadline.Token)
-                            .ConfigureAwait(false);
-                        Assert.That(certificates.Any(certificate =>
-                            certificate.RawData.AsSpan().SequenceEqual(endpoint.ServerCertificate.Span)), Is.True);
-                        await TrustOwnedPeersAsync(configuration, endpoint, serverPki, telemetry, deadline.Token)
-                            .ConfigureAwait(false);
-                        UserTokenPolicy policy = endpoint.UserIdentityTokens.ToList()
-                            .Single(candidate => candidate.TokenType == UserTokenType.Anonymous);
-                        var identity = new UserIdentity(new AnonymousIdentityToken()) { PolicyId = policy.PolicyId! };
-                        await connection.ConnectAsync(new ConnectionOptions
-                        {
-                            EndpointUrl = endpointUrl,
-                            UseSecurity = true,
-                            Engine = SubscriptionEngineKind.ChannelV2
-                        }, endpoint, identity,
-                            (_, error) => throw new AssertionException("Unexpected trust request: " + error.StatusCode),
-                            deadline.Token).ConfigureAwait(false);
-                        ISession session = connection.CurrentSession ??
-                            throw new AssertionException("The private secure session was not created.");
-                        Assert.That(session.Endpoint.SecurityMode, Is.EqualTo(MessageSecurityMode.SignAndEncrypt));
-                        await exercise(new CompanionContext(session, telemetry, maxFields: 1024),
-                            serverContext, root, deadline.Token)
-                            .ConfigureAwait(false);
-                        await connection.DisconnectAsync().ConfigureAwait(false);
-                        Assert.That(connection.CurrentSession, Is.Null);
-                    }
+                        EndpointUrl = endpointUrl,
+                        UseSecurity = true,
+                        Engine = SubscriptionEngineKind.ChannelV2
+                    }, endpoint, identity,
+                        (_, error) => throw new AssertionException("Unexpected trust request: " + error.StatusCode),
+                        token).ConfigureAwait(false);
+                    ISession session = connection.CurrentSession ??
+                        throw new AssertionException("The private secure session was not created.");
+                    Assert.That(session.Endpoint.SecurityMode, Is.EqualTo(MessageSecurityMode.SignAndEncrypt));
+                    await exercise(new CompanionContext(session, telemetry, maxFields: 1024),
+                        selectNumericProfile, root, token).ConfigureAwait(false);
+                    await connection.DisconnectAsync().ConfigureAwait(false);
+                    Assert.That(connection.CurrentSession, Is.Null);
                 }
-            }
-            finally
-            {
-                using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                await host.StopAsync(cleanup.Token).ConfigureAwait(false);
-                Directory.Delete(root, recursive: true);
             }
         }
 

@@ -167,3 +167,17 @@ registry and generator components in private in-process servers. They require
 explicit selection and use signed/encrypted sessions with private peer trust.
 The generator check verifies rejection of unsupported string conversion before
 configuring its supported numeric/color/visibility capture profile.
+
+For packaged-client qualification, set `UALENS_COMPANION_SERVER_ASSEMBLY` to the
+absolute path of a trusted, normally built `Opc.Ua.Lens.Tests.dll`. These fixtures
+then launch that assembly's fixed server entry point in a separate process, using
+its own runtime configuration. The client keeps the package's runtime settings.
+A current-user control pipe carries only readiness, one owned-fixture profile
+selection and Stop; endpoints and peer stores remain private to the run. The
+generator case also verifies the served root digest, actual export and rejection
+of an existing destination.
+
+`RunOwnedCompanionServerProcess` is an internal fixture entry point and is not a
+standalone sample or a general command runner. It requires the per-run control
+contract; do not select it manually. A package-payload test host must use the
+installed production assemblies unchanged and add only its test dependencies.
