@@ -78,6 +78,44 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
+        public void WriteValueIsDeniedByUserWriteMask()
+        {
+            // Part 3 5.2.8: bit ValueForVariableType of the UserWriteMask guards the
+            // Value of a VariableType.
+            SystemContext context = CreateSystemContext();
+            var variableType = new BaseDataVariableTypeState
+            {
+                DataType = DataTypeIds.Int32,
+                ValueRank = ValueRanks.Scalar,
+                Value = new Variant(1),
+                WriteMask = AttributeWriteMask.ValueForVariableType
+            };
+            variableType.OnReadUserWriteMask =
+                (ISystemContext _, NodeState _, ref AttributeWriteMask mask) =>
+                {
+                    mask = AttributeWriteMask.None;
+                    return ServiceResult.Good;
+                };
+
+            ServiceResult result = variableType.WriteAttribute(
+                context, Attributes.Value, default, new DataValue(new Variant(2)));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(variableType.Value.GetInt32(), Is.EqualTo(1));
+
+            variableType.OnReadUserWriteMask =
+                (ISystemContext _, NodeState _, ref AttributeWriteMask mask) =>
+                {
+                    mask = AttributeWriteMask.ValueForVariableType;
+                    return ServiceResult.Good;
+                };
+
+            result = variableType.WriteAttribute(
+                context, Attributes.Value, default, new DataValue(new Variant(2)));
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(variableType.Value.GetInt32(), Is.EqualTo(2));
+        }
+
+        [Test]
         public void PropertyTypeStateConstructorSetsDefaults()
         {
             var propertyType = new PropertyTypeState();

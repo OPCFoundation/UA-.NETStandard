@@ -4803,6 +4803,20 @@ namespace Opc.Ua
                         "Cannot write to server timestamp");
                 }
 
+                // the Value of a VariableType is guarded by the ValueForVariableType bit of the
+                // UserWriteMask (Part 3 5.2.8); Variables use the UserAccessLevel instead.
+                if (NodeClass == NodeClass.VariableType)
+                {
+                    ServiceResult? valueWriteMaskResult = CheckUserWriteMask(
+                        context,
+                        AttributeWriteMask.ValueForVariableType);
+
+                    if (valueWriteMaskResult != null)
+                    {
+                        return valueWriteMaskResult;
+                    }
+                }
+
                 // call implementation.
                 try
                 {
@@ -4843,45 +4857,13 @@ namespace Opc.Ua
             // the UserWriteMask restricts which of the writable attributes the current user
             // may write (Part 3 5.2.8), mirroring the UserAccessLevel check of the value path.
             // Attributes the WriteMask does not allow are rejected by the handlers below.
-            AttributeWriteMask attributeMask = GetAttributeWriteMask(attributeId);
+            ServiceResult? userWriteMaskResult = CheckUserWriteMask(
+                context,
+                GetAttributeWriteMask(attributeId));
 
-            if (attributeMask != AttributeWriteMask.None && (WriteMask & attributeMask) != 0)
+            if (userWriteMaskResult != null)
             {
-                AttributeWriteMask userWriteMask = UserWriteMask;
-                NodeAttributeEventHandler<AttributeWriteMask>? onReadUserWriteMask =
-                    OnReadUserWriteMask;
-
-                // a UserWriteMask that is neither set nor computed per user is treated as
-                // not configured (nodes built in code and NodeSets frequently leave it 0).
-                bool userWriteMaskConfigured = onReadUserWriteMask != null ||
-                    userWriteMask != AttributeWriteMask.None;
-
-                if (onReadUserWriteMask != null)
-                {
-                    // a failing handler fails only this attribute, like the read path.
-                    ServiceResult maskResult;
-
-                    try
-                    {
-                        maskResult = onReadUserWriteMask(context, this, ref userWriteMask);
-                    }
-                    catch (Exception e)
-                    {
-                        return ServiceResult.Create(e,
-                            StatusCodes.BadUnexpectedError,
-                            "Failed to read UserWriteMask.");
-                    }
-
-                    if (ServiceResult.IsBad(maskResult))
-                    {
-                        return maskResult;
-                    }
-                }
-
-                if (userWriteMaskConfigured && (userWriteMask & attributeMask) == 0)
-                {
-                    return StatusCodes.BadUserAccessDenied;
-                }
+                return userWriteMaskResult;
             }
 
             // call implementation.
@@ -4895,6 +4877,59 @@ namespace Opc.Ua
                     StatusCodes.BadUnexpectedError,
                     "Failed to write non value attribute");
             }
+        }
+
+        /// <summary>
+        /// Checks the <see cref="UserWriteMask"/> for an attribute the
+        /// <see cref="WriteMask"/> allows to be written.
+        /// </summary>
+        /// <returns><c>null</c> if the write may proceed, otherwise the error.</returns>
+        private ServiceResult? CheckUserWriteMask(
+            ISystemContext context,
+            AttributeWriteMask attributeMask)
+        {
+            if (attributeMask == AttributeWriteMask.None || (WriteMask & attributeMask) == 0)
+            {
+                return null;
+            }
+
+            AttributeWriteMask userWriteMask = UserWriteMask;
+            NodeAttributeEventHandler<AttributeWriteMask>? onReadUserWriteMask =
+                OnReadUserWriteMask;
+
+            // a UserWriteMask that is neither set nor computed per user is treated as
+            // not configured (nodes built in code and NodeSets frequently leave it 0).
+            bool userWriteMaskConfigured = onReadUserWriteMask != null ||
+                userWriteMask != AttributeWriteMask.None;
+
+            if (onReadUserWriteMask != null)
+            {
+                // a failing handler fails only this attribute, like the read path.
+                ServiceResult maskResult;
+
+                try
+                {
+                    maskResult = onReadUserWriteMask(context, this, ref userWriteMask);
+                }
+                catch (Exception e)
+                {
+                    return ServiceResult.Create(e,
+                        StatusCodes.BadUnexpectedError,
+                        "Failed to read UserWriteMask.");
+                }
+
+                if (ServiceResult.IsBad(maskResult))
+                {
+                    return maskResult;
+                }
+            }
+
+            if (userWriteMaskConfigured && (userWriteMask & attributeMask) == 0)
+            {
+                return StatusCodes.BadUserAccessDenied;
+            }
+
+            return null;
         }
 
         /// <summary>
