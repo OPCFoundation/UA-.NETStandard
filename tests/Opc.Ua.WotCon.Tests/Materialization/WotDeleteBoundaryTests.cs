@@ -62,22 +62,29 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         private FakeWotProjectionHost m_host = null!;
         private FakeWotDocumentConverter m_converter = null!;
         private WotMaterializationCoordinator m_coordinator = null!;
+        private PreparedWotTestRuntime? m_runtime;
 
         [SetUp]
-        public void SetUp()
+        public async Task SetUpAsync()
         {
-            m_registry = new WotRegistryService();
+            m_runtime = await PreparedWotTestRuntime.StartAsync().ConfigureAwait(false);
+            m_registry = await m_runtime.CreateRegistryAsync().ConfigureAwait(false);
             m_host = new FakeWotProjectionHost();
             m_converter = new FakeWotDocumentConverter();
             m_coordinator = new WotMaterializationCoordinator(
-                m_registry, m_host, documentConverter: m_converter);
+                m_registry, m_runtime.Observe(m_host.RecordCommitted), documentConverter: m_converter);
         }
 
         [TearDown]
-        public void TearDown()
+        public async Task TearDownAsync()
         {
-            m_coordinator.Dispose();
-            m_registry.Dispose();
+            m_coordinator?.Dispose();
+            if (m_runtime is not null)
+            {
+                await m_runtime.DisposeAsync().ConfigureAwait(false);
+                m_runtime = null;
+            }
+            m_coordinator = null!;
         }
 
         /// <summary>
@@ -275,6 +282,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         public void ARegistryWithoutDeletePolicyCapabilityIsRejected()
         {
             var registry = new Mock<IWotRegistryService>(MockBehavior.Strict);
+            registry.SetupGet(service => service.Current).Returns(WotRegistrySnapshot.Empty);
             using var coordinator = new WotMaterializationCoordinator(
                 registry.Object,
                 new FakeWotProjectionHost(),
