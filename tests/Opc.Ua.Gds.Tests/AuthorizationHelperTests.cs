@@ -159,6 +159,29 @@ namespace Opc.Ua.Gds.Tests
             Assert.DoesNotThrow(() => AuthorizationHelper.HasTrustListWriteAccess(caAdminContext));
         }
 
+        /// <summary>
+        /// OPC 10000-12 §7.2 Table 19 / §7.8.2.5: SecurityAdmin is a
+        /// PushManagement Role and does not grant write access to a
+        /// CertificateManager (PullManagement) group trust list.
+        /// </summary>
+        [Test]
+        public void HasTrustListWriteAccessRejectsSecurityAdmin()
+        {
+            var securityAdmin = new GdsRoleBasedIdentity(
+                new UserIdentity("secadmin", s_passwordBytes),
+                new List<Role> { Role.SecurityAdmin },
+                m_namespaceTable);
+            var securityAdminContext = new SessionSystemContext(m_telemetry)
+            {
+                UserIdentity = securityAdmin,
+                NamespaceUris = m_namespaceTable
+            };
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() =>
+                AuthorizationHelper.HasTrustListWriteAccess(securityAdminContext));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+        }
+
         [Test]
         public void HasAuthorizationThrowsWithSelfAdminForDifferentApplication()
         {

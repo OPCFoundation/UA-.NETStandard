@@ -211,8 +211,19 @@ namespace Opc.Ua.Gds.Server
         /// application of the group, and OPC 10000-12 §7.2 (Table 20) grants
         /// the <c>ApplicationSelfAdmin</c> and <c>ApplicationAdmin</c>
         /// Privileges read access only, so writing requires the
-        /// <c>CertificateAuthorityAdmin</c> or <c>SecurityAdmin</c> Role.
+        /// <c>CertificateAuthorityAdmin</c> Role (Table 19: "update any
+        /// TrustList").
         /// </summary>
+        /// <remarks>
+        /// §7.8.2.5 - §7.8.2.7 also list the <c>ApplicationSelfAdmin</c> and
+        /// <c>ApplicationAdmin</c> Privileges for PullManagement. Those
+        /// sentences name who may call the methods at all; for a trust list
+        /// that every application of the group shares, the narrower §7.2
+        /// Privilege definitions win, so both Privileges stay read-only here.
+        /// The <c>SecurityAdmin</c> Role is only listed for PushManagement
+        /// (§7.2 Table 19, §7.8.2.5 - §7.8.2.7), so it does not grant write
+        /// access to a CertificateManager trust list.
+        /// </remarks>
         /// <param name="context">the current <see cref="ISystemContext"/></param>
         /// <exception cref="ServiceResultException">
         /// Thrown with <see cref="StatusCodes.BadUserAccessDenied"/> when the
@@ -220,7 +231,7 @@ namespace Opc.Ua.Gds.Server
         /// </exception>
         internal static void HasTrustListWriteAccess(ISystemContext context)
         {
-            var roles = new List<Role> { GdsRole.CertificateAuthorityAdmin, Role.SecurityAdmin };
+            var roles = new List<Role> { GdsRole.CertificateAuthorityAdmin };
             IUserIdentity? userIdentity = (context as ISessionSystemContext)?.UserIdentity;
             if (HasRole(userIdentity, roles, context.NamespaceUris))
             {
