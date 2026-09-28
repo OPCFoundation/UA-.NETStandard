@@ -425,7 +425,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         {
             await RegisterModelAndInstanceAsync();
             int removedBefore = m_host.RemoveCount;
+            int operationsBefore = m_host.Operations.Count;
             uint generation = m_coordinator.Generation;
+            WotRegistrySnapshot before = m_registry.Current;
+            WotCommittedPublicationState published = m_coordinator.CommittedPublication;
+            WoTRefreshPlanDataType plan = m_coordinator.LastRefreshPlan!;
+            var registrations = m_runtime!.Lifecycle.Registrations;
             var events = new List<WotMaterializationEventArgs>();
             m_coordinator.Event += (_, e) => events.Add(e);
 
@@ -448,10 +453,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Assert.That(outcome.Results, Is.Empty);
                 Assert.That(outcome.Generation, Is.EqualTo(generation));
                 Assert.That(m_host.RemoveCount, Is.EqualTo(removedBefore));
-                Assert.That(
-                    events.Single(e => e.Kind == WotMaterializationEventKind.RefreshCompleted)
-                        .Reason,
-                    Does.Contain("delete policy is Reject"));
+                Assert.That(outcome.Delete.Message, Does.Contain("delete policy is Reject"));
+                Assert.That(m_host.Operations, Has.Count.EqualTo(operationsBefore));
+                Assert.That(m_registry.Current, Is.SameAs(before));
+                Assert.That(m_coordinator.CommittedPublication, Is.SameAs(published));
+                Assert.That(m_coordinator.LastRefreshPlan!.IsEqual(plan), Is.True);
+                Assert.That(m_runtime.Lifecycle.Registrations, Is.EqualTo(registrations));
+                Assert.That(events, Is.Empty, "A rejected mutation did not perform an actual refresh.");
             });
         }
 
